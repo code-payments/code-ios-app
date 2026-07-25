@@ -61,7 +61,8 @@ struct SendTipSheet: View {
                     isPresented: Binding(
                         get: { localSheet == .currencyPicker },
                         set: { if !$0 { localSheet = nil } }
-                    )
+                    ),
+                    isEnabled: { tipFlow.meetsMinimum($0) }
                 ) { balance in
                     tipFlow.selectCurrency(balance)
                 }
@@ -87,12 +88,20 @@ struct SendTipSheet: View {
     /// Tapping always opens the amount entry, so a set amount can be changed.
     private var customChip: some View {
         TipAmountChip(
-            title: tipFlow.amount(for: .custom).map { FiatAmount(value: $0, currency: displayCurrency).formatted() } ?? "…",
+            title: tipFlow.amount(for: .custom).map(customTitle) ?? "…",
             isSelected: tipFlow.selection == .custom
         ) {
             localSheet = .customAmount
         }
         .accessibilityIdentifier("tip-custom-chip")
+    }
+
+    /// Formats a custom amount, dropping the fraction only when it's whole
+    /// (`$11`, not `$11.00`) while keeping real fractions intact (`$2.50`).
+    private func customTitle(_ amount: Decimal) -> String {
+        let isWhole = amount == amount.rounded(to: 0)
+        return FiatAmount(value: amount, currency: displayCurrency)
+            .formatted(minimumFractionDigits: isWhole ? 0 : nil)
     }
 
     // MARK: - Currency -

@@ -24,6 +24,14 @@ struct BillCanvas: UIViewControllerRepresentable {
         self.bill                = bill
         self.dismissHandler      = dismissHandler
     }
+
+    /// The tipcard's on-canvas dimensions for a canvas of `canvasWidth`. Shared
+    /// so callers positioning the card (e.g. clearing the Send a Tip sheet) size
+    /// it exactly as the canvas renders it.
+    static func tipcardSize(canvasWidth: CGFloat) -> CGSize {
+        let width = min(canvasWidth * 0.82, 320)
+        return CGSize(width: width, height: width * TipcardView.aspectRatio)
+    }
     
     func makeUIViewController(context: Context) -> UIViewController {
         _BillCanvasController(
@@ -37,7 +45,7 @@ struct BillCanvas: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
         if let canvas = uiViewController as? _BillCanvasController {
             canvas.dismissHandler = dismissHandler
-            canvas.update(presentationState: state, bill: bill)
+            canvas.update(presentationState: state, bill: bill, centerOffset: centerOffset)
         }
     }
 }
@@ -111,7 +119,8 @@ private class _BillCanvasController: UIViewController {
                     size: tipcardSize(),
                     name: name,
                     avatar: avatar,
-                    codeData: codeData
+                    codeData: codeData,
+                    tintOpacity: 0.72
                 )
                 .frame(width: canvasSize().width, height: canvasSize().height)
             }
@@ -138,8 +147,7 @@ private class _BillCanvasController: UIViewController {
 
     /// The tipcard's proportions on the scan screen, fitted to the canvas.
     private func tipcardSize() -> CGSize {
-        let width = min(canvasSize().width * 0.82, 320)
-        return CGSize(width: width, height: width * TipcardView.aspectRatio)
+        BillCanvas.tipcardSize(canvasWidth: canvasSize().width)
     }
     
     // MARK: - View -
@@ -177,11 +185,13 @@ private class _BillCanvasController: UIViewController {
     
     // MARK: - Layout -
     
-    func update(presentationState: PresentationState, bill: BillState.Bill?) {
+    func update(presentationState: PresentationState, bill: BillState.Bill?, centerOffset: CGSize) {
         if let bill = bill {
             updateContent(bill: bill)
         }
-        
+
+        updateCenterOffset(centerOffset)
+
         // Disable user interaction when there is no interactive
         // content to prevent capturing touch events unnecessarily
         switch presentationState {
@@ -223,6 +233,20 @@ private class _BillCanvasController: UIViewController {
         }
     }
     
+    /// Slides the card to a new resting offset (e.g. rising as the Send a Tip
+    /// sheet appears). Only animates when the card is settled at center; other
+    /// states pick up the offset the next time they lay out at center.
+    private func updateCenterOffset(_ centerOffset: CGSize) {
+        guard centerOffset != self.centerOffset else { return }
+        self.centerOffset = centerOffset
+
+        guard didAppear, state == .center else { return }
+        animator = animate(.spring) { [weak self] in
+            self?.layoutCenter()
+        }
+        animator?.startAnimation()
+    }
+
     // MARK: - Gesture -
     
     private func setupDragGesture() {

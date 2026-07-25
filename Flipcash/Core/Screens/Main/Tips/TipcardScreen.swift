@@ -23,7 +23,7 @@ struct TipcardScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                Text("Share Your Tipcard to Get Tipped")
+                Text("Share Your Tip Card to Get Tipped")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
                     .multilineTextAlignment(.center)
@@ -42,31 +42,31 @@ struct TipcardScreen: View {
                     }
                     .accessibilityIdentifier("tipcard-share-button")
 
-                    // Always present so the row never reflows; disabled until
-                    // the card has rendered with the photo — `ImageRenderer`
-                    // is synchronous, so an earlier export would bake in the
-                    // placeholder.
-                    if let exportImage {
-                        ShareLink(
-                            item: exportImage,
-                            preview: SharePreview("My Tipcard", image: exportImage)
-                        ) {
-                            TipcardAction(icon: .Icons.export, title: "Export")
-                        }
-                        .accessibilityIdentifier("tipcard-export-button")
-                    } else {
-                        TipcardAction(icon: .Icons.export, title: "Export")
-                            .opacity(0.4)
-                            .accessibilityIdentifier("tipcard-export-button")
-                            .accessibilityAddTraits(.isButton)
-                            .accessibilityHint("Preparing the card image")
-                    }
+//                    // Always present so the row never reflows; disabled until
+//                    // the card has rendered with the photo — `ImageRenderer`
+//                    // is synchronous, so an earlier export would bake in the
+//                    // placeholder.
+//                    if let exportImage {
+//                        ShareLink(
+//                            item: exportImage,
+//                            preview: SharePreview("My Tipcard", image: exportImage)
+//                        ) {
+//                            TipcardAction(icon: .Icons.export, title: "Export")
+//                        }
+//                        .accessibilityIdentifier("tipcard-export-button")
+//                    } else {
+//                        TipcardAction(icon: .Icons.export, title: "Export")
+//                            .opacity(0.4)
+//                            .accessibilityIdentifier("tipcard-export-button")
+//                            .accessibilityAddTraits(.isButton)
+//                            .accessibilityHint("Preparing the card image")
+//                    }
                 }
                 .padding(.bottom, 40)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle("My Tipcard")
+        .navigationTitle("My Tip Card")
         .toolbarTitleDisplayMode(.inline)
         .task(id: profilePicture?.thumbnailBlobID) {
             await loadAvatar()
@@ -99,7 +99,8 @@ struct TipcardScreen: View {
             size: CGSize(width: Self.cardWidth, height: Self.cardWidth * TipcardView.aspectRatio),
             name: name,
             avatar: avatar,
-            codeData: codeData
+            codeData: codeData,
+            tintOpacity: 0.36
         )
     }
 

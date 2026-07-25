@@ -38,6 +38,10 @@ private struct ScanScreenContent: View {
     @State private var sendButtonTask: Task<Void, Never>?
     @State private var billDesignerColors: [Color] = ColorEditorControl.randomDerivedColors()
 
+    /// The presented Send a Tip sheet's full height (0 while absent), measured to
+    /// keep a fixed gap between the tipcard and the sheet's top edge.
+    @State private var tipSheetHeight: CGFloat = 0
+
     private var toast: String? {
         if let toast = session.toast {
             let formatted = toast.amount.formatted()
@@ -145,6 +149,19 @@ private struct ScanScreenContent: View {
                 canAccessBackground: true
             ) {
                 SendTipSheet(tipFlow: sessionContainer.tipFlow)
+                    // The sheet content's intrinsic height — the value
+                    // `PartialSheet` feeds its `.height` detent, so the sheet's
+                    // top sits at `screenHeight` minus this. Measured on the
+                    // content (not the detent-driven container, which briefly
+                    // fills the screen on present) so the tipcard's clearance is
+                    // stable and the card is nudged rather than flung.
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear { tipSheetHeight = proxy.size.height }
+                                .onChange(of: proxy.size.height) { _, height in tipSheetHeight = height }
+                        }
+                    }
             }
         }
         // Resume a tip held for profile creation the moment the profile
@@ -224,15 +241,39 @@ private struct ScanScreenContent: View {
         .ignoresSafeArea()
     }
 
-    /// Tipcards sit higher than cash bills so the Send a Tip sheet doesn't
-    /// crowd them.
+    /// The resting vertical offset for the centered bill; a tipcard rises from
+    /// here only when the Send a Tip sheet would crowd it.
+    private static let restingBillOffset = CGSize(width: 0, height: -30)
+
+    /// The gap kept between the tipcard's bottom edge and the sheet's top edge.
+    private static let tipcardSheetGap: CGFloat = 42
+
+    /// A tipcard rises to hold ``tipcardSheetGap`` above the Send a Tip sheet,
+    /// and no more — a short sheet that already clears the resting card, or the
+    /// card shown alone (before the sheet, or behind a blocked balance gate),
+    /// leaves it at the resting height.
     private func billCenterOffset() -> CGSize {
         switch session.billState.bill {
-        case .tipcard:
-            CGSize(width: 0, height: -185)
-        case .cash, nil:
-            CGSize(width: 0, height: -30)
+        case .tipcard where sessionContainer.tipFlow.isSheetPresented:
+            tipcardSheetOffset()
+        case .tipcard, .cash, nil:
+            Self.restingBillOffset
         }
+    }
+
+    private func tipcardSheetOffset() -> CGSize {
+        guard tipSheetHeight > 0,
+              let screen = UIApplication.shared.firstWindowScene?.screen.bounds else {
+            return Self.restingBillOffset
+        }
+
+        // The card is centered on the full screen (the canvas ignores safe area),
+        // so both edges are measured in screen coordinates from the top.
+        let cardHeight = BillCanvas.tipcardSize(canvasWidth: preferredCanvasSize().width).height
+        let sheetTop = screen.height - tipSheetHeight
+        let raised = sheetTop - Self.tipcardSheetGap - cardHeight / 2 - screen.height / 2
+
+        return CGSize(width: 0, height: min(Self.restingBillOffset.height, raised))
     }
 
     private func preferredCanvasSize() -> CGSize {

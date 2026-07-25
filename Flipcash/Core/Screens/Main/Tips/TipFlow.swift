@@ -25,7 +25,7 @@ final class TipFlow {
     private(set) var customAmount: Decimal?
 
     /// Which chip is selected.
-    var selection: TipSelection = .low
+    var selection: TipSelection? = nil
 
     /// The direct-send engine for the presented recipient. Owns the target,
     /// the selected balance, and the full submission path (minimum, funds,
@@ -60,12 +60,13 @@ final class TipFlow {
     }
 
     /// The fiat amount a chip stands for, in the display currency.
-    func amount(for selection: TipSelection) -> Decimal? {
+    func amount(for selection: TipSelection?) -> Decimal? {
         switch selection {
         case .low:    presets?.low
         case .medium: presets?.medium
         case .high:   presets?.high
         case .custom: customAmount
+        case .none:   nil
         }
     }
 
@@ -77,10 +78,11 @@ final class TipFlow {
     // MARK: - Entry -
 
     /// Handles a scanned or deeplinked tipcode. Gates in order: the feature
-    /// flag, own-id scans (ignored), a tippable profile (held + profile
-    /// creation presented), then a giveable balance (Add Money / Discover
-    /// dialog). Passing all of them fetches the recipient and presents the
-    /// card + sheet.
+    /// flag, own-id scans (ignored), then a tippable profile (held + profile
+    /// creation presented). The card always shows for a tippable recipient; the
+    /// giveable-balance gate is deferred to ``present(_:)``, where it blocks the
+    /// Send a Tip sheet (surfacing the Add Money / Discover dialog) without
+    /// hiding the card.
     func begin(userID: UserID) {
         guard session.canUseTips else { return }
         guard userID != session.userID else { return }
@@ -93,13 +95,6 @@ final class TipFlow {
             pendingUserID = userID
             logger.info("Tip held for profile creation", metadata: ["recipient": "\(userID)"])
             router.present(.tips)
-            return
-        }
-
-        let rate = ratesController.rateForBalanceCurrency()
-        if let dialog = giveCashGate(session: session, rate: rate)
-            .blockingDialog(router: router, addMoneySource: .scanner, context: .sendTips) {
-            session.dialogItem = dialog
             return
         }
 
@@ -166,7 +161,7 @@ final class TipFlow {
     }
 
     private func present(_ recipient: TipRecipient) {
-        selection = .low
+        selection = nil
         customAmount = nil
         submission = SendAmountViewModel(
             sessionContainer: sessionContainer,
@@ -181,11 +176,20 @@ final class TipFlow {
         session.presentationState = .visible(.pop)
 
         // The sheet follows once the card's pop has settled, mirroring the
-        // received-cash valuation timing. `submission` is nilled by `cancel()`,
-        // so a card dismissed during the delay never presents a stale sheet.
-        Task {
+        // received-cash valuation timing — but only if the balance gate clears.
+        // A blocked gate surfaces its dialog and leaves the card up without the
+        // sheet. `submission` is nilled by `cancel()`, so a card dismissed during
+        // the delay never presents a stale sheet.
+        Task { [weak self] in
             try? await Task.delay(milliseconds: 750)
-            guard submission != nil else { return }
+            guard let self, submission != nil else { return }
+            let rate = ratesController.rateForBalanceCurrency()
+            if let dialog = giveCashGate(session: session, rate: rate)
+                .blockingDialog(router: router, addMoneySource: .scanner, context: .sendTips)?
+                .onDismiss(perform: { [weak self] in self?.cancel() }) {
+                session.dialogItem = dialog
+                return
+            }
             isSheetPresented = true
         }
     }
@@ -218,6 +222,19 @@ final class TipFlow {
 
     func selectCurrency(_ balance: ExchangedBalance) {
         submission?.selectCurrencyAction(exchangedBalance: balance)
+        // Both the selection and the custom entry are cleared: the new token's
+        // balance may not cover them, and its tip minimum is enforced afresh on
+        // the next selection.
+        selection = nil
+        customAmount = nil
+    }
+
+    /// Whether `balance` holds at least the tip minimum, so the picker can
+    /// disable tokens that can't fund even the smallest tip. No presets means
+    /// the server remains the authority — every token stays enabled.
+    func meetsMinimum(_ balance: ExchangedBalance) -> Bool {
+        guard let presets else { return true }
+        return presets.meetsMinimum(balance.exchangedFiat)
     }
 
     // MARK: - Submission -
