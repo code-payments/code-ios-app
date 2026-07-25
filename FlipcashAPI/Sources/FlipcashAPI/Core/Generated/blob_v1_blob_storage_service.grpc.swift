@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.blob.v1.BlobStorage" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Blob_V1_BlobStorage: Sendable {
+public enum Flipcash_Blob_V1_BlobStorage {
     /// Service descriptor for the "flipcash.blob.v1.BlobStorage" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.blob.v1.BlobStorage")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "GetUploadPolicy" metadata.
-        public enum GetUploadPolicy: Sendable {
+        public enum GetUploadPolicy {
             /// Request type for "GetUploadPolicy".
             public typealias Input = Flipcash_Blob_V1_GetUploadPolicyRequest
             /// Response type for "GetUploadPolicy".
@@ -29,12 +29,11 @@ public enum Flipcash_Blob_V1_BlobStorage: Sendable {
             /// Descriptor for "GetUploadPolicy".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.blob.v1.BlobStorage"),
-                method: "GetUploadPolicy",
-                type: .unary
+                method: "GetUploadPolicy"
             )
         }
         /// Namespace for "InitiateExternalUpload" metadata.
-        public enum InitiateExternalUpload: Sendable {
+        public enum InitiateExternalUpload {
             /// Request type for "InitiateExternalUpload".
             public typealias Input = Flipcash_Blob_V1_InitiateExternalUploadRequest
             /// Response type for "InitiateExternalUpload".
@@ -42,12 +41,11 @@ public enum Flipcash_Blob_V1_BlobStorage: Sendable {
             /// Descriptor for "InitiateExternalUpload".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.blob.v1.BlobStorage"),
-                method: "InitiateExternalUpload",
-                type: .unary
+                method: "InitiateExternalUpload"
             )
         }
         /// Namespace for "CompleteExternalUpload" metadata.
-        public enum CompleteExternalUpload: Sendable {
+        public enum CompleteExternalUpload {
             /// Request type for "CompleteExternalUpload".
             public typealias Input = Flipcash_Blob_V1_CompleteExternalUploadRequest
             /// Response type for "CompleteExternalUpload".
@@ -55,12 +53,11 @@ public enum Flipcash_Blob_V1_BlobStorage: Sendable {
             /// Descriptor for "CompleteExternalUpload".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.blob.v1.BlobStorage"),
-                method: "CompleteExternalUpload",
-                type: .unary
+                method: "CompleteExternalUpload"
             )
         }
         /// Namespace for "GetBlobs" metadata.
-        public enum GetBlobs: Sendable {
+        public enum GetBlobs {
             /// Request type for "GetBlobs".
             public typealias Input = Flipcash_Blob_V1_GetBlobsRequest
             /// Response type for "GetBlobs".
@@ -68,8 +65,7 @@ public enum Flipcash_Blob_V1_BlobStorage: Sendable {
             /// Descriptor for "GetBlobs".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.blob.v1.BlobStorage"),
-                method: "GetBlobs",
-                type: .unary
+                method: "GetBlobs"
             )
         }
         /// Descriptors for all methods in the "flipcash.blob.v1.BlobStorage" service.

@@ -64,43 +64,43 @@ public struct Flipcash_Chat_V1_Metadata: @unchecked Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_storage._chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _storage._chatID ?? Flipcash_Common_V1_ChatId()}
     set {_uniqueStorage()._chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {_storage._chatID != nil}
+  public var hasChatID: Bool {return _storage._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {_uniqueStorage()._chatID = nil}
 
   /// The type of chat
   public var type: Flipcash_Chat_V1_ChatType {
-    get {_storage._type}
+    get {return _storage._type}
     set {_uniqueStorage()._type = newValue}
   }
 
   /// Members of this chat
   public var members: [Flipcash_Chat_V1_Member] {
-    get {_storage._members}
+    get {return _storage._members}
     set {_uniqueStorage()._members = newValue}
   }
 
   /// The last message in this chat
   public var lastMessage: Flipcash_Messaging_V1_Message {
-    get {_storage._lastMessage ?? Flipcash_Messaging_V1_Message()}
+    get {return _storage._lastMessage ?? Flipcash_Messaging_V1_Message()}
     set {_uniqueStorage()._lastMessage = newValue}
   }
   /// Returns true if `lastMessage` has been explicitly set.
-  public var hasLastMessage: Bool {_storage._lastMessage != nil}
+  public var hasLastMessage: Bool {return _storage._lastMessage != nil}
   /// Clears the value of `lastMessage`. Subsequent reads from it will return its default value.
   public mutating func clearLastMessage() {_uniqueStorage()._lastMessage = nil}
 
   /// The timestamp of the last activity in this chat
   public var lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_storage._lastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _storage._lastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_uniqueStorage()._lastActivity = newValue}
   }
   /// Returns true if `lastActivity` has been explicitly set.
-  public var hasLastActivity: Bool {_storage._lastActivity != nil}
+  public var hasLastActivity: Bool {return _storage._lastActivity != nil}
   /// Clears the value of `lastActivity`. Subsequent reads from it will return its default value.
   public mutating func clearLastActivity() {_uniqueStorage()._lastActivity = nil}
 
@@ -114,8 +114,16 @@ public struct Flipcash_Chat_V1_Metadata: @unchecked Sendable {
   /// exceed last_message.event_sequence. It is the same head reported by
   /// GetDeltaResponse.latest_sequence.
   public var latestEventSequence: UInt64 {
-    get {_storage._latestEventSequence}
+    get {return _storage._latestEventSequence}
     set {_uniqueStorage()._latestEventSequence = newValue}
+  }
+
+  /// Whether this chat is hidden from the requesting owner's chat list.
+  /// Per-viewer and server-computed (e.g. the chat's peer is on the caller's
+  /// blocklist). Clients should exclude hidden chats from the primary DM list.
+  public var isHidden: Bool {
+    get {return _storage._isHidden}
+    set {_uniqueStorage()._isHidden = newValue}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -131,22 +139,22 @@ public struct Flipcash_Chat_V1_Member: Sendable {
   // methods supported on all messages.
 
   public var userID: Flipcash_Common_V1_UserId {
-    get {_userID ?? Flipcash_Common_V1_UserId()}
+    get {return _userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {self._userID != nil}
+  public var hasUserID: Bool {return self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
   /// The user profile for this member. It contains a subset of identifiers
   /// that can be publicly viewed within the chat.
   public var userProfile: Flipcash_Profile_V1_UserProfile {
-    get {_userProfile ?? Flipcash_Profile_V1_UserProfile()}
+    get {return _userProfile ?? Flipcash_Profile_V1_UserProfile()}
     set {_userProfile = newValue}
   }
   /// Returns true if `userProfile` has been explicitly set.
-  public var hasUserProfile: Bool {self._userProfile != nil}
+  public var hasUserProfile: Bool {return self._userProfile != nil}
   /// Clears the value of `userProfile`. Subsequent reads from it will return its default value.
   public mutating func clearUserProfile() {self._userProfile = nil}
 
@@ -202,11 +210,11 @@ public struct Flipcash_Chat_V1_MetadataUpdate: Sendable {
     // methods supported on all messages.
 
     public var metadata: Flipcash_Chat_V1_Metadata {
-      get {_metadata ?? Flipcash_Chat_V1_Metadata()}
+      get {return _metadata ?? Flipcash_Chat_V1_Metadata()}
       set {_metadata = newValue}
     }
     /// Returns true if `metadata` has been explicitly set.
-    public var hasMetadata: Bool {self._metadata != nil}
+    public var hasMetadata: Bool {return self._metadata != nil}
     /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
     public mutating func clearMetadata() {self._metadata = nil}
 
@@ -224,11 +232,11 @@ public struct Flipcash_Chat_V1_MetadataUpdate: Sendable {
     // methods supported on all messages.
 
     public var newLastActivity: SwiftProtobuf.Google_Protobuf_Timestamp {
-      get {_newLastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+      get {return _newLastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
       set {_newLastActivity = newValue}
     }
     /// Returns true if `newLastActivity` has been explicitly set.
-    public var hasNewLastActivity: Bool {self._newLastActivity != nil}
+    public var hasNewLastActivity: Bool {return self._newLastActivity != nil}
     /// Clears the value of `newLastActivity`. Subsequent reads from it will return its default value.
     public mutating func clearNewLastActivity() {self._newLastActivity = nil}
 
@@ -252,7 +260,7 @@ extension Flipcash_Chat_V1_ChatType: SwiftProtobuf._ProtoNameProviding {
 
 extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Metadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{1}type\0\u{1}members\0\u{3}last_message\0\u{3}last_activity\0\u{3}latest_event_sequence\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{1}type\0\u{1}members\0\u{3}last_message\0\u{3}last_activity\0\u{3}latest_event_sequence\0\u{3}is_hidden\0")
 
   fileprivate class _StorageClass {
     var _chatID: Flipcash_Common_V1_ChatId? = nil
@@ -261,6 +269,7 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     var _lastMessage: Flipcash_Messaging_V1_Message? = nil
     var _lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
     var _latestEventSequence: UInt64 = 0
+    var _isHidden: Bool = false
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -277,6 +286,7 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
       _lastMessage = source._lastMessage
       _lastActivity = source._lastActivity
       _latestEventSequence = source._latestEventSequence
+      _isHidden = source._isHidden
     }
   }
 
@@ -301,6 +311,7 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
         case 4: try { try decoder.decodeSingularMessageField(value: &_storage._lastMessage) }()
         case 5: try { try decoder.decodeSingularMessageField(value: &_storage._lastActivity) }()
         case 6: try { try decoder.decodeSingularUInt64Field(value: &_storage._latestEventSequence) }()
+        case 7: try { try decoder.decodeSingularBoolField(value: &_storage._isHidden) }()
         default: break
         }
       }
@@ -331,6 +342,9 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
       if _storage._latestEventSequence != 0 {
         try visitor.visitSingularUInt64Field(value: _storage._latestEventSequence, fieldNumber: 6)
       }
+      if _storage._isHidden != false {
+        try visitor.visitSingularBoolField(value: _storage._isHidden, fieldNumber: 7)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -346,6 +360,7 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
         if _storage._lastMessage != rhs_storage._lastMessage {return false}
         if _storage._lastActivity != rhs_storage._lastActivity {return false}
         if _storage._latestEventSequence != rhs_storage._latestEventSequence {return false}
+        if _storage._isHidden != rhs_storage._isHidden {return false}
         return true
       }
       if !storagesAreEqual {return false}

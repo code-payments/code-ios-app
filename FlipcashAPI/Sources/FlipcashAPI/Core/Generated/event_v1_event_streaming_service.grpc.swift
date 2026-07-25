@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.event.v1.EventStreaming" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Event_V1_EventStreaming: Sendable {
+public enum Flipcash_Event_V1_EventStreaming {
     /// Service descriptor for the "flipcash.event.v1.EventStreaming" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.event.v1.EventStreaming")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "StreamEvents" metadata.
-        public enum StreamEvents: Sendable {
+        public enum StreamEvents {
             /// Request type for "StreamEvents".
             public typealias Input = Flipcash_Event_V1_StreamEventsRequest
             /// Response type for "StreamEvents".
@@ -29,12 +29,11 @@ public enum Flipcash_Event_V1_EventStreaming: Sendable {
             /// Descriptor for "StreamEvents".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.event.v1.EventStreaming"),
-                method: "StreamEvents",
-                type: .bidirectionalStreaming
+                method: "StreamEvents"
             )
         }
         /// Namespace for "ForwardEvents" metadata.
-        public enum ForwardEvents: Sendable {
+        public enum ForwardEvents {
             /// Request type for "ForwardEvents".
             public typealias Input = Flipcash_Event_V1_ForwardEventsRequest
             /// Response type for "ForwardEvents".
@@ -42,8 +41,7 @@ public enum Flipcash_Event_V1_EventStreaming: Sendable {
             /// Descriptor for "ForwardEvents".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.event.v1.EventStreaming"),
-                method: "ForwardEvents",
-                type: .unary
+                method: "ForwardEvents"
             )
         }
         /// Descriptors for all methods in the "flipcash.event.v1.EventStreaming" service.

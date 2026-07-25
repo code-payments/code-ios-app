@@ -45,6 +45,11 @@ message Metadata {
     // exceed last_message.event_sequence. It is the same head reported by
     // GetDeltaResponse.latest_sequence.
     uint64 latest_event_sequence = 6;
+
+    // Whether this chat is hidden from the requesting owner's chat list.
+    // Per-viewer and server-computed (e.g. the chat's peer is on the caller's
+    // blocklist). Clients should exclude hidden chats from the primary DM list.
+    bool is_hidden = 7;
 }
 
 message Member {

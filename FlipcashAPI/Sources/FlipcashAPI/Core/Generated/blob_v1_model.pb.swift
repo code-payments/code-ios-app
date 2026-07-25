@@ -186,11 +186,11 @@ public struct Flipcash_Blob_V1_Blob: Sendable {
   // methods supported on all messages.
 
   public var id: Flipcash_Blob_V1_BlobId {
-    get {_id ?? Flipcash_Blob_V1_BlobId()}
+    get {return _id ?? Flipcash_Blob_V1_BlobId()}
     set {_id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {self._id != nil}
+  public var hasID: Bool {return self._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {self._id = nil}
 
@@ -199,21 +199,21 @@ public struct Flipcash_Blob_V1_Blob: Sendable {
   /// Server-authoritative metadata, including a freshly minted download_url.
   /// Set only when status == READY.
   public var metadata: Flipcash_Blob_V1_BlobMetadata {
-    get {_metadata ?? Flipcash_Blob_V1_BlobMetadata()}
+    get {return _metadata ?? Flipcash_Blob_V1_BlobMetadata()}
     set {_metadata = newValue}
   }
   /// Returns true if `metadata` has been explicitly set.
-  public var hasMetadata: Bool {self._metadata != nil}
+  public var hasMetadata: Bool {return self._metadata != nil}
   /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
   public mutating func clearMetadata() {self._metadata = nil}
 
   /// Why the blob was rejected. Set only when status == REJECTED.
   public var rejection: Flipcash_Blob_V1_RejectionMetadata {
-    get {_rejection ?? Flipcash_Blob_V1_RejectionMetadata()}
+    get {return _rejection ?? Flipcash_Blob_V1_RejectionMetadata()}
     set {_rejection = newValue}
   }
   /// Returns true if `rejection` has been explicitly set.
-  public var hasRejection: Bool {self._rejection != nil}
+  public var hasRejection: Bool {return self._rejection != nil}
   /// Clears the value of `rejection`. Subsequent reads from it will return its default value.
   public mutating func clearRejection() {self._rejection = nil}
 
@@ -256,11 +256,11 @@ public struct Flipcash_Blob_V1_BlobMetadata: Sendable {
   /// Ephemeral, server-minted URL for fetching the blob bytes, together with
   /// the instant it expires. Re-issued on every fetch — see DownloadUrl.
   public var downloadURL: Flipcash_Blob_V1_DownloadUrl {
-    get {_downloadURL ?? Flipcash_Blob_V1_DownloadUrl()}
+    get {return _downloadURL ?? Flipcash_Blob_V1_DownloadUrl()}
     set {_downloadURL = newValue}
   }
   /// Returns true if `downloadURL` has been explicitly set.
-  public var hasDownloadURL: Bool {self._downloadURL != nil}
+  public var hasDownloadURL: Bool {return self._downloadURL != nil}
   /// Clears the value of `downloadURL`. Subsequent reads from it will return its default value.
   public mutating func clearDownloadURL() {self._downloadURL = nil}
 
@@ -349,11 +349,11 @@ public struct Flipcash_Blob_V1_Rendition: Sendable {
   /// Handle to the blob holding this rendition's bytes. Client-set on the
   /// ORIGINAL when attaching the media; server-set for derived renditions.
   public var blobID: Flipcash_Blob_V1_BlobId {
-    get {_blobID ?? Flipcash_Blob_V1_BlobId()}
+    get {return _blobID ?? Flipcash_Blob_V1_BlobId()}
     set {_blobID = newValue}
   }
   /// Returns true if `blobID` has been explicitly set.
-  public var hasBlobID: Bool {self._blobID != nil}
+  public var hasBlobID: Bool {return self._blobID != nil}
   /// Clears the value of `blobID`. Subsequent reads from it will return its default value.
   public mutating func clearBlobID() {self._blobID = nil}
 
@@ -364,11 +364,11 @@ public struct Flipcash_Blob_V1_Rendition: Sendable {
   /// If unavailable at the time the media is retrieved, the client can use
   /// GetBlobs to query for the blob metadata.
   public var blob: Flipcash_Blob_V1_BlobMetadata {
-    get {_blob ?? Flipcash_Blob_V1_BlobMetadata()}
+    get {return _blob ?? Flipcash_Blob_V1_BlobMetadata()}
     set {_blob = newValue}
   }
   /// Returns true if `blob` has been explicitly set.
-  public var hasBlob: Bool {self._blob != nil}
+  public var hasBlob: Bool {return self._blob != nil}
   /// Clears the value of `blob`. Subsequent reads from it will return its default value.
   public mutating func clearBlob() {self._blob = nil}
 
@@ -441,22 +441,22 @@ public struct Flipcash_Blob_V1_UploadPolicy: Sendable {
   /// and re-fetch when they observe a different version — including one echoed
   /// on a denied upload.
   public var version: Flipcash_Blob_V1_PolicyVersion {
-    get {_version ?? Flipcash_Blob_V1_PolicyVersion()}
+    get {return _version ?? Flipcash_Blob_V1_PolicyVersion()}
     set {_version = newValue}
   }
   /// Returns true if `version` has been explicitly set.
-  public var hasVersion: Bool {self._version != nil}
+  public var hasVersion: Bool {return self._version != nil}
   /// Clears the value of `version`. Subsequent reads from it will return its default value.
   public mutating func clearVersion() {self._version = nil}
 
   /// How long the client may rely on this policy before re-fetching. The client
   /// should also refresh on any version mismatch, whichever comes first.
   public var ttl: SwiftProtobuf.Google_Protobuf_Duration {
-    get {_ttl ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {return _ttl ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_ttl = newValue}
   }
   /// Returns true if `ttl` has been explicitly set.
-  public var hasTtl: Bool {self._ttl != nil}
+  public var hasTtl: Bool {return self._ttl != nil}
   /// Clears the value of `ttl`. Subsequent reads from it will return its default value.
   public mutating func clearTtl() {self._ttl = nil}
 
@@ -579,11 +579,11 @@ public struct Flipcash_Blob_V1_UploadTarget: Sendable {
   /// When the target expires; after this the client must call InitiateUpload
   /// again for a fresh one.
   public var expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_expiresAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _expiresAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_expiresAt = newValue}
   }
   /// Returns true if `expiresAt` has been explicitly set.
-  public var hasExpiresAt: Bool {self._expiresAt != nil}
+  public var hasExpiresAt: Bool {return self._expiresAt != nil}
   /// Clears the value of `expiresAt`. Subsequent reads from it will return its default value.
   public mutating func clearExpiresAt() {self._expiresAt = nil}
 
@@ -653,11 +653,11 @@ public struct Flipcash_Blob_V1_DownloadUrl: Sendable {
   /// When the URL expires; after this the client must call GetBlobs again to
   /// mint a fresh one.
   public var expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_expiresAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _expiresAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_expiresAt = newValue}
   }
   /// Returns true if `expiresAt` has been explicitly set.
-  public var hasExpiresAt: Bool {self._expiresAt != nil}
+  public var hasExpiresAt: Bool {return self._expiresAt != nil}
   /// Clears the value of `expiresAt`. Subsequent reads from it will return its default value.
   public mutating func clearExpiresAt() {self._expiresAt = nil}
 

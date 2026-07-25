@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.moderation.v1.Moderation" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Moderation_V1_Moderation: Sendable {
+public enum Flipcash_Moderation_V1_Moderation {
     /// Service descriptor for the "flipcash.moderation.v1.Moderation" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.moderation.v1.Moderation")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "ModerateText" metadata.
-        public enum ModerateText: Sendable {
+        public enum ModerateText {
             /// Request type for "ModerateText".
             public typealias Input = Flipcash_Moderation_V1_ModerateTextRequest
             /// Response type for "ModerateText".
@@ -29,12 +29,11 @@ public enum Flipcash_Moderation_V1_Moderation: Sendable {
             /// Descriptor for "ModerateText".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.moderation.v1.Moderation"),
-                method: "ModerateText",
-                type: .unary
+                method: "ModerateText"
             )
         }
         /// Namespace for "ModerateImage" metadata.
-        public enum ModerateImage: Sendable {
+        public enum ModerateImage {
             /// Request type for "ModerateImage".
             public typealias Input = Flipcash_Moderation_V1_ModerateImageRequest
             /// Response type for "ModerateImage".
@@ -42,8 +41,7 @@ public enum Flipcash_Moderation_V1_Moderation: Sendable {
             /// Descriptor for "ModerateImage".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.moderation.v1.Moderation"),
-                method: "ModerateImage",
-                type: .unary
+                method: "ModerateImage"
             )
         }
         /// Descriptors for all methods in the "flipcash.moderation.v1.Moderation" service.

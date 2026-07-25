@@ -98,11 +98,24 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
     public let flagImageName: String?
     /// Remote icon for a launchpad token shown beside its name; nil for plain cash (USDF).
     public let iconURL: URL?
+    /// Whether the payment was a tip, which selects the caption verb ("tipped" vs "sent").
+    public let isTip: Bool
 
-    public init(amount: String, token: String, flagImageName: String? = nil, iconURL: URL? = nil) {
+    public init(amount: String, token: String, flagImageName: String? = nil, iconURL: URL? = nil, isTip: Bool = false) {
         self.amount = amount
         self.token = token
         self.flagImageName = flagImageName
         self.iconURL = iconURL
+        self.isTip = isTip
+    }
+
+    /// The caption shown above the amount on a cash card, selected by side and tip vs. plain send.
+    public static func caption(isFromSelf: Bool, isTip: Bool) -> String {
+        switch (isFromSelf, isTip) {
+        case (true, false):  "You sent"
+        case (false, false): "You received"
+        case (true, true):   "You tipped"
+        case (false, true):  "You received a tip"
+        }
     }
 }

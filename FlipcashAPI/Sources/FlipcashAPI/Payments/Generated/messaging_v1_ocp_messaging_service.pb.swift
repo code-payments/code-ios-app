@@ -27,11 +27,11 @@ public struct Ocp_Messaging_V1_OpenMessageStreamRequest: Sendable {
   // methods supported on all messages.
 
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {_rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
@@ -39,11 +39,11 @@ public struct Ocp_Messaging_V1_OpenMessageStreamRequest: Sendable {
   ///
   /// todo: Make required once clients migrate
   public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -141,21 +141,21 @@ public struct Ocp_Messaging_V1_PollMessagesRequest: Sendable {
   // methods supported on all messages.
 
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {_rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
   /// The signature is of serialize(PollMessagesRequest) using rendezvous_key.
   public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -185,11 +185,11 @@ public struct Ocp_Messaging_V1_AckMessagesRequest: Sendable {
   // methods supported on all messages.
 
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {_rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
@@ -251,31 +251,31 @@ public struct Ocp_Messaging_V1_SendMessageRequest: Sendable {
 
   /// The message to send. Types of messages clients can send are restricted.
   public var message: Ocp_Messaging_V1_Message {
-    get {_message ?? Ocp_Messaging_V1_Message()}
+    get {return _message ?? Ocp_Messaging_V1_Message()}
     set {_message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {self._message != nil}
+  public var hasMessage: Bool {return self._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
   public mutating func clearMessage() {self._message = nil}
 
   /// The rendezvous key that the message should be routed to.
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {_rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
   /// The signature is of serialize(Message) using the PrivateKey of the keypair.
   public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -297,11 +297,11 @@ public struct Ocp_Messaging_V1_SendMessageResponse: Sendable {
 
   /// Set if result == OK.
   public var messageID: Ocp_Messaging_V1_MessageId {
-    get {_messageID ?? Ocp_Messaging_V1_MessageId()}
+    get {return _messageID ?? Ocp_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
@@ -386,11 +386,11 @@ public struct Ocp_Messaging_V1_RequestToGrabBill: Sendable {
   /// Requestor is the virtual token account on the VM to which a payment
   /// should be sent.
   public var requestorAccount: Ocp_Common_V1_SolanaAccountId {
-    get {_requestorAccount ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _requestorAccount ?? Ocp_Common_V1_SolanaAccountId()}
     set {_requestorAccount = newValue}
   }
   /// Returns true if `requestorAccount` has been explicitly set.
-  public var hasRequestorAccount: Bool {self._requestorAccount != nil}
+  public var hasRequestorAccount: Bool {return self._requestorAccount != nil}
   /// Clears the value of `requestorAccount`. Subsequent reads from it will return its default value.
   public mutating func clearRequestorAccount() {self._requestorAccount = nil}
 
@@ -408,11 +408,11 @@ public struct Ocp_Messaging_V1_RequestToGiveBillServerContext: Sendable {
 
   /// Mint metadata for the bill's mint
   public var mintMetadata: Ocp_Currency_V1_Mint {
-    get {_mintMetadata ?? Ocp_Currency_V1_Mint()}
+    get {return _mintMetadata ?? Ocp_Currency_V1_Mint()}
     set {_mintMetadata = newValue}
   }
   /// Returns true if `mintMetadata` has been explicitly set.
-  public var hasMintMetadata: Bool {self._mintMetadata != nil}
+  public var hasMintMetadata: Bool {return self._mintMetadata != nil}
   /// Clears the value of `mintMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearMintMetadata() {self._mintMetadata = nil}
 
@@ -433,11 +433,11 @@ public struct Ocp_Messaging_V1_RequestToGiveBill: Sendable {
 
   /// The mint that the bill will be received in
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {self._mint != nil}
+  public var hasMint: Bool {return self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -445,11 +445,11 @@ public struct Ocp_Messaging_V1_RequestToGiveBill: Sendable {
   /// to support subsequent gives. Clients should be aware of timeouts and dismiss a
   /// bill if the threshold is met.
   public var exchangeData: Ocp_Transaction_V1_VerifiedExchangeData {
-    get {_exchangeData ?? Ocp_Transaction_V1_VerifiedExchangeData()}
+    get {return _exchangeData ?? Ocp_Transaction_V1_VerifiedExchangeData()}
     set {_exchangeData = newValue}
   }
   /// Returns true if `exchangeData` has been explicitly set.
-  public var hasExchangeData: Bool {self._exchangeData != nil}
+  public var hasExchangeData: Bool {return self._exchangeData != nil}
   /// Clears the value of `exchangeData`. Subsequent reads from it will return its default value.
   public mutating func clearExchangeData() {self._exchangeData = nil}
 
@@ -473,11 +473,11 @@ public struct Ocp_Messaging_V1_Message: @unchecked Sendable {
   ///     1. Reserve the ability for any future ID changes
   ///     2. Prevent clients attempting to collide message IDs.
   public var id: Ocp_Messaging_V1_MessageId {
-    get {_storage._id ?? Ocp_Messaging_V1_MessageId()}
+    get {return _storage._id ?? Ocp_Messaging_V1_MessageId()}
     set {_uniqueStorage()._id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {_storage._id != nil}
+  public var hasID: Bool {return _storage._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {_uniqueStorage()._id = nil}
 
@@ -485,11 +485,11 @@ public struct Ocp_Messaging_V1_Message: @unchecked Sendable {
   /// This enables clients to ensure no MITM attacks were performed to hijack contents
   /// of the typed message. This is only applicable for messages not generated by server.
   public var sendMessageRequestSignature: Ocp_Common_V1_Signature {
-    get {_storage._sendMessageRequestSignature ?? Ocp_Common_V1_Signature()}
+    get {return _storage._sendMessageRequestSignature ?? Ocp_Common_V1_Signature()}
     set {_uniqueStorage()._sendMessageRequestSignature = newValue}
   }
   /// Returns true if `sendMessageRequestSignature` has been explicitly set.
-  public var hasSendMessageRequestSignature: Bool {_storage._sendMessageRequestSignature != nil}
+  public var hasSendMessageRequestSignature: Bool {return _storage._sendMessageRequestSignature != nil}
   /// Clears the value of `sendMessageRequestSignature`. Subsequent reads from it will return its default value.
   public mutating func clearSendMessageRequestSignature() {_uniqueStorage()._sendMessageRequestSignature = nil}
 
@@ -516,11 +516,11 @@ public struct Ocp_Messaging_V1_Message: @unchecked Sendable {
 
   /// Additional server-provided context for messages sent by client
   public var additionalContext: Ocp_Messaging_V1_AdditionalServerContext {
-    get {_storage._additionalContext ?? Ocp_Messaging_V1_AdditionalServerContext()}
+    get {return _storage._additionalContext ?? Ocp_Messaging_V1_AdditionalServerContext()}
     set {_uniqueStorage()._additionalContext = newValue}
   }
   /// Returns true if `additionalContext` has been explicitly set.
-  public var hasAdditionalContext: Bool {_storage._additionalContext != nil}
+  public var hasAdditionalContext: Bool {return _storage._additionalContext != nil}
   /// Clears the value of `additionalContext`. Subsequent reads from it will return its default value.
   public mutating func clearAdditionalContext() {_uniqueStorage()._additionalContext = nil}
 

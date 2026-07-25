@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.thirdparty.v1.ThirdParty" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Thirdparty_V1_ThirdParty: Sendable {
+public enum Flipcash_Thirdparty_V1_ThirdParty {
     /// Service descriptor for the "flipcash.thirdparty.v1.ThirdParty" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.thirdparty.v1.ThirdParty")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "GetJwt" metadata.
-        public enum GetJwt: Sendable {
+        public enum GetJwt {
             /// Request type for "GetJwt".
             public typealias Input = Flipcash_Thirdparty_V1_GetJwtRequest
             /// Response type for "GetJwt".
@@ -29,8 +29,7 @@ public enum Flipcash_Thirdparty_V1_ThirdParty: Sendable {
             /// Descriptor for "GetJwt".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.thirdparty.v1.ThirdParty"),
-                method: "GetJwt",
-                type: .unary
+                method: "GetJwt"
             )
         }
         /// Descriptors for all methods in the "flipcash.thirdparty.v1.ThirdParty" service.

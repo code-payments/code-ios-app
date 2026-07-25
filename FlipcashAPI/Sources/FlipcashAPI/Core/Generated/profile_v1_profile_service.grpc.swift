@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.profile.v1.Profile" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Profile_V1_Profile: Sendable {
+public enum Flipcash_Profile_V1_Profile {
     /// Service descriptor for the "flipcash.profile.v1.Profile" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.profile.v1.Profile")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "GetProfile" metadata.
-        public enum GetProfile: Sendable {
+        public enum GetProfile {
             /// Request type for "GetProfile".
             public typealias Input = Flipcash_Profile_V1_GetProfileRequest
             /// Response type for "GetProfile".
@@ -29,12 +29,11 @@ public enum Flipcash_Profile_V1_Profile: Sendable {
             /// Descriptor for "GetProfile".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.profile.v1.Profile"),
-                method: "GetProfile",
-                type: .unary
+                method: "GetProfile"
             )
         }
         /// Namespace for "SetDisplayName" metadata.
-        public enum SetDisplayName: Sendable {
+        public enum SetDisplayName {
             /// Request type for "SetDisplayName".
             public typealias Input = Flipcash_Profile_V1_SetDisplayNameRequest
             /// Response type for "SetDisplayName".
@@ -42,12 +41,11 @@ public enum Flipcash_Profile_V1_Profile: Sendable {
             /// Descriptor for "SetDisplayName".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.profile.v1.Profile"),
-                method: "SetDisplayName",
-                type: .unary
+                method: "SetDisplayName"
             )
         }
         /// Namespace for "SetProfilePicture" metadata.
-        public enum SetProfilePicture: Sendable {
+        public enum SetProfilePicture {
             /// Request type for "SetProfilePicture".
             public typealias Input = Flipcash_Profile_V1_SetProfilePictureRequest
             /// Response type for "SetProfilePicture".
@@ -55,12 +53,11 @@ public enum Flipcash_Profile_V1_Profile: Sendable {
             /// Descriptor for "SetProfilePicture".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.profile.v1.Profile"),
-                method: "SetProfilePicture",
-                type: .unary
+                method: "SetProfilePicture"
             )
         }
         /// Namespace for "LinkSocialAccount" metadata.
-        public enum LinkSocialAccount: Sendable {
+        public enum LinkSocialAccount {
             /// Request type for "LinkSocialAccount".
             public typealias Input = Flipcash_Profile_V1_LinkSocialAccountRequest
             /// Response type for "LinkSocialAccount".
@@ -68,12 +65,11 @@ public enum Flipcash_Profile_V1_Profile: Sendable {
             /// Descriptor for "LinkSocialAccount".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.profile.v1.Profile"),
-                method: "LinkSocialAccount",
-                type: .unary
+                method: "LinkSocialAccount"
             )
         }
         /// Namespace for "UnlinkSocialAccount" metadata.
-        public enum UnlinkSocialAccount: Sendable {
+        public enum UnlinkSocialAccount {
             /// Request type for "UnlinkSocialAccount".
             public typealias Input = Flipcash_Profile_V1_UnlinkSocialAccountRequest
             /// Response type for "UnlinkSocialAccount".
@@ -81,8 +77,7 @@ public enum Flipcash_Profile_V1_Profile: Sendable {
             /// Descriptor for "UnlinkSocialAccount".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.profile.v1.Profile"),
-                method: "UnlinkSocialAccount",
-                type: .unary
+                method: "UnlinkSocialAccount"
             )
         }
         /// Descriptors for all methods in the "flipcash.profile.v1.Profile" service.

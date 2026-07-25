@@ -138,4 +138,31 @@ struct NotificationPayloadTests {
     func chatIDNilWhenAbsent() {
         #expect(NotificationPayload.chatID([:]) == nil)
     }
+
+    @Test("chatType returns the DM kind from chat metadata")
+    func chatTypeFromMetadata() throws {
+        let payload = Flipcash_Push_V1_Payload.with {
+            $0.category = .chat
+            $0.chatMetadata = .with { $0.type = .tipDm }
+        }
+        let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+        #expect(NotificationPayload.chatType(userInfo) == .tipDm)
+    }
+
+    @Test("chatType is nil for a CHAT push without chat metadata")
+    func chatTypeNilWhenMetadataMissing() throws {
+        let payload = Flipcash_Push_V1_Payload.with { $0.category = .chat }
+        let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+        #expect(NotificationPayload.chatType(userInfo) == nil)
+    }
+
+    @Test("chatType is nil for a non-chat category even when chat metadata is present")
+    func chatTypeNilForNonChatCategory() throws {
+        let payload = Flipcash_Push_V1_Payload.with {
+            $0.category = .default
+            $0.chatMetadata = .with { $0.type = .tipDm }
+        }
+        let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+        #expect(NotificationPayload.chatType(userInfo) == nil)
+    }
 }

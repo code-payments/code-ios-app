@@ -26,20 +26,20 @@ public struct Flipcash_Chat_V1_GetChatRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -59,11 +59,11 @@ public struct Flipcash_Chat_V1_GetChatResponse: Sendable {
   public var result: Flipcash_Chat_V1_GetChatResponse.Result = .ok
 
   public var metadata: Flipcash_Chat_V1_Metadata {
-    get {_metadata ?? Flipcash_Chat_V1_Metadata()}
+    get {return _metadata ?? Flipcash_Chat_V1_Metadata()}
     set {_metadata = newValue}
   }
   /// Returns true if `metadata` has been explicitly set.
-  public var hasMetadata: Bool {self._metadata != nil}
+  public var hasMetadata: Bool {return self._metadata != nil}
   /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
   public mutating func clearMetadata() {self._metadata = nil}
 
@@ -126,11 +126,11 @@ public struct Flipcash_Chat_V1_GetDmChatFeedRequest: Sendable {
   /// paging_token from the most recent response to advance within the same
   /// snapshot. The token is opaque and server-generated; do not construct it.
   public var queryOptions: Flipcash_Common_V1_QueryOptions {
-    get {_queryOptions ?? Flipcash_Common_V1_QueryOptions()}
+    get {return _queryOptions ?? Flipcash_Common_V1_QueryOptions()}
     set {_queryOptions = newValue}
   }
   /// Returns true if `queryOptions` has been explicitly set.
-  public var hasQueryOptions: Bool {self._queryOptions != nil}
+  public var hasQueryOptions: Bool {return self._queryOptions != nil}
   /// Clears the value of `queryOptions`. Subsequent reads from it will return its default value.
   public mutating func clearQueryOptions() {self._queryOptions = nil}
 
@@ -140,11 +140,11 @@ public struct Flipcash_Chat_V1_GetDmChatFeedRequest: Sendable {
   public var dmChatType: Flipcash_Chat_V1_ChatType = .unknown
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -171,11 +171,11 @@ public struct Flipcash_Chat_V1_GetDmChatFeedResponse: Sendable {
   /// most recent value back in query_options.paging_token on the next
   /// GetDmChatFeedRequest. Set when result is OK.
   public var pagingToken: Flipcash_Common_V1_PagingToken {
-    get {_pagingToken ?? Flipcash_Common_V1_PagingToken()}
+    get {return _pagingToken ?? Flipcash_Common_V1_PagingToken()}
     set {_pagingToken = newValue}
   }
   /// Returns true if `pagingToken` has been explicitly set.
-  public var hasPagingToken: Bool {self._pagingToken != nil}
+  public var hasPagingToken: Bool {return self._pagingToken != nil}
   /// Clears the value of `pagingToken`. Subsequent reads from it will return its default value.
   public mutating func clearPagingToken() {self._pagingToken = nil}
 

@@ -96,7 +96,8 @@ extension ChatItem {
                     amount: fiat.nativeAmount.formatted(),
                     token: branding.token,
                     flagImageName: flagName,
-                    iconURL: branding.iconURL
+                    iconURL: branding.iconURL,
+                    isTip: message.cashAction == .tipped
                 ))
                 linkPreview = nil
             case .deleted:

@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "ocp.transaction.v1.Transaction" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Ocp_Transaction_V1_Transaction: Sendable {
+public enum Ocp_Transaction_V1_Transaction {
     /// Service descriptor for the "ocp.transaction.v1.Transaction" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "SubmitIntent" metadata.
-        public enum SubmitIntent: Sendable {
+        public enum SubmitIntent {
             /// Request type for "SubmitIntent".
             public typealias Input = Ocp_Transaction_V1_SubmitIntentRequest
             /// Response type for "SubmitIntent".
@@ -29,12 +29,11 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "SubmitIntent".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "SubmitIntent",
-                type: .bidirectionalStreaming
+                method: "SubmitIntent"
             )
         }
         /// Namespace for "GetIntentMetadata" metadata.
-        public enum GetIntentMetadata: Sendable {
+        public enum GetIntentMetadata {
             /// Request type for "GetIntentMetadata".
             public typealias Input = Ocp_Transaction_V1_GetIntentMetadataRequest
             /// Response type for "GetIntentMetadata".
@@ -42,12 +41,11 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "GetIntentMetadata".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "GetIntentMetadata",
-                type: .unary
+                method: "GetIntentMetadata"
             )
         }
         /// Namespace for "GetLimits" metadata.
-        public enum GetLimits: Sendable {
+        public enum GetLimits {
             /// Request type for "GetLimits".
             public typealias Input = Ocp_Transaction_V1_GetLimitsRequest
             /// Response type for "GetLimits".
@@ -55,12 +53,11 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "GetLimits".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "GetLimits",
-                type: .unary
+                method: "GetLimits"
             )
         }
         /// Namespace for "CanWithdrawToAccount" metadata.
-        public enum CanWithdrawToAccount: Sendable {
+        public enum CanWithdrawToAccount {
             /// Request type for "CanWithdrawToAccount".
             public typealias Input = Ocp_Transaction_V1_CanWithdrawToAccountRequest
             /// Response type for "CanWithdrawToAccount".
@@ -68,12 +65,11 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "CanWithdrawToAccount".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "CanWithdrawToAccount",
-                type: .unary
+                method: "CanWithdrawToAccount"
             )
         }
         /// Namespace for "VoidGiftCard" metadata.
-        public enum VoidGiftCard: Sendable {
+        public enum VoidGiftCard {
             /// Request type for "VoidGiftCard".
             public typealias Input = Ocp_Transaction_V1_VoidGiftCardRequest
             /// Response type for "VoidGiftCard".
@@ -81,12 +77,11 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "VoidGiftCard".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "VoidGiftCard",
-                type: .unary
+                method: "VoidGiftCard"
             )
         }
         /// Namespace for "StatefulSwap" metadata.
-        public enum StatefulSwap: Sendable {
+        public enum StatefulSwap {
             /// Request type for "StatefulSwap".
             public typealias Input = Ocp_Transaction_V1_StatefulSwapRequest
             /// Response type for "StatefulSwap".
@@ -94,12 +89,11 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "StatefulSwap".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "StatefulSwap",
-                type: .bidirectionalStreaming
+                method: "StatefulSwap"
             )
         }
         /// Namespace for "StatelessSwap" metadata.
-        public enum StatelessSwap: Sendable {
+        public enum StatelessSwap {
             /// Request type for "StatelessSwap".
             public typealias Input = Ocp_Transaction_V1_StatelessSwapRequest
             /// Response type for "StatelessSwap".
@@ -107,12 +101,11 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "StatelessSwap".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "StatelessSwap",
-                type: .bidirectionalStreaming
+                method: "StatelessSwap"
             )
         }
         /// Namespace for "GetSwap" metadata.
-        public enum GetSwap: Sendable {
+        public enum GetSwap {
             /// Request type for "GetSwap".
             public typealias Input = Ocp_Transaction_V1_GetSwapRequest
             /// Response type for "GetSwap".
@@ -120,12 +113,11 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "GetSwap".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "GetSwap",
-                type: .unary
+                method: "GetSwap"
             )
         }
         /// Namespace for "GetPendingSwaps" metadata.
-        public enum GetPendingSwaps: Sendable {
+        public enum GetPendingSwaps {
             /// Request type for "GetPendingSwaps".
             public typealias Input = Ocp_Transaction_V1_GetPendingSwapsRequest
             /// Response type for "GetPendingSwaps".
@@ -133,8 +125,7 @@ public enum Ocp_Transaction_V1_Transaction: Sendable {
             /// Descriptor for "GetPendingSwaps".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.transaction.v1.Transaction"),
-                method: "GetPendingSwaps",
-                type: .unary
+                method: "GetPendingSwaps"
             )
         }
         /// Descriptors for all methods in the "ocp.transaction.v1.Transaction" service.

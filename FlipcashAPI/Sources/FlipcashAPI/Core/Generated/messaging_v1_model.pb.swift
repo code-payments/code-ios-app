@@ -68,22 +68,22 @@ public struct Flipcash_Messaging_V1_Message: Sendable {
 
   /// Per-chat sequence number identifying this message
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
   /// The chat member that sent the message. For system-level messages,
   /// this will be ommitted.
   public var senderID: Flipcash_Common_V1_UserId {
-    get {_senderID ?? Flipcash_Common_V1_UserId()}
+    get {return _senderID ?? Flipcash_Common_V1_UserId()}
     set {_senderID = newValue}
   }
   /// Returns true if `senderID` has been explicitly set.
-  public var hasSenderID: Bool {self._senderID != nil}
+  public var hasSenderID: Bool {return self._senderID != nil}
   /// Clears the value of `senderID`. Subsequent reads from it will return its default value.
   public mutating func clearSenderID() {self._senderID = nil}
 
@@ -92,11 +92,11 @@ public struct Flipcash_Messaging_V1_Message: Sendable {
 
   /// Timestamp this message was generated at.
   public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_ts = newValue}
   }
   /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {self._ts != nil}
+  public var hasTs: Bool {return self._ts != nil}
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
@@ -115,11 +115,11 @@ public struct Flipcash_Messaging_V1_Message: Sendable {
   /// only drives an "edited" affordance. Deletions are represented in content
   /// via DeletedContent, not here.
   public var lastEditedTs: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_lastEditedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _lastEditedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_lastEditedTs = newValue}
   }
   /// Returns true if `lastEditedTs` has been explicitly set.
-  public var hasLastEditedTs: Bool {self._lastEditedTs != nil}
+  public var hasLastEditedTs: Bool {return self._lastEditedTs != nil}
   /// Clears the value of `lastEditedTs`. Subsequent reads from it will return its default value.
   public mutating func clearLastEditedTs() {self._lastEditedTs = nil}
 
@@ -143,11 +143,11 @@ public struct Flipcash_Messaging_V1_Message: Sendable {
   /// clients refresh it on view and via live reaction updates rather than
   /// through the event log.
   public var reactions: Flipcash_Messaging_V1_ReactionSummary {
-    get {_reactions ?? Flipcash_Messaging_V1_ReactionSummary()}
+    get {return _reactions ?? Flipcash_Messaging_V1_ReactionSummary()}
     set {_reactions = newValue}
   }
   /// Returns true if `reactions` has been explicitly set.
-  public var hasReactions: Bool {self._reactions != nil}
+  public var hasReactions: Bool {return self._reactions != nil}
   /// Clears the value of `reactions`. Subsequent reads from it will return its default value.
   public mutating func clearReactions() {self._reactions = nil}
 
@@ -254,25 +254,63 @@ public struct Flipcash_Messaging_V1_CashContent: Sendable {
 
   /// Intent ID identifying the cash transaction at the OCP layer
   public var intentID: Flipcash_Common_V1_IntentId {
-    get {_intentID ?? Flipcash_Common_V1_IntentId()}
+    get {return _intentID ?? Flipcash_Common_V1_IntentId()}
     set {_intentID = newValue}
   }
   /// Returns true if `intentID` has been explicitly set.
-  public var hasIntentID: Bool {self._intentID != nil}
+  public var hasIntentID: Bool {return self._intentID != nil}
   /// Clears the value of `intentID`. Subsequent reads from it will return its default value.
   public mutating func clearIntentID() {self._intentID = nil}
 
   /// The amount of cash that was sent
   public var amount: Flipcash_Common_V1_CryptoPaymentAmount {
-    get {_amount ?? Flipcash_Common_V1_CryptoPaymentAmount()}
+    get {return _amount ?? Flipcash_Common_V1_CryptoPaymentAmount()}
     set {_amount = newValue}
   }
   /// Returns true if `amount` has been explicitly set.
-  public var hasAmount: Bool {self._amount != nil}
+  public var hasAmount: Bool {return self._amount != nil}
   /// Clears the value of `amount`. Subsequent reads from it will return its default value.
   public mutating func clearAmount() {self._amount = nil}
 
+  public var action: Flipcash_Messaging_V1_CashContent.Action = .sent
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  /// Action for how the cash was sent. Clietns should always show SENT as a
+  /// fallback.
+  public enum Action: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case sent // = 0
+    case tipped // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .sent
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .sent
+      case 1: self = .tipped
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .sent: return 0
+      case .tipped: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Flipcash_Messaging_V1_CashContent.Action] = [
+      .sent,
+      .tipped,
+    ]
+
+  }
 
   public init() {}
 
@@ -288,11 +326,11 @@ public struct Flipcash_Messaging_V1_ReplyContent: Sendable {
 
   /// ID of the message being replied to
   public var repliedMessageID: Flipcash_Messaging_V1_MessageId {
-    get {_repliedMessageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _repliedMessageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_repliedMessageID = newValue}
   }
   /// Returns true if `repliedMessageID` has been explicitly set.
-  public var hasRepliedMessageID: Bool {self._repliedMessageID != nil}
+  public var hasRepliedMessageID: Bool {return self._repliedMessageID != nil}
   /// Clears the value of `repliedMessageID`. Subsequent reads from it will return its default value.
   public mutating func clearRepliedMessageID() {self._repliedMessageID = nil}
 
@@ -325,11 +363,11 @@ public struct Flipcash_Messaging_V1_MediaContent: Sendable {
 
   /// Optional caption rendered alongside the media
   public var caption: Flipcash_Messaging_V1_TextContent {
-    get {_caption ?? Flipcash_Messaging_V1_TextContent()}
+    get {return _caption ?? Flipcash_Messaging_V1_TextContent()}
     set {_caption = newValue}
   }
   /// Returns true if `caption` has been explicitly set.
-  public var hasCaption: Bool {self._caption != nil}
+  public var hasCaption: Bool {return self._caption != nil}
   /// Clears the value of `caption`. Subsequent reads from it will return its default value.
   public mutating func clearCaption() {self._caption = nil}
 
@@ -369,22 +407,22 @@ public struct Flipcash_Messaging_V1_DeletedContent: Sendable {
   /// analog of Message.last_edited_ts, kept here so all deletion state lives in
   /// the content rather than as a separate flag on Message.
   public var deletedTs: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_deletedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _deletedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_deletedTs = newValue}
   }
   /// Returns true if `deletedTs` has been explicitly set.
-  public var hasDeletedTs: Bool {self._deletedTs != nil}
+  public var hasDeletedTs: Bool {return self._deletedTs != nil}
   /// Clears the value of `deletedTs`. Subsequent reads from it will return its default value.
   public mutating func clearDeletedTs() {self._deletedTs = nil}
 
   /// When present, the user that deleted the message. If not present, a it is
   /// a system-level deletion (eg. moderation check).
   public var deletedBy: Flipcash_Common_V1_UserId {
-    get {_deletedBy ?? Flipcash_Common_V1_UserId()}
+    get {return _deletedBy ?? Flipcash_Common_V1_UserId()}
     set {_deletedBy = newValue}
   }
   /// Returns true if `deletedBy` has been explicitly set.
-  public var hasDeletedBy: Bool {self._deletedBy != nil}
+  public var hasDeletedBy: Bool {return self._deletedBy != nil}
   /// Clears the value of `deletedBy`. Subsequent reads from it will return its default value.
   public mutating func clearDeletedBy() {self._deletedBy = nil}
 
@@ -424,21 +462,21 @@ public struct Flipcash_Messaging_V1_Reactor: Sendable {
   // methods supported on all messages.
 
   public var userID: Flipcash_Common_V1_UserId {
-    get {_userID ?? Flipcash_Common_V1_UserId()}
+    get {return _userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {self._userID != nil}
+  public var hasUserID: Bool {return self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
   /// Timestamp the user added this reaction.
   public var reactedTs: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_reactedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _reactedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_reactedTs = newValue}
   }
   /// Returns true if `reactedTs` has been explicitly set.
-  public var hasReactedTs: Bool {self._reactedTs != nil}
+  public var hasReactedTs: Bool {return self._reactedTs != nil}
   /// Clears the value of `reactedTs`. Subsequent reads from it will return its default value.
   public mutating func clearReactedTs() {self._reactedTs = nil}
 
@@ -461,11 +499,11 @@ public struct Flipcash_Messaging_V1_ReactionSummary: Sendable {
 
   /// The message these reactions belong to.
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
@@ -487,11 +525,11 @@ public struct Flipcash_Messaging_V1_EmojiReaction: Sendable {
 
   /// The emoji reacted with.
   public var emoji: Flipcash_Messaging_V1_Emoji {
-    get {_emoji ?? Flipcash_Messaging_V1_Emoji()}
+    get {return _emoji ?? Flipcash_Messaging_V1_Emoji()}
     set {_emoji = newValue}
   }
   /// Returns true if `emoji` has been explicitly set.
-  public var hasEmoji: Bool {self._emoji != nil}
+  public var hasEmoji: Bool {return self._emoji != nil}
   /// Clears the value of `emoji`. Subsequent reads from it will return its default value.
   public mutating func clearEmoji() {self._emoji = nil}
 
@@ -538,21 +576,21 @@ public struct Flipcash_Messaging_V1_ReactionUpdate: Sendable {
 
   /// The message whose reactions changed.
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
   /// The emoji that was added or removed.
   public var emoji: Flipcash_Messaging_V1_Emoji {
-    get {_emoji ?? Flipcash_Messaging_V1_Emoji()}
+    get {return _emoji ?? Flipcash_Messaging_V1_Emoji()}
     set {_emoji = newValue}
   }
   /// Returns true if `emoji` has been explicitly set.
-  public var hasEmoji: Bool {self._emoji != nil}
+  public var hasEmoji: Bool {return self._emoji != nil}
   /// Clears the value of `emoji`. Subsequent reads from it will return its default value.
   public mutating func clearEmoji() {self._emoji = nil}
 
@@ -560,11 +598,11 @@ public struct Flipcash_Messaging_V1_ReactionUpdate: Sendable {
   /// reacted_by_self by comparing this to itself, so a reaction made on the
   /// user's other device is reflected.
   public var actor: Flipcash_Common_V1_UserId {
-    get {_actor ?? Flipcash_Common_V1_UserId()}
+    get {return _actor ?? Flipcash_Common_V1_UserId()}
     set {_actor = newValue}
   }
   /// Returns true if `actor` has been explicitly set.
-  public var hasActor: Bool {self._actor != nil}
+  public var hasActor: Bool {return self._actor != nil}
   /// Clears the value of `actor`. Subsequent reads from it will return its default value.
   public mutating func clearActor() {self._actor = nil}
 
@@ -585,11 +623,11 @@ public struct Flipcash_Messaging_V1_ReactionUpdate: Sendable {
   /// for REMOVED. This is a display timestamp, distinct from `sequence`, which
   /// is the ordering key.
   public var reactedTs: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_reactedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _reactedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_reactedTs = newValue}
   }
   /// Returns true if `reactedTs` has been explicitly set.
-  public var hasReactedTs: Bool {self._reactedTs != nil}
+  public var hasReactedTs: Bool {return self._reactedTs != nil}
   /// Clears the value of `reactedTs`. Subsequent reads from it will return its default value.
   public mutating func clearReactedTs() {self._reactedTs = nil}
 
@@ -667,32 +705,32 @@ public struct Flipcash_Messaging_V1_Pointer: Sendable {
 
   /// The user ID associated with the pointer
   public var userID: Flipcash_Common_V1_UserId {
-    get {_userID ?? Flipcash_Common_V1_UserId()}
+    get {return _userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {self._userID != nil}
+  public var hasUserID: Bool {return self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
   /// Everything at or before this message ID is considered to have the state
   /// inferred by the type of pointer.
   public var value: Flipcash_Messaging_V1_MessageId {
-    get {_value ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _value ?? Flipcash_Messaging_V1_MessageId()}
     set {_value = newValue}
   }
   /// Returns true if `value` has been explicitly set.
-  public var hasValue: Bool {self._value != nil}
+  public var hasValue: Bool {return self._value != nil}
   /// Clears the value of `value`. Subsequent reads from it will return its default value.
   public mutating func clearValue() {self._value = nil}
 
   /// Timestamp the pointer was last advanced at
   public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_ts = newValue}
   }
   /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {self._ts != nil}
+  public var hasTs: Bool {return self._ts != nil}
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
@@ -817,11 +855,11 @@ public struct Flipcash_Messaging_V1_Event: Sendable {
 
   /// Timestamp this event occurred at.
   public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_ts = newValue}
   }
   /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {self._ts != nil}
+  public var hasTs: Bool {return self._ts != nil}
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
@@ -914,11 +952,11 @@ public struct Flipcash_Messaging_V1_IsTypingNotification: Sendable {
   // methods supported on all messages.
 
   public var userID: Flipcash_Common_V1_UserId {
-    get {_userID ?? Flipcash_Common_V1_UserId()}
+    get {return _userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {self._userID != nil}
+  public var hasUserID: Bool {return self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
@@ -1289,7 +1327,7 @@ extension Flipcash_Messaging_V1_TextContent: SwiftProtobuf.Message, SwiftProtobu
 
 extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CashContent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}intent_id\0\u{1}amount\0\u{c}\u{3}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}intent_id\0\u{1}amount\0\u{2}\u{2}action\0\u{c}\u{3}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1299,6 +1337,7 @@ extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobu
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._intentID) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._amount) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.action) }()
       default: break
       }
     }
@@ -1315,15 +1354,23 @@ extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobu
     try { if let v = self._amount {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    if self.action != .sent {
+      try visitor.visitSingularEnumField(value: self.action, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Messaging_V1_CashContent, rhs: Flipcash_Messaging_V1_CashContent) -> Bool {
     if lhs._intentID != rhs._intentID {return false}
     if lhs._amount != rhs._amount {return false}
+    if lhs.action != rhs.action {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Flipcash_Messaging_V1_CashContent.Action: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SENT\0\u{1}TIPPED\0")
 }
 
 extension Flipcash_Messaging_V1_ReplyContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

@@ -134,11 +134,11 @@ public struct Ocp_Currency_V1_GetHistoricalMintDataRequest: Sendable {
 
   /// The mint address to get historical data for
   public var address: Ocp_Common_V1_SolanaAccountId {
-    get {_address ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _address ?? Ocp_Common_V1_SolanaAccountId()}
     set {_address = newValue}
   }
   /// Returns true if `address` has been explicitly set.
-  public var hasAddress: Bool {self._address != nil}
+  public var hasAddress: Bool {return self._address != nil}
   /// Clears the value of `address`. Subsequent reads from it will return its default value.
   public mutating func clearAddress() {self._address = nil}
 
@@ -346,41 +346,41 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
 
   /// Token mint address
   public var address: Ocp_Common_V1_SolanaAccountId {
-    get {_storage._address ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _storage._address ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._address = newValue}
   }
   /// Returns true if `address` has been explicitly set.
-  public var hasAddress: Bool {_storage._address != nil}
+  public var hasAddress: Bool {return _storage._address != nil}
   /// Clears the value of `address`. Subsequent reads from it will return its default value.
   public mutating func clearAddress() {_uniqueStorage()._address = nil}
 
   /// The number of decimals configured for the mint
   public var decimals: UInt32 {
-    get {_storage._decimals}
+    get {return _storage._decimals}
     set {_uniqueStorage()._decimals = newValue}
   }
 
   /// Currency name
   public var name: String {
-    get {_storage._name}
+    get {return _storage._name}
     set {_uniqueStorage()._name = newValue}
   }
 
   /// Currency ticker symbol
   public var symbol: String {
-    get {_storage._symbol}
+    get {return _storage._symbol}
     set {_uniqueStorage()._symbol = newValue}
   }
 
   /// Currency description
   public var description_p: String {
-    get {_storage._description_p}
+    get {return _storage._description_p}
     set {_uniqueStorage()._description_p = newValue}
   }
 
   /// URL to currency image
   public var imageURL: String {
-    get {_storage._imageURL}
+    get {return _storage._imageURL}
     set {_uniqueStorage()._imageURL = newValue}
   }
 
@@ -389,11 +389,11 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
   ///
   /// Note: Only currencies with a VM are useable for payments
   public var vmMetadata: Ocp_Currency_V1_VmMetadata {
-    get {_storage._vmMetadata ?? Ocp_Currency_V1_VmMetadata()}
+    get {return _storage._vmMetadata ?? Ocp_Currency_V1_VmMetadata()}
     set {_uniqueStorage()._vmMetadata = newValue}
   }
   /// Returns true if `vmMetadata` has been explicitly set.
-  public var hasVmMetadata: Bool {_storage._vmMetadata != nil}
+  public var hasVmMetadata: Bool {return _storage._vmMetadata != nil}
   /// Clears the value of `vmMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearVmMetadata() {_uniqueStorage()._vmMetadata = nil}
 
@@ -401,47 +401,47 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
   /// can be used for calculating price, market cap, etc. based on the exponential
   /// bonding curve
   public var launchpadMetadata: Ocp_Currency_V1_LaunchpadMetadata {
-    get {_storage._launchpadMetadata ?? Ocp_Currency_V1_LaunchpadMetadata()}
+    get {return _storage._launchpadMetadata ?? Ocp_Currency_V1_LaunchpadMetadata()}
     set {_uniqueStorage()._launchpadMetadata = newValue}
   }
   /// Returns true if `launchpadMetadata` has been explicitly set.
-  public var hasLaunchpadMetadata: Bool {_storage._launchpadMetadata != nil}
+  public var hasLaunchpadMetadata: Bool {return _storage._launchpadMetadata != nil}
   /// Clears the value of `launchpadMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearLaunchpadMetadata() {_uniqueStorage()._launchpadMetadata = nil}
 
   /// Timestamp the currency was created
   public var createdAt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_storage._createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _storage._createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_uniqueStorage()._createdAt = newValue}
   }
   /// Returns true if `createdAt` has been explicitly set.
-  public var hasCreatedAt: Bool {_storage._createdAt != nil}
+  public var hasCreatedAt: Bool {return _storage._createdAt != nil}
   /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
   public mutating func clearCreatedAt() {_uniqueStorage()._createdAt = nil}
 
   /// Social links for this currency
   public var socialLinks: [Ocp_Currency_V1_SocialLink] {
-    get {_storage._socialLinks}
+    get {return _storage._socialLinks}
     set {_uniqueStorage()._socialLinks = newValue}
   }
 
   /// Bill customization for this currency. Use the default if not provided
   public var billCustomization: Ocp_Currency_V1_BillCustomization {
-    get {_storage._billCustomization ?? Ocp_Currency_V1_BillCustomization()}
+    get {return _storage._billCustomization ?? Ocp_Currency_V1_BillCustomization()}
     set {_uniqueStorage()._billCustomization = newValue}
   }
   /// Returns true if `billCustomization` has been explicitly set.
-  public var hasBillCustomization: Bool {_storage._billCustomization != nil}
+  public var hasBillCustomization: Bool {return _storage._billCustomization != nil}
   /// Clears the value of `billCustomization`. Subsequent reads from it will return its default value.
   public mutating func clearBillCustomization() {_uniqueStorage()._billCustomization = nil}
 
   /// Holder metrics. This is surfaced where needed (e.g. only in the Discover RPC)
   public var holderMetrics: Ocp_Currency_V1_HolderMetrics {
-    get {_storage._holderMetrics ?? Ocp_Currency_V1_HolderMetrics()}
+    get {return _storage._holderMetrics ?? Ocp_Currency_V1_HolderMetrics()}
     set {_uniqueStorage()._holderMetrics = newValue}
   }
   /// Returns true if `holderMetrics` has been explicitly set.
-  public var hasHolderMetrics: Bool {_storage._holderMetrics != nil}
+  public var hasHolderMetrics: Bool {return _storage._holderMetrics != nil}
   /// Clears the value of `holderMetrics`. Subsequent reads from it will return its default value.
   public mutating func clearHolderMetrics() {_uniqueStorage()._holderMetrics = nil}
 
@@ -459,21 +459,21 @@ public struct Ocp_Currency_V1_VmMetadata: Sendable {
 
   /// VM address
   public var vm: Ocp_Common_V1_SolanaAccountId {
-    get {_vm ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _vm ?? Ocp_Common_V1_SolanaAccountId()}
     set {_vm = newValue}
   }
   /// Returns true if `vm` has been explicitly set.
-  public var hasVm: Bool {self._vm != nil}
+  public var hasVm: Bool {return self._vm != nil}
   /// Clears the value of `vm`. Subsequent reads from it will return its default value.
   public mutating func clearVm() {self._vm = nil}
 
   /// Authority that subsidizes and authorizes all transactions against the VM
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {self._authority != nil}
+  public var hasAuthority: Bool {return self._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {self._authority = nil}
 
@@ -483,11 +483,11 @@ public struct Ocp_Currency_V1_VmMetadata: Sendable {
 
   /// VM omnibus address
   public var omnibus: Ocp_Common_V1_SolanaAccountId {
-    get {_omnibus ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _omnibus ?? Ocp_Common_V1_SolanaAccountId()}
     set {_omnibus = newValue}
   }
   /// Returns true if `omnibus` has been explicitly set.
-  public var hasOmnibus: Bool {self._omnibus != nil}
+  public var hasOmnibus: Bool {return self._omnibus != nil}
   /// Clears the value of `omnibus`. Subsequent reads from it will return its default value.
   public mutating func clearOmnibus() {self._omnibus = nil}
 
@@ -507,61 +507,61 @@ public struct Ocp_Currency_V1_LaunchpadMetadata: Sendable {
 
   /// The address of the currency config
   public var currencyConfig: Ocp_Common_V1_SolanaAccountId {
-    get {_currencyConfig ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _currencyConfig ?? Ocp_Common_V1_SolanaAccountId()}
     set {_currencyConfig = newValue}
   }
   /// Returns true if `currencyConfig` has been explicitly set.
-  public var hasCurrencyConfig: Bool {self._currencyConfig != nil}
+  public var hasCurrencyConfig: Bool {return self._currencyConfig != nil}
   /// Clears the value of `currencyConfig`. Subsequent reads from it will return its default value.
   public mutating func clearCurrencyConfig() {self._currencyConfig = nil}
 
   /// The address of the liquidity pool
   public var liquidityPool: Ocp_Common_V1_SolanaAccountId {
-    get {_liquidityPool ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _liquidityPool ?? Ocp_Common_V1_SolanaAccountId()}
     set {_liquidityPool = newValue}
   }
   /// Returns true if `liquidityPool` has been explicitly set.
-  public var hasLiquidityPool: Bool {self._liquidityPool != nil}
+  public var hasLiquidityPool: Bool {return self._liquidityPool != nil}
   /// Clears the value of `liquidityPool`. Subsequent reads from it will return its default value.
   public mutating func clearLiquidityPool() {self._liquidityPool = nil}
 
   /// The random seed used during currency creation
   public var seed: Ocp_Common_V1_SolanaAccountId {
-    get {_seed ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _seed ?? Ocp_Common_V1_SolanaAccountId()}
     set {_seed = newValue}
   }
   /// Returns true if `seed` has been explicitly set.
-  public var hasSeed: Bool {self._seed != nil}
+  public var hasSeed: Bool {return self._seed != nil}
   /// Clears the value of `seed`. Subsequent reads from it will return its default value.
   public mutating func clearSeed() {self._seed = nil}
 
   /// The address of the authority for the currency
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {self._authority != nil}
+  public var hasAuthority: Bool {return self._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {self._authority = nil}
 
   /// The address where this mint's tokens are locked against the liquidity pool
   public var mintVault: Ocp_Common_V1_SolanaAccountId {
-    get {_mintVault ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _mintVault ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mintVault = newValue}
   }
   /// Returns true if `mintVault` has been explicitly set.
-  public var hasMintVault: Bool {self._mintVault != nil}
+  public var hasMintVault: Bool {return self._mintVault != nil}
   /// Clears the value of `mintVault`. Subsequent reads from it will return its default value.
   public mutating func clearMintVault() {self._mintVault = nil}
 
   /// The address where core mint tokens are locked against the liquidity pool
   public var coreMintVault: Ocp_Common_V1_SolanaAccountId {
-    get {_coreMintVault ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _coreMintVault ?? Ocp_Common_V1_SolanaAccountId()}
     set {_coreMintVault = newValue}
   }
   /// Returns true if `coreMintVault` has been explicitly set.
-  public var hasCoreMintVault: Bool {self._coreMintVault != nil}
+  public var hasCoreMintVault: Bool {return self._coreMintVault != nil}
   /// Clears the value of `coreMintVault`. Subsequent reads from it will return its default value.
   public mutating func clearCoreMintVault() {self._coreMintVault = nil}
 
@@ -596,11 +596,11 @@ public struct Ocp_Currency_V1_HistoricalMintData: Sendable {
 
   /// Timestamp for this data point
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {self._timestamp != nil}
+  public var hasTimestamp: Bool {return self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
@@ -627,11 +627,11 @@ public struct Ocp_Currency_V1_CoreMintFiatExchangeRate: Sendable {
 
   /// Timestamp for this data point
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {self._timestamp != nil}
+  public var hasTimestamp: Bool {return self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
@@ -649,20 +649,20 @@ public struct Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate: Sendable {
   // methods supported on all messages.
 
   public var exchangeRate: Ocp_Currency_V1_CoreMintFiatExchangeRate {
-    get {_exchangeRate ?? Ocp_Currency_V1_CoreMintFiatExchangeRate()}
+    get {return _exchangeRate ?? Ocp_Currency_V1_CoreMintFiatExchangeRate()}
     set {_exchangeRate = newValue}
   }
   /// Returns true if `exchangeRate` has been explicitly set.
-  public var hasExchangeRate: Bool {self._exchangeRate != nil}
+  public var hasExchangeRate: Bool {return self._exchangeRate != nil}
   /// Clears the value of `exchangeRate`. Subsequent reads from it will return its default value.
   public mutating func clearExchangeRate() {self._exchangeRate = nil}
 
   public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -693,11 +693,11 @@ public struct Ocp_Currency_V1_LaunchpadCurrencyReserveState: Sendable {
 
   /// Launchpad currency mint address
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {self._mint != nil}
+  public var hasMint: Bool {return self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -706,11 +706,11 @@ public struct Ocp_Currency_V1_LaunchpadCurrencyReserveState: Sendable {
 
   /// Timestamp for this data point
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {self._timestamp != nil}
+  public var hasTimestamp: Bool {return self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
@@ -729,20 +729,20 @@ public struct Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState: Sendable {
   // methods supported on all messages.
 
   public var reserveState: Ocp_Currency_V1_LaunchpadCurrencyReserveState {
-    get {_reserveState ?? Ocp_Currency_V1_LaunchpadCurrencyReserveState()}
+    get {return _reserveState ?? Ocp_Currency_V1_LaunchpadCurrencyReserveState()}
     set {_reserveState = newValue}
   }
   /// Returns true if `reserveState` has been explicitly set.
-  public var hasReserveState: Bool {self._reserveState != nil}
+  public var hasReserveState: Bool {return self._reserveState != nil}
   /// Clears the value of `reserveState`. Subsequent reads from it will return its default value.
   public mutating func clearReserveState() {self._reserveState = nil}
 
   public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -932,11 +932,11 @@ public struct Ocp_Currency_V1_LaunchRequest: Sendable {
 
   /// The owner account launching the currency
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {self._owner != nil}
+  public var hasOwner: Bool {return self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -944,11 +944,11 @@ public struct Ocp_Currency_V1_LaunchRequest: Sendable {
   /// using the private key of the owner account. This provides an authentication
   /// mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -966,11 +966,11 @@ public struct Ocp_Currency_V1_LaunchRequest: Sendable {
 
   /// Optional bill customization. If not provided, a default will be set.
   public var billCustomization: Ocp_Currency_V1_BillCustomization {
-    get {_billCustomization ?? Ocp_Currency_V1_BillCustomization()}
+    get {return _billCustomization ?? Ocp_Currency_V1_BillCustomization()}
     set {_billCustomization = newValue}
   }
   /// Returns true if `billCustomization` has been explicitly set.
-  public var hasBillCustomization: Bool {self._billCustomization != nil}
+  public var hasBillCustomization: Bool {return self._billCustomization != nil}
   /// Clears the value of `billCustomization`. Subsequent reads from it will return its default value.
   public mutating func clearBillCustomization() {self._billCustomization = nil}
 
@@ -979,41 +979,41 @@ public struct Ocp_Currency_V1_LaunchRequest: Sendable {
 
   /// Attestation that the name passed moderation
   public var nameModerationAttestation: Ocp_Currency_V1_ModerationAttestation {
-    get {_nameModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    get {return _nameModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
     set {_nameModerationAttestation = newValue}
   }
   /// Returns true if `nameModerationAttestation` has been explicitly set.
-  public var hasNameModerationAttestation: Bool {self._nameModerationAttestation != nil}
+  public var hasNameModerationAttestation: Bool {return self._nameModerationAttestation != nil}
   /// Clears the value of `nameModerationAttestation`. Subsequent reads from it will return its default value.
   public mutating func clearNameModerationAttestation() {self._nameModerationAttestation = nil}
 
   /// Attestation that the symbol, if provided, passed moderation
   public var symbolModerationAttestation: Ocp_Currency_V1_ModerationAttestation {
-    get {_symbolModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    get {return _symbolModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
     set {_symbolModerationAttestation = newValue}
   }
   /// Returns true if `symbolModerationAttestation` has been explicitly set.
-  public var hasSymbolModerationAttestation: Bool {self._symbolModerationAttestation != nil}
+  public var hasSymbolModerationAttestation: Bool {return self._symbolModerationAttestation != nil}
   /// Clears the value of `symbolModerationAttestation`. Subsequent reads from it will return its default value.
   public mutating func clearSymbolModerationAttestation() {self._symbolModerationAttestation = nil}
 
   /// Attestation that the descritpion, if provided, passed moderation
   public var descriptionModerationAttestation: Ocp_Currency_V1_ModerationAttestation {
-    get {_descriptionModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    get {return _descriptionModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
     set {_descriptionModerationAttestation = newValue}
   }
   /// Returns true if `descriptionModerationAttestation` has been explicitly set.
-  public var hasDescriptionModerationAttestation: Bool {self._descriptionModerationAttestation != nil}
+  public var hasDescriptionModerationAttestation: Bool {return self._descriptionModerationAttestation != nil}
   /// Clears the value of `descriptionModerationAttestation`. Subsequent reads from it will return its default value.
   public mutating func clearDescriptionModerationAttestation() {self._descriptionModerationAttestation = nil}
 
   /// Attestation that the icon image, if provided, passed moderation
   public var iconModerationAttestation: Ocp_Currency_V1_ModerationAttestation {
-    get {_iconModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    get {return _iconModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
     set {_iconModerationAttestation = newValue}
   }
   /// Returns true if `iconModerationAttestation` has been explicitly set.
-  public var hasIconModerationAttestation: Bool {self._iconModerationAttestation != nil}
+  public var hasIconModerationAttestation: Bool {return self._iconModerationAttestation != nil}
   /// Clears the value of `iconModerationAttestation`. Subsequent reads from it will return its default value.
   public mutating func clearIconModerationAttestation() {self._iconModerationAttestation = nil}
 
@@ -1039,11 +1039,11 @@ public struct Ocp_Currency_V1_LaunchResponse: Sendable {
 
   /// The mint address of the launched currency on success
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {self._mint != nil}
+  public var hasMint: Bool {return self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -1109,11 +1109,11 @@ public struct Ocp_Currency_V1_UpdateIconRequest: Sendable {
 
   /// The owner account of the currency
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {self._owner != nil}
+  public var hasOwner: Bool {return self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -1121,21 +1121,21 @@ public struct Ocp_Currency_V1_UpdateIconRequest: Sendable {
   /// using the private key of the owner account. This provides an authentication
   /// mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
   /// The mint address of the currency to update
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {self._mint != nil}
+  public var hasMint: Bool {return self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -1144,11 +1144,11 @@ public struct Ocp_Currency_V1_UpdateIconRequest: Sendable {
 
   /// Attestation that the icon image passed moderation
   public var moderationAttestation: Ocp_Currency_V1_ModerationAttestation {
-    get {_moderationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    get {return _moderationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
     set {_moderationAttestation = newValue}
   }
   /// Returns true if `moderationAttestation` has been explicitly set.
-  public var hasModerationAttestation: Bool {self._moderationAttestation != nil}
+  public var hasModerationAttestation: Bool {return self._moderationAttestation != nil}
   /// Clears the value of `moderationAttestation`. Subsequent reads from it will return its default value.
   public mutating func clearModerationAttestation() {self._moderationAttestation = nil}
 
@@ -1223,11 +1223,11 @@ public struct Ocp_Currency_V1_UpdateMetadataRequest: Sendable {
 
   /// The owner account of the currency
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {self._owner != nil}
+  public var hasOwner: Bool {return self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -1235,52 +1235,52 @@ public struct Ocp_Currency_V1_UpdateMetadataRequest: Sendable {
   /// using the private key of the owner account. This provides an authentication
   /// mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
   /// The mint address of the currency to update
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {self._mint != nil}
+  public var hasMint: Bool {return self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
   /// Updated currency description. If not provided, description is not updated.
   public var newDescription: Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate {
-    get {_newDescription ?? Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate()}
+    get {return _newDescription ?? Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate()}
     set {_newDescription = newValue}
   }
   /// Returns true if `newDescription` has been explicitly set.
-  public var hasNewDescription: Bool {self._newDescription != nil}
+  public var hasNewDescription: Bool {return self._newDescription != nil}
   /// Clears the value of `newDescription`. Subsequent reads from it will return its default value.
   public mutating func clearNewDescription() {self._newDescription = nil}
 
   /// Updated bill customization. If not provided, bill customization is not updated.
   public var newBillCustomization: Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate {
-    get {_newBillCustomization ?? Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate()}
+    get {return _newBillCustomization ?? Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate()}
     set {_newBillCustomization = newValue}
   }
   /// Returns true if `newBillCustomization` has been explicitly set.
-  public var hasNewBillCustomization: Bool {self._newBillCustomization != nil}
+  public var hasNewBillCustomization: Bool {return self._newBillCustomization != nil}
   /// Clears the value of `newBillCustomization`. Subsequent reads from it will return its default value.
   public mutating func clearNewBillCustomization() {self._newBillCustomization = nil}
 
   /// Updated social links. This replaces the entire set of social links. If not
   /// provided, social links are not updated.
   public var newSocialLinks: Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate {
-    get {_newSocialLinks ?? Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate()}
+    get {return _newSocialLinks ?? Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate()}
     set {_newSocialLinks = newValue}
   }
   /// Returns true if `newSocialLinks` has been explicitly set.
-  public var hasNewSocialLinks: Bool {self._newSocialLinks != nil}
+  public var hasNewSocialLinks: Bool {return self._newSocialLinks != nil}
   /// Clears the value of `newSocialLinks`. Subsequent reads from it will return its default value.
   public mutating func clearNewSocialLinks() {self._newSocialLinks = nil}
 
@@ -1295,11 +1295,11 @@ public struct Ocp_Currency_V1_UpdateMetadataRequest: Sendable {
 
     /// Attestation that the description passed moderation
     public var moderationAttestation: Ocp_Currency_V1_ModerationAttestation {
-      get {_moderationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+      get {return _moderationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
       set {_moderationAttestation = newValue}
     }
     /// Returns true if `moderationAttestation` has been explicitly set.
-    public var hasModerationAttestation: Bool {self._moderationAttestation != nil}
+    public var hasModerationAttestation: Bool {return self._moderationAttestation != nil}
     /// Clears the value of `moderationAttestation`. Subsequent reads from it will return its default value.
     public mutating func clearModerationAttestation() {self._moderationAttestation = nil}
 
@@ -1316,11 +1316,11 @@ public struct Ocp_Currency_V1_UpdateMetadataRequest: Sendable {
     // methods supported on all messages.
 
     public var value: Ocp_Currency_V1_BillCustomization {
-      get {_value ?? Ocp_Currency_V1_BillCustomization()}
+      get {return _value ?? Ocp_Currency_V1_BillCustomization()}
       set {_value = newValue}
     }
     /// Returns true if `value` has been explicitly set.
-    public var hasValue: Bool {self._value != nil}
+    public var hasValue: Bool {return self._value != nil}
     /// Clears the value of `value`. Subsequent reads from it will return its default value.
     public mutating func clearValue() {self._value = nil}
 

@@ -26,21 +26,21 @@ public struct Flipcash_Contact_V1_CheckSyncRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
   /// XOR-of-SHA256 over the client's current set of normalized E.164 phones.
   public var clientChecksum: Flipcash_Common_V1_Hash {
-    get {_clientChecksum ?? Flipcash_Common_V1_Hash()}
+    get {return _clientChecksum ?? Flipcash_Common_V1_Hash()}
     set {_clientChecksum = newValue}
   }
   /// Returns true if `clientChecksum` has been explicitly set.
-  public var hasClientChecksum: Bool {self._clientChecksum != nil}
+  public var hasClientChecksum: Bool {return self._clientChecksum != nil}
   /// Clears the value of `clientChecksum`. Subsequent reads from it will return its default value.
   public mutating func clearClientChecksum() {self._clientChecksum = nil}
 
@@ -62,11 +62,11 @@ public struct Flipcash_Contact_V1_CheckSyncResponse: Sendable {
   /// Authoritative server-side checksum. Clients persist this and use it
   /// as the basis for the next DeltaUpload.old_checksum.
   public var serverChecksum: Flipcash_Common_V1_Hash {
-    get {_serverChecksum ?? Flipcash_Common_V1_Hash()}
+    get {return _serverChecksum ?? Flipcash_Common_V1_Hash()}
     set {_serverChecksum = newValue}
   }
   /// Returns true if `serverChecksum` has been explicitly set.
-  public var hasServerChecksum: Bool {self._serverChecksum != nil}
+  public var hasServerChecksum: Bool {return self._serverChecksum != nil}
   /// Clears the value of `serverChecksum`. Subsequent reads from it will return its default value.
   public mutating func clearServerChecksum() {self._serverChecksum = nil}
 
@@ -121,11 +121,11 @@ public struct Flipcash_Contact_V1_DeltaUploadRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -136,11 +136,11 @@ public struct Flipcash_Contact_V1_DeltaUploadRequest: Sendable {
   /// The checksum the client expected the server to have *before* applying
   /// this delta. Server applies only if stored == old_checksum.
   public var oldChecksum: Flipcash_Common_V1_Hash {
-    get {_oldChecksum ?? Flipcash_Common_V1_Hash()}
+    get {return _oldChecksum ?? Flipcash_Common_V1_Hash()}
     set {_oldChecksum = newValue}
   }
   /// Returns true if `oldChecksum` has been explicitly set.
-  public var hasOldChecksum: Bool {self._oldChecksum != nil}
+  public var hasOldChecksum: Bool {return self._oldChecksum != nil}
   /// Clears the value of `oldChecksum`. Subsequent reads from it will return its default value.
   public mutating func clearOldChecksum() {self._oldChecksum = nil}
 
@@ -148,11 +148,11 @@ public struct Flipcash_Contact_V1_DeltaUploadRequest: Sendable {
   /// delta. Server persists this on success. Used to detect retries: if
   /// stored == new_checksum, the server treats the request as a no-op.
   public var newChecksum: Flipcash_Common_V1_Hash {
-    get {_newChecksum ?? Flipcash_Common_V1_Hash()}
+    get {return _newChecksum ?? Flipcash_Common_V1_Hash()}
     set {_newChecksum = newValue}
   }
   /// Returns true if `newChecksum` has been explicitly set.
-  public var hasNewChecksum: Bool {self._newChecksum != nil}
+  public var hasNewChecksum: Bool {return self._newChecksum != nil}
   /// Clears the value of `newChecksum`. Subsequent reads from it will return its default value.
   public mutating func clearNewChecksum() {self._newChecksum = nil}
 
@@ -234,11 +234,11 @@ public struct Flipcash_Contact_V1_FullUploadRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -249,11 +249,11 @@ public struct Flipcash_Contact_V1_FullUploadRequest: Sendable {
   /// XOR-of-SHA256 over the client's current set of normalized E.164 phones.
   /// Sent on the last streamed request to indicate the end of the upload.
   public var expectedChecksum: Flipcash_Common_V1_Hash {
-    get {_expectedChecksum ?? Flipcash_Common_V1_Hash()}
+    get {return _expectedChecksum ?? Flipcash_Common_V1_Hash()}
     set {_expectedChecksum = newValue}
   }
   /// Returns true if `expectedChecksum` has been explicitly set.
-  public var hasExpectedChecksum: Bool {self._expectedChecksum != nil}
+  public var hasExpectedChecksum: Bool {return self._expectedChecksum != nil}
   /// Clears the value of `expectedChecksum`. Subsequent reads from it will return its default value.
   public mutating func clearExpectedChecksum() {self._expectedChecksum = nil}
 
@@ -327,20 +327,20 @@ public struct Flipcash_Contact_V1_GetFlipcashContactsRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
   public var checksum: Flipcash_Common_V1_Hash {
-    get {_checksum ?? Flipcash_Common_V1_Hash()}
+    get {return _checksum ?? Flipcash_Common_V1_Hash()}
     set {_checksum = newValue}
   }
   /// Returns true if `checksum` has been explicitly set.
-  public var hasChecksum: Bool {self._checksum != nil}
+  public var hasChecksum: Bool {return self._checksum != nil}
   /// Clears the value of `checksum`. Subsequent reads from it will return its default value.
   public mutating func clearChecksum() {self._checksum = nil}
 

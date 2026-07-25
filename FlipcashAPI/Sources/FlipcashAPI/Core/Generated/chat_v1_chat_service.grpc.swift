@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.chat.v1.Chat" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Chat_V1_Chat: Sendable {
+public enum Flipcash_Chat_V1_Chat {
     /// Service descriptor for the "flipcash.chat.v1.Chat" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.chat.v1.Chat")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "GetChat" metadata.
-        public enum GetChat: Sendable {
+        public enum GetChat {
             /// Request type for "GetChat".
             public typealias Input = Flipcash_Chat_V1_GetChatRequest
             /// Response type for "GetChat".
@@ -29,12 +29,11 @@ public enum Flipcash_Chat_V1_Chat: Sendable {
             /// Descriptor for "GetChat".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.chat.v1.Chat"),
-                method: "GetChat",
-                type: .unary
+                method: "GetChat"
             )
         }
         /// Namespace for "GetDmChatFeed" metadata.
-        public enum GetDmChatFeed: Sendable {
+        public enum GetDmChatFeed {
             /// Request type for "GetDmChatFeed".
             public typealias Input = Flipcash_Chat_V1_GetDmChatFeedRequest
             /// Response type for "GetDmChatFeed".
@@ -42,8 +41,7 @@ public enum Flipcash_Chat_V1_Chat: Sendable {
             /// Descriptor for "GetDmChatFeed".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.chat.v1.Chat"),
-                method: "GetDmChatFeed",
-                type: .unary
+                method: "GetDmChatFeed"
             )
         }
         /// Descriptors for all methods in the "flipcash.chat.v1.Chat" service.

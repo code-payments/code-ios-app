@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.messaging.v1.Messaging" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Messaging_V1_Messaging: Sendable {
+public enum Flipcash_Messaging_V1_Messaging {
     /// Service descriptor for the "flipcash.messaging.v1.Messaging" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "GetMessage" metadata.
-        public enum GetMessage: Sendable {
+        public enum GetMessage {
             /// Request type for "GetMessage".
             public typealias Input = Flipcash_Messaging_V1_GetMessageRequest
             /// Response type for "GetMessage".
@@ -29,12 +29,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "GetMessage".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "GetMessage",
-                type: .unary
+                method: "GetMessage"
             )
         }
         /// Namespace for "GetMessages" metadata.
-        public enum GetMessages: Sendable {
+        public enum GetMessages {
             /// Request type for "GetMessages".
             public typealias Input = Flipcash_Messaging_V1_GetMessagesRequest
             /// Response type for "GetMessages".
@@ -42,12 +41,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "GetMessages".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "GetMessages",
-                type: .unary
+                method: "GetMessages"
             )
         }
         /// Namespace for "GetDelta" metadata.
-        public enum GetDelta: Sendable {
+        public enum GetDelta {
             /// Request type for "GetDelta".
             public typealias Input = Flipcash_Messaging_V1_GetDeltaRequest
             /// Response type for "GetDelta".
@@ -55,12 +53,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "GetDelta".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "GetDelta",
-                type: .serverStreaming
+                method: "GetDelta"
             )
         }
         /// Namespace for "SendMessage" metadata.
-        public enum SendMessage: Sendable {
+        public enum SendMessage {
             /// Request type for "SendMessage".
             public typealias Input = Flipcash_Messaging_V1_SendMessageRequest
             /// Response type for "SendMessage".
@@ -68,12 +65,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "SendMessage".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "SendMessage",
-                type: .unary
+                method: "SendMessage"
             )
         }
         /// Namespace for "EditMessage" metadata.
-        public enum EditMessage: Sendable {
+        public enum EditMessage {
             /// Request type for "EditMessage".
             public typealias Input = Flipcash_Messaging_V1_EditMessageRequest
             /// Response type for "EditMessage".
@@ -81,12 +77,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "EditMessage".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "EditMessage",
-                type: .unary
+                method: "EditMessage"
             )
         }
         /// Namespace for "DeleteMessage" metadata.
-        public enum DeleteMessage: Sendable {
+        public enum DeleteMessage {
             /// Request type for "DeleteMessage".
             public typealias Input = Flipcash_Messaging_V1_DeleteMessageRequest
             /// Response type for "DeleteMessage".
@@ -94,12 +89,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "DeleteMessage".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "DeleteMessage",
-                type: .unary
+                method: "DeleteMessage"
             )
         }
         /// Namespace for "AddReaction" metadata.
-        public enum AddReaction: Sendable {
+        public enum AddReaction {
             /// Request type for "AddReaction".
             public typealias Input = Flipcash_Messaging_V1_AddReactionRequest
             /// Response type for "AddReaction".
@@ -107,12 +101,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "AddReaction".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "AddReaction",
-                type: .unary
+                method: "AddReaction"
             )
         }
         /// Namespace for "RemoveReaction" metadata.
-        public enum RemoveReaction: Sendable {
+        public enum RemoveReaction {
             /// Request type for "RemoveReaction".
             public typealias Input = Flipcash_Messaging_V1_RemoveReactionRequest
             /// Response type for "RemoveReaction".
@@ -120,12 +113,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "RemoveReaction".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "RemoveReaction",
-                type: .unary
+                method: "RemoveReaction"
             )
         }
         /// Namespace for "GetReactors" metadata.
-        public enum GetReactors: Sendable {
+        public enum GetReactors {
             /// Request type for "GetReactors".
             public typealias Input = Flipcash_Messaging_V1_GetReactorsRequest
             /// Response type for "GetReactors".
@@ -133,12 +125,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "GetReactors".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "GetReactors",
-                type: .unary
+                method: "GetReactors"
             )
         }
         /// Namespace for "GetReactionSummary" metadata.
-        public enum GetReactionSummary: Sendable {
+        public enum GetReactionSummary {
             /// Request type for "GetReactionSummary".
             public typealias Input = Flipcash_Messaging_V1_GetReactionSummaryRequest
             /// Response type for "GetReactionSummary".
@@ -146,12 +137,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "GetReactionSummary".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "GetReactionSummary",
-                type: .unary
+                method: "GetReactionSummary"
             )
         }
         /// Namespace for "GetReactionSummaries" metadata.
-        public enum GetReactionSummaries: Sendable {
+        public enum GetReactionSummaries {
             /// Request type for "GetReactionSummaries".
             public typealias Input = Flipcash_Messaging_V1_GetReactionSummariesRequest
             /// Response type for "GetReactionSummaries".
@@ -159,12 +149,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "GetReactionSummaries".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "GetReactionSummaries",
-                type: .unary
+                method: "GetReactionSummaries"
             )
         }
         /// Namespace for "AdvancePointer" metadata.
-        public enum AdvancePointer: Sendable {
+        public enum AdvancePointer {
             /// Request type for "AdvancePointer".
             public typealias Input = Flipcash_Messaging_V1_AdvancePointerRequest
             /// Response type for "AdvancePointer".
@@ -172,12 +161,11 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "AdvancePointer".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "AdvancePointer",
-                type: .unary
+                method: "AdvancePointer"
             )
         }
         /// Namespace for "NotifyIsTyping" metadata.
-        public enum NotifyIsTyping: Sendable {
+        public enum NotifyIsTyping {
             /// Request type for "NotifyIsTyping".
             public typealias Input = Flipcash_Messaging_V1_NotifyIsTypingRequest
             /// Response type for "NotifyIsTyping".
@@ -185,8 +173,7 @@ public enum Flipcash_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "NotifyIsTyping".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.messaging.v1.Messaging"),
-                method: "NotifyIsTyping",
-                type: .unary
+                method: "NotifyIsTyping"
             )
         }
         /// Descriptors for all methods in the "flipcash.messaging.v1.Messaging" service.

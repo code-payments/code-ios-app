@@ -143,7 +143,7 @@ private struct NotificationCashCard: View {
             }
             .overlay {
                 NotificationCashCenter(
-                    caption: isFromSelf ? "You sent" : "You received",
+                    caption: ChatCashContent.caption(isFromSelf: isFromSelf, isTip: cash.isTip),
                     amount: cash.amount,
                     flagImageName: cash.flagImageName
                 )

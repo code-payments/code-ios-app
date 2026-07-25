@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.settings.v1.Settings" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Settings_V1_Settings: Sendable {
+public enum Flipcash_Settings_V1_Settings {
     /// Service descriptor for the "flipcash.settings.v1.Settings" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.settings.v1.Settings")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "UpdateSettings" metadata.
-        public enum UpdateSettings: Sendable {
+        public enum UpdateSettings {
             /// Request type for "UpdateSettings".
             public typealias Input = Flipcash_Settings_V1_UpdateSettingsRequest
             /// Response type for "UpdateSettings".
@@ -29,8 +29,7 @@ public enum Flipcash_Settings_V1_Settings: Sendable {
             /// Descriptor for "UpdateSettings".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.settings.v1.Settings"),
-                method: "UpdateSettings",
-                type: .unary
+                method: "UpdateSettings"
             )
         }
         /// Descriptors for all methods in the "flipcash.settings.v1.Settings" service.
