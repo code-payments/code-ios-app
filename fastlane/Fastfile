@@ -266,14 +266,18 @@ platform :ios do
   end
 
   # Xcode Cloud builds the commit at the tip of the ref on origin, so refuse
-  # to trigger when origin is missing the branch or lags the local HEAD.
+  # to trigger when origin is missing the branch. When deploying the branch
+  # we're standing on, also require origin to hold our latest commit —
+  # otherwise we'd build a stale remote tip. An explicitly-named other branch
+  # is taken as-is on origin.
   def ensure_branch_on_origin(branch)
-    local = sh("git rev-parse HEAD", log: false).strip
     remote = sh("git ls-remote origin refs/heads/#{branch}", log: false).strip.split(/\s+/).first.to_s
+    UI.user_error!("Branch '#{branch}' isn't on origin. Push it first: git push -u origin #{branch}") if remote.empty?
 
-    if remote.empty?
-      UI.user_error!("Branch '#{branch}' isn't on origin. Push it first: git push -u origin #{branch}")
-    elsif remote != local
+    return unless branch == sh("git rev-parse --abbrev-ref HEAD", log: false).strip
+
+    local = sh("git rev-parse HEAD", log: false).strip
+    unless remote == local
       UI.user_error!("origin/#{branch} (#{remote[0, 7]}) ≠ local HEAD (#{local[0, 7]}). Push first — Xcode Cloud builds the remote tip.")
     end
   end
