@@ -3,12 +3,12 @@ name: release
 description: Use when the user wants to cut a release, ship a version, prepare for release, or invokes /release
 disable-model-invocation: true
 argument-hint: [major|minor|patch]
-allowed-tools: Bash(git log *), Bash(git checkout *), Bash(git tag *), Bash(git push *), Bash(git cherry-pick *), Bash(git add *), Bash(git commit *), Bash(xcodebuild *), Bash(gh *), Read, Edit, Agent, Grep
+allowed-tools: Bash(git log *), Bash(git checkout *), Bash(git tag *), Bash(git push *), Bash(git cherry-pick *), Bash(git add *), Bash(git commit *), Bash(xcodebuild *), Bash(gh *), Bash(fastlane *), Read, Edit, Agent, Grep
 ---
 
 # Release
 
-Three-phase workflow. The release branch and tag push automatically so TestFlight can build a dogfooding candidate; the public GitHub release is only drafted after the user confirms on-device testing.
+Three-phase workflow. The release branch and tag push automatically so TestFlight can build a dogfooding candidate; the tag-built build is submitted to App Review and the public GitHub release drafted only after the user confirms on-device testing.
 
 ## Pre-flight context
 
@@ -158,11 +158,11 @@ The PR sits open for the user to merge whenever — it's a precondition the next
 
 ## STOP — Dogfooding Gate
 
-**Do NOT draft the GitHub release until the user explicitly confirms on-device testing.**
+**Do NOT submit to App Review or draft the GitHub release until the user explicitly confirms on-device testing.** Confirming triggers the App Store submission — the next step is irreversible from here (it goes to Apple), so wait for an explicit go-ahead.
 
 ```
 Branch and tag pushed — TestFlight build should be on its way.
-Public GitHub release not yet drafted.
+Not yet submitted to App Review; public GitHub release not yet drafted.
 
 Please verify on the TestFlight build:
 □ Claim a Cash Link on an empty account
@@ -170,27 +170,39 @@ Please verify on the TestFlight build:
 □ Scan & Send between 2 devices
 □ Expand a chat notification — the rich transcript renders + Reply works
 
-Tell me when you're ready to draft the public release.
+Tell me when you're ready to submit to App Review.
 ```
 
 ## Phase 3: Ship
 
 After user confirms:
 
-### 10. GitHub Release (draft)
+### 10. Submit to App Review
+The gate has cleared the tag-built TestFlight build; submit that same build for `{version}`:
+
+```bash
+fastlane release version:{version}
+```
+
+`fastlane release` (in `fastlane/Fastfile`) attaches the latest processed build for `{version}` to the App Store version and submits it with phased release. It reads the ASC creds from `fastlane/.env` — if it reports a missing `ASC_*` / `APP_IDENTIFIER`, have the user restore that file (`Scripts/pull_secrets`) and re-run.
+
+Use the step-7 changelog as the "What's New" notes — App Store notes are plain text, so drop the `##` section headers and pass the lines: `fastlane release version:{version} notes:"{plain-text changelog}"`. If a build for `{version}` isn't processed yet (deliver can't find it), wait and re-run — don't fall back to a different version.
+
+### 11. GitHub Release (draft)
 Always create the release as a draft. Publish it manually from the GitHub UI once the App Store rollout is live — publishing fires webhooks and "Latest release" badges, so it should reflect what's actually available to users.
 
 ```bash
 gh release create flipcash-{version} --draft --title "Flipcash {version}" --notes "{changelog}"
 ```
 
-Remind the user at the end: *"Release drafted. Promote it in the GitHub UI once the App Store rollout is live."*
+Remind the user at the end: *"Submitted to App Review and release drafted. Publish the GitHub release once the App Store rollout is live."*
 
 ## Never
 - Merge the release branch into main
 - Commit changelog files
 - Skip the dogfooding gate
-- Draft the GitHub release before the user confirms on-device testing
+- Submit to App Review (`fastlane release`) or draft the GitHub release before the user confirms on-device testing
+- Submit a different version than the one that was tagged and dogfooded — if the build isn't processed yet, wait, don't switch versions
 - Tag a patch without bumping `MARKETING_VERSION` on the release branch (step 4b) — TestFlight rejects duplicate build versions
 - Open the bump PR for the *current* release's version inside step 3 — step 3 must find it already on `main`, merged by the user from a prior /release's step-9a PR (or opened manually); auto-prepping the *next* version's bump PR in step 9a is the new normal
 - Cut the release branch or tag from a local-only bump commit — always branch from the `main` whose `origin/main` already has the merged bump
