@@ -41,7 +41,7 @@ Run from the repo root.
 | Trigger a specific branch | `fastlane deploy branch:<name>` |
 | Trigger **and** assign to a TestFlight group | `fastlane deploy group:'<Group Name>'` |
 
-**Pick the group first.** The group name must match a TestFlight group exactly (case-sensitive) or the lane errors. If the user hasn't named one, run `fastlane deploy dry_run:true` — it prints the available groups (and confirms the workflow + branch resolve) without triggering anything — then confirm the group with the user before the real run.
+**Pick the group first.** The group name must match a TestFlight group exactly (case-sensitive) or the lane errors. A default lives in the `TESTFLIGHT_GROUP` env var (in `fastlane/.env`, kept out of the repo); an explicit `group:'Name'` overrides it. If neither is set and the user hasn't named one, run `fastlane deploy dry_run:true` — it prints the available groups (and confirms the workflow + branch resolve) without triggering anything — then confirm the group with the user before the real run.
 
 `group:` makes the lane **block** through the whole Xcode Cloud build + processing (10–30+ min) before assigning — expected, not a hang. Stream the output and report progress. If the user doesn't want to wait, run `fastlane deploy group:'<Group>' wait:false` and tell them to run `fastlane distribute group:'<Group>'` once the build finishes processing.
 

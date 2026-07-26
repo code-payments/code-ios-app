@@ -16,6 +16,10 @@
 #   ASC_ISSUER_ID   - App Store Connect Issuer ID
 #   ASC_KEY_CONTENT - App Store Connect API Key content (base64)
 #
+# Optional environment variables:
+#   TESTFLIGHT_GROUP - default TestFlight group for deploy/distribute
+#                      (overridden by group:'Name'); keeps the name out of the repo
+#
 
 require "net/http"
 require "json"
@@ -147,7 +151,7 @@ platform :ios do
   lane :deploy do |options|
     workflow_name = options[:workflow] || "Deploy Flipcash"
     branch = options[:branch] || current_branch
-    group_name = options[:group]
+    group_name = options[:group] || ENV["TESTFLIGHT_GROUP"]
     dry_run = options[:dry_run].to_s == "true"
     # Only block for the (long) Xcode Cloud build when we have a group to hand it to.
     should_wait = options.key?(:wait) ? options[:wait].to_s == "true" : !group_name.nil?
@@ -193,8 +197,8 @@ platform :ios do
   desc "       fastlane distribute group:'Internal' build:42   # a specific build number"
   desc "       fastlane distribute group:'Internal' dry_run:true  # validate group + build, assign nothing"
   lane :distribute do |options|
-    group_name = options[:group]
-    UI.user_error!("Group required. Usage: fastlane distribute group:'Internal'") unless group_name
+    group_name = options[:group] || ENV["TESTFLIGHT_GROUP"]
+    UI.user_error!("Group required. Pass group:'Internal' or set TESTFLIGHT_GROUP in fastlane/.env") unless group_name
     dry_run = options[:dry_run].to_s == "true"
 
     Spaceship::ConnectAPI.token = asc_token
