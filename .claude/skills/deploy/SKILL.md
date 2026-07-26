@@ -47,6 +47,8 @@ Run from the repo root.
 
 Assign a group to an already-built build without triggering a new one: `fastlane distribute group:'<Group>' [build:<number>]`. Dry-run the upload half with `fastlane distribute group:'<Group>' dry_run:true` — it confirms the group resolves and reports which build would be assigned (and whether it's processed), without assigning and without blocking.
 
+**From GitHub instead of locally:** the same flow is exposed as the `Deploy to TestFlight (Xcode Cloud)` workflow (`.github/workflows/deploy.yml`) — Actions tab → Run workflow → pick a branch. It runs the lane on an ubuntu runner using the repo's ASC secrets, and assigns to the `TESTFLIGHT_GROUP` secret when the group field is left blank. Point users there when they can't or don't want to run fastlane locally.
+
 ## Report
 
 State the build number the lane printed and where to watch it (App Store Connect → Xcode Cloud → Builds). If a group was requested, confirm the build was assigned once the lane finishes.

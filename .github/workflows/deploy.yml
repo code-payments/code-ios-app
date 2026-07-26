@@ -1,0 +1,78 @@
+name: Deploy to TestFlight (Xcode Cloud)
+
+# Manually trigger the "Deploy Flipcash" Xcode Cloud workflow for a branch and,
+# optionally, wait for the build and assign it to a TestFlight group.
+#
+# These lanes only call the App Store Connect API (no Xcode compile), so this
+# runs on a cheap ubuntu runner rather than macOS.
+#
+# Required repository secrets:
+#   ASC_KEY_ID       - App Store Connect API Key ID
+#   ASC_ISSUER_ID    - App Store Connect Issuer ID
+#   ASC_KEY_CONTENT  - App Store Connect API Key (.p8) contents, base64-encoded
+#   APP_IDENTIFIER   - App bundle identifier
+#   TESTFLIGHT_GROUP - default TestFlight group to assign builds to
+#                      (kept in secrets so the name stays out of the repo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to build (must be pushed to origin)
+        required: true
+        default: main
+      group:
+        description: 'TestFlight group — leave blank to use the TESTFLIGHT_GROUP secret; type "none" to trigger only'
+        required: false
+        default: ""
+      wait:
+        description: Wait for the build to finish and assign it to the group
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: deploy-${{ inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout ${{ inputs.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install fastlane
+        run: gem install fastlane -v 2.227.1
+
+      - name: Trigger Deploy Flipcash
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          APP_IDENTIFIER: ${{ secrets.APP_IDENTIFIER }}
+          GROUP_SECRET: ${{ secrets.TESTFLIGHT_GROUP }}
+          BRANCH: ${{ inputs.branch }}
+          GROUP_INPUT: ${{ inputs.group }}
+          WAIT: ${{ inputs.wait }}
+        run: |
+          set -euo pipefail
+          args=(branch:"$BRANCH" wait:"$WAIT")
+          # blank input  -> use the TESTFLIGHT_GROUP secret (auto-assign)
+          # "none"       -> trigger only, assign nothing
+          # any name     -> one-off override of the secret
+          group_lc=$(printf '%s' "$GROUP_INPUT" | tr '[:upper:]' '[:lower:]')
+          case "$group_lc" in
+            none) ;;
+            "") [ -n "$GROUP_SECRET" ] && args+=(group:"$GROUP_SECRET") ;;
+            *) args+=(group:"$GROUP_INPUT") ;;
+          esac
+          fastlane deploy "${args[@]}"
