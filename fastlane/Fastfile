@@ -5,12 +5,25 @@
 #   2. Xcode Cloud builds and uploads to App Store Connect
 #   3. Run: fastlane release version:1.2.3
 #
+# Ad-hoc build flow:
+#   1. Push your branch to origin
+#   2. Run: fastlane deploy                     (triggers the "Deploy Flipcash" Xcode Cloud workflow)
+#      or:  fastlane deploy group:'Internal'    (also waits, then assigns the build to a TestFlight group)
+#
 # Required environment variables (set in fastlane/.env):
 #   APP_IDENTIFIER  - App bundle identifier
 #   ASC_KEY_ID      - App Store Connect API Key ID
 #   ASC_ISSUER_ID   - App Store Connect Issuer ID
 #   ASC_KEY_CONTENT - App Store Connect API Key content (base64)
 #
+# Optional environment variables:
+#   TESTFLIGHT_GROUP - default TestFlight group for deploy/distribute
+#                      (overridden by group:'Name'); keeps the name out of the repo
+#
+
+require "net/http"
+require "json"
+require "spaceship"
 
 default_platform(:ios)
 
@@ -126,6 +139,96 @@ platform :ios do
   end
 
   # ──────────────────────────────────────────────────────────────────
+  # Deploy Lane (Xcode Cloud)
+  # ──────────────────────────────────────────────────────────────────
+
+  desc "Trigger the 'Deploy Flipcash' Xcode Cloud workflow for the current branch"
+  desc "Usage: fastlane deploy"
+  desc "       fastlane deploy branch:my-feature"
+  desc "       fastlane deploy group:'Internal'          # trigger, wait, then assign to a TestFlight group"
+  desc "       fastlane deploy dry_run:true              # validate creds/workflow/branch + list groups, trigger nothing"
+  desc "       fastlane deploy workflow:'Deploy Flipcash'"
+  lane :deploy do |options|
+    workflow_name = options[:workflow] || "Deploy Flipcash"
+    branch = options[:branch] || current_branch
+    group_name = options[:group] || ENV["TESTFLIGHT_GROUP"]
+    dry_run = options[:dry_run].to_s == "true"
+    # Only block for the (long) Xcode Cloud build when we have a group to hand it to.
+    should_wait = options.key?(:wait) ? options[:wait].to_s == "true" : !group_name.nil?
+
+    ensure_branch_on_origin(branch)
+
+    token = asc_token
+    workflow = find_ci_workflow(token.text, workflow_name)
+    git_ref = find_git_reference(token.text, workflow[:repo_id], branch)
+
+    if dry_run
+      UI.success("Dry run — nothing triggered")
+      UI.message("Workflow  '#{workflow_name}' → #{workflow[:id]}")
+      UI.message("Branch    '#{branch}' → git reference #{git_ref[:id]}")
+      names = testflight_group_names(token)
+      UI.message("TestFlight groups: #{names.empty? ? '(none)' : names.join(', ')}")
+      UI.message(group_name ? "group:'#{group_name}' #{names.include?(group_name) ? '✓ matches' : "✗ NOT FOUND — pick one of the above"}" : "Pass group:'<name>' to assign the build to a TestFlight group.")
+      next
+    end
+
+    run = create_ci_build_run(token.text, workflow[:id], git_ref[:id])
+
+    UI.success("🚀 Started '#{workflow_name}' build ##{run[:number]} for #{branch}")
+    UI.message("Track it in App Store Connect → Xcode Cloud → Builds.")
+
+    next unless group_name
+
+    unless should_wait
+      UI.important("Run `fastlane distribute group:'#{group_name}'` once build ##{run[:number]} finishes processing.")
+      next
+    end
+
+    wait_for_build_run(token, run[:id])
+    distribute(group: group_name)
+  end
+
+  # ──────────────────────────────────────────────────────────────────
+  # Distribute Lane (TestFlight)
+  # ──────────────────────────────────────────────────────────────────
+
+  desc "Assign a processed build to a TestFlight group"
+  desc "Usage: fastlane distribute group:'Internal'            # latest processed build"
+  desc "       fastlane distribute group:'Internal' build:42   # a specific build number"
+  desc "       fastlane distribute group:'Internal' dry_run:true  # validate group + build, assign nothing"
+  lane :distribute do |options|
+    group_name = options[:group] || ENV["TESTFLIGHT_GROUP"]
+    UI.user_error!("Group required. Pass group:'Internal' or set TESTFLIGHT_GROUP in fastlane/.env") unless group_name
+    dry_run = options[:dry_run].to_s == "true"
+
+    Spaceship::ConnectAPI.token = asc_token
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("App '#{ENV['APP_IDENTIFIER']}' not found in App Store Connect") unless app
+
+    group = app.get_beta_groups(filter: { name: group_name }).find { |g| g.name == group_name }
+    UI.user_error!("No TestFlight group named '#{group_name}'") unless group
+
+    # Dry run reports against whatever's uploaded right now — it never blocks
+    # waiting for processing, and never assigns.
+    if dry_run
+      build = latest_build(app, options[:build])
+      if build.nil?
+        UI.important("Group '#{group_name}' ✓ found. No matching build uploaded yet — a real run would wait for one.")
+      elsif build.processed?
+        UI.success("Dry run — nothing assigned. Would assign build #{build.version} → '#{group_name}' (processed, ready).")
+      else
+        UI.important("Group '#{group_name}' ✓ found. Build #{build.version} is still processing — a real run would wait, then assign.")
+      end
+      next
+    end
+
+    build = wait_for_processed_build(app, options[:build])
+    build.add_beta_groups(beta_groups: [group])
+
+    UI.success("✅ Added build #{build.version} to TestFlight group '#{group_name}'")
+  end
+
+  # ──────────────────────────────────────────────────────────────────
   # Helpers
   # ──────────────────────────────────────────────────────────────────
 
@@ -139,6 +242,178 @@ platform :ios do
 
   def default_release_notes
     "Bug fixes and performance improvements."
+  end
+
+  # ── Xcode Cloud / App Store Connect API helpers ──────────────────────
+
+  ASC_API_BASE = "https://api.appstoreconnect.apple.com/v1"
+
+  # A short-lived JWT token object. `.text` re-signs automatically when it
+  # expires, so it stays valid across a multi-minute build-run poll.
+  def asc_token
+    %w[ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_CONTENT].each do |name|
+      UI.user_error!("Missing #{name}. Populate fastlane/.env (Scripts/pull_secrets).") if ENV[name].to_s.empty?
+    end
+
+    Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key: ENV["ASC_KEY_CONTENT"],
+      is_key_content_base64: true
+    )
+  end
+
+  def current_branch
+    branch = sh("git rev-parse --abbrev-ref HEAD", log: false).strip
+    UI.user_error!("Detached HEAD — pass the branch explicitly: fastlane deploy branch:<name>") if branch == "HEAD"
+    branch
+  end
+
+  # Xcode Cloud builds the commit at the tip of the ref on origin, so refuse
+  # to trigger when origin is missing the branch. When deploying the branch
+  # we're standing on, also require origin to hold our latest commit —
+  # otherwise we'd build a stale remote tip. An explicitly-named other branch
+  # is taken as-is on origin.
+  def ensure_branch_on_origin(branch)
+    remote = sh("git ls-remote origin refs/heads/#{branch}", log: false).strip.split(/\s+/).first.to_s
+    UI.user_error!("Branch '#{branch}' isn't on origin. Push it first: git push -u origin #{branch}") if remote.empty?
+
+    return unless branch == sh("git rev-parse --abbrev-ref HEAD", log: false).strip
+
+    local = sh("git rev-parse HEAD", log: false).strip
+    unless remote == local
+      UI.user_error!("origin/#{branch} (#{remote[0, 7]}) ≠ local HEAD (#{local[0, 7]}). Push first — Xcode Cloud builds the remote tip.")
+    end
+  end
+
+  def asc_get(bearer, path)
+    uri = URI(path.start_with?("http") ? path : "#{ASC_API_BASE}/#{path}")
+    request = Net::HTTP::Get.new(uri)
+    request["Authorization"] = "Bearer #{bearer}"
+    send_asc_request(uri, request)
+  end
+
+  def asc_post(bearer, path, body)
+    uri = URI("#{ASC_API_BASE}/#{path}")
+    request = Net::HTTP::Post.new(uri)
+    request["Authorization"] = "Bearer #{bearer}"
+    request["Content-Type"] = "application/json"
+    request.body = body.to_json
+    send_asc_request(uri, request)
+  end
+
+  def send_asc_request(uri, request)
+    response = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(request) }
+    unless response.code.to_i.between?(200, 299)
+      UI.user_error!("App Store Connect API #{request.method} #{uri.path} failed: #{response.code}\n#{response.body}")
+    end
+    response.body.to_s.empty? ? {} : JSON.parse(response.body)
+  end
+
+  # Locates a workflow by name across every Xcode Cloud product, returning
+  # its id plus the id of the repository it builds from.
+  def find_ci_workflow(bearer, name)
+    available = []
+    asc_get(bearer, "ciProducts?limit=200")["data"].each do |product|
+      workflows = asc_get(bearer, "ciProducts/#{product['id']}/workflows?limit=200")["data"]
+      available.concat(workflows.map { |w| w.dig("attributes", "name") })
+      match = workflows.find { |w| w.dig("attributes", "name")&.casecmp?(name) }
+      next unless match
+
+      detail = asc_get(bearer, "ciWorkflows/#{match['id']}?include=repository")
+      repo_id = detail.dig("data", "relationships", "repository", "data", "id")
+      UI.user_error!("Workflow '#{name}' has no linked repository") unless repo_id
+      return { id: match["id"], repo_id: repo_id }
+    end
+
+    UI.user_error!("No Xcode Cloud workflow named '#{name}'. Available: #{available.compact.uniq.join(', ')}")
+  end
+
+  # Resolves a branch name to its Xcode Cloud git-reference id, paging through
+  # every reference the product's repository knows about.
+  def find_git_reference(bearer, repo_id, branch)
+    path = "scmRepositories/#{repo_id}/gitReferences?limit=200"
+    while path
+      page = asc_get(bearer, path)
+      match = page["data"].find do |ref|
+        ref.dig("attributes", "kind") == "BRANCH" && ref.dig("attributes", "name") == branch
+      end
+      return { id: match["id"] } if match
+
+      path = page.dig("links", "next")
+    end
+
+    UI.user_error!("Xcode Cloud hasn't indexed branch '#{branch}' yet. Wait a moment after pushing, then retry.")
+  end
+
+  def create_ci_build_run(bearer, workflow_id, git_reference_id)
+    body = {
+      data: {
+        type: "ciBuildRuns",
+        relationships: {
+          workflow: { data: { type: "ciWorkflows", id: workflow_id } },
+          sourceBranchOrTag: { data: { type: "scmGitReferences", id: git_reference_id } }
+        }
+      }
+    }
+    response = asc_post(bearer, "ciBuildRuns", body)
+    { id: response.dig("data", "id"), number: response.dig("data", "attributes", "number") }
+  end
+
+  # Blocks until the build run completes, erroring if it didn't succeed.
+  def wait_for_build_run(token, run_id, timeout: 45 * 60, interval: 30)
+    waited = 0
+    loop do
+      attributes = asc_get(token.text, "ciBuildRuns/#{run_id}")["data"]["attributes"]
+      progress = attributes["executionProgress"]
+      status = attributes["completionStatus"]
+      UI.message("Xcode Cloud build: #{[progress, status].compact.join(' / ')}")
+
+      if progress == "COMPLETE"
+        UI.user_error!("Xcode Cloud build finished #{status}") unless status == "SUCCEEDED"
+        return
+      end
+
+      UI.user_error!("Timed out after #{timeout / 60} min waiting for the build to finish") if waited >= timeout
+      sleep(interval)
+      waited += interval
+    end
+  end
+
+  # Blocks until a build (optionally a specific number) has finished App Store
+  # Connect processing so it can be handed to a TestFlight group.
+  # Most recently uploaded build, optionally pinned to a build number. Does not
+  # wait — returns nil if nothing matches yet.
+  def latest_build(app, build_number)
+    Spaceship::ConnectAPI::Build.all(
+      app_id: app.id,
+      build_number: build_number&.to_s,
+      sort: "-uploadedDate",
+      limit: 1
+    ).first
+  end
+
+  def wait_for_processed_build(app, build_number, timeout: 30 * 60, interval: 30)
+    waited = 0
+    loop do
+      build = latest_build(app, build_number)
+
+      return build if build&.processed?
+
+      state = build ? "processing" : "not yet uploaded"
+      UI.message("Waiting for build#{build_number ? " #{build_number}" : ''} (#{state})…")
+      UI.user_error!("Timed out after #{timeout / 60} min waiting for a processed build") if waited >= timeout
+      sleep(interval)
+      waited += interval
+    end
+  end
+
+  # Names of every TestFlight group on the app, for picking a `group:` value.
+  def testflight_group_names(token)
+    Spaceship::ConnectAPI.token = token
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("App '#{ENV['APP_IDENTIFIER']}' not found in App Store Connect") unless app
+    app.get_beta_groups.map(&:name)
   end
 
 end
