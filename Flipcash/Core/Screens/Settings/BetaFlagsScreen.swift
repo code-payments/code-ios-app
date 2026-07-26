@@ -30,24 +30,8 @@ struct BetaFlagsScreen: View {
             LazyTable(spacing: 0) {
                 sectionHeader("Flags")
 
-                ForEach(BetaFlags.Option.allCases) { option in
-                    HStack(spacing: 12) {
-                        Toggle(isOn: betaFlags.bindingFor(option: option)) {
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(option.localizedTitle)
-                                    .foregroundStyle(.textMain)
-                                    .font(.appTextMedium)
-                                Text(option.localizedDescription)
-                                    .foregroundStyle(.textSecondary)
-                                    .font(.appTextHeading)
-                                    .multilineTextAlignment(.leading)
-                            }
-                            .padding(.trailing, 20)
-                        }
-                        .tint(.textSuccess)
-                    }
-                    .padding(20)
-                    .vSeparator(color: .rowSeparator, position: .bottom)
+                ForEach(BetaFlags.Option.allCases.filter { $0.availability == .developer }) { option in
+                    BetaFlagToggleRow(option: option, isOn: betaFlags.bindingFor(option: option))
                 }
 
                 sectionHeader("Account")

@@ -141,6 +141,23 @@ extension BetaFlags {
                 return "If enabled, the Tips tab is available from the scan screen"
             }
         }
+
+        /// Which Settings surface exposes this flag's toggle.
+        var availability: Availability {
+            switch self {
+            case .vibrateOnScan:  return .developer
+            case .enableCoinbase: return .developer
+            case .enableTips:     return .publicBeta
+            }
+        }
+    }
+
+    /// Where a beta flag's toggle appears in Settings.
+    enum Availability {
+        /// The hidden developer "Beta Flags" screen, unlocked by the 9-tap easter egg.
+        case developer
+        /// The public "Advanced ▸ Beta Features" screen, visible to every user.
+        case publicBeta
     }
 }
 
