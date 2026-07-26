@@ -45,7 +45,7 @@ Run from the repo root.
 
 `group:` makes the lane **block** through the whole Xcode Cloud build + processing (10–30+ min) before assigning — expected, not a hang. Stream the output and report progress. If the user doesn't want to wait, run `fastlane deploy group:'<Group>' wait:false` and tell them to run `fastlane distribute group:'<Group>'` once the build finishes processing.
 
-Assign a group to an already-built build without triggering a new one: `fastlane distribute group:'<Group>' [build:<number>]`.
+Assign a group to an already-built build without triggering a new one: `fastlane distribute group:'<Group>' [build:<number>]`. Dry-run the upload half with `fastlane distribute group:'<Group>' dry_run:true` — it confirms the group resolves and reports which build would be assigned (and whether it's processed), without assigning and without blocking.
 
 ## Report
 

@@ -191,9 +191,11 @@ platform :ios do
   desc "Assign a processed build to a TestFlight group"
   desc "Usage: fastlane distribute group:'Internal'            # latest processed build"
   desc "       fastlane distribute group:'Internal' build:42   # a specific build number"
+  desc "       fastlane distribute group:'Internal' dry_run:true  # validate group + build, assign nothing"
   lane :distribute do |options|
     group_name = options[:group]
     UI.user_error!("Group required. Usage: fastlane distribute group:'Internal'") unless group_name
+    dry_run = options[:dry_run].to_s == "true"
 
     Spaceship::ConnectAPI.token = asc_token
     app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
@@ -201,6 +203,20 @@ platform :ios do
 
     group = app.get_beta_groups(filter: { name: group_name }).find { |g| g.name == group_name }
     UI.user_error!("No TestFlight group named '#{group_name}'") unless group
+
+    # Dry run reports against whatever's uploaded right now — it never blocks
+    # waiting for processing, and never assigns.
+    if dry_run
+      build = latest_build(app, options[:build])
+      if build.nil?
+        UI.important("Group '#{group_name}' ✓ found. No matching build uploaded yet — a real run would wait for one.")
+      elsif build.processed?
+        UI.success("Dry run — nothing assigned. Would assign build #{build.version} → '#{group_name}' (processed, ready).")
+      else
+        UI.important("Group '#{group_name}' ✓ found. Build #{build.version} is still processing — a real run would wait, then assign.")
+      end
+      next
+    end
 
     build = wait_for_processed_build(app, options[:build])
     build.add_beta_groups(beta_groups: [group])
@@ -358,15 +374,21 @@ platform :ios do
 
   # Blocks until a build (optionally a specific number) has finished App Store
   # Connect processing so it can be handed to a TestFlight group.
+  # Most recently uploaded build, optionally pinned to a build number. Does not
+  # wait — returns nil if nothing matches yet.
+  def latest_build(app, build_number)
+    Spaceship::ConnectAPI::Build.all(
+      app_id: app.id,
+      build_number: build_number&.to_s,
+      sort: "-uploadedDate",
+      limit: 1
+    ).first
+  end
+
   def wait_for_processed_build(app, build_number, timeout: 30 * 60, interval: 30)
     waited = 0
     loop do
-      build = Spaceship::ConnectAPI::Build.all(
-        app_id: app.id,
-        build_number: build_number&.to_s,
-        sort: "-uploadedDate",
-        limit: 1
-      ).first
+      build = latest_build(app, build_number)
 
       return build if build&.processed?
 
