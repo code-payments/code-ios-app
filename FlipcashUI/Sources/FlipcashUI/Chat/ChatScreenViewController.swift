@@ -30,6 +30,13 @@ public final class ChatScreenViewController: UIViewController {
     /// lets the composer overflow below its frame, under the keyboard.
     private var barHeightConstraint: NSLayoutConstraint!
 
+    /// Raise the keyboard once the screen has finished appearing (post-tip open). Driven from
+    /// UIKit rather than a SwiftUI `@FocusState`: a hosted composer's programmatic focus updates
+    /// SwiftUI's focus state but never presents the keyboard across the hosting boundary — only a
+    /// real `becomeFirstResponder` does.
+    public var focusesComposerOnAppear = false
+    private var didFocusComposer = false
+
     /// - Parameters:
     ///   - bar: pinned to the keyboard layout guide; rides the keyboard.
     ///   - barController: the view controller owning the bar, when hosted (e.g. a
@@ -119,6 +126,17 @@ public final class ChatScreenViewController: UIViewController {
         host.setContentScrollView(transcript.collectionView, for: .top)
     }
 
+    public override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Raise the keyboard once, after the push transition settles — the composer's field is now
+        // in the key window, so `becomeFirstResponder` presents the keyboard (a hosted SwiftUI
+        // `@FocusState` set programmatically does not). One-shot: guarded so a later re-appear
+        // (app foregrounding) doesn't force the keyboard back up.
+        guard focusesComposerOnAppear, !didFocusComposer else { return }
+        didFocusComposer = true
+        bar.firstTextInputResponder?.becomeFirstResponder()
+    }
+
     /// Set the bar's height to its measured SwiftUI content height.
     public func setBarHeight(_ height: CGFloat) {
         guard barHeightConstraint != nil, barHeightConstraint.constant != height else { return }
@@ -138,6 +156,18 @@ public final class ChatScreenViewController: UIViewController {
         // view's adjusted content inset by the keyboard when it's up, so adding the keyboard here
         // too (via the bar's risen position) double-counts it and overscrolls by a whole keyboard.
         transcript.setBottomInset(bar.frame.height)
+    }
+}
+
+private extension UIView {
+    /// The first descendant text-input view that can become first responder — the composer's
+    /// field, wherever SwiftUI nests it inside the hosted bar.
+    var firstTextInputResponder: UIView? {
+        if (self is UITextField || self is UITextView), canBecomeFirstResponder { return self }
+        for subview in subviews {
+            if let responder = subview.firstTextInputResponder { return responder }
+        }
+        return nil
     }
 }
 #endif
