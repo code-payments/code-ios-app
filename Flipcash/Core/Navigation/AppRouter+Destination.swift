@@ -53,8 +53,14 @@ extension AppRouter {
         /// The signed-in user's own tipcard, pushed from the Tips list.
         case tipcard
         /// A tip DM conversation, pushed onto the `.tips` stack — from the
-        /// Tips list, a completed tip, or a tip-DM push notification.
+        /// Tips list or a tip-DM push notification.
         case tipConversation(ConversationID)
+        /// Same screen as `tipConversation` but opens with the message field
+        /// focused and the keyboard up. Modelled as a sibling case rather than
+        /// an associated-value flag (matching `currencyInfoForDeposit`) so the
+        /// trace shows "post-tip, keyboard up" distinctly, and so the ordinary
+        /// tip-list / push-notification opens stay keyboard-closed untouched.
+        case tipConversationWithKeyboard(ConversationID)
 
         // Conversation flow
         /// A DM conversation, pushed onto the `.send` stack — from the Chats
@@ -78,7 +84,8 @@ extension AppRouter {
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .withdraw:
                 return .settings
-            case .profileName, .profilePhoto, .tipcard, .tipConversation:
+            case .profileName, .profilePhoto, .tipcard,
+                 .tipConversation, .tipConversationWithKeyboard:
                 return .tips
             case .dmConversation:
                 return .send
@@ -115,6 +122,7 @@ extension AppRouter {
             case .profilePhoto:                 "profilePhoto"
             case .tipcard:                      "tipcard"
             case .tipConversation:              "tipConversation"
+            case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
             case .dmConversation:               "dmConversation"
             }
         }
@@ -134,7 +142,8 @@ extension AppRouter {
                 return conversationID.description
             case .dmConversation(.contact(let contact)):
                 return contact.contactId
-            case .tipConversation(let conversationID):
+            case .tipConversation(let conversationID),
+                 .tipConversationWithKeyboard(let conversationID):
                 return conversationID.description
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,

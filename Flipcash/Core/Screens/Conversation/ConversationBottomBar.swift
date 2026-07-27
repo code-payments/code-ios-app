@@ -46,6 +46,11 @@ struct ConversationBottomBar: View {
     let symbol: String
     let onSendCash: () -> Void
     let model: ConversationBarModel
+    /// Focus the composer on first appear (post-tip open); false everywhere else.
+    var focusOnAppear: Bool = false
+    /// Tip chats always show the compact symbol-only send button; ordinary
+    /// chats expand to "Send €" at rest and collapse only while composing.
+    var isTipDm: Bool = false
 
     var body: some View {
         let content = HStack(alignment: .bottom, spacing: 10) {
@@ -54,12 +59,17 @@ struct ConversationBottomBar: View {
                     symbol: symbol,
                     composing: model.isComposing,
                     standalone: !chatExists,
+                    alwaysMinimized: isTipDm,
                     action: onSendCash
                 )
             }
             if chatExists {
-                ConversationComposer(conversationID: conversationID, model: model)
-                    .transition(.opacity)
+                ConversationComposer(
+                    conversationID: conversationID,
+                    model: model,
+                    focusOnAppear: focusOnAppear
+                )
+                .transition(.opacity)
             }
         }
         .padding(.horizontal, 12)
@@ -80,6 +90,8 @@ struct ConversationComposer: View {
 
     let conversationID: ConversationID?
     @Bindable var model: ConversationBarModel
+    /// Raise the keyboard on open (post-tip chats only). One-shot via `.task`.
+    var focusOnAppear: Bool = false
 
     @Environment(ConversationController.self) private var conversationController
     @FocusState private var isFocused: Bool
@@ -121,6 +133,15 @@ struct ConversationComposer: View {
 
         return field
             .glassBackground(cornerRadius: BarMetrics.cornerRadius)
+        // Post-tip open: raise the keyboard once the composer appears. Requested
+        // after a short delay so the push transition has settled — focus asked
+        // mid-transition is dropped and the keyboard never rises. `.task` runs
+        // once on appear and is cancelled on disappear.
+        .task {
+            guard focusOnAppear else { return }
+            try? await Task.delay(milliseconds: 350)
+            isFocused = true
+        }
         // Focus is the single source of `isComposing` — the button morph and the
         // screen's interactive-dismiss gate both key off it. Losing focus
         // (keyboard swiped down) ends composing.
@@ -170,8 +191,9 @@ private struct BarGradientBackground: ViewModifier {
 }
 
 /// The Send Cash button, rendered as a white "Send €" pill at rest and a
-/// compact glass "€" square while composing. Alone in the bar it takes the
-/// standard filled-button size; beside the composer it's field-sized.
+/// compact glass "€" square while composing (or always, in a tip chat). Alone
+/// in the bar it takes the standard filled-button size; beside the composer
+/// it's field-sized.
 // One persistent view: the morph animates its properties (prefix text, fill,
 // width, color) in lockstep — splitting the two states into separate views
 // would crossfade instead of morphing.
@@ -182,7 +204,14 @@ struct SendCashMorphButton: View {
     /// Whether the button is the bar's only control (no chat yet): it spans
     /// the bar at the standard filled-button size instead of field-sized.
     let standalone: Bool
+    /// Forces the compact symbol-only presentation regardless of composing.
+    /// Tip chats always show it minimized; ordinary chats expand at rest.
+    var alwaysMinimized: Bool = false
     let action: () -> Void
+
+    /// The compact glass "€" presentation: while composing, or always in a tip
+    /// chat. The whole morph (label, fill, width, color) keys off this.
+    private var minimized: Bool { composing || alwaysMinimized }
 
     private var height: CGFloat {
         standalone ? Metrics.buttonHeight : BarMetrics.contentHeight
@@ -195,7 +224,7 @@ struct SendCashMorphButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                if !composing {
+                if !minimized {
                     Text("Send")
                         .font(.appTextMedium)
                         .transition(.opacity)
@@ -203,16 +232,16 @@ struct SendCashMorphButton: View {
                 Text(symbol)
                     // Same persistent Text — .interpolate animates the glyph
                     // between sizes; swapping views would crossfade.
-                    .font(composing ? .appTextXL : .appTextMedium)
+                    .font(minimized ? .appTextXL : .appTextMedium)
                     .contentTransition(.interpolate)
             }
-            .foregroundStyle(composing ? Color.textMain : Color.textAction)
+            .foregroundStyle(minimized ? Color.textMain : Color.textAction)
             // The label must never reflow to "Se…" mid-morph; overflow is
             // clipped by the shape instead.
             .fixedSize()
-            .padding(.horizontal, composing ? 0 : 20)
+            .padding(.horizontal, minimized ? 0 : 20)
             .frame(minWidth: BarMetrics.contentHeight)
-            .frame(maxWidth: standalone && !composing ? .infinity : nil)
+            .frame(maxWidth: standalone && !minimized ? .infinity : nil)
             .frame(height: height)
         }
         .buttonStyle(.plain)
@@ -221,7 +250,7 @@ struct SendCashMorphButton: View {
         .background {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(Color.action)
-                .opacity(composing ? 0 : 1)
+                .opacity(minimized ? 0 : 1)
         }
         .glassBackground(cornerRadius: cornerRadius)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))

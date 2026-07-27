@@ -44,6 +44,10 @@ struct ConversationScreen: View {
 
     let context: ConversationContext
 
+    /// Focus the message field on open so the keyboard comes up. Set only by the
+    /// post-tip navigation; every other entry point opens keyboard-closed.
+    var openKeyboard: Bool = false
+
     @Environment(ConversationController.self) private var conversationController
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
@@ -167,7 +171,9 @@ struct ConversationScreen: View {
             symbol: ratesController.balanceCurrency.compactSymbol,
             onSendCash: sendCash,
             conversationController: conversationController,
-            barModel: barModel
+            barModel: barModel,
+            focusOnAppear: openKeyboard
+            isTipDm: tipCounterpart != nil
         )
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
