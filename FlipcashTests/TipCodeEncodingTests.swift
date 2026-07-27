@@ -52,12 +52,19 @@ struct TipCodeEncodingTests {
         #expect(try TipCode.Payload(data: scanned) == payload)
     }
 
-    @Test("A zero-stripped frame decodes to the same user id")
+    /// The encoder now fills the reserved region with a non-zero sentinel, so a
+    /// freshly-encoded frame never ends in zeros. This still has to hold for a
+    /// legacy frame (zero reserved region) whose trailing zeros the scannable
+    /// code strips — reconstruct one explicitly rather than from `encode()`.
+    @Test("A zero-stripped legacy frame decodes to the same user id")
     func decodesAZeroStrippedFrame() throws {
         let userID = UUID(uuidString: "3f2504e0-4f89-41d3-9a0c-000000000000")!
         let payload = TipCode.Payload(userID: userID)
 
+        // Zero the reserved region back out to mimic a pre-fill encoder, then
+        // drop the trailing zeros the way `KikCodes.decode` would.
         var truncated = payload.encode()
+        truncated.replaceSubrange(17..<TipCode.Payload.length, with: [0, 0, 0])
         while truncated.last == 0 { truncated.removeLast() }
 
         #expect(truncated.count < TipCode.Payload.length)
@@ -74,12 +81,15 @@ struct TipCodeEncodingTests {
         #expect(encoded.count == CashCode.Payload.length)
     }
 
-    @Test("The trailing bytes are reserved and zeroed", arguments: TipCodeEncodingTests.userIDs)
-    func reservedBytesAreZero(userID: UUID) {
+    /// The reserved trailing bytes are filled with a non-zero sentinel (1, 2, 3)
+    /// rather than left zero, so the frame always ends non-zero and survives the
+    /// scannable code — `KikCodes.decode` strips trailing zeros.
+    @Test("The trailing bytes carry the reserved non-zero fill", arguments: TipCodeEncodingTests.userIDs)
+    func reservedBytesCarryFill(userID: UUID) {
         let encoded = TipCode.Payload(userID: userID).encode()
 
         #expect(encoded[0] == TipCode.Payload.kind)
-        #expect(encoded[17...].allSatisfy { $0 == 0 })
+        #expect(Data(encoded[17...]) == Data([1, 2, 3]))
     }
 
     // MARK: - Rejection -
