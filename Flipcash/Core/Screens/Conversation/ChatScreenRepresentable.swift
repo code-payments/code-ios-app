@@ -102,7 +102,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 symbol: symbol,
                 onSendCash: onSendCash,
                 model: barModel,
-                focusOnAppear: focusOnAppear
+                focusOnAppear: focusOnAppear,
                 isTipDm: isTipDm
             )
             .environment(conversationController)
