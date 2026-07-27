@@ -172,7 +172,7 @@ struct ConversationScreen: View {
             onSendCash: sendCash,
             conversationController: conversationController,
             barModel: barModel,
-            focusOnAppear: openKeyboard
+            focusOnAppear: openKeyboard,
             isTipDm: tipCounterpart != nil
         )
         .ignoresSafeArea(.keyboard)
