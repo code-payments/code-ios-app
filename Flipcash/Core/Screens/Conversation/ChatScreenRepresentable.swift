@@ -39,8 +39,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onSendCash: () -> Void
     let conversationController: ConversationController
     let barModel: ConversationBarModel
-    /// Focus the composer when the bar first appears (post-tip open). One-shot:
-    /// the composer requests focus in its `.task`, which runs once on appear.
+    /// Raise the keyboard when the screen first appears (post-tip open). The UIKit screen focuses
+    /// the composer field in `viewDidAppear` — a hosted SwiftUI `@FocusState` never presents the
+    /// keyboard across the hosting boundary.
     let focusOnAppear: Bool
     /// Whether this is a tip DM — the send button then stays minimized.
     let isTipDm: Bool
@@ -49,6 +50,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
         barHost.view.backgroundColor = .clear
         let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
+        screen.focusesComposerOnAppear = focusOnAppear
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
@@ -102,7 +104,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 symbol: symbol,
                 onSendCash: onSendCash,
                 model: barModel,
-                focusOnAppear: focusOnAppear,
                 isTipDm: isTipDm
             )
             .environment(conversationController)

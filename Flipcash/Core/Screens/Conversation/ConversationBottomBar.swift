@@ -46,8 +46,6 @@ struct ConversationBottomBar: View {
     let symbol: String
     let onSendCash: () -> Void
     let model: ConversationBarModel
-    /// Focus the composer on first appear (post-tip open); false everywhere else.
-    var focusOnAppear: Bool = false
     /// Tip chats always show the compact symbol-only send button; ordinary
     /// chats expand to "Send €" at rest and collapse only while composing.
     var isTipDm: Bool = false
@@ -64,12 +62,8 @@ struct ConversationBottomBar: View {
                 )
             }
             if chatExists {
-                ConversationComposer(
-                    conversationID: conversationID,
-                    model: model,
-                    focusOnAppear: focusOnAppear
-                )
-                .transition(.opacity)
+                ConversationComposer(conversationID: conversationID, model: model)
+                    .transition(.opacity)
             }
         }
         .padding(.horizontal, 12)
@@ -90,8 +84,6 @@ struct ConversationComposer: View {
 
     let conversationID: ConversationID?
     @Bindable var model: ConversationBarModel
-    /// Raise the keyboard on open (post-tip chats only). One-shot via `.task`.
-    var focusOnAppear: Bool = false
 
     @Environment(ConversationController.self) private var conversationController
     @FocusState private var isFocused: Bool
@@ -133,15 +125,6 @@ struct ConversationComposer: View {
 
         return field
             .glassBackground(cornerRadius: BarMetrics.cornerRadius)
-        // Post-tip open: raise the keyboard once the composer appears. Requested
-        // after a short delay so the push transition has settled — focus asked
-        // mid-transition is dropped and the keyboard never rises. `.task` runs
-        // once on appear and is cancelled on disappear.
-        .task {
-            guard focusOnAppear else { return }
-            try? await Task.delay(milliseconds: 350)
-            isFocused = true
-        }
         // Focus is the single source of `isComposing` — the button morph and the
         // screen's interactive-dismiss gate both key off it. Losing focus
         // (keyboard swiped down) ends composing.
