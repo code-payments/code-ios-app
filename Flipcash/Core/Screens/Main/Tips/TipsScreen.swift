@@ -47,7 +47,7 @@ private struct TipsIntroScreen: View {
                     .multilineTextAlignment(.center)
                     .padding(.top, 32)
 
-                Text("Add your name and a picture to receive tips")
+                Text("Add your name to receive tips")
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)

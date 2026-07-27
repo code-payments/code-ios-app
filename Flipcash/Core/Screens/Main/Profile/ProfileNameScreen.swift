@@ -95,7 +95,9 @@ struct ProfileNameScreen: View {
                 // RPCs — by now the user may have swapped to another sheet, whose
                 // stack has no profile-creation state to mount against.
                 guard !Task.isCancelled, router.presentedSheet?.stack == .tips else { return }
-                router.push(.profilePhoto)
+                // The photo-capture step is skipped for now — the card omits the
+                // profile photo, so setup goes straight from the name to the card.
+                router.push(.tipcard)
 
             } catch ErrorProfile.moderated(let category) {
                 logger.info("Display name moderation denied", metadata: ["category": "\(category)"])
