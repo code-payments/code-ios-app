@@ -17,21 +17,21 @@ struct ProfileCreationStateTests {
     @Test("A timed-out attempt resumes the same blob instead of re-storing")
     func timeoutResumesTheSameBlob() async throws {
         let uploader = StubUploader()
-        await uploader.setFinalizationResult(.failure(ErrorBlob.timedOut))
+        uploader.setFinalizationResult(.failure(ErrorBlob.timedOut))
 
         let state = try await makeState()
 
         await #expect(throws: ErrorBlob.self) {
             try await state.uploadPhoto(with: uploader)
         }
-        #expect(await uploader.storeCount == 1)
+        #expect(uploader.storeCount == 1)
         #expect(state.reservedBlobID != nil)
 
-        await uploader.setFinalizationResult(.success(()))
+        uploader.setFinalizationResult(.success(()))
         try await state.uploadPhoto(with: uploader)
 
-        #expect(await uploader.storeCount == 1)
-        #expect(await uploader.setPictureCount == 1)
+        #expect(uploader.storeCount == 1)
+        #expect(uploader.setPictureCount == 1)
     }
 
     /// Rejection is terminal: the bytes behind a blob are immutable, so the id
@@ -39,7 +39,7 @@ struct ProfileCreationStateTests {
     @Test("A rejection clears the blob so the next attempt re-stores")
     func rejectionForcesAFreshUpload() async throws {
         let uploader = StubUploader()
-        await uploader.setFinalizationResult(.failure(ErrorBlob.rejected(.moderation)))
+        uploader.setFinalizationResult(.failure(ErrorBlob.rejected(.moderation)))
 
         let state = try await makeState()
 
@@ -48,10 +48,10 @@ struct ProfileCreationStateTests {
         }
         #expect(state.reservedBlobID == nil)
 
-        await uploader.setFinalizationResult(.success(()))
+        uploader.setFinalizationResult(.success(()))
         try await state.uploadPhoto(with: uploader)
 
-        #expect(await uploader.storeCount == 2)
+        #expect(uploader.storeCount == 2)
     }
 
     /// A reservation is signed against one byte count, so a different photo can
@@ -59,7 +59,7 @@ struct ProfileCreationStateTests {
     @Test("Choosing a different photo drops the reserved blob")
     func selectingANewPhotoDropsTheReservation() async throws {
         let uploader = StubUploader()
-        await uploader.setFinalizationResult(.failure(ErrorBlob.timedOut))
+        uploader.setFinalizationResult(.failure(ErrorBlob.timedOut))
 
         let state = try await makeState()
 
@@ -82,8 +82,8 @@ struct ProfileCreationStateTests {
 
         try await state.uploadPhoto(with: uploader)
 
-        #expect(await uploader.setPictureCount == 1)
-        #expect(await uploader.refreshCount == 1)
+        #expect(uploader.setPictureCount == 1)
+        #expect(uploader.refreshCount == 1)
         #expect(state.selectedImage == nil)
         #expect(state.isUploading == false)
     }
@@ -96,7 +96,7 @@ struct ProfileCreationStateTests {
         await #expect(throws: ErrorBlob.self) {
             try await state.uploadPhoto(with: uploader)
         }
-        #expect(await uploader.storeCount == 0)
+        #expect(uploader.storeCount == 0)
     }
 
     // MARK: - Helpers -
@@ -132,7 +132,11 @@ struct ProfileCreationStateTests {
 // MARK: - Doubles -
 
 /// Counts each leg of the upload and lets a test choose how finalization ends.
-private actor StubUploader: ProfilePictureUploading {
+/// `@MainActor` (not an `actor`): `ProfilePictureUploading` is main-actor
+/// isolated under the module's default isolation, and an `actor` cannot conform
+/// to a global-actor-isolated protocol. The suite is already `@MainActor`.
+@MainActor
+private final class StubUploader: ProfilePictureUploading {
 
     private(set) var storeCount = 0
     private(set) var setPictureCount = 0
