@@ -167,7 +167,8 @@ struct ConversationScreen: View {
             symbol: ratesController.balanceCurrency.compactSymbol,
             onSendCash: sendCash,
             conversationController: conversationController,
-            barModel: barModel
+            barModel: barModel,
+            isTipDm: tipCounterpart != nil
         )
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
