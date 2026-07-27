@@ -7,7 +7,10 @@ import Foundation
 import Testing
 @testable import Flipcash
 
+// `@MainActor` because `sanitizedForAnalytics` is main-actor-isolated under the
+// module's default isolation, and the suite reads it from every `#expect`.
 @Suite("URL Sanitization for Analytics")
+@MainActor
 struct URLSanitizationTests {
 
     // MARK: - Fragments are stripped

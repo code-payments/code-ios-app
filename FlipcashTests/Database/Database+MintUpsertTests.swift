@@ -10,7 +10,10 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
+// `@MainActor` because `StoredMintMetadata.metadata` is main-actor-isolated
+// under the module's default isolation and the round-trips read it.
 @Suite("Mint upsert round-trips")
+@MainActor
 struct DatabaseMintUpsertTests {
 
     // MARK: - Helpers

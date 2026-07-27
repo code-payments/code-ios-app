@@ -19,7 +19,11 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
+// `@MainActor` because `StoredMintMetadata.init(_:)` and `.metadata` are
+// main-actor-isolated (they bridge to `MintMetadata`); calling them from the
+// nonisolated test context is a hard error under Swift 6 / Xcode 27.
 @Suite("Regression: 69ea28b0 – MintMetadata decoded once per loaded transition", .bug("69ea28b00174c05561fd0000"))
+@MainActor
 struct Regression_69ea28b0 {
 
     @Test("LoadingState.loaded carries both stored row and pre-decoded MintMetadata")
