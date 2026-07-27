@@ -39,6 +39,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onSendCash: () -> Void
     let conversationController: ConversationController
     let barModel: ConversationBarModel
+    /// Focus the composer when the bar first appears (post-tip open). One-shot:
+    /// the composer requests focus in its `.task`, which runs once on appear.
+    let focusOnAppear: Bool
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -96,7 +99,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 conversationID: conversationID,
                 symbol: symbol,
                 onSendCash: onSendCash,
-                model: barModel
+                model: barModel,
+                focusOnAppear: focusOnAppear
             )
             .environment(conversationController)
             .modifier(MeasuredBarHeight { coordinator.screen?.setBarHeight($0) })
