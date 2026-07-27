@@ -173,6 +173,7 @@ struct ConversationScreen: View {
             conversationController: conversationController,
             barModel: barModel,
             focusOnAppear: openKeyboard
+            isTipDm: tipCounterpart != nil
         )
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's

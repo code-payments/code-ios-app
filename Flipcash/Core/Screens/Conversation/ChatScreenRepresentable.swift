@@ -42,6 +42,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Focus the composer when the bar first appears (post-tip open). One-shot:
     /// the composer requests focus in its `.task`, which runs once on appear.
     let focusOnAppear: Bool
+    /// Whether this is a tip DM — the send button then stays minimized.
+    let isTipDm: Bool
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -101,6 +103,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onSendCash: onSendCash,
                 model: barModel,
                 focusOnAppear: focusOnAppear
+                isTipDm: isTipDm
             )
             .environment(conversationController)
             .modifier(MeasuredBarHeight { coordinator.screen?.setBarHeight($0) })
