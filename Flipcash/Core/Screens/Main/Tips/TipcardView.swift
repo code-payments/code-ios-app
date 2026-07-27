@@ -26,6 +26,11 @@ struct TipcardView: View {
     /// contrast against different surfaces (share sheet vs. live camera).
     var tintOpacity: Double = 0.72
 
+    /// The profile photo is intentionally omitted from the card for now, so the
+    /// avatar is gated off by default. Kept as a flag (rather than deleted) so
+    /// re-enabling it is a one-line change once the product decision reverts.
+    var includePhoto: Bool = false
+
     var body: some View {
         VStack(spacing: 0) {
             CodeView(data: codeData)
@@ -35,12 +40,14 @@ struct TipcardView: View {
             HStack(spacing: 8) {
                 Text("Tip")
 
-                avatarImage
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: avatarDimension, height: avatarDimension)
-                    .foregroundStyle(Color.textSecondary)
-                    .clipShape(Circle())
+                if includePhoto {
+                    avatarImage
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: avatarDimension, height: avatarDimension)
+                        .foregroundStyle(Color.textSecondary)
+                        .clipShape(Circle())
+                }
 
                 Text(name)
                     .lineLimit(1)
