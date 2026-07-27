@@ -277,7 +277,9 @@ final class TipFlow {
         let chatID = ConversationID.tipDm(between: session.userID, and: recipient.userID)
         Task { [router] in
             try? await Task.delay(milliseconds: 600)
-            router.navigate(to: .tipConversation(chatID))
+            // Open the post-tip chat with the keyboard up — the tip-specific
+            // variant focuses the composer; ordinary opens stay closed.
+            router.navigate(to: .tipConversationWithKeyboard(chatID))
         }
     }
 }

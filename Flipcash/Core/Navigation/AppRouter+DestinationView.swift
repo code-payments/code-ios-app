@@ -137,6 +137,12 @@ struct DestinationView: View {
             ConversationScreen(context: .existing(conversationID))
                 .id(conversationID)
 
+        case .tipConversationWithKeyboard(let conversationID):
+            // Post-tip open: same screen, but focus the field so the keyboard
+            // comes up. `.id` forces fresh view identity per conversation.
+            ConversationScreen(context: .existing(conversationID), openKeyboard: true)
+                .id(conversationID)
+
         // MARK: - Conversation flow
 
         case .dmConversation(let context):
