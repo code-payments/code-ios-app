@@ -39,6 +39,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onSendCash: () -> Void
     let conversationController: ConversationController
     let barModel: ConversationBarModel
+    /// Whether this is a tip DM — the send button then stays minimized.
+    let isTipDm: Bool
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -96,7 +98,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 conversationID: conversationID,
                 symbol: symbol,
                 onSendCash: onSendCash,
-                model: barModel
+                model: barModel,
+                isTipDm: isTipDm
             )
             .environment(conversationController)
             .modifier(MeasuredBarHeight { coordinator.screen?.setBarHeight($0) })
