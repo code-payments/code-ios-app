@@ -104,6 +104,13 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.backgroundColor = UIColor(Color.backgroundMain)
         collectionView.alwaysBounceVertical = true
         collectionView.keyboardDismissMode = .interactive
+        // A tap anywhere in the transcript lowers the keyboard, iMessage-style. It rides alongside
+        // the cells' own recognizers (it doesn't cancel touches and recognizes simultaneously), so a
+        // tap on a cash card still opens its currency info — the dismissal just happens too.
+        let dismissKeyboardTap = UITapGestureRecognizer(target: self, action: #selector(lowerKeyboard))
+        dismissKeyboardTap.cancelsTouchesInView = false
+        dismissKeyboardTap.delegate = self
+        collectionView.addGestureRecognizer(dismissKeyboardTap)
         // The adjusted content inset (safe area + the bar inset the owner sets) is how the keyboard
         // and bar reserve space; ChatLayout reads it for positioning, so let UIKit manage it.
         collectionView.contentInsetAdjustmentBehavior = .always
@@ -284,6 +291,14 @@ public final class ChatViewController: UICollectionViewController {
         (cell as? ChatTypingIndicatorCell)?.stopAnimating()
     }
 
+    // MARK: - Keyboard
+
+    /// Lowers the keyboard from a transcript tap. Ends editing at the window so it reaches the
+    /// composer, which lives in a sibling hosted bar outside this controller's view tree.
+    @objc private func lowerKeyboard() {
+        collectionView.window?.endEditing(true)
+    }
+
     // MARK: - Scrolling
 
     /// Open at the newest message once there is content and real bounds. Runs once — ChatLayout
@@ -406,6 +421,14 @@ public final class ChatViewController: UICollectionViewController {
 /// The controller is the layout delegate so cells inherit ChatLayout's defaults — auto self-sizing
 /// and full-width alignment. No row needs a custom size, so nothing is overridden.
 extension ChatViewController: ChatLayoutDelegate {}
+
+extension ChatViewController: UIGestureRecognizerDelegate {
+    /// Lets the tap-to-dismiss recognizer fire alongside the collection view's own scroll and
+    /// selection recognizers, so lowering the keyboard never pre-empts a cell tap.
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        true
+    }
+}
 
 // MARK: - Context menu
 

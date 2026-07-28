@@ -99,6 +99,13 @@ public final class ChatCashCardCell: ChatColumnCell {
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    /// Scopes the row's touch target to the fixed-width card. The cell spans the full transcript
+    /// width, so without this the selection machinery opens currency info from a tap in the dead
+    /// space beside the card — the same reason the retry gesture on text rows hugs the bubble.
+    public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        card.convert(card.bounds, to: self).contains(point)
+    }
+
     private func configureCircle(_ imageView: UIImageView, diameter: CGFloat) {
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
