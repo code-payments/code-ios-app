@@ -53,10 +53,31 @@ platform :ios do
       is_key_content_base64: true
     )
 
+    # Set the version and select the build, but do NOT submit yet. Under
+    # skip_metadata deliver never sets "What's New", and review submission
+    # rejects a version whose whatsNew is empty — so notes must be set between
+    # selecting the build and submitting.
     deliver(
       api_key: api_key,
+      app_identifier: ENV["APP_IDENTIFIER"],
       app_version: version,
       build_number: build_number,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      force: true,
+      submit_for_review: false,
+      precheck_include_in_app_purchases: false
+    )
+
+    # deliver skipped whatsNew (skip_metadata); set it on the editable version's
+    # en-US localization directly, then submit.
+    set_whats_new(version, release_notes)
+
+    deliver(
+      api_key: api_key,
+      app_identifier: ENV["APP_IDENTIFIER"],
+      app_version: version,
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: true,
@@ -64,9 +85,6 @@ platform :ios do
       submit_for_review: true,
       automatic_release: true,
       phased_release: true,
-      release_notes: {
-        "en-US" => release_notes
-      },
       submission_information: {
         add_id_info_uses_idfa: false
       },
@@ -261,6 +279,29 @@ platform :ios do
       key: ENV["ASC_KEY_CONTENT"],
       is_key_content_base64: true
     )
+  end
+
+  # Set the "What's New" (release notes) on the editable App Store version's
+  # en-US localization. deliver skips this under skip_metadata, but review
+  # submission requires a non-empty whatsNew.
+  #
+  # NOTE: unvalidated against a live submit — 1.17.0 was submitted via the App
+  # Store Connect UI because the old single-deliver lane failed here. Confirm on
+  # the next release; if it errors, set What's New + submit in App Store Connect.
+  def set_whats_new(version, notes)
+    Spaceship::ConnectAPI.token = asc_token
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("App '#{ENV['APP_IDENTIFIER']}' not found in App Store Connect") unless app
+
+    edit_version = app.get_edit_app_store_version(platform: "IOS")
+    UI.user_error!("No editable App Store version to set 'What's New' on") unless edit_version
+
+    localizations = edit_version.get_app_store_version_localizations
+    loc = localizations.find { |l| l.locale == "en-US" } || localizations.first
+    UI.user_error!("No App Store version localization to set 'What's New' on") unless loc
+
+    loc.update(attributes: { whatsNew: notes })
+    UI.success("Set 'What's New' for #{version}")
   end
 
   def current_branch

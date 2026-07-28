@@ -188,6 +188,10 @@ fastlane release version:{version}
 
 Use the step-7 changelog as the "What's New" notes — App Store notes are plain text, so drop the `##` section headers and pass the lines: `fastlane release version:{version} notes:"{plain-text changelog}"`. If a build for `{version}` isn't processed yet (deliver can't find it), wait and re-run — don't fall back to a different version.
 
+**Pass `build:{number}` explicitly** (the tag-built, dogfooded build) — `deliver` otherwise takes the latest build for the version, and a stray deploy build can share the version string. Confirm the number with `fastlane distribute group:'…' dry_run:true` (reports the latest processed build).
+
+**If `deliver` fails at submit** with *"missing … 'whatsNew'"* or a version "not in valid state", the safe fallback is to paste the "What's New" and submit the build from the App Store Connect UI (deliver only *submits* here — the binary is already uploaded, so nothing is lost). The lane sets `whatsNew` via a `set_whats_new` helper before submitting, but that path is unvalidated as of 1.17.0 (which was submitted manually).
+
 ### 11. GitHub Release (draft)
 Always create the release as a draft. Publish it manually from the GitHub UI once the App Store rollout is live — publishing fires webhooks and "Latest release" badges, so it should reflect what's actually available to users.
 
