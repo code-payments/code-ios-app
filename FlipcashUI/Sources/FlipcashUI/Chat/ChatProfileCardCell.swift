@@ -50,11 +50,12 @@ private struct ProfileCardView: View {
                 .lineLimit(1)
                 .padding(.top, 12)
 
+            ProfileCardSubtitle(counterpart: card.counterpart)
+                .font(.appTextSmall)
+                .padding(.top, 4)
+
             switch card.counterpart {
             case .contact, .unknown:
-                ProfileCardSubtitle(counterpart: card.counterpart)
-                    .font(.appTextSmall)
-                    .padding(.top, 4)
                 ContactActionPill(counterpart: card.counterpart, action: onContactAction)
                     .padding(.top, 16)
             case .none:
@@ -91,7 +92,7 @@ private struct ProfileCardSubtitle: View {
             Text("Unknown Contact")
                 .foregroundStyle(Color.warning)
         case .none:
-            // The hosting card omits the subtitle entirely for this state.
+            // No relationship to surface — renders nothing.
             EmptyView()
         }
     }
