@@ -1,0 +1,9 @@
+What to test in this build
+
+Baseline — always verify these core money flows:
+• Claim a Cash Link on an empty account, then buy a currency with the received balance
+• Add money to your balance (Phantom or Coinbase)
+• Scan & Send between two devices
+• Expand a chat notification — the rich transcript renders and Reply works
+
+Report anything off — wrong amounts, stuck screens, or crashes.

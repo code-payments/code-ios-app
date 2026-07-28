@@ -111,7 +111,7 @@ Use the Agent tool with `model: "haiku"`. Pass the commit list with this prompt:
 
 Show to user for approval.
 
-### 8. Branch and tag
+### 8. Branch
 For **major / minor**: step 3 already verified the bump is on `origin/main`. Pull main locally, then branch:
 ```bash
 git checkout main && git pull --ff-only
@@ -120,7 +120,20 @@ git checkout -b release/flipcash-{next-version}
 
 For **patch**: already on `release/flipcash-X.Y.Z` from step 4; the version bump commit from step 4b is already on the branch. Skip branch creation.
 
-Then tag:
+### 8a. Write TestFlight "What to Test" notes
+Xcode Cloud attaches `TestFlight/WhatToTest.en-US.txt` (repo root) — read from the **commit it builds** — as the build's "What to Test" for testers, so the notes must be in the tagged commit. Overwrite that file with **two sections**:
+
+1. **New in this release** — the step-7 changelog as plain-text bullets (drop the `##` headers). That's everything new or updated since the last tag, phrased as flows to verify end to end.
+2. **Baseline** — the standing core-flow checklist already in the committed file (the **same list** shown in the Dogfooding Gate below, so testers run exactly what you do). Carry it over unchanged; keep the two lists in sync if you edit either.
+
+Then commit on the release branch:
+```bash
+git add TestFlight/WhatToTest.en-US.txt
+git commit -m "chore: TestFlight notes for {next-version}"
+```
+This release-branch commit never merges to main (like the patch bump). First release using this: after the build lands, confirm the notes actually show on the TestFlight build — if Xcode Cloud ignored the file, set them via the ASC API in `fastlane distribute` instead.
+
+### 8b. Tag
 ```bash
 git tag flipcash-{next-version}
 ```
@@ -162,11 +175,12 @@ The PR sits open for the user to merge whenever — it's a precondition the next
 
 ```
 Branch and tag pushed — TestFlight build should be on its way.
+Testers get this same checklist as the build's TestFlight "What to Test" notes (step 8a).
 Not yet submitted to App Review; public GitHub release not yet drafted.
 
 Please verify on the TestFlight build:
-□ Claim a Cash Link on an empty account
-□ Buy a currency with Phantom
+□ Claim a Cash Link on an empty account, then buy a currency with the received balance
+□ Add money to your balance (Phantom or Coinbase)
 □ Scan & Send between 2 devices
 □ Expand a chat notification — the rich transcript renders + Reply works
 
@@ -199,7 +213,7 @@ Remind the user at the end: *"Submitted to App Review and release drafted. Publi
 
 ## Never
 - Merge the release branch into main
-- Commit changelog files
+- Commit changelog files to main — the release-branch `TestFlight/WhatToTest.en-US.txt` (step 8a) is the sole exception: it's the Xcode Cloud TestFlight-notes mechanism, committed on the release branch only and never merged to main
 - Skip the dogfooding gate
 - Submit to App Review (`fastlane release`) or draft the GitHub release before the user confirms on-device testing
 - Submit a different version than the one that was tagged and dogfooded — if the build isn't processed yet, wait, don't switch versions
