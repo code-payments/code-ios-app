@@ -50,15 +50,14 @@ private struct ProfileCardView: View {
                 .lineLimit(1)
                 .padding(.top, 12)
 
-            ProfileCardSubtitle(counterpart: card.counterpart)
-                .font(.appTextSmall)
-                .padding(.top, 4)
-
             switch card.counterpart {
             case .contact, .unknown:
+                ProfileCardSubtitle(counterpart: card.counterpart)
+                    .font(.appTextSmall)
+                    .padding(.top, 4)
                 ContactActionPill(counterpart: card.counterpart, action: onContactAction)
                     .padding(.top, 16)
-            case .tipcard:
+            case .none:
                 EmptyView()
             }
         }
@@ -91,12 +90,9 @@ private struct ProfileCardSubtitle: View {
         case .unknown:
             Text("Unknown Contact")
                 .foregroundStyle(Color.warning)
-        case .tipcard:
-            HStack(spacing: 6) {
-                Image.asset(.kikCode)
-                Text("via Tip Card")
-            }
-            .pill()
+        case .none:
+            // The hosting card omits the subtitle entirely for this state.
+            EmptyView()
         }
     }
 }
@@ -126,7 +122,7 @@ private struct ProfileCardSubtitle: View {
                 name: "Raul",
                 avatarID: "raul",
                 imageData: nil,
-                counterpart: .tipcard
+                counterpart: .none
             ),
             onContactAction: {}
         )
