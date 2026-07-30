@@ -1,5 +1,14 @@
 What to test in this build
 
+New in this release — exercise each end to end:
+• Send and receive tips directly in the app
+• Create a profile in the new Tips tab and share your tip card
+• Open a tip chat and confirm the keyboard is ready to reply
+• Profile pictures load with progressive placeholders
+• Swipe back on a pushed sheet screen (drag from the edge)
+• Tap outside the keyboard in a chat to dismiss it
+• Tap a cash bubble in a chat and confirm the right action fires
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
