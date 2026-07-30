@@ -144,7 +144,15 @@ public final class ChatViewController: UICollectionViewController {
         // keyboard — but guard anyway, since taking the inset over and handing it back each toggles the
         // adjusted inset, and following those would move the content the freeze is holding in place.
         guard !isAdjustingBottomInset, !isShowingContextMenu, wasAtBottom, !needsInitialScroll, !isUpdating, !items.isEmpty else { return }
-        scrollToBottom(animated: false)
+        // This fires inside UIKit's keyboard-adjustment animation block. Following
+        // the bottom via ChatLayout's `restoreContentOffset` forces a layout pass
+        // here, which aborts on iOS 26 (a UICollectionView bounds-change fading
+        // assertion). The visible cells are already sized during a keyboard toggle,
+        // so pin to the bottom by setting the offset directly — no forced re-anchor,
+        // letting the layout settle with the keyboard's own pass.
+        let bottom = collectionView.contentSize.height - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
+        guard bottom > collectionView.contentOffset.y else { return }
+        collectionView.setContentOffset(CGPoint(x: 0, y: bottom), animated: false)
     }
 
     // MARK: - Updates
@@ -388,16 +396,18 @@ public final class ChatViewController: UICollectionViewController {
     private func freezeInset() {
         guard savedInsetBehavior == nil else { return }
         let frozen = collectionView.adjustedContentInset
-        let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
         savedInsetBehavior = collectionView.contentInsetAdjustmentBehavior
         savedContentInset = collectionView.contentInset
         savedScrollIndicatorInsets = collectionView.verticalScrollIndicatorInsets
         collectionView.contentInsetAdjustmentBehavior = .never
         collectionView.contentInset = frozen
         collectionView.verticalScrollIndicatorInsets = frozen
-        if let snapshot {
-            chatLayout.restoreContentOffset(with: snapshot)
-        }
+        // No `restoreContentOffset` re-anchor here: forcing ChatLayout's layout
+        // pass during the context-menu inset/keyboard transition aborts on
+        // iOS 26 (a UICollectionView bounds-change "fading" assertion), whether
+        // called synchronously or deferred. The inset takeover above already
+        // pins the adjusted inset at its keyboard-up value, so the content holds
+        // its position without a forced re-anchor.
     }
 
     /// Hand the inset back to the system; with the keyboard sliding back in, it re-grows the adjusted
@@ -405,16 +415,17 @@ public final class ChatViewController: UICollectionViewController {
     /// content lands exactly where it was, rather than wherever the transient inset re-anchored it.
     private func restoreInset() {
         guard let behavior = savedInsetBehavior else { return }
-        let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
         collectionView.contentInsetAdjustmentBehavior = behavior
         if let inset = savedContentInset { collectionView.contentInset = inset }
         if let indicator = savedScrollIndicatorInsets { collectionView.verticalScrollIndicatorInsets = indicator }
-        if let snapshot {
-            chatLayout.restoreContentOffset(with: snapshot)
-        }
         savedInsetBehavior = nil
         savedContentInset = nil
         savedScrollIndicatorInsets = nil
+        // No `restoreContentOffset` re-anchor (see `freezeInset`): forcing the
+        // layout pass here aborts on iOS 26. Handing the inset behavior back lets
+        // the system re-grow the adjusted inset as the keyboard returns; the
+        // at-bottom follow in `scrollViewDidChangeAdjustedContentInset` settles
+        // the position through the normal path once the menu flag is cleared.
     }
 }
 
