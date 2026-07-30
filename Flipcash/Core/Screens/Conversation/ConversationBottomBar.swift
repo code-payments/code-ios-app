@@ -71,9 +71,12 @@ struct ConversationBottomBar: View {
         .padding(.bottom, 8)
         .animation(barMorphSpring, value: chatExists)
 
-        // Adjacent glass elements must share a sampling container on iOS 26 —
-        // glass cannot sample other glass; spacing matches the HStack's.
-        return GlassContainer(spacing: 10) { content }
+        // No shared GlassEffectContainer: the composer's glass is a background
+        // layer behind an editable text field, and a container composites its
+        // glass above sibling content — drawing the glass over the typed text.
+        // The Send Cash button and the field are separate pills 10pt apart, so
+        // they don't need to sample each other.
+        return content
             .modifier(BarGradientBackground())
     }
 }
@@ -124,7 +127,10 @@ struct ConversationComposer: View {
         .padding(.vertical, BarMetrics.fieldVerticalPadding)
 
         return field
-            .glassBackground(cornerRadius: BarMetrics.cornerRadius)
+            // Glass *behind* the field, not wrapping it: wrapping an editable
+            // TextField in `glassEffect` reparents its text view into the glass
+            // platter and breaks the text-selection grabbers.
+            .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
         // Focus is the single source of `isComposing` — the button morph and the
         // screen's interactive-dismiss gate both key off it. Losing focus
         // (keyboard swiped down) ends composing.
