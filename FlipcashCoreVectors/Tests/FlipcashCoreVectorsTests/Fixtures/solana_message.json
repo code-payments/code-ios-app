@@ -1,0 +1,108 @@
+{
+  "algorithm": "solana-legacy-message",
+  "note": "Pubkey(seed) = 32 bytes each == seed. Both apps build the message from these inputs and must reproduce expectedMessage from LegacyMessage.encode().",
+  "vectors": [
+    {
+      "name": "single instruction, 4 accounts",
+      "accounts": [
+        {
+          "seed": 1,
+          "role": "payer"
+        },
+        {
+          "seed": 2,
+          "role": "writable"
+        },
+        {
+          "seed": 3,
+          "role": "readonly"
+        },
+        {
+          "seed": 9,
+          "role": "readonly-program"
+        }
+      ],
+      "blockhashSeed": 0,
+      "instructions": [
+        {
+          "programSeed": 9,
+          "accountSeeds": [
+            1,
+            2,
+            3
+          ],
+          "data": "010203"
+        }
+      ],
+      "expectedHeader": "010002",
+      "expectedMessage": "010002040101010101010101010101010101010101010101010101010101010101010101020202020202020202020202020202020202020202020202020202020202020203030303030303030303030303030303030303030303030303030303030303030909090909090909090909090909090909090909090909090909090909090909000000000000000000000000000000000000000000000000000000000000000001030300010203010203"
+    },
+    {
+      "name": "minimal: payer + program, empty data",
+      "accounts": [
+        {
+          "seed": 1,
+          "role": "payer"
+        },
+        {
+          "seed": 9,
+          "role": "readonly-program"
+        }
+      ],
+      "blockhashSeed": 7,
+      "instructions": [
+        {
+          "programSeed": 9,
+          "accountSeeds": [
+            1
+          ],
+          "data": ""
+        }
+      ],
+      "expectedHeader": "010001",
+      "expectedMessage": "010001020101010101010101010101010101010101010101010101010101010101010101090909090909090909090909090909090909090909090909090909090909090907070707070707070707070707070707070707070707070707070707070707070101010000"
+    },
+    {
+      "name": "readonly co-signer + two instructions",
+      "accounts": [
+        {
+          "seed": 1,
+          "role": "payer"
+        },
+        {
+          "seed": 4,
+          "role": "readonly-signer"
+        },
+        {
+          "seed": 2,
+          "role": "writable"
+        },
+        {
+          "seed": 9,
+          "role": "readonly-program"
+        }
+      ],
+      "blockhashSeed": 0,
+      "instructions": [
+        {
+          "programSeed": 9,
+          "accountSeeds": [
+            1,
+            2
+          ],
+          "data": "ff"
+        },
+        {
+          "programSeed": 9,
+          "accountSeeds": [
+            4,
+            1
+          ],
+          "data": "1020"
+        }
+      ],
+      "expectedHeader": "020101",
+      "expectedMessage": "0201010401010101010101010101010101010101010101010101010101010101010101010404040404040404040404040404040404040404040404040404040404040404020202020202020202020202020202020202020202020202020202020202020209090909090909090909090909090909090909090909090909090909090909090000000000000000000000000000000000000000000000000000000000000000020302000201ff03020100021020"
+    }
+  ]
+}
