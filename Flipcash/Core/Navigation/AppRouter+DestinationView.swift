@@ -162,5 +162,8 @@ extension View {
         navigationDestination(for: AppRouter.Destination.self) { destination in
             DestinationView(destination: destination)
         }
+        // Sheet-hosted stacks otherwise recognize swipe-back from anywhere; keep
+        // it to the leading edge, matching the root stack and system behavior.
+        .edgeOnlySwipeBack()
     }
 }
