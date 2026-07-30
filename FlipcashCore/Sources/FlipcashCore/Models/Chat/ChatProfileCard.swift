@@ -27,9 +27,9 @@ public struct ChatProfileCard: Hashable, Sendable, Codable {
         case contact(phone: String)
         /// Not in the address book: an "Unknown Contact" subtitle and a CTA that adds them.
         case unknown
-        /// A tip DM counterpart, known by profile only: a "via Tip Card"
-        /// subtitle and no contact CTA.
-        case tipcard
+        /// No address-book relationship to surface (e.g. a tip DM counterpart known by
+        /// profile only): just the avatar and name, no subtitle and no contact CTA.
+        case none
     }
 
     public init(name: String, avatarID: String, imageData: Data?, blurhash: String? = nil, counterpart: Counterpart) {
