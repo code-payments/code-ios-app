@@ -74,7 +74,8 @@ struct ProfileTests {
         #expect(profile.email == "ted@example.com")
         #expect(profile.phone == nil)
         #expect(profile.profilePicture == nil)
-        #expect(profile.isTippable == false)
+        // A name-only profile is tippable — a picture is not required.
+        #expect(profile.isTippable == true)
     }
 
     /// A fixture, not a round-trip: a round-trip passes even if the key names
@@ -108,14 +109,15 @@ struct ProfileTests {
         #expect(profile.isTippable)
     }
 
-    @Test("A profile needs both a name and a picture to receive tips",
+    @Test("A profile needs only a non-empty name to receive tips — a picture is not required",
           arguments: [
               (name: "Ted", hasPicture: true,  expected: true),
-              (name: "Ted", hasPicture: false, expected: false),
+              (name: "Ted", hasPicture: false, expected: true),
               (name: nil,   hasPicture: true,  expected: false),
-              (name: "",    hasPicture: true,  expected: false),
+              (name: nil,   hasPicture: false, expected: false),
+              (name: "",    hasPicture: false, expected: false),
           ] as [(name: String?, hasPicture: Bool, expected: Bool)])
-    func isTippableRequiresNameAndPicture(name: String?, hasPicture: Bool, expected: Bool) {
+    func isTippableRequiresName(name: String?, hasPicture: Bool, expected: Bool) {
         let picture = ProfilePicture(blobID: .mock, thumbnailBlobID: .mock)
 
         let profile = Profile(
