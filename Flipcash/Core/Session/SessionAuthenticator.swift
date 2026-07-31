@@ -475,6 +475,7 @@ final class SessionContainer {
     let usdcSweepOperation: UsdcSweepOperation
     let quickActionsController: QuickActionsController
     let conversationController: ConversationController
+    let blocklistController: BlocklistController
     let chatSpotlightIndexer: ChatSpotlightIndexer
     let tipAvatars: TipAvatarStore
 
@@ -556,6 +557,24 @@ final class SessionContainer {
         conversationController.start()
         self.conversationController = conversationController
 
+        let blocklistController = BlocklistController(
+            fetching: FlipBlocklisting(flipClient: flipClient, owner: owner),
+            database: database
+        )
+        self.blocklistController = blocklistController
+
+        // The blocklist drives which conversations the feed hides: it supplies the
+        // current set, reconciles the hidden flags on every change, and reconciles
+        // once now for the cache-seeded list.
+        conversationController.blockedUserIDs = { [weak blocklistController] in
+            Set((blocklistController?.blockedUsers ?? []).map(\.userID))
+        }
+        blocklistController.onBlocklistChanged = { [weak conversationController] in
+            conversationController?.reconcileHidden()
+        }
+        conversationController.reconcileHidden()
+        Task { await blocklistController.refresh() }
+
         // Suppress foreground chat pushes for the conversation that's currently
         // on screen — the user is already reading it.
         pushController.isViewingConversation = { [weak conversationController] conversationID in
@@ -586,6 +605,7 @@ final class SessionContainer {
             .environment(coinbaseService)
             .environment(onrampDeeplinkInbox)
             .environment(conversationController)
+            .environment(blocklistController)
     }
 }
 

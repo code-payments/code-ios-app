@@ -41,9 +41,25 @@ final class ConversationController {
         conversations.first { $0.id == id }
     }
 
-    /// DM conversations of one type, most-recent activity first.
+    /// The visible feed, excluding hidden (blocked-counterpart) conversations.
+    var visibleConversations: [Conversation] { conversations.filter { !$0.isHidden } }
+
+    /// DM conversations of `type`, most-recent activity first, excluding hidden conversations.
     func conversations(of type: ConversationType) -> [Conversation] {
-        conversations.filter { $0.type == type }
+        conversations.filter { $0.type == type && !$0.isHidden }
+    }
+
+    /// Reconciles every conversation's hidden flag against the authoritative
+    /// blocklist so a blocked counterpart's chat drops from the feed and an
+    /// unblocked one returns; re-run after each feed load and on any blocklist change.
+    func reconcileHidden() {
+        let blocked = blockedUserIDs()
+        for conversation in store.conversations {
+            let hidden = conversation.counterpart(excluding: selfUserID)?.userID.map(blocked.contains) ?? false
+            if conversation.isHidden != hidden {
+                store.setHidden(hidden, in: conversation.id)
+            }
+        }
     }
 
     /// Number of conversations of `type` with unread messages for the
@@ -85,6 +101,10 @@ final class ConversationController {
     @ObservationIgnored var visibleConversationID: ConversationID?
 
     private var store = ConversationStore()
+
+    /// The current blocklist (wired to `BlocklistController`), used to reconcile
+    /// which conversations are hidden from the feed.
+    @ObservationIgnored var blockedUserIDs: () -> Set<UserID> = { [] }
 
     @ObservationIgnored private let fetching: any ConversationFetching
     @ObservationIgnored private let messaging: any ConversationMessaging
@@ -455,6 +475,7 @@ final class ConversationController {
         do {
             let conversations = try await fetching.getDmChatFeed(owner: owner, type: type)
             store.setFeed(conversations, type: type)
+            reconcileHidden()
             persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
         } catch {
             logger.error("Failed to load conversation feed", metadata: [
@@ -659,6 +680,14 @@ final class ConversationController {
             return displayName(for: conversation)
         }
         return contactName(for: conversationID) ?? Self.fallbackCounterpartName
+    }
+
+    /// Seed values for the profile screen while the live profile loads: the
+    /// counterpart's current name and avatar blurhash from the open conversation.
+    func counterpartSeed(forUserID userID: UserID) -> CounterpartSeed {
+        let member = conversations.flatMap(\.members).first { $0.userID == userID }
+        let name = member.flatMap { $0.displayName.isEmpty ? nil : $0.displayName } ?? Self.fallbackCounterpartName
+        return CounterpartSeed(displayName: name, imageData: nil, blurhash: member?.profilePicture?.thumbnailBlurhash)
     }
 
     private func contactName(for conversationID: ConversationID) -> String? {
@@ -920,4 +949,11 @@ final class ConversationController {
     func stopSelfTyping(in conversationID: ConversationID) {
         typing.stopSelfTyping(in: conversationID)
     }
+}
+
+/// Seed data for the profile screen before the live profile fetch returns.
+struct CounterpartSeed: Sendable {
+    let displayName: String
+    let imageData: Data?
+    let blurhash: String?
 }

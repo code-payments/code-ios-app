@@ -90,6 +90,9 @@ struct DestinationView: View {
         case .settingsApplicationLogs:
             ApplicationLogsScreen()
 
+        case .blockedUsers:
+            BlockedUsersScreen()
+
         case .accessKey:
             AccessKeyBackupScreen(mnemonic: sessionContainer.session.keyAccount.mnemonic)
                 .navigationTitle("Access Key")
@@ -142,6 +145,10 @@ struct DestinationView: View {
             // comes up. `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID), openKeyboard: true)
                 .id(conversationID)
+
+        case .userProfile(let userID):
+            UserProfileScreen(userID: userID)
+                .id(userID)
 
         // MARK: - Conversation flow
 

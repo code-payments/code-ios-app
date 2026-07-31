@@ -44,6 +44,7 @@ extension AppRouter {
         case settingsBetaFlags
         case settingsAccountSelection
         case settingsApplicationLogs
+        case blockedUsers
         case accessKey
         case withdraw
 
@@ -61,6 +62,8 @@ extension AppRouter {
         /// trace shows "post-tip, keyboard up" distinctly, and so the ordinary
         /// tip-list / push-notification opens stay keyboard-closed untouched.
         case tipConversationWithKeyboard(ConversationID)
+        /// The counterpart's Flipcash profile, pushed from a tip DM's title/card; hosts the Block action.
+        case userProfile(UserID)
 
         // Conversation flow
         /// A DM conversation, pushed onto the `.send` stack — from the Chats
@@ -82,10 +85,10 @@ extension AppRouter {
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .withdraw:
+                 .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .settings
             case .profileName, .profilePhoto, .tipcard,
-                 .tipConversation, .tipConversationWithKeyboard:
+                 .tipConversation, .tipConversationWithKeyboard, .userProfile:
                 return .tips
             case .dmConversation:
                 return .send
@@ -116,6 +119,7 @@ extension AppRouter {
             case .settingsBetaFlags:            "settingsBetaFlags"
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
+            case .blockedUsers:                 "blockedUsers"
             case .accessKey:                    "accessKey"
             case .withdraw:                     "withdraw"
             case .profileName:                  "profileName"
@@ -123,6 +127,7 @@ extension AppRouter {
             case .tipcard:                      "tipcard"
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
+            case .userProfile:                  "userProfile"
             case .dmConversation:               "dmConversation"
             }
         }
@@ -145,11 +150,13 @@ extension AppRouter {
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID):
                 return conversationID.description
+            case .userProfile(let userID):
+                return userID.uuidString
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .withdraw,
+                 .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard:
                 return nil
             }

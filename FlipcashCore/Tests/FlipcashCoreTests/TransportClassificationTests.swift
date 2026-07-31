@@ -55,6 +55,7 @@ struct TransportClassificationTests {
     @Test func errorCheckEmailCode() { assertClassifies(ErrorCheckEmailCode.self) }
     @Test func errorUnlinkEmail() { assertClassifies(ErrorUnlinkEmail.self) }
     @Test func errorFetchProfile() { assertClassifies(ErrorFetchProfile.self) }
+    @Test func errorBlocklist() { assertClassifies(ErrorBlocklist.self) }
     @Test func errorRateHistory() { assertClassifies(ErrorRateHistory.self) }
     @Test func errorGetSwap() { assertClassifies(ErrorGetSwap.self) }
     @Test func errorVoidGiftCard() { assertClassifies(ErrorVoidGiftCard.self) }

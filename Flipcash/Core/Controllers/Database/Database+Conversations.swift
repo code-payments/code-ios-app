@@ -80,7 +80,8 @@ nonisolated extension Database {
                 members: membersByConversation[id] ?? [],
                 lastMessage: try latestMessage(conversationId: id),
                 lastActivity: Date(timeIntervalSinceReferenceDate: row[c.lastActivity]),
-                type: ConversationType(rawValue: row[c.type]) ?? .contactDm
+                type: ConversationType(rawValue: row[c.type]) ?? .contactDm,
+                isHidden: row[c.isHidden]
             )
         }
     }
@@ -285,6 +286,7 @@ nonisolated extension Database {
                 c.id           <- conversation.id.data,
                 c.lastActivity <- conversation.lastActivity.timeIntervalSinceReferenceDate,
                 c.type         <- conversation.type.rawValue,
+                c.isHidden     <- conversation.isHidden,
                 onConflictOf: c.id
             )
         )

@@ -18,13 +18,16 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     public var lastMessage: ConversationMessage?
     public var lastActivity: Date
     public let type: ConversationType
+    /// Whether the server has hidden this conversation from the feed because the counterpart is on the owner's blocklist.
+    public var isHidden: Bool
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm) {
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
         self.lastActivity = lastActivity
         self.type = type
+        self.isHidden = isHidden
     }
 }
 
@@ -62,6 +65,7 @@ extension Conversation {
         self.lastMessage = proto.hasLastMessage ? ConversationMessage(proto.lastMessage) : nil
         self.lastActivity = proto.hasLastActivity ? proto.lastActivity.date : .distantPast
         self.type = ConversationType(proto.type)
+        self.isHidden = proto.isHidden
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.

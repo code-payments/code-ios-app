@@ -9,6 +9,7 @@ option objc_class_prefix = "FPBProfileV1";
 import "blob/v1/model.proto";
 import "email/v1/model.proto";
 import "phone/v1/model.proto";
+import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 message UserProfile {
@@ -43,6 +44,9 @@ message UserProfile {
     // these blobs, so a GetBlobs call must carry a blob.v1.AccessContext whose
     // `profile` scope names this user. A caller reading its own needs none.
     blob.v1.Media profile_picture = 5;
+
+    // Timestamp the user joined Flipcash
+    google.protobuf.Timestamp join_ts = 6 [(validate.rules).timestamp.required = true];
 }
 
 message SocialProfile {

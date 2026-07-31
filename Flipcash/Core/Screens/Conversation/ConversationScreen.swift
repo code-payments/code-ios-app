@@ -56,6 +56,7 @@ struct ConversationScreen: View {
     @Environment(PushController.self) private var pushController
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(BetaFlags.self) private var betaFlags
 
     @State private var didInitialRead = false
     @State private var barModel = ConversationBarModel()
@@ -123,11 +124,21 @@ struct ConversationScreen: View {
         }
     }
 
+    /// For a tip DM (beta on), all counterpart taps open the profile screen —
+    /// even when the counterpart is also an address-book contact.
+    private var profileTapAction: (() -> Void)? {
+        guard betaFlags.hasEnabled(.enableBlocking),
+              let userID = tipCounterpart?.userID else { return nil }
+        return { router.push(.userProfile(userID)) }
+    }
+
     /// Tapping the title opens the counterpart's contact card: their address-book
     /// card when they're a contact, otherwise the native "Add to Contacts" sheet
-    /// seeded with their number. Inert only when neither a contact nor a phone
+    /// seeded with their number. For a tip DM with the blocking beta on, opens the
+    /// profile screen instead. Inert only when neither a contact nor a phone
     /// number is known.
     private var titleTapAction: (() -> Void)? {
+        if let profileTapAction { return profileTapAction }
         guard contact != nil || addableContactPhone != nil else { return nil }
         return { openContactCard() }
     }
@@ -165,6 +176,7 @@ struct ConversationScreen: View {
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
             onContactAction: openContactCard,
+            onProfileTap: profileTapAction,
             showsSendCash: sendTarget != nil,
             chatExists: chatExists,
             conversationID: conversationID,
@@ -192,7 +204,8 @@ struct ConversationScreen: View {
                     imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
                     blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
                     width: max(navBarWidth - Self.titleSideInset * 2, 0),
-                    onTap: titleTapAction
+                    onTap: titleTapAction,
+                    opensProfile: profileTapAction != nil
                 )
             }
         }
@@ -457,7 +470,7 @@ struct ConversationScreen: View {
 /// Avatar + name, left-aligned inside the centered principal slot (sized to
 /// the measured bar width; the system toolbar won't honor maxWidth on a
 /// principal item). When `onTap` is non-nil the whole item becomes a button
-/// that opens the counterpart's contact card.
+/// that opens the counterpart's contact card or profile screen.
 private struct ConversationTitleItem: View {
 
     let title: String
@@ -467,6 +480,7 @@ private struct ConversationTitleItem: View {
     let blurhash: String?
     let width: CGFloat
     let onTap: (() -> Void)?
+    let opensProfile: Bool
 
     var body: some View {
         let label = ConversationTitleLabel(
@@ -478,10 +492,11 @@ private struct ConversationTitleItem: View {
             width: width
         )
         if let onTap {
+            let hint = opensProfile ? "Opens profile" : (contact != nil ? "Opens contact card" : "Adds to Contacts")
             Button(action: onTap) { label }
                 .buttonStyle(.plain)
                 .accessibilityLabel(title)
-                .accessibilityHint(contact != nil ? "Opens contact card" : "Adds to Contacts")
+                .accessibilityHint(hint)
         } else {
             label
         }

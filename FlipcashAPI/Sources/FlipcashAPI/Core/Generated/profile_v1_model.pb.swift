@@ -71,6 +71,16 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
   /// Clears the value of `profilePicture`. Subsequent reads from it will return its default value.
   public mutating func clearProfilePicture() {self._profilePicture = nil}
 
+  /// Timestamp the user joined Flipcash
+  public var joinTs: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _joinTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_joinTs = newValue}
+  }
+  /// Returns true if `joinTs` has been explicitly set.
+  public var hasJoinTs: Bool {return self._joinTs != nil}
+  /// Clears the value of `joinTs`. Subsequent reads from it will return its default value.
+  public mutating func clearJoinTs() {self._joinTs = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -78,6 +88,7 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
   fileprivate var _phoneNumber: Flipcash_Phone_V1_PhoneNumber? = nil
   fileprivate var _emailAddress: Flipcash_Email_V1_EmailAddress? = nil
   fileprivate var _profilePicture: Flipcash_Blob_V1_Media? = nil
+  fileprivate var _joinTs: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 public struct Flipcash_Profile_V1_SocialProfile: Sendable {
@@ -184,7 +195,7 @@ fileprivate let _protobuf_package = "flipcash.profile.v1"
 
 extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserProfile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}social_profiles\0\u{3}phone_number\0\u{3}email_address\0\u{3}profile_picture\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}social_profiles\0\u{3}phone_number\0\u{3}email_address\0\u{3}profile_picture\0\u{3}join_ts\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -197,6 +208,7 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
       case 3: try { try decoder.decodeSingularMessageField(value: &self._phoneNumber) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._emailAddress) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._profilePicture) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._joinTs) }()
       default: break
       }
     }
@@ -222,6 +234,9 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._profilePicture {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
+    try { if let v = self._joinTs {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -231,6 +246,7 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs._phoneNumber != rhs._phoneNumber {return false}
     if lhs._emailAddress != rhs._emailAddress {return false}
     if lhs._profilePicture != rhs._profilePicture {return false}
+    if lhs._joinTs != rhs._joinTs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

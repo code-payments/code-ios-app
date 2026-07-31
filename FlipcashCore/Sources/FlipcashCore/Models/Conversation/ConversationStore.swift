@@ -202,6 +202,12 @@ public struct ConversationStore: Sendable {
         conversations[convoIndex].members[memberIndex].readPointerTimestamp = date
     }
 
+    /// Flips the hidden flag for a conversation in place, retaining it in the store; no-ops for a conversation not in the feed.
+    public mutating func setHidden(_ hidden: Bool, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        conversations[index].isHidden = hidden
+    }
+
     /// Bump a conversation's last activity and re-sort the feed. No-ops for a conversation not in the
     /// feed.
     public mutating func advanceLastActivity(to date: Date, in conversationID: ConversationID) {

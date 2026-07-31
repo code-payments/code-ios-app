@@ -115,6 +115,7 @@ extension BetaFlags {
         case vibrateOnScan
         case enableCoinbase
         case enableTips
+        case enableBlocking
 
         var id: String {
             localizedTitle
@@ -128,6 +129,8 @@ extension BetaFlags {
                 return "Enable Coinbase"
             case .enableTips:
                 return "Tips"
+            case .enableBlocking:
+                return "Blocking"
             }
         }
 
@@ -139,15 +142,18 @@ extension BetaFlags {
                 return "If enabled, Coinbase onramp will be available regardless of region"
             case .enableTips:
                 return "If enabled, the Tips tab is available from the scan screen"
+            case .enableBlocking:
+                return "If enabled, you can block users from a tip chat and manage blocked users in My Account"
             }
         }
 
         /// Which Settings surface exposes this flag's toggle.
         var availability: Availability {
             switch self {
-            case .vibrateOnScan:  return .developer
-            case .enableCoinbase: return .developer
-            case .enableTips:     return .publicBeta
+            case .vibrateOnScan:   return .developer
+            case .enableCoinbase:  return .developer
+            case .enableTips:      return .publicBeta
+            case .enableBlocking:  return .developer
             }
         }
     }
