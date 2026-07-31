@@ -115,6 +115,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.contactSyncController.didBecomeActive()
             sessionContainer?.conversationController.ensureConnected()
             sessionContainer?.conversationController.catchUpOpenChat()
+            Task { await sessionContainer?.blocklistController.refresh() }
             sessionContainer?.pushController.clearBadgeCount()
         case .inactive:
             break
