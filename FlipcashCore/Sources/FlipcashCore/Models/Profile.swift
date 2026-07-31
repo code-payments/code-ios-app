@@ -29,10 +29,12 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil
     }
 
-    /// Returns whether this profile can receive tips — both a name and a
-    /// picture are required.
+    /// Returns whether this profile can receive tips — only a display name is
+    /// required. A profile picture is not part of onboarding, so requiring one
+    /// left every name-only profile non-tippable and bounced Tips back to the
+    /// intro screen on reopen.
     public var isTippable: Bool {
-        displayName?.isEmpty == false && profilePicture != nil
+        displayName?.isEmpty == false
     }
 
     /// Returns whether this profile gained a phone number not present in `previous`.
