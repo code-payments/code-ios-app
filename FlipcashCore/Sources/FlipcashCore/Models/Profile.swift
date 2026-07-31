@@ -13,13 +13,17 @@ public struct Profile: Codable, Equatable, Sendable {
     public static let empty = Profile(
         displayName: nil,
         phone: Optional<Phone>.none,
-        email: nil
+        email: nil,
+        joinedAt: nil
     )
     
     public let displayName: String?
     public let phone: Phone?
     public let email: String?
     public let profilePicture: ProfilePicture?
+
+    /// The date the user joined Flipcash, or `nil` when the server did not supply one.
+    public let joinedAt: Date?
 
     public var isPhoneVerified: Bool {
         phone != nil
@@ -36,7 +40,7 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil && phone?.e164 != previous?.phone?.e164
     }
 
-    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil) throws {
+    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil) throws {
 
         // Only parse phone if it's not empty
         var parsedPhone: Phone?
@@ -56,15 +60,17 @@ public struct Profile: Codable, Equatable, Sendable {
             displayName: displayName,
             phone: parsedPhone,
             email: normalizedEmail,
-            profilePicture: profilePicture
+            profilePicture: profilePicture,
+            joinedAt: joinedAt
         )
     }
 
-    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil) {
+    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil) {
         self.displayName = displayName
         self.phone = phone
         self.email = email
         self.profilePicture = profilePicture
+        self.joinedAt = joinedAt
     }
 }
 
@@ -82,7 +88,8 @@ extension Profile {
             displayName: proto.displayName,
             phone: proto.phoneNumber.value,
             email: proto.emailAddress.value,
-            profilePicture: proto.hasProfilePicture ? ProfilePicture(proto.profilePicture) : nil
+            profilePicture: proto.hasProfilePicture ? ProfilePicture(proto.profilePicture) : nil,
+            joinedAt: proto.hasJoinTs ? proto.joinTs.date : nil
         )
     }
 }
