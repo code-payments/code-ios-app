@@ -25,6 +25,10 @@ struct SettingsUIScreen {
     var addMoneyButton: XCUIElement { app.buttons["Add Money"] }
     var applicationLogsRow: XCUIElement { app.buttons["Application Logs"] }
 
+    /// The My Account row that opens the Blocked list. Present only when the
+    /// `enableBlocking` beta flag is on.
+    var blockedRow: XCUIElement { app.buttons["Blocked"] }
+
     // MARK: - Actions
 
     /// Opens Settings from the main screen.
