@@ -119,6 +119,16 @@ nonisolated struct UserFlagsTable: Sendable {
     let data  = Expression <Data> ("data")
 }
 
+nonisolated struct BlocklistTable: Sendable {
+    static let name = "blocklist"
+
+    let table          = Table(Self.name)
+    let userID         = Expression <UUID>    ("userID")        // PK
+    let blockedAt      = Expression <Double>  ("blockedAt")     // timeIntervalSinceReferenceDate
+    let displayName    = Expression <String>  ("displayName")
+    let avatarBlurhash = Expression <String?> ("avatarBlurhash")
+}
+
 // Verified reserve-state proofs, one per mint.
 nonisolated struct VerifiedReserveTable: Sendable {
     static let name = "verified_reserve"
@@ -174,6 +184,9 @@ nonisolated struct ConversationTable: Sendable {
     let catchupCursor = Expression <UInt64?> ("catchupCursor")
     // ConversationType raw value; scopes feed replaces and the Tips surfaces.
     let type          = Expression <Int>     ("type")
+    // Server-set: the counterpart is on the owner's blocklist. Retained so an
+    // unblock restores the conversation; filtered from the displayed feed.
+    let isHidden      = Expression <Bool>    ("isHidden")
 }
 
 nonisolated struct ConversationMemberTable: Sendable {
@@ -392,6 +405,7 @@ nonisolated extension Database {
                 t.column(conversationTable.lastActivity)
                 t.column(conversationTable.catchupCursor)
                 t.column(conversationTable.type, defaultValue: ConversationType.contactDm.rawValue)
+                t.column(conversationTable.isHidden, defaultValue: false)
             })
         }
 
@@ -433,6 +447,17 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.eventSequence)
                 t.column(conversationMessageTable.clientMessageID)
                 t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
+            })
+        }
+
+        let blocklistTable = BlocklistTable()
+
+        try writer.transaction {
+            try writer.run(blocklistTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(blocklistTable.userID, primaryKey: true)
+                t.column(blocklistTable.blockedAt)
+                t.column(blocklistTable.displayName)
+                t.column(blocklistTable.avatarBlurhash)
             })
         }
 

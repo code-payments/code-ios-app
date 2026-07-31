@@ -72,7 +72,7 @@ final class ChatSpotlightIndexer {
         // its phone-number fallback with no avatar. No image rendering here —
         // that's reindex()'s job, off the debounce.
         _ = withObservationTracking {
-            controller.conversations.map { controller.displayName(for: $0) }
+            controller.visibleConversations.map { controller.displayName(for: $0) }
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
@@ -93,7 +93,7 @@ final class ChatSpotlightIndexer {
     }
 
     private func reindex() {
-        let items = controller.conversations.map { conversation -> ChatSpotlightItem in
+        let items = controller.visibleConversations.map { conversation -> ChatSpotlightItem in
             let contact = counterpartContact(for: conversation)
             let displayName = controller.displayName(for: conversation)
             return ChatSpotlightItem(
