@@ -1,0 +1,83 @@
+name: Roll CalVer to the new month
+
+# On the 1st of each month, roll main's MARKETING_VERSION to <year>.<month>.1
+# (un-padded month, matching Android's Packaging.kt rollover) so dogfood/deploy
+# builds off main are labelled with the right month between releases. Opens a PR
+# rather than pushing to main directly — main is PR-gated.
+#
+# The iOS mirror of Android's .github/workflows/prep-dev.yml. Within a month the
+# cycle number is advanced by /release step 9a; this job only handles the month
+# boundary. Safe to re-run / dispatch mid-month: it no-ops when main is already
+# on the current month (it never downgrades the cycle).
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  roll-version:
+    name: Roll MARKETING_VERSION to the new month
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Compute target version
+        id: calc
+        run: |
+          set -euo pipefail
+          PBX=Code.xcodeproj/project.pbxproj
+          Y=$(date +%Y)
+          M=$(date +%m | sed 's/^0//')          # un-padded month, matches Android
+          NEW="$Y.$M.1"
+
+          # Current app-family version = the sole non-1.0 MARKETING_VERSION value.
+          mapfile -t CURVALS < <(grep -oE 'MARKETING_VERSION = [^;]+;' "$PBX" \
+            | sed -E 's/MARKETING_VERSION = (.+);/\1/' | grep -vx '1.0' | sort -u)
+          if [ "${#CURVALS[@]}" -ne 1 ]; then
+            echo "Expected exactly one app-family MARKETING_VERSION, found: ${CURVALS[*]:-none}" >&2
+            exit 1
+          fi
+          CUR="${CURVALS[0]}"
+          echo "Current: $CUR  Target: $NEW"
+
+          if [[ "$CUR" == "$Y.$M."* ]]; then
+            echo "main is already on $Y.$M — nothing to roll (cycle is managed by /release)."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          sed -i "s/MARKETING_VERSION = ${CUR//./\\.};/MARKETING_VERSION = $NEW;/g" "$PBX"
+          git diff --quiet "$PBX" && { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Open bump PR
+        if: steps.calc.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW: ${{ steps.calc.outputs.new }}
+        run: |
+          set -euo pipefail
+          BRANCH="chore/bump-version-$NEW"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Branch $BRANCH already exists — skipping."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add Code.xcodeproj/project.pbxproj
+          git commit -m "chore: bump version to $NEW"
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "chore: bump version to $NEW" \
+            --body "Automated CalVer month roll to \`$NEW\` (un-padded month, Android parity). Merge to set main's dev version for the new month."
