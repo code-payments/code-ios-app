@@ -76,6 +76,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onContactAction = newValue }
     }
 
+    /// Forwards profile-card taps from the transcript to the owner.
+    public var onProfileTap: (() -> Void)? {
+        get { transcript.onProfileTap }
+        set { transcript.onProfileTap = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)

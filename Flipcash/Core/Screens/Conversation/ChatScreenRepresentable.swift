@@ -32,6 +32,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps the profile card's call to action. The owner opens the
     /// counterpart's contact card (or the add-contact sheet), same as tapping the nav title.
     let onContactAction: () -> Void
+    /// Fired when the user taps the profile card in a tip DM; nil disables the card tap.
+    let onProfileTap: (() -> Void)?
     let showsSendCash: Bool
     let chatExists: Bool
     let conversationID: ConversationID?
@@ -56,6 +58,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
+        screen.onProfileTap = onProfileTap
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
@@ -72,6 +75,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
+        screen.onProfileTap = onProfileTap
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
         // (skipping any trailing receipt) that is from me. Received messages and prepended history

@@ -43,6 +43,9 @@ public final class ChatViewController: UICollectionViewController {
     /// counterpart's contact card (or the add-contact sheet), same as the nav title.
     public var onContactAction: (() -> Void)?
 
+    /// Called when the user taps the profile card header in a tip DM; nil disables the tap.
+    public var onProfileTap: (() -> Void)?
+
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
@@ -236,9 +239,12 @@ public final class ChatViewController: UICollectionViewController {
         case .typingIndicator:
             break
         case .profileCard(let card):
-            (cell as! ChatProfileCardCell).configure(with: card) { [weak self] in
-                self?.onContactAction?()
-            }
+            let profileTap: (() -> Void)? = onProfileTap == nil ? nil : { [weak self] in self?.onProfileTap?() }
+            (cell as! ChatProfileCardCell).configure(
+                with: card,
+                onContactAction: { [weak self] in self?.onContactAction?() },
+                onProfileTap: profileTap
+            )
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .message(let message):

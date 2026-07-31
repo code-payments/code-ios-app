@@ -18,9 +18,9 @@ public final class ChatProfileCardCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatProfileCardCell"
 
-    public func configure(with card: ChatProfileCard, onContactAction: @escaping () -> Void) {
+    public func configure(with card: ChatProfileCard, onContactAction: @escaping () -> Void, onProfileTap: (() -> Void)? = nil) {
         contentConfiguration = UIHostingConfiguration {
-            ProfileCardView(card: card, onContactAction: onContactAction)
+            ProfileCardView(card: card, onContactAction: onContactAction, onProfileTap: onProfileTap)
         }
         .margins(.all, 0)
     }
@@ -32,23 +32,11 @@ private struct ProfileCardView: View {
 
     let card: ChatProfileCard
     let onContactAction: () -> Void
+    let onProfileTap: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
-            ContactAvatarView(
-                id: card.avatarID,
-                displayName: card.name,
-                imageData: card.imageData,
-                blurhash: card.blurhash,
-                size: 80
-            )
-            .accessibilityHidden(true)
-
-            Text(card.name)
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
-                .padding(.top, 12)
+            header
 
             ProfileCardSubtitle(counterpart: card.counterpart)
                 .font(.appTextSmall)
@@ -74,6 +62,37 @@ private struct ProfileCardView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
+    }
+
+    @ViewBuilder private var header: some View {
+        let content = VStack(spacing: 0) {
+            ContactAvatarView(
+                id: card.avatarID,
+                displayName: card.name,
+                imageData: card.imageData,
+                blurhash: card.blurhash,
+                size: 80
+            )
+            .accessibilityHidden(true)
+
+            HStack(spacing: 4) {
+                Text(card.name)
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                if onProfileTap != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            .padding(.top, 12)
+        }
+        if let onProfileTap {
+            Button(action: onProfileTap) { content }.buttonStyle(.plain)
+        } else {
+            content
+        }
     }
 
 }
@@ -107,7 +126,8 @@ private struct ProfileCardSubtitle: View {
                 imageData: nil,
                 counterpart: .contact(phone: "519 802-3885")
             ),
-            onContactAction: {}
+            onContactAction: {},
+            onProfileTap: nil
         )
         ProfileCardView(
             card: ChatProfileCard(
@@ -116,7 +136,8 @@ private struct ProfileCardSubtitle: View {
                 imageData: nil,
                 counterpart: .unknown
             ),
-            onContactAction: {}
+            onContactAction: {},
+            onProfileTap: nil
         )
         ProfileCardView(
             card: ChatProfileCard(
@@ -125,7 +146,8 @@ private struct ProfileCardSubtitle: View {
                 imageData: nil,
                 counterpart: .none
             ),
-            onContactAction: {}
+            onContactAction: {},
+            onProfileTap: nil
         )
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
