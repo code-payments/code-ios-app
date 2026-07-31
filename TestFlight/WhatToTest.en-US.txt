@@ -3,6 +3,7 @@ What to test in this build
 New in this release — exercise each end to end:
 • Send and receive tips directly in the app
 • Create a profile in the new Tips tab and share your tip card
+• On a NEW account: create your tip card, close Tips, reopen it — you should land on your tips list, not the setup screen
 • Open a tip chat and confirm the keyboard is ready to reply
 • Profile pictures load with progressive placeholders
 • Swipe back on a pushed sheet screen (drag from the edge)
