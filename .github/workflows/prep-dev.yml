@@ -2,22 +2,20 @@ name: Roll CalVer to the new month
 
 # On the 1st of each month, roll main's MARKETING_VERSION to <year>.<month>.1
 # (un-padded month, matching Android's Packaging.kt rollover) so dogfood/deploy
-# builds off main are labelled with the right month between releases. Opens a PR
-# rather than pushing to main directly — main is PR-gated.
+# builds off main are labelled with the right month between releases. Commits
+# straight to main via a PAT — the iOS mirror of Android's prep-dev.yml, which
+# pushes to code/cash. The default GITHUB_TOKEN can neither open PRs nor push to
+# main here, so BOT_GITHUB_TOKEN (an admin-owned PAT that bypasses the PR gate)
+# is required.
 #
-# The iOS mirror of Android's .github/workflows/prep-dev.yml. Within a month the
-# cycle number is advanced by /release step 9a; this job only handles the month
-# boundary. Safe to re-run / dispatch mid-month: it no-ops when main is already
-# on the current month (it never downgrades the cycle).
+# Within a month the cycle number is advanced by /release step 9a; this job only
+# handles the month boundary. Safe to re-run / dispatch mid-month: it no-ops when
+# main is already on the current month (it never downgrades the cycle).
 
 on:
   schedule:
     - cron: '0 0 1 * *'
   workflow_dispatch:
-
-permissions:
-  contents: write
-  pull-requests: write
 
 jobs:
   roll-version:
@@ -29,6 +27,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false   # push with the PAT below, not GITHUB_TOKEN
 
       - name: Compute target version
         id: calc
@@ -60,24 +59,17 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "new=$NEW" >> "$GITHUB_OUTPUT"
 
-      - name: Open bump PR
+      - name: Commit & push to main
         if: steps.calc.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
           NEW: ${{ steps.calc.outputs.new }}
         run: |
           set -euo pipefail
-          BRANCH="chore/bump-version-$NEW"
-          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
-            echo "Branch $BRANCH already exists — skipping."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
           git add Code.xcodeproj/project.pbxproj
           git commit -m "chore: bump version to $NEW"
-          git push -u origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" \
-            --title "chore: bump version to $NEW" \
-            --body "Automated CalVer month roll to \`$NEW\` (un-padded month, Android parity). Merge to set main's dev version for the new month."
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git pull --rebase "$REMOTE" main
+          git push "$REMOTE" HEAD:main
