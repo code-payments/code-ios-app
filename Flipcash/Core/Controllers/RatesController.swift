@@ -257,6 +257,32 @@ class RatesController {
         return nil
     }
 
+    /// Wait for a *fresh* (non-stale) pinned verified state, polling the cache.
+    ///
+    /// Unlike ``awaitVerifiedState(for:mint:maxAttempts:interval:)`` this re-applies
+    /// the staleness check on every poll, so a stale warm-loaded proof is rejected and
+    /// we keep waiting for the live stream to deliver a fresh one. Use this on a path
+    /// that races cold-start warm-up (e.g. a tip deep link) where the cache may be
+    /// momentarily empty or holding a stale proof. Returns nil on timeout.
+    func awaitPinnedState(
+        for currency: CurrencyCode,
+        mint: PublicKey,
+        maxAttempts: Int = 25,
+        interval: Duration = .milliseconds(200)
+    ) async -> VerifiedState? {
+        for i in 0..<maxAttempts {
+            if Task.isCancelled { return nil }
+            if i > 0 {
+                try? await Task.sleep(for: interval)
+            }
+            if let state = await verifiedProtoService.getVerifiedState(for: currency, mint: mint), !state.isStale {
+                return state
+            }
+        }
+        logger.error("awaitPinnedState timed out", metadata: ["currency": "\(currency.rawValue)", "mint": "\(mint.base58)"])
+        return nil
+    }
+
     // MARK: - Rates -
 
     /// Cache of rates from streaming. Tracked by `@Observable` so views update automatically.
@@ -363,6 +389,13 @@ extension RatesController {
     enum Error: Swift.Error {
         case exchangeRateUnavailable
     }
+}
+
+extension RatesController.Error: ServerError {
+    /// Expected, self-healing cold-start condition — the rate cache is momentarily
+    /// empty or holding a stale proof while the live stream warms up. Worth an `.info`
+    /// breadcrumb when it surfaces to the user, but never a Slack page.
+    var reportingLevel: ErrorReportingLevel { .info }
 }
 
 // MARK: - LocalDefaults -
