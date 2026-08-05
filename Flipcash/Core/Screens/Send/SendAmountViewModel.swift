@@ -159,6 +159,18 @@ final class SendAmountViewModel {
             }
 
             guard let (amountToSend, pinnedState) = await prepareSubmission(entered: entered) else {
+                // A nil here is a silent local cache miss (no RPC, no thrown error), so
+                // it would otherwise be invisible to reporting. Record a breadcrumb at
+                // `.info` — the classified level of `exchangeRateUnavailable` — so a
+                // spike in cold-start rate races is visible without paging Slack.
+                ErrorReporting.captureError(
+                    RatesController.Error.exchangeRateUnavailable,
+                    reason: "No fresh rate at send submission",
+                    metadata: [
+                        "target": targetLogID,
+                        "mint": selectedBalance.stored.mint.base58,
+                    ]
+                )
                 session.dialogItem = .error(
                     title: "Rate Unavailable",
                     subtitle: "Couldn't get a fresh rate. Please try again."
@@ -273,10 +285,25 @@ final class SendAmountViewModel {
         guard let selectedBalance else { return nil }
         let mint = selectedBalance.stored.mint
 
-        guard let pin = await ratesController.currentPinnedState(
-            for: ratesController.balanceCurrency,
-            mint: mint
-        ) else { return nil }
+        // A tip deep link opens on a cold foreground, racing the rate stream/warm-load
+        // (a sibling of the #545 recipient-resolve race). For tips, poll for a fresh
+        // pinned state rather than failing the first time the cache is momentarily empty
+        // or holding a stale warm-loaded proof. In-app contact sends run warm, so they
+        // keep the single-shot read.
+        let pinnedState: VerifiedState?
+        switch target {
+        case .tip:
+            pinnedState = await ratesController.awaitPinnedState(
+                for: ratesController.balanceCurrency,
+                mint: mint
+            )
+        case .contact:
+            pinnedState = await ratesController.currentPinnedState(
+                for: ratesController.balanceCurrency,
+                mint: mint
+            )
+        }
+        guard let pin = pinnedState else { return nil }
 
         let nativeEntered = FiatAmount(value: entered, currency: pin.rate.currency)
 
