@@ -23,8 +23,8 @@ final class CreateAccountSmokeTests: BaseUITestCase {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         waitUntilHittableAndTap(springboard.buttons["Allow"])
 
-        // Onboarding phone verification — forced for new registrations.
-        allowPhoneVerificationIfNeeded()
+        // Onboarding display name — mandatory for new registrations.
+        enterDisplayNameIfNeeded()
 
         // Push notification permission screen (may be skipped if already granted)
         allowPushNotificationsIfNeeded()
@@ -43,8 +43,8 @@ final class CreateAccountSmokeTests: BaseUITestCase {
         // Confirmation dialog: "Are You Sure?"
         waitAndTap(app.buttons["Yes, I Wrote Them Down"])
 
-        // Onboarding phone verification — forced for new registrations.
-        allowPhoneVerificationIfNeeded()
+        // Onboarding display name — mandatory for new registrations.
+        enterDisplayNameIfNeeded()
 
         // Push notification permission screen (may be skipped if already granted)
         allowPushNotificationsIfNeeded()

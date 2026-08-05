@@ -79,7 +79,7 @@ class BaseUITestCase: XCTestCase {
         waitAndTap(app.buttons["Create a New Account"])
         waitAndTap(app.buttons["Wrote the 12 Words Down Instead?"])
         waitAndTap(app.buttons["Yes, I Wrote Them Down"])
-        allowPhoneVerificationIfNeeded()
+        enterDisplayNameIfNeeded()
         allowPushNotificationsIfNeeded()
         assertMainScreenReached()
     }
@@ -130,6 +130,18 @@ class BaseUITestCase: XCTestCase {
         }
 
         return amountEntry
+    }
+
+    /// Enters a display name on the onboarding name step — the mandatory step
+    /// that replaced phone verification. Resilient to the screen not appearing
+    /// (e.g. recovering an account that already has a name).
+    func enterDisplayNameIfNeeded() {
+        // OnboardingNameScreen signature: the "Your Name" text field.
+        let nameField = app.textFields["Your Name"]
+        guard nameField.waitForExistence(timeout: 15) else { return }
+        nameField.tap()
+        nameField.typeText("Test User")
+        waitAndTap(app.buttons["onboarding-name-next-button"])
     }
 
     /// Drives the phone-verification flow using the backend mock phone

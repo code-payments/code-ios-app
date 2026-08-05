@@ -24,10 +24,9 @@ class OnboardingViewModel {
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
     @ObservationIgnored private var initializedAccount: InitializedAccount?
 
-    /// Built on first call to ``navigateToPhoneVerification``; shared
-    /// between the `EnterPhoneScreen` and `ConfirmPhoneScreen`
-    /// destinations so input state survives the push.
-    var phoneVerificationViewModel: PhoneVerificationViewModel?
+    /// Built on first call to ``navigateToDisplayName``; the display-name step
+    /// runs pre-login, so it owns its submission against the in-flight owner.
+    var nameViewModel: OnboardingNameViewModel?
 
     // MARK: - Init -
 
@@ -52,7 +51,7 @@ class OnboardingViewModel {
 
     func createAccountAction() {
         inflightMnemonic = MnemonicPhrase.generate(.words12)
-        phoneVerificationViewModel = nil
+        nameViewModel = nil
 
         navigateToAccessKey()
 
@@ -122,38 +121,18 @@ class OnboardingViewModel {
         accessKeyButtonState = .success
         try await Task.delay(milliseconds: 500)
 
-        // Phone verification only exists to power Send; show it when Send is
-        // available for this account, otherwise advance straight to the next step.
-        if await shouldOfferPhoneVerification() {
-            navigateToPhoneVerification()
-        } else {
-            await advanceFromPhoneVerificationStep()
-        }
+        // Every new account needs a display name for tips and chat, so collect
+        // one now — before the push-permission prompt. (Phone verification is
+        // no longer part of onboarding; a phone can still be connected later.)
+        navigateToDisplayName()
 
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
 
-    /// Whether to collect a phone number during onboarding, decided by the
-    /// server's `enablePhoneNumberSend`. The fetch is time-boxed so a slow connection can't stall onboarding;
-    /// the step is skipped if the account isn't known yet, the fetch times out, or
-    /// it fails — a phone can still be connected later from the Send sheet.
-    private func shouldOfferPhoneVerification() async -> Bool {
-        guard let userID = initializedAccount?.userID else {
-            return false
-        }
-
-        let flags = try? await container.flipClient.fetchUserFlags(
-            userID: userID,
-            owner: inflightMnemonic.solanaKeyPair(),
-            timeout: 5
-        )
-
-        return flags?.enablePhoneNumberSend == true
-    }
-
-    /// Advances past the phone step: requests push permission when undetermined,
-    /// otherwise finishes login. Contacts access is requested later, from Send.
-    private func advanceFromPhoneVerificationStep() async {
+    /// Advances past the display-name step: requests push permission when
+    /// undetermined, otherwise finishes login. Contacts access is requested
+    /// later, in-app.
+    private func advanceFromNameStep() async {
         let pushStatus = await PushController.fetchStatus()
         switch pushStatus {
         case .notDetermined:
@@ -290,25 +269,18 @@ class OnboardingViewModel {
         path.append(.pushNotificationsDenied)
     }
 
-    func navigateToPhoneVerification() {
-        if phoneVerificationViewModel == nil {
-            let vm = PhoneVerificationViewModel(
+    func navigateToDisplayName() {
+        if nameViewModel == nil {
+            let vm = OnboardingNameViewModel(
                 owner: inflightMnemonic.solanaKeyPair(),
                 flipClient: container.flipClient,
             )
-            vm.onCodeRequested = { [weak self] in
-                self?.navigateToConfirmPhoneCode()
+            vm.onComplete = { [weak self] in
+                Task { await self?.advanceFromNameStep() }
             }
-            vm.onVerified = { [weak self] in
-                Task { await self?.advanceFromPhoneVerificationStep() }
-            }
-            phoneVerificationViewModel = vm
+            nameViewModel = vm
         }
-        path.append(.phoneVerification)
-    }
-
-    func navigateToConfirmPhoneCode() {
-        path.append(.confirmPhoneNumberCode)
+        path.append(.displayName)
     }
 
 }
@@ -320,8 +292,7 @@ nonisolated enum OnboardingPath {
     case login
     case accessKey
     case accessKeyHelp
-    case phoneVerification
-    case confirmPhoneNumberCode
+    case displayName
     case pushNotifications
     case pushNotificationsDenied
 }
