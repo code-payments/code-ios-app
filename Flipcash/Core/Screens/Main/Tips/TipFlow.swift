@@ -139,18 +139,37 @@ final class TipFlow {
         prepTask = Task {
             defer { prepTask = nil }
             do {
-                async let profile = flipClient.fetchProfile(userID: userID, owner: session.ownerKeyPair)
-                async let destination = flipClient.resolveUserID(userID, owner: session.ownerKeyPair)
-                // The destination is re-resolved (and cached) by the send
-                // itself; here it only proves the user can be paid at all.
-                _ = try await destination
+                // The gRPC channel is often still connecting when a tipcard deep
+                // link fires on a cold foreground (it races `warmUpChannel()`),
+                // so the first resolve fails `.unavailable`; a just-made-tippable
+                // recipient's destination may also not have propagated yet.
+                // Retry both transient conditions before surfacing a hard error —
+                // mirroring the cash-link claim path — so the user isn't told to
+                // "try again" for a tap that a second attempt would have resolved.
+                // A definitive `.denied`/anomaly is not retried.
+                let resolved = try await Task.retry(
+                    maxAttempts: 3,
+                    delay: .milliseconds(500),
+                    shouldRetry: { error in
+                        if let error = error as? ErrorResolve { return error == .notFound || error.isRetryable }
+                        if let error = error as? ErrorFetchProfile { return error.isRetryable }
+                        return false
+                    }
+                ) {
+                    async let profile = flipClient.fetchProfile(userID: userID, owner: session.ownerKeyPair)
+                    async let destination = flipClient.resolveUserID(userID, owner: session.ownerKeyPair)
+                    // The destination is re-resolved (and cached) by the send
+                    // itself; here it only proves the user can be paid at all.
+                    _ = try await destination
+                    return try await profile
+                }
                 let recipient = TipRecipient(
                     userID: userID,
-                    displayName: try await profile.displayName ?? ""
+                    displayName: resolved.displayName ?? ""
                 )
                 guard !Task.isCancelled else { return }
                 present(recipient)
-                await loadAvatar(for: recipient, picture: try await profile.profilePicture)
+                await loadAvatar(for: recipient, picture: resolved.profilePicture)
             } catch {
                 guard !Task.isCancelled else { return }
                 logger.error("Failed to prepare tip recipient", metadata: [
