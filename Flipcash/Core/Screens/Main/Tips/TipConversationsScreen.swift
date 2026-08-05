@@ -17,7 +17,7 @@ struct TipConversationsScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             List {
-                Button("Show My Tipcard") {
+                Button("Show My Tip Card") {
                     router.push(.tipcard)
                 }
                 .buttonStyle(.filled)
