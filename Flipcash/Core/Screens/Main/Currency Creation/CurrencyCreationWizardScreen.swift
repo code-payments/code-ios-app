@@ -344,7 +344,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency name availability check failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error)
+                ErrorReporting.captureError(error, userFacing: true)
                 presentGenericErrorDialog()
                 return
             }
@@ -378,7 +378,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency name moderation failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error)
+                ErrorReporting.captureError(error, userFacing: true)
                 presentGenericErrorDialog()
                 return
             }
@@ -406,7 +406,7 @@ struct CurrencyCreationWizardScreen: View {
                 imageData = try await ImageEncoder.encodeForUpload(image, maxBytes: 1_048_576)
             } catch {
                 logger.error("Failed to encode icon within 1 MB budget", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error)
+                ErrorReporting.captureError(error, userFacing: true)
                 errorDialog = .imageProcessingFailed
                 return
             }
@@ -432,7 +432,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency icon moderation failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error)
+                ErrorReporting.captureError(error, userFacing: true)
                 presentGenericErrorDialog()
                 return
             }
@@ -470,7 +470,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency description moderation failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error)
+                ErrorReporting.captureError(error, userFacing: true)
                 presentGenericErrorDialog()
                 return
             }
@@ -594,7 +594,7 @@ struct CurrencyCreationWizardScreen: View {
                             "error": "\(error)",
                             "mint": "\(existing.mint.base58)",
                         ])
-                        ErrorReporting.captureError(error)
+                        ErrorReporting.captureError(error, userFacing: true)
                         presentCouldNotCreateCurrencyDialog()
                     }
                     return
@@ -625,7 +625,7 @@ struct CurrencyCreationWizardScreen: View {
                     "error": "\(error)",
                     "mint": "\(launchedMint?.base58 ?? "nil")",
                 ])
-                ErrorReporting.captureError(error)
+                ErrorReporting.captureError(error, userFacing: true)
                 presentCouldNotCreateCurrencyDialog()
                 return
             }

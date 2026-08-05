@@ -898,9 +898,10 @@ class Session {
             ErrorReporting.capturePayment(
                 error: error,
                 rendezvous: rendezvous,
-                exchangedFiat: exchangedFiat
+                exchangedFiat: exchangedFiat,
+                userFacing: true
             )
-            
+
             Analytics.withdrawal(
                 exchangedFiat: exchangedFiat,
                 successful: false,
@@ -978,7 +979,8 @@ class Session {
             ErrorReporting.capturePayment(
                 error: error,
                 rendezvous: rendezvous,
-                exchangedFiat: amount
+                exchangedFiat: amount,
+                userFacing: true
             )
             throw error
         }
@@ -1172,11 +1174,14 @@ class Session {
                     )
 
                 } catch {
-                    ErrorReporting.captureError(error)
                     // Suppress late-arriving errors from stale/orphaned tasks
                     // (e.g. gRPC stream finally giving up minutes later) so they
                     // don't fire dialogs on unrelated bills the user has moved on to.
-                    if self.isShowingBill && self.sendOperation === operation {
+                    let willShowDialog = self.isShowingBill && self.sendOperation === operation
+                    // `userFacing` only when a dialog actually shows — an orphaned-task
+                    // transient stays suppressed (no dialog, no breadcrumb).
+                    ErrorReporting.captureError(error, userFacing: willShowDialog)
+                    if willShowDialog {
                         self.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                     }
                 }
@@ -1616,7 +1621,7 @@ class Session {
                 logger.error("Failed to receive cash link for gift card", metadata: [
                     "public_key": "\(giftCardKeyPair.publicKey)",
                 ])
-                ErrorReporting.captureError(error)
+                ErrorReporting.captureError(error, userFacing: true)
 
                 Analytics.transfer(
                     event: .receiveCashLink,

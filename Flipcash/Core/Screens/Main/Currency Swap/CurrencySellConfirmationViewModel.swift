@@ -76,7 +76,8 @@ class CurrencySellConfirmationViewModel {
                         "fee": fee.nativeAmount.formatted(),
                         "amountAfterFees": amountAfterFee.nativeAmount.formatted(),
                         "quarks": "\(amount.onChainAmount.quarks)",
-                    ]
+                    ],
+                    userFacing: true
                 )
                 actionButtonState = .normal
                 showErrorDialog(error: error)

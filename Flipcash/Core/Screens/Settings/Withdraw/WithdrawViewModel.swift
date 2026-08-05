@@ -446,7 +446,8 @@ class WithdrawViewModel {
                             "fee": "\(fee.quarks)",
                             "destination": destinationMetadata.destination.token.base58,
                             "requiresInit": "\(destinationMetadata.requiresInitialization)",
-                        ]
+                        ],
+                        userFacing: true
                     )
                     Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: false, error: error)
                 case .sameMint:
