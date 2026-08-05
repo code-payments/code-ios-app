@@ -6,7 +6,7 @@
 import XCTest
 
 /// Page object for the Tips sheet — the list of tip-DM conversations reached
-/// from the ScanBottomBar's Tips tab (gated by the `enableTips` beta flag).
+/// from the ScanBottomBar's Tips tab (always available).
 @MainActor
 struct TipsUIScreen {
 

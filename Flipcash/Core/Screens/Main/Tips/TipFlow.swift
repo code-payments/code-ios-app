@@ -77,20 +77,12 @@ final class TipFlow {
 
     // MARK: - Entry -
 
-    /// Handles a scanned or deeplinked tipcode. Any tipcard interaction opts the
-    /// user into the Tips beta, so the flow proceeds instead of gating on the
-    /// flag. Gates in order: own-id scans (ignored), then a tippable profile
-    /// (held + profile creation presented). The card always shows for a tippable
-    /// recipient; the giveable-balance gate is deferred to ``present(_:)``, where
-    /// it blocks the Send a Tip sheet (surfacing the Add Money / Discover dialog)
-    /// without hiding the card.
+    /// Handles a scanned or deeplinked tipcode. Gates in order: own-id scans
+    /// (ignored), then a tippable profile (held + profile creation presented).
+    /// The card always shows for a tippable recipient; the giveable-balance gate
+    /// is deferred to ``present(_:)``, where it blocks the Send a Tip sheet
+    /// (surfacing the Add Money / Discover dialog) without hiding the card.
     func begin(userID: UserID) {
-        // Encountering a tipcard opts the user into the Tips beta, revealing the
-        // Tips tab going forward. Only written once — `canUseTips` short-circuits
-        // repeat scans of the same code across camera frames.
-        if !session.canUseTips {
-            BetaFlags.shared.set(.enableTips, enabled: true)
-        }
         guard userID != session.userID else { return }
         guard submission == nil, pendingUserID == nil, prepTask == nil else { return }
         // A dialog is already asking the user something (commonly this flow's

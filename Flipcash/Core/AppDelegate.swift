@@ -34,10 +34,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ])
         self.container = Container()
         super.init()
-
-        // Point App Intents (which run outside the SwiftUI environment) at the
-        // live session so the Send shortcut can reach contacts and the router.
-        AppIntentContext.sessionAuthenticator = container.sessionAuthenticator
     }
 
     // MARK: - Launch -

@@ -86,13 +86,11 @@ nonisolated extension Route {
         case verifyEmail
         case token(PublicKey)
         case chat(ConversationID)
-        case chatContact(Phone)
         case chatSendCash(ConversationID)
         case tip(UserID)
         case give
         case balance
         case discover
-        case send
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -123,23 +121,14 @@ nonisolated extension Route {
                 guard components.count > 1 else {
                     return nil
                 }
-                // Existing chat-by-ID deeplink wins; the server's contact-chat
-                // variant is `/chat/{E.164}` (it percent-encodes the leading "+"
-                // as "%2B", already decoded back to "+" by here). The two are
-                // disjoint — a 32-byte base64url ChatId never starts with "+".
-                // Require the "+" so a bare national number can't misparse against
-                // PhoneNumberKit's implicit US region.
-                if let id = ConversationID(base64URLEncoded: components[1]) {
-                    // `/chat/{id}/send` opens the Send Cash sheet over the chat.
-                    if components.count > 2, components[2] == "send" {
-                        return .chatSendCash(id)
-                    }
-                    return .chat(id)
+                guard let id = ConversationID(base64URLEncoded: components[1]) else {
+                    return nil
                 }
-                if components[1].hasPrefix("+"), let phone = Phone(components[1]) {
-                    return .chatContact(phone)
+                // `/chat/{id}/send` opens the Send Cash sheet over the chat.
+                if components.count > 2, components[2] == "send" {
+                    return .chatSendCash(id)
                 }
-                return nil
+                return .chat(id)
             case "tip":
                 // The tipcard share URL: `/tip/{userId}`, lowercase UUID.
                 guard components.count > 1, let userID = UUID(uuidString: components[1]) else {
@@ -157,8 +146,6 @@ nonisolated extension Route {
                 return .unknown(url.lastPathComponent)
             case "discover":
                 return .discover
-            case "send":
-                return .send
             default:
                 return .unknown(url.lastPathComponent)
             }

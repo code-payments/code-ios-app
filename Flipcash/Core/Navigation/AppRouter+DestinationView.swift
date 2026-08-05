@@ -149,13 +149,6 @@ struct DestinationView: View {
         case .userProfile(let userID):
             UserProfileScreen(userID: userID)
                 .id(userID)
-
-        // MARK: - Conversation flow
-
-        case .dmConversation(let context):
-            // `.id(context)` forces fresh view identity per conversation.
-            ConversationScreen(context: context)
-                .id(context)
         }
     }
 }

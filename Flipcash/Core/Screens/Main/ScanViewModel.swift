@@ -127,7 +127,7 @@ class ScanViewModel {
         switch route.path {
         case .cash, .token, .tip:
             return true
-        case .login, .verifyEmail, .chat, .chatContact, .chatSendCash, .give, .balance, .discover, .send, .unknown:
+        case .login, .verifyEmail, .chat, .chatSendCash, .give, .balance, .discover, .unknown:
             return false
         }
     }

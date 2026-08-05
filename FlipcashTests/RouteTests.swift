@@ -167,46 +167,6 @@ struct RouteTests {
         #expect(Route(url: URL(string: "https://app.flipcash.com/chat")!) == nil)
     }
 
-    @Test("Chat route parses a contact phone number (the /chat/{phone} variant)")
-    func chatContactRoute() {
-        // The server emits https://app.flipcash.com/chat/{phone} for a
-        // contact-chat push, URL-encoding the leading "+" as "%2B".
-        let e164 = "+14155550100"
-
-        let deepLink = URL(string: "flipcash://chat/\(e164)")!
-        let universalLink = URL(string: "https://app.flipcash.com/chat/\(e164)")!
-        // The exact form the server sends, with the "+" percent-encoded.
-        let encodedUniversalLink = URL(string: "https://app.flipcash.com/chat/%2B14155550100")!
-        // The same percent-encoding over the custom scheme, for symmetry.
-        let encodedDeepLink = URL(string: "flipcash://chat/%2B14155550100")!
-
-        for url in [deepLink, universalLink, encodedUniversalLink, encodedDeepLink] {
-            if case .chatContact(let phone) = Route(url: url)?.path {
-                #expect(phone.e164 == e164)
-            } else {
-                Issue.record("\(url) should parse as .chatContact with the phone number")
-            }
-        }
-
-        // A base64url ChatId must still win over the phone fallback.
-        let idData = Data((0..<32).map { UInt8($0) })
-        let encodedID = idData.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-        if case .chat = Route(url: URL(string: "https://app.flipcash.com/chat/\(encodedID)")!)?.path {} else {
-            Issue.record("A base64url ChatId must still parse as .chat, not .chatContact")
-        }
-
-        // Neither a ChatId nor a phone — still nil.
-        #expect(Route(url: URL(string: "https://app.flipcash.com/chat/notaphone")!) == nil)
-
-        // E.164 only: the server always sends the leading "+". A bare national
-        // number must NOT parse, otherwise PhoneNumberKit's implicit US region
-        // would silently accept it (10-digit US) or mis-region it (intl without "+").
-        #expect(Route(url: URL(string: "https://app.flipcash.com/chat/4155550100")!) == nil)
-        #expect(Route(url: URL(string: "https://app.flipcash.com/chat/441632960000")!) == nil)
-    }
-
     @Test("Chat send-cash route parses /chat/{id}/send to .chatSendCash")
     func chatSendCashRoute() {
         let idData = Data((0..<32).map { UInt8($0) })
@@ -276,17 +236,6 @@ struct RouteTests {
         let path = try #require(Route(url: URL(string: urlString)!)?.path)
         if case .discover = path {} else {
             Issue.record("\(urlString) should parse as .discover")
-        }
-    }
-
-    @Test(
-        "Send route parses from both URL formats",
-        arguments: ["flipcash://send", "https://app.flipcash.com/send"]
-    )
-    func sendRoute(urlString: String) throws {
-        let path = try #require(Route(url: URL(string: urlString)!)?.path)
-        if case .send = path {} else {
-            Issue.record("\(urlString) should parse as .send")
         }
     }
 

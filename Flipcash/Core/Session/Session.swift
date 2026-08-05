@@ -98,18 +98,14 @@ class Session {
         scanOperation != nil
     }
     
-    /// Whether the Tips tab is available. Mirrors `hasCoinbaseOnramp`: a beta
-    /// override today, a server flag when one ships.
+    /// Whether the Tips tab is available. Always on — Tips shipped out of beta,
+    /// so the tab shows for every account.
     var canUseTips: Bool {
-        BetaFlags.shared.hasEnabled(.enableTips)
+        true
     }
 
     var hasCoinbaseOnramp: Bool {
         BetaFlags.shared.hasEnabled(.enableCoinbase) || userFlags?.hasCoinbase == true
-    }
-
-    var canSend: Bool {
-        userFlags?.enablePhoneNumberSend == true
     }
 
     var hasPreferredOnrampProvider: Bool {

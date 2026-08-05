@@ -48,11 +48,9 @@ final class ContactSyncController {
     }
 
     /// Set once, during the user's first contact scan, to the number of the
-    /// user's contacts the server matched. `SendRootScreen` forwards it to
-    /// `session.dialogItem` — surfaced above the Send sheet by `DialogWindow` —
-    /// then clears it. Gated on the durable `contactsConnected` flag (UserDefaults,
-    /// not the DB) so it fires once per device and never re-fires after a
-    /// `SQLiteVersion` rebuild, later syncs, or screen opens.
+    /// user's contacts the server matched. Gated on the durable `contactsConnected`
+    /// flag (UserDefaults, not the DB) so it fires once per device and never
+    /// re-fires after a `SQLiteVersion` rebuild, later syncs, or screen opens.
     var onFlipcashMatchCount: Int?
 
     nonisolated private var ownerKeyPair: KeyPair {

@@ -308,14 +308,11 @@ private struct ScanScreenContent: View {
             Spacer()
             ScanBottomBar(
                 toast: toast,
-                showSend: session.canSend,
-                sendBadgeCount: sessionContainer.conversationController.unreadConversationCount(of: .contactDm),
                 showTips: session.canUseTips,
                 tipsBadgeCount: sessionContainer.conversationController.unreadConversationCount(of: .tipDm),
                 onGive: presentGive,
                 onWallet: { router.present(.balance) },
                 onDiscover: { router.present(.discover) },
-                onSend: { router.present(.send) },
                 onTips: { router.present(.tips) }
             )
         }
@@ -445,8 +442,6 @@ private struct RoutedSheet: View {
                         }
                     }
             }
-        case .send:
-            SendRootScreen()
         case .tips:
             TipsSheetRoot()
         case .sendAmount(let target):

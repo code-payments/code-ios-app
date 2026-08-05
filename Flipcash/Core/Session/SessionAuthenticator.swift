@@ -543,7 +543,7 @@ final class SessionContainer {
             }
         )
 
-        self.quickActionsController = QuickActionsController(session: session)
+        self.quickActionsController = QuickActionsController()
 
         let conversationController = ConversationController(
             fetching: flipClient,

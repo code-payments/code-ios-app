@@ -132,9 +132,6 @@ final class DeepLinkController {
         case .chat(let conversationID):
             return action(.chat(conversationID))
 
-        case .chatContact(let phone):
-            return action(.chatContact(phone))
-
         case .chatSendCash(let conversationID):
             return action(.chatSendCash(conversationID))
 
@@ -149,9 +146,6 @@ final class DeepLinkController {
 
         case .discover:
             return action(.openSheet(.discover))
-
-        case .send:
-            return action(.openSheet(.send))
 
         case .unknown:
             break
@@ -180,11 +174,10 @@ struct DeepLinkAction {
     
     // MARK: - Execute -
 
-    /// Routes a chat id to the surface owning its type: tip DMs open on the
-    /// Tips stack, contact DMs on the Send stack. The push payload carries no
-    /// type, so the controller resolves it — hydrating an id the feed doesn't
-    /// know yet (e.g. a first-ever tip's push) so the routed screen finds the
-    /// chat populated.
+    /// Routes a chat id to its surface. Only tip DMs are navigable — contact DMs
+    /// are no longer surfaced in the app. The push payload carries no type, so
+    /// the controller resolves it, hydrating an id the feed doesn't know yet
+    /// (e.g. a first-ever tip's push) so the routed screen finds it populated.
     private static func routeChat(_ conversationID: ConversationID, in container: SessionContainer) async {
         let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
 
@@ -192,10 +185,9 @@ struct DeepLinkAction {
         case .tipDm:
             container.appRouter.navigate(to: .tipConversation(conversationID))
         case .contactDm, nil:
-            // Push the chat onto the Send stack so it lands over the recipient
-            // picker (back reveals it); a second chat deeplink swaps the leaf
-            // in place rather than stacking a new sheet.
-            container.appRouter.navigate(to: .dmConversation(.existing(conversationID)))
+            logger.info("Ignoring non-tip chat deeplink", metadata: [
+                "conversationID": "\(conversationID)",
+            ])
         }
     }
 
@@ -240,37 +232,16 @@ struct DeepLinkAction {
                 await Self.routeChat(conversationID, in: container)
             }
 
-        case .chatContact(let phone):
-            if let container = sessionAuthenticator.loggedInContainer {
-                Analytics.deeplinkRouted(kind: kind)
-                // Resolve the phone against the synced directory. No match (not a
-                // contact, or contact sync hasn't settled yet) is a silent no-op,
-                // like any other unresolvable deeplink. The `.contact` context
-                // resolves the `dmChatID` live and opens whether or not the chat
-                // exists yet.
-                guard let contact = container.contactSyncController.resolvedContacts.onFlipcash
-                    .first(where: { $0.phoneE164 == phone.e164 }) else {
-                    logger.info("No synced contact for chat deeplink phone — ignoring")
-                    return
-                }
-                container.appRouter.navigate(to: .dmConversation(.contact(contact)))
-            }
-
         case .chatSendCash(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
                 let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
+                // Only tip DMs resolve a send target now; contact/phone sends
+                // are no longer surfaced.
                 guard let target = SendTarget(
                     conversation: conversation,
                     dmChatID: conversationID.data,
                     selfUserID: container.session.userID
-                ) else { return }
-
-                switch target {
-                case .contact:
-                    guard container.session.canSend else { return }
-                case .tip:
-                    break
-                }
+                ), case .tip = target else { return }
 
                 Analytics.deeplinkRouted(kind: kind)
                 // Open the Send Cash amount entry directly as the sheet — one
@@ -296,9 +267,6 @@ struct DeepLinkAction {
                         return
                     }
                 }
-                if sheet == .send {
-                    guard container.session.canSend else { return }
-                }
                 container.appRouter.present(sheet)
             }
         }
@@ -314,7 +282,6 @@ extension DeepLinkAction {
         case verifyEmail(VerificationDescription)
         case currencyInfo(PublicKey)
         case chat(ConversationID)
-        case chatContact(Phone)
         case chatSendCash(ConversationID)
         case tip(UserID)
         case openSheet(AppRouter.SheetPresentation)
@@ -329,7 +296,6 @@ extension DeepLinkAction.Kind {
         case .verifyEmail:          "EmailVerification"
         case .currencyInfo:         "TokenInfo"
         case .chat:                 "Chat"
-        case .chatContact:          "ChatContact"
         case .chatSendCash:         "ChatSendCash"
         case .tip:                  "Tip"
         case .openSheet(let sheet): "Sheet:\(sheet)"
