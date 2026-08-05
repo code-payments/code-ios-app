@@ -185,6 +185,14 @@ final class TipFlow {
             target: .tip(recipient)
         )
 
+        // A tip deep link can beat the app's foreground stream refresh, so kick the
+        // rate stream to reconnect now and warm the verified proof while the card
+        // animates in and the user reads the sheet. This overlaps the rate wait with
+        // on-screen time so the swipe submits instantly instead of racing a cold
+        // cache; the submit-time poll in `prepareSubmission` remains the backstop.
+        ratesController.ensureStreamConnected()
+        Task { [weak self] in await self?.submission?.prewarmVerifiedRate() }
+
         session.billState = BillState(bill: .tipcard(
             codeData: TipCode.Payload(userID: recipient.userID).codeData(),
             name: recipient.displayName,

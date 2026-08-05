@@ -38,6 +38,12 @@ final class SendAmountViewModel {
     /// transient send failure) skips the round-trip.
     private var resolvedRecipient: PublicKey?
 
+    /// A verified rate proof warmed while the send UI is on screen (see
+    /// `prewarmVerifiedRate()`) so `submit` doesn't race a cold cache at the
+    /// moment the user commits. Consumed by `prepareSubmission`; invalidated on
+    /// token change and re-checked for staleness before use.
+    private var prewarmedState: VerifiedState?
+
     /// Amount validity only — never gated on the recipient. A red subtitle in
     /// `EnterAmountView` (driven by `!canSend`) therefore means over-limit, not
     /// "recipient unresolved"; resolution happens on the Send tap instead.
@@ -293,10 +299,16 @@ final class SendAmountViewModel {
         let pinnedState: VerifiedState?
         switch target {
         case .tip:
-            pinnedState = await ratesController.awaitPinnedState(
-                for: ratesController.balanceCurrency,
-                mint: mint
-            )
+            // Prefer a proof warmed while the sheet was on screen; fall back to a
+            // fresh poll if the prewarm never finished or has since gone stale.
+            if let prewarmedState, !prewarmedState.isStale {
+                pinnedState = prewarmedState
+            } else {
+                pinnedState = await ratesController.awaitPinnedState(
+                    for: ratesController.balanceCurrency,
+                    mint: mint
+                )
+            }
         case .contact:
             pinnedState = await ratesController.currentPinnedState(
                 for: ratesController.balanceCurrency,
@@ -325,10 +337,26 @@ final class SendAmountViewModel {
         return (amount, pin)
     }
 
+    /// Warms the verified rate proof while the send UI is on screen so `submit`
+    /// doesn't race a cold cache at the moment the user commits — the wait overlaps
+    /// the time the user spends reading the sheet instead of stalling the swipe.
+    /// Safe to call fire-and-forget: `prepareSubmission` falls back to a fresh poll
+    /// if this hasn't finished or the cached proof has since gone stale.
+    func prewarmVerifiedRate() async {
+        guard let mint = selectedBalance?.stored.mint else { return }
+        prewarmedState = await ratesController.awaitPinnedState(
+            for: ratesController.balanceCurrency,
+            mint: mint
+        )
+    }
+
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
         ratesController.selectToken(exchangedBalance.stored.mint)
         enteredAmount = ""
+        // The warmed proof was for the previous token (and a launchpad mint also
+        // needs its own reserve proof) — drop it so submission re-warms/polls.
+        prewarmedState = nil
     }
 
     // MARK: - Navigation -

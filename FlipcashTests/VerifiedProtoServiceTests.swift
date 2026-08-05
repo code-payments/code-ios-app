@@ -146,8 +146,8 @@ struct VerifiedProtoServiceTests {
     func init_warmLoadsRates() async throws {
         let store = InMemoryVerifiedProtoStore()
 
-        // Pre-seed the store with a serialized rate proto.
-        let rateProto = Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate.makeTest(currencyCode: "usd", rate: 1.0)
+        // Pre-seed the store with a serialized, in-window rate proto.
+        let rateProto = Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate.freshRate(currencyCode: "usd", rate: 1.0)
         let data = try rateProto.serializedData()
         try store.writeRates([StoredRateRow(currency: "usd", rateProto: data)])
 
@@ -157,6 +157,24 @@ struct VerifiedProtoServiceTests {
         try await Task.sleep(for: .milliseconds(150))
 
         #expect(await service.hasVerifiedRate(for: .usd))
+    }
+
+    @Test("init warm-load skips rate protos already past the freshness window")
+    func init_warmLoadSkipsStaleRates() async throws {
+        let store = InMemoryVerifiedProtoStore()
+
+        // Pre-seed the store with a proto older than the 13-minute client window.
+        let staleProto = Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate.staleRate(currencyCode: "usd", rate: 1.0)
+        try store.writeRates([StoredRateRow(currency: "usd", rateProto: try staleProto.serializedData())])
+
+        let service = VerifiedProtoService(store: store)
+
+        // Allow warm-load task a turn.
+        try await Task.sleep(for: .milliseconds(150))
+
+        // A stale proof must not populate the cache: a submission would only reject it,
+        // and `awaitVerifiedState` consumers don't re-check staleness before use.
+        #expect(await service.hasVerifiedRate(for: .usd) == false)
     }
 
     @Test("init warm-loads reserves from the store into the in-memory cache")

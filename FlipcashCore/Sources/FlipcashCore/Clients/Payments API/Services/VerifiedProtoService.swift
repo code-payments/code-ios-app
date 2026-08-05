@@ -57,6 +57,11 @@ public actor VerifiedProtoService {
                 guard let currency = try? CurrencyCode(currencyCode: row.currency),
                       exchangeRates[currency] == nil else { continue }
                 if let proto = try? Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate(serializedBytes: row.rateProto) {
+                    // Skip protos already past the client freshness window. Loading a
+                    // stale one only gets it rejected by `isStale` at read time, but it
+                    // also masks an empty cache as "populated" and leaves consumers that
+                    // don't re-check staleness (`awaitVerifiedState`) exposed to it.
+                    guard !VerifiedState(rateProto: proto).isStale else { continue }
                     exchangeRates[currency] = proto
                 }
             }
