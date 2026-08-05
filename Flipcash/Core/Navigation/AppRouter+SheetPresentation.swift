@@ -23,7 +23,6 @@ extension AppRouter {
         /// "No Balance Yet" subtitle; the flow itself is currency-agnostic.
         case addMoney(AddMoneyContext)
         case downloadApp
-        case send
         /// Send Cash amount entry, stacked on top of the chat via
         /// `presentNested(.sendAmount)`. Dismissing it reveals the chat.
         case sendAmount(SendTarget)
@@ -44,7 +43,6 @@ extension AppRouter {
             case .buy:          .buy
             case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
-            case .send:         .send
             case .sendAmount:   .sendAmount
             case .tips:         .tips
             }
@@ -62,7 +60,6 @@ extension AppRouter {
             case .buy:          .buy
             case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
-            case .send:         .send
             case .sendAmount:   .sendAmount
             case .tips:         .tips
             }
@@ -76,7 +73,6 @@ extension AppRouter {
             case buy
             case addMoney
             case downloadApp
-            case send
             case sendAmount
             case tips
         }
@@ -90,7 +86,6 @@ extension AppRouter {
             case .buy:          "buy"
             case .addMoney:     "addMoney"
             case .downloadApp:  "downloadApp"
-            case .send:         "send"
             case .sendAmount:   "sendAmount"
             case .tips:         "tips"
             }

@@ -706,44 +706,6 @@ struct SessionOfflineCacheTests {
     }
 }
 
-@Suite("Session.canSend")
-@MainActor
-struct SessionCanSendTests {
-
-    private static func makeUserFlags(enablePhoneNumberSend: Bool) -> UserFlags {
-        UserFlags(
-            isRegistered: true,
-            isStaff: false,
-            onrampProviders: [],
-            preferredOnrampProvider: .coinbaseVirtual,
-            minBuildNumber: 0,
-            billExchangeDataTimeout: nil,
-            newCurrencyPurchaseAmount: .zero(mint: .usdf),
-            newCurrencyFeeAmount: .zero(mint: .usdf),
-            withdrawalFeeAmount: .zero(mint: .usdf),
-            minimumHolderValue: .zero(mint: .usdf),
-            enablePhoneNumberSend: enablePhoneNumberSend,
-            requireCoinbaseEmailVerification: false,
-            preferredOnrampUsdcLiquidityPool: .unknown,
-            tipPresets: []
-        )
-    }
-
-    @Test("canSend follows the server flag", arguments: [false, true])
-    func canSend_followsServerFlag(server: Bool) {
-        let session = Session.makeMock(database: .mock)
-        session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: server)
-        #expect(session.canSend == server)
-    }
-
-    @Test("canSend is false before flags load")
-    func canSend_noFlags_isFalse() {
-        let session = Session.makeMock(database: .mock)
-        #expect(session.userFlags == nil)
-        #expect(session.canSend == false)
-    }
-}
-
 @MainActor
 @Suite("Session.hasGiveableBalance")
 struct SessionHasGiveableBalanceTests {

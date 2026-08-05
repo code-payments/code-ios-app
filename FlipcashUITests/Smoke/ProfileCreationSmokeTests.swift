@@ -14,8 +14,6 @@ import XCTest
 @MainActor
 final class ProfileCreationSmokeTests: BaseUITestCase {
 
-    override var enabledBetaFlags: [String] { ["enableTips"] }
-
     override func setUp() async throws {
         try await super.setUp()
         // Registration plus a real photo upload runs past XCTest's 2-minute

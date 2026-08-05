@@ -20,7 +20,6 @@ extension AppRouter {
         case buy
         case addMoney
         case downloadApp
-        case send
         case sendAmount
         case tips
 
@@ -40,7 +39,6 @@ extension AppRouter {
             case .buy:          nil
             case .addMoney:     nil
             case .downloadApp:  .downloadApp
-            case .send:         .send
             case .sendAmount:   nil
             case .tips:         .tips
             }
@@ -55,7 +53,6 @@ extension AppRouter {
             case .buy:          "buy"
             case .addMoney:     "addMoney"
             case .downloadApp:  "downloadApp"
-            case .send:         "send"
             case .sendAmount:   "sendAmount"
             case .tips:         "tips"
             }

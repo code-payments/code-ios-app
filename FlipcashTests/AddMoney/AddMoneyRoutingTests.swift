@@ -27,9 +27,9 @@ struct AddMoneyRoutingTests {
     @Test("Over a single root sheet, Add Money stacks nested")
     func overRootSheet_stacksNested() {
         let router = AppRouter()
-        router.present(.send)
+        router.present(.give)
         router.presentAddMoney(.giveCash, source: .scanner)
-        #expect(router.presentedSheets == [.send, .addMoney(.giveCash)])
+        #expect(router.presentedSheets == [.give, .addMoney(.giveCash)])
     }
 
     @Test("From inside the buy sheet, Add Money stacks on top — nothing dismisses on entry")
@@ -52,7 +52,7 @@ struct AddMoneyRoutingTests {
 
     @Test(
         "The options report a non-buy entry everywhere else",
-        arguments: [AppRouter.SheetPresentation.settings, .balance, .send]
+        arguments: [AppRouter.SheetPresentation.settings, .balance, .give]
     )
     func isAddMoneyOverBuy_nonBuyEntry(root: AppRouter.SheetPresentation) {
         let router = AppRouter()

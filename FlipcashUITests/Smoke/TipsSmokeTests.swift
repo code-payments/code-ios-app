@@ -21,7 +21,6 @@ final class TipsSmokeTests: BaseUITestCase {
     private static let recipientID = "db4c2358-e706-484c-85df-3c90407096ea"
 
     override var requiresAuthentication: Bool { true }
-    override var enabledBetaFlags: [String] { ["enableTips"] }
 
     override func setUp() async throws {
         try await super.setUp()

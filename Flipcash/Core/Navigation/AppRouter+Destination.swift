@@ -65,15 +65,6 @@ extension AppRouter {
         /// The counterpart's Flipcash profile, pushed from a tip DM's title/card; hosts the Block action.
         case userProfile(UserID)
 
-        // Conversation flow
-        /// A DM conversation, pushed onto the `.send` stack — from the Chats
-        /// section of the recipient picker (`.existing`) or by tapping a synced
-        /// contact (`.contact`, in which case the chat may not exist yet; the
-        /// first payment creates it). Deeplinks and push notifications land here
-        /// via `navigate(to: .dmConversation)`. Send Cash presents the amount
-        /// entry as `SheetPresentation.sendAmount` over this.
-        case dmConversation(ConversationContext)
-
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present.
         var owningStack: Stack {
@@ -90,8 +81,6 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard,
                  .tipConversation, .tipConversationWithKeyboard, .userProfile:
                 return .tips
-            case .dmConversation:
-                return .send
             }
         }
 
@@ -128,7 +117,6 @@ extension AppRouter {
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
             case .userProfile:                  "userProfile"
-            case .dmConversation:               "dmConversation"
             }
         }
 
@@ -143,10 +131,6 @@ extension AppRouter {
                  .give(let mint),
                  .withdrawCurrency(let mint):
                 return mint.base58
-            case .dmConversation(.existing(let conversationID)):
-                return conversationID.description
-            case .dmConversation(.contact(let contact)):
-                return contact.contactId
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID):
                 return conversationID.description

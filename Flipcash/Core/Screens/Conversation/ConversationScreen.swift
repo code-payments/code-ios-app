@@ -15,19 +15,15 @@ import FlipcashUI
 // foreground-banner suppression gate on — so a missed buzz or an unsuppressed banner is traceable.
 private let logger = Logger(label: "flipcash.conversation")
 
-/// How a conversation is reached: an existing DM chat from the Chats section,
-/// or a synced contact whose chat may not exist yet — the first cash payment
-/// creates it server-side.
+/// How a conversation is reached: an existing DM chat (only tip DMs are
+/// surfaced now — contact/phone DMs were retired with the Send tab).
 nonisolated enum ConversationContext: Hashable {
     case existing(ConversationID)
-    case contact(ResolvedContact)
 
     /// Resolves the counterpart's synced contact from the directory — the one
     /// rule the nav title, transcript profile card, and profile page share.
     func resolvedContact(in directory: [ResolvedContact]) -> ResolvedContact? {
         switch self {
-        case .contact(let contact):
-            directory.first { $0.contactId == contact.contactId && $0.phoneE164 == contact.phoneE164 } ?? contact
         case .existing(let conversationID):
             directory.first { $0.dmChatID == conversationID.data }
         }
@@ -80,8 +76,6 @@ struct ConversationScreen: View {
         switch context {
         case .existing(let conversationID):
             return conversationID
-        case .contact:
-            return contact?.dmChatID.map(ConversationID.init(data:))
         }
     }
 
@@ -109,19 +103,10 @@ struct ConversationScreen: View {
         )
     }
 
-    /// Whether the DM chat actually exists server-side. Matched contacts carry
-    /// a pre-assigned `dmChatID` before any payment (the first intent needs it),
-    /// so the ID alone doesn't mean the chat was created — require it to be in
-    /// the feed or to have messages.
+    /// Whether the conversation resolves to a server-side chat id. A tip DM
+    /// always carries one once resolved.
     private var chatExists: Bool {
-        guard let conversationID else { return false }
-        switch context {
-        case .existing:
-            return true
-        case .contact:
-            return conversationController.conversation(withID: conversationID) != nil
-                || conversationController.hasMessages(for: conversationID)
-        }
+        conversationID != nil
     }
 
     /// For a tip DM (beta on), all counterpart taps open the profile screen —
@@ -270,12 +255,6 @@ struct ConversationScreen: View {
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
             syncCoordinator(conversationID)
-        }
-        // Send Cash stacks the amount entry as a cover, so the chat stays
-        // mounted and `onAppear` won't re-fire when it's dismissed. Poll for the
-        // chat the first payment just created the moment that cover tears down.
-        .onChange(of: router.presentedSheet) { old, _ in
-            if case .sendAmount? = old { refreshChatBinding() }
         }
         // A matched contact's chat is created mid-screen on the first payment,
         // flipping the ID from nil to the new conversation; track it live.
@@ -435,34 +414,6 @@ struct ConversationScreen: View {
         )
     }
 
-    /// After returning from the amount screen for a contact's first payment,
-    /// the server has just created the chat (best-effort, so poll briefly).
-    /// The event stream usually delivers the cash message on its own; this
-    /// covers the gaps — a missing pre-assigned dmChatID, the stale feed (the
-    /// picker's Chats section), and a missed stream event.
-    private func refreshChatBinding() {
-        guard case .contact = context, !chatExists else { return }
-        Task {
-            for attempt in 0..<3 {
-                if attempt > 0 {
-                    try? await Task.delay(seconds: 2)
-                }
-                if conversationID == nil {
-                    await Task.detached { [contactSyncController] in
-                        await contactSyncController.refreshMatchedSet()
-                    }.value
-                }
-                guard let conversationID else { continue }
-                await conversationController.loadFeed()
-                // Done only once the FEED has the chat — messages arriving over
-                // the stream flip `chatExists` early, but the picker's Recents
-                // section reads the feed.
-                guard conversationController.conversation(withID: conversationID) != nil else { continue }
-                await conversationController.loadMessages(for: conversationID)
-                break
-            }
-        }
-    }
 }
 
 // MARK: - Title -
