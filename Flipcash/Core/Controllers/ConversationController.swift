@@ -193,15 +193,18 @@ final class ConversationController {
         guard startTask == nil else { return }
         startTask = Task {
             await hydrateFromDatabase()
-            openStream()
-            observeConnectionState()
+            await openStream()
             await loadFeed()
         }
     }
 
-    private func openStream() {
+    private func openStream() async {
         guard streamTask == nil else { return }
-        let events = streaming.openConversationStream(owner: owner)
+        // Subscribe once for a fresh event + connection-state stream pair (the streamer is an
+        // app-lifetime singleton that vends a new pair per session, so a switched-to account isn't
+        // stranded on the previous session's dead stream). Wire both loops before the feed loads so no
+        // live event is lost mid-load.
+        let (events, states) = await streaming.subscribeConversationStream(owner: owner)
         streamTask = Task { [weak self] in
             for await event in events {
                 guard let self else { return }
@@ -215,16 +218,17 @@ final class ConversationController {
                 }
             }
         }
+        observeConnectionState(states)
     }
 
     /// A reconnect can miss live events while the stream was down; the event log carries a per-chat
     /// cursor, so on reconnect we reconcile the missed window from that cursor via `GetDelta`. The first
     /// `.live` is the initial connection (already loaded by `start()`/the screen); every `.live` after
     /// it is a reconnect. This edge is a belt-and-suspenders trigger — foreground, chat-open, and a
-    /// detected live gap already drive catch-up without waiting for a ping.
-    private func observeConnectionState() {
+    /// detected live gap already drive catch-up without waiting for a ping. Consumes the same
+    /// subscription's connection-state stream opened by `openStream()`.
+    private func observeConnectionState(_ states: AsyncStream<EventStreamConnectionState>) {
         guard connectionStateTask == nil else { return }
-        let states = streaming.conversationConnectionState()
         connectionStateTask = Task { [weak self] in
             for await state in states {
                 guard let self else { return }

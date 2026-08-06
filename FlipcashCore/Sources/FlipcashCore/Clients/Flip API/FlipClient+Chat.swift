@@ -10,7 +10,7 @@ import Foundation
 extension FlipClient {
 
     /// Page the DM chat feed to exhaustion against a single pinned snapshot.
-    /// The caller must already be consuming `eventStreamer.events` so updates
+    /// The caller must already be consuming its `subscribeConversationStream` events so updates
     /// that land mid-pagination aren't lost.
     public func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] {
         var all: [Conversation] = []
@@ -75,16 +75,11 @@ extension FlipClient {
 
     // MARK: - Event stream
 
-    /// Start the single per-user event stream and return its decoded events.
-    public nonisolated func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent> {
-        Task { await eventStreamer.start(owner: owner) }
-        return eventStreamer.events
-    }
-
-    /// The event stream's connection state over time, so the caller can refetch
-    /// the window a dropped-and-reconnected stream missed.
-    public nonisolated func conversationConnectionState() -> AsyncStream<EventStreamConnectionState> {
-        eventStreamer.connectionState
+    /// Attach this session's consumer to the single per-user event stream, returning fresh decoded-event
+    /// and connection-state streams and opening the stream for `owner`. Each session gets its own pair —
+    /// see `EventStreamer.subscribe` for why reusing one across sessions strands a switched-to account.
+    public nonisolated func subscribeConversationStream(owner: KeyPair) async -> (events: AsyncStream<ConversationStreamEvent>, connectionState: AsyncStream<EventStreamConnectionState>) {
+        await eventStreamer.subscribe(owner: owner)
     }
 
     public nonisolated func ensureConversationStreamConnected() {
