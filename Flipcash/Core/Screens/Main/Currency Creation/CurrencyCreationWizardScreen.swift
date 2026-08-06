@@ -344,7 +344,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency name availability check failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error, userFacing: true)
+                ErrorReporting.captureError(error)
                 presentGenericErrorDialog()
                 return
             }
@@ -378,7 +378,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency name moderation failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error, userFacing: true)
+                ErrorReporting.captureError(error)
                 presentGenericErrorDialog()
                 return
             }
@@ -406,7 +406,7 @@ struct CurrencyCreationWizardScreen: View {
                 imageData = try await ImageEncoder.encodeForUpload(image, maxBytes: 1_048_576)
             } catch {
                 logger.error("Failed to encode icon within 1 MB budget", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error, userFacing: true)
+                ErrorReporting.captureError(error)
                 errorDialog = .imageProcessingFailed
                 return
             }
@@ -432,7 +432,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency icon moderation failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error, userFacing: true)
+                ErrorReporting.captureError(error)
                 presentGenericErrorDialog()
                 return
             }
@@ -470,7 +470,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency description moderation failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error, userFacing: true)
+                ErrorReporting.captureError(error)
                 presentGenericErrorDialog()
                 return
             }
