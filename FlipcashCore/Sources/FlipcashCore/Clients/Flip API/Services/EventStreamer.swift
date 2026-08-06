@@ -23,8 +23,8 @@ public enum EventStreamConnectionState: Sendable {
 }
 
 /// Owns the single per-user bidirectional event stream (`event.v1 StreamEvents`)
-/// and decodes conversation updates into `ConversationStreamEvent`s consumed via `events`. The
-/// server enforces one stream per user, so exactly one instance must exist per
+/// and decodes conversation updates into `ConversationStreamEvent`s consumed via the pair returned by
+/// `subscribe(owner:)`. The server enforces one stream per user, so exactly one instance must exist per
 /// session; opening a second silently evicts the first. The owner must call
 /// `stop()` on logout so a stale stream doesn't evict the next session's.
 public actor EventStreamer {
@@ -34,16 +34,20 @@ public actor EventStreamer {
         Flipcash_Event_V1_StreamEventsResponse
     >
 
-    /// Decoded conversation updates. Consume with `for await event in streamer.events`.
-    public nonisolated let events: AsyncStream<ConversationStreamEvent>
-    private let continuation: AsyncStream<ConversationStreamEvent>.Continuation
+    /// Decoded conversation updates for the current subscriber. Recreated on every `subscribe(owner:)`
+    /// (not vended once) because an `AsyncStream` is finished for good once its first consumer ends: the
+    /// streamer is an app-lifetime singleton, so a prior session's `ConversationController` consumed the
+    /// old stream and cancelling it on account switch/logout killed it — a new session handed that dead
+    /// stream would never see another event. Consume via the pair returned by `subscribe(owner:)`.
+    private var events: AsyncStream<ConversationStreamEvent>
+    private var continuation: AsyncStream<ConversationStreamEvent>.Continuation
 
-    /// The stream's connection state over time. The event stream itself carries no cursor, so a
-    /// consumer treats the first `.live` as the initial connection and, on each `.live` after that
-    /// (a reconnect), reconciles the missed window from its own durable cursor (chat catch-up runs
-    /// `GetDelta`). Consume with `for await state in streamer.connectionState`.
-    public nonisolated let connectionState: AsyncStream<EventStreamConnectionState>
-    private let connectionStateContinuation: AsyncStream<EventStreamConnectionState>.Continuation
+    /// The stream's connection state over time, recreated per subscriber alongside `events`. The event
+    /// stream itself carries no cursor, so a consumer treats the first `.live` as the initial connection
+    /// and, on each `.live` after that (a reconnect), reconciles the missed window from its own durable
+    /// cursor (chat catch-up runs `GetDelta`).
+    private var connectionState: AsyncStream<EventStreamConnectionState>
+    private var connectionStateContinuation: AsyncStream<EventStreamConnectionState>.Continuation
 
     private let service: EventStreamingService
     private var owner: KeyPair?
@@ -83,8 +87,25 @@ public actor EventStreamer {
 
     // MARK: - Public API
 
-    /// Open the event stream for the signed-in owner. Idempotent.
-    public func start(owner: KeyPair) {
+    /// Attach a session's consumer: hand back FRESH event + connection-state streams and (idempotently)
+    /// open the underlying gRPC stream for `owner`. Vending a fresh pair per subscription is what lets a
+    /// newly switched-to/registered account receive live events (e.g. an incoming tip's chat) without an
+    /// app relaunch — see the note on `events` for why the old streams can't be reused.
+    public func subscribe(owner: KeyPair) -> (events: AsyncStream<ConversationStreamEvent>, connectionState: AsyncStream<EventStreamConnectionState>) {
+        continuation.finish()
+        connectionStateContinuation.finish()
+        (events, continuation) = AsyncStream<ConversationStreamEvent>.makeStream()
+        (connectionState, connectionStateContinuation) = AsyncStream<EventStreamConnectionState>.makeStream()
+        // The fresh consumer hasn't been told the connection is live; clear the dedupe latch so the open
+        // below (or an already-live stream's next ping) re-reports `.live` to the new stream.
+        isConnectionLive = false
+        start(owner: owner)
+        return (events, connectionState)
+    }
+
+    /// Open the event stream for the signed-in owner. Idempotent. Reached only via `subscribe(owner:)`
+    /// so a consumer always gets a fresh stream paired with the open.
+    private func start(owner: KeyPair) {
         guard !isStreaming else { return }
         self.owner = owner
         isStreaming = true

@@ -89,11 +89,12 @@ protocol ConversationMessaging: AnyObject, Sendable {
 /// The single per-user event stream surface used by `ConversationController`. Wraps the
 /// `event.v1 StreamEvents` lifecycle behind `ConversationStreamEvent`.
 protocol ConversationEventStreaming: AnyObject, Sendable {
-    func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent>
-    /// The event stream's connection state. The event stream carries no cursor, so the controller
-    /// treats the first `.live` as the initial connection and, on each `.live` after (a reconnect),
-    /// reconciles the missed window from the event-log cursor via `GetDelta`.
-    func conversationConnectionState() -> AsyncStream<EventStreamConnectionState>
+    /// Attach this session's consumer to the single per-user event stream, returning fresh decoded-event
+    /// and connection-state streams. Each session gets its own pair, so a switched-to account isn't
+    /// stranded on a dead stream. The event stream carries no cursor, so the controller treats the first
+    /// `.live` as the initial connection and, on each `.live` after (a reconnect), reconciles the missed
+    /// window from the event-log cursor via `GetDelta`.
+    func subscribeConversationStream(owner: KeyPair) async -> (events: AsyncStream<ConversationStreamEvent>, connectionState: AsyncStream<EventStreamConnectionState>)
     func ensureConversationStreamConnected()
     func closeConversationStream()
 }

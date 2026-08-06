@@ -99,20 +99,20 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var deltaAfterSequences: [UInt64] { lock.withLock { _deltaAfterSequences } }
     var didEnsure: Bool { lock.withLock { _didEnsure } }
     var didClose: Bool { lock.withLock { _didClose } }
-    /// Whether `openConversationStream` has been called — events emitted
+    /// Whether `subscribeConversationStream` has been called — events emitted
     /// before that are dropped, so tests wait on this before `emit(_:)`.
     var streamOpened: Bool { lock.withLock { _streamContinuation != nil } }
-    /// Whether `conversationConnectionState` has been subscribed — states emitted
+    /// Whether `subscribeConversationStream` has vended a connection-state stream — states emitted
     /// before that are dropped, so tests wait on this before `emitConnectionState(_:)`.
     var connectionStateStreamOpened: Bool { lock.withLock { _connectionStateContinuation != nil } }
 
-    /// Push a live event onto the stream returned by `openConversationStream`.
+    /// Push a live event onto the stream returned by `subscribeConversationStream`.
     func emit(_ event: ConversationStreamEvent) {
         lock.withLock { _streamContinuation }?.yield(event)
     }
 
     /// Push a connection-state transition onto the stream returned by
-    /// `conversationConnectionState`, as the streamer does on a ping or teardown.
+    /// `subscribeConversationStream`, as the streamer does on a ping or teardown.
     func emitConnectionState(_ state: EventStreamConnectionState) {
         lock.withLock { _connectionStateContinuation }?.yield(state)
     }
@@ -180,16 +180,14 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     // MARK: - ConversationEventStreaming
 
-    func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent> {
-        let (stream, continuation) = AsyncStream<ConversationStreamEvent>.makeStream()
-        lock.withLock { _streamContinuation = continuation }
-        return stream
-    }
-
-    func conversationConnectionState() -> AsyncStream<EventStreamConnectionState> {
-        let (stream, continuation) = AsyncStream<EventStreamConnectionState>.makeStream()
-        lock.withLock { _connectionStateContinuation = continuation }
-        return stream
+    func subscribeConversationStream(owner: KeyPair) async -> (events: AsyncStream<ConversationStreamEvent>, connectionState: AsyncStream<EventStreamConnectionState>) {
+        let (events, eventContinuation) = AsyncStream<ConversationStreamEvent>.makeStream()
+        let (state, stateContinuation) = AsyncStream<EventStreamConnectionState>.makeStream()
+        lock.withLock {
+            _streamContinuation = eventContinuation
+            _connectionStateContinuation = stateContinuation
+        }
+        return (events, state)
     }
 
     func ensureConversationStreamConnected() { lock.withLock { _didEnsure = true } }
