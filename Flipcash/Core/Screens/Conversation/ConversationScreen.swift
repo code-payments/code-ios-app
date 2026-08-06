@@ -224,6 +224,11 @@ struct ConversationScreen: View {
         // created yet error-reports. Fires when the chat materializes.
         .task(id: chatExists ? conversationID : nil) {
             guard chatExists, let conversationID else { return }
+            // Ensure the conversation metadata is in the store before the title, tip styling, and Send
+            // Cash target rely on it. The post-tip open (and any push/link that lands here before the
+            // feed or stream has the freshly-created chat) would otherwise render the unresolved
+            // counterpart — a "Flipcash User" title and no Send Cash button. No-ops when already loaded.
+            _ = await conversationController.hydratedConversation(withID: conversationID)
             // The newest page IS the fresh state and seats the event-log cursor to head, so opening a
             // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
             // foreground / reconnect / live-gap triggers instead.
