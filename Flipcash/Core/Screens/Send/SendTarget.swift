@@ -18,6 +18,8 @@ nonisolated enum SendTarget: Hashable, Sendable {
 nonisolated struct TipRecipient: Hashable, Sendable {
     let userID: UserID
     let displayName: String
+    /// The surface this tip is being sent from — reported to the server.
+    let origin: TipOrigin
 }
 
 extension SendTarget {
@@ -34,7 +36,7 @@ extension SendTarget {
                   let userID = counterpart.userID else {
                 return nil
             }
-            self = .tip(TipRecipient(userID: userID, displayName: counterpart.displayName))
+            self = .tip(TipRecipient(userID: userID, displayName: counterpart.displayName, origin: .chat))
         case .contactDm, nil:
             guard let target = ResolvedContact.sendTarget(
                 in: conversation,

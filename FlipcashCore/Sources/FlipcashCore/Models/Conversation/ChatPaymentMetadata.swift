@@ -16,14 +16,14 @@ import SwiftProtobuf
 public enum ChatPaymentMetadata: Sendable {
 
     case contactDm(chatID: ConversationID, sourcePhoneE164: String, destinationPhoneE164: String)
-    case tipDm(chatID: ConversationID)
+    case tipDm(chatID: ConversationID, origin: TipOrigin)
 
     /// The DM chat this payment posts into.
     public var chatID: ConversationID {
         switch self {
         case .contactDm(let chatID, _, _):
             return chatID
-        case .tipDm(let chatID):
+        case .tipDm(let chatID, _):
             return chatID
         }
     }
@@ -40,10 +40,29 @@ public enum ChatPaymentMetadata: Sendable {
                         $0.source = .with { $0.value = sourcePhoneE164 }
                         $0.destination = .with { $0.value = destinationPhoneE164 }
                     }
-                case .tipDm:
-                    $0.tipDmPayment = .init()
+                case .tipDm(_, let origin):
+                    $0.tipDmPayment = .with { $0.location = origin.proto }
                 }
             }
         }.serializedData()
+    }
+}
+
+/// Where in the app a tip DM payment was sent from. Reported to the server so
+/// it can attribute the tip to the surface it originated on. Mirrors Android's
+/// `TipOrigin`.
+public enum TipOrigin: Sendable {
+
+    /// Sent from a resolved tipcard (scan or deep link).
+    case tipcard
+
+    /// Sent from the Send Cash action inside an existing tip DM thread.
+    case chat
+
+    var proto: Flipcash_Intent_V1_ChatMetadata.TipDmPayment.Location {
+        switch self {
+        case .tipcard: return .tipcard
+        case .chat:    return .chat
+        }
     }
 }
