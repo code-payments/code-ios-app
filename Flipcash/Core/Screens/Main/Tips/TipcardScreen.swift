@@ -17,6 +17,10 @@ struct TipcardScreen: View {
     @State private var avatar: UIImage?
     @State private var exportImage: Image?
 
+    /// Renders the share sheet preview image ahead of the share tap so it never
+    /// lands on the tap; keyed by user, warmed when the card is displayed.
+    @State private var previewCache = TipCodePreviewCache()
+
     /// The card's on-screen width; the export renders the same view at @3x.
     private static let cardWidth: CGFloat = 300
 
@@ -37,7 +41,9 @@ struct TipcardScreen: View {
                 Spacer()
 
                 HStack(spacing: 40) {
-                    ShareLink(item: url) {
+                    Button {
+                        shareTipCard()
+                    } label: {
                         TipcardAction(icon: .Icons.share, title: "Share")
                     }
                     .accessibilityIdentifier("tipcard-share-button")
@@ -69,6 +75,7 @@ struct TipcardScreen: View {
         .navigationTitle("My Tip Card")
         .toolbarTitleDisplayMode(.inline)
         .task(id: profilePicture?.thumbnailBlobID) {
+            previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
             await loadAvatar()
             renderExportImage()
         }
@@ -143,6 +150,27 @@ struct TipcardScreen: View {
         }
 
         exportImage = Image(uiImage: rendered)
+    }
+
+    // MARK: - Sharing -
+
+    /// The label iOS shows beside the preview; the sharer's name, not the URL.
+    private var shareTitle: String {
+        if let name = profile?.displayName, !name.isEmpty {
+            "Tip \(name)"
+        } else {
+            "My Tip Card"
+        }
+    }
+
+    private func shareTipCard() {
+        let item = TipCodeShareItem(
+            url: url,
+            title: shareTitle,
+            preview: previewCache.preview(for: sessionContainer.session.userID)
+        )
+
+        ShareSheet.present(activityItem: item) { _ in }
     }
 }
 
