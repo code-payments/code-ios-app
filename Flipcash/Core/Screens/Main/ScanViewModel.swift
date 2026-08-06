@@ -80,6 +80,7 @@ class ScanViewModel {
         case .cash(let payload):
             didScanCash(payload)
         case .tip(let payload):
+            Analytics.track(event: Analytics.TipCardEvent.scanned)
             tipFlow.begin(userID: payload.userID)
         }
     }
