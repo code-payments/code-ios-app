@@ -52,7 +52,6 @@ struct ConversationScreen: View {
     @Environment(PushController.self) private var pushController
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
-    @Environment(BetaFlags.self) private var betaFlags
 
     @State private var didInitialRead = false
     @State private var barModel = ConversationBarModel()
@@ -109,19 +108,17 @@ struct ConversationScreen: View {
         conversationID != nil
     }
 
-    /// For a tip DM (beta on), all counterpart taps open the profile screen —
-    /// even when the counterpart is also an address-book contact.
+    /// For a tip DM, all counterpart taps open the profile screen — even when
+    /// the counterpart is also an address-book contact.
     private var profileTapAction: (() -> Void)? {
-        guard betaFlags.hasEnabled(.enableBlocking),
-              let userID = tipCounterpart?.userID else { return nil }
+        guard let userID = tipCounterpart?.userID else { return nil }
         return { router.push(.userProfile(userID)) }
     }
 
     /// Tapping the title opens the counterpart's contact card: their address-book
     /// card when they're a contact, otherwise the native "Add to Contacts" sheet
-    /// seeded with their number. For a tip DM with the blocking beta on, opens the
-    /// profile screen instead. Inert only when neither a contact nor a phone
-    /// number is known.
+    /// seeded with their number. For a tip DM, opens the profile screen instead.
+    /// Inert only when neither a contact nor a phone number is known.
     private var titleTapAction: (() -> Void)? {
         if let profileTapAction { return profileTapAction }
         guard contact != nil || addableContactPhone != nil else { return nil }

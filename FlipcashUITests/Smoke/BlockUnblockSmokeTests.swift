@@ -24,8 +24,6 @@ import XCTest
 final class BlockUnblockSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
-    // The Block affordance needs `enableBlocking`; Tips is always on now.
-    override var enabledBetaFlags: [String] { ["enableBlocking"] }
 
     /// The counterpart blocked during the test, cleared once unblocked. Non-nil
     /// in `tearDown` means the round-trip failed after the block — clean it up.
