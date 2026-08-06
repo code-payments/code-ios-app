@@ -6,7 +6,7 @@
 import XCTest
 
 /// Page object for `BlockedUsersScreen` — the Settings › My Account › Blocked
-/// list. Reachable only when the `enableBlocking` beta flag is on.
+/// list.
 @MainActor
 struct BlockedUsersUIScreen {
 

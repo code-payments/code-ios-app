@@ -14,7 +14,6 @@ struct SettingsMyAccountScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     @Environment(ContactSyncController.self) private var contactSyncController
-    @Environment(BetaFlags.self) private var betaFlags
     @State private var dialogItem: DialogItem?
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
@@ -47,10 +46,8 @@ struct SettingsMyAccountScreen: View {
                 }
             }
 
-            if betaFlags.hasEnabled(.enableBlocking) {
-                SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
-                    router.push(.blockedUsers)
-                }
+            SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
+                router.push(.blockedUsers)
             }
 
             SettingsRow(asset: .logout, title: "Log Out", insets: insets) {

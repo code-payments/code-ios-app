@@ -6,10 +6,10 @@
 import XCTest
 
 /// Smoke tests for the Blocked users list reached from Settings › My Account ›
-/// Blocked, with the `enableBlocking` beta flag on.
+/// Blocked.
 ///
 /// **Scope.** These cover the navigation into the list and that the screen loads
-/// — the parts most likely to regress from a routing or beta-gate change. The
+/// — the parts most likely to regress from a routing change. The
 /// block/unblock *action* itself is intentionally not driven here: it requires a
 /// live tip-DM conversation fixture (the Block affordance only appears on a tip
 /// DM's profile) and committing it would mutate the standing account's server
@@ -22,7 +22,6 @@ import XCTest
 final class BlockedUsersSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
-    override var enabledBetaFlags: [String] { ["enableBlocking"] }
 
     /// Main → Settings → My Account → Blocked lands on the Blocked list and it
     /// loads its state (empty or populated) without hanging.
@@ -35,7 +34,6 @@ final class BlockedUsersSmokeTests: BaseUITestCase {
         settings.open(from: self)
         settings.navigateToMyAccount(from: self)
 
-        // The Blocked row is gated on `enableBlocking`, which this test enables.
         waitAndTap(settings.blockedRow)
 
         blocked.assertLoaded(from: self)
