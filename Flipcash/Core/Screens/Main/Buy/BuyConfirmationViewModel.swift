@@ -185,7 +185,8 @@ final class BuyConfirmationViewModel {
             ErrorReporting.captureError(
                 error,
                 reason: "Failed to buy currency from BuyConfirmationScreen",
-                metadata: ["targetMint": targetMint.base58, "paymentMint": payment.mint.base58]
+                metadata: ["targetMint": targetMint.base58, "paymentMint": payment.mint.base58],
+                userFacing: true
             )
             actionButtonState = .normal
             // A submit failure can land after the user popped this screen —

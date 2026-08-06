@@ -87,7 +87,7 @@ struct TransactionHistoryScreen: View {
             } catch {
                 ErrorReporting.captureError(error, reason: "Failed to cancel cash link", metadata: [
                     "vault": metadata.vault.base58,
-                ])
+                ], userFacing: true)
                 dialogItem = .error(
                     title: "Failed to Cancel Transfer",
                     subtitle: "Something went wrong. Please try again later"

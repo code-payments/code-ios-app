@@ -11,6 +11,28 @@ import FlipcashCore
 
 enum ErrorReporting {
 
+    /// The reporting outcome for a classified error: dropped, or sent at a severity.
+    nonisolated enum Outcome: Equatable {
+        case drop
+        case info
+        case error
+    }
+
+    /// Resolves how a classified error should be reported.
+    ///
+    /// `.suppressed` (transient transport / network weather) is normally dropped, but
+    /// when it reached the user as a hard failure dialog (`userFacing`) it is lifted to
+    /// `.info` — a breadcrumb, never `.error`, so it never pages Slack. Only `.suppressed`
+    /// is ever lifted: user-caused refusals classify `.info`/`.error`, so a user-caused
+    /// failure can never be surfaced by `userFacing`.
+    nonisolated static func outcome(for level: ErrorReportingLevel, userFacing: Bool) -> Outcome {
+        switch level {
+        case .suppressed: userFacing ? .info : .drop
+        case .info:       .info
+        case .error:      .error
+        }
+    }
+
     private static var isEnabled = false
 
     static func initialize() {
@@ -20,8 +42,8 @@ enum ErrorReporting {
         isEnabled = true
     }
 
-    static func capturePayment(error: Swift.Error, rendezvous: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState? = nil, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
-        capture(error, reason: reason, file: file, function: function, line: line) { userInfo in
+    static func capturePayment(error: Swift.Error, rendezvous: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState? = nil, reason: String? = nil, userFacing: Bool = false, file: String = #file, function: String = #function, line: Int = #line) {
+        capture(error, reason: reason, userFacing: userFacing, file: file, function: function, line: line) { userInfo in
             userInfo["rendezvous"]    = rendezvous.base58
             userInfo["exchangedFiat"] = exchangedFiat.descriptionDictionary
             if let verifiedState {
@@ -39,8 +61,8 @@ enum ErrorReporting {
         }
     }
     
-    static func capturePayment(error: Swift.Error, rendezvous: PublicKey, fiat: FiatAmount, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
-        capture(error, reason: reason, file: file, function: function, line: line) { userInfo in
+    static func capturePayment(error: Swift.Error, rendezvous: PublicKey, fiat: FiatAmount, reason: String? = nil, userFacing: Bool = false, file: String = #file, function: String = #function, line: Int = #line) {
+        capture(error, reason: reason, userFacing: userFacing, file: file, function: function, line: line) { userInfo in
             userInfo["rendezvous"] = rendezvous.base58
             userInfo["usdc"]       = fiat.formatted()
             userInfo["value"]      = "\(fiat.value)"
@@ -57,22 +79,26 @@ enum ErrorReporting {
     ///     single function contains multiple catch sites that should group separately.
     ///   - metadata: Key-value pairs attached to the Bugsnag event's user info for
     ///     debugging context (e.g. mint, amount, swap ID).
-    static func captureError(_ error: Swift.Error, reason: String? = nil, id: String? = nil, metadata: [String: String] = [:], file: String = #file, function: String = #function, line: Int = #line) {
-        capture(error, reason: reason, id: id, file: file, function: function, line: line) { userInfo in
+    ///   - userFacing: Pass `true` when this error was surfaced to the user as a hard
+    ///     failure dialog. A `.suppressed` (transient transport) error that reached a
+    ///     dialog is then recorded at `.info` instead of dropped — a breadcrumb, never
+    ///     a Slack page. Has no effect on `.info`/`.error` errors.
+    static func captureError(_ error: Swift.Error, reason: String? = nil, id: String? = nil, metadata: [String: String] = [:], userFacing: Bool = false, file: String = #file, function: String = #function, line: Int = #line) {
+        capture(error, reason: reason, id: id, userFacing: userFacing, file: file, function: function, line: line) { userInfo in
             metadata.forEach { key, value in
                 userInfo[key] = value
             }
         }
     }
     
-    private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
+    private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, userFacing: Bool = false, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
         guard isEnabled else { return }
 
         // A non-ServerError reaching the reporter is unclassified — treat as a real bug.
         let level = (error as? ServerError)?.reportingLevel ?? .error
         let severity: BSGSeverity
-        switch level {
-        case .suppressed:
+        switch outcome(for: level, userFacing: userFacing) {
+        case .drop:
             return
         case .info:
             severity = .info

@@ -273,7 +273,7 @@ final class SendAmountViewModel {
                 continue
             } catch {
                 logger.error("Recipient resolve failed", metadata: ["target": "\(targetLogID)", "error": "\(error)"])
-                ErrorReporting.captureError(error, reason: "Recipient resolve failed")
+                ErrorReporting.captureError(error, reason: "Recipient resolve failed", userFacing: true)
                 return .failed
             }
         }

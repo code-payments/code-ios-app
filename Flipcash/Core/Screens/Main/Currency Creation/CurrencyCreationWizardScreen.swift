@@ -594,7 +594,7 @@ struct CurrencyCreationWizardScreen: View {
                             "error": "\(error)",
                             "mint": "\(existing.mint.base58)",
                         ])
-                        ErrorReporting.captureError(error)
+                        ErrorReporting.captureError(error, userFacing: true)
                         presentCouldNotCreateCurrencyDialog()
                     }
                     return
@@ -625,7 +625,7 @@ struct CurrencyCreationWizardScreen: View {
                     "error": "\(error)",
                     "mint": "\(launchedMint?.base58 ?? "nil")",
                 ])
-                ErrorReporting.captureError(error)
+                ErrorReporting.captureError(error, userFacing: true)
                 presentCouldNotCreateCurrencyDialog()
                 return
             }

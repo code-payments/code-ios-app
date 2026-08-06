@@ -276,12 +276,15 @@ class SendCashOperation {
             "error": "\(error)",
         ])
 
+        // Every `handleFailure` call rethrows, surfacing the give-bill "cash was
+        // returned" dialog — so a suppressed transient here is user-facing.
         ErrorReporting.capturePayment(
             error: error,
             rendezvous: payload.rendezvous.publicKey,
             exchangedFiat: exchangedFiat,
             verifiedState: resolution.state,
-            reason: path.rawValue
+            reason: path.rawValue,
+            userFacing: true
         )
     }
 }
