@@ -115,8 +115,8 @@ extension ConversationMessage {
                 return nil
             }
             self.content = .cash(amount)
-            // Unrecognized actions fall back to `.sent`, per the proto contract.
-            self.cashAction = cashContent.action == .tipped ? .tipped : .sent
+            // Unrecognized verbs fall back to `.sent`, per the proto contract.
+            self.cashAction = cashContent.verb == .tipped ? .tipped : .sent
         case .deleted:
             self.content = .deleted
             self.cashAction = nil

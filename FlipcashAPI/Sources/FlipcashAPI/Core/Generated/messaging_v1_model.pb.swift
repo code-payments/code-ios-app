@@ -272,13 +272,13 @@ public struct Flipcash_Messaging_V1_CashContent: Sendable {
   /// Clears the value of `amount`. Subsequent reads from it will return its default value.
   public mutating func clearAmount() {self._amount = nil}
 
-  public var action: Flipcash_Messaging_V1_CashContent.Action = .sent
+  public var verb: Flipcash_Messaging_V1_CashContent.Verb = .sent
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  /// Action for how the cash was sent. Clietns should always show SENT as a
+  /// Verb for how the cash was sent. Clietns should always show SENT as a
   /// fallback.
-  public enum Action: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public enum Verb: SwiftProtobuf.Enum, Swift.CaseIterable {
     public typealias RawValue = Int
     case sent // = 0
     case tipped // = 1
@@ -305,7 +305,7 @@ public struct Flipcash_Messaging_V1_CashContent: Sendable {
     }
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Flipcash_Messaging_V1_CashContent.Action] = [
+    public static let allCases: [Flipcash_Messaging_V1_CashContent.Verb] = [
       .sent,
       .tipped,
     ]
@@ -1327,7 +1327,7 @@ extension Flipcash_Messaging_V1_TextContent: SwiftProtobuf.Message, SwiftProtobu
 
 extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CashContent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}intent_id\0\u{1}amount\0\u{2}\u{2}action\0\u{c}\u{3}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}intent_id\0\u{1}amount\0\u{2}\u{2}verb\0\u{c}\u{3}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1337,7 +1337,7 @@ extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobu
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._intentID) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._amount) }()
-      case 4: try { try decoder.decodeSingularEnumField(value: &self.action) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.verb) }()
       default: break
       }
     }
@@ -1354,8 +1354,8 @@ extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobu
     try { if let v = self._amount {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    if self.action != .sent {
-      try visitor.visitSingularEnumField(value: self.action, fieldNumber: 4)
+    if self.verb != .sent {
+      try visitor.visitSingularEnumField(value: self.verb, fieldNumber: 4)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1363,13 +1363,13 @@ extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobu
   public static func ==(lhs: Flipcash_Messaging_V1_CashContent, rhs: Flipcash_Messaging_V1_CashContent) -> Bool {
     if lhs._intentID != rhs._intentID {return false}
     if lhs._amount != rhs._amount {return false}
-    if lhs.action != rhs.action {return false}
+    if lhs.verb != rhs.verb {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Messaging_V1_CashContent.Action: SwiftProtobuf._ProtoNameProviding {
+extension Flipcash_Messaging_V1_CashContent.Verb: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SENT\0\u{1}TIPPED\0")
 }
 
