@@ -37,6 +37,7 @@ extension Analytics {
     enum TransferEvent: String, AnalyticsEvent {
         case withdrawal      = "Withdrawal"
         case sentCash        = "Sent Cash"
+        case sentTip         = "Sent Tip"
         case sendCashLink    = "Send Cash Link"
         case receiveCashLink = "Receive Cash Link"
         case grabBill        = "Grab Bill"
@@ -59,6 +60,14 @@ extension Analytics {
 
     enum ConversationEvent: String, AnalyticsEvent {
         case sentMessage = "Sent Message"
+    }
+
+    /// The scanned-tipcard funnel: a tipcard is scanned, resolves and is
+    /// presented, then a tip is sent (`TransferEvent.sentTip`). Names are
+    /// shared verbatim with Android.
+    enum TipCardEvent: String, AnalyticsEvent {
+        case scanned   = "Tip Card Scanned"
+        case presented = "Tip Card Presented"
     }
 
     enum PhoneEvent: String, AnalyticsEvent {
@@ -209,6 +218,31 @@ extension Analytics {
             properties: properties,
             error: error
         )
+    }
+}
+
+// MARK: - Conversation -
+
+extension Analytics {
+    /// A chat message send. `Chat Type` mirrors Android — Tip / Contact /
+    /// Unknown (a conversation not resolved locally yet).
+    static func sentMessage(chatType: ConversationType?, error: Error? = nil) {
+        track(
+            event: ConversationEvent.sentMessage,
+            properties: [.chatType: chatType.analyticsValue],
+            error: error
+        )
+    }
+}
+
+private extension Optional where Wrapped == ConversationType {
+    /// The `Chat Type` property value, shared verbatim with Android.
+    var analyticsValue: String {
+        switch self {
+        case .contactDm: "Contact"
+        case .tipDm:     "Tip"
+        case .none:      "Unknown"
+        }
     }
 }
 
@@ -377,6 +411,7 @@ extension Analytics {
         case fx                = "Exchange Rate"
 
         case type              = "Type"
+        case chatType          = "Chat Type"
         case error             = "Error"
         case url               = "URL"
 

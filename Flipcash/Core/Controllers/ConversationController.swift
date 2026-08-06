@@ -875,6 +875,9 @@ final class ConversationController {
     }
 
     private func deliver(clientMessageID: UUID, text: String, to conversationID: ConversationID) async -> Bool {
+        // Captured before the send so success and failure report the same
+        // conversation kind; an unresolved conversation reports as Unknown.
+        let chatType = conversation(withID: conversationID)?.type
         do {
             let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text, clientMessageID: clientMessageID)
             // Persist the row carrying its client id (the server echoes none) so the DB keeps the send's
@@ -892,7 +895,7 @@ final class ConversationController {
             store.advanceLastActivity(to: message.date, in: conversationID)
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
-            Analytics.track(event: Analytics.ConversationEvent.sentMessage)
+            Analytics.sentMessage(chatType: chatType)
             return true
         } catch {
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
@@ -901,7 +904,7 @@ final class ConversationController {
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to send conversation message")
-            Analytics.track(event: Analytics.ConversationEvent.sentMessage, error: error)
+            Analytics.sentMessage(chatType: chatType, error: error)
             return false
         }
     }

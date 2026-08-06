@@ -179,6 +179,9 @@ final class TipFlow {
     }
 
     private func present(_ recipient: TipRecipient) {
+        // The card is resolved and about to show, whether reached from a scan or
+        // a deep link — the second step of the Scanned → Presented → Sent Tip funnel.
+        Analytics.track(event: Analytics.TipCardEvent.presented)
         selection = nil
         customAmount = nil
         submission = SendAmountViewModel(
