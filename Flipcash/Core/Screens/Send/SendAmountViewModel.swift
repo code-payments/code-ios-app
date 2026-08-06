@@ -229,7 +229,10 @@ final class SendAmountViewModel {
                 destinationPhoneE164: contact.phoneE164
             )
         case .tip(let recipient):
-            return .tipDm(chatID: .tipDm(between: session.userID, and: recipient.userID))
+            return .tipDm(
+                chatID: .tipDm(between: session.userID, and: recipient.userID),
+                origin: recipient.origin
+            )
         }
     }
 

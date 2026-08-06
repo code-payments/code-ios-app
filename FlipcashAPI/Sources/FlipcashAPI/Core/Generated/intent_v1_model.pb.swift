@@ -120,14 +120,51 @@ public struct Flipcash_Intent_V1_ChatMetadata: Sendable {
     fileprivate var _destination: Flipcash_Phone_V1_PhoneNumber? = nil
   }
 
-  /// For sending a DM tip payment to someone. The message is empty, since
-  /// it's between two user IDs, which map directly to/from public keys.
+  /// For sending a DM payment to someone using their user ID, which maps
+  /// directly to/from a public key.
   public struct TipDmPayment: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
+    public var location: Flipcash_Intent_V1_ChatMetadata.TipDmPayment.Location = .tipcard
+
     public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    /// Location in the app the payment was sent from
+    public enum Location: SwiftProtobuf.Enum, Swift.CaseIterable {
+      public typealias RawValue = Int
+      case tipcard // = 0
+      case chat // = 1
+      case UNRECOGNIZED(Int)
+
+      public init() {
+        self = .tipcard
+      }
+
+      public init?(rawValue: Int) {
+        switch rawValue {
+        case 0: self = .tipcard
+        case 1: self = .chat
+        default: self = .UNRECOGNIZED(rawValue)
+        }
+      }
+
+      public var rawValue: Int {
+        switch self {
+        case .tipcard: return 0
+        case .chat: return 1
+        case .UNRECOGNIZED(let i): return i
+        }
+      }
+
+      // The compiler won't synthesize support with the UNRECOGNIZED case.
+      public static let allCases: [Flipcash_Intent_V1_ChatMetadata.TipDmPayment.Location] = [
+        .tipcard,
+        .chat,
+      ]
+
+    }
 
     public init() {}
   }
@@ -300,19 +337,34 @@ extension Flipcash_Intent_V1_ChatMetadata.ContactDmPayment: SwiftProtobuf.Messag
 
 extension Flipcash_Intent_V1_ChatMetadata.TipDmPayment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Flipcash_Intent_V1_ChatMetadata.protoMessageName + ".TipDmPayment"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}location\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.location) }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.location != .tipcard {
+      try visitor.visitSingularEnumField(value: self.location, fieldNumber: 1)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Intent_V1_ChatMetadata.TipDmPayment, rhs: Flipcash_Intent_V1_ChatMetadata.TipDmPayment) -> Bool {
+    if lhs.location != rhs.location {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Flipcash_Intent_V1_ChatMetadata.TipDmPayment.Location: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0TIPCARD\0\u{1}CHAT\0")
 }

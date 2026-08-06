@@ -157,7 +157,8 @@ final class TipFlow {
                 }
                 let recipient = TipRecipient(
                     userID: userID,
-                    displayName: resolved.displayName ?? ""
+                    displayName: resolved.displayName ?? "",
+                    origin: .tipcard
                 )
                 guard !Task.isCancelled else { return }
                 present(recipient)

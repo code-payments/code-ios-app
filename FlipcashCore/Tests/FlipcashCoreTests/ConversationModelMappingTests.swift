@@ -69,7 +69,7 @@ struct ConversationModelMappingTests {
             $0.messageID = .with { $0.value = 13 }
             $0.content = [.with {
                 $0.cash = .with {
-                    $0.action = .tipped
+                    $0.verb = .tipped
                     $0.amount = .with {
                         $0.currency = "usd"
                         $0.nativeAmount = 2.0

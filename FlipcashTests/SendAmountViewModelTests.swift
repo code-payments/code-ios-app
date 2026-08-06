@@ -503,7 +503,7 @@ struct SendAmountViewModelTests {
     ) -> SendAmountViewModel {
         SendAmountViewModel(
             sessionContainer: container,
-            target: .tip(TipRecipient(userID: recipientID, displayName: "Fred")),
+            target: .tip(TipRecipient(userID: recipientID, displayName: "Fred", origin: .tipcard)),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -526,11 +526,12 @@ struct SendAmountViewModelTests {
         #expect(mock.resolveUserIDCalls == [recipientID])
         #expect(mock.resolveContactCalls.isEmpty)
         let chat = try #require(mock.sendCalls.first?.chat)
-        guard case .tipDm(let chatID) = chat else {
+        guard case .tipDm(let chatID, let origin) = chat else {
             Issue.record("Expected tipDm metadata, got \(chat)")
             return
         }
         #expect(chatID == ConversationID.tipDm(between: container.session.userID, and: recipientID))
+        #expect(origin == .tipcard)
     }
 
     @Test("A tip below the server minimum is blocked before submission")
