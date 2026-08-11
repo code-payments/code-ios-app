@@ -301,6 +301,20 @@ class Session {
         }
     }
 
+    // MARK: - User Profile Cache -
+
+    /// The cached profile for another user, or `nil` when it hasn't been fetched
+    /// yet. The signed-in user's own profile is `self.profile`.
+    func cachedUserProfile(for userID: UserID) -> Profile? {
+        try? database.getUserProfile(userID: userID)
+    }
+
+    /// Cache another user's fetched profile for later reuse (best-effort, mirrors
+    /// the own-profile persistence in `updateProfile()`).
+    func cacheUserProfile(_ profile: Profile, for userID: UserID) {
+        try? database.upsertUserProfile(profile, userID: userID)
+    }
+
     func unlinkProfile() async throws {
         if let profile {
             if let email = profile.email {

@@ -155,6 +155,7 @@ final class TipFlow {
                     _ = try await destination
                     return try await profile
                 }
+                session.cacheUserProfile(resolved, for: userID)
                 let recipient = TipRecipient(
                     userID: userID,
                     displayName: resolved.displayName ?? "",

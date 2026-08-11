@@ -111,6 +111,18 @@ nonisolated struct ProfileTable: Sendable {
     let data  = Expression <Data> ("data")
 }
 
+/// Cache of *other* users' profiles, keyed by user id. Populated cache-through
+/// as profiles are fetched for display (chat counterparts, tip recipients,
+/// blocked users). The signed-in user's own profile stays in the singleton
+/// `profile` table. Stored as a JSON blob — reads are only ever by-key.
+nonisolated struct UserProfileTable: Sendable {
+    static let name = "user_profile"
+
+    let table  = Table(Self.name)
+    let userID = Expression <UUID> ("userID")   // PK
+    let data   = Expression <Data> ("data")     // JSON-encoded Profile
+}
+
 nonisolated struct UserFlagsTable: Sendable {
     static let name = "userFlags"
 
@@ -187,6 +199,8 @@ nonisolated struct ConversationTable: Sendable {
     // Server-set: the counterpart is on the owner's blocklist. Retained so an
     // unblock restores the conversation; filtered from the displayed feed.
     let isHidden      = Expression <Bool>    ("isHidden")
+    // Server-set title, group chats only. Nil for DMs.
+    let title         = Expression <String?> ("title")
 }
 
 nonisolated struct ConversationMemberTable: Sendable {
@@ -353,6 +367,15 @@ nonisolated extension Database {
             })
         }
 
+        let userProfileTable = UserProfileTable()
+
+        try writer.transaction {
+            try writer.run(userProfileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(userProfileTable.userID, primaryKey: true)
+                t.column(userProfileTable.data)
+            })
+        }
+
         let userFlagsTable = UserFlagsTable()
 
         try writer.transaction {
@@ -406,6 +429,7 @@ nonisolated extension Database {
                 t.column(conversationTable.catchupCursor)
                 t.column(conversationTable.type, defaultValue: ConversationType.contactDm.rawValue)
                 t.column(conversationTable.isHidden, defaultValue: false)
+                t.column(conversationTable.title)
             })
         }
 
