@@ -11,6 +11,7 @@ import FlipcashUI
 struct ContainerScreen: View {
 
     @Environment(SessionAuthenticator.self) var sessionAuthenticator
+    @Environment(BetaFlags.self) var betaFlags
 
     var body: some View {
         VStack {
@@ -33,10 +34,16 @@ struct ContainerScreen: View {
                     .transition(.opacity)
 
                 case .loggedIn(let sessionContainer):
-                    ScanScreen()
-                        .modifier(OnrampHostModifier())
-                        .injectingEnvironment(from: sessionContainer)
-                        .transition(.opacity)
+                    Group {
+                        if betaFlags.hasEnabled(.newUI) {
+                            HomeTabView()
+                        } else {
+                            ScanScreen()
+                        }
+                    }
+                    .modifier(OnrampHostModifier())
+                    .injectingEnvironment(from: sessionContainer)
+                    .transition(.opacity)
                 }
             }
         }

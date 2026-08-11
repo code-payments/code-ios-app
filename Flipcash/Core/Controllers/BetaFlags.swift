@@ -114,6 +114,7 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
+        case newUI
 
         var id: String {
             localizedTitle
@@ -125,6 +126,8 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
+            case .newUI:
+                return "New tab-bar UI"
             }
         }
 
@@ -134,6 +137,8 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
+            case .newUI:
+                return "If enabled, the app launches into the new tab-bar UI (Wallet, Scan, Chat, Tip Card) instead of the scanner-first UI"
             }
         }
 
@@ -142,6 +147,7 @@ extension BetaFlags {
             switch self {
             case .vibrateOnScan:   return .developer
             case .enableCoinbase:  return .developer
+            case .newUI:           return .developer
             }
         }
     }
