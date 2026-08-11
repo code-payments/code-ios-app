@@ -6,10 +6,10 @@
 import SwiftUI
 import FlipcashUI
 
-/// The floating pill tab bar for the v2 UI. A dark translucent capsule holds one
+/// The floating pill tab bar for the v2 UI. A Liquid Glass capsule holds one
 /// button per ``HomeTab``, with a white selection pill that slides to the active
-/// tab. Ported from Android's `NavigationBarV2` (Figma frame 9013-5434): black
-/// 62%-alpha capsule, white-20% sliding indicator, icons at full/half opacity.
+/// tab. Ported from Android's `NavigationBarV2` (Figma frame 9013-5434):
+/// translucent capsule, white-20% sliding indicator, icons at full/half opacity.
 struct HomeTabBar: View {
 
     @Binding var selection: HomeTab
@@ -18,7 +18,7 @@ struct HomeTabBar: View {
 
     /// Vertical padding inside the capsule around each item.
     private let itemVerticalPadding: CGFloat = 8
-    private let iconSize: CGFloat = 24
+    private let iconSize: CGFloat = 26
 
     private var itemHeight: CGFloat { iconSize + itemVerticalPadding * 2 }
 
@@ -40,8 +40,11 @@ struct HomeTabBar: View {
                         Button {
                             selection = tab
                         } label: {
-                            Image(systemName: tab.systemImage)
-                                .font(.system(size: iconSize * 0.72, weight: .semibold))
+                            Image(tab.iconName)
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: iconSize, height: iconSize)
                                 .foregroundStyle(Color.white)
                                 .opacity(selection == tab ? 1 : 0.5)
                                 .frame(width: itemWidth, height: itemHeight)
@@ -56,6 +59,20 @@ struct HomeTabBar: View {
         }
         .frame(height: itemHeight)
         .padding(4)
-        .background(Color.black.opacity(0.62), in: Capsule())
+        .capsuleGlassBackground()
+    }
+}
+
+private extension View {
+    /// The app's Liquid Glass surface clipped to a capsule — Liquid Glass on
+    /// iOS 26, an ultra-thin material below (mirrors `glassBackground(cornerRadius:)`,
+    /// which only offers a rounded-rect).
+    @ViewBuilder
+    func capsuleGlassBackground() -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            background(.ultraThinMaterial, in: Capsule())
+        }
     }
 }
