@@ -26,7 +26,7 @@ service EmailVerification {
 
 message SendVerificationCodeRequest {
     // The email address to send a verification code to
-    EmailAddress email_address = 1 [(validate.rules).message.required = true];
+    common.v1.EmailAddress email_address = 1 [(validate.rules).message.required = true];
 
     common.v1.Auth auth = 2 [(validate.rules).message.required = true];
 
@@ -51,7 +51,7 @@ message SendVerificationCodeResponse {
 
 message CheckVerificationCodeRequest {
     // The email address being verified
-    EmailAddress email_address = 1 [(validate.rules).message.required = true];
+    common.v1.EmailAddress email_address = 1 [(validate.rules).message.required = true];
 
     // The verification code received via email
     VerificationCode code = 2 [(validate.rules).message.required = true];
@@ -81,7 +81,7 @@ message CheckVerificationCodeResponse {
 
 message UnlinkRequest {
     // The email address to unlink
-    EmailAddress email_address = 1 [(validate.rules).message.required = true];
+    common.v1.EmailAddress email_address = 1 [(validate.rules).message.required = true];
 
     common.v1.Auth auth = 2 [(validate.rules).message.required = true];
 }

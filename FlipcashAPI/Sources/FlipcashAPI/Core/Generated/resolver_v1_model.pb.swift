@@ -29,10 +29,10 @@ public struct Flipcash_Resolver_V1_Identifier: Sendable {
 
   public var kind: Flipcash_Resolver_V1_Identifier.OneOf_Kind? = nil
 
-  public var phone: Flipcash_Phone_V1_PhoneNumber {
+  public var phone: Flipcash_Common_V1_PhoneNumber {
     get {
       if case .phone(let v)? = kind {return v}
-      return Flipcash_Phone_V1_PhoneNumber()
+      return Flipcash_Common_V1_PhoneNumber()
     }
     set {kind = .phone(newValue)}
   }
@@ -48,7 +48,7 @@ public struct Flipcash_Resolver_V1_Identifier: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Kind: Equatable, Sendable {
-    case phone(Flipcash_Phone_V1_PhoneNumber)
+    case phone(Flipcash_Common_V1_PhoneNumber)
     case userID(Flipcash_Common_V1_UserId)
 
   }
@@ -98,7 +98,7 @@ extension Flipcash_Resolver_V1_Identifier: SwiftProtobuf.Message, SwiftProtobuf.
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Flipcash_Phone_V1_PhoneNumber?
+        var v: Flipcash_Common_V1_PhoneNumber?
         var hadOneofValue = false
         if let current = self.kind {
           hadOneofValue = true

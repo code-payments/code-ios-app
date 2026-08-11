@@ -120,6 +120,30 @@ final class ProfileService: Sendable {
             throw ErrorProfile.network(error)
         }
     }
+
+    func updateTipCard(color: Flipcash_Common_V1_Color, owner: KeyPair) async throws {
+        logger.info("Updating tip card")
+
+        var request = Flipcash_Profile_V1_UpdateTipCardRequest()
+        request.color = color
+        request.auth  = owner.authFor(message: request)
+
+        do {
+            let response = try await service.updateTipCard(request, options: .unaryDefault)
+            let error = ErrorUpdateTipCard(rawValue: response.result.rawValue) ?? .unknown
+            guard error == .ok else {
+                logger.error("Failed to update tip card", metadata: ["error": "\(error)"])
+                throw error
+            }
+            logger.info("Tip card updated")
+        } catch let error as ErrorUpdateTipCard {
+            throw error
+        } catch let error as RPCError {
+            throw ErrorUpdateTipCard.from(transportError: error)
+        } catch {
+            throw ErrorUpdateTipCard.unknown
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -139,6 +163,28 @@ extension ErrorFetchProfile: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+public enum ErrorUpdateTipCard: Int, Error {
+    case ok
+    case denied
+    /// The requested colour failed server-side validation (bad hex).
+    case invalidColor
+    case unknown = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorUpdateTipCard: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .invalidColor: .info
         case .unknown, .rejected: .error
         }
     }

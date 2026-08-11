@@ -26,8 +26,8 @@ public struct Flipcash_Email_V1_SendVerificationCodeRequest: Sendable {
   // methods supported on all messages.
 
   /// The email address to send a verification code to
-  public var emailAddress: Flipcash_Email_V1_EmailAddress {
-    get {return _emailAddress ?? Flipcash_Email_V1_EmailAddress()}
+  public var emailAddress: Flipcash_Common_V1_EmailAddress {
+    get {return _emailAddress ?? Flipcash_Common_V1_EmailAddress()}
     set {_emailAddress = newValue}
   }
   /// Returns true if `emailAddress` has been explicitly set.
@@ -51,7 +51,7 @@ public struct Flipcash_Email_V1_SendVerificationCodeRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _emailAddress: Flipcash_Email_V1_EmailAddress? = nil
+  fileprivate var _emailAddress: Flipcash_Common_V1_EmailAddress? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
 
@@ -121,8 +121,8 @@ public struct Flipcash_Email_V1_CheckVerificationCodeRequest: Sendable {
   // methods supported on all messages.
 
   /// The email address being verified
-  public var emailAddress: Flipcash_Email_V1_EmailAddress {
-    get {return _emailAddress ?? Flipcash_Email_V1_EmailAddress()}
+  public var emailAddress: Flipcash_Common_V1_EmailAddress {
+    get {return _emailAddress ?? Flipcash_Common_V1_EmailAddress()}
     set {_emailAddress = newValue}
   }
   /// Returns true if `emailAddress` has been explicitly set.
@@ -153,7 +153,7 @@ public struct Flipcash_Email_V1_CheckVerificationCodeRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _emailAddress: Flipcash_Email_V1_EmailAddress? = nil
+  fileprivate var _emailAddress: Flipcash_Common_V1_EmailAddress? = nil
   fileprivate var _code: Flipcash_Email_V1_VerificationCode? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
@@ -234,8 +234,8 @@ public struct Flipcash_Email_V1_UnlinkRequest: Sendable {
   // methods supported on all messages.
 
   /// The email address to unlink
-  public var emailAddress: Flipcash_Email_V1_EmailAddress {
-    get {return _emailAddress ?? Flipcash_Email_V1_EmailAddress()}
+  public var emailAddress: Flipcash_Common_V1_EmailAddress {
+    get {return _emailAddress ?? Flipcash_Common_V1_EmailAddress()}
     set {_emailAddress = newValue}
   }
   /// Returns true if `emailAddress` has been explicitly set.
@@ -256,7 +256,7 @@ public struct Flipcash_Email_V1_UnlinkRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _emailAddress: Flipcash_Email_V1_EmailAddress? = nil
+  fileprivate var _emailAddress: Flipcash_Common_V1_EmailAddress? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
 

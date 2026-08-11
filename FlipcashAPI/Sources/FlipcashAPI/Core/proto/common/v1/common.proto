@@ -6,6 +6,9 @@ option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/g
 option java_package = "com.codeinc.flipcash.gen.common.v1";
 option objc_class_prefix = "FPBCommonV1";
 
+// Note: common/v1 is imported by every other domain, so it must remain a leaf
+// package. Importing another flipcash domain here creates a Go import cycle,
+// since that domain's service protos import common/v1 in turn.
 import "validate/validate.proto";
 
 message PublicKey {
@@ -59,8 +62,11 @@ message UserId {
 }
 
 message ChatId {
+    // value has the following structure:
+    //  - 32 byte hash for DMs
+    //  - 16 byte UUID for group chats
     bytes value = 1 [(validate.rules).bytes = {
-        min_len: 32
+        min_len: 16
         max_len: 32
     }];
 }
@@ -80,6 +86,17 @@ message AppInstallId {
         min_len: 1
         max_len: 256 // todo: What's a reasonable size
     }];
+}
+
+// PhoneNumber is an E.164 phone number
+message PhoneNumber {
+    // Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
+    string value = 1 [(validate.rules).string.pattern = "^\\+[1-9]\\d{1,14}$"];
+}
+
+// EmailAddress is an email address
+message EmailAddress {
+    string value = 1 [(validate.rules).string.pattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"];
 }
 
 enum Platform {
@@ -181,4 +198,31 @@ message Region {
     string value = 1 [(validate.rules).string = {
         pattern: "^[a-z]{3,4}$"
     }];
+}
+
+// Color represents an RGB colour
+message Color {
+    // Hex colour value (e.g. "#19191A")
+    string hex = 1 [(validate.rules).string = {
+        pattern: "^#[0-9a-fA-F]{6}$"
+    }];
+}
+
+// Substitution is a text subsitution
+message Substitution {
+    // Fallback string for forwards compatibility
+    string fallback = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 4096 // Arbitrary
+    }];
+
+    oneof kind {
+        option (validate.required) = true;
+
+        // Phone number -> contact name or formatted phone number
+        common.v1.PhoneNumber phone_number_to_contact_name = 2;
+
+        // User ID -> display name
+        common.v1.UserId      user_id_to_display_name      = 3;
+    }
 }

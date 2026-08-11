@@ -178,6 +178,9 @@ public struct Flipcash_Common_V1_ChatId: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// value has the following structure:
+  ///  - 32 byte hash for DMs
+  ///  - 16 byte UUID for group chats
   public var value: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -201,6 +204,33 @@ public struct Flipcash_Common_V1_IntentId: Sendable {
 /// identify a device. Value should remain private and not be shared across
 /// installs.
 public struct Flipcash_Common_V1_AppInstallId: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var value: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// PhoneNumber is an E.164 phone number
+public struct Flipcash_Common_V1_PhoneNumber: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
+  public var value: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// EmailAddress is an email address
+public struct Flipcash_Common_V1_EmailAddress: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -444,6 +474,62 @@ public struct Flipcash_Common_V1_Region: Sendable {
   public var value: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Color represents an RGB colour
+public struct Flipcash_Common_V1_Color: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Hex colour value (e.g. "#19191A")
+  public var hex: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Substitution is a text subsitution
+public struct Flipcash_Common_V1_Substitution: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Fallback string for forwards compatibility
+  public var fallback: String = String()
+
+  public var kind: Flipcash_Common_V1_Substitution.OneOf_Kind? = nil
+
+  /// Phone number -> contact name or formatted phone number
+  public var phoneNumberToContactName: Flipcash_Common_V1_PhoneNumber {
+    get {
+      if case .phoneNumberToContactName(let v)? = kind {return v}
+      return Flipcash_Common_V1_PhoneNumber()
+    }
+    set {kind = .phoneNumberToContactName(newValue)}
+  }
+
+  /// User ID -> display name
+  public var userIDToDisplayName: Flipcash_Common_V1_UserId {
+    get {
+      if case .userIDToDisplayName(let v)? = kind {return v}
+      return Flipcash_Common_V1_UserId()
+    }
+    set {kind = .userIDToDisplayName(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Kind: Equatable, Sendable {
+    /// Phone number -> contact name or formatted phone number
+    case phoneNumberToContactName(Flipcash_Common_V1_PhoneNumber)
+    /// User ID -> display name
+    case userIDToDisplayName(Flipcash_Common_V1_UserId)
+
+  }
 
   public init() {}
 }
@@ -745,6 +831,66 @@ extension Flipcash_Common_V1_AppInstallId: SwiftProtobuf.Message, SwiftProtobuf.
   }
 
   public static func ==(lhs: Flipcash_Common_V1_AppInstallId, rhs: Flipcash_Common_V1_AppInstallId) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_PhoneNumber: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PhoneNumber"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_PhoneNumber, rhs: Flipcash_Common_V1_PhoneNumber) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_EmailAddress: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".EmailAddress"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_EmailAddress, rhs: Flipcash_Common_V1_EmailAddress) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -1087,6 +1233,108 @@ extension Flipcash_Common_V1_Region: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
   public static func ==(lhs: Flipcash_Common_V1_Region, rhs: Flipcash_Common_V1_Region) -> Bool {
     if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_Color: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Color"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hex\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.hex) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.hex.isEmpty {
+      try visitor.visitSingularStringField(value: self.hex, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_Color, rhs: Flipcash_Common_V1_Color) -> Bool {
+    if lhs.hex != rhs.hex {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_Substitution: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Substitution"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}fallback\0\u{3}phone_number_to_contact_name\0\u{3}user_id_to_display_name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.fallback) }()
+      case 2: try {
+        var v: Flipcash_Common_V1_PhoneNumber?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .phoneNumberToContactName(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .phoneNumberToContactName(v)
+        }
+      }()
+      case 3: try {
+        var v: Flipcash_Common_V1_UserId?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .userIDToDisplayName(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .userIDToDisplayName(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.fallback.isEmpty {
+      try visitor.visitSingularStringField(value: self.fallback, fieldNumber: 1)
+    }
+    switch self.kind {
+    case .phoneNumberToContactName?: try {
+      guard case .phoneNumberToContactName(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .userIDToDisplayName?: try {
+      guard case .userIDToDisplayName(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_Substitution, rhs: Flipcash_Common_V1_Substitution) -> Bool {
+    if lhs.fallback != rhs.fallback {return false}
+    if lhs.kind != rhs.kind {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

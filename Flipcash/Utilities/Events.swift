@@ -241,6 +241,7 @@ private extension Optional where Wrapped == ConversationType {
         switch self {
         case .contactDm: "Contact"
         case .tipDm:     "Tip"
+        case .group:     "Group"
         case .none:      "Unknown"
         }
     }

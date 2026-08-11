@@ -131,9 +131,19 @@ final class UserProfileViewModel {
         self.blurhash = seed.blurhash
     }
 
-    /// Fetches the profile for a fresh name, join date, and avatar.
+    /// Fetches the profile for a fresh name, join date, and avatar. Seeds from
+    /// the shared profile cache first for instant display, then caches the
+    /// freshly fetched profile.
     func loadProfile() async {
+        if let cached = session.cachedUserProfile(for: userID) {
+            apply(cached)
+        }
         guard let profile = try? await flipClient.fetchProfile(userID: userID, owner: owner) else { return }
+        session.cacheUserProfile(profile, for: userID)
+        apply(profile)
+    }
+
+    private func apply(_ profile: Profile) {
         if let name = profile.displayName, !name.isEmpty { displayName = name }
         if blurhash == nil { blurhash = profile.profilePicture?.thumbnailBlurhash }
         if let joined = profile.joinedAt {

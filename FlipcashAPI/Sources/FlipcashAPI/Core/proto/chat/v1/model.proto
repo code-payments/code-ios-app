@@ -16,6 +16,7 @@ enum ChatType {
     UNKNOWN    = 0;
     CONTACT_DM = 1;
     TIP_DM     = 2;
+    GROUP      = 3;
 }
 
 message Metadata {
@@ -27,6 +28,8 @@ message Metadata {
     }];
 
     // Members of this chat
+    //
+    // For large group chats, this is a subset of all members.
     repeated Member members = 3;
 
     // The last message in this chat
@@ -50,6 +53,12 @@ message Metadata {
     // Per-viewer and server-computed (e.g. the chat's peer is on the caller's
     // blocklist). Clients should exclude hidden chats from the primary DM list.
     bool is_hidden = 7;
+
+    // Title for this chat. Only supported for group chats
+    string title = 8 [(validate.rules).string = {
+        min_len: 0
+        max_len: 64
+    }];
 }
 
 message Member {

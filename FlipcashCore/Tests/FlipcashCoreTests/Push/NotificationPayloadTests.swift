@@ -25,7 +25,7 @@ struct NotificationPayloadTests {
         let substitution = try #require(payload.titleSubstitutions.first)
         #expect(payload.titleSubstitutions.count == 1)
         #expect(substitution.fallback == "+15551234567")
-        #expect(substitution.contact.value == "+15551234567")
+        #expect(substitution.phoneNumberToContactName.value == "+15551234567")
     }
 
     @Test("Decodes a payload nested under the aps dictionary")
