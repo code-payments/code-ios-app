@@ -41,8 +41,6 @@ private struct WalletScreenContent: View {
     @State private var appreciation: (amount: FiatAmount, isPositive: Bool)
     @State private var scrolledPast: CGFloat = 0
 
-    private static let scrollSpace = "walletScroll"
-
     init(sessionContainer: SessionContainer) {
         self.session = sessionContainer.session
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
@@ -68,8 +66,10 @@ private struct WalletScreenContent: View {
                     }
                 }
             }
-            .navigationTitle("Wallet")
-            .toolbarTitleDisplayMode(.inline)
+            // No top bar on the wallet root (per Figma) — the balance header
+            // sits directly under the status bar. Pushed destinations restore
+            // their own nav bar.
+            .toolbar(.hidden, for: .navigationBar)
             .appRouterDestinations()
             .onAppear { historyController.sync() }
             .onChange(of: session.balances) { _, _ in refresh() }
@@ -80,35 +80,41 @@ private struct WalletScreenContent: View {
     // MARK: - Content
 
     private var walletContent: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                header
-                    .padding(.vertical, 30)
+        // Track scroll via global coordinates: `viewportTop` is the scroll
+        // container's fixed top; the stack's global top drops below it as the
+        // list scrolls up, and that difference (clamped ≥ 0) is how far the stack
+        // has scrolled past the top — what drives the collapse.
+        GeometryReader { outer in
+            let viewportTop = outer.frame(in: .global).minY
+            ScrollView {
+                VStack(spacing: 0) {
+                    header
+                        .padding(.vertical, 30)
 
-                TokenCardStack(
-                    items: cards,
-                    scrolledPast: scrolledPast,
-                    onCardTap: { router.push(.currencyInfo($0.mint)) }
-                )
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: StackScrollKey.self,
-                            value: -proxy.frame(in: .named(Self.scrollSpace)).minY
-                        )
-                    }
-                )
+                    TokenCardStack(
+                        items: cards,
+                        scrolledPast: scrolledPast,
+                        onCardTap: { router.push(.currencyInfo($0.mint)) }
+                    )
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: StackScrollKey.self,
+                                value: max(0, viewportTop - proxy.frame(in: .global).minY)
+                            )
+                        }
+                    )
 
-                addMoneyButton
-                    .padding(.top, 24)
+                    addMoneyButton
+                        .padding(.top, 24)
 
-                // Bottom inset so the last card clears the floating tab bar.
-                Color.clear.frame(height: 96)
+                    // Bottom inset so the last card clears the floating tab bar.
+                    Color.clear.frame(height: 96)
+                }
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
+            .onPreferenceChange(StackScrollKey.self) { scrolledPast = $0 }
         }
-        .coordinateSpace(name: Self.scrollSpace)
-        .onPreferenceChange(StackScrollKey.self) { scrolledPast = max(0, $0) }
     }
 
     private var header: some View {
