@@ -46,6 +46,9 @@ extension SendTarget {
                 return nil
             }
             self = .contact(target)
+        case .group:
+            // A group chat has no single counterpart to pay through this path.
+            return nil
         }
     }
 }

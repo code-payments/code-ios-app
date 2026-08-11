@@ -644,6 +644,10 @@ final class ConversationController {
     /// Tip DMs skip the contact lookup — their derived ids can never match a
     /// contact's, so the directory scan is a guaranteed miss.
     func displayName(for conversation: Conversation) -> String {
+        // Group chats are named by their server-set title, not a counterpart.
+        if let title = conversation.title, !title.isEmpty {
+            return title
+        }
         if conversation.type != .tipDm, let contactName = contactName(for: conversation.id) {
             return contactName
         }

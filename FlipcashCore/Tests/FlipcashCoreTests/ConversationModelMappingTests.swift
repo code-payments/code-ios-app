@@ -150,6 +150,36 @@ struct ConversationModelMappingTests {
         #expect(Conversation(proto).type == .contactDm)
     }
 
+    @Test("Metadata maps the group chat type and title")
+    func dmMetadataMapsGroupTypeAndTitle() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 16) }
+            $0.type = .group
+            $0.title = "Team Flipcash"
+        }
+
+        let conversation = Conversation(proto)
+        #expect(conversation.type == .group)
+        #expect(conversation.title == "Team Flipcash")
+    }
+
+    @Test("An empty title normalizes to nil (DMs never carry one)")
+    func dmMetadataEmptyTitleNormalizesToNil() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .contactDm
+        }
+
+        #expect(Conversation(proto).title == nil)
+    }
+
+    @Test("ConversationType round-trips through its proto value")
+    func conversationTypeRoundTripsThroughProto() {
+        for type in [ConversationType.contactDm, .tipDm, .group] {
+            #expect(ConversationType(type.proto) == type)
+        }
+    }
+
     @Test("Member maps the profile picture's rendition blob ids")
     func memberMapsProfilePicture() {
         let originalBlob = Data(repeating: 0x0A, count: 16)

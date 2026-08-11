@@ -20,22 +20,27 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     public let type: ConversationType
     /// Whether the server has hidden this conversation from the feed because the counterpart is on the owner's blocklist.
     public var isHidden: Bool
+    /// The server-set title. Only populated for group chats; `nil` for DMs,
+    /// where the counterpart's name is used instead.
+    public var title: String?
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false) {
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
         self.lastActivity = lastActivity
         self.type = type
         self.isHidden = isHidden
+        self.title = title
     }
 }
 
-/// The kind of direct-message conversation, used to scope the DM feed. Raw
-/// values match the proto's `ChatType` and are what the local cache stores.
+/// The kind of conversation, used to scope the feed. Raw values match the
+/// proto's `ChatType` and are what the local cache stores.
 public enum ConversationType: Int, Sendable {
     case contactDm = 1
     case tipDm = 2
+    case group = 3
 }
 
 extension ConversationType {
@@ -43,6 +48,7 @@ extension ConversationType {
         switch self {
         case .contactDm: .contactDm
         case .tipDm:     .tipDm
+        case .group:     .group
         }
     }
 
@@ -52,6 +58,8 @@ extension ConversationType {
         switch proto {
         case .tipDm:
             self = .tipDm
+        case .group:
+            self = .group
         case .contactDm, .unknown, .UNRECOGNIZED:
             self = .contactDm
         }
@@ -66,6 +74,9 @@ extension Conversation {
         self.lastActivity = proto.hasLastActivity ? proto.lastActivity.date : .distantPast
         self.type = ConversationType(proto.type)
         self.isHidden = proto.isHidden
+        // Proto represents an unset title as an empty string; normalize to nil so
+        // DMs (which never carry a title) and untitled groups behave the same.
+        self.title = proto.title.isEmpty ? nil : proto.title
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.

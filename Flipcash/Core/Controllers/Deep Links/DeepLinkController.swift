@@ -184,7 +184,7 @@ struct DeepLinkAction {
         switch conversation?.type {
         case .tipDm:
             container.appRouter.navigate(to: .tipConversation(conversationID))
-        case .contactDm, nil:
+        case .contactDm, .group, nil:
             logger.info("Ignoring non-tip chat deeplink", metadata: [
                 "conversationID": "\(conversationID)",
             ])
