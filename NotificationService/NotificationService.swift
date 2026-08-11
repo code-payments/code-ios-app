@@ -103,22 +103,27 @@ final class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        // Only the `.contact` substitution kind ships today, resolved to a local
-        // name, or to the number itself (national format) when no contact
-        // matches — the sender is never anonymous. The server's per-substitution
-        // `fallback` is reserved for future kinds this client doesn't yet recognize.
-        let titleContacts = payload.titleSubstitutions.map { resolve($0.contact) }
+        // Phone-number substitutions resolve to a local contact name, or to the
+        // number itself (national format) when no contact matches — the sender is
+        // never anonymous. User-ID substitutions (and any kind this client doesn't
+        // yet recognize) resolve to the server's per-substitution `fallback`, since
+        // the extension can't map a user ID to a display name offline. Only the
+        // phone kind yields a resolved contact for the communication styling below.
+        let titleContacts: [ResolvedContact?] = payload.titleSubstitutions.map { substitution in
+            guard case .phoneNumberToContactName(let phone) = substitution.kind else { return nil }
+            return resolve(phone)
+        }
 
         bestAttemptContent.title = SubstitutionApplier.apply(
             template: bestAttemptContent.title,
             resolutions: zip(titleContacts, payload.titleSubstitutions).map { contact, substitution in
-                displayText(contact: contact, phone: substitution.contact)
+                displayText(contact: contact, for: substitution)
             }
         )
         bestAttemptContent.body = SubstitutionApplier.apply(
             template: bestAttemptContent.body,
             resolutions: payload.bodySubstitutions.map { substitution in
-                displayText(contact: resolve(substitution.contact), phone: substitution.contact)
+                displayText(for: substitution)
             }
         )
         bestAttemptContent.threadIdentifier = payload.groupKey
@@ -181,16 +186,30 @@ final class NotificationService: UNNotificationServiceExtension {
         delivery.deliver()
     }
 
-    /// The substitution display: the matched contact's name, else the number
-    /// itself in national format (e.g. "(747) 217-6923"), falling back to the
-    /// raw E.164.
-    private func displayText(contact: ResolvedContact?, phone: Flipcash_Phone_V1_PhoneNumber) -> String {
-        contact?.name ?? Phone(phone.value)?.national ?? phone.value
+    /// The display for a substitution given an already-resolved contact (the
+    /// title path resolves contacts up front to also pick the communication
+    /// sender). Phone-number kinds show the contact's name, else the number in
+    /// national format (e.g. "(747) 217-6923"), else the raw E.164. Any other
+    /// kind falls back to the substitution's server-provided `fallback`.
+    private func displayText(contact: ResolvedContact?, for substitution: Flipcash_Common_V1_Substitution) -> String {
+        guard case .phoneNumberToContactName(let phone) = substitution.kind else {
+            return substitution.fallback
+        }
+        return contact?.name ?? Phone(phone.value)?.national ?? phone.value
+    }
+
+    /// The display for a substitution, resolving the contact on demand (body
+    /// path). Delegates to the pre-resolved variant once the contact is known.
+    private func displayText(for substitution: Flipcash_Common_V1_Substitution) -> String {
+        guard case .phoneNumberToContactName(let phone) = substitution.kind else {
+            return substitution.fallback
+        }
+        return displayText(contact: resolve(phone), for: substitution)
     }
 
     /// Returns the contact matching `phone`, or `nil` if no contact matches, the
     /// contact has no usable name, or Contacts permission is unavailable.
-    private func resolve(_ phone: Flipcash_Phone_V1_PhoneNumber) -> ResolvedContact? {
+    private func resolve(_ phone: Flipcash_Common_V1_PhoneNumber) -> ResolvedContact? {
         let predicate = CNContact.predicateForContacts(
             matching: CNPhoneNumber(stringValue: phone.value)
         )

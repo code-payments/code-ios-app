@@ -72,10 +72,10 @@ final class ContactListService: Sendable {
 
         let request = Flipcash_Contact_V1_DeltaUploadRequest.with {
             $0.adds = adds.map { e164 in
-                Flipcash_Phone_V1_PhoneNumber.with { $0.value = e164 }
+                Flipcash_Common_V1_PhoneNumber.with { $0.value = e164 }
             }
             $0.removes = removes.map { e164 in
-                Flipcash_Phone_V1_PhoneNumber.with { $0.value = e164 }
+                Flipcash_Common_V1_PhoneNumber.with { $0.value = e164 }
             }
             $0.oldChecksum = .with { $0.value = oldChecksum }
             $0.newChecksum = .with { $0.value = newChecksum }
@@ -137,7 +137,7 @@ final class ContactListService: Sendable {
                         for chunk in allChunks {
                             let request = Flipcash_Contact_V1_FullUploadRequest.with {
                                 $0.phones = chunk.map { e164 in
-                                    Flipcash_Phone_V1_PhoneNumber.with { $0.value = e164 }
+                                    Flipcash_Common_V1_PhoneNumber.with { $0.value = e164 }
                                 }
                                 $0.expectedChecksum = .with { $0.value = checksum }
                                 $0.auth = owner.authFor(message: $0)
