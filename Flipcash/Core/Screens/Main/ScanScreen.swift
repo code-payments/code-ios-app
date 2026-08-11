@@ -18,8 +18,14 @@ struct ScanScreen: View {
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
 
+    /// When embedded as a tab in the v2 `HomeTabView`, the app-level
+    /// `router.rootSheet` host is owned by the tab container instead, so this
+    /// screen suppresses its own. Defaults to `false` — the v1 post-login root
+    /// owns the host itself.
+    var isEmbedded: Bool = false
+
     var body: some View {
-        ScanScreenContent(container: container, sessionContainer: sessionContainer)
+        ScanScreenContent(container: container, sessionContainer: sessionContainer, isEmbedded: isEmbedded)
     }
 }
 
@@ -60,11 +66,15 @@ private struct ScanScreenContent: View {
     
     private let sessionContainer: SessionContainer
 
+    /// See ``ScanScreen/isEmbedded``.
+    private let isEmbedded: Bool
+
     // MARK: - Init -
 
-    init(container: Container, sessionContainer: SessionContainer) {
+    init(container: Container, sessionContainer: SessionContainer, isEmbedded: Bool = false) {
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
+        self.isEmbedded       = isEmbedded
 
         self.viewModel = ScanViewModel(
             container: container,
@@ -164,48 +174,11 @@ private struct ScanScreenContent: View {
                     }
             }
         }
-        // Resume a tip held for profile creation the moment the profile
-        // becomes tippable. The sheet-close hook is the belt for a missed
-        // flip edge (e.g. the profile record arriving mid-transition):
-        // closing Tips with a held tip resumes it when a profile exists and
-        // drops it when creation was abandoned.
-        .onChange(of: session.profile?.isTippable ?? false) { _, isTippable in
-            guard isTippable else { return }
-            sessionContainer.tipFlow.resumeAfterProfileCreation()
-        }
-        .onChange(of: router.rootSheet) { old, new in
-            guard old == .tips, new == nil else { return }
-            if session.profile?.isTippable == true {
-                sessionContainer.tipFlow.resumeAfterProfileCreation()
-            } else {
-                sessionContainer.tipFlow.abandonPendingTip()
-            }
-        }
-        // Swipe-to-dismiss writes nil through this binding; route through
-        // `dismissSheet()` so the dismissal is logged. Programmatic presentations
-        // go through `router.present(_:)` directly and never write through here.
-        // Bound to `rootSheet` (bottom of the sheet stack) — nested sheets mount
-        // inside this root sheet's content via `.appRouterNestedSheet`.
-        .sheet(item: Binding(
-            get: { router.rootSheet },
-            set: { newValue in
-                if newValue == nil {
-                    router.dismissSheet()
-                }
-            }
-        )) { sheet in
-            RoutedSheet(sheet: sheet)
-                .appRouterNestedSheet()
-        }
-        // Dismiss all presented sheets when a bill is about to appear.
-        // Bills render in ScanScreen's ZStack, so any sheet on top
-        // (Settings, Balance, Give) would obscure them. This ensures
-        // cash links received via push notifications or deep links
-        // are always visible regardless of the current navigation state.
-        .onChange(of: session.presentationState.isPresenting) { _, isPresenting in
-            guard isPresenting else { return }
-            router.dismissSheet()
-        }
+        // The app-level `router.rootSheet` host (RoutedSheet + tip-resume + the
+        // bill-dismiss hook). Owned here for the v1 root; when embedded as a v2
+        // tab, `HomeTabView` owns it instead, so this suppresses its own to avoid
+        // presenting the same sheet twice.
+        .modifier(RootSheetHostModifier(enabled: !isEmbedded))
         // Reset button state on bill dismissal — `sendButtonState` outlives individual bills.
         .onChange(of: session.billState.bill) { _, newBill in
             guard newBill == nil else { return }
@@ -449,6 +422,75 @@ private struct RoutedSheet: View {
             // Send Cash deeplink / App Intent opens the amount entry with no chat
             // behind it. (In-chat Send Cash still enters it via presentNested.)
             SendAmountSheetRoot(target: target)
+        }
+    }
+}
+
+// MARK: - RootSheetHostModifier -
+
+/// Hosts the app-level `router.rootSheet` presentation (the `RoutedSheet` swap),
+/// the tip-resume-after-profile-creation hooks, and the dismiss-sheets-on-bill
+/// hook. Exactly one live view must own this so `router.present(_:)` works from
+/// anywhere: the v1 root (`ScanScreen`) in the scanner-first UI, or the tab
+/// container (`HomeTabView`) in the v2 UI. `enabled` lets `ScanScreen` suppress
+/// its own copy when it is embedded as a v2 tab.
+struct RootSheetHostModifier: ViewModifier {
+
+    var enabled: Bool = true
+
+    @Environment(AppRouter.self) private var router
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    private var session: Session { sessionContainer.session }
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                // Resume a tip held for profile creation the moment the profile
+                // becomes tippable. The sheet-close hook is the belt for a missed
+                // flip edge (e.g. the profile record arriving mid-transition):
+                // closing Tips with a held tip resumes it when a profile exists
+                // and drops it when creation was abandoned.
+                .onChange(of: session.profile?.isTippable ?? false) { _, isTippable in
+                    guard isTippable else { return }
+                    sessionContainer.tipFlow.resumeAfterProfileCreation()
+                }
+                .onChange(of: router.rootSheet) { old, new in
+                    guard old == .tips, new == nil else { return }
+                    if session.profile?.isTippable == true {
+                        sessionContainer.tipFlow.resumeAfterProfileCreation()
+                    } else {
+                        sessionContainer.tipFlow.abandonPendingTip()
+                    }
+                }
+                // Swipe-to-dismiss writes nil through this binding; route through
+                // `dismissSheet()` so the dismissal is logged. Programmatic
+                // presentations go through `router.present(_:)` directly and never
+                // write through here. Bound to `rootSheet` (bottom of the sheet
+                // stack) — nested sheets mount inside this root sheet's content
+                // via `.appRouterNestedSheet`.
+                .sheet(item: Binding(
+                    get: { router.rootSheet },
+                    set: { newValue in
+                        if newValue == nil {
+                            router.dismissSheet()
+                        }
+                    }
+                )) { sheet in
+                    RoutedSheet(sheet: sheet)
+                        .appRouterNestedSheet()
+                }
+                // Dismiss all presented sheets when a bill is about to appear.
+                // Bills render behind sheets, so any sheet on top (Settings,
+                // Balance, Give) would obscure them. This ensures cash links
+                // received via push notifications or deep links are always visible
+                // regardless of the current navigation state.
+                .onChange(of: session.presentationState.isPresenting) { _, isPresenting in
+                    guard isPresenting else { return }
+                    router.dismissSheet()
+                }
+        } else {
+            content
         }
     }
 }
