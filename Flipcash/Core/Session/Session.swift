@@ -152,6 +152,20 @@ class Session {
         updateableBalances.value.first { $0.mint == mint }
     }
 
+    /// The mint's bill-customization colors (the `#RRGGBB` palette users pick in
+    /// the currency creator), used to paint its token card. Empty when the mint
+    /// has no stored metadata or no customization.
+    func billColors(for mint: PublicKey) -> [String] {
+        guard
+            let json = (try? database.getMintMetadata(mint: mint))?.billColors,
+            let data = json.data(using: .utf8),
+            let colors = try? JSONDecoder().decode([String].self, from: data)
+        else {
+            return []
+        }
+        return colors
+    }
+
     /// True when the user has at least one non-USDF balance with a displayable
     /// fiat value. Skips the sort + allocate that `balances(for:)` does, so
     /// callers gating a presentation pay only the early-exit predicate cost.
