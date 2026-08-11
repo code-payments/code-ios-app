@@ -7,7 +7,6 @@ option java_package = "com.codeinc.flipcash.gen.intent.v1";
 option objc_class_prefix = "FPBIntentV1";
 
 import "common/v1/common.proto";
-import "phone/v1/model.proto";
 import "validate/validate.proto";
 
 message AppMetadata {
@@ -32,10 +31,10 @@ message ChatMetadata {
     // For sending a payment to a contact in a DM
     message ContactDmPayment {
         // Source phone number that is paying. This is validated to be linked to the sender.
-        phone.v1.PhoneNumber source = 1 [(validate.rules).message.required = true];
+        common.v1.PhoneNumber source = 1 [(validate.rules).message.required = true];
 
         // Destination phone number that is being paid. This is validated to be linked to the receiver.
-        phone.v1.PhoneNumber destination = 2 [(validate.rules).message.required = true];
+        common.v1.PhoneNumber destination = 2 [(validate.rules).message.required = true];
     }
 
     // For sending a DM payment to someone using their user ID, which maps

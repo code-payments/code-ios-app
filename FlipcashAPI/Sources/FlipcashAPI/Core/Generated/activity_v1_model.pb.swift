@@ -263,6 +263,9 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
     set {additionalMetadata = .soldCrypto(newValue)}
   }
 
+  /// Ordered substitutions to apply to localized_text
+  public var textSubstitutions: [Flipcash_Common_V1_Substitution] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Additional metadata for this notification specific to the notification
@@ -291,18 +294,27 @@ public struct Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata: Senda
 
   public var destinationIdentifier: Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata.OneOf_DestinationIdentifier? = nil
 
-  public var phone: Flipcash_Phone_V1_PhoneNumber {
+  public var phone: Flipcash_Common_V1_PhoneNumber {
     get {
       if case .phone(let v)? = destinationIdentifier {return v}
-      return Flipcash_Phone_V1_PhoneNumber()
+      return Flipcash_Common_V1_PhoneNumber()
     }
     set {destinationIdentifier = .phone(newValue)}
+  }
+
+  public var userID: Flipcash_Common_V1_UserId {
+    get {
+      if case .userID(let v)? = destinationIdentifier {return v}
+      return Flipcash_Common_V1_UserId()
+    }
+    set {destinationIdentifier = .userID(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_DestinationIdentifier: Equatable, Sendable {
-    case phone(Flipcash_Phone_V1_PhoneNumber)
+    case phone(Flipcash_Common_V1_PhoneNumber)
+    case userID(Flipcash_Common_V1_UserId)
 
   }
 
@@ -316,18 +328,27 @@ public struct Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: Sendable 
 
   public var sourceIdentifier: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata.OneOf_SourceIdentifier? = nil
 
-  public var phone: Flipcash_Phone_V1_PhoneNumber {
+  public var phone: Flipcash_Common_V1_PhoneNumber {
     get {
       if case .phone(let v)? = sourceIdentifier {return v}
-      return Flipcash_Phone_V1_PhoneNumber()
+      return Flipcash_Common_V1_PhoneNumber()
     }
     set {sourceIdentifier = .phone(newValue)}
+  }
+
+  public var userID: Flipcash_Common_V1_UserId {
+    get {
+      if case .userID(let v)? = sourceIdentifier {return v}
+      return Flipcash_Common_V1_UserId()
+    }
+    set {sourceIdentifier = .userID(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_SourceIdentifier: Equatable, Sendable {
-    case phone(Flipcash_Phone_V1_PhoneNumber)
+    case phone(Flipcash_Common_V1_PhoneNumber)
+    case userID(Flipcash_Common_V1_UserId)
 
   }
 
@@ -453,7 +474,7 @@ extension Flipcash_Activity_V1_NotificationId: SwiftProtobuf.Message, SwiftProto
 
 extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Notification"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}localized_text\0\u{3}payment_amount\0\u{1}ts\0\u{1}state\0\u{4}\u{2}directly_sent_crypto\0\u{3}received_crypto\0\u{3}withdrew_crypto\0\u{3}indirectly_sent_crypto\0\u{3}deposited_crypto\0\u{3}bought_crypto\0\u{3}sold_crypto\0\u{c}\u{6}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}localized_text\0\u{3}payment_amount\0\u{1}ts\0\u{1}state\0\u{4}\u{2}directly_sent_crypto\0\u{3}received_crypto\0\u{3}withdrew_crypto\0\u{3}indirectly_sent_crypto\0\u{3}deposited_crypto\0\u{3}bought_crypto\0\u{3}sold_crypto\0\u{4}W\u{1}text_substitutions\0\u{c}\u{6}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -557,6 +578,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
           self.additionalMetadata = .soldCrypto(v)
         }
       }()
+      case 100: try { try decoder.decodeRepeatedMessageField(value: &self.textSubstitutions) }()
       default: break
       }
     }
@@ -613,6 +635,9 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     }()
     case nil: break
     }
+    if !self.textSubstitutions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.textSubstitutions, fieldNumber: 100)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -623,6 +648,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     if lhs._ts != rhs._ts {return false}
     if lhs.state != rhs.state {return false}
     if lhs.additionalMetadata != rhs.additionalMetadata {return false}
+    if lhs.textSubstitutions != rhs.textSubstitutions {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -630,7 +656,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
 
 extension Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DirectlySentCryptoNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0\u{3}user_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -639,7 +665,7 @@ extension Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata: SwiftProt
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Flipcash_Phone_V1_PhoneNumber?
+        var v: Flipcash_Common_V1_PhoneNumber?
         var hadOneofValue = false
         if let current = self.destinationIdentifier {
           hadOneofValue = true
@@ -649,6 +675,19 @@ extension Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata: SwiftProt
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.destinationIdentifier = .phone(v)
+        }
+      }()
+      case 2: try {
+        var v: Flipcash_Common_V1_UserId?
+        var hadOneofValue = false
+        if let current = self.destinationIdentifier {
+          hadOneofValue = true
+          if case .userID(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.destinationIdentifier = .userID(v)
         }
       }()
       default: break
@@ -661,9 +700,17 @@ extension Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata: SwiftProt
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .phone(let v)? = self.destinationIdentifier {
+    switch self.destinationIdentifier {
+    case .phone?: try {
+      guard case .phone(let v)? = self.destinationIdentifier else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    }()
+    case .userID?: try {
+      guard case .userID(let v)? = self.destinationIdentifier else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -676,7 +723,7 @@ extension Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata: SwiftProt
 
 extension Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReceivedCryptoNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0\u{3}user_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -685,7 +732,7 @@ extension Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Flipcash_Phone_V1_PhoneNumber?
+        var v: Flipcash_Common_V1_PhoneNumber?
         var hadOneofValue = false
         if let current = self.sourceIdentifier {
           hadOneofValue = true
@@ -695,6 +742,19 @@ extension Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: SwiftProtobuf
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.sourceIdentifier = .phone(v)
+        }
+      }()
+      case 2: try {
+        var v: Flipcash_Common_V1_UserId?
+        var hadOneofValue = false
+        if let current = self.sourceIdentifier {
+          hadOneofValue = true
+          if case .userID(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.sourceIdentifier = .userID(v)
         }
       }()
       default: break
@@ -707,9 +767,17 @@ extension Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: SwiftProtobuf
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .phone(let v)? = self.sourceIdentifier {
+    switch self.sourceIdentifier {
+    case .phone?: try {
+      guard case .phone(let v)? = self.sourceIdentifier else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    }()
+    case .userID?: try {
+      guard case .userID(let v)? = self.sourceIdentifier else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 

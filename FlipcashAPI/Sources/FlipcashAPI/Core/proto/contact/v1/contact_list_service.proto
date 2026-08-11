@@ -4,7 +4,6 @@ package flipcash.contact.v1;
 
 import "contact/v1/model.proto";
 import "common/v1/common.proto";
-import "phone/v1/model.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/contact/v1;contactpb";
@@ -64,9 +63,9 @@ message CheckSyncResponse {
 message DeltaUploadRequest {
     common.v1.Auth auth = 1 [(validate.rules).message.required = true];
 
-    repeated phone.v1.PhoneNumber adds = 2 [(validate.rules).repeated.max_items = 1000];
+    repeated common.v1.PhoneNumber adds = 2 [(validate.rules).repeated.max_items = 1000];
 
-    repeated phone.v1.PhoneNumber removes = 3 [(validate.rules).repeated.max_items = 1000];
+    repeated common.v1.PhoneNumber removes = 3 [(validate.rules).repeated.max_items = 1000];
 
     // The checksum the client expected the server to have *before* applying
     // this delta. Server applies only if stored == old_checksum.
@@ -97,7 +96,7 @@ message FullUploadRequest {
 
     // The complete current contact set. Server replaces stored state with
     // this list in one transaction.
-    repeated phone.v1.PhoneNumber phones = 2 [(validate.rules).repeated.max_items = 1000];
+    repeated common.v1.PhoneNumber phones = 2 [(validate.rules).repeated.max_items = 1000];
 
     // XOR-of-SHA256 over the client's current set of normalized E.164 phones.
     // Sent on the last streamed request to indicate the end of the upload.

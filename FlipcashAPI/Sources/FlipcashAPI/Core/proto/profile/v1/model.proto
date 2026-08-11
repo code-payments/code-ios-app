@@ -7,8 +7,7 @@ option java_package = "com.codeinc.flipcash.gen.profile.v1";
 option objc_class_prefix = "FPBProfileV1";
 
 import "blob/v1/model.proto";
-import "email/v1/model.proto";
-import "phone/v1/model.proto";
+import "common/v1/common.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -28,11 +27,11 @@ message UserProfile {
 
     // Phone number linked to this user. This is private and will only be returned
     // when the requesting user asks for their own profile
-    phone.v1.PhoneNumber phone_number = 3;
+    common.v1.PhoneNumber phone_number = 3;
 
     // Email address linked to this user. This is private and will only be returned
     // when the requesting user asks for their own profile
-    email.v1.EmailAddress email_address = 4;
+    common.v1.EmailAddress email_address = 4;
 
     // The user's profile picture, as the set of renditions it is stored as —
     // typically a DISPLAY for the profile view and a THUMBNAIL for avatars in
@@ -47,6 +46,11 @@ message UserProfile {
 
     // Timestamp the user joined Flipcash
     google.protobuf.Timestamp join_ts = 6 [(validate.rules).timestamp.required = true];
+
+    // How the user has customized their Tip Card. Public, so it is returned for
+    // any user, not just the caller. Always set — the server resolves defaults
+    // for anything the user hasn't customized. Update it with UpdateTipCard.
+    TipCardCustomization tip_card_customization = 7 [(validate.rules).message.required = true];
 }
 
 message SocialProfile {
@@ -97,4 +101,11 @@ message XProfile {
 
     // The number of followers the user has on X
     uint32 follower_count = 7;    
+}
+
+// Customization for a Tip Card
+message TipCardCustomization {
+    // The colour of the Tip Card. Always set — the server falls back to the
+    // default colour when the user hasn't picked one.
+    common.v1.Color color = 1 [(validate.rules).message.required = true];
 }

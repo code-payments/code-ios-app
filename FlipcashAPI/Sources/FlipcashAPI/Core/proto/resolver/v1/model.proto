@@ -7,7 +7,6 @@ option java_package = "com.codeinc.flipcash.gen.resolver.v1";
 option objc_class_prefix = "FPBResolverV1";
 
 import "common/v1/common.proto";
-import "phone/v1/model.proto";
 import "validate/validate.proto";
 
 // Identifier wraps a real-world identifier that can be resolved to a
@@ -16,8 +15,8 @@ message Identifier {
     oneof kind {
         option (validate.required) = true;
 
-        phone.v1.PhoneNumber phone   = 1;
-        common.v1.UserId     user_id = 2;
+        common.v1.PhoneNumber phone   = 1;
+        common.v1.UserId      user_id = 2;
     }
 }
 

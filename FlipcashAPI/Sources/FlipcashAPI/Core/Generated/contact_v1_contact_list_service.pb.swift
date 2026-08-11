@@ -129,9 +129,9 @@ public struct Flipcash_Contact_V1_DeltaUploadRequest: Sendable {
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
-  public var adds: [Flipcash_Phone_V1_PhoneNumber] = []
+  public var adds: [Flipcash_Common_V1_PhoneNumber] = []
 
-  public var removes: [Flipcash_Phone_V1_PhoneNumber] = []
+  public var removes: [Flipcash_Common_V1_PhoneNumber] = []
 
   /// The checksum the client expected the server to have *before* applying
   /// this delta. Server applies only if stored == old_checksum.
@@ -244,7 +244,7 @@ public struct Flipcash_Contact_V1_FullUploadRequest: Sendable {
 
   /// The complete current contact set. Server replaces stored state with
   /// this list in one transaction.
-  public var phones: [Flipcash_Phone_V1_PhoneNumber] = []
+  public var phones: [Flipcash_Common_V1_PhoneNumber] = []
 
   /// XOR-of-SHA256 over the client's current set of normalized E.164 phones.
   /// Sent on the last streamed request to indicate the end of the upload.

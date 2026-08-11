@@ -79,10 +79,10 @@ public struct Flipcash_Push_V1_Payload: Sendable {
   public mutating func clearNavigation() {self._navigation = nil}
 
   /// Ordered substitutions to apply to push title
-  public var titleSubstitutions: [Flipcash_Push_V1_Substitution] = []
+  public var titleSubstitutions: [Flipcash_Common_V1_Substitution] = []
 
   /// Ordered substitutions to apply to push body
-  public var bodySubstitutions: [Flipcash_Push_V1_Substitution] = []
+  public var bodySubstitutions: [Flipcash_Common_V1_Substitution] = []
 
   /// Push notification category
   public var category: Flipcash_Push_V1_Payload.Category = .default
@@ -185,10 +185,10 @@ public struct Flipcash_Push_V1_Navigation: Sendable {
   }
 
   /// Chat for a contact with the provided phone number
-  public var chatContactPhoneNumber: Flipcash_Phone_V1_PhoneNumber {
+  public var chatContactPhoneNumber: Flipcash_Common_V1_PhoneNumber {
     get {
       if case .chatContactPhoneNumber(let v)? = type {return v}
-      return Flipcash_Phone_V1_PhoneNumber()
+      return Flipcash_Common_V1_PhoneNumber()
     }
     set {type = .chatContactPhoneNumber(newValue)}
   }
@@ -201,37 +201,7 @@ public struct Flipcash_Push_V1_Navigation: Sendable {
     /// Chat for the provided ID
     case chatID(Flipcash_Common_V1_ChatId)
     /// Chat for a contact with the provided phone number
-    case chatContactPhoneNumber(Flipcash_Phone_V1_PhoneNumber)
-
-  }
-
-  public init() {}
-}
-
-public struct Flipcash_Push_V1_Substitution: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Fallback string for forwards compatibility
-  public var fallback: String = String()
-
-  public var kind: Flipcash_Push_V1_Substitution.OneOf_Kind? = nil
-
-  /// Phone number -> contact name or formatted phone number
-  public var contact: Flipcash_Phone_V1_PhoneNumber {
-    get {
-      if case .contact(let v)? = kind {return v}
-      return Flipcash_Phone_V1_PhoneNumber()
-    }
-    set {kind = .contact(newValue)}
-  }
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum OneOf_Kind: Equatable, Sendable {
-    /// Phone number -> contact name or formatted phone number
-    case contact(Flipcash_Phone_V1_PhoneNumber)
+    case chatContactPhoneNumber(Flipcash_Common_V1_PhoneNumber)
 
   }
 
@@ -375,7 +345,7 @@ extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._Mes
         }
       }()
       case 3: try {
-        var v: Flipcash_Phone_V1_PhoneNumber?
+        var v: Flipcash_Common_V1_PhoneNumber?
         var hadOneofValue = false
         if let current = self.type {
           hadOneofValue = true
@@ -417,57 +387,6 @@ extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
   public static func ==(lhs: Flipcash_Push_V1_Navigation, rhs: Flipcash_Push_V1_Navigation) -> Bool {
     if lhs.type != rhs.type {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipcash_Push_V1_Substitution: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Substitution"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}fallback\0\u{1}contact\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.fallback) }()
-      case 2: try {
-        var v: Flipcash_Phone_V1_PhoneNumber?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .contact(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .contact(v)
-        }
-      }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.fallback.isEmpty {
-      try visitor.visitSingularStringField(value: self.fallback, fieldNumber: 1)
-    }
-    try { if case .contact(let v)? = self.kind {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipcash_Push_V1_Substitution, rhs: Flipcash_Push_V1_Substitution) -> Bool {
-    if lhs.fallback != rhs.fallback {return false}
-    if lhs.kind != rhs.kind {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

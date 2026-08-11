@@ -3,7 +3,6 @@ syntax = "proto3";
 package flipcash.contact.v1;
 
 import "common/v1/common.proto";
-import "phone/v1/model.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -12,7 +11,7 @@ option java_package = "com.codeinc.flipcash.gen.contact.v1";
 option objc_class_prefix = "FPBContactV1";
 
 message FlipcashContact {
-    phone.v1.PhoneNumber phone = 1 [(validate.rules).message.required = true];
+    common.v1.PhoneNumber phone = 1 [(validate.rules).message.required = true];
 
     // The DM chat ID for the Flipcash contact. If the chat doesn't exist, it needs
     // to be initiated with a cash send to initialize it

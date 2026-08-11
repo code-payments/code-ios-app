@@ -29,7 +29,7 @@ service PhoneVerification {
 
 message SendVerificationCodeRequest {
     // The phone number to send a verification code over SMS to
-    PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
 
     // The app platform that's making this request
     common.v1.Platform platform = 2 [(validate.rules).enum = {in: [1,2]}];
@@ -55,7 +55,7 @@ message SendVerificationCodeResponse {
 
 message CheckVerificationCodeRequest {
     // The phone number being verified
-    PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
 
     // The verification code received via SMS
     VerificationCode code = 2 [(validate.rules).message.required = true];
@@ -85,7 +85,7 @@ message CheckVerificationCodeResponse {
 
 message UnlinkRequest {
     // The phone number to unlink
-    PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
 
     common.v1.Auth auth = 2 [(validate.rules).message.required = true];
 }
@@ -101,7 +101,7 @@ message UnlinkResponse {
 
 message LinkForPaymentRequest {
     // The phone number to link for payment
-    PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
 
     common.v1.Auth auth = 2 [(validate.rules).message.required = true];
 }

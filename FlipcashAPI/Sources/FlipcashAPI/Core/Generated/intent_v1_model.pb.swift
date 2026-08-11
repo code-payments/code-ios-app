@@ -93,8 +93,8 @@ public struct Flipcash_Intent_V1_ChatMetadata: Sendable {
     // methods supported on all messages.
 
     /// Source phone number that is paying. This is validated to be linked to the sender.
-    public var source: Flipcash_Phone_V1_PhoneNumber {
-      get {return _source ?? Flipcash_Phone_V1_PhoneNumber()}
+    public var source: Flipcash_Common_V1_PhoneNumber {
+      get {return _source ?? Flipcash_Common_V1_PhoneNumber()}
       set {_source = newValue}
     }
     /// Returns true if `source` has been explicitly set.
@@ -103,8 +103,8 @@ public struct Flipcash_Intent_V1_ChatMetadata: Sendable {
     public mutating func clearSource() {self._source = nil}
 
     /// Destination phone number that is being paid. This is validated to be linked to the receiver.
-    public var destination: Flipcash_Phone_V1_PhoneNumber {
-      get {return _destination ?? Flipcash_Phone_V1_PhoneNumber()}
+    public var destination: Flipcash_Common_V1_PhoneNumber {
+      get {return _destination ?? Flipcash_Common_V1_PhoneNumber()}
       set {_destination = newValue}
     }
     /// Returns true if `destination` has been explicitly set.
@@ -116,8 +116,8 @@ public struct Flipcash_Intent_V1_ChatMetadata: Sendable {
 
     public init() {}
 
-    fileprivate var _source: Flipcash_Phone_V1_PhoneNumber? = nil
-    fileprivate var _destination: Flipcash_Phone_V1_PhoneNumber? = nil
+    fileprivate var _source: Flipcash_Common_V1_PhoneNumber? = nil
+    fileprivate var _destination: Flipcash_Common_V1_PhoneNumber? = nil
   }
 
   /// For sending a DM payment to someone using their user ID, which maps

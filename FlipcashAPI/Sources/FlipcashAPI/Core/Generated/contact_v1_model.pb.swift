@@ -25,8 +25,8 @@ public struct Flipcash_Contact_V1_FlipcashContact: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var phone: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phone ?? Flipcash_Phone_V1_PhoneNumber()}
+  public var phone: Flipcash_Common_V1_PhoneNumber {
+    get {return _phone ?? Flipcash_Common_V1_PhoneNumber()}
     set {_phone = newValue}
   }
   /// Returns true if `phone` has been explicitly set.
@@ -59,7 +59,7 @@ public struct Flipcash_Contact_V1_FlipcashContact: Sendable {
 
   public init() {}
 
-  fileprivate var _phone: Flipcash_Phone_V1_PhoneNumber? = nil
+  fileprivate var _phone: Flipcash_Common_V1_PhoneNumber? = nil
   fileprivate var _dmChatID: Flipcash_Common_V1_ChatId? = nil
   fileprivate var _joinTs: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }

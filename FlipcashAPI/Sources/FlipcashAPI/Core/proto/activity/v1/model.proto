@@ -7,7 +7,6 @@ option java_package = "com.codeinc.flipcash.gen.activity.v1";
 option objc_class_prefix = "FCPBActivityV1";
 
 import "common/v1/common.proto";
-import "phone/v1/model.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -51,17 +50,22 @@ message Notification {
     }
 
     reserved 6; // Deprecated WelcomeBonusNotificationMetadata
+
+    // Ordered substitutions to apply to localized_text
+    repeated common.v1.Substitution text_substitutions = 100;
 }
 
 message DirectlySentCryptoNotificationMetadata {
     oneof destination_identifier {
-        phone.v1.PhoneNumber phone = 1;
+        common.v1.PhoneNumber phone   = 1;
+        common.v1.UserId      user_id = 2;
     }
 }
 
 message ReceivedCryptoNotificationMetadata {
     oneof source_identifier {
-        phone.v1.PhoneNumber phone = 1;
+        common.v1.PhoneNumber phone   = 1;
+        common.v1.UserId      user_id = 2;
     }
 }
 

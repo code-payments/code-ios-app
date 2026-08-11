@@ -25,6 +25,7 @@ public enum Flipcash_Chat_V1_ChatType: SwiftProtobuf.Enum, Swift.CaseIterable {
   case unknown // = 0
   case contactDm // = 1
   case tipDm // = 2
+  case group // = 3
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -36,6 +37,7 @@ public enum Flipcash_Chat_V1_ChatType: SwiftProtobuf.Enum, Swift.CaseIterable {
     case 0: self = .unknown
     case 1: self = .contactDm
     case 2: self = .tipDm
+    case 3: self = .group
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -45,6 +47,7 @@ public enum Flipcash_Chat_V1_ChatType: SwiftProtobuf.Enum, Swift.CaseIterable {
     case .unknown: return 0
     case .contactDm: return 1
     case .tipDm: return 2
+    case .group: return 3
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -54,6 +57,7 @@ public enum Flipcash_Chat_V1_ChatType: SwiftProtobuf.Enum, Swift.CaseIterable {
     .unknown,
     .contactDm,
     .tipDm,
+    .group,
   ]
 
 }
@@ -79,6 +83,8 @@ public struct Flipcash_Chat_V1_Metadata: @unchecked Sendable {
   }
 
   /// Members of this chat
+  ///
+  /// For large group chats, this is a subset of all members.
   public var members: [Flipcash_Chat_V1_Member] {
     get {return _storage._members}
     set {_uniqueStorage()._members = newValue}
@@ -124,6 +130,12 @@ public struct Flipcash_Chat_V1_Metadata: @unchecked Sendable {
   public var isHidden: Bool {
     get {return _storage._isHidden}
     set {_uniqueStorage()._isHidden = newValue}
+  }
+
+  /// Title for this chat. Only supported for group chats
+  public var title: String {
+    get {return _storage._title}
+    set {_uniqueStorage()._title = newValue}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -255,12 +267,12 @@ public struct Flipcash_Chat_V1_MetadataUpdate: Sendable {
 fileprivate let _protobuf_package = "flipcash.chat.v1"
 
 extension Flipcash_Chat_V1_ChatType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}CONTACT_DM\0\u{1}TIP_DM\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}CONTACT_DM\0\u{1}TIP_DM\0\u{1}GROUP\0")
 }
 
 extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Metadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{1}type\0\u{1}members\0\u{3}last_message\0\u{3}last_activity\0\u{3}latest_event_sequence\0\u{3}is_hidden\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{1}type\0\u{1}members\0\u{3}last_message\0\u{3}last_activity\0\u{3}latest_event_sequence\0\u{3}is_hidden\0\u{1}title\0")
 
   fileprivate class _StorageClass {
     var _chatID: Flipcash_Common_V1_ChatId? = nil
@@ -270,6 +282,7 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     var _lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
     var _latestEventSequence: UInt64 = 0
     var _isHidden: Bool = false
+    var _title: String = String()
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -287,6 +300,7 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
       _lastActivity = source._lastActivity
       _latestEventSequence = source._latestEventSequence
       _isHidden = source._isHidden
+      _title = source._title
     }
   }
 
@@ -312,6 +326,7 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
         case 5: try { try decoder.decodeSingularMessageField(value: &_storage._lastActivity) }()
         case 6: try { try decoder.decodeSingularUInt64Field(value: &_storage._latestEventSequence) }()
         case 7: try { try decoder.decodeSingularBoolField(value: &_storage._isHidden) }()
+        case 8: try { try decoder.decodeSingularStringField(value: &_storage._title) }()
         default: break
         }
       }
@@ -345,6 +360,9 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
       if _storage._isHidden != false {
         try visitor.visitSingularBoolField(value: _storage._isHidden, fieldNumber: 7)
       }
+      if !_storage._title.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._title, fieldNumber: 8)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -361,6 +379,7 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
         if _storage._lastActivity != rhs_storage._lastActivity {return false}
         if _storage._latestEventSequence != rhs_storage._latestEventSequence {return false}
         if _storage._isHidden != rhs_storage._isHidden {return false}
+        if _storage._title != rhs_storage._title {return false}
         return true
       }
       if !storagesAreEqual {return false}

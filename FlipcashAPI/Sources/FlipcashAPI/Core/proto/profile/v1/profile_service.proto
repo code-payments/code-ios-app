@@ -26,6 +26,10 @@ service Profile {
 	// DISPLAY and THUMBNAIL renditions itself and returns the full set.
 	rpc SetProfilePicture(SetProfilePictureRequest) returns (SetProfilePictureResponse);
 
+	// UpdateTipCard updates the caller's Tip Card customization. Every field is
+	// optional; only the ones set in the request are changed.
+	rpc UpdateTipCard(UpdateTipCardRequest) returns (UpdateTipCardResponse);
+
 	// LinkSocialAccount links a social account to a user
 	rpc LinkSocialAccount(LinkSocialAccountRequest) returns (LinkSocialAccountResponse);
 
@@ -102,6 +106,22 @@ message SetProfilePictureResponse {
 	// The caller's new profile picture, including the renditions the server
 	// derived. Set only when result == OK.
 	blob.v1.Media profile_picture = 2;
+}
+
+message UpdateTipCardRequest {
+	// The new colour of the Tip Card. Left unchanged when unset.
+	common.v1.Color color = 1;
+
+	common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message UpdateTipCardResponse {
+	Result result = 1;
+	enum Result {
+		OK            = 0;
+		DENIED        = 1;
+		INVALID_COLOR = 2;
+	}
 }
 
 message LinkSocialAccountRequest {

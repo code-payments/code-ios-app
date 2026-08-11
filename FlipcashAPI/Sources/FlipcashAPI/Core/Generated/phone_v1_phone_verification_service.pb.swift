@@ -26,8 +26,8 @@ public struct Flipcash_Phone_V1_SendVerificationCodeRequest: Sendable {
   // methods supported on all messages.
 
   /// The phone number to send a verification code over SMS to
-  public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+  public var phoneNumber: Flipcash_Common_V1_PhoneNumber {
+    get {return _phoneNumber ?? Flipcash_Common_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
@@ -51,7 +51,7 @@ public struct Flipcash_Phone_V1_SendVerificationCodeRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _phoneNumber: Flipcash_Phone_V1_PhoneNumber? = nil
+  fileprivate var _phoneNumber: Flipcash_Common_V1_PhoneNumber? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
 
@@ -128,8 +128,8 @@ public struct Flipcash_Phone_V1_CheckVerificationCodeRequest: Sendable {
   // methods supported on all messages.
 
   /// The phone number being verified
-  public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+  public var phoneNumber: Flipcash_Common_V1_PhoneNumber {
+    get {return _phoneNumber ?? Flipcash_Common_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
@@ -160,7 +160,7 @@ public struct Flipcash_Phone_V1_CheckVerificationCodeRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _phoneNumber: Flipcash_Phone_V1_PhoneNumber? = nil
+  fileprivate var _phoneNumber: Flipcash_Common_V1_PhoneNumber? = nil
   fileprivate var _code: Flipcash_Phone_V1_VerificationCode? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
@@ -241,8 +241,8 @@ public struct Flipcash_Phone_V1_UnlinkRequest: Sendable {
   // methods supported on all messages.
 
   /// The phone number to unlink
-  public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+  public var phoneNumber: Flipcash_Common_V1_PhoneNumber {
+    get {return _phoneNumber ?? Flipcash_Common_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
@@ -263,7 +263,7 @@ public struct Flipcash_Phone_V1_UnlinkRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _phoneNumber: Flipcash_Phone_V1_PhoneNumber? = nil
+  fileprivate var _phoneNumber: Flipcash_Common_V1_PhoneNumber? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
 
@@ -319,8 +319,8 @@ public struct Flipcash_Phone_V1_LinkForPaymentRequest: Sendable {
   // methods supported on all messages.
 
   /// The phone number to link for payment
-  public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+  public var phoneNumber: Flipcash_Common_V1_PhoneNumber {
+    get {return _phoneNumber ?? Flipcash_Common_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
@@ -341,7 +341,7 @@ public struct Flipcash_Phone_V1_LinkForPaymentRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _phoneNumber: Flipcash_Phone_V1_PhoneNumber? = nil
+  fileprivate var _phoneNumber: Flipcash_Common_V1_PhoneNumber? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
 

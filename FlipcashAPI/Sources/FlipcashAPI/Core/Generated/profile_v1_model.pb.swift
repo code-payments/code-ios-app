@@ -33,8 +33,8 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
 
   /// Phone number linked to this user. This is private and will only be returned
   /// when the requesting user asks for their own profile
-  public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+  public var phoneNumber: Flipcash_Common_V1_PhoneNumber {
+    get {return _phoneNumber ?? Flipcash_Common_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
@@ -44,8 +44,8 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
 
   /// Email address linked to this user. This is private and will only be returned
   /// when the requesting user asks for their own profile
-  public var emailAddress: Flipcash_Email_V1_EmailAddress {
-    get {return _emailAddress ?? Flipcash_Email_V1_EmailAddress()}
+  public var emailAddress: Flipcash_Common_V1_EmailAddress {
+    get {return _emailAddress ?? Flipcash_Common_V1_EmailAddress()}
     set {_emailAddress = newValue}
   }
   /// Returns true if `emailAddress` has been explicitly set.
@@ -81,14 +81,27 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
   /// Clears the value of `joinTs`. Subsequent reads from it will return its default value.
   public mutating func clearJoinTs() {self._joinTs = nil}
 
+  /// How the user has customized their Tip Card. Public, so it is returned for
+  /// any user, not just the caller. Always set — the server resolves defaults
+  /// for anything the user hasn't customized. Update it with UpdateTipCard.
+  public var tipCardCustomization: Flipcash_Profile_V1_TipCardCustomization {
+    get {return _tipCardCustomization ?? Flipcash_Profile_V1_TipCardCustomization()}
+    set {_tipCardCustomization = newValue}
+  }
+  /// Returns true if `tipCardCustomization` has been explicitly set.
+  public var hasTipCardCustomization: Bool {return self._tipCardCustomization != nil}
+  /// Clears the value of `tipCardCustomization`. Subsequent reads from it will return its default value.
+  public mutating func clearTipCardCustomization() {self._tipCardCustomization = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _phoneNumber: Flipcash_Phone_V1_PhoneNumber? = nil
-  fileprivate var _emailAddress: Flipcash_Email_V1_EmailAddress? = nil
+  fileprivate var _phoneNumber: Flipcash_Common_V1_PhoneNumber? = nil
+  fileprivate var _emailAddress: Flipcash_Common_V1_EmailAddress? = nil
   fileprivate var _profilePicture: Flipcash_Blob_V1_Media? = nil
   fileprivate var _joinTs: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _tipCardCustomization: Flipcash_Profile_V1_TipCardCustomization? = nil
 }
 
 public struct Flipcash_Profile_V1_SocialProfile: Sendable {
@@ -189,13 +202,37 @@ public struct Flipcash_Profile_V1_XProfile: Sendable {
   public init() {}
 }
 
+/// Customization for a Tip Card
+public struct Flipcash_Profile_V1_TipCardCustomization: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The colour of the Tip Card. Always set — the server falls back to the
+  /// default colour when the user hasn't picked one.
+  public var color: Flipcash_Common_V1_Color {
+    get {return _color ?? Flipcash_Common_V1_Color()}
+    set {_color = newValue}
+  }
+  /// Returns true if `color` has been explicitly set.
+  public var hasColor: Bool {return self._color != nil}
+  /// Clears the value of `color`. Subsequent reads from it will return its default value.
+  public mutating func clearColor() {self._color = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _color: Flipcash_Common_V1_Color? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "flipcash.profile.v1"
 
 extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserProfile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}social_profiles\0\u{3}phone_number\0\u{3}email_address\0\u{3}profile_picture\0\u{3}join_ts\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}social_profiles\0\u{3}phone_number\0\u{3}email_address\0\u{3}profile_picture\0\u{3}join_ts\0\u{3}tip_card_customization\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -209,6 +246,7 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
       case 4: try { try decoder.decodeSingularMessageField(value: &self._emailAddress) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._profilePicture) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._joinTs) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._tipCardCustomization) }()
       default: break
       }
     }
@@ -237,6 +275,9 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._joinTs {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     } }()
+    try { if let v = self._tipCardCustomization {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -247,6 +288,7 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs._emailAddress != rhs._emailAddress {return false}
     if lhs._profilePicture != rhs._profilePicture {return false}
     if lhs._joinTs != rhs._joinTs {return false}
+    if lhs._tipCardCustomization != rhs._tipCardCustomization {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -360,4 +402,38 @@ extension Flipcash_Profile_V1_XProfile: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 extension Flipcash_Profile_V1_XProfile.VerifiedType: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NONE\0\u{1}BLUE\0\u{1}BUSINESS\0\u{1}GOVERNMENT\0")
+}
+
+extension Flipcash_Profile_V1_TipCardCustomization: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TipCardCustomization"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}color\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._color) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._color {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Profile_V1_TipCardCustomization, rhs: Flipcash_Profile_V1_TipCardCustomization) -> Bool {
+    if lhs._color != rhs._color {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
 }

@@ -8,11 +8,6 @@ option objc_class_prefix = "FPBEmailV1";
 
 import "validate/validate.proto";
 
-// EmailAddress is an email address
-message EmailAddress {
-    string value = 1 [(validate.rules).string.pattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"];
-}
-
 // VerificationCode is a 4-10 digit numerical code for verification
 message VerificationCode {
     string value = 2 [(validate.rules).string = {
