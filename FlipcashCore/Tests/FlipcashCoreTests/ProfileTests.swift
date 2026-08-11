@@ -129,6 +129,35 @@ struct ProfileTests {
 
         #expect(profile.isTippable == expected)
     }
+
+    @Test("Tip card customization round-trips")
+    func tipCardCustomizationRoundTrips() throws {
+        let profile = Profile(
+            displayName: "Ted",
+            phone: Optional<Phone>.none,
+            email: nil,
+            tipCardCustomization: TipCardCustomization(colorHex: "#19191A")
+        )
+
+        let restored = try JSONDecoder().decode(
+            Profile.self,
+            from: try JSONEncoder().encode(profile)
+        )
+
+        #expect(restored.tipCardCustomization?.colorHex == "#19191A")
+    }
+
+    /// The signed-in user's profile persists as a JSON blob; `tipCardCustomization`
+    /// is optional so rows written before it still decode (to a nil customization).
+    @Test("A row persisted before tip card customization still decodes")
+    func decodesProfilePersistedBeforeTipCard() throws {
+        let legacy = Data(#"{"displayName":"Ted Livingston","email":"ted@example.com"}"#.utf8)
+
+        let profile = try JSONDecoder().decode(Profile.self, from: legacy)
+
+        #expect(profile.displayName == "Ted Livingston")
+        #expect(profile.tipCardCustomization == nil)
+    }
 }
 
 private func makeProfile(email: String? = nil, phone: String? = nil) throws -> Profile {
