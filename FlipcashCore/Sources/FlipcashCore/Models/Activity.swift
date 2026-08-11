@@ -17,6 +17,12 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     public let date: Date
     public let metadata: Metadata?
 
+    /// The ordered placeholder substitutions the server sent for `title`. `title`
+    /// is already rendered with each substitution's `fallback`; a contact-aware
+    /// layer can re-render richer names (a contact name for a phone, a display
+    /// name for a user) from these.
+    public let textSubstitutions: [TextSubstitution]
+
     public var cancellableCashLinkMetadata: CashLinkMetadata? {
         switch state {
         case .pending:
@@ -31,7 +37,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         return nil
     }
 
-    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?) {
+    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = []) {
         self.id = id
         self.state = state
         self.kind = kind
@@ -39,6 +45,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         self.exchangedFiat = exchangedFiat
         self.date = date
         self.metadata = metadata
+        self.textSubstitutions = textSubstitutions
     }
 }
 
@@ -87,18 +94,69 @@ extension Activity {
     }
 }
 
+// MARK: - TextSubstitution -
+
+extension Activity {
+    /// A placeholder substitution for `title`. The server sends `title` with
+    /// positional `{0}`, `{1}`, … markers and one substitution per marker; each
+    /// carries a `fallback` used when the client can't resolve a richer value.
+    public enum TextSubstitution: Sendable, Equatable, Hashable {
+        /// Resolve a phone number to a local contact name; `fallback` is the
+        /// server-formatted number.
+        case phoneNumber(e164: String, fallback: String)
+        /// Resolve a user ID to a display name; `fallback` is a server default.
+        case userID(UserID, fallback: String)
+        /// A substitution kind this client doesn't recognize — use `fallback`.
+        case unrecognized(fallback: String)
+
+        /// The rendering used when no richer resolution is available.
+        public var fallback: String {
+            switch self {
+            case .phoneNumber(_, let fallback): fallback
+            case .userID(_, let fallback):      fallback
+            case .unrecognized(let fallback):   fallback
+            }
+        }
+    }
+}
+
+extension Activity.TextSubstitution {
+    init(_ proto: Flipcash_Common_V1_Substitution) {
+        switch proto.kind {
+        case .phoneNumberToContactName(let phone):
+            self = .phoneNumber(e164: phone.value, fallback: proto.fallback)
+        case .userIDToDisplayName(let userID):
+            if let id = try? UserID(data: userID.value) {
+                self = .userID(id, fallback: proto.fallback)
+            } else {
+                self = .unrecognized(fallback: proto.fallback)
+            }
+        case .none:
+            self = .unrecognized(fallback: proto.fallback)
+        }
+    }
+}
+
 // MARK: - Proto -
 
 extension Activity {
     init(_ proto: Flipcash_Activity_V1_Notification) throws {
+        let substitutions = proto.textSubstitutions.map(TextSubstitution.init)
         self.init(
             id: try PublicKey(proto.id.value),
             state: .init(rawValue: proto.state.rawValue) ?? .unknown,
             kind: .init(proto.additionalMetadata),
-            title: proto.localizedText,
+            // Render placeholders with each substitution's fallback so the title
+            // never shows raw `{0}` markers. `textSubstitutions` is retained for
+            // richer, contact-aware re-rendering.
+            title: SubstitutionApplier.apply(
+                template: proto.localizedText,
+                resolutions: substitutions.map(\.fallback)
+            ),
             exchangedFiat: try ExchangedFiat(proto.paymentAmount),
             date: proto.ts.date,
-            metadata: .init(proto.additionalMetadata)
+            metadata: .init(proto.additionalMetadata),
+            textSubstitutions: substitutions
         )
     }
 }

@@ -139,6 +139,46 @@ struct ActivityProtoMappingTests {
         #expect(activity.metadata == nil)
     }
 
+    // MARK: Text substitutions
+
+    @Test("Title renders positional placeholders using each substitution's fallback")
+    func titleAppliesSubstitutionFallbacks() throws {
+        var proto = baseNotification()
+        proto.localizedText = "You received cash from {0}"
+        proto.textSubstitutions = [
+            .with {
+                $0.fallback = "+15551234567"
+                $0.phoneNumberToContactName = .with { $0.value = "+15551234567" }
+            },
+        ]
+
+        let activity = try Activity(proto)
+        #expect(activity.title == "You received cash from +15551234567")
+    }
+
+    @Test("Substitutions map phone and user-id kinds")
+    func substitutionKindsMap() throws {
+        let userUUID = UUID()
+        var proto = baseNotification()
+        proto.localizedText = "{0} and {1}"
+        proto.textSubstitutions = [
+            .with {
+                $0.fallback = "+15551234567"
+                $0.phoneNumberToContactName = .with { $0.value = "+15551234567" }
+            },
+            .with {
+                $0.fallback = "Alice"
+                $0.userIDToDisplayName = .with { $0.value = userUUID.data }
+            },
+        ]
+
+        let activity = try Activity(proto)
+        #expect(activity.textSubstitutions == [
+            .phoneNumber(e164: "+15551234567", fallback: "+15551234567"),
+            .userID(userUUID, fallback: "Alice"),
+        ])
+    }
+
     // MARK: Invalid payment amount
 
     // proto3 always materialises `paymentAmount` as a default
