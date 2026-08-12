@@ -52,9 +52,11 @@ nonisolated enum CameraPrompt: Equatable {
             embedded ? "Start your camera to scan a Tip Card"
                      : "Flipcash uses your camera to scan and grab cash"
         case .openSettings:
-            "You need to turn on Camera in Settings to scan Codes"
+            embedded ? "Turn on Camera in Settings to scan a Tip Card"
+                     : "You need to turn on Camera in Settings to scan Codes"
         case .startCamera:
-            "You need to start your camera to grab cash"
+            embedded ? "Start your camera to scan a Tip Card"
+                     : "You need to start your camera to grab cash"
         }
     }
 
