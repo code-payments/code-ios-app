@@ -274,20 +274,27 @@ private struct ScanScreenContent: View {
 
     @ViewBuilder private func interfaceView() -> some View {
         VStack {
-            ScanTopBar(
-                onBrand: { router.present(.downloadApp) },
-                onSettings: { router.present(.settings) }
-            )
+            // In the v2 tab-bar UI the scanner is a bare camera: the brand +
+            // settings top bar and the v1 bottom navigation are replaced by the
+            // app-level tab bar, so this chrome is suppressed when embedded.
+            if !isEmbedded {
+                ScanTopBar(
+                    onBrand: { router.present(.downloadApp) },
+                    onSettings: { router.present(.settings) }
+                )
+            }
             Spacer()
-            ScanBottomBar(
-                toast: toast,
-                showTips: session.canUseTips,
-                tipsBadgeCount: sessionContainer.conversationController.unreadConversationCount(of: .tipDm),
-                onGive: presentGive,
-                onWallet: { router.present(.balance) },
-                onDiscover: { router.present(.discover) },
-                onTips: { router.present(.tips) }
-            )
+            if !isEmbedded {
+                ScanBottomBar(
+                    toast: toast,
+                    showTips: session.canUseTips,
+                    tipsBadgeCount: sessionContainer.conversationController.unreadConversationCount(of: .tipDm),
+                    onGive: presentGive,
+                    onWallet: { router.present(.balance) },
+                    onDiscover: { router.present(.discover) },
+                    onTips: { router.present(.tips) }
+                )
+            }
         }
         .opacity(session.isShowingBillDesigner ? 0 : 1)
     }
