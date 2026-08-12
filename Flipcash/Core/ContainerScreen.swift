@@ -34,14 +34,24 @@ struct ContainerScreen: View {
                     .transition(.opacity)
 
                 case .loggedIn(let sessionContainer):
-                    Group {
-                        if betaFlags.hasEnabled(.newUI) {
-                            HomeTabView()
-                        } else {
-                            ScanScreen()
+                    ZStack {
+                        Group {
+                            if betaFlags.hasEnabled(.newUI) {
+                                HomeTabView()
+                            } else {
+                                ScanScreen()
+                            }
                         }
+                        .modifier(OnrampHostModifier())
+
+                        // Bills / tipcards render at the app root (over both the v1
+                        // scanner and the v2 tab bar) so a bill set by a push or deep
+                        // link appears over whatever tab is showing, not buried in the
+                        // unmounted Scan tab. Mirrors Android's app-root BillOverlay.
+                        // Kept a sibling *inside* the injected scope (rather than an
+                        // `.overlay` on the Group) so it inherits `SessionContainer`.
+                        BillOverlayView()
                     }
-                    .modifier(OnrampHostModifier())
                     .injectingEnvironment(from: sessionContainer)
                     .transition(.opacity)
                 }

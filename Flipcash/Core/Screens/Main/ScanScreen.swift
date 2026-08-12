@@ -40,14 +40,6 @@ private struct ScanScreenContent: View {
 
     @State private var cameraAuthorizer = CameraAuthorizer()
 
-    @State private var sendButtonState: ButtonState = .normal
-    @State private var sendButtonTask: Task<Void, Never>?
-    @State private var billDesignerColors: [Color] = ColorEditorControl.randomDerivedColors()
-
-    /// The presented Send a Tip sheet's full height (0 while absent), measured to
-    /// keep a fixed gap between the tipcard and the sheet's top edge.
-    @State private var tipSheetHeight: CGFloat = 0
-
     private var toast: String? {
         if let toast = session.toast {
             let formatted = toast.amount.formatted()
@@ -97,8 +89,6 @@ private struct ScanScreenContent: View {
                     )
             }
             
-            billView()
-            
             if showControls {
                 // Any actionable views need to be positioned
                 // in front of the BillCanvas, otherwise it
@@ -110,84 +100,34 @@ private struct ScanScreenContent: View {
                     .zIndex(1)
                     .transition(.opacity)
                 }
-            
+
                 interfaceView()
                     .zIndex(1)
                     .transition(.opacity)
-            } else {
-                billActions()
-                    .zIndex(1)
-                    .transition(.opacity)
-            }
-
-            if session.isShowingBillDesigner {
-                BillDesignerOverlay(colors: $billDesignerColors)
-                    .zIndex(2)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillDesigner)
         .ignoresSafeArea(.keyboard)
-        .sheet(item: $session.valuation) { valuation in
-            PartialSheet(background: .clear, canAccessBackground: true) {
-                ModalCashReceived(
-                    title: "You received",
-                    fiat: valuation.exchangedFiat.nativeAmount,
-                    currencyName: valuation.mintMetadata?.name ?? "currency",
-                    currencyImageURL: valuation.mintMetadata?.imageURL,
-                    actionTitle: "Put in Wallet",
-                    dismissAction: dismissBill
-                )
-            }
-            .interactiveDismissDisabled()
-        }
-        // Send a Tip over the scanned tipcard. A swipe-down cancels the whole
-        // flow — the card comes down with the sheet.
-        .sheet(isPresented: Binding(
-            get: { sessionContainer.tipFlow.isSheetPresented },
-            set: { isPresented in
-                if !isPresented {
-                    sessionContainer.tipFlow.cancel()
-                }
-            }
-        )) {
-            PartialSheet(
-                background: Color(red: 0.1, green: 0.1, blue: 0.1).opacity(0.7),
-                canAccessBackground: true
-            ) {
-                SendTipSheet(tipFlow: sessionContainer.tipFlow)
-                    // The sheet content's intrinsic height — the value
-                    // `PartialSheet` feeds its `.height` detent, so the sheet's
-                    // top sits at `screenHeight` minus this. Measured on the
-                    // content (not the detent-driven container, which briefly
-                    // fills the screen on present) so the tipcard's clearance is
-                    // stable and the card is nudged rather than flung.
-                    .background {
-                        GeometryReader { proxy in
-                            Color.clear
-                                .onAppear { tipSheetHeight = proxy.size.height }
-                                .onChange(of: proxy.size.height) { _, height in tipSheetHeight = height }
-                        }
-                    }
-            }
-        }
         // The app-level `router.rootSheet` host (RoutedSheet + tip-resume + the
         // bill-dismiss hook). Owned here for the v1 root; when embedded as a v2
         // tab, `HomeTabView` owns it instead, so this suppresses its own to avoid
         // presenting the same sheet twice.
+        //
+        // The bill / tipcard surface itself (BillCanvas, actions, designer, and
+        // the received-cash / send-tip sheets) is hoisted to `BillOverlayView` at
+        // the app root — see `ContainerScreen` — so a pushed bill renders over any
+        // tab, not only when this scanner is the mounted surface. `showControls`
+        // still hides the scanner chrome while a bill is up.
         .modifier(RootSheetHostModifier(enabled: !isEmbedded))
-        // Reset button state on bill dismissal — `sendButtonState` outlives individual bills.
-        .onChange(of: session.billState.bill) { _, newBill in
-            guard newBill == nil else { return }
-            sendButtonTask?.cancel()
-            sendButtonTask = nil
-            sendButtonState = .normal
-        }
+        // Tells the app-root bill overlay the camera is behind it, so a grabbed
+        // bill shows over the live camera without a scrim (v1, or the v2 Scan
+        // tab). Any other surface gets the scrim.
+        .onAppear { session.isScannerForeground = true }
+        .onDisappear { session.isScannerForeground = false }
     }
-    
+
     @ViewBuilder private func cameraViewport() -> some View {
         CameraViewport(
             session: viewModel.cameraSession,
@@ -200,63 +140,6 @@ private struct ScanScreenContent: View {
         .onDisappear {
             viewModel.stopCamera()
         }
-    }
-    
-    @ViewBuilder private func billView() -> some View {
-        BillCanvas(
-            state: session.presentationState,
-            centerOffset: billCenterOffset(),
-            preferredCanvasSize: preferredCanvasSize(),
-            bill: session.billState.bill,
-            dismissHandler: dismissBill
-        )
-        .allowsHitTesting(session.presentationState.isPresenting)
-        .ignoresSafeArea()
-    }
-
-    /// The resting vertical offset for the centered bill; a tipcard rises from
-    /// here only when the Send a Tip sheet would crowd it.
-    private static let restingBillOffset = CGSize(width: 0, height: -30)
-
-    /// The gap kept between the tipcard's bottom edge and the sheet's top edge.
-    private static let tipcardSheetGap: CGFloat = 42
-
-    /// A tipcard rises to hold ``tipcardSheetGap`` above the Send a Tip sheet,
-    /// and no more — a short sheet that already clears the resting card, or the
-    /// card shown alone (before the sheet, or behind a blocked balance gate),
-    /// leaves it at the resting height.
-    private func billCenterOffset() -> CGSize {
-        switch session.billState.bill {
-        case .tipcard where sessionContainer.tipFlow.isSheetPresented:
-            tipcardSheetOffset()
-        case .tipcard, .cash, nil:
-            Self.restingBillOffset
-        }
-    }
-
-    private func tipcardSheetOffset() -> CGSize {
-        guard tipSheetHeight > 0,
-              let screen = UIApplication.shared.firstWindowScene?.screen.bounds else {
-            return Self.restingBillOffset
-        }
-
-        // The card is centered on the full screen (the canvas ignores safe area),
-        // so both edges are measured in screen coordinates from the top.
-        let cardHeight = BillCanvas.tipcardSize(canvasWidth: preferredCanvasSize().width).height
-        let sheetTop = screen.height - tipSheetHeight
-        let raised = sheetTop - Self.tipcardSheetGap - cardHeight / 2 - screen.height / 2
-
-        return CGSize(width: 0, height: min(Self.restingBillOffset.height, raised))
-    }
-
-    private func preferredCanvasSize() -> CGSize {
-        guard var rect = UIApplication.shared.firstWindowScene?.screen.bounds else {
-            return .zero
-        }
-
-        rect.size.height -= 70.0 // Bottom bar
-
-        return rect.insetBy(dx: 20, dy: 20).size
     }
     
     private func performCameraPromptAction(_ prompt: CameraPrompt) {
@@ -298,50 +181,6 @@ private struct ScanScreenContent: View {
         }
         .opacity(session.isShowingBillDesigner ? 0 : 1)
     }
-    
-    @ViewBuilder private func billActions() -> some View {
-        VStack {
-            Spacer()
-            
-            GlassContainer(spacing: 30) {
-                billActionButtons
-            }
-        }
-        .padding(.bottom, 10)
-    }
-    
-    private var billActionButtons: some View {
-        HStack(alignment: .center, spacing: 30) {
-            if let primaryAction = session.billState.primaryAction {
-                CapsuleButton(
-                    state: sendButtonState,
-                    asset: primaryAction.asset,
-                    title: primaryAction.title
-                ) {
-                    sendButtonTask?.cancel()
-                    sendButtonTask = Task {
-                        sendButtonState = .loading
-                        do {
-                            try await primaryAction.action()
-                            try await Task.delay(milliseconds: 1000)
-                        } catch {}
-                        sendButtonState = .normal
-                    }
-                }
-            }
-
-            if let secondaryAction = session.billState.secondaryAction {
-                CapsuleButton(
-                    state: .normal,
-                    asset: secondaryAction.asset,
-                    title: secondaryAction.title
-                ) {
-                    secondaryAction.action()
-                }
-                .accessibilityLabel(secondaryAction.title ?? "Cancel")
-            }
-        }
-    }
 
     // MARK: - Actions -
 
@@ -352,15 +191,6 @@ private struct ScanScreenContent: View {
             return
         }
         router.present(.give)
-    }
-
-    private func dismissBill() {
-        switch session.billState.bill {
-        case .tipcard:
-            sessionContainer.tipFlow.cancel()
-        case .cash, nil:
-            session.dismissCashBill(style: .slide)
-        }
     }
 }
 

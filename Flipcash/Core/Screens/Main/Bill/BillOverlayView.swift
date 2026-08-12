@@ -1,0 +1,261 @@
+//
+//  BillOverlayView.swift
+//  Flipcash
+//
+
+import SwiftUI
+import FlipcashUI
+import FlipcashCore
+
+/// Renders the cash bill / tipcard (plus the bill designer and the
+/// received-cash / send-tip sheets) at the app root, so a presented bill appears
+/// over ANY content — mirroring Android's app-root `BillOverlay`. It is driven
+/// entirely by the app-scoped `session.billState`, so a cash-link push or deep
+/// link that sets a bill while the user is on the Wallet/Chat/Tip Card tab now
+/// renders on screen instead of in the buried Scan tab.
+///
+/// Mounted once by `ContainerScreen`, above both the v1 scanner root and the v2
+/// `HomeTabView`. It is transparent and non-interactive when no bill is present.
+struct BillOverlayView: View {
+
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    var body: some View {
+        BillOverlayContent(sessionContainer: sessionContainer)
+    }
+}
+
+private struct BillOverlayContent: View {
+
+    @Bindable private var session: Session
+    private let sessionContainer: SessionContainer
+
+    /// Primary bill-action button loading state; outlives individual bills.
+    @State private var sendButtonState: ButtonState = .normal
+    @State private var sendButtonTask: Task<Void, Never>?
+    @State private var billDesignerColors: [Color] = ColorEditorControl.randomDerivedColors()
+    /// The Send-a-Tip sheet's measured height, used to raise the tipcard clear of it.
+    @State private var tipSheetHeight: CGFloat = 0
+
+    init(sessionContainer: SessionContainer) {
+        self.sessionContainer = sessionContainer
+        self.session          = sessionContainer.session
+    }
+
+    var body: some View {
+        // The bill surface keeps `.ignoresSafeArea()` on itself, not on this root:
+        // as a sibling of the tab NavigationStacks, an overlay whose *root* ignored
+        // the safe area would flatten the Liquid Glass of the nav bars beneath it
+        // on iOS 26. Nested one level down, the bill still fills the screen while
+        // the bars keep their glass. The received-cash / send-tip sheets host here
+        // (a `.sheet` modifier adds nothing to the layer tree until it presents).
+        ZStack {
+            billSurface
+        }
+        // Reset button state on bill dismissal — `sendButtonState` outlives
+        // individual bills.
+        .onChange(of: session.billState.bill) { _, newBill in
+            guard newBill == nil else { return }
+            sendButtonTask?.cancel()
+            sendButtonTask = nil
+            sendButtonState = .normal
+        }
+        .sheet(item: $session.valuation) { valuation in
+            PartialSheet(background: .clear, canAccessBackground: true) {
+                ModalCashReceived(
+                    title: "You received",
+                    fiat: valuation.exchangedFiat.nativeAmount,
+                    currencyName: valuation.mintMetadata?.name ?? "currency",
+                    currencyImageURL: valuation.mintMetadata?.imageURL,
+                    actionTitle: "Put in Wallet",
+                    dismissAction: dismissBill
+                )
+            }
+            .interactiveDismissDisabled()
+        }
+        // Send a Tip over the scanned tipcard. A swipe-down cancels the whole
+        // flow — the card comes down with the sheet.
+        .sheet(isPresented: Binding(
+            get: { sessionContainer.tipFlow.isSheetPresented },
+            set: { isPresented in
+                if !isPresented {
+                    sessionContainer.tipFlow.cancel()
+                }
+            }
+        )) {
+            PartialSheet(
+                background: Color(red: 0.1, green: 0.1, blue: 0.1).opacity(0.7),
+                canAccessBackground: true
+            ) {
+                SendTipSheet(tipFlow: sessionContainer.tipFlow)
+                    // The sheet content's intrinsic height — the value
+                    // `PartialSheet` feeds its `.height` detent, so the sheet's
+                    // top sits at `screenHeight` minus this. Measured on the
+                    // content (not the detent-driven container, which briefly
+                    // fills the screen on present) so the tipcard's clearance is
+                    // stable and the card is nudged rather than flung.
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear { tipSheetHeight = proxy.size.height }
+                                .onChange(of: proxy.size.height) { _, height in tipSheetHeight = height }
+                        }
+                    }
+            }
+        }
+    }
+
+    // MARK: - Surface -
+
+    /// A dimmed backdrop is drawn behind a bill/tipcard when it is presented over
+    /// a non-scanner surface (a wallet/chat push, a received cash link) so the
+    /// underlying screen recedes, matching Android. Over the scanner the camera
+    /// stays visible instead — no scrim.
+    private var showsScrim: Bool {
+        session.isShowingBill && !session.isScannerForeground
+    }
+
+    /// The full-screen bill surface. The `BillCanvas` is always mounted (parked
+    /// off-screen when idle) so it can drive the slide/pop in and out animations.
+    private var billSurface: some View {
+        ZStack {
+            if showsScrim {
+                Color.black.opacity(0.6)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+            }
+
+            billView()
+
+            if session.billState.bill != nil {
+                billActions()
+                    .zIndex(1)
+                    .transition(.opacity)
+            }
+
+            if session.isShowingBillDesigner {
+                BillDesignerOverlay(colors: $billDesignerColors)
+                    .zIndex(2)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.15), value: session.billState.bill == nil)
+        // Ramp the scrim with the bill's slide-in (BillCanvas uses a 0.6s spring),
+        // so the backdrop and the card arrive together.
+        .animation(.spring(response: 0.6, dampingFraction: 0.6), value: showsScrim)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillDesigner)
+    }
+
+    // MARK: - Bill -
+
+    @ViewBuilder private func billView() -> some View {
+        BillCanvas(
+            state: session.presentationState,
+            centerOffset: billCenterOffset(),
+            preferredCanvasSize: preferredCanvasSize(),
+            bill: session.billState.bill,
+            dismissHandler: dismissBill
+        )
+        .allowsHitTesting(session.presentationState.isPresenting)
+        .ignoresSafeArea()
+    }
+
+    /// The resting vertical offset for the centered bill; a tipcard rises from
+    /// here only when the Send a Tip sheet would crowd it.
+    private static let restingBillOffset = CGSize(width: 0, height: -30)
+
+    /// The gap kept between the tipcard's bottom edge and the sheet's top edge.
+    private static let tipcardSheetGap: CGFloat = 42
+
+    private func billCenterOffset() -> CGSize {
+        switch session.billState.bill {
+        case .tipcard where sessionContainer.tipFlow.isSheetPresented:
+            tipcardSheetOffset()
+        case .tipcard, .cash, nil:
+            Self.restingBillOffset
+        }
+    }
+
+    private func tipcardSheetOffset() -> CGSize {
+        guard tipSheetHeight > 0,
+              let screen = UIApplication.shared.firstWindowScene?.screen.bounds else {
+            return Self.restingBillOffset
+        }
+
+        // The card is centered on the full screen (the canvas ignores safe area),
+        // so both edges are measured in screen coordinates from the top.
+        let cardHeight = BillCanvas.tipcardSize(canvasWidth: preferredCanvasSize().width).height
+        let sheetTop = screen.height - tipSheetHeight
+        let raised = sheetTop - Self.tipcardSheetGap - cardHeight / 2 - screen.height / 2
+
+        return CGSize(width: 0, height: min(Self.restingBillOffset.height, raised))
+    }
+
+    private func preferredCanvasSize() -> CGSize {
+        guard var rect = UIApplication.shared.firstWindowScene?.screen.bounds else {
+            return .zero
+        }
+
+        rect.size.height -= 70.0 // Bottom bar / tab bar
+
+        return rect.insetBy(dx: 20, dy: 20).size
+    }
+
+    // MARK: - Actions -
+
+    @ViewBuilder private func billActions() -> some View {
+        VStack {
+            Spacer()
+
+            GlassContainer(spacing: 30) {
+                billActionButtons
+            }
+        }
+        // The surface ignores the safe area, so lift the buttons clear of the
+        // home indicator and up off the very bottom edge.
+        .padding(.bottom, 48)
+    }
+
+    private var billActionButtons: some View {
+        HStack(alignment: .center, spacing: 30) {
+            if let primaryAction = session.billState.primaryAction {
+                CapsuleButton(
+                    state: sendButtonState,
+                    asset: primaryAction.asset,
+                    title: primaryAction.title
+                ) {
+                    sendButtonTask?.cancel()
+                    sendButtonTask = Task {
+                        sendButtonState = .loading
+                        do {
+                            try await primaryAction.action()
+                            try await Task.delay(milliseconds: 1000)
+                        } catch {}
+                        sendButtonState = .normal
+                    }
+                }
+            }
+
+            if let secondaryAction = session.billState.secondaryAction {
+                CapsuleButton(
+                    state: .normal,
+                    asset: secondaryAction.asset,
+                    title: secondaryAction.title
+                ) {
+                    secondaryAction.action()
+                }
+                .accessibilityLabel(secondaryAction.title ?? "Cancel")
+            }
+        }
+    }
+
+    private func dismissBill() {
+        switch session.billState.bill {
+        case .tipcard:
+            sessionContainer.tipFlow.cancel()
+        case .cash, nil:
+            session.dismissCashBill(style: .slide)
+        }
+    }
+}
