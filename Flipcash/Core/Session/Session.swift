@@ -152,6 +152,12 @@ class Session {
         updateableBalances.value.first { $0.mint == mint }
     }
 
+    /// The newest `limit` activities across all tokens — the unified feed shown
+    /// as the wallet's "Recent Activity" preview.
+    func recentActivities(limit: Int) -> [Activity] {
+        (try? database.getRecentActivities(limit: limit)) ?? []
+    }
+
     /// Whether the caller has ever added money (a completed deposit or buy) —
     /// the wallet onboarding "add money" milestone. Derived from durable history,
     /// so it stays true after the balance is spent.
