@@ -19,8 +19,21 @@ import FlipcashUI
 struct HomeTabView: View {
 
     @Environment(AppRouter.self) private var router
+    @Environment(SessionContainer.self) private var sessionContainer
 
     @State private var selection: HomeTab = .initial
+
+    /// The floating bar is a ZStack sibling, so it hovers over anything a tab
+    /// pushes. Hide it whenever the active tab has pushed a screen (e.g. Wallet →
+    /// Currency Info → Give) so that screen owns the full height, and while a
+    /// bill/tipcard is up (the app-root overlay owns the screen then, as the v1
+    /// bill replaced the bottom bar). Sheets already cover the bar, so only
+    /// in-tab pushes need handling here.
+    private var isTabBarHidden: Bool {
+        if sessionContainer.session.isShowingBill { return true }
+        guard let stack = selection.pushStack else { return false }
+        return !router[stack].isEmpty
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -28,15 +41,19 @@ struct HomeTabView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .transition(.opacity)
 
-            HomeTabBar(selection: $selection)
-                // Figma insets the pill ~42pt from each edge (318pt wide on the
-                // 402pt frame); a fixed margin keeps the floating look across
-                // device widths.
-                .padding(.horizontal, 42)
-                .padding(.bottom, 8)
+            if !isTabBarHidden {
+                HomeTabBar(selection: $selection)
+                    // Figma insets the pill ~42pt from each edge (318pt wide on the
+                    // 402pt frame); a fixed margin keeps the floating look across
+                    // device widths.
+                    .padding(.horizontal, 42)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.2), value: selection)
+        .animation(.easeInOut(duration: 0.2), value: isTabBarHidden)
         // The app-level sheet host lives here in v2 (ScanScreen suppresses its
         // own copy when embedded) so `router.present(_:)` works from any tab.
         .modifier(RootSheetHostModifier(enabled: true))
