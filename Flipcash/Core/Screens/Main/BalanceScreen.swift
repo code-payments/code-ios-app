@@ -268,7 +268,7 @@ extension StoredBalance {
     }
 }
 
-private struct BalanceHeaderButton: View {
+struct BalanceHeaderButton: View {
     let balance: ExchangedFiat
 
     @Environment(RatesController.self) private var ratesController

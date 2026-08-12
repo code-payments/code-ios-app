@@ -29,7 +29,10 @@ struct HomeTabView: View {
                 .transition(.opacity)
 
             HomeTabBar(selection: $selection)
-                .padding(.horizontal, 20)
+                // Figma insets the pill ~42pt from each edge (318pt wide on the
+                // 402pt frame); a fixed margin keeps the floating look across
+                // device widths.
+                .padding(.horizontal, 42)
                 .padding(.bottom, 8)
         }
         .background(Color.backgroundMain)
@@ -47,7 +50,7 @@ struct HomeTabView: View {
         case .scan:
             ScanScreen(isEmbedded: true)
         case .wallet:
-            BalanceScreen(isEmbedded: true)
+            WalletScreen()
         case .chat:
             ChatTab()
         case .tipCard:

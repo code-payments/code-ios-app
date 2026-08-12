@@ -16,9 +16,10 @@ struct HomeTabBar: View {
 
     private let tabs = HomeTab.allCases
 
-    /// Vertical padding inside the capsule around each item.
-    private let itemVerticalPadding: CGFloat = 8
-    private let iconSize: CGFloat = 26
+    // Figma tab bar (node 8966:1557): 32pt icons in 50pt-tall items (9pt above
+    // and below), inside a capsule with 4pt padding → 58pt overall.
+    private let itemVerticalPadding: CGFloat = 9
+    private let iconSize: CGFloat = 32
 
     private var itemHeight: CGFloat { iconSize + itemVerticalPadding * 2 }
 
