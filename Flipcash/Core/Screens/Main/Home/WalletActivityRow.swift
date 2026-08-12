@@ -123,12 +123,7 @@ struct WalletActivityRow: View {
     private func resolveCounterparty() async {
         switch activity.counterparty {
         case .user(let userID):
-            let profile = session.cachedUserProfile(for: userID)
-            counterpartyName = profile?.displayName
-            avatarBlurhash = profile?.profilePicture?.thumbnailBlurhash
-            guard let picture = profile?.profilePicture else { return }
-            await sessionContainer.tipAvatars.load(userID: userID, picture: picture)
-            avatarData = sessionContainer.tipAvatars.data(for: userID)
+            await resolveUser(userID)
         case .phone(let e164):
             let contact = sessionContainer.contactSyncController.resolvedContacts.onFlipcash.first { $0.phoneE164 == e164 }
             counterpartyName = contact?.displayName
@@ -136,5 +131,31 @@ struct WalletActivityRow: View {
         case .none:
             break
         }
+    }
+
+    /// A cached full profile (someone you've viewed or tipped) is authoritative;
+    /// otherwise fall back to the tip conversation's member, which carries the
+    /// name + picture for counterparties you've only *received* tips from (those
+    /// are never written to the profile cache). Without this, received tips show
+    /// the server title and a monogram instead of "Tip from <name>".
+    private func resolveUser(_ userID: UserID) async {
+        let picture: ProfilePicture?
+
+        if let profile = session.cachedUserProfile(for: userID) {
+            counterpartyName = profile.displayName
+            picture = profile.profilePicture
+        } else if let member = sessionContainer.conversationController.conversations
+            .flatMap(\.members)
+            .first(where: { $0.userID == userID }) {
+            counterpartyName = member.displayName.isEmpty ? nil : member.displayName
+            picture = member.profilePicture
+        } else {
+            picture = nil
+        }
+
+        avatarBlurhash = picture?.thumbnailBlurhash
+        guard let picture else { return }
+        await sessionContainer.tipAvatars.load(userID: userID, picture: picture)
+        avatarData = sessionContainer.tipAvatars.data(for: userID)
     }
 }
