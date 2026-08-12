@@ -13,6 +13,12 @@ struct TipcardScreen: View {
 
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(AppRouter.self) private var router
+
+    /// The v2 tab presentation (Figma 8966:2745): a bare centered card with a
+    /// menu button, no header/nav. Defaults to false — the v1 push keeps its
+    /// header, share row, and nav title.
+    var isEmbedded: Bool = false
 
     @State private var avatar: UIImage?
     @State private var exportImage: Image?
@@ -26,59 +32,94 @@ struct TipcardScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(spacing: 0) {
-                Text("Share Your Tip Card to Get Tipped")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 20)
-                    .padding(.horizontal, 20)
-
-                Spacer()
-
-                card
-
-                Spacer()
-
-                HStack(spacing: 40) {
-                    Button {
-                        shareTipCard()
-                    } label: {
-                        TipcardAction(icon: .Icons.share, title: "Share")
-                    }
-                    .accessibilityIdentifier("tipcard-share-button")
-
-//                    // Always present so the row never reflows; disabled until
-//                    // the card has rendered with the photo — `ImageRenderer`
-//                    // is synchronous, so an earlier export would bake in the
-//                    // placeholder.
-//                    if let exportImage {
-//                        ShareLink(
-//                            item: exportImage,
-//                            preview: SharePreview("My Tipcard", image: exportImage)
-//                        ) {
-//                            TipcardAction(icon: .Icons.export, title: "Export")
-//                        }
-//                        .accessibilityIdentifier("tipcard-export-button")
-//                    } else {
-//                        TipcardAction(icon: .Icons.export, title: "Export")
-//                            .opacity(0.4)
-//                            .accessibilityIdentifier("tipcard-export-button")
-//                            .accessibilityAddTraits(.isButton)
-//                            .accessibilityHint("Preparing the card image")
-//                    }
-                }
-                .padding(.bottom, 40)
+            if isEmbedded {
+                embeddedContent
+            } else {
+                legacyContent
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle("My Tip Card")
+        .navigationTitle(isEmbedded ? "" : "My Tip Card")
+        .toolbar(isEmbedded ? .hidden : .automatic, for: .navigationBar)
         .toolbarTitleDisplayMode(.inline)
         .task(id: profilePicture?.thumbnailBlobID) {
             previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
             await loadAvatar()
             renderExportImage()
         }
+    }
+
+    // MARK: - v2 (embedded) -
+
+    /// The Figma v2 tip card: the card centered, tap-to-share, with a menu button
+    /// in the top-right (the v1 scanner's settings entry, brought here so the v2
+    /// tab-bar UI has a way into Settings).
+    private var embeddedContent: some View {
+        ZStack(alignment: .top) {
+            VStack(spacing: 0) {
+                Spacer()
+                card?
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: shareTipCard)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            HStack {
+                Spacer()
+                settingsButton
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private var settingsButton: some View {
+        Button {
+            router.present(.settings)
+        } label: {
+            if #available(iOS 26, *) {
+                Image.asset(.hamburger)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Color.textMain)
+                    .frame(width: 32, height: 32)
+            } else {
+                Image.asset(.hamburger)
+                    .foregroundStyle(Color.textMain)
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .liquidGlassButtonStyle(shape: .circle)
+        .accessibilityLabel("Settings")
+    }
+
+    // MARK: - v1 (pushed) -
+
+    private var legacyContent: some View {
+        VStack(spacing: 0) {
+            Text("Share Your Tip Card to Get Tipped")
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+                .multilineTextAlignment(.center)
+                .padding(.top, 20)
+                .padding(.horizontal, 20)
+
+            Spacer()
+
+            card
+
+            Spacer()
+
+            HStack(spacing: 40) {
+                Button {
+                    shareTipCard()
+                } label: {
+                    TipcardAction(icon: .Icons.share, title: "Share")
+                }
+                .accessibilityIdentifier("tipcard-share-button")
+            }
+            .padding(.bottom, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Content -
