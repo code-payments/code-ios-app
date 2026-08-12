@@ -122,16 +122,30 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
 
     // MARK: - Navigation -
 
-    /// The first screen the verification sheet shows — phone if unverified
-    /// (unlikely), email otherwise. The sheet's root IS the first step;
-    /// there is no intro page.
+    /// The first screen the verification sheet shows. When both phone and email
+    /// are required, v2 leads with a combined intro (matching Android); v1 — and
+    /// any single-step case — goes straight to the needed step (phone if
+    /// unverified, email otherwise).
     func initialStep() -> OnrampVerificationPath {
-        if !phoneVerifier.isAlreadyVerified {
+        let needsPhone = !phoneVerifier.isAlreadyVerified
+        let needsEmail = !emailVerifier.isAlreadyVerified
+
+        if needsPhone && needsEmail && BetaFlags.shared.hasEnabled(.newUI) {
+            return .intro
+        }
+        if needsPhone {
             Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
             return .enterPhoneNumber
         }
         Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
         return .enterEmail
+    }
+
+    /// Advances from the intro to the first real step. The intro only appears
+    /// when both phone and email are needed, so phone entry is always next.
+    func proceedFromIntro() {
+        Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
+        verificationPath.append(.enterPhoneNumber)
     }
 
     private func navigateToEmailOrFinish() {

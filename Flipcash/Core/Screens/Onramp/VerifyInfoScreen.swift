@@ -34,6 +34,8 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
         NavigationStack(path: $viewModel.verificationPath) {
             Group {
                 switch initialStep {
+                case .intro:
+                    OnrampVerificationIntroScreen(onNext: { viewModel.proceedFromIntro() })
                 case .enterPhoneNumber, .confirmPhoneNumberCode:
                     EnterPhoneScreen(viewModel: viewModel.phoneVerifier)
                         .navigationTitle("Verify Phone Number")
@@ -51,6 +53,9 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
             }
             .navigationDestination(for: OnrampVerificationPath.self) { path in
                 switch path {
+                case .intro:
+                    // Only ever the stack root, never pushed; handled for exhaustiveness.
+                    OnrampVerificationIntroScreen(onNext: { viewModel.proceedFromIntro() })
                 case .enterPhoneNumber:
                     EnterPhoneScreen(viewModel: viewModel.phoneVerifier)
                         .interactiveDismissDisabled()
@@ -71,6 +76,8 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
         }
         .task {
             switch initialStep {
+            case .intro:
+                break // The intro tracks showEnterPhone when the user proceeds.
             case .enterPhoneNumber, .confirmPhoneNumberCode:
                 Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
             case .enterEmail, .confirmEmailCode:
