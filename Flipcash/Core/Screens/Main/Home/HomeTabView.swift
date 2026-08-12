@@ -50,7 +50,7 @@ struct HomeTabView: View {
         case .scan:
             ScanScreen(isEmbedded: true)
         case .wallet:
-            WalletScreen()
+            WalletScreen(onScanTipCard: { selection = .scan })
         case .chat:
             ChatTab()
         case .tipCard:

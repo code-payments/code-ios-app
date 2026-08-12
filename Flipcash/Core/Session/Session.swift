@@ -152,6 +152,18 @@ class Session {
         updateableBalances.value.first { $0.mint == mint }
     }
 
+    /// Whether the caller has ever added money (a completed deposit or buy) —
+    /// the wallet onboarding "add money" milestone. Derived from durable history,
+    /// so it stays true after the balance is spent.
+    func hasEverAddedMoney() -> Bool {
+        (try? database.hasEverAddedMoney()) ?? false
+    }
+
+    /// Whether the caller has ever sent a tip — the "scan a tip card" milestone.
+    func hasEverTipped() -> Bool {
+        (try? database.hasEverTipped(selfUserID: userID)) ?? false
+    }
+
     /// The mint's bill-customization colors (the `#RRGGBB` palette users pick in
     /// the currency creator), used to paint its token card. Empty when the mint
     /// has no stored metadata or no customization.

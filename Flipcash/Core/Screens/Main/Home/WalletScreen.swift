@@ -17,8 +17,11 @@ struct WalletScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
+    /// Invoked by the funnel's "Scan a Tip Card" step to switch to the Scan tab.
+    let onScanTipCard: () -> Void
+
     var body: some View {
-        WalletScreenContent(sessionContainer: sessionContainer)
+        WalletScreenContent(sessionContainer: sessionContainer, onScanTipCard: onScanTipCard)
     }
 }
 
@@ -36,19 +39,23 @@ private struct WalletScreenContent: View {
     @Environment(HistoryController.self) private var historyController
 
     let session: Session
+    let onScanTipCard: () -> Void
 
     @State private var cards: [TokenCardData] = []
     @State private var total: ExchangedFiat
     @State private var appreciation: (amount: FiatAmount, isPositive: Bool)
+    @State private var hasAddedMoney: Bool
+    @State private var hasTipped: Bool
     @State private var scrolledPast: CGFloat = 0
-    /// The header block's height — the scroll distance before the stack reaches
-    /// the top. Collapse starts past this.
+    /// The height of everything above the card stack (header + funnel) — the
+    /// scroll distance before the stack reaches the top. Collapse starts past it.
     @State private var headerHeight: CGFloat = 150
     /// The scroll view's content offset at rest, captured on the first KVO tick.
     @State private var restOffset: CGFloat?
 
-    init(sessionContainer: SessionContainer) {
+    init(sessionContainer: SessionContainer, onScanTipCard: @escaping () -> Void) {
         self.session = sessionContainer.session
+        self.onScanTipCard = onScanTipCard
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         // Seed synchronously so the first render shows real balances, not an
         // empty-state flash (mirrors BalanceScreen).
@@ -56,21 +63,23 @@ private struct WalletScreenContent: View {
         _cards = State(initialValue: seed.cards)
         _total = State(initialValue: seed.total)
         _appreciation = State(initialValue: seed.appreciation)
+        _hasAddedMoney = State(initialValue: seed.hasAddedMoney)
+        _hasTipped = State(initialValue: seed.hasTipped)
     }
 
     private var rate: Rate { ratesController.rateForBalanceCurrency() }
+
+    private var isOnboardingComplete: Bool { hasAddedMoney && hasTipped }
+
+    private var onboardingItems: [OnboardingItem] {
+        [.addMoney(isCompleted: hasAddedMoney), .scanTipCard(isCompleted: hasTipped)]
+    }
 
     var body: some View {
         @Bindable var router = router
         NavigationStack(path: $router[.balance]) {
             Background(color: .backgroundMain) {
-                Group {
-                    if cards.isEmpty {
-                        emptyState
-                    } else {
-                        walletContent
-                    }
-                }
+                walletContent
             }
             // No top bar on the wallet root (per Figma) — the balance header
             // sits directly under the status bar. Pushed destinations restore
@@ -88,24 +97,42 @@ private struct WalletScreenContent: View {
     private var walletContent: some View {
         ScrollView {
             VStack(spacing: 0) {
-                header
-                    .padding(.vertical, 30)
-                    // The header's height is scroll-independent, so this fires once
-                    // at layout — it's the distance the stack sits below the top.
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear.preference(key: HeaderHeightKey.self, value: proxy.size.height)
-                        }
-                    )
+                // Header + funnel scroll off before the stack collapses, so their
+                // combined height (scroll-independent, measured once at layout) is
+                // the collapse threshold.
+                VStack(spacing: 0) {
+                    header
+                        .padding(.vertical, 30)
 
-                TokenCardStack(
-                    items: cards,
-                    scrolledPast: scrolledPast,
-                    onCardTap: { router.push(.currencyInfo($0.mint)) }
+                    if !isOnboardingComplete {
+                        OnboardingFunnelView(
+                            title: "Send Your First Tip",
+                            items: onboardingItems,
+                            onTap: handleOnboardingTap
+                        )
+                        .padding(.bottom, 20)
+                    }
+                }
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: HeaderHeightKey.self, value: proxy.size.height)
+                    }
                 )
 
-                addMoneyButton
-                    .padding(.top, 24)
+                if !cards.isEmpty {
+                    TokenCardStack(
+                        items: cards,
+                        scrolledPast: scrolledPast,
+                        onCardTap: { router.push(.currencyInfo($0.mint)) }
+                    )
+                }
+
+                // Returning users (already funded) get a plain add-money row; new
+                // users use the funnel's own "Add Money" step instead.
+                if hasAddedMoney {
+                    addMoneyButton
+                        .padding(.top, 24)
+                }
 
                 // Bottom inset so the last card clears the floating tab bar.
                 Color.clear.frame(height: 96)
@@ -147,19 +174,13 @@ private struct WalletScreenContent: View {
         .buttonStyle(.plain)
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 10) {
-            Text("No Balance Yet")
-                .font(.appTextLarge)
-            Text("Add money to get started")
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-            BubbleButton(text: "Add Money") {
-                router.presentAddMoney(.general, source: .balance)
-            }
-            .padding(.top, 8)
+    private func handleOnboardingTap(_ item: OnboardingItem) {
+        switch item {
+        case .addMoney:
+            router.presentAddMoney(.general, source: .balance)
+        case .scanTipCard:
+            onScanTipCard()
         }
-        .padding(.horizontal, 40)
     }
 
     // MARK: - Data
@@ -170,6 +191,8 @@ private struct WalletScreenContent: View {
             cards = snapshot.cards
             total = snapshot.total
             appreciation = snapshot.appreciation
+            hasAddedMoney = snapshot.hasAddedMoney
+            hasTipped = snapshot.hasTipped
         }
     }
 
@@ -179,7 +202,7 @@ private struct WalletScreenContent: View {
     private static func snapshot(
         session: Session,
         rate: Rate
-    ) -> (cards: [TokenCardData], total: ExchangedFiat, appreciation: (amount: FiatAmount, isPositive: Bool)) {
+    ) -> (cards: [TokenCardData], total: ExchangedFiat, appreciation: (amount: FiatAmount, isPositive: Bool), hasAddedMoney: Bool, hasTipped: Bool) {
         let all = session.balances(for: rate)
         let visible = all.filter { $0.stored.mint != .usdf || $0.exchangedFiat.hasDisplayableValue() }
 
@@ -212,7 +235,7 @@ private struct WalletScreenContent: View {
             isPositive: net >= 0
         )
 
-        return (cards, total, appreciation)
+        return (cards, total, appreciation, session.hasEverAddedMoney(), session.hasEverTipped())
     }
 }
 
