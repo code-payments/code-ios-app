@@ -46,7 +46,13 @@ private struct WalletScreenContent: View {
     @State private var appreciation: (amount: FiatAmount, isPositive: Bool)
     @State private var hasAddedMoney: Bool
     @State private var hasTipped: Bool
+    /// The unified recent-activity preview (newest first).
+    @State private var recentActivities: [Activity]
     @State private var scrolledPast: CGFloat = 0
+
+    /// Rows of recent activity previewed on the wallet (the rest lives on the
+    /// per-token transaction history).
+    private static let recentPreviewCount = 3
     /// The height of everything above the card stack (header + funnel) — the
     /// scroll distance before the stack reaches the top. Collapse starts past it.
     @State private var headerHeight: CGFloat = 150
@@ -65,6 +71,7 @@ private struct WalletScreenContent: View {
         _appreciation = State(initialValue: seed.appreciation)
         _hasAddedMoney = State(initialValue: seed.hasAddedMoney)
         _hasTipped = State(initialValue: seed.hasTipped)
+        _recentActivities = State(initialValue: sessionContainer.session.recentActivities(limit: Self.recentPreviewCount))
     }
 
     private var rate: Rate { ratesController.rateForBalanceCurrency() }
@@ -89,13 +96,18 @@ private struct WalletScreenContent: View {
             .onAppear { historyController.sync() }
             .onChange(of: session.balances) { _, _ in refresh() }
             .onChange(of: rate) { _, _ in refresh() }
+            // Activities land in the DB independently of a balance change (e.g.
+            // a synced history page), so reload the preview on any DB change.
+            .onReceive(NotificationCenter.default.publisher(for: .databaseDidChange)) { _ in
+                recentActivities = session.recentActivities(limit: Self.recentPreviewCount)
+            }
         }
     }
 
     // MARK: - Content
 
     private var walletContent: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
                 // Header + funnel scroll off before the stack collapses, so their
                 // combined height (scroll-independent, measured once at layout) is
@@ -132,6 +144,10 @@ private struct WalletScreenContent: View {
                 if hasAddedMoney {
                     addMoneyButton
                         .padding(.top, 24)
+                }
+
+                if !recentActivities.isEmpty {
+                    recentActivitySection
                 }
 
                 // Bottom inset so the last card clears the floating tab bar.
@@ -172,6 +188,23 @@ private struct WalletScreenContent: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+    }
+
+    private var recentActivitySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Recent")
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 24)
+                .padding(.bottom, 4)
+
+            ForEach(recentActivities) { activity in
+                WalletActivityRow(activity: activity) {
+                    router.push(.transactionHistory(activity.exchangedFiat.mint))
+                }
+            }
+        }
     }
 
     private func handleOnboardingTap(_ item: OnboardingItem) {
