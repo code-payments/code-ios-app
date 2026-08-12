@@ -17,8 +17,13 @@ struct BalanceScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
+    /// When shown as the v2 Wallet tab it is full-screen chrome, not a sheet, so
+    /// the dismiss button is suppressed. Defaults to `false` — the v1 sheet
+    /// presentation keeps its close button.
+    var isEmbedded: Bool = false
+
     var body: some View {
-        BalanceScreenContent(sessionContainer: sessionContainer)
+        BalanceScreenContent(sessionContainer: sessionContainer, isEmbedded: isEmbedded)
     }
 }
 
@@ -80,10 +85,14 @@ private struct BalanceScreenContent: View {
         return (amount, isPositive)
     }
 
+    /// See ``BalanceScreen/isEmbedded``.
+    private let isEmbedded: Bool
+
     // MARK: - Init -
 
-    init(sessionContainer: SessionContainer) {
+    init(sessionContainer: SessionContainer, isEmbedded: Bool = false) {
         self.session = sessionContainer.session
+        self.isEmbedded = isEmbedded
 
         // Seed the @State arrays synchronously so the first body evaluation
         // renders the correct branch — otherwise `visibleBalances == []` flips
@@ -126,8 +135,10 @@ private struct BalanceScreenContent: View {
             .toolbarTitleDisplayMode(.inline)
             .appRouterDestinations()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    CloseButton(action: router.dismissSheet)
+                if !isEmbedded {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        CloseButton(action: router.dismissSheet)
+                    }
                 }
             }
             .onChange(of: notificationController.pushWillPresent) { _, _ in

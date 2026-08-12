@@ -58,6 +58,19 @@ final class AppRouter {
 
     private var paths: [Stack: NavigationPath] = [:]
 
+    /// In the v2 tab UI, the stack owned by the currently-selected tab. A tab is
+    /// the active surface without being a *sheet*, so `presentedSheet` is nil
+    /// while a tab is showing; the topmost-stack mutators (`push`, `popTopmost`,
+    /// …) fall back to this so in-tab navigation lands on the right stack.
+    /// `HomeTabView` keeps it in sync with the selected tab; nil in the v1
+    /// sheet-first UI, where a sheet is always the push target.
+    var activeTabStack: Stack?
+
+    /// The stack that `push`/`pop`-style calls target: the presented sheet's
+    /// stack, or — when no sheet is up (a v2 tab is the active surface) — the
+    /// active tab's stack.
+    private var topmostStack: Stack? { presentedSheet?.stack ?? activeTabStack }
+
     /// Stacks whose owning sheet was explicitly dismissed (close button,
     /// swipe-down, or programmatic `dismissSheet`) since the last presentation
     /// of that stack. The next `present(_:)` or `presentNested(_:)` on a sheet
@@ -90,7 +103,7 @@ final class AppRouter {
     ///
     /// Cross-stack navigation is `navigate(to:)`'s job, not `push`'s.
     func push(_ destination: Destination) {
-        guard let stack = presentedSheet?.stack else {
+        guard let stack = topmostStack else {
             logger.warning("Push attempted with no sheet presented", metadata: [
                 "destination": "\(destination)",
             ])
@@ -106,7 +119,7 @@ final class AppRouter {
     /// mixed types without nesting `NavigationStack`s. No-op with a warning
     /// if no sheet is presented.
     func pushAny<H: Hashable>(_ value: H) {
-        guard let stack = presentedSheet?.stack else {
+        guard let stack = topmostStack else {
             logger.warning("Push (sub-flow) attempted with no sheet presented", metadata: [
                 "type": "\(type(of: value))",
             ])
@@ -131,7 +144,7 @@ final class AppRouter {
     /// without hand-stamping which stack it lives on (the Phantom flow
     /// screen, for instance, can ride on `.buy`, `.balance`, or `.discover`).
     func popTopmost() {
-        guard let stack = presentedSheet?.stack else { return }
+        guard let stack = topmostStack else { return }
         pop(on: stack)
     }
 
@@ -146,7 +159,7 @@ final class AppRouter {
     ///
     /// No-op with a warning if no sheet is presented.
     func replaceTopmostAny<H: Hashable>(_ value: H) {
-        guard let stack = presentedSheet?.stack else {
+        guard let stack = topmostStack else {
             logger.warning("replaceTopmostAny attempted with no sheet presented", metadata: [
                 "type": "\(type(of: value))",
             ])
@@ -173,7 +186,7 @@ final class AppRouter {
     /// must unwind to the host stack's root without hand-stamping which stack they're on (e.g. the
     /// withdraw flow, reachable from the Wallet, a deeplinked chat, or the recipient picker).
     func popToRoot() {
-        guard let stack = presentedSheet?.stack else { return }
+        guard let stack = topmostStack else { return }
         popToRoot(on: stack)
     }
 
