@@ -14,28 +14,42 @@ struct TipConversationsScreen: View {
     @Environment(ConversationController.self) private var conversationController
     @Environment(AppRouter.self) private var router
 
+    /// See ``TipsScreen/isEmbedded`` — v2 drops the inline tip-card button and
+    /// leads with the large "Chats" title.
+    var isEmbedded: Bool = false
+
     var body: some View {
         Background(color: .backgroundMain) {
-            List {
-                Button("Show My Tip Card") {
-                    router.push(.tipcard)
+            VStack(alignment: .leading, spacing: 0) {
+                if isEmbedded {
+                    ChatsTabTitle()
                 }
-                .buttonStyle(.filled)
-                .accessibilityIdentifier("show-my-tipcard-button")
-                .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
 
-                ForEach(conversationController.conversations(of: .tipDm)) { conversation in
-                    TipConversationRow(conversation: conversation) {
-                        router.push(.tipConversation(conversation.id))
+                List {
+                    // v1 only — v2 reaches the tip card from its own tab.
+                    if !isEmbedded {
+                        Button("Show My Tip Card") {
+                            router.push(.tipcard)
+                        }
+                        .buttonStyle(.filled)
+                        .accessibilityIdentifier("show-my-tipcard-button")
+                        .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    }
+
+                    ForEach(conversationController.conversations(of: .tipDm)) { conversation in
+                        TipConversationRow(conversation: conversation) {
+                            router.push(.tipConversation(conversation.id))
+                        }
                     }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
         }
-        .navigationTitle("Tips")
+        .navigationTitle(isEmbedded ? "" : "Tips")
+        .toolbar(isEmbedded ? .hidden : .automatic, for: .navigationBar)
         .toolbarTitleDisplayMode(.inline)
     }
 }
