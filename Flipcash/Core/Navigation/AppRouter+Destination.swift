@@ -25,6 +25,9 @@ extension AppRouter {
         case currencyCreationSummary
         case currencyCreationWizard
         case transactionHistory(PublicKey)
+        /// The unified, cross-token activity history — the "dive in" from the
+        /// Wallet's Recent section. `transactionHistory` is the per-token slice.
+        case activity
         case give(PublicKey)
         /// Skips the picker step in the withdraw flow and lands the user on
         /// `WithdrawIntroScreen` with the currency pre-selected. Pushed from
@@ -71,7 +74,7 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .give, .withdrawCurrency,
+                 .transactionHistory, .activity, .give, .withdrawCurrency,
                  .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
@@ -97,6 +100,7 @@ extension AppRouter {
             case .currencyCreationSummary:      "currencyCreationSummary"
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
+            case .activity:                     "activity"
             case .give:                         "give"
             case .withdrawCurrency:             "withdrawCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
@@ -136,7 +140,8 @@ extension AppRouter {
                 return conversationID.description
             case .userProfile(let userID):
                 return userID.uuidString
-            case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
+            case .activity,
+                 .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,

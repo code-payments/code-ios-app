@@ -16,7 +16,6 @@ import FlipcashCore
 struct WalletActivityRow: View {
 
     let activity: Activity
-    var onTap: () -> Void = {}
 
     @Environment(SessionContainer.self) private var sessionContainer
     private var session: Session { sessionContainer.session }
@@ -28,33 +27,29 @@ struct WalletActivityRow: View {
     @State private var avatarBlurhash: String?
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                avatar
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
+        HStack(spacing: 12) {
+            avatar
+                .frame(width: 40, height: 40)
+                .clipShape(Circle())
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(displayTitle)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                    Text(activity.date.formattedRelatively(useTimeForToday: true))
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                }
-
-                Spacer(minLength: 8)
-
-                Text(signedAmount)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayTitle)
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
                     .lineLimit(1)
+                Text(activity.date.formattedRelatively(useTimeForToday: true))
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
             }
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+
+            Spacer(minLength: 8)
+
+            Text(signedAmount)
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, 10)
         .task(id: activity.id) { await resolveCounterparty() }
     }
 
