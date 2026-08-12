@@ -104,7 +104,7 @@ private struct ScanScreenContent: View {
                 // in front of the BillCanvas, otherwise it
                 // will swallow all touch events
                 if let cameraPrompt {
-                    CameraPromptView(prompt: cameraPrompt) {
+                    CameraPromptView(prompt: cameraPrompt, embedded: isEmbedded) {
                         performCameraPromptAction(cameraPrompt)
                     }
                     .zIndex(1)

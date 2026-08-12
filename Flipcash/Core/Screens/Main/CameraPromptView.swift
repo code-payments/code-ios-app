@@ -43,11 +43,14 @@ nonisolated enum CameraPrompt: Equatable {
         }
     }
 
-    /// The explanatory text shown above the action button.
-    var message: String {
+    /// The explanatory text shown above the action button. `embedded` is the v2
+    /// tab-bar UI, where the scanner is framed around tip cards rather than the
+    /// v1 cash-grab wording.
+    func message(embedded: Bool) -> String {
         switch self {
         case .requestPermission:
-            "Flipcash uses your camera to scan and grab cash"
+            embedded ? "Start your camera to scan a Tip Card"
+                     : "Flipcash uses your camera to scan and grab cash"
         case .openSettings:
             "You need to turn on Camera in Settings to scan Codes"
         case .startCamera:
@@ -73,11 +76,13 @@ nonisolated enum CameraPrompt: Equatable {
 struct CameraPromptView: View {
 
     let prompt: CameraPrompt
+    /// Whether shown inside the v2 tab-bar UI (affects the permission copy).
+    var embedded: Bool = false
     let action: () -> Void
 
     var body: some View {
         VStack(spacing: 40) {
-            Text(prompt.message)
+            Text(prompt.message(embedded: embedded))
                 .frame(maxWidth: 260)
                 .multilineTextAlignment(.center)
 
