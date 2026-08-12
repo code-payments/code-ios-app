@@ -57,6 +57,12 @@ class Session {
     /// the scan screen. Toggled by the Settings → Advanced Features row.
     var isShowingBillDesigner: Bool = false
 
+    /// Whether the scanner camera surface is currently foreground. The app-root
+    /// bill overlay suppresses its scrim while true, so a grabbed bill shows over
+    /// the live camera (as it always has) rather than a dimmed backdrop; over any
+    /// other surface (a wallet/chat push receiving a cash link) the scrim shows.
+    var isScannerForeground: Bool = false
+
     // MARK: - User State -
 
     /// Server-fetched user profile.
