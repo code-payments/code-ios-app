@@ -23,6 +23,11 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     /// name for a user) from these.
     public let textSubstitutions: [TextSubstitution]
 
+    /// The other party in a peer activity (the recipient of a send/tip, the
+    /// sender of a received tip). `nil` for non-peer activity (deposits, buys,
+    /// withdrawals). Used to resolve an avatar and a richer name in feed rows.
+    public let counterparty: Counterparty?
+
     public var cancellableCashLinkMetadata: CashLinkMetadata? {
         switch state {
         case .pending:
@@ -37,7 +42,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         return nil
     }
 
-    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = []) {
+    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = [], counterparty: Counterparty? = nil) {
         self.id = id
         self.state = state
         self.kind = kind
@@ -46,6 +51,50 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         self.date = date
         self.metadata = metadata
         self.textSubstitutions = textSubstitutions
+        self.counterparty = counterparty
+    }
+}
+
+// MARK: - Counterparty -
+
+extension Activity {
+    /// The other party in a peer activity, as identified by the server.
+    public enum Counterparty: Sendable, Equatable, Hashable {
+        case user(UserID)
+        case phone(String)
+
+        public var userID: UserID? { if case .user(let id) = self { return id } else { return nil } }
+        public var phone: String? { if case .phone(let value) = self { return value } else { return nil } }
+
+        /// Rebuilds a counterparty from its persisted columns.
+        public init?(userID: UserID?, phone: String?) {
+            if let userID { self = .user(userID) }
+            else if let phone { self = .phone(phone) }
+            else { return nil }
+        }
+    }
+}
+
+extension Activity.Counterparty {
+    /// Extracts the counterparty from a send/receive notification's identifier
+    /// oneof; `nil` for metadata kinds that have no counterparty.
+    init?(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
+        switch proto {
+        case .directlySentCrypto(let metadata):
+            switch metadata.destinationIdentifier {
+            case .userID(let user): guard let id = try? UserID(data: user.value) else { return nil }; self = .user(id)
+            case .phone(let phone): self = .phone(phone.value)
+            case .none:             return nil
+            }
+        case .receivedCrypto(let metadata):
+            switch metadata.sourceIdentifier {
+            case .userID(let user): guard let id = try? UserID(data: user.value) else { return nil }; self = .user(id)
+            case .phone(let phone): self = .phone(phone.value)
+            case .none:             return nil
+            }
+        case .withdrewCrypto, .indirectlySentCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto, .none:
+            return nil
+        }
     }
 }
 
@@ -156,7 +205,8 @@ extension Activity {
             exchangedFiat: try ExchangedFiat(proto.paymentAmount),
             date: proto.ts.date,
             metadata: .init(proto.additionalMetadata),
-            textSubstitutions: substitutions
+            textSubstitutions: substitutions,
+            counterparty: .init(proto.additionalMetadata)
         )
     }
 }

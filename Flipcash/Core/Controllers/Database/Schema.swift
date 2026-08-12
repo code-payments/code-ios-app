@@ -67,6 +67,10 @@ nonisolated struct ActivityTable: Sendable {
     let currency     = Expression <CurrencyCode> ("currency")
     let mint         = Expression <PublicKey>    ("mint")
     let date         = Expression <Date>         ("date")
+    // The peer on a send/receive, for feed-row avatar + name enrichment. Both
+    // nil for non-peer activity (deposits, buys, withdrawals).
+    let counterpartyUserID = Expression <UUID?>   ("counterpartyUserID")
+    let counterpartyPhone  = Expression <String?> ("counterpartyPhone")
 }
 
 nonisolated struct CashLinkMetadataTable: Sendable {
@@ -309,6 +313,8 @@ nonisolated extension Database {
                 t.column(activityTable.currency)
                 t.column(activityTable.mint)
                 t.column(activityTable.date)
+                t.column(activityTable.counterpartyUserID)
+                t.column(activityTable.counterpartyPhone)
             })
         }
         
