@@ -107,7 +107,7 @@ private struct TipCardTab: View {
     var body: some View {
         NavigationStack {
             if sessionContainer.session.profile?.isTippable == true {
-                TipcardScreen()
+                TipcardScreen(isEmbedded: true)
             } else {
                 TipCardSetupPrompt(onSetUp: onSetUp)
             }
