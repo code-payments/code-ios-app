@@ -86,7 +86,7 @@ private struct ChatTab: View {
     var body: some View {
         @Bindable var router = router
         NavigationStack(path: $router[.tips]) {
-            TipsScreen()
+            TipsScreen(isEmbedded: true)
                 .appRouterDestinations()
         }
         .environment(creationState)

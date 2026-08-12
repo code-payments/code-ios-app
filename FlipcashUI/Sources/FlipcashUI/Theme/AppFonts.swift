@@ -14,7 +14,11 @@ extension Font {
     public static let appDisplayCompact: Font = .default(size: 30, weight: .bold)
     public static let appDisplaySmall:  Font = .default(size: 24, weight: .bold)
     public static let appDisplayXS:     Font = .default(size: 20, weight: .bold)
-    
+
+    /// Large, flush start-aligned screen title (e.g. the v2 Chats tab). Mirrors
+    /// Android's `screenTitleLarge` type token.
+    public static let appTitleLarge:    Font = .default(size: 33.05, weight: .bold)
+
     public static let appKeyboard:      Font = .default(size: 30, weight: .regular)
     
     public static let appTitle:         Font = .default(size: 20, weight: .bold)
@@ -41,7 +45,10 @@ extension UIFont {
     public static let appDisplayMedium: UIFont = .default(size: 40, weight: .bold)
     public static let appDisplaySmall:  UIFont = .default(size: 24, weight: .bold)
     public static let appDisplayXS:     UIFont = .default(size: 20, weight: .bold)
-    
+
+    /// See `Font.appTitleLarge`.
+    public static let appTitleLarge:    UIFont = .default(size: 33.05, weight: .bold)
+
     public static let appKeyboard:      UIFont = .default(size: 30, weight: .regular)
     
     public static let appTitle:         UIFont = .default(size: 20, weight: .bold)
