@@ -31,9 +31,15 @@ struct SendTipSheet: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("Send a Tip")
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
+            HStack {
+                Text("Send a Tip")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+
+                Spacer()
+
+                currencySelector
+            }
 
             HStack(spacing: 8) {
                 presetChip(.low)
@@ -41,8 +47,6 @@ struct SendTipSheet: View {
                 presetChip(.high)
                 customChip
             }
-
-            currencyRow
 
             SwipeControl(text: "Swipe to Tip") {
                 try await tipFlow.swipeToTip()
@@ -106,23 +110,19 @@ struct SendTipSheet: View {
 
     // MARK: - Currency -
 
-    private var currencyRow: some View {
-        HStack(spacing: 6) {
-            Text("of")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
-
-            TokenSelectorButton(selectedBalance: tipFlow.submission?.selectedBalance) {
-                localSheet = .currencyPicker
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background {
-                Capsule()
-                    .fill(Color(white: 0.22))
-            }
-            .accessibilityIdentifier("tip-currency-row")
+    /// The tip currency, shown as a pill in the sheet header (Figma 8966-2649):
+    /// the token icon, name, and a chevron — no "of" label.
+    private var currencySelector: some View {
+        TokenSelectorButton(selectedBalance: tipFlow.submission?.selectedBalance) {
+            localSheet = .currencyPicker
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background {
+            Capsule()
+                .fill(Color.white.opacity(0.1))
+        }
+        .accessibilityIdentifier("tip-currency-row")
     }
 }
 
@@ -142,9 +142,9 @@ private struct TipAmountChip: View {
                 .minimumScaleFactor(0.5)
                 .foregroundStyle(isSelected ? Color.backgroundMain : Color.textMain)
                 .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(isSelected ? Color.textMain : Color(white: 0.22))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .frame(height: 60)
+                .background(isSelected ? Color.textMain : Color.white.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
     }
