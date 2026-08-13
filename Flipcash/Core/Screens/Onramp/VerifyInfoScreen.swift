@@ -86,3 +86,49 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
         }
     }
 }
+
+/// Renders one verification step when the flow is pushed onto the app's
+/// navigation stack (v2) rather than hosted in `VerifyInfoScreen`'s own sheet
+/// stack. Mirrors the per-step switch above. The active view model comes from
+/// the coordinator's inline slot; the root step cancels the flow when it's
+/// popped — the user backed out of verification — while later steps back
+/// within the flow. Registered on every stack by `appRouterDestinations()`.
+struct OnrampVerificationPushedStep: View {
+
+    let path: OnrampVerificationPath
+
+    @Environment(VerificationCoordinator.self) private var coordinator
+
+    var body: some View {
+        if let viewModel = coordinator.currentInlineViewModel {
+            step(for: path, viewModel: viewModel)
+                .toolbarTitleDisplayMode(.inline)
+                .onDisappear {
+                    // Popping the root step means the user abandoned
+                    // verification; cancel to release the awaiting gate. A
+                    // no-op once the flow has finished (continuation cleared).
+                    if path == viewModel.rootPushedStep {
+                        viewModel.cancel()
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func step(for path: OnrampVerificationPath, viewModel: OnrampVerification) -> some View {
+        switch path {
+        case .intro:
+            OnrampVerificationIntroScreen(onNext: { viewModel.proceedFromIntro() })
+        case .enterPhoneNumber:
+            EnterPhoneScreen(viewModel: viewModel.phoneVerifier)
+                .navigationTitle("Verify Phone Number")
+        case .confirmPhoneNumberCode:
+            ConfirmPhoneScreen(viewModel: viewModel.phoneVerifier)
+                .navigationTitle("Verify Phone Number")
+        case .enterEmail:
+            EnterEmailScreen(viewModel: viewModel.emailVerifier)
+        case .confirmEmailCode:
+            ConfirmEmailScreen(viewModel: viewModel.emailVerifier)
+        }
+    }
+}

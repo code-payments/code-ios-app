@@ -200,13 +200,17 @@ private extension AppDelegate {
         bar.titleTextAttributes = titleAttributes
 
         if #available(iOS 26, *) {
-            // iOS 26: Transparent background to allow Liquid Glass,
-            // but still apply custom title font and button styling
+            // iOS 26: use the system's default (Liquid Glass) bar background and
+            // only override the title fonts. A *transparent* background removes
+            // the bar's glass material, so the buttons have no stable bar-glass
+            // to composite against and the system repaints their glass during
+            // the push transition — that's the flicker as screens push/settle.
+            // The buttons are also left to the system (no `backButtonAppearance`)
+            // for the same reason.
             let barAppearance = UINavigationBarAppearance()
-            barAppearance.configureWithTransparentBackground()
+            barAppearance.configureWithDefaultBackground()
             barAppearance.titleTextAttributes = titleAttributes
             barAppearance.largeTitleTextAttributes = largeAttributes
-            barAppearance.backButtonAppearance = buttonAppearance
 
             bar.standardAppearance = barAppearance
             bar.scrollEdgeAppearance = barAppearance
@@ -235,14 +239,15 @@ private extension AppDelegate {
 // MARK: - UINavigationController -
 
 extension UINavigationController {
-    /// Remove the back button in all navigation stacks
+    /// Force every pushed screen's back button to the chevron-only (`.minimal`)
+    /// display mode. On iOS 26 the default mode carries the previous screen's
+    /// title as a back label that re-resolves during the push transition, which
+    /// flickers the back arrow as the route settles. Guarded so it only writes
+    /// when the value actually changes — `viewWillLayoutSubviews` runs on every
+    /// layout pass, and re-setting it each time would itself churn the bar.
     open override func viewWillLayoutSubviews() {
-        // Only execute on iOS 18 and below
-        if #available(iOS 26, *) {
-            return
-        }
-
-        for viewController in viewControllers {
+        for viewController in viewControllers
+        where viewController.navigationItem.backButtonDisplayMode != .minimal {
             viewController.navigationItem.backButtonDisplayMode = .minimal
         }
     }

@@ -354,6 +354,19 @@ final class AppRouter {
         return true
     }
 
+    /// The stack the deposit flow pushes onto once a method is chosen from the
+    /// Add Money picker: the sheet directly beneath the picker, or — when the
+    /// picker is the root sheet over a v2 tab — that tab's stack. `nil` when
+    /// nothing sits beneath the picker (e.g. opened over the bare scanner via
+    /// the no-balance gate); the picker then falls back to its own flow sheet
+    /// since there is no navigation stack to host the push.
+    var addMoneyPushStack: Stack? {
+        if presentedSheets.count >= 2 {
+            return presentedSheets[presentedSheets.count - 2].stack
+        }
+        return activeTabStack
+    }
+
     /// Dismisses the topmost sheet. If only the root remains, this dismisses
     /// the root (same as the pre-nested behaviour). With nested sheets, only
     /// the topmost is popped — the root stays presented.

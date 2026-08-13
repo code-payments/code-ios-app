@@ -165,8 +165,43 @@ extension View {
         navigationDestination(for: AppRouter.Destination.self) { destination in
             DestinationView(destination: destination)
         }
+        // The Add Money deposit flow pushes onto whichever stack launched it
+        // (wallet, settings, buy, chat, …) rather than opening its own sheet,
+        // so every app stack registers its steps here.
+        .navigationDestination(for: AddMoneyFlowStep.self) { step in
+            AddMoneyFlowStepDestination(step: step)
+        }
+        // The up-front debit-card verification (intro → phone → email) pushes
+        // onto the same stack ahead of the deposit flow.
+        .navigationDestination(for: OnrampVerificationPath.self) { path in
+            OnrampVerificationPushedStep(path: path)
+        }
         // Sheet-hosted stacks otherwise recognize swipe-back from anywhere; keep
         // it to the leading edge, matching the root stack and system behavior.
         .edgeOnlySwipeBack()
+    }
+}
+
+/// Renders a pushed Add Money deposit step on the app's shared stacks.
+/// Advancing pushes the next step onto the same stack.
+private struct AddMoneyFlowStepDestination: View {
+
+    let step: AddMoneyFlowStep
+
+    @Environment(AppRouter.self) private var router
+
+    var body: some View {
+        AddMoneyFlowDestination(step: step, onStep: { router.pushAny($0) })
+            .environment(\.dismissParentContainer, {
+                // v2 pushes the flow onto the host stack, so finishing pops back
+                // to that stack's root, returning to where it was launched. v1
+                // only reaches here over the buy sheet, where finishing dismisses
+                // the sheet as it always has.
+                if BetaFlags.shared.hasEnabled(.newUI) {
+                    router.popToRoot()
+                } else {
+                    router.dismissSheet()
+                }
+            })
     }
 }

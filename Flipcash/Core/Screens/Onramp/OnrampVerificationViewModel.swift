@@ -56,6 +56,30 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
     /// implementations.
     @ObservationIgnored var continuation: CheckedContinuation<Void, Error>?
 
+    // MARK: - Pushed navigation -
+
+    /// When set, step advances route through this sink — used to push the flow
+    /// onto the app's navigation stack — instead of the view-model-owned
+    /// `verificationPath`. Sheet hosts (`VerifyInfoScreen`) leave it nil and let
+    /// `verificationPath` drive their own `NavigationStack`.
+    @ObservationIgnored var onAdvance: (@MainActor (OnrampVerificationPath) -> Void)?
+
+    /// The first step pushed when the flow runs on the app's navigation stack.
+    /// The pushed host cancels the flow when this step is popped (the user
+    /// backed out of verification); later steps back within the flow.
+    @ObservationIgnored var rootPushedStep: OnrampVerificationPath?
+
+    /// Advances to `step` — pushing through `onAdvance` when the flow is hosted
+    /// on the app's navigation stack, otherwise appending to the sheet-owned
+    /// `verificationPath`.
+    private func advance(to step: OnrampVerificationPath) {
+        if let onAdvance {
+            onAdvance(step)
+        } else {
+            verificationPath.append(step)
+        }
+    }
+
     // MARK: - Init -
 
     /// Primary DI init — accepts any conformers of the verifier protocols.
@@ -71,7 +95,7 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
 
         phoneVerifier.onCodeRequested = { [weak self] in
             guard let self else { return }
-            verificationPath.append(.confirmPhoneNumberCode)
+            advance(to: .confirmPhoneNumberCode)
             Analytics.track(event: Analytics.OnrampEvent.showConfirmPhone)
         }
         phoneVerifier.onVerified = { [weak self] in
@@ -79,7 +103,7 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
         }
         emailVerifier.onCodeRequested = { [weak self] in
             guard let self else { return }
-            verificationPath.append(.confirmEmailCode)
+            advance(to: .confirmEmailCode)
             Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
         }
         emailVerifier.onVerified = { [weak self] in
@@ -145,13 +169,13 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
     /// when both phone and email are needed, so phone entry is always next.
     func proceedFromIntro() {
         Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
-        verificationPath.append(.enterPhoneNumber)
+        advance(to: .enterPhoneNumber)
     }
 
     private func navigateToEmailOrFinish() {
         if !emailVerifier.isAlreadyVerified {
             Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
-            verificationPath.append(.enterEmail)
+            advance(to: .enterEmail)
             return
         }
 

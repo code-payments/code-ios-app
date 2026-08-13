@@ -96,4 +96,36 @@ struct AddMoneyRoutingTests {
         #expect(router.presentedSheets == [.discover, .buy(.usdc)])
         #expect(router[.buy].count == 1, "The deposit flow step must land on the buy sheet's stack")
     }
+
+    @Test("The deposit flow targets the sheet directly beneath the picker")
+    func addMoneyPushStack_overSheet_usesUnderlyingStack() {
+        let router = AppRouter()
+        router.present(.give)
+        router.presentAddMoney(.giveCash, source: .scanner)
+        #expect(router.addMoneyPushStack == .give)
+    }
+
+    @Test("Over the buy sheet the deposit flow targets the buy stack")
+    func addMoneyPushStack_overBuy_usesBuyStack() {
+        let router = AppRouter()
+        router.present(.discover)
+        router.presentNested(.buy(.usdc))
+        router.presentAddMoney(.buyCurrency, source: .buyShortfall)
+        #expect(router.addMoneyPushStack == .buy)
+    }
+
+    @Test("At root, the deposit flow targets the active tab's stack")
+    func addMoneyPushStack_rootOverTab_usesActiveTabStack() {
+        let router = AppRouter()
+        router.activeTabStack = .balance
+        router.presentAddMoney(.general, source: .balance)
+        #expect(router.addMoneyPushStack == .balance)
+    }
+
+    @Test("At root with no active tab, the deposit flow has nowhere to push")
+    func addMoneyPushStack_rootNoTab_isNil() {
+        let router = AppRouter()
+        router.presentAddMoney(.giveCash, source: .scanner)
+        #expect(router.addMoneyPushStack == nil)
+    }
 }
