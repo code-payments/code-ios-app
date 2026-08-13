@@ -81,12 +81,7 @@ private struct ScanScreenContent: View {
         ZStack {
             if cameraPrompt == nil {
                 cameraViewport()
-                    .transition(
-                        .asymmetric(
-                            insertion: .opacity.animation(.easeInOut(duration: 0.2).delay(0.3)),
-                            removal: .identity
-                        )
-                    )
+                    .transition(.identity)
             }
             
             if showControls {
@@ -133,6 +128,11 @@ private struct ScanScreenContent: View {
             session: viewModel.cameraSession,
             enableGestures: true
         )
+        // Cross-fade the live preview in only once the first frame arrives, over
+        // the dark placeholder — so the camera warm-up after a tab switch never
+        // shows a black frame. See `ScanViewModel.isPreviewReady`.
+        .opacity(viewModel.isPreviewReady ? 1 : 0)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.isPreviewReady)
         .toolbarVisibility(.hidden, for: .navigationBar)
         .onAppear {
             viewModel.configureCameraSession()
