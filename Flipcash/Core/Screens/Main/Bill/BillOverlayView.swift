@@ -161,18 +161,30 @@ private struct BillOverlayContent: View {
         .ignoresSafeArea()
     }
 
-    /// The resting vertical offset for the centered bill; a tipcard rises from
-    /// here only when the Send a Tip sheet would crowd it.
+    /// The resting vertical offset for a centered cash bill.
     private static let restingBillOffset = CGSize(width: 0, height: -30)
 
-    /// The gap kept between the tipcard's bottom edge and the sheet's top edge.
-    private static let tipcardSheetGap: CGFloat = 42
+    /// The tipcard rests centered on screen when presented as the scan/deep-link
+    /// overlay — and lifts only when the Send a Tip sheet comes up. (Cash bills
+    /// sit slightly above center.)
+    private static let restingTipcardOffset = CGSize(width: 0, height: 0)
+
+    /// When the Send a Tip sheet is up, the card lifts so its top sits ~25% down
+    /// the screen — pushed up clear of the sheet without floating too high above
+    /// it, leaving the lower area for the sheet.
+    private static let tipcardSheetTopInset: CGFloat = 0.25
+
+    /// Floor gap kept between the card's bottom and the sheet's top, used only if
+    /// a taller-than-designed sheet would otherwise crowd the card.
+    private static let tipcardSheetGap: CGFloat = 24
 
     private func billCenterOffset() -> CGSize {
         switch session.billState.bill {
         case .tipcard where sessionContainer.tipFlow.isSheetPresented:
             tipcardSheetOffset()
-        case .tipcard, .cash, nil:
+        case .tipcard:
+            Self.restingTipcardOffset
+        case .cash, nil:
             Self.restingBillOffset
         }
     }
@@ -180,16 +192,22 @@ private struct BillOverlayContent: View {
     private func tipcardSheetOffset() -> CGSize {
         guard tipSheetHeight > 0,
               let screen = UIApplication.shared.firstWindowScene?.screen.bounds else {
-            return Self.restingBillOffset
+            return Self.restingTipcardOffset
         }
 
         // The card is centered on the full screen (the canvas ignores safe area),
-        // so both edges are measured in screen coordinates from the top.
+        // so all edges are measured in screen coordinates from the top.
         let cardHeight = BillCanvas.tipcardSize(canvasWidth: preferredCanvasSize().width).height
+
+        // Lift the card to the design's upper placement (card top ~25% down).
+        let designOffset = screen.height * Self.tipcardSheetTopInset
+            + cardHeight / 2 - screen.height / 2
+
+        // …but rise further if a taller-than-designed sheet would still crowd it.
         let sheetTop = screen.height - tipSheetHeight
         let raised = sheetTop - Self.tipcardSheetGap - cardHeight / 2 - screen.height / 2
 
-        return CGSize(width: 0, height: min(Self.restingBillOffset.height, raised))
+        return CGSize(width: 0, height: min(designOffset, raised))
     }
 
     private func preferredCanvasSize() -> CGSize {
