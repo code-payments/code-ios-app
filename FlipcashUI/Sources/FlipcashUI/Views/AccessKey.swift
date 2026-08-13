@@ -93,9 +93,8 @@ public struct AccessKey: View {
                 }
                     .padding([.top, .bottom], 60)
             )
-            .clipped()
-            .clipShape(.rect(cornerRadius: 10))
             .drawingGroup()
+            .clipShape(.rect(cornerRadius: 10))
             .frame(maxWidth: 255)
     }
 }
