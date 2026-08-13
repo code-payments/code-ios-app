@@ -65,26 +65,48 @@ struct AddMoneyStartScreen: View {
         .onChange(of: verificationViewModel == nil) { _, isNil in
             guard isNil, pendingCoinbaseAmount else { return }
             pendingCoinbaseAmount = false
+            let router = self.router
             Task { @MainActor in
                 try? await Task.delay(milliseconds: 400)
-                flowMethod = .coinbase
+                startFlow(.coinbase, using: router)
             }
         }
     }
 
-    /// Over the buy amount sheet the deposit flow pushes onto that sheet's
-    /// stack; everywhere else it opens as its own sheet on top. In v2 a
-    /// debit-card (Coinbase) deposit verifies phone/email first — the amount
-    /// flow opens only once verification passes (immediately if already
-    /// verified), so no empty sheet appears ahead of it.
+    /// Chooses a deposit method.
+    ///
+    /// In the v2 UI the flow pushes onto the navigation stack the picker was
+    /// launched from — matching the rest of the app — via `startFlow`, and a
+    /// debit-card (Coinbase) deposit verifies phone/email first so no empty
+    /// screen appears ahead of it (skipped over the buy sheet, already gated).
+    ///
+    /// The v1 UI keeps the sheet-based flow unchanged: the deposit opens as its
+    /// own sheet, except over the buy sheet where it pushes as it always has.
     private func select(_ method: DepositMethod) {
         Analytics.addMoneyMethodSelected(method: method)
-        if router.isAddMoneyOverBuy {
-            router.dismissSheet()
-            router.pushAny(AddMoneyFlowStep.method(method))
+        let router = self.router
+
+        guard BetaFlags.shared.hasEnabled(.newUI) else {
+            if router.isAddMoneyOverBuy {
+                dismissThenPush(AddMoneyFlowStep.method(method), using: router)
+            } else {
+                flowMethod = method
+            }
             return
         }
-        if method == .coinbase, BetaFlags.shared.hasEnabled(.newUI) {
+
+        guard method == .coinbase, !router.isAddMoneyOverBuy else {
+            startFlow(method, using: router)
+            return
+        }
+
+        // A debit-card deposit verifies phone/email up front. With a host stack
+        // the whole verification (intro → phone → email) pushes onto it ahead of
+        // the deposit flow; without one (over the bare scanner) it falls back to
+        // the sheet-based verification and sheet deposit flow.
+        if let stack = router.addMoneyPushStack {
+            startCoinbaseVerification(pushingOnto: stack, using: router)
+        } else {
             verificationCoordinator.runGated(
                 for: session,
                 bind: { verificationViewModel = $0 },
@@ -98,9 +120,68 @@ struct AddMoneyStartScreen: View {
                     }
                 }
             )
+        }
+    }
+
+    /// Enters the deposit flow for `method` in the v2 UI. When the picker sits
+    /// over an existing navigation stack (the common case) it dismisses the
+    /// picker and pushes the flow onto that stack so it reads like the rest of
+    /// the app's navigation. With no stack beneath it — the no-balance gate
+    /// opened over the bare scanner — it falls back to presenting the flow as
+    /// its own sheet.
+    private func startFlow(_ method: DepositMethod, using router: AppRouter) {
+        if router.addMoneyPushStack != nil {
+            dismissThenPush(AddMoneyFlowStep.method(method), using: router)
         } else {
             flowMethod = method
         }
+    }
+
+    /// Dismisses the picker, then pushes `value` onto the revealed stack once
+    /// the sheet's dismiss animation has cleared. Pushing while the partial
+    /// sheet is still sliding down runs the revealed stack's push animation at
+    /// the same time, which flickers the new screen's back arrow — so the push
+    /// waits for the sheet to settle (the app's dismiss-then-mutate pattern).
+    private func dismissThenPush<H: Hashable>(_ value: H, using router: AppRouter) {
+        router.dismissSheet()
+        Task { @MainActor in
+            try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
+            router.pushAny(value)
+        }
+    }
+
+    /// v2 debit-card path with a host stack: pushes the verification flow
+    /// (intro → phone → email) onto `stack`, then the deposit amount flow — one
+    /// continuous push navigation. Skips straight to the deposit when the
+    /// profile is already verified. On completion it dismisses the picker (if
+    /// still up), unwinds the verification steps, and pushes the deposit.
+    private func startCoinbaseVerification(pushingOnto stack: AppRouter.Stack, using router: AppRouter) {
+        let baseline = router[stack].count
+        verificationCoordinator.runGated(
+            for: session,
+            bind: { vm in
+                guard let vm else { return }
+                vm.onAdvance = { router.pushAny($0) }
+                let first = vm.initialStep()
+                vm.rootPushedStep = first
+                dismissThenPush(first, using: router)
+            },
+            perform: {
+                if case .addMoney? = router.presentedSheet {
+                    // Already verified: the picker is still up. Dismiss it and
+                    // push the deposit once it clears (same anti-flicker beat).
+                    dismissThenPush(AddMoneyFlowStep.method(.coinbase), using: router)
+                } else {
+                    // Verified via the pushed steps: unwind them and push the
+                    // deposit inline on the already-visible stack.
+                    let depth = router[stack].count
+                    if depth > baseline {
+                        router.popLast(depth - baseline, on: stack)
+                    }
+                    router.pushAny(AddMoneyFlowStep.method(.coinbase))
+                }
+            }
+        )
     }
 
     /// The deposit methods to list — Pay (Coinbase) requires the onramp.
@@ -231,10 +312,12 @@ private struct AddMoneyMethodRow: View {
     }
 }
 
-// MARK: - Deposit flow (new full sheet on top of the prompt)
+// MARK: - Deposit flow
 
-/// A step of the deposit flow, hosted by `AddMoneyFlowSheet` or pushed onto
-/// the buy sheet's stack. `.method` is the per-method root.
+/// A step of the deposit flow. Normally pushed onto the stack the picker was
+/// launched from (registered in `appRouterDestinations`); only when no such
+/// stack exists is it hosted by the fallback `AddMoneyFlowSheet`. `.method` is
+/// the per-method root.
 enum AddMoneyFlowStep: Hashable {
     case method(DepositMethod)
     case phantomAmount
@@ -279,8 +362,9 @@ struct AddMoneyFlowDestination: View {
     }
 }
 
-/// The deposit flow presented as its own sheet, driving a local
-/// navigation path.
+/// Fallback host for the deposit flow when the picker has no navigation stack
+/// beneath it to push onto (the no-balance gate opened over the bare scanner).
+/// Presents the flow as its own sheet, driving a local navigation path.
 private struct AddMoneyFlowSheet: View {
 
     let method: DepositMethod
@@ -290,6 +374,9 @@ private struct AddMoneyFlowSheet: View {
     var body: some View {
         NavigationStack(path: $path) {
             AddMoneyFlowDestination(step: .method(method), onStep: { path.append($0) })
+                // The flow's per-method root is this sheet's root — it has no
+                // back arrow, so it owns the Close button.
+                .environment(\.presentedAsSheetRoot, true)
                 .navigationDestination(for: AddMoneyFlowStep.self) { step in
                     AddMoneyFlowDestination(step: step, onStep: { path.append($0) })
                 }
@@ -304,6 +391,7 @@ private struct AddMoneyFlowRoot: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(\.dismissParentContainer) private var dismissParentContainer
+    @Environment(\.presentedAsSheetRoot) private var presentedAsSheetRoot
 
     var body: some View {
         Group {
@@ -326,8 +414,12 @@ private struct AddMoneyFlowRoot: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                CloseButton(action: dismissParentContainer)
+            // Pushed onto a stack the flow already has a back arrow; only the
+            // sheet-root presentation needs a Close button.
+            if presentedAsSheetRoot {
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton(action: dismissParentContainer)
+                }
             }
         }
     }

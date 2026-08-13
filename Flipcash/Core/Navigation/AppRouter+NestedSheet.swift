@@ -100,14 +100,9 @@ private struct BuySheetRoot: View {
             )
             .id(mint)
             .environment(\.dismissParentContainer, { router.dismissSheet() })
+            // Registers the shared destinations, including the Add Money
+            // deposit steps, so a buy-shortfall deposit pushes onto this stack.
             .appRouterDestinations()
-            // The dismiss env must be set at the registration: destination
-            // content doesn't inherit environment from the root view's inner
-            // modifiers.
-            .navigationDestination(for: AddMoneyFlowStep.self) { step in
-                AddMoneyFlowDestination(step: step, onStep: { router.pushAny($0) })
-                    .environment(\.dismissParentContainer, { router.dismissSheet() })
-            }
         }
     }
 }

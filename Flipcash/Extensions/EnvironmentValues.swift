@@ -55,4 +55,11 @@ extension EnvironmentValues {
     /// the caller having to pass it explicitly. Default 0 is safe for any
     /// view not inside a router-driven sheet.
     @Entry var nestedSheetDepth: Int = 0
+
+    /// Whether the current flow screen sits at the root of a modal container
+    /// (a sheet) and therefore needs its own Close button, versus being pushed
+    /// onto a navigation stack where the system back button already provides an
+    /// exit. Sheet-root hosts set this to `true`; pushed hosts leave the default
+    /// `false` so a screen doesn't show both a Close button and a back arrow.
+    @Entry var presentedAsSheetRoot: Bool = false
 }
