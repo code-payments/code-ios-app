@@ -66,7 +66,7 @@ struct OnboardingFunnelView: View {
                 }
             }
             .background(Color.white.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
         }
     }
 
