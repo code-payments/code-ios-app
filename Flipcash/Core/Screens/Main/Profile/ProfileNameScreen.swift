@@ -45,6 +45,11 @@ struct ProfileNameScreen: View {
                     .padding(.top, 32)
                     .disabled(isSubmitting)
 
+                Text("This is how you'll appear to others")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.top, 8)
+
                 Spacer()
 
                 if state.remainingCharacters < Self.countdownThreshold {
