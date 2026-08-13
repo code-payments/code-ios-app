@@ -202,7 +202,7 @@ platform :ios do
       next
     end
 
-    wait_for_build_run(token, run[:id])
+    wait_for_build_run(run[:id])
     distribute(group: group_name)
   end
 
@@ -402,10 +402,14 @@ platform :ios do
   end
 
   # Blocks until the build run completes, erroring if it didn't succeed.
-  def wait_for_build_run(token, run_id, timeout: 45 * 60, interval: 30)
+  def wait_for_build_run(run_id, timeout: 45 * 60, interval: 30)
     waited = 0
     loop do
-      attributes = asc_get(token.text, "ciBuildRuns/#{run_id}")["data"]["attributes"]
+      # Re-mint the JWT every poll. An App Store Connect token is valid for at
+      # most ~20 min — far shorter than an Xcode Cloud build — and Spaceship's
+      # `Token#text` doesn't re-sign on expiry in the pinned version, so a bearer
+      # captured once 401s (NOT_AUTHORIZED) partway through a long build.
+      attributes = asc_get(asc_token.text, "ciBuildRuns/#{run_id}")["data"]["attributes"]
       progress = attributes["executionProgress"]
       status = attributes["completionStatus"]
       UI.message("Xcode Cloud build: #{[progress, status].compact.join(' / ')}")
@@ -437,6 +441,9 @@ platform :ios do
   def wait_for_processed_build(app, build_number, timeout: 30 * 60, interval: 30)
     waited = 0
     loop do
+      # Refresh the shared token each poll — processing can outlast a single
+      # JWT's ~20 min lifetime (same reason as wait_for_build_run).
+      Spaceship::ConnectAPI.token = asc_token
       build = latest_build(app, build_number)
 
       return build if build&.processed?
