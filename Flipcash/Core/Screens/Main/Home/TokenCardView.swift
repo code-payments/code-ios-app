@@ -66,7 +66,7 @@ struct TokenCardView: View {
         )
     }
 
-    private static let cornerRadius: CGFloat = 20
+    private static let cornerRadius: CGFloat = Metrics.boxRadius   // 12 — medium shape
     private static let fallback = Color(hex: "#06450F")!
     private static let usdfGradient = [Color(hex: "#C4980B")!, Color(hex: "#B06B00")!]
 
