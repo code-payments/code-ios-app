@@ -9,12 +9,18 @@ import FlipcashUI
 struct NotificationPermissionScreen: View {
 
     @Bindable private var viewModel: OnboardingViewModel
-    @State private var showNotification = false
+    /// When `true`, the banner springs in on appear; when `false` it's shown
+    /// statically. Off by default — the intro flow presents it without animation.
+    private let animatesBanner: Bool
+    @State private var showNotification: Bool
 
     // MARK: - Init -
 
-    init(viewModel: OnboardingViewModel) {
+    init(viewModel: OnboardingViewModel, animatesBanner: Bool = false) {
         self.viewModel = viewModel
+        self.animatesBanner = animatesBanner
+        // Non-animated presentations start with the banner already visible.
+        _showNotification = State(initialValue: !animatesBanner)
     }
 
     // MARK: - Body -
@@ -50,6 +56,7 @@ struct NotificationPermissionScreen: View {
         .navigationBarBackButtonHidden(true)
         .dialog(item: $viewModel.dialogItem)
         .onAppear {
+            guard animatesBanner else { return }
             withAnimation(.spring(duration: 0.8, bounce: 0.4).delay(0.3)) {
                 showNotification = true
             }
