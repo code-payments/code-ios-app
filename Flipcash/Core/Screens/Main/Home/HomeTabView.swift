@@ -7,15 +7,17 @@ import SwiftUI
 import FlipcashUI
 
 /// The v2 tab-bar root, shown post-login when `BetaFlags.newUI` is enabled (in
-/// place of the scanner-first `ScanScreen`). Hosts the four tabs behind a
-/// floating pill `HomeTabBar`, launches on Wallet, and owns the app-level
-/// `router.rootSheet` host so `router.present(_:)` works from any tab.
+/// place of the scanner-first `ScanScreen`). Hosts the four tabs, launches on
+/// Wallet, and owns the app-level `router.rootSheet` host so `router.present(_:)`
+/// works from any tab.
 ///
-/// Only the selected tab is mounted (a plain `switch`, not a `TabView` — the
-/// deployment target predates the tab-bar-hiding APIs): switching tabs unmounts
-/// the previous one, so the Scan camera stops via its own `onDisappear`. The
-/// selected tab's push target is published to the router via `activeTabStack`,
-/// since a tab is the active surface without being a sheet.
+/// On iOS 26 the tabs live in a native `TabView`, which renders the system
+/// Liquid Glass tab bar; below that we fall back to the home-grown floating
+/// `HomeTabBar` pill. The native `TabView` keeps every tab alive, so the Scan
+/// tab's camera is gated on `selection` (rather than relying on `onDisappear`)
+/// to tear down when it isn't the active tab. The selected tab's push target is
+/// published to the router via `activeTabStack`, since a tab is the active
+/// surface without being a sheet.
 struct HomeTabView: View {
 
     @Environment(AppRouter.self) private var router
@@ -23,8 +25,29 @@ struct HomeTabView: View {
 
     @State private var selection: HomeTab = .initial
 
-    /// The floating bar is a ZStack sibling, so it hovers over anything a tab
-    /// pushes. Hide it whenever the active tab has pushed a screen (e.g. Wallet →
+    init() {
+        // Color the tab glyphs per state: selected white, the rest secondary.
+        // The iOS 26 tab bar ignores UITabBar.unselectedItemTintColor, so drive
+        // it through a full item appearance instead. A transparent background
+        // keeps the system's Liquid Glass. No-op on the legacy pill path, which
+        // draws its own buttons rather than a `UITabBar`.
+        if #available(iOS 26, *) {
+            let items = UITabBarItemAppearance()
+            items.normal.iconColor = UIColor(Color.textSecondary)
+            items.selected.iconColor = UIColor(Color.textMain)
+
+            let appearance = UITabBarAppearance()
+            appearance.configureWithTransparentBackground()
+            appearance.stackedLayoutAppearance = items
+            appearance.inlineLayoutAppearance = items
+            appearance.compactInlineLayoutAppearance = items
+
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
+    }
+
+    /// Hide the tab bar whenever the active tab has pushed a screen (e.g. Wallet →
     /// Currency Info → Give) so that screen owns the full height, and while a
     /// bill/tipcard is up (the app-root overlay owns the screen then, as the v1
     /// bill replaced the bottom bar). Sheets already cover the bar, so only
@@ -36,8 +59,53 @@ struct HomeTabView: View {
     }
 
     var body: some View {
+        tabs
+            .background(Color.backgroundMain)
+            // The app-level sheet host lives here in v2 (ScanScreen suppresses its
+            // own copy when embedded) so `router.present(_:)` works from any tab.
+            .modifier(RootSheetHostModifier(enabled: true))
+            .onAppear { router.activeTabStack = selection.pushStack }
+            .onChange(of: selection) { _, tab in router.activeTabStack = tab.pushStack }
+            .onDisappear { router.activeTabStack = nil }
+    }
+
+    @ViewBuilder private var tabs: some View {
+        if #available(iOS 26, *) {
+            nativeTabs
+        } else {
+            legacyTabs
+        }
+    }
+
+    /// iOS 26+: the system Liquid Glass tab bar via a native `TabView`. The bar is
+    /// hidden reactively (rather than by a slide-out transition) so the drill-in /
+    /// bill-showing behavior matches the legacy pill.
+    @available(iOS 26, *)
+    private var nativeTabs: some View {
+        TabView(selection: $selection) {
+            ForEach(HomeTab.allCases) { tab in
+                Tab(value: tab) {
+                    tabContent(for: tab)
+                        .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
+                } label: {
+                    // Icon-only; per-state color comes from the UITabBarItemAppearance
+                    // set up in `init`. The label text is kept for VoiceOver only.
+                    Image(tab.iconName)
+                        .accessibilityLabel(tab.accessibilityLabel)
+                }
+            }
+        }
+        // Selected-tab highlight over a lightly tinted glass bar — echoes the old
+        // pill's white indicator on a translucent capsule.
+        .tint(Color.textMain)
+        .toolbarBackground(Color.backgroundMain.opacity(0.5), for: .tabBar)
+    }
+
+    /// iOS 18–25 fallback: the home-grown floating pill hovering over the tab
+    /// content, sliding out when `isTabBarHidden`.
+    private var legacyTabs: some View {
         ZStack(alignment: .bottom) {
-            tabContent
+            tabContent(for: selection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .transition(.opacity)
 
@@ -51,21 +119,21 @@ struct HomeTabView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.2), value: selection)
         .animation(.easeInOut(duration: 0.2), value: isTabBarHidden)
-        // The app-level sheet host lives here in v2 (ScanScreen suppresses its
-        // own copy when embedded) so `router.present(_:)` works from any tab.
-        .modifier(RootSheetHostModifier(enabled: true))
-        .onAppear { router.activeTabStack = selection.pushStack }
-        .onChange(of: selection) { _, tab in router.activeTabStack = tab.pushStack }
-        .onDisappear { router.activeTabStack = nil }
     }
 
-    @ViewBuilder private var tabContent: some View {
-        switch selection {
+    /// The content for a given tab. The Scan tab is gated on `selection` so its
+    /// camera tears down when the tab isn't active — the native `TabView` keeps
+    /// every tab alive, so an `onDisappear` alone wouldn't stop it.
+    @ViewBuilder private func tabContent(for tab: HomeTab) -> some View {
+        switch tab {
         case .scan:
-            ScanScreen(isEmbedded: true)
+            if selection == .scan {
+                ScanScreen(isEmbedded: true)
+            } else {
+                Color.backgroundMain
+            }
         case .wallet:
             WalletScreen(onScanTipCard: { selection = .scan })
         case .chat:
