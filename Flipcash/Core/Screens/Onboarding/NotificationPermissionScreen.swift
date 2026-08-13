@@ -9,12 +9,18 @@ import FlipcashUI
 struct NotificationPermissionScreen: View {
 
     @Bindable private var viewModel: OnboardingViewModel
-    @State private var showNotification = false
+    /// When `true`, the banner springs in on appear; when `false` it's shown
+    /// statically. Off by default — the intro flow presents it without animation.
+    private let animatesBanner: Bool
+    @State private var showNotification: Bool
 
     // MARK: - Init -
 
-    init(viewModel: OnboardingViewModel) {
+    init(viewModel: OnboardingViewModel, animatesBanner: Bool = false) {
         self.viewModel = viewModel
+        self.animatesBanner = animatesBanner
+        // Non-animated presentations start with the banner already visible.
+        _showNotification = State(initialValue: !animatesBanner)
     }
 
     // MARK: - Body -
@@ -29,7 +35,7 @@ struct NotificationPermissionScreen: View {
                     Text("Push Notifications Required")
                         .font(.appTitle)
                         .foregroundStyle(Color.textMain)
-                    Text("Push notifications are used to update you on changes in your balance")
+                    Text("Push notifications are used to update you on tips and messages")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
@@ -50,6 +56,7 @@ struct NotificationPermissionScreen: View {
         .navigationBarBackButtonHidden(true)
         .dialog(item: $viewModel.dialogItem)
         .onAppear {
+            guard animatesBanner else { return }
             withAnimation(.spring(duration: 0.8, bounce: 0.4).delay(0.3)) {
                 showNotification = true
             }
@@ -88,7 +95,7 @@ private struct NotificationBannerPreview: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack {
-                    Text("You Bought $20.00")
+                    Text("You received a $5.00 tip!")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -96,7 +103,7 @@ private struct NotificationBannerPreview: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.5))
                 }
-                Text("$20.00 has been added to your wallet")
+                Text("Your balance has been updated")
                     .font(.system(size: 12))
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
