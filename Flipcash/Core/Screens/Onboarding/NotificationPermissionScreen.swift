@@ -95,7 +95,7 @@ private struct NotificationBannerPreview: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack {
-                    Text("You Bought $20.00")
+                    Text("You received a $5.00 tip!")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -103,7 +103,7 @@ private struct NotificationBannerPreview: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.5))
                 }
-                Text("$20.00 has been added to your wallet")
+                Text("Your balance has been updated")
                     .font(.system(size: 12))
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
