@@ -164,6 +164,14 @@ public class _CameraPreviewView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
 
+        // Paint the view and preview layer with the app background instead of the
+        // preview layer's default black. During the capture session's warm-up on
+        // a tab switch (before the first sample buffer arrives) this makes the
+        // gap blend into the dark UI rather than flashing black.
+        let background = UIColor(Color.backgroundMain)
+        backgroundColor = background
+
+        previewLayer.backgroundColor = background.cgColor
         previewLayer.videoGravity = .resizeAspectFill
         layer.addSublayer(previewLayer)
 

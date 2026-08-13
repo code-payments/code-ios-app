@@ -19,6 +19,12 @@ class ScanViewModel {
 
     @ObservationIgnored let cameraSession: CameraSession<CodeExtractor>
 
+    /// `true` once the capture session has delivered its first frame. Drives the
+    /// preview's cross-fade so the camera warm-up (after a tab switch) shows the
+    /// dark placeholder instead of popping in from black. `extraction` fires once
+    /// per frame, so its first emission is the first rendered frame.
+    private(set) var isPreviewReady: Bool = false
+
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let tipFlow: TipFlow
 
@@ -49,14 +55,21 @@ class ScanViewModel {
     
     func stopCamera() {
         cameraSession.stop()
+        // Re-arm the cross-fade so a subsequent start fades in on its first frame.
+        isPreviewReady = false
     }
     
     // MARK: - Scanning -
     
     private func registerCodeExtractorObserver() {
         cameraSession.extraction.sink { [weak self] payload in
+            guard let self else { return }
+            // First frame in — reveal the preview.
+            if !self.isPreviewReady {
+                self.isPreviewReady = true
+            }
             if let payload = payload {
-                self?.didScan(payload)
+                self.didScan(payload)
             }
         }
         .store(in: &cancellables)
