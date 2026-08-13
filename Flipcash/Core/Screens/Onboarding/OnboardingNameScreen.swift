@@ -45,6 +45,11 @@ struct OnboardingNameScreen: View {
                     .padding(.top, 32)
                     .disabled(viewModel.isSubmitting)
 
+                Text("This is how you'll appear to others")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.top, 8)
+
                 Spacer()
 
                 if viewModel.remainingCharacters < Self.countdownThreshold {
