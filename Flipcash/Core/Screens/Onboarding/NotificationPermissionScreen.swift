@@ -35,7 +35,7 @@ struct NotificationPermissionScreen: View {
                     Text("Push Notifications Required")
                         .font(.appTitle)
                         .foregroundStyle(Color.textMain)
-                    Text("Push notifications are used to update you on changes in your balance")
+                    Text("Push notifications are used to update you on tips and messages")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
