@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import UIKit
 import FlipcashUI
 import FlipcashCore
 
@@ -25,13 +24,6 @@ struct WalletScreen: View {
     }
 }
 
-/// The header block's height — the scroll distance at which the stack reaches
-/// the top and the collapse begins. Measured once at layout (scroll-independent).
-private struct HeaderHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 150
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
-}
-
 private struct WalletScreenContent: View {
 
     @Environment(AppRouter.self) private var router
@@ -48,16 +40,10 @@ private struct WalletScreenContent: View {
     @State private var hasTipped: Bool
     /// The unified recent-activity preview (newest first).
     @State private var recentActivities: [Activity]
-    @State private var scrolledPast: CGFloat = 0
 
     /// Rows of recent activity previewed on the wallet (the rest lives on the
     /// per-token transaction history).
     private static let recentPreviewCount = 3
-    /// The height of everything above the card stack (header + funnel) — the
-    /// scroll distance before the stack reaches the top. Collapse starts past it.
-    @State private var headerHeight: CGFloat = 150
-    /// The scroll view's content offset at rest, captured on the first KVO tick.
-    @State private var restOffset: CGFloat?
 
     init(sessionContainer: SessionContainer, onScanTipCard: @escaping () -> Void) {
         self.session = sessionContainer.session
@@ -109,12 +95,15 @@ private struct WalletScreenContent: View {
     private var walletContent: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
-                // Header + funnel scroll off before the stack collapses, so their
-                // combined height (scroll-independent, measured once at layout) is
-                // the collapse threshold.
+                // Header + funnel scroll off first; the card stack then reaches the
+                // top and collapses into its back card. The stack measures the
+                // scroll itself (via `.visualEffect`), so no height plumbing here.
                 VStack(spacing: 0) {
                     header
-                        .padding(.vertical, 30)
+                        // Figma (8966:1578) drops the balance well down the screen —
+                        // most of the extra space sits above it, less below.
+                        .padding(.top, 96)
+                        .padding(.bottom, 44)
 
                     if !isOnboardingComplete {
                         OnboardingFunnelView(
@@ -125,16 +114,10 @@ private struct WalletScreenContent: View {
                         .padding(.bottom, 20)
                     }
                 }
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(key: HeaderHeightKey.self, value: proxy.size.height)
-                    }
-                )
 
                 if !cards.isEmpty {
                     TokenCardStack(
                         items: cards,
-                        scrolledPast: scrolledPast,
                         onCardTap: { router.push(.currencyInfo($0.mint)) }
                     )
                 }
@@ -143,7 +126,7 @@ private struct WalletScreenContent: View {
                 // users use the funnel's own "Add Money" step instead.
                 if hasAddedMoney {
                     addMoneyButton
-                        .padding(.top, 24)
+                        .padding(.vertical, 24)
                 }
 
                 if !recentActivities.isEmpty {
@@ -154,24 +137,14 @@ private struct WalletScreenContent: View {
                 Color.clear.frame(height: 96)
             }
             .padding(.horizontal, 20)
-            // The underlying UIScrollView's contentOffset updates on every scroll
-            // frame — SwiftUI preferences in scroll content only fire at layout —
-            // so it, not a GeometryReader, is what drives the collapse. Once the
-            // scroll passes the header (the stack reaches the top), the excess is
-            // how far the stack has scrolled past the top.
-            .background(ScrollOffsetReader { offsetY in
-                if restOffset == nil { restOffset = offsetY }
-                scrolledPast = max(0, (offsetY - (restOffset ?? 0)) - headerHeight)
-            })
         }
-        .onPreferenceChange(HeaderHeightKey.self) { headerHeight = $0 }
     }
 
     private var header: some View {
         VStack(spacing: 4) {
             BalanceHeaderButton(balance: total)
                 .frame(height: 60)
-            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
+            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive, style: .pill)
         }
     }
 
@@ -281,51 +254,5 @@ private struct WalletScreenContent: View {
         )
 
         return (cards, total, appreciation, session.hasEverAddedMoney(), session.hasEverTipped())
-    }
-}
-
-/// Reports the enclosing `UIScrollView`'s vertical content offset on every scroll
-/// frame. SwiftUI preferences on scroll content only fire at layout time (not
-/// during scroll), so this KVO bridge is what makes the card stack collapse.
-private struct ScrollOffsetReader: UIViewRepresentable {
-
-    let onChange: (CGFloat) -> Void
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
-        view.isUserInteractionEnabled = false
-        // The scroll view isn't in the hierarchy yet during makeUIView; defer.
-        DispatchQueue.main.async { context.coordinator.attach(from: view) }
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator(onChange: onChange) }
-
-    // KVO on `contentOffset` fires on the main thread for a UIScrollView; the
-    // unchecked conformance documents that the stored closure is only ever
-    // touched there.
-    final class Coordinator: @unchecked Sendable {
-        private let onChange: (CGFloat) -> Void
-        private var observation: NSKeyValueObservation?
-
-        init(onChange: @escaping (CGFloat) -> Void) { self.onChange = onChange }
-
-        func attach(from view: UIView) {
-            var current: UIView? = view.superview
-            while let candidate = current {
-                if let scrollView = candidate as? UIScrollView {
-                    observation = scrollView.observe(\.contentOffset, options: [.initial, .new]) { [weak self] _, change in
-                        guard let self, let y = change.newValue?.y else { return }
-                        MainActor.assumeIsolated { self.onChange(y) }
-                    }
-                    return
-                }
-                current = candidate.superview
-            }
-        }
-
-        deinit { observation?.invalidate() }
     }
 }
