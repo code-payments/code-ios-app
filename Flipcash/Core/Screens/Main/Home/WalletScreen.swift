@@ -122,15 +122,15 @@ private struct WalletScreenContent: View {
                     )
                 }
 
-                // Returning users (already funded) get a plain add-money row; new
-                // users use the funnel's own "Add Money" step instead.
-                if hasAddedMoney {
-                    addMoneyButton
-                        .padding(.vertical, 24)
-                }
-
                 if !recentActivities.isEmpty {
                     recentActivitySection
+                }
+
+                // Returning users (already funded) get the tile shortcuts below
+                // the activity; new users use the funnel's own steps instead.
+                if hasAddedMoney {
+                    walletTiles
+                        .padding(.top, 24)
                 }
 
                 // Bottom inset so the last card clears the floating tab bar.
@@ -148,17 +148,37 @@ private struct WalletScreenContent: View {
         }
     }
 
-    private var addMoneyButton: some View {
-        Button {
-            router.presentAddMoney(.general, source: .balance)
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "plus.circle")
-                Text("Add Money")
+    private var walletTiles: some View {
+        HStack(spacing: 12) {
+            walletTile(icon: "plus.circle", title: "Add Money") {
+                router.presentAddMoney(.general, source: .balance)
             }
-            .font(.appTextMedium)
-            .foregroundStyle(Color.textSecondary)
-            .frame(maxWidth: .infinity)
+            walletTile(icon: "globe", title: "Discover Currencies") {
+                router.push(.discoverCurrencies)
+            }
+        }
+    }
+
+    /// A tile-style entry point: icon top-leading, label pinned bottom-leading,
+    /// inside a translucent rounded card. Two pair side by side in a row.
+    private func walletTile(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(Color.textMain)
+                Spacer(minLength: 24)
+                Text(title)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 96)
+            .padding(16)
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }
