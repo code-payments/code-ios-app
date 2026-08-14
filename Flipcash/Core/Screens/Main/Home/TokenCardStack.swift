@@ -62,6 +62,9 @@ struct TokenCardStack: View {
                     TokenCardView(data: item, height: cardHeight)
                 }
                 .buttonStyle(.plain)
+                // Separate stacked cards so a card's rounded top corners read as
+                // sitting above the card behind, not bleeding its color/border through.
+                .shadow(color: .black.opacity(0.35), radius: 8, y: -2)
                 .visualEffect { [index] content, proxy in
                     content.offset(y: offset(for: index, stackTop: proxy.frame(in: .scrollView).minY))
                 }
