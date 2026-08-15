@@ -184,32 +184,12 @@ private struct WalletScreenContent: View {
     }
 
     private var recentActivitySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // The header is the "dive in" affordance — tapping it (or the
-            // chevron) opens the full cross-token activity history. The rows
-            // themselves are a non-interactive preview.
-            Button {
-                router.push(.activity)
-            } label: {
-                HStack(spacing: 6) {
-                    Text("Recent")
-                        .font(.appTextLarge)
-                        .foregroundStyle(Color.textMain)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.textSecondary)
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 24)
-            .padding(.bottom, 4)
-
-            ForEach(recentActivities) { activity in
-                WalletActivityRow(activity: activity)
-            }
+        // The header opens the full cross-token history here; currency info
+        // passes its own per-token destination.
+        RecentActivitySection(activities: recentActivities) {
+            router.push(.activity)
         }
+        .padding(.top, 24)
     }
 
     private func handleOnboardingTap(_ item: OnboardingItem) {

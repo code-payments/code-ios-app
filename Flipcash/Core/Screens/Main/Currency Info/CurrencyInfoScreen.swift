@@ -40,6 +40,9 @@ private struct CurrencyInfoScreenContent: View {
 
     @State private var presentedSellViewModel: CurrencySellViewModel?
     @State private var isShowingCurrencySelection: Bool = false
+    /// New UI: the toolbar title only appears once the hero card's own title has
+    /// scrolled out of view (Apple Wallet / App Store behaviour).
+    @State private var showsToolbarTitle: Bool = false
 
     let session: Session
 
@@ -59,6 +62,8 @@ private struct CurrencyInfoScreenContent: View {
     private let ratesController: RatesController
     private let marketCapController: MarketCapController
     private let showBuyOnAppear: Bool
+
+    private var isNewUI: Bool { BetaFlags.shared.hasEnabled(.newUI) }
 
     // MARK: - Init -
 
@@ -107,7 +112,32 @@ private struct CurrencyInfoScreenContent: View {
             case .loading:
                 CurrencyInfoLoadingView()
             case .loaded(let metadata, let decodedMetadata):
-                LoadedContent(
+                if isNewUI {
+                    CurrencyInfoContentV2(
+                        metadata: metadata,
+                        decodedMetadata: decodedMetadata,
+                        viewModel: viewModel,
+                        ratesController: ratesController,
+                        marketCapController: marketCapController,
+                        session: session,
+                        onGive: {
+                            Analytics.buttonTapped(name: .give)
+                            router.push(.give(mint))
+                        },
+                        // New UI pushes the buy flow onto the current stack rather
+                        // than presenting it as a sheet.
+                        onBuy: { router.push(.buyCurrency(mint)) },
+                        onWithdraw: { router.push(.withdrawCurrency(mint)) },
+                        onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
+                        onScrolledPastTitle: { scrolledPast in
+                            guard showsToolbarTitle != scrolledPast else { return }
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showsToolbarTitle = scrolledPast
+                            }
+                        }
+                    )
+                } else {
+                    LoadedContent(
                     metadata: metadata,
                     decodedMetadata: decodedMetadata,
                     viewModel: viewModel,
@@ -130,7 +160,8 @@ private struct CurrencyInfoScreenContent: View {
                     },
                     onDeposit: { router.push(.usdcDepositEducation) },
                     onWithdraw: { router.push(.withdrawCurrency(mint)) }
-                )
+                    )
+                }
             case .error(let error):
                 CurrencyInfoErrorView(error: error) {
                     dismiss()
@@ -138,9 +169,24 @@ private struct CurrencyInfoScreenContent: View {
             }
         }
         .toolbarTitleDisplayMode(.inline)
+        // The bar background is deliberately left in place: it renders the
+        // scroll edge effect, and hiding it removes the soft fade the content
+        // scrolls under (see CurrencyInfoContentV2's scrollEdgeEffectStyle).
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                toolbarContent()
+            // Kept mounted and faded rather than inserted/removed — churning
+            // toolbar items mid-transition wedges nav-bar layout. In the new UI
+            // the item draws its own capsule, so the system platter stays off.
+            if #available(iOS 26.0, *) {
+                ToolbarItem(placement: isNewUI ? .topBarLeading : .principal) {
+                    toolbarContent()
+                        .opacity(isNewUI && !showsToolbarTitle ? 0 : 1)
+                }
+                .sharedBackgroundVisibility(isNewUI ? .hidden : .automatic)
+            } else {
+                ToolbarItem(placement: isNewUI ? .topBarLeading : .principal) {
+                    toolbarContent()
+                        .opacity(isNewUI && !showsToolbarTitle ? 0 : 1)
+                }
             }
             if !isUSDF {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -175,16 +221,63 @@ private struct CurrencyInfoScreenContent: View {
     }
 
     @ViewBuilder private func toolbarContent() -> some View {
-        if isUSDF {
-            Text("USDF")
-                .font(.appBarButton)
-                .foregroundStyle(Color.textMain)
-        } else if let metadata = mintMetadata {
-            CurrencyLabel(
-                imageURL: metadata.imageURL,
-                name: metadata.name,
-                amount: nil
-            )
+        // USDF's name is already "Dollars", so no special-case is needed.
+        if let metadata = mintMetadata {
+            if isNewUI {
+                // Compact leading label — the system supplies the Liquid Glass
+                // platter around it on iOS 26. `.fixedSize()` is required: the
+                // toolbar compresses the item to its icon otherwise, dropping
+                // the text. `CurrencyLabel` is row-shaped (it spaces name and
+                // amount apart with a Spacer), so it can't be reused here.
+                HStack(spacing: 8) {
+                    RemoteImage(url: metadata.imageURL)
+                        .frame(width: 24, height: 24)
+                        .clipShape(Circle())
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Semantic styles rather than fixed white/grey: inside the
+                        // glass they pick up the system's vibrancy, so the label
+                        // stays legible over a bright bill card scrolling beneath.
+                        Text(metadata.name)
+                            .font(.appTextSmall)
+                            .foregroundStyle(.primary)
+                        // USDF has no market cap (no bonding curve), so it stays
+                        // a single-line pill.
+                        if !isUSDF {
+                            Text(viewModel.marketCap.formatted())
+                                .font(.appTextCaption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .lineLimit(1)
+                .fixedSize()
+                // The capsule is drawn here rather than by the toolbar: the
+                // system platter sizes itself to the content with a fixed inset
+                // and swallows most of the trailing padding the spec calls for.
+                .padding(.leading, 8)
+                .padding(.trailing, 20)
+                .padding(.vertical, 4)
+                .modifier(CapsuleGlass())
+            } else {
+                CurrencyLabel(
+                    imageURL: metadata.imageURL,
+                    name: metadata.name,
+                    amount: nil
+                )
+            }
+        }
+    }
+}
+
+/// The title pill's Liquid Glass capsule. Drawn by the label itself so its
+/// padding is honoured — the toolbar's own platter hugs the content and clips
+/// most of the trailing inset away.
+private struct CapsuleGlass: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular, in: .capsule)
+        } else {
+            content.background(.ultraThinMaterial, in: Capsule())
         }
     }
 }

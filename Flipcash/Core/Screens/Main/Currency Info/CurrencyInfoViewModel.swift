@@ -29,6 +29,11 @@ class CurrencyInfoViewModel {
 
     private(set) var loadingState: LoadingState = .loading
 
+    /// Recent activity for this token (newest first), previewed on the new-UI
+    /// info screen. Loaded via ``loadRecentActivities(limit:)`` so DB access stays
+    /// in the view model rather than the view.
+    private(set) var recentActivities: [Activity] = []
+
     @ObservationIgnored private var updateableMint: Updateable<StoredMintMetadata>?
 
     var mintMetadata: StoredMintMetadata? {
@@ -133,6 +138,12 @@ class CurrencyInfoViewModel {
             setupUpdateable(with: cachedMetadata)
             loadingState = .loaded(cachedMetadata, cachedMetadata.metadata)
         }
+    }
+
+    /// Loads the newest `limit` activities for this token into ``recentActivities``.
+    func loadRecentActivities(limit: Int) async {
+        let all = (try? await database.getActivities(mint: mint)) ?? []
+        recentActivities = Array(all.prefix(limit))
     }
 
     func loadMintMetadata() async {

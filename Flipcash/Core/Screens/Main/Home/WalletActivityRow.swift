@@ -32,7 +32,7 @@ struct WalletActivityRow: View {
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(displayTitle)
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
@@ -49,7 +49,7 @@ struct WalletActivityRow: View {
                 .foregroundStyle(Color.textMain)
                 .lineLimit(1)
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
         .task(id: activity.id) { await resolveCounterparty() }
     }
 
