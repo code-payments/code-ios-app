@@ -1,0 +1,195 @@
+//
+//  CurrencyInfoContentV2.swift
+//  Flipcash
+//
+//  The new-UI (BetaFlags.newUI) currency info layout: a hero bill card, inline
+//  Give / Convert / Withdraw (or Get) tiles, a per-token Recent preview, the
+//  reused market-cap chart, the About block, and a created-at footer. Gated
+//  behind the new UI; the legacy `LoadedContent` stays for the old shell.
+//
+
+import SwiftUI
+import FlipcashCore
+import FlipcashUI
+
+/// Softens the top scroll edge on iOS 26+ so content fades under the toolbar
+/// rather than being clipped by the system's hard edge line.
+private struct SoftTopScrollEdge: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
+        }
+    }
+}
+
+struct CurrencyInfoContentV2: View {
+    let metadata: StoredMintMetadata
+    let decodedMetadata: MintMetadata
+    let viewModel: CurrencyInfoViewModel
+    let ratesController: RatesController
+    let marketCapController: MarketCapController
+    let session: Session
+
+    /// Give — owned community tokens only.
+    let onGive: () -> Void
+    /// Convert / Get — routes to the buy flow for now.
+    let onBuy: () -> Void
+    /// Withdraw — the existing flow, pre-selected to this currency.
+    let onWithdraw: () -> Void
+    let onShowTransactionHistory: () -> Void
+    /// Fires when the hero card's title scrolls out from under the toolbar, so
+    /// the screen can reveal its own title.
+    let onScrolledPastTitle: (Bool) -> Void
+
+    private static let recentPreviewCount = 3
+    /// Scroll distance that puts the hero card's title row behind the toolbar.
+    private static let titleHandoffOffset: CGFloat = 52
+
+    private var isUSDF: Bool { metadata.mint == .usdf }
+    private var isOwned: Bool { viewModel.balance.hasDisplayableValue }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                heroCard
+                actionTiles
+
+                if isOwned && !viewModel.recentActivities.isEmpty {
+                    recentSection
+                }
+
+                // The market-cap value, monthly delta, chart, and range picker
+                // all live inside this reused, self-contained section.
+                if !isUSDF {
+                    CurrencyInfoMarketCapSection(
+                        marketCap: viewModel.marketCap,
+                        currencyCode: ratesController.balanceCurrency,
+                        marketCapController: marketCapController
+                    )
+                    .padding(.horizontal, -20) // section manages its own insets
+                }
+
+                CurrencyInfoAboutSection(
+                    description: currencyDescription,
+                    socialLinks: isUSDF ? [] : decodedMetadata.socialLinks
+                )
+
+                if !isUSDF, let createdAt = metadata.createdAt {
+                    Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))".uppercased())
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 8)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 40)
+        }
+        // Content fades out under the toolbar instead of meeting the system's
+        // hard scroll-edge line.
+        .modifier(SoftTopScrollEdge())
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top > Self.titleHandoffOffset
+        } action: { _, scrolledPast in
+            onScrolledPastTitle(scrolledPast)
+        }
+        .task {
+            await viewModel.loadRecentActivities(limit: Self.recentPreviewCount)
+        }
+    }
+
+    // MARK: - Hero
+
+    private var heroCard: some View {
+        TokenCardView(data: heroData, height: 224)
+    }
+
+    private var heroData: TokenCardData {
+        let appreciation = viewModel.appreciation
+        // Never render "-$0.00": a sub-cent delta reads as positive.
+        let positive = appreciation.isPositive || !appreciation.amount.hasDisplayableValue
+        let appreciationText = (positive ? "+" : "-") + appreciation.amount.formatted()
+
+        return TokenCardData(
+            mint: metadata.mint,
+            name: metadata.name,
+            imageURL: metadata.imageURL,
+            balanceText: isOwned ? viewModel.balance.formatted() : "",
+            appreciationText: isOwned ? appreciationText : nil,
+            colors: session.billColors(for: metadata.mint),
+            isUSDF: isUSDF
+        )
+    }
+
+    // MARK: - Actions
+
+    @ViewBuilder private var actionTiles: some View {
+        HStack(spacing: 12) {
+            if isOwned {
+                // Give ships for community tokens only; USDF give comes later.
+                if !isUSDF {
+                    actionTile("Give", icon: "banknote", action: onGive)
+                }
+                actionTile("Convert", icon: "arrow.up.arrow.down", action: onBuy)
+                actionTile("Withdraw", icon: "arrow.up", action: onWithdraw)
+            } else {
+                actionTile("Get", icon: "arrow.down", action: onBuy)
+            }
+        }
+    }
+
+    private func actionTile(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .regular))
+                    .frame(height: 28)
+                Text(title)
+                    .font(.appTextSmall)
+            }
+            .foregroundStyle(Color.textMain)
+            .frame(maxWidth: .infinity)
+            .frame(height: 88)
+            .background(Color.white.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Recent
+
+    private var recentSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: onShowTransactionHistory) {
+                HStack(spacing: 8) {
+                    Text("Recent")
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.textMain)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.textSecondary)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, 4)
+
+            ForEach(viewModel.recentActivities) { activity in
+                WalletActivityRow(activity: activity)
+            }
+        }
+    }
+
+    // MARK: - Copy
+
+    private var currencyDescription: String {
+        if isUSDF {
+            return "Dollars are a 1:1 USD stablecoin managed by Coinbase."
+        }
+        return metadata.bio ?? "No information"
+    }
+}

@@ -191,7 +191,7 @@ private struct WalletScreenContent: View {
             Button {
                 router.push(.activity)
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text("Recent")
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
