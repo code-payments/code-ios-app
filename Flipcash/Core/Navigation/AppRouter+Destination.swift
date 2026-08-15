@@ -29,6 +29,9 @@ extension AppRouter {
         /// Wallet's Recent section. `transactionHistory` is the per-token slice.
         case activity
         case give(PublicKey)
+        /// Pushes the buy flow (`BuyAmountScreen`) onto the current stack instead
+        /// of presenting it as a sheet — the new-UI currency-info "Convert"/"Get".
+        case buyCurrency(PublicKey)
         /// Skips the picker step in the withdraw flow and lands the user on
         /// `WithdrawIntroScreen` with the currency pre-selected. Pushed from
         /// USDF Currency Info on the Wallet sheet.
@@ -74,7 +77,7 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .activity, .give, .withdrawCurrency,
+                 .transactionHistory, .activity, .give, .buyCurrency, .withdrawCurrency,
                  .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
@@ -102,6 +105,7 @@ extension AppRouter {
             case .transactionHistory:           "transactionHistory"
             case .activity:                     "activity"
             case .give:                         "give"
+            case .buyCurrency:                  "buyCurrency"
             case .withdrawCurrency:             "withdrawCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
@@ -133,6 +137,7 @@ extension AppRouter {
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
                  .give(let mint),
+                 .buyCurrency(let mint),
                  .withdrawCurrency(let mint):
                 return mint.base58
             case .tipConversation(let conversationID),
