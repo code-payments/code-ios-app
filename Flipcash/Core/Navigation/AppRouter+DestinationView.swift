@@ -59,6 +59,9 @@ struct DestinationView: View {
             GiveScreen(mint: mint)
                 .id(mint)
 
+        case .buyCurrency(let mint):
+            BuyAmountScreen(mint: mint)
+
         // MARK: - Settings flow
 
         case .settingsMyAccount:

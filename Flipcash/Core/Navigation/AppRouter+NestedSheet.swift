@@ -86,23 +86,17 @@ private struct BuySheetRoot: View {
 
     let mint: PublicKey
 
-    @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
     var body: some View {
         @Bindable var router = router
         NavigationStack(path: $router[.buy]) {
-            BuyAmountScreen(
-                mint: mint,
-                currencyName: sessionContainer.session.balance(for: mint)?.name ?? "this currency",
-                session: sessionContainer.session,
-                ratesController: sessionContainer.ratesController
-            )
-            .id(mint)
-            .environment(\.dismissParentContainer, { router.dismissSheet() })
-            // Registers the shared destinations, including the Add Money
-            // deposit steps, so a buy-shortfall deposit pushes onto this stack.
-            .appRouterDestinations()
+            BuyAmountScreen(mint: mint)
+                .environment(\.dismissParentContainer, { router.dismissSheet() })
+                .environment(\.presentedAsSheetRoot, true)
+                // Registers the shared destinations, including the Add Money
+                // deposit steps, so a buy-shortfall deposit pushes onto this stack.
+                .appRouterDestinations()
         }
     }
 }
