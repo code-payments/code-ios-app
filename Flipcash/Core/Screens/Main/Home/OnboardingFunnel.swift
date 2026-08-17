@@ -78,7 +78,7 @@ struct OnboardingFunnelView: View {
                 icon(item)
                     .frame(width: 24, height: 24)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(item.title)
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
