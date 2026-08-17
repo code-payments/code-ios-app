@@ -223,7 +223,19 @@ struct DeepLinkAction {
         case .currencyInfo(let mint):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
-                container.appRouter.navigate(to: .currencyInfo(mint))
+                let router = container.appRouter
+                if router.tabStacks.contains(.balance) {
+                    // v2: the wallet opens the token as its expanded card, so a
+                    // link lands exactly where tapping the card would — same
+                    // chrome, same dismissal. Pushing it instead gives a screen
+                    // with a back chevron that belongs to a stack the user never
+                    // navigated.
+                    router.setPath([], on: .balance)
+                    router.requestedTabStack = .balance
+                    router.requestedCardMint = mint
+                } else {
+                    router.navigate(to: .currencyInfo(mint))
+                }
             }
 
         case .chat(let conversationID):

@@ -66,6 +66,22 @@ final class AppRouter {
     /// sheet-first UI, where a sheet is always the push target.
     var activeTabStack: Stack?
 
+    /// The stacks a tab owns, registered by `HomeTabView`. A deep link into one
+    /// of these belongs on its tab, not in a sheet — the router itself has no
+    /// notion of tabs, so it is told.
+    var tabStacks: Set<Stack> = []
+
+    /// A token the wallet should open in its expanded card state, rather than
+    /// as a pushed screen. Deep links use this so following a link lands where
+    /// tapping the card would, chrome and dismissal included. The wallet clears
+    /// it once opened.
+    var requestedCardMint: PublicKey?
+
+    /// A tab the router wants brought forward, named by the stack it owns.
+    /// `HomeTabView` selects it and clears this. Deep-link routing only; nothing
+    /// else drives tab selection.
+    var requestedTabStack: Stack?
+
     /// The stack that `push`/`pop`-style calls target: the presented sheet's
     /// stack, or — when no sheet is up (a v2 tab is the active surface) — the
     /// active tab's stack.
@@ -432,6 +448,27 @@ final class AppRouter {
 
         var expected = NavigationPath()
         expected.append(destination)
+
+        // A stack a tab owns is reached by bringing that tab forward. Presenting
+        // its sheet instead lays a second copy of the surface over the tab that
+        // already holds it — a token link, for instance, ends up in a sheet with
+        // no tab bar rather than pushed on the wallet.
+        if tabStacks.contains(targetStack) {
+            let alreadyThere = presentedSheets.isEmpty
+                            && activeTabStack == targetStack
+                            && paths[targetStack, default: NavigationPath()] == expected
+            guard !alreadyThere else { return }
+
+            while !presentedSheets.isEmpty { dismissSheet() }
+            requestedTabStack = targetStack
+            setPath([destination], on: targetStack)
+            logger.info("Routed to tab stack", metadata: [
+                "stack": "\(targetStack)",
+                "destination": "\(destination)",
+            ])
+            return
+        }
+
         let alreadyThere = presentedSheets == [targetSheet]
                         && paths[targetStack, default: NavigationPath()] == expected
         guard !alreadyThere else { return }

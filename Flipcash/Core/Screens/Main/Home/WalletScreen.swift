@@ -179,6 +179,11 @@ private struct WalletScreenContent: View {
                     // so with a close box instead of a back chevron.
                 }
             }
+            .onChange(of: router.requestedCardMint) { _, mint in
+                guard let mint else { return }
+                openCardImmediately(mint)
+                router.requestedCardMint = nil
+            }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { containerSize = $0 }
             .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeArea = $0 }
             // No top bar on the wallet root (per Figma) — the balance header
@@ -339,6 +344,29 @@ private struct WalletScreenContent: View {
             closeCard(resumingFrom: releasedAt)
         } else {
             withAnimation(.smooth(duration: 0.25)) { pageContentOpacity = 1 }
+        }
+    }
+
+    /// Arrives in the opened state without the travel — for a deep link, where
+    /// there is no tap to have come from and the card may not even be on screen
+    /// to start from. Everything lands where the opening animation would have
+    /// left it, so closing still puts the card back into the deck normally.
+    private func openCardImmediately(_ mint: PublicKey) {
+        transitionToken &+= 1
+
+        var immediate = Transaction()
+        immediate.disablesAnimations = true
+        withTransaction(immediate) {
+            heroOffset = 0
+            releasedPullOffset = 0
+            expansionProgress = 1
+            deckOpacity = 0
+            pageContentOpacity = 1
+            expandingMint = mint
+            hiddenMint = mint
+            cardExpansion.isExpanded = true
+            pageIsBuilt = true
+            heavyContentReady = true
         }
     }
 
