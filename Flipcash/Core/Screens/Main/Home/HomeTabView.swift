@@ -52,7 +52,10 @@ struct HomeTabView: View {
     /// bill/tipcard is up (the app-root overlay owns the screen then, as the v1
     /// bill replaced the bottom bar). Sheets already cover the bar, so only
     /// in-tab pushes need handling here.
+    @State private var cardExpansion = WalletCardExpansion()
+
     private var isTabBarHidden: Bool {
+        if cardExpansion.isExpanded { return true }
         if sessionContainer.session.isShowingBill { return true }
         guard let stack = selection.pushStack else { return false }
         return !router[stack].isEmpty
@@ -136,6 +139,7 @@ struct HomeTabView: View {
             }
         case .wallet:
             WalletScreen(onScanTipCard: { selection = .scan })
+                .environment(cardExpansion)
         case .chat:
             ChatTab()
         case .tipCard:

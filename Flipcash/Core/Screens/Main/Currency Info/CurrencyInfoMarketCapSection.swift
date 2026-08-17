@@ -11,10 +11,18 @@ import FlipcashCore
 
 struct CurrencyInfoMarketCapSection: View {
     @State private var chartViewModel: ChartViewModel?
+    /// Points that arrived before the host was ready to draw them.
+    @State private var pendingPoints: [ChartDataPoint]?
 
     let marketCap: FiatAmount
     let currencyCode: CurrencyCode
     let marketCapController: MarketCapController
+    /// Gates the chart's *data* only. The section itself — its value, the
+    /// all-time change, and the range picker — renders immediately around a
+    /// reserved 200pt plot area, so the page arrives complete and in its final
+    /// layout. Drawing an actual populated Swift Charts plot is the expensive
+    /// part, and the host holds that back until the opening animation is done.
+    var isReady: Bool = true
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -34,8 +42,22 @@ struct CurrencyInfoMarketCapSection: View {
         }
         .padding(.top, 20)
         .padding(.bottom, 20)
+        // The view model is cheap and gives the section its full height right
+        // away: value, change, a placeholder plot, and the range picker. The
+        // fetch starts here too — it is network-bound, so it costs an opening
+        // animation nothing, and starting it only once the transition had
+        // finished left the section sitting visibly empty afterwards while it
+        // ran. `isReady` gates the *drawing* of the result instead.
         .task {
+            guard chartViewModel == nil else { return }
             setupChart()
+            await loadInitialChartData()
+        }
+        // Draw whatever the fetch already returned, now that it is safe to.
+        .task(id: isReady) {
+            guard isReady, let points = pendingPoints, let viewModel = chartViewModel else { return }
+            pendingPoints = nil
+            viewModel.setDataPoints(points, appendingCurrentValue: marketCap.doubleValue)
         }
         .onChange(of: marketCap) { _, newMarketCap in
             // Live ticks only move the appended "current" point — history
@@ -49,12 +71,31 @@ struct CurrencyInfoMarketCapSection: View {
         }
     }
 
+    /// The opening fetch. Runs immediately, but holds its points back until the
+    /// host is ready — populating a Swift Charts plot is the expensive part of
+    /// this screen, and doing it mid-animation drops frames.
+    private func loadInitialChartData() async {
+        guard let viewModel = chartViewModel else { return }
+        do {
+            let points = try await marketCapController.fetchChartData(for: .all)
+            if isReady {
+                viewModel.setDataPoints(points, appendingCurrentValue: marketCap.doubleValue)
+            } else {
+                pendingPoints = points
+            }
+        } catch let error as ChartError {
+            viewModel.setError(error)
+        } catch {
+            viewModel.setError(.networkError)
+        }
+    }
+
     private func setupChart() {
         let viewModel = ChartViewModel(currentValue: marketCap.doubleValue, selectedRange: .all)
+        viewModel.setLoading()
         chartViewModel = viewModel
 
         updateRangeChangeCallback(for: viewModel)
-        loadChartData(for: .all, into: viewModel)
     }
 
     private func updateRangeChangeCallback(for viewModel: ChartViewModel) {
