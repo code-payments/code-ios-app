@@ -13,12 +13,6 @@ struct TipcardScreen: View {
 
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
-    @Environment(AppRouter.self) private var router
-
-    /// The v2 tab presentation (Figma 8966:2745): a bare centered card with a
-    /// menu button, no header/nav. Defaults to false — the v1 push keeps its
-    /// header, share row, and nav title.
-    var isEmbedded: Bool = false
 
     @State private var avatar: UIImage?
     @State private var exportImage: Image?
@@ -32,14 +26,9 @@ struct TipcardScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            if isEmbedded {
-                embeddedContent
-            } else {
-                legacyContent
-            }
+            legacyContent
         }
-        .navigationTitle(isEmbedded ? "" : "My Tip Card")
-        .toolbar(isEmbedded ? .hidden : .automatic, for: .navigationBar)
+        .navigationTitle("My Tip Card")
         .toolbarTitleDisplayMode(.inline)
         .task(id: profilePicture?.thumbnailBlobID) {
             previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
@@ -47,52 +36,6 @@ struct TipcardScreen: View {
             renderExportImage()
         }
     }
-
-    // MARK: - v2 (embedded) -
-
-    /// The Figma v2 tip card: the card centered, tap-to-share, with a menu button
-    /// in the top-right (the v1 scanner's settings entry, brought here so the v2
-    /// tab-bar UI has a way into Settings).
-    private var embeddedContent: some View {
-        ZStack(alignment: .top) {
-            VStack(spacing: 0) {
-                Spacer()
-                card?
-                    .contentShape(Rectangle())
-                    .onTapGesture(perform: shareTipCard)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            HStack {
-                Spacer()
-                settingsButton
-            }
-            .padding(.horizontal, 20)
-        }
-    }
-
-    private var settingsButton: some View {
-        Button {
-            router.present(.settings)
-        } label: {
-            if #available(iOS 26, *) {
-                Image.asset(.hamburger)
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(Color.textMain)
-                    .frame(width: 32, height: 32)
-            } else {
-                Image.asset(.hamburger)
-                    .foregroundStyle(Color.textMain)
-                    .frame(width: 44, height: 44)
-            }
-        }
-        .liquidGlassButtonStyle(shape: .circle)
-        .accessibilityLabel("Settings")
-    }
-
-    // MARK: - v1 (pushed) -
 
     private var legacyContent: some View {
         VStack(spacing: 0) {
