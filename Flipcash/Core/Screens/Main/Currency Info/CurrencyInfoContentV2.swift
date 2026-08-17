@@ -164,6 +164,9 @@ struct CurrencyInfoContentV2: View {
             .padding(.top, 8)
             .padding(.bottom, 40)
         }
+        // The card is the screen's subject and runs edge to edge; an indicator
+        // riding over it is noise.
+        .scrollIndicators(.hidden)
         // Content fades out under the toolbar instead of meeting the system's
         // hard scroll-edge line.
         .modifier(SoftTopScrollEdge())

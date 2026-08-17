@@ -41,7 +41,7 @@ struct HomeTabBar: View {
                         Button {
                             selection = tab
                         } label: {
-                            Image(tab.iconName)
+                            Image(tab.iconName(isSelected: tab == selection))
                                 .renderingMode(.template)
                                 .resizable()
                                 .scaledToFit()

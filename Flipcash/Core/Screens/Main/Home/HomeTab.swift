@@ -21,13 +21,14 @@ enum HomeTab: Int, CaseIterable, Identifiable, Hashable {
     /// The launch tab — wallet-first, per the v2 design.
     static let initial: HomeTab = .wallet
 
-    /// The asset-catalog name of the tab's template glyph.
-    var iconName: String {
+    /// The asset-catalog name of the tab's template glyph. Selected tabs use a
+    /// filled glyph and the rest an outline, per the tab bar spec.
+    func iconName(isSelected: Bool) -> String {
         switch self {
-        case .scan:    return "NavScan"
-        case .wallet:  return "NavWallet"
-        case .chat:    return "NavChat"
-        case .tipCard: return "NavTipCard"
+        case .scan:    return isSelected ? "NavScanSelected"    : "NavScan"
+        case .wallet:  return isSelected ? "NavWalletSelected"  : "NavWallet"
+        case .chat:    return isSelected ? "NavChatSelected"    : "NavChat"
+        case .tipCard: return isSelected ? "NavTipCardSelected" : "NavTipCard"
         }
     }
 

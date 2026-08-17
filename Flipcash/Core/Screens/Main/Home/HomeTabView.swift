@@ -91,9 +91,11 @@ struct HomeTabView: View {
                     tabContent(for: tab)
                         .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
                 } label: {
-                    // Icon-only; per-state color comes from the UITabBarItemAppearance
-                    // set up in `init`. The label text is kept for VoiceOver only.
-                    Image(tab.iconName)
+                    // Always the outline. The filled counterpart is handed to
+                    // UIKit below as the item's `selectedImage`, so the system
+                    // owns the swap — choosing here instead would only ever be
+                    // right once the selection had committed.
+                    Image(tab.iconName(isSelected: false))
                         .accessibilityLabel(tab.accessibilityLabel)
                 }
             }
@@ -102,6 +104,12 @@ struct HomeTabView: View {
         // pill's white indicator on a translucent capsule.
         .tint(Color.textMain)
         .toolbarBackground(Color.backgroundMain.opacity(0.5), for: .tabBar)
+        // Gives each item both of its glyphs. The tab bar knows which item the
+        // Liquid Glass pill is over mid-drag and renders that one selected, so
+        // handing it the pair is what makes the icons fill under the finger
+        // rather than when the drag commits — the binding does not change until
+        // the finger lifts.
+        .background(TabBarSelectedIcons(tabs: HomeTab.allCases))
     }
 
     /// iOS 18–25 fallback: the home-grown floating pill hovering over the tab
@@ -225,6 +233,100 @@ private struct TipCardSetupPrompt: View {
                     .padding(.top, 8)
             }
             .padding(.horizontal, 40)
+        }
+    }
+}
+
+/// Hands each tab bar item its selected glyph, which SwiftUI's `Tab` has no API
+/// for.
+///
+/// The point is *when* the swap happens. SwiftUI can only pick a glyph from the
+/// selection binding, and the system does not write that back until a drag of
+/// the Liquid Glass pill commits — so a binding-driven icon stays outlined until
+/// the finger lifts. `UITabBarItem` holds both glyphs at once and the bar draws
+/// whichever matches the pill's live position, which is how the system's own
+/// tabs fill as you drag across them.
+///
+/// Reaching the item means reaching the `UITabBarController` SwiftUI builds for
+/// us; there is no supported route to it, hence the probe. It re-applies on
+/// every update because SwiftUI resets the images when it rebuilds the bar.
+@available(iOS 26, *)
+private struct TabBarSelectedIcons: UIViewControllerRepresentable {
+    let tabs: [HomeTab]
+
+    func makeUIViewController(context: Context) -> Probe { Probe(tabs: tabs) }
+
+    func updateUIViewController(_ probe: Probe, context: Context) {
+        probe.tabs = tabs
+        probe.apply()
+    }
+
+    final class Probe: UIViewController {
+        var tabs: [HomeTab]
+
+        init(tabs: [HomeTab]) {
+            self.tabs = tabs
+            super.init(nibName: nil, bundle: nil)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override func didMove(toParent parent: UIViewController?) {
+            super.didMove(toParent: parent)
+            apply()
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            apply()
+        }
+
+        /// Quietly does nothing if the bar is not there yet or does not line up
+        /// with the tabs — the icons then simply stay outlined, rather than the
+        /// wrong glyph being pinned to the wrong tab. Retried on the next turn
+        /// of the runloop, because the bar's items do not exist yet on the pass
+        /// where this controller is first added.
+        func apply() {
+            guard let items = resolvedTabBar?.items, items.count == tabs.count else {
+                scheduleRetry()
+                return
+            }
+
+            for (item, tab) in zip(items, tabs) {
+                item.image = UIImage(named: tab.iconName(isSelected: false))?
+                    .withRenderingMode(.alwaysTemplate)
+                item.selectedImage = UIImage(named: tab.iconName(isSelected: true))?
+                    .withRenderingMode(.alwaysTemplate)
+            }
+        }
+
+        private var hasRetryScheduled = false
+
+        private func scheduleRetry() {
+            guard !hasRetryScheduled else { return }
+            hasRetryScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                self?.hasRetryScheduled = false
+                self?.apply()
+            }
+        }
+
+        /// This controller is attached alongside the `TabView` rather than inside
+        /// a tab, so `tabBarController` is nil — the bar has to be found from the
+        /// window instead.
+        private var resolvedTabBar: UITabBar? {
+            if let bar = tabBarController?.tabBar { return bar }
+            guard let root = view.window?.rootViewController else { return nil }
+
+            var queue: [UIViewController] = [root]
+            while let next = queue.first {
+                queue.removeFirst()
+                if let tabs = next as? UITabBarController { return tabs.tabBar }
+                queue.append(contentsOf: next.children)
+                if let presented = next.presentedViewController { queue.append(presented) }
+            }
+            return nil
         }
     }
 }
