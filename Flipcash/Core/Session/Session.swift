@@ -1385,6 +1385,19 @@ class Session {
         }
     }
     
+    /// Presents the signed-in user's own tip card full screen through the
+    /// app-root bill overlay — the same surface a scanned recipient's card uses
+    /// (`TipFlow.present`), but with no `SendAmountViewModel`, balance gate, or
+    /// Send-a-Tip sheet, since you can't tip yourself. Drag-to-dismiss is handled
+    /// by `BillOverlayView.dismissBill`, whose `.tipcard` branch calls
+    /// `tipFlow.cancel()` → `dismissCashBill(.slide)` (a no-op cancel with no
+    /// active submission). Guarded so a double-tap doesn't churn a live bill.
+    func presentOwnTipcard(codeData: Data, name: String, avatar: UIImage?) {
+        guard !isShowingBill else { return }
+        billState = BillState(bill: .tipcard(codeData: codeData, name: name, avatar: avatar))
+        presentationState = .visible(.pop)
+    }
+
     func dismissCashBill(style: PresentationState.Style) {
         sendOperation?.cancel()
         sendOperation = nil
