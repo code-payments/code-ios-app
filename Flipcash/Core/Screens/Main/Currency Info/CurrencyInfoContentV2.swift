@@ -57,6 +57,11 @@ struct CurrencyInfoContentV2: View {
     /// Fires when the hero card's title scrolls out from under the toolbar, so
     /// the screen can reveal its own title.
     let onScrolledPastTitle: (Bool) -> Void
+    /// How far the content has been pulled past its top, and how far it had been
+    /// pulled when the finger lifted. A host that can be dismissed uses the
+    /// second to decide whether the pull was a close.
+    var onPulledDown: (CGFloat) -> Void = { _ in }
+    var onPullEnded: (CGFloat) -> Void = { _ in }
     /// False when the host already shows the card (the wallet keeps it on screen
     /// while the detail rises beneath it), so it is not drawn twice.
     var showsHeroCard: Bool = true
@@ -74,6 +79,10 @@ struct CurrencyInfoContentV2: View {
     private static let recentPreviewCount = 3
     /// Scroll distance that puts the hero card's title row behind the toolbar.
     private static let titleHandoffOffset: CGFloat = 52
+
+    /// The live pull distance, kept so the phase change can report the value the
+    /// finger lifted at — the geometry callback has stopped firing by then.
+    @State private var pullDistance: CGFloat = 0
 
     private var isUSDF: Bool { metadata.mint == .usdf }
     private var isOwned: Bool { viewModel.balance.hasDisplayableValue }
@@ -162,6 +171,22 @@ struct CurrencyInfoContentV2: View {
             geometry.contentOffset.y + geometry.contentInsets.top > Self.titleHandoffOffset
         } action: { _, scrolledPast in
             onScrolledPastTitle(scrolledPast)
+        }
+        // Pull-to-close rides the scroll view's own overscroll rather than a
+        // drag gesture of its own: a gesture layered over a scroll view has to
+        // guess when it is competing with a scroll, whereas overscroll only
+        // exists once the content is already at its top.
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            max(0, -(geometry.contentOffset.y + geometry.contentInsets.top))
+        } action: { _, pulled in
+            pullDistance = pulled
+            onPulledDown(pulled)
+        }
+        .onScrollPhaseChange { _, phase in
+            // The finger has left the glass; the scroll view is about to spring
+            // the content back, so this is the moment to judge the pull.
+            guard phase != .interacting else { return }
+            onPullEnded(pullDistance)
         }
         // Started immediately rather than after the transition: the read itself
         // runs off the main thread, so it costs the animation nothing, and it

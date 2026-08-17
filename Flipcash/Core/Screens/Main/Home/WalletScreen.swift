@@ -66,6 +66,10 @@ private struct WalletScreenContent: View {
     @State private var pageIsBuilt = false
     /// Fades the wallet — balance header included — out behind the opening card.
     @State private var deckOpacity: Double = 1
+    /// Where a pull-to-close let go of the card, so the deck picks it up there
+    /// rather than snapping it back to its open slot first. Animated to zero as
+    /// the close carries it home.
+    @State private var releasedPullOffset: CGFloat = 0
     /// Drives the deck's reorganisation, 0 (resting) to 1 (cleared), animated in
     /// lockstep with the card's flight so the two read as one gesture.
     @State private var expansionProgress: CGFloat = 0
@@ -143,9 +147,11 @@ private struct WalletScreenContent: View {
                     CurrencyInfoScreen(
                         mint: expandingMint,
                         presentation: .overlay(
-                            onClose: closeCard,
+                            onClose: { closeCard() },
                             heroOffset: heroOffset,
-                            contentOpacity: pageContentOpacity
+                            contentOpacity: pageContentOpacity,
+                            onPull: scrubDismiss,
+                            onPullEnded: endDismiss
                         ),
                         defersHeavyContent: !heavyContentReady
                     )
@@ -254,7 +260,7 @@ private struct WalletScreenContent: View {
     /// wallet root hides.
     private func openCardChrome(mint: PublicKey) -> some View {
         HStack {
-            Button(action: closeCard) {
+            Button { closeCard() } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color.textMain)
@@ -288,10 +294,42 @@ private struct WalletScreenContent: View {
         .transition(.opacity)
     }
 
+    /// Runs the opening backwards under a pull-to-close, so the screen recedes
+    /// Recedes the screen under a pull-to-close: the info content and chrome
+    /// fade out. The deck is deliberately left as it
+    /// is — reassembling it under the finger leaves the card nothing to hand
+    /// over to when the drag ends, and the stack reading through a half-faded
+    /// page is not what the gesture should look like anyway. It comes back on
+    /// release, carrying the card home with it.
+    ///
+    /// The card's *position* is left alone too: the scroll view's overscroll
+    /// already carries it down a point per point, and driving its journey back
+    /// to the deck on top of that sends it several times faster than the drag.
+    ///
+    /// Un-animated on purpose. This tracks a finger, so each update is the
+    /// current position rather than something to interpolate towards.
+    private func scrubDismiss(_ progress: CGFloat) {
+        guard expandingMint != nil else { return }
+        var tracking = Transaction()
+        tracking.disablesAnimations = true
+        withTransaction(tracking) { pageContentOpacity = 1 - progress }
+    }
+
+    /// The finger lifted: either carry the dismissal through, or put everything
+    /// back where it was.
+    private func endDismiss(_ passedThreshold: Bool, _ releasedAt: CGFloat) {
+        guard expandingMint != nil else { return }
+        if passedThreshold {
+            closeCard(resumingFrom: releasedAt)
+        } else {
+            withAnimation(.smooth(duration: 0.25)) { pageContentOpacity = 1 }
+        }
+    }
+
     /// Closes a token: the reverse of opening. The page drops away and the deck
     /// takes its card back, sliding it down into its own slot and under the
     /// cards stacked on top of it — put back, rather than simply vanishing.
-    private func closeCard() {
+    private func closeCard(resumingFrom pullOffset: CGFloat = 0) {
         guard expandingMint != nil else { return }
         transitionToken &+= 1
         let token = transitionToken
@@ -304,6 +342,10 @@ private struct WalletScreenContent: View {
         handback.disablesAnimations = true
         withTransaction(handback) {
             hiddenMint = nil
+            // Hand the card over at the height the finger left it at, so the
+            // close picks up from there instead of jumping back to the open slot
+            // and replaying from the top.
+            releasedPullOffset = pullOffset
             pageContentOpacity = 0
             pageIsBuilt = false
             heavyContentReady = false
@@ -320,6 +362,7 @@ private struct WalletScreenContent: View {
         withAnimation(.smooth(duration: Self.liftDuration), completionCriteria: .removed) {
             expansionProgress = 0
             deckOpacity = 1
+            releasedPullOffset = 0
         } completion: {
             // Only if this close is still the current transition: tapping a card
             // again while it settles starts an open, and clearing the anchor then
@@ -377,6 +420,7 @@ private struct WalletScreenContent: View {
                         containerHeight: containerSize.height,
                         hiddenMint: hiddenMint,
                         openTopInset: WalletCardGeometry.openCardTopInset,
+                        openExtraOffset: releasedPullOffset,
                         onCardTap: openCard
                     )
                 }
@@ -401,7 +445,12 @@ private struct WalletScreenContent: View {
             }
             .padding(.horizontal, 20)
         }
-        .scrollDisabled(expandingMint != nil)
+        // Gated on the page being up rather than on `expandingMint`, which is
+        // held until the closing spring is fully removed — a good deal later
+        // than it looks finished. Tying the lock to it left the wallet inert for
+        // that tail: a swipe found a disabled scroll view and fell through to
+        // the card underneath as a tap.
+        .scrollDisabled(pageIsBuilt)
     }
 
     private var header: some View {

@@ -56,6 +56,9 @@ struct TokenCardStack: View {
     var hiddenMint: PublicKey? = nil
     /// Where the opened card comes to rest, leaving room for the chrome above it.
     var openTopInset: CGFloat = 0
+    /// Extra displacement for the opened card, used to pick it up exactly where a
+    /// pull-to-close let go of it rather than at its open slot.
+    var openExtraOffset: CGFloat = 0
     /// Reports the tapped card along with its current on-screen top edge, so the
     /// caller can work out the lift.
     var onCardTap: (TokenCardData, CGFloat) -> Void = { _, _ in }
@@ -96,7 +99,7 @@ struct TokenCardStack: View {
                 // Resting fan, and the reorganisation when a card is opened, are
                 // both expressed here so they interpolate as one animation.
                 .opacity(item.mint == hiddenMint ? 0 : 1)
-                .visualEffect { [index, expandingIndex, containerHeight, expansionProgress, openTopInset] content, proxy in
+                .visualEffect { [index, expandingIndex, containerHeight, expansionProgress, openTopInset, openExtraOffset] content, proxy in
                     let rect = proxy.frame(in: .scrollView)
                     let fan = offset(for: index, stackTop: rect.minY)
 
@@ -109,7 +112,7 @@ struct TokenCardStack: View {
                     // them — the cards above gather onto exactly the spot the
                     // opened one lands, which is what makes them read as
                     // collapsing into it.
-                    let open = openTopInset - rect.minY
+                    let open = openTopInset - rect.minY + openExtraOffset
 
                     // The opened card travels there and keeps its place in the
                     // deck's z-order the whole way. That ordering is what makes
