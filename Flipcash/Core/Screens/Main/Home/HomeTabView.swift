@@ -67,7 +67,19 @@ struct HomeTabView: View {
             // The app-level sheet host lives here in v2 (ScanScreen suppresses its
             // own copy when embedded) so `router.present(_:)` works from any tab.
             .modifier(RootSheetHostModifier(enabled: true))
-            .onAppear { router.activeTabStack = selection.pushStack }
+            .onAppear {
+                router.activeTabStack = selection.pushStack
+                // Tells the router which stacks live behind tabs, so a deep link
+                // into one selects its tab instead of presenting it as a sheet.
+                router.tabStacks = Set(HomeTab.allCases.compactMap(\.pushStack))
+            }
+            .onChange(of: router.requestedTabStack) { _, requested in
+                guard let requested,
+                      let tab = HomeTab.allCases.first(where: { $0.pushStack == requested })
+                else { return }
+                selection = tab
+                router.requestedTabStack = nil
+            }
             .onChange(of: selection) { _, tab in router.activeTabStack = tab.pushStack }
             .onDisappear { router.activeTabStack = nil }
     }

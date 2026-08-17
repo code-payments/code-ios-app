@@ -223,7 +223,19 @@ struct DeepLinkAction {
         case .currencyInfo(let mint):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
-                container.appRouter.navigate(to: .currencyInfo(mint))
+                let router = container.appRouter
+                if router.tabStacks.contains(.balance) {
+                    // v2: the wallet opens the token as its expanded card, so a
+                    // link lands exactly where tapping the card would — same
+                    // chrome, same dismissal. Pushing it instead gives a screen
+                    // with a back chevron that belongs to a stack the user never
+                    // navigated.
+                    router.setPath([], on: .balance)
+                    router.requestedTabStack = .balance
+                    router.requestedCardMint = mint
+                } else {
+                    router.navigate(to: .currencyInfo(mint))
+                }
             }
 
         case .chat(let conversationID):
@@ -267,7 +279,25 @@ struct DeepLinkAction {
                         return
                     }
                 }
-                container.appRouter.present(sheet)
+                let router = container.appRouter
+                // Discover is a push from the wallet in the tab UI, the same as
+                // its tile — its own sheet is the v1 route in.
+                if sheet == .discover, router.tabStacks.contains(.balance) {
+                    router.navigate(to: .discoverCurrencies)
+                    return
+                }
+
+                // A sheet whose stack a tab owns is that tab — `flipcash://balance`
+                // means "show me the wallet", and presenting the sheet puts the v1
+                // balance list over the wallet tab instead of selecting it.
+                let stack = sheet.stack
+                if router.tabStacks.contains(stack) {
+                    while router.presentedSheet != nil { router.dismissSheet() }
+                    router.setPath([], on: stack)
+                    router.requestedTabStack = stack
+                } else {
+                    router.present(sheet)
+                }
             }
         }
     }
