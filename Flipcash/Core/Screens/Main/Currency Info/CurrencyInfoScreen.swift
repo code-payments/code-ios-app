@@ -345,7 +345,7 @@ private struct CurrencyInfoScreenContent: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color.textMain)
-                    .frame(width: 44, height: 44)
+                    .frame(width: Self.overlayBarHeight, height: Self.overlayBarHeight)
                     // Hit-test the whole target, not just the glyph.
                     .contentShape(Circle())
                     .modifier(CircleGlass())
@@ -364,7 +364,7 @@ private struct CurrencyInfoScreenContent: View {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color.textMain)
-                        .frame(width: 44, height: 44)
+                        .frame(width: Self.overlayBarHeight, height: Self.overlayBarHeight)
                         .contentShape(Circle())
                         .modifier(CircleGlass())
                 }
@@ -413,7 +413,10 @@ private struct CurrencyInfoScreenContent: View {
                 // and swallows most of the trailing padding the spec calls for.
                 .padding(.leading, 8)
                 .padding(.trailing, 20)
-                .padding(.vertical, 4)
+                // Sized to the chrome height rather than left to hug its two
+                // lines of text, which left the capsule a few points shorter
+                // than the round buttons either side of it.
+                .frame(height: Self.overlayBarHeight)
                 .modifier(CapsuleGlass())
             } else {
                 CurrencyLabel(
