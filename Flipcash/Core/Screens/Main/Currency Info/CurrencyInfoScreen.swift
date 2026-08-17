@@ -210,10 +210,13 @@ private struct CurrencyInfoScreenContent: View {
     // MARK: - Body -
 
     var body: some View {
-        // Overlay hosting supplies its own backing, which it fades as the screen
-        // arrives and again as a pull-to-close recedes. Filling here too would
-        // sit above the wallet and hide the deck the pull is uncovering.
-        Background(color: overlayClose == nil ? .backgroundMain : .clear) {
+        // Fades with the rest of the screen when hosted as an overlay. Held
+        // opaque instead, it covers the wallet the instant the screen is built,
+        // so the deck never visibly clears and the content simply materialises
+        // over black while the card is still travelling. The host fades the
+        // wallet out first, so this comes up over an already-dark screen rather
+        // than cross-fading with a visible one.
+        Background(color: overlayClose == nil ? .backgroundMain : .backgroundMain.opacity(contentOpacity)) {
             switch viewModel.loadingState {
             case .loading:
                 CurrencyInfoLoadingView()

@@ -106,6 +106,8 @@ private struct WalletScreenContent: View {
     /// Rows of recent activity previewed on the wallet (the rest lives on the
     /// per-token transaction history).
     private static let recentPreviewCount = 3
+    /// How far below the status bar content returns to full strength.
+    private static let topFadeLength: CGFloat = 20
 
     init(sessionContainer: SessionContainer, onScanTipCard: @escaping () -> Void) {
         self.session = sessionContainer.session
@@ -235,7 +237,6 @@ private struct WalletScreenContent: View {
         withAnimation(.smooth(duration: Self.liftDuration), completionCriteria: .removed) {
             heroOffset = 0
             expansionProgress = 1
-            deckOpacity = 0
         } completion: {
             guard token == transitionToken else { return }
             // Everything has come to rest, so the chart can fetch its points and
@@ -243,16 +244,19 @@ private struct WalletScreenContent: View {
             heavyContentReady = true
         }
 
-        Task {
-            // The card leads; the page follows it in, so the motion reads as one
-            // gesture instead of the content arriving on its own. Sized to finish
-            // just before the card lands, so the hero card it hands over to is
-            // fully opaque by then.
-            try? await Task.sleep(for: .seconds(Self.pageFollowDelay))
-            guard token == transitionToken else { return }
-            withAnimation(.smooth(duration: Self.liftDuration - Self.pageFollowDelay)) {
-                pageContentOpacity = 1
-            }
+        // The wallet clears ahead of the deck it belongs to, so the screen is
+        // already dark by the time the page starts coming up. Fading the two
+        // across each other instead shows the balance and the cards straight
+        // through the tiles for the length of the overlap.
+        withAnimation(.easeOut(duration: Self.walletFadeDuration)) { deckOpacity = 0 }
+
+        // The card leads and the page follows it in, sharing its curve so the
+        // two read as one movement. Delayed rather than dispatched later, so
+        // both are committed in the same frame and cannot drift apart, and run
+        // long enough that the page is not sitting complete while the card is
+        // still travelling.
+        withAnimation(.smooth(duration: Self.liftDuration).delay(Self.pageFollowDelay)) {
+            pageContentOpacity = 1
         }
     }
 
@@ -379,6 +383,9 @@ private struct WalletScreenContent: View {
     }
 
     private static let liftDuration: TimeInterval = 0.32
+    /// The wallet is gone before the page starts arriving, so the two never
+    /// cross-fade over each other.
+    private static let walletFadeDuration: TimeInterval = 0.16
     /// How far behind the card the page follows.
     private static let pageFollowDelay: TimeInterval = 0.20
 
@@ -451,6 +458,19 @@ private struct WalletScreenContent: View {
         // that tail: a swipe found a disabled scroll view and fell through to
         // the card underneath as a tap.
         .scrollDisabled(pageIsBuilt)
+        // Fades what scrolls up into the status bar. `scrollEdgeEffectStyle` is
+        // drawn by a navigation bar's background and the wallet hides its bar,
+        // so the effect never renders here — the fade has to be drawn.
+        .overlay(alignment: .top) {
+            LinearGradient(
+                colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: safeArea.top + Self.topFadeLength)
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
+        }
     }
 
     private var header: some View {
