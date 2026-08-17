@@ -279,7 +279,18 @@ struct DeepLinkAction {
                         return
                     }
                 }
-                container.appRouter.present(sheet)
+                let router = container.appRouter
+                // A sheet whose stack a tab owns is that tab — `flipcash://balance`
+                // means "show me the wallet", and presenting the sheet puts the v1
+                // balance list over the wallet tab instead of selecting it.
+                let stack = sheet.stack
+                if router.tabStacks.contains(stack) {
+                    while router.presentedSheet != nil { router.dismissSheet() }
+                    router.setPath([], on: stack)
+                    router.requestedTabStack = stack
+                } else {
+                    router.present(sheet)
+                }
             }
         }
     }
