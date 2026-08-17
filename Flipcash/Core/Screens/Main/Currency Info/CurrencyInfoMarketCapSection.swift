@@ -15,6 +15,12 @@ struct CurrencyInfoMarketCapSection: View {
     let marketCap: FiatAmount
     let currencyCode: CurrencyCode
     let marketCapController: MarketCapController
+    /// Gates the chart's *data* only. The section itself — its value, the
+    /// all-time change, and the range picker — renders immediately around a
+    /// reserved 200pt plot area, so the page arrives complete and in its final
+    /// layout. Drawing an actual populated Swift Charts plot is the expensive
+    /// part, and the host holds that back until the opening animation is done.
+    var isReady: Bool = true
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -34,8 +40,16 @@ struct CurrencyInfoMarketCapSection: View {
         }
         .padding(.top, 20)
         .padding(.bottom, 20)
+        // The view model is cheap and gives the section its full height right
+        // away: value, change, a placeholder plot, and the range picker.
         .task {
+            guard chartViewModel == nil else { return }
             setupChart()
+        }
+        // The points, and so the real plot, come once the host says it is safe.
+        .task(id: isReady) {
+            guard isReady, let viewModel = chartViewModel else { return }
+            loadChartData(for: viewModel.selectedRange, into: viewModel)
         }
         .onChange(of: marketCap) { _, newMarketCap in
             // Live ticks only move the appended "current" point — history
@@ -51,10 +65,10 @@ struct CurrencyInfoMarketCapSection: View {
 
     private func setupChart() {
         let viewModel = ChartViewModel(currentValue: marketCap.doubleValue, selectedRange: .all)
+        viewModel.setLoading()
         chartViewModel = viewModel
 
         updateRangeChangeCallback(for: viewModel)
-        loadChartData(for: .all, into: viewModel)
     }
 
     private func updateRangeChangeCallback(for viewModel: ChartViewModel) {

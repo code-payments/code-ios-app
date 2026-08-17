@@ -16,18 +16,37 @@ import FlipcashCore
 /// changes.
 struct CurrencyInfoScreen: View {
 
+    /// How the screen is hosted. The content, view model and behaviour are the
+    /// same either way — only the top chrome differs, since an overlay is not a
+    /// navigation destination and so cannot use `.toolbar`.
+    enum Presentation {
+        /// Pushed onto a navigation stack; the system supplies the back button.
+        case pushed
+        /// Layered over the wallet so the tapped card can morph into the hero
+        /// card. Draws its own back button, which calls the closure.
+        case overlay(onClose: () -> Void, showsHeroCard: Bool = true)
+        /// Laid out inline beneath the card the wallet keeps on screen, so it
+        /// draws neither the hero card nor any top chrome.
+        case inline
+    }
+
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
 
     let mint: PublicKey
     var showBuyOnAppear: Bool = false
+    var presentation: Presentation = .pushed
+    /// Held true by a host that is animating this screen in.
+    var defersHeavyContent: Bool = false
 
     var body: some View {
         CurrencyInfoScreenContent(
             mint: mint,
             container: container,
             sessionContainer: sessionContainer,
-            showBuyOnAppear: showBuyOnAppear
+            showBuyOnAppear: showBuyOnAppear,
+            presentation: presentation,
+            defersHeavyContent: defersHeavyContent
         )
     }
 }
@@ -37,6 +56,8 @@ private struct CurrencyInfoScreenContent: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AppRouter.self) private var router
+    /// Set by the wallet so this screen zooms out of the tapped token card.
+    @Environment(\.walletCardNamespace) private var cardNamespace
 
     @State private var presentedSellViewModel: CurrencySellViewModel?
     @State private var isShowingCurrencySelection: Bool = false
@@ -62,8 +83,38 @@ private struct CurrencyInfoScreenContent: View {
     private let ratesController: RatesController
     private let marketCapController: MarketCapController
     private let showBuyOnAppear: Bool
+    private let presentation: CurrencyInfoScreen.Presentation
+    private let defersHeavyContent: Bool
 
     private var isNewUI: Bool { BetaFlags.shared.hasEnabled(.newUI) }
+
+    /// Overlay hosting draws its own chrome; pushed hosting uses `.toolbar`.
+    private var overlayClose: (() -> Void)? {
+        if case .overlay(let onClose, _) = presentation { return onClose }
+        return nil
+    }
+
+    /// False while the wallet's card is still flying into the hero slot — the
+    /// screen would otherwise draw a second card underneath it.
+    private var showsHeroCard: Bool {
+        switch presentation {
+        case .overlay(_, let shows): return shows
+        case .inline:                return false
+        case .pushed:                return true
+        }
+    }
+
+    /// The wallet already shows the card above an inline-hosted screen.
+    private var isInline: Bool {
+        if case .inline = presentation { return true }
+        return false
+    }
+
+    /// Only a pushed screen has a navigation bar to put items in.
+    private var usesToolbar: Bool {
+        if case .pushed = presentation { return true }
+        return false
+    }
 
     // MARK: - Init -
 
@@ -72,8 +123,12 @@ private struct CurrencyInfoScreenContent: View {
         viewModel: CurrencyInfoViewModel,
         container: Container,
         sessionContainer: SessionContainer,
-        showBuyOnAppear: Bool
+        showBuyOnAppear: Bool,
+        presentation: CurrencyInfoScreen.Presentation,
+        defersHeavyContent: Bool
     ) {
+        self.presentation        = presentation
+        self.defersHeavyContent  = defersHeavyContent
         self.mint                = mint
         self.ratesController     = sessionContainer.ratesController
         self.session             = sessionContainer.session
@@ -89,7 +144,14 @@ private struct CurrencyInfoScreenContent: View {
 
     /// Creates the screen by mint address. Metadata is loaded from the database
     /// (fast path) or fetched from the network, showing a loading state until ready.
-    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showBuyOnAppear: Bool = false) {
+    init(
+        mint: PublicKey,
+        container: Container,
+        sessionContainer: SessionContainer,
+        showBuyOnAppear: Bool = false,
+        presentation: CurrencyInfoScreen.Presentation = .pushed,
+        defersHeavyContent: Bool = false
+    ) {
         self.init(
             mint: mint,
             viewModel: CurrencyInfoViewModel(
@@ -100,7 +162,9 @@ private struct CurrencyInfoScreenContent: View {
             ),
             container: container,
             sessionContainer: sessionContainer,
-            showBuyOnAppear: showBuyOnAppear
+            showBuyOnAppear: showBuyOnAppear,
+            presentation: presentation,
+            defersHeavyContent: defersHeavyContent
         )
     }
 
@@ -134,7 +198,9 @@ private struct CurrencyInfoScreenContent: View {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 showsToolbarTitle = scrolledPast
                             }
-                        }
+                        },
+                        showsHeroCard: showsHeroCard,
+                        defersHeavyContent: defersHeavyContent
                     )
                 } else {
                     LoadedContent(
@@ -168,6 +234,17 @@ private struct CurrencyInfoScreenContent: View {
                 }
             }
         }
+        // Overlay hosting is not a navigation destination, so the chrome the
+        // toolbar would provide is drawn over the content instead — and the
+        // content needs the same top inset a nav bar would have reserved.
+        .modifier(OverlayTopInset(active: overlayClose != nil))
+        .overlay(alignment: .top) {
+            if overlayClose != nil {
+                overlayChrome
+                    .frame(height: Self.overlayBarHeight)
+            }
+        }
+        .toolbar(usesToolbar ? .automatic : .hidden, for: .navigationBar)
         .toolbarTitleDisplayMode(.inline)
         // The bar background is deliberately left in place: it renders the
         // scroll edge effect, and hiding it removes the soft fade the content
@@ -220,6 +297,61 @@ private struct CurrencyInfoScreenContent: View {
         // presentation queue.
     }
 
+    /// Height of the chrome an overlay draws in place of the navigation bar.
+    fileprivate static let overlayBarHeight: CGFloat = 44
+
+    /// Top inset for overlay hosting. The wallet parks the opened card at
+    /// `WalletCardGeometry.openCardTopInset`; the content adds 8pt of its own
+    /// padding above the hero card, so this makes the two line up exactly and
+    /// the hand-off invisible.
+    ///
+    /// The further 6pt is the scroll view's own soft top edge, which insets the
+    /// first row by that much. Without it the hero card lands 6pt below where
+    /// the wallet parked the card, and the hand-off reads as the card
+    /// overshooting and settling back.
+    fileprivate static let overlayContentInset: CGFloat = WalletCardGeometry.openCardTopInset - 8 - 6
+
+    /// Back + title pill + share, matching the pushed screen's toolbar. Used
+    /// only when hosted as an overlay.
+    @ViewBuilder private var overlayChrome: some View {
+        HStack(spacing: 8) {
+            Button {
+                overlayClose?()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.textMain)
+                    .frame(width: 44, height: 44)
+                    // Hit-test the whole target, not just the glyph.
+                    .contentShape(Circle())
+                    .modifier(CircleGlass())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("currency-info-back")
+
+            toolbarContent()
+                .opacity(showsToolbarTitle ? 1 : 0)
+
+            Spacer(minLength: 0)
+
+            if !isUSDF {
+                ShareLink(item: URL(string: "https://app.flipcash.com/token/\(mint.base58)")!) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.textMain)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
+                        .modifier(CircleGlass())
+                }
+                .simultaneousGesture(TapGesture().onEnded {
+                    Analytics.buttonTapped(name: .shareTokenInfo)
+                })
+            }
+        }
+        .padding(.horizontal, 16)
+        .animation(.smooth(duration: 0.2), value: showsToolbarTitle)
+    }
+
     @ViewBuilder private func toolbarContent() -> some View {
         // USDF's name is already "Dollars", so no special-case is needed.
         if let metadata = mintMetadata {
@@ -265,6 +397,63 @@ private struct CurrencyInfoScreenContent: View {
                     amount: nil
                 )
             }
+        }
+    }
+}
+
+/// Reserves the space a navigation bar would have taken, so overlay-hosted
+/// content starts below the chrome instead of underneath it, and fades what
+/// scrolls up into that space.
+///
+/// The system's own soft scroll edge is drawn by the navigation bar's
+/// background, and an overlay has no navigation bar — it draws its own chrome
+/// over the content — so without this the page scrolls up to meet the status
+/// bar at full strength.
+private struct OverlayTopInset: ViewModifier {
+    let active: Bool
+
+    /// The screen's own top inset, read before this modifier adds its own, so
+    /// the fade can be positioned against the status bar rather than a fixed
+    /// guess at its height.
+    @State private var statusBarHeight: CGFloat = 0
+
+    /// How far below the status bar the content returns to full strength —
+    /// the height of the chrome, so it is clear again just under the buttons.
+    private static let fadeLength = CurrencyInfoScreenContent.overlayBarHeight
+
+    func body(content: Content) -> some View {
+        if active {
+            content
+                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: {
+                    statusBarHeight = $0
+                }
+                .safeAreaInset(edge: .top) {
+                    Color.clear.frame(height: CurrencyInfoScreenContent.overlayContentInset)
+                }
+                .overlay(alignment: .top) {
+                    LinearGradient(
+                        colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: statusBarHeight + Self.fadeLength)
+                    .ignoresSafeArea(edges: .top)
+                    .allowsHitTesting(false)
+                }
+        } else {
+            content
+        }
+    }
+}
+
+/// Circular Liquid Glass for the overlay's back and share buttons, matching the
+/// platters the toolbar gives those items when the screen is pushed.
+private struct CircleGlass: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular, in: .circle)
+        } else {
+            content.background(.ultraThinMaterial, in: Circle())
         }
     }
 }

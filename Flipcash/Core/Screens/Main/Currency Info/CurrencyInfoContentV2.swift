@@ -24,6 +24,21 @@ private struct SoftTopScrollEdge: ViewModifier {
     }
 }
 
+/// Marks the hero card as the morph destination for the wallet's tapped card.
+/// Without a namespace (pushed hosting, deep links) the card renders plainly.
+private struct HeroCardMatch: ViewModifier {
+    let mint: PublicKey
+    let namespace: Namespace.ID?
+
+    func body(content: Content) -> some View {
+        if let namespace {
+            content.matchedGeometryEffect(id: mint, in: namespace)
+        } else {
+            content
+        }
+    }
+}
+
 struct CurrencyInfoContentV2: View {
     let metadata: StoredMintMetadata
     let decodedMetadata: MintMetadata
@@ -42,6 +57,12 @@ struct CurrencyInfoContentV2: View {
     /// Fires when the hero card's title scrolls out from under the toolbar, so
     /// the screen can reveal its own title.
     let onScrolledPastTitle: (Bool) -> Void
+    /// False when the host already shows the card (the wallet keeps it on screen
+    /// while the detail rises beneath it), so it is not drawn twice.
+    var showsHeroCard: Bool = true
+    /// True while the page is animating in: the chart build and the activity
+    /// read are held back so they cannot stutter the transition.
+    var defersHeavyContent: Bool = false
 
     private static let recentPreviewCount = 3
     /// Scroll distance that puts the hero card's title row behind the toolbar.
@@ -50,6 +71,11 @@ struct CurrencyInfoContentV2: View {
     private var isUSDF: Bool { metadata.mint == .usdf }
     private var isOwned: Bool { viewModel.balance.hasDisplayableValue }
 
+
+    /// Shared with the wallet card stack when hosted as an overlay, so the
+    /// tapped card morphs into the hero card above.
+    @Environment(\.walletCardNamespace) private var cardNamespace
+
     var body: some View {
         ScrollView {
             // Horizontal insets are applied per section rather than to the whole
@@ -57,11 +83,28 @@ struct CurrencyInfoContentV2: View {
             // outer inset with negative padding makes that row wider than the
             // viewport, which turns the scroll view horizontally scrollable.
             VStack(spacing: 24) {
-                heroCard
-                    .padding(.horizontal, 20)
+                // The slot is always reserved: while the wallet's card is still
+                // in the air this is empty, but dropping it from the layout
+                // shifts everything below up and then jumps it back down when
+                // the card lands.
+                Group {
+                    if showsHeroCard {
+                        heroCard
+                    } else {
+                        Color.clear.frame(height: WalletCardGeometry.cardHeight)
+                    }
+                }
+                .padding(.horizontal, 20)
                 actionTiles
                     .padding(.horizontal, 20)
 
+                // Everything below is laid out and shown from the first frame,
+                // so the page arrives complete rather than in stages. Nothing
+                // here is gated on loading: the activity read is quick and runs
+                // off the main thread, and the market-cap section reserves its
+                // full height around a placeholder plot. Revealing these later —
+                // even all at once — reads as the tiles landing and the rest of
+                // the screen following a beat behind.
                 if isOwned && !viewModel.recentActivities.isEmpty {
                     recentSection
                         .padding(.horizontal, 20)
@@ -74,7 +117,8 @@ struct CurrencyInfoContentV2: View {
                     CurrencyInfoMarketCapSection(
                         marketCap: viewModel.marketCap,
                         currencyCode: ratesController.balanceCurrency,
-                        marketCapController: marketCapController
+                        marketCapController: marketCapController,
+                        isReady: !defersHeavyContent
                     )
                 }
 
@@ -104,6 +148,10 @@ struct CurrencyInfoContentV2: View {
         } action: { _, scrolledPast in
             onScrolledPastTitle(scrolledPast)
         }
+        // Started immediately rather than after the transition: the read itself
+        // runs off the main thread, so it costs the animation nothing, and it
+        // lands well before the page finishes fading in — which is what keeps
+        // Recent from arriving as a second stage.
         .task {
             await viewModel.loadRecentActivities(limit: Self.recentPreviewCount)
         }
@@ -113,6 +161,9 @@ struct CurrencyInfoContentV2: View {
 
     private var heroCard: some View {
         TokenCardView(data: heroData, height: 224)
+            // Destination of the wallet card's morph when hosted as an overlay,
+            // so the tapped card becomes this one rather than cross-fading.
+            .modifier(HeroCardMatch(mint: metadata.mint, namespace: cardNamespace))
     }
 
     private var heroData: TokenCardData {

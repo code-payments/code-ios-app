@@ -35,7 +35,38 @@ struct TokenCardStack: View {
     var collapsedReveal: CGFloat = defaultCollapsedReveal
     /// Where the back card pins, measured from the top of the scroll viewport.
     var pinInset: CGFloat = 0
-    var onCardTap: (TokenCardData) -> Void = { _ in }
+    /// Matched-transition namespace so the tapped card can zoom into the pushed
+    /// currency-info hero card. `nil` disables the zoom source.
+    var namespace: Namespace.ID? = nil
+    /// The card being opened. The deck reorganises around it: the cards above it
+    /// collapse into its slot, the rest push off the bottom.
+    var expandingMint: PublicKey? = nil
+    /// How far that reorganisation has run: 0 is the resting fan, 1 is fully
+    /// cleared. The deck is driven by this scalar rather than by `expandingMint`
+    /// alone because `visualEffect` interpolates a *value* that changes under an
+    /// animation, but not a change of branch — toggling the mint swaps which
+    /// formula applies, which resolves in a single frame and reads as a snap.
+    var expansionProgress: CGFloat = 0
+    /// Height of the enclosing scroll container, used to push the lower cards
+    /// clear of the screen.
+    var containerHeight: CGFloat = 0
+    /// A card the stack must leave a hole for, because it is being drawn
+    /// elsewhere: in flight between the deck and the page, or by the page itself.
+    /// Outlives `expandingMint`, which clears as soon as closing starts.
+    var hiddenMint: PublicKey? = nil
+    /// Where the opened card comes to rest, leaving room for the chrome above it.
+    var openTopInset: CGFloat = 0
+    /// Reports the tapped card along with its current on-screen top edge, so the
+    /// caller can work out the lift.
+    var onCardTap: (TokenCardData, CGFloat) -> Void = { _, _ in }
+
+    /// Each card's current top edge in global space, keyed by mint.
+    @State private var cardTops: [PublicKey: CGFloat] = [:]
+
+    private var expandingIndex: Int? {
+        guard let expandingMint else { return nil }
+        return items.firstIndex { $0.mint == expandingMint }
+    }
 
     /// Always the fanned height, so the scroll range stays stable while cards collapse.
     private var stackHeight: CGFloat {
@@ -57,15 +88,61 @@ struct TokenCardStack: View {
         ZStack(alignment: .top) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 Button {
-                    onCardTap(item)
+                    onCardTap(item, cardTops[item.mint] ?? 0)
                 } label: {
                     TokenCardView(data: item, height: cardHeight)
                 }
                 .buttonStyle(.plain)
-                .visualEffect { [index] content, proxy in
-                    content.offset(y: offset(for: index, stackTop: proxy.frame(in: .scrollView).minY))
+                // Resting fan, and the reorganisation when a card is opened, are
+                // both expressed here so they interpolate as one animation.
+                .opacity(item.mint == hiddenMint ? 0 : 1)
+                .visualEffect { [index, expandingIndex, containerHeight, expansionProgress, openTopInset] content, proxy in
+                    let rect = proxy.frame(in: .scrollView)
+                    let fan = offset(for: index, stackTop: rect.minY)
+
+                    guard let expandingIndex, expansionProgress > 0 else {
+                        return content.offset(y: fan).opacity(1)
+                    }
+
+                    // Where the opened card comes to rest. Every card is laid out
+                    // at the same origin, so this is the same offset for all of
+                    // them — the cards above gather onto exactly the spot the
+                    // opened one lands, which is what makes them read as
+                    // collapsing into it.
+                    let open = openTopInset - rect.minY
+
+                    // The opened card travels there and keeps its place in the
+                    // deck's z-order the whole way. That ordering is what makes
+                    // closing read as putting a card back: it slides under the
+                    // cards on top of it rather than landing over them and then
+                    // being covered in one frame when its z-order reverts. It
+                    // also means the cards above gather *underneath* it.
+                    if index == expandingIndex {
+                        return content.offset(y: fan + (open - fan) * expansionProgress).opacity(1)
+                    }
+
+                    // The cards above collapse up into it, and the ones below run
+                    // off the bottom; both fade on the way. Collapsing the upper
+                    // cards *down* onto the opened card instead — by the reveal
+                    // they each contribute — sends them the wrong way entirely
+                    // when a card low in the deck is picked, dragging the whole
+                    // top of the deck down over the card that is rising past it.
+                    let cleared = index < expandingIndex ? open : containerHeight - rect.minY
+
+                    return content
+                        .offset(y: fan + (cleared - fan) * expansionProgress)
+                        .opacity(1 - expansionProgress)
                 }
-                // Cards drawn front-to-back so the last (highest-value) sits on top.
+                .onGeometryChange(for: CGFloat.self) { [index] proxy in
+                    proxy.frame(in: .global).minY
+                        + offset(for: index, stackTop: proxy.frame(in: .scrollView).minY)
+                } action: { top in
+                    cardTops[item.mint] = top
+                }
+                // Cards drawn front-to-back so the last (highest-value) sits on
+                // top. The opened card keeps its natural place here — lifting it
+                // above the deck would make it pop out on open and snap back
+                // under on close.
                 .zIndex(Double(index))
             }
         }
@@ -89,5 +166,20 @@ struct TokenCardStack: View {
         let effectiveTop = max(stackTop, releaseTop)
         let restingTop = max(effectiveTop + fannedY, collapsedSlot)
         return restingTop - effectiveTop
+    }
+}
+
+/// Marks a card as the morph source for the detail's hero card, but only when
+/// the stack was given a namespace — it renders fine standalone (previews).
+private struct WalletCardTransitionSource: ViewModifier {
+    let mint: PublicKey
+    let namespace: Namespace.ID?
+
+    func body(content: Content) -> some View {
+        if let namespace {
+            content.matchedGeometryEffect(id: mint, in: namespace)
+        } else {
+            content
+        }
     }
 }
