@@ -11,8 +11,8 @@ import FlipcashCore
 /// scroll view scrolls up — Apple Wallet style. Once the balance header has
 /// scrolled off, the back card (index 0) reaches the top and pins there; the
 /// remaining cards each collapse up into it in turn, tightening the fan from
-/// `fannedReveal` to `collapsedReveal`. When the deck is fully collapsed it holds
-/// briefly, then releases and scrolls off with the rest of the content.
+/// `fannedReveal` to `collapsedReveal`. Once fully collapsed it scrolls off with
+/// the rest of the content.
 ///
 /// Placement is driven entirely per-card by SwiftUI's `visualEffect`, reading
 /// each card's own `frame(in: .scrollView).minY`. There is no shared scroll
@@ -27,7 +27,13 @@ struct TokenCardStack: View {
     /// behind it (no slivers), Apple Wallet style.
     static let defaultCollapsedReveal: CGFloat = 0
     /// How long (in scroll px) the fully-collapsed deck holds before releasing.
-    static let defaultCollapsedHold: CGFloat = 24
+    ///
+    /// Zero: the deck collapses and then scrolls away like any other content.
+    /// Any hold pins the front card while the rest of the page keeps scrolling
+    /// past it, so whatever follows the stack creeps that far into the cards
+    /// before settling — the deck spends the distance but its reserved box does
+    /// not, and nothing below it can tell.
+    static let defaultCollapsedHold: CGFloat = 0
 
     let items: [TokenCardData]
     var cardHeight: CGFloat = 224
@@ -56,6 +62,9 @@ struct TokenCardStack: View {
     var hiddenMint: PublicKey? = nil
     /// Where the opened card comes to rest, leaving room for the chrome above it.
     var openTopInset: CGFloat = 0
+    /// Extra displacement for the opened card, used to pick it up exactly where a
+    /// pull-to-close let go of it rather than at its open slot.
+    var openExtraOffset: CGFloat = 0
     /// Reports the tapped card along with its current on-screen top edge, so the
     /// caller can work out the lift.
     var onCardTap: (TokenCardData, CGFloat) -> Void = { _, _ in }
@@ -68,7 +77,9 @@ struct TokenCardStack: View {
         return items.firstIndex { $0.mint == expandingMint }
     }
 
-    /// Always the fanned height, so the scroll range stays stable while cards collapse.
+    /// Always the fanned height, so the scroll range stays stable while the
+    /// cards collapse, and so the deck's bottom edge tracks the box exactly —
+    /// anything following the stack keeps its distance the whole way.
     private var stackHeight: CGFloat {
         items.isEmpty ? 0 : cardHeight + fannedReveal * CGFloat(items.count - 1)
     }
@@ -76,8 +87,7 @@ struct TokenCardStack: View {
     private let collapsedHold: CGFloat = defaultCollapsedHold
 
     /// The stack-top position (in `.scrollView` space) at which the deck freezes
-    /// and rides the scroll off: the last card's fully-collapsed point, less a
-    /// short hold.
+    /// and rides the scroll off: the last card's fully-collapsed point.
     private nonisolated var releaseTop: CGFloat {
         let lastIndex = CGFloat(max(items.count - 1, 0))
         let fullyCollapsed = pinInset - lastIndex * (fannedReveal - collapsedReveal)
@@ -96,7 +106,7 @@ struct TokenCardStack: View {
                 // Resting fan, and the reorganisation when a card is opened, are
                 // both expressed here so they interpolate as one animation.
                 .opacity(item.mint == hiddenMint ? 0 : 1)
-                .visualEffect { [index, expandingIndex, containerHeight, expansionProgress, openTopInset] content, proxy in
+                .visualEffect { [index, expandingIndex, containerHeight, expansionProgress, openTopInset, openExtraOffset] content, proxy in
                     let rect = proxy.frame(in: .scrollView)
                     let fan = offset(for: index, stackTop: rect.minY)
 
@@ -109,7 +119,7 @@ struct TokenCardStack: View {
                     // them — the cards above gather onto exactly the spot the
                     // opened one lands, which is what makes them read as
                     // collapsing into it.
-                    let open = openTopInset - rect.minY
+                    let open = openTopInset - rect.minY + openExtraOffset
 
                     // The opened card travels there and keeps its place in the
                     // deck's z-order the whole way. That ordering is what makes

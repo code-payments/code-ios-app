@@ -31,7 +31,16 @@ struct CurrencyInfoScreen: View {
         /// it. The card is the screen's own from the first frame — it is never a
         /// copy laid over the top — so it scrolls with the content immediately
         /// and there is no hand-over to mistime.
-        case overlay(onClose: () -> Void, heroOffset: CGFloat = 0, contentOpacity: Double = 1)
+        /// `onPull` reports a pull-to-close in progress, 0 to 1, so the host can
+        /// run its opening transition backwards under the finger; `onPullEnded`
+        /// says whether the finger lifted past the point of no return.
+        case overlay(
+            onClose: () -> Void,
+            heroOffset: CGFloat = 0,
+            contentOpacity: Double = 1,
+            onPull: (CGFloat) -> Void = { _ in },
+            onPullEnded: (Bool, CGFloat) -> Void = { _, _ in }
+        )
         /// Laid out inline beneath the card the wallet keeps on screen, so it
         /// draws neither the hero card nor any top chrome.
         case inline
@@ -71,6 +80,9 @@ private struct CurrencyInfoScreenContent: View {
     /// New UI: the toolbar title only appears once the hero card's own title has
     /// scrolled out of view (Apple Wallet / App Store behaviour).
     @State private var showsToolbarTitle: Bool = false
+    /// How far through a pull-to-close the content currently is, 0 to 1. Used to
+    /// fade the chrome so the gesture is legible before it commits.
+    @State private var pullProgress: CGFloat = 0
 
     let session: Session
 
@@ -97,21 +109,32 @@ private struct CurrencyInfoScreenContent: View {
 
     /// Overlay hosting draws its own chrome; pushed hosting uses `.toolbar`.
     private var overlayClose: (() -> Void)? {
-        if case .overlay(let onClose, _, _) = presentation { return onClose }
+        if case .overlay(let onClose, _, _, _, _) = presentation { return onClose }
         return nil
     }
 
     /// How far the hero card is displaced from its resting slot while the host
     /// animates it in.
     private var heroOffset: CGFloat {
-        if case .overlay(_, let offset, _) = presentation { return offset }
+        if case .overlay(_, let offset, _, _, _) = presentation { return offset }
         return 0
     }
 
     /// Everything except the hero card, which the host brings in behind it.
     private var contentOpacity: Double {
-        if case .overlay(_, _, let opacity) = presentation { return opacity }
+        if case .overlay(_, _, let opacity, _, _) = presentation { return opacity }
         return 1
+    }
+
+    /// Reports a pull-to-close to the host, which owns the transition it undoes.
+    private var onPull: (CGFloat) -> Void {
+        if case .overlay(_, _, _, let onPull, _) = presentation { return onPull }
+        return { _ in }
+    }
+
+    private var onPullEnded: (Bool, CGFloat) -> Void {
+        if case .overlay(_, _, _, _, let onEnded) = presentation { return onEnded }
+        return { _, _ in }
     }
 
     /// The wallet keeps its own card above an inline-hosted screen.
@@ -187,7 +210,13 @@ private struct CurrencyInfoScreenContent: View {
     // MARK: - Body -
 
     var body: some View {
-        Background(color: .backgroundMain) {
+        // Fades with the rest of the screen when hosted as an overlay. Held
+        // opaque instead, it covers the wallet the instant the screen is built,
+        // so the deck never visibly clears and the content simply materialises
+        // over black while the card is still travelling. The host fades the
+        // wallet out first, so this comes up over an already-dark screen rather
+        // than cross-fading with a visible one.
+        Background(color: overlayClose == nil ? .backgroundMain : .backgroundMain.opacity(contentOpacity)) {
             switch viewModel.loadingState {
             case .loading:
                 CurrencyInfoLoadingView()
@@ -214,6 +243,20 @@ private struct CurrencyInfoScreenContent: View {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 showsToolbarTitle = scrolledPast
                             }
+                        },
+                        onPulledDown: { pulled in
+                            guard overlayClose != nil else { return }
+                            let progress = min(1, pulled / Self.pullToCloseDistance)
+                            pullProgress = progress
+                            onPull(progress)
+                        },
+                        onPullEnded: { pulled in
+                            guard overlayClose != nil else { return }
+                            let passed = pulled >= Self.pullToCloseDistance
+                            if !passed {
+                                withAnimation(.smooth(duration: 0.25)) { pullProgress = 0 }
+                            }
+                            onPullEnded(passed, pulled)
                         },
                         showsHeroCard: showsHeroCard,
                         heroOffset: heroOffset,
@@ -261,8 +304,10 @@ private struct CurrencyInfoScreenContent: View {
                 overlayChrome
                     .frame(height: Self.overlayBarHeight)
                     // Arrives with the rest of the screen; only the card itself
-                    // is held at full strength through the opening.
-                    .opacity(contentOpacity)
+                    // is held at full strength through the opening. Fades again
+                    // as a pull-to-close builds, so the gesture is legible
+                    // before it commits.
+                    .opacity(contentOpacity * (1 - pullProgress))
             }
         }
         .toolbar(usesToolbar ? .automatic : .hidden, for: .navigationBar)
@@ -320,6 +365,11 @@ private struct CurrencyInfoScreenContent: View {
 
     /// Height of the chrome an overlay draws in place of the navigation bar.
     fileprivate static let overlayBarHeight: CGFloat = 44
+
+    /// How far the content has to be pulled past its top to count as a close —
+    /// far enough that an overscroll bounce at the end of a flick cannot reach
+    /// it by accident.
+    private static let pullToCloseDistance: CGFloat = 110
 
     /// Top inset for overlay hosting. The wallet parks the opened card at
     /// `WalletCardGeometry.openCardTopInset`; the content adds 8pt of its own
