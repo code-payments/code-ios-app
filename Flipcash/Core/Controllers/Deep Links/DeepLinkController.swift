@@ -280,6 +280,13 @@ struct DeepLinkAction {
                     }
                 }
                 let router = container.appRouter
+                // Discover is a push from the wallet in the tab UI, the same as
+                // its tile — its own sheet is the v1 route in.
+                if sheet == .discover, router.tabStacks.contains(.balance) {
+                    router.navigate(to: .discoverCurrencies)
+                    return
+                }
+
                 // A sheet whose stack a tab owns is that tab — `flipcash://balance`
                 // means "show me the wallet", and presenting the sheet puts the v1
                 // balance list over the wallet tab instead of selecting it.
