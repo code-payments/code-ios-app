@@ -34,6 +34,12 @@ struct YouScreen: View {
                     card?
                         .contentShape(Rectangle())
                         .onTapGesture(perform: presentFullScreen)
+                        // Hide the in-page card while its expanded copy is up in the
+                        // app-root bill overlay, so it doesn't ghost through the
+                        // overlay's scrim. Opacity (not removal) keeps the layout
+                        // stable so nothing reflows on dismiss.
+                        .opacity(sessionContainer.session.isShowingBill ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.2), value: sessionContainer.session.isShowingBill)
                         .padding(.top, 24)
 
                     Button(action: shareTipCard) {
