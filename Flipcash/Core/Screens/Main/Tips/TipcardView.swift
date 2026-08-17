@@ -37,21 +37,34 @@ struct TipcardView: View {
                 .foregroundStyle(Color.white)
                 .frame(width: codeDimension, height: codeDimension)
 
-            HStack(spacing: 8) {
-                Text("Tip")
-
+            Group {
                 if includePhoto {
-                    avatarImage
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: avatarDimension, height: avatarDimension)
-                        .foregroundStyle(Color.textSecondary)
-                        .clipShape(Circle())
-                }
+                    HStack(spacing: 8) {
+                        Text("Tip")
 
-                Text(name)
-                    .lineLimit(1)
+                        avatarImage
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: avatarDimension, height: avatarDimension)
+                            .foregroundStyle(Color.textSecondary)
+                            .clipShape(Circle())
+
+                        Text(name)
+                    }
+                } else {
+                    // Set as one string rather than two views in a stack: with
+                    // no avatar between them the stack's gap stands in for the
+                    // space, and at this size it is half again as wide as the
+                    // font's own — enough to read as a double space.
+                    Text("Tip \(name)")
+                }
             }
+            // Long names get a second line before being cut, rather than being
+            // truncated on the first.
+            .lineLimit(2)
+            .truncationMode(.tail)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, size.width * 0.08)
             .font(.appDisplayXS)
             .foregroundStyle(Color.textMain)
             .padding(.top, size.height * 0.06)
