@@ -83,6 +83,22 @@ struct CurrencyInfoContentV2: View {
     /// The live pull distance, kept so the phase change can report the value the
     /// finger lifted at — the geometry callback has stopped firing by then.
     @State private var pullDistance: CGFloat = 0
+    /// Whether the overscroll being reported is coming from a finger rather than
+    /// from momentum after one has left.
+    @State private var isDragging = false
+    /// Whether that finger went down on the card. The card is the handle for
+    /// the dismissal — dragging the page below it should only ever scroll.
+    @State private var touchBeganOnCard = false
+    /// Where the card is on screen, so the above can be worked out.
+    @State private var heroFrame: CGRect = .zero
+    /// Whether this drag's origin has been judged yet. It is settled once, at
+    /// the start: the card travels down under the finger, so re-testing the
+    /// (fixed) start point against its moving frame flips the answer to false
+    /// part-way through the drag.
+    @State private var hasJudgedOrigin = false
+    /// Whether this drag ever moved the screen. Whatever the origin, a drag
+    /// that scrubbed has to be ended, or the screen is left part-dismissed.
+    @State private var didScrub = false
 
     private var isUSDF: Bool { metadata.mint == .usdf }
     private var isOwned: Bool { viewModel.balance.hasDisplayableValue }
@@ -115,6 +131,8 @@ struct CurrencyInfoContentV2: View {
                 // wallet was already showing, so it is continuous rather than
                 // something that arrives.
                 .offset(y: heroOffset)
+                // Its position on screen, so a drag can be tested against it.
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { heroFrame = $0 }
 
                 Group {
                     actionTiles
@@ -175,6 +193,24 @@ struct CurrencyInfoContentV2: View {
         } action: { _, scrolledPast in
             onScrolledPastTitle(scrolledPast)
         }
+        // Reads where the drag began. A gesture on the card itself is not
+        // delivered before the scroll view starts reporting overscroll, so the
+        // flag was still false when the first pull arrived and every update was
+        // rejected; asking the scroll view and comparing against the card's
+        // frame gives an answer that is right from the first callback.
+        // `.global` on purpose: the card's frame below is captured in the same
+        // space. A drag reports in its own local space by default, which is
+        // offset from global by wherever the scroll view sits — enough to move
+        // the card's rectangle down onto the activity rows, so the dismissal
+        // answered to a drag there instead of on the card.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                .onChanged { drag in
+                    guard !hasJudgedOrigin else { return }
+                    hasJudgedOrigin = true
+                    touchBeganOnCard = heroFrame.contains(drag.startLocation)
+                }
+        )
         // Pull-to-close rides the scroll view's own overscroll rather than a
         // drag gesture of its own: a gesture layered over a scroll view has to
         // guess when it is competing with a scroll, whereas overscroll only
@@ -182,14 +218,34 @@ struct CurrencyInfoContentV2: View {
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             max(0, -(geometry.contentOffset.y + geometry.contentInsets.top))
         } action: { _, pulled in
+            // Only a finger, and only one that started on the card. A flick
+            // back up overshoots the top and bounces under its own momentum,
+            // which is overscroll nobody asked for; and pulling the page down
+            // from the tiles or the chart is a scroll, not a dismissal.
+            guard isDragging, touchBeganOnCard else { return }
+            didScrub = true
             pullDistance = pulled
             onPulledDown(pulled)
         }
-        .onScrollPhaseChange { _, phase in
-            // The finger has left the glass; the scroll view is about to spring
-            // the content back, so this is the moment to judge the pull.
-            guard phase != .interacting else { return }
-            onPullEnded(pullDistance)
+        .onScrollPhaseChange { previous, phase in
+            if phase == .interacting {
+                isDragging = true
+                return
+            }
+
+            // Judge the pull as the finger leaves the glass, and only then —
+            // the later settle from deceleration to idle is not a second pull.
+            guard previous == .interacting else { return }
+            isDragging = false
+            // Ended whenever this drag moved anything, rather than on the origin
+            // flag — the screen has to be put back either way.
+            if didScrub {
+                onPullEnded(pullDistance)
+            }
+            touchBeganOnCard = false
+            hasJudgedOrigin = false
+            didScrub = false
+            pullDistance = 0
         }
         // Started immediately rather than after the transition: the read itself
         // runs off the main thread, so it costs the animation nothing, and it
