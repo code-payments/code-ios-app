@@ -56,10 +56,14 @@ struct YouScreen: View {
 
                     settingsList
                         .padding(.top, 32)
+
+                    // v2 scrolls the version string with the content rather than
+                    // pinning it above the tab bar (the v1 Settings sheet pinned it).
+                    versionFooter
+                        .padding(.top, 32)
                 }
                 .padding(.horizontal, 20)
             }
-            .safeAreaInset(edge: .bottom) { versionFooter }
         }
         .task(id: profilePicture?.thumbnailBlobID) {
             previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
@@ -105,7 +109,6 @@ struct YouScreen: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 20)
     }
 
     // MARK: - Content -
