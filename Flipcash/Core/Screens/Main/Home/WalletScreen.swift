@@ -106,6 +106,18 @@ private struct WalletScreenContent: View {
     /// Rows of recent activity previewed on the wallet (the rest lives on the
     /// per-token transaction history).
     private static let recentPreviewCount = 3
+
+    /// Where the balance sits, measured from the top of the screen rather than
+    /// from the top of this scroll view — 20pt of list inset plus the spec's
+    /// 96pt, which is how far down Android puts it. Android draws its list edge
+    /// to edge and insets the content, so its 96 starts under the status bar;
+    /// laying out below the safe area here and adding the same 96 puts the
+    /// balance a whole status bar lower than it sits on Android.
+    private static let headerTopFromScreenEdge: CGFloat = 116
+
+    private var headerTopPadding: CGFloat {
+        max(0, Self.headerTopFromScreenEdge - safeArea.top)
+    }
     /// How far below the status bar content returns to full strength.
     private static let topFadeLength: CGFloat = 20
 
@@ -401,7 +413,7 @@ private struct WalletScreenContent: View {
                     header
                         // Figma (8966:1578) drops the balance well down the screen —
                         // most of the extra space sits above it, less below.
-                        .padding(.top, 96)
+                        .padding(.top, headerTopPadding)
                         .padding(.bottom, 44)
 
                     if !isOnboardingComplete {
