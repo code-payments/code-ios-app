@@ -162,9 +162,10 @@ private extension HomeTab {
     /// never push (Tip Card owns a local stack).
     var pushStack: AppRouter.Stack? {
         switch self {
-        case .wallet:         return .balance
-        case .chat:           return .tips
-        case .scan, .tipCard: return nil
+        case .wallet:  return .balance
+        case .chat:    return .tips
+        case .tipCard: return .you
+        case .scan:    return nil
         }
     }
 }
@@ -197,17 +198,22 @@ private struct ChatTab: View {
 /// add-your-name flow lives (avoiding a duplicate profile-creation push here).
 private struct TipCardTab: View {
 
+    @Environment(AppRouter.self) private var router
     @Environment(SessionContainer.self) private var sessionContainer
 
     let onSetUp: () -> Void
 
     var body: some View {
-        NavigationStack {
-            if sessionContainer.session.profile?.isTippable == true {
-                TipcardScreen(isEmbedded: true)
-            } else {
-                TipCardSetupPrompt(onSetUp: onSetUp)
+        @Bindable var router = router
+        NavigationStack(path: $router[.you]) {
+            Group {
+                if sessionContainer.session.profile?.isTippable == true {
+                    YouScreen()
+                } else {
+                    TipCardSetupPrompt(onSetUp: onSetUp)
+                }
             }
+            .appRouterDestinations()
         }
     }
 }

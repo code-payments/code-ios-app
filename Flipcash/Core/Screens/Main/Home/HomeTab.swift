@@ -38,7 +38,7 @@ enum HomeTab: Int, CaseIterable, Identifiable, Hashable {
         case .scan:    return "Scan"
         case .wallet:  return "Wallet"
         case .chat:    return "Chat"
-        case .tipCard: return "Tip Card"
+        case .tipCard: return "You"
         }
     }
 }
