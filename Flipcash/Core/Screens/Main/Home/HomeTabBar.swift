@@ -14,6 +14,9 @@ struct HomeTabBar: View {
 
     @Binding var selection: HomeTab
 
+    /// Per-tab unread badge counts; a tab absent or mapped to 0 shows no badge.
+    var badgeCounts: [HomeTab: Int] = [:]
+
     private let tabs = HomeTab.allCases
 
     // Figma tab bar (node 8966:1557): 32pt icons in 50pt-tall items (9pt above
@@ -48,11 +51,27 @@ struct HomeTabBar: View {
                                 .frame(width: iconSize, height: iconSize)
                                 .foregroundStyle(Color.white)
                                 .opacity(selection == tab ? 1 : 0.5)
+                                .overlay(alignment: .topTrailing) {
+                                    if let count = badgeCounts[tab], count > 0 {
+                                        Bubble(
+                                            size: .regular,
+                                            count: min(count, 100),
+                                            hasMore: count > 100,
+                                            color: .unreadIndicator
+                                        )
+                                        .fixedSize()
+                                        // Straddle the icon's top-right corner,
+                                        // matching the native tab bar's badge.
+                                        .offset(x: 10, y: -6)
+                                        .accessibilityHidden(true)
+                                    }
+                                }
                                 .frame(width: itemWidth, height: itemHeight)
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(tab.accessibilityLabel)
+                        .accessibilityValue((badgeCounts[tab] ?? 0) > 0 ? "\(badgeCounts[tab] ?? 0) unread" : "")
                         .accessibilityAddTraits(selection == tab ? [.isSelected] : [])
                     }
                 }

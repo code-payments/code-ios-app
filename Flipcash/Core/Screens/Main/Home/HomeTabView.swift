@@ -35,6 +35,10 @@ struct HomeTabView: View {
             let items = UITabBarItemAppearance()
             items.normal.iconColor = UIColor(Color.textSecondary)
             items.selected.iconColor = UIColor(Color.textMain)
+            // The unread-chat badge uses the app's blue indicator, not the
+            // system tab bar's default red.
+            items.normal.badgeBackgroundColor = UIColor(Color.unreadIndicator)
+            items.selected.badgeBackgroundColor = UIColor(Color.unreadIndicator)
 
             let appearance = UITabBarAppearance()
             appearance.configureWithTransparentBackground()
@@ -59,6 +63,13 @@ struct HomeTabView: View {
         if sessionContainer.session.isShowingBill { return true }
         guard let stack = selection.pushStack else { return false }
         return !router[stack].isEmpty
+    }
+
+    /// Unread tip-conversation count, surfaced as a badge on the Chat tab —
+    /// mirrors the v1 scanner's Tips button badge. Reactive: reads the
+    /// `@Observable` conversation store, so the badge updates as chats are read.
+    private var chatBadgeCount: Int {
+        sessionContainer.conversationController.unreadConversationCount(of: .tipDm)
     }
 
     var body: some View {
@@ -110,6 +121,8 @@ struct HomeTabView: View {
                     Image(tab.iconName(isSelected: false))
                         .accessibilityLabel(tab.accessibilityLabel)
                 }
+                // Unread-chat count on the Chat tab; a count of 0 hides the badge.
+                .badge(tab == .chat ? chatBadgeCount : 0)
             }
         }
         // Selected-tab highlight over a lightly tinted glass bar — echoes the old
@@ -133,7 +146,7 @@ struct HomeTabView: View {
                 .transition(.opacity)
 
             if !isTabBarHidden {
-                HomeTabBar(selection: $selection)
+                HomeTabBar(selection: $selection, badgeCounts: [.chat: chatBadgeCount])
                     // Figma insets the pill ~42pt from each edge (318pt wide on the
                     // 402pt frame); a fixed margin keeps the floating look across
                     // device widths.
