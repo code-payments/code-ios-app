@@ -42,6 +42,12 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         return nil
     }
 
+    /// The swap legs + fee when this is a swap activity, else `nil`.
+    public var swapMetadata: SwapMetadata? {
+        if case .swap(let swapMetadata) = metadata { return swapMetadata }
+        return nil
+    }
+
     public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = [], counterparty: Counterparty? = nil) {
         self.id = id
         self.state = state
@@ -144,6 +150,7 @@ extension Activity {
 extension Activity {
     public enum Metadata: Sendable, Equatable, Hashable {
         case cashLink(CashLinkMetadata)
+        case swap(SwapMetadata)
     }
 }
 
@@ -248,11 +255,17 @@ extension Activity.Metadata {
         guard let proto else { return nil }
 
         switch proto {
-        case .directlySentCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto, .swappedCrypto:
+        case .directlySentCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto:
             return nil
         case .indirectlySentCrypto(let metadata):
             do {
                 self = try .cashLink(.init(metadata))
+            } catch {
+                return nil
+            }
+        case .swappedCrypto(let metadata):
+            do {
+                self = try .swap(.init(metadata))
             } catch {
                 return nil
             }

@@ -82,6 +82,27 @@ nonisolated struct CashLinkMetadataTable: Sendable {
     let canCancel    = Expression <Bool>      ("canCancel")
 }
 
+// Side table for `.swapped` activities: the two swap legs + fee. Joined 1:1 to
+// `activity` by id. The destination amount columns are nullable — a swap that
+// hasn't executed yet carries only its destination mint.
+nonisolated struct SwapMetadataTable: Sendable {
+    static let name = "swapMetadata"
+
+    let table            = Table(Self.name)
+    let id               = Expression <PublicKey>     ("id")
+    let fromMint         = Expression <PublicKey>     ("fromMint")
+    let fromQuarks       = Expression <UInt64>        ("fromQuarks")
+    let fromNativeAmount = Expression <Double>        ("fromNativeAmount")
+    let fromCurrency     = Expression <CurrencyCode>  ("fromCurrency")
+    let toMint           = Expression <PublicKey>     ("toMint")
+    let toQuarks         = Expression <UInt64?>       ("toQuarks")
+    let toNativeAmount   = Expression <Double?>       ("toNativeAmount")
+    let toCurrency       = Expression <CurrencyCode?> ("toCurrency")
+    let feeNativeAmount  = Expression <Double>        ("feeNativeAmount")
+    let feeCurrency      = Expression <CurrencyCode>  ("feeCurrency")
+    let state            = Expression <Int>           ("state")
+}
+
 nonisolated struct LimitsTable: Sendable {
     static let name = "limits"
 
@@ -325,6 +346,27 @@ nonisolated extension Database {
                 t.column(cashLinkMetadataTable.canCancel)
 
                 t.foreignKey(cashLinkMetadataTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+            })
+        }
+
+        let swapMetadataTable = SwapMetadataTable()
+
+        try writer.transaction {
+            try writer.run(swapMetadataTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(swapMetadataTable.id, primaryKey: true)
+                t.column(swapMetadataTable.fromMint)
+                t.column(swapMetadataTable.fromQuarks)
+                t.column(swapMetadataTable.fromNativeAmount)
+                t.column(swapMetadataTable.fromCurrency)
+                t.column(swapMetadataTable.toMint)
+                t.column(swapMetadataTable.toQuarks)
+                t.column(swapMetadataTable.toNativeAmount)
+                t.column(swapMetadataTable.toCurrency)
+                t.column(swapMetadataTable.feeNativeAmount)
+                t.column(swapMetadataTable.feeCurrency)
+                t.column(swapMetadataTable.state)
+
+                t.foreignKey(swapMetadataTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
             })
         }
 

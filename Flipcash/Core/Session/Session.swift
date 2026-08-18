@@ -158,6 +158,12 @@ class Session {
         updateableBalances.value.first { $0.mint == mint }
     }
 
+    /// Locally-cached metadata for any known mint, held or not. Nil when the mint
+    /// has never been synced — a swap's counterpart currency may not be a balance.
+    func storedMintMetadata(for mint: PublicKey) -> StoredMintMetadata? {
+        try? database.getMintMetadata(mint: mint)
+    }
+
     /// The newest `limit` activities across all tokens — the unified feed shown
     /// as the wallet's "Recent Activity" preview.
     func recentActivities(limit: Int) -> [Activity] {
