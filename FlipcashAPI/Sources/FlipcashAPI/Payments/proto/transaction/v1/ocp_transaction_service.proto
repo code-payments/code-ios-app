@@ -462,7 +462,7 @@ message StatefulSwapResponse {
         //
         // Instruction formats:
         //
-        // Buy Tokens (Core Mint -> Launchpad Currency Mint):
+        // Buy Tokens (Core Mint -> Launchpad Currency Mint) without a buy fee:
         //  1. System::AdvanceNonce
         //  2. [Optional] ComputeBudget::SetComputeUnitLimit
         //  3. [Optional] ComputeBudget::SetComputeUnitPrice
@@ -470,6 +470,18 @@ message StatefulSwapResponse {
         //  5. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
         //  6. VM::TransferForSwap (Core Mint VM swap ATA -> Core Mint temporary account)
         //  7. Reserve::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
+        //  8. Token::CloseAccount (closes Core Mint temporary account)
+        //  9. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
+        //
+        // Buy Tokens (Core Mint -> Launchpad Currency Mint) with a buy fee, which
+        // is used when fee_amount is non-zero:
+        //  1. System::AdvanceNonce
+        //  2. [Optional] ComputeBudget::SetComputeUnitLimit
+        //  3. [Optional] ComputeBudget::SetComputeUnitPrice
+        //  4. [Optional] Memo::Memo
+        //  5. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
+        //  6. VM::TransferForSwapWithFee (Core Mint VM swap ATA -> Core Mint temporary account (swap amount) and fee destination (fee amount))
+        //  7. Reserve::BuyAndDepositIntoVm (bounded buy of the swap amount depositing to_mint tokens into the to_mint VM)
         //  8. Token::CloseAccount (closes Core Mint temporary account)
         //  9. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
         //
@@ -527,6 +539,10 @@ message StatefulSwapResponse {
 
             // The memory index where the destination virtual Timelock account lives
             uint32 memory_index = 9;
+
+            // Destination account where the buy fee should be paid. Only set when
+            // a non-zero fee_amount was provided in the client parameters.
+            common.v1.SolanaAccountId fee_destination = 10;
         }
 
         // Server parameters when executing stateful buy flows against the

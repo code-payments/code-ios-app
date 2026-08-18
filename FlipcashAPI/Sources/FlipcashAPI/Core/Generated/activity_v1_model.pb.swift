@@ -163,108 +163,133 @@ public struct Flipcash_Activity_V1_NotificationId: Sendable {
 }
 
 /// Notification is a message that is displayed in an activity feed
-public struct Flipcash_Activity_V1_Notification: Sendable {
+public struct Flipcash_Activity_V1_Notification: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The ID of this notification
   public var id: Flipcash_Activity_V1_NotificationId {
-    get {return _id ?? Flipcash_Activity_V1_NotificationId()}
-    set {_id = newValue}
+    get {return _storage._id ?? Flipcash_Activity_V1_NotificationId()}
+    set {_uniqueStorage()._id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {return self._id != nil}
+  public var hasID: Bool {return _storage._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
-  public mutating func clearID() {self._id = nil}
+  public mutating func clearID() {_uniqueStorage()._id = nil}
 
   /// The localized title text for the notification
-  public var localizedText: String = String()
+  public var localizedText: String {
+    get {return _storage._localizedText}
+    set {_uniqueStorage()._localizedText = newValue}
+  }
 
   /// If a payment applies, the amount that was paid
+  ///
+  /// Note: For multi-mint operations, amounts are carried in additional_metadata
+  ///       (eg. swapped_crypto).
   public var paymentAmount: Flipcash_Common_V1_CryptoPaymentAmount {
-    get {return _paymentAmount ?? Flipcash_Common_V1_CryptoPaymentAmount()}
-    set {_paymentAmount = newValue}
+    get {return _storage._paymentAmount ?? Flipcash_Common_V1_CryptoPaymentAmount()}
+    set {_uniqueStorage()._paymentAmount = newValue}
   }
   /// Returns true if `paymentAmount` has been explicitly set.
-  public var hasPaymentAmount: Bool {return self._paymentAmount != nil}
+  public var hasPaymentAmount: Bool {return _storage._paymentAmount != nil}
   /// Clears the value of `paymentAmount`. Subsequent reads from it will return its default value.
-  public mutating func clearPaymentAmount() {self._paymentAmount = nil}
+  public mutating func clearPaymentAmount() {_uniqueStorage()._paymentAmount = nil}
 
   /// The timestamp of this notification
   public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_ts = newValue}
+    get {return _storage._ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._ts = newValue}
   }
   /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {return self._ts != nil}
+  public var hasTs: Bool {return _storage._ts != nil}
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
-  public mutating func clearTs() {self._ts = nil}
+  public mutating func clearTs() {_uniqueStorage()._ts = nil}
 
   /// The state of this notification
-  public var state: Flipcash_Activity_V1_NotificationState = .unknown
+  public var state: Flipcash_Activity_V1_NotificationState {
+    get {return _storage._state}
+    set {_uniqueStorage()._state = newValue}
+  }
 
   /// Additional metadata for this notification specific to the notification
-  public var additionalMetadata: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata? = nil
+  public var additionalMetadata: OneOf_AdditionalMetadata? {
+    get {return _storage._additionalMetadata}
+    set {_uniqueStorage()._additionalMetadata = newValue}
+  }
 
   public var directlySentCrypto: Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata {
     get {
-      if case .directlySentCrypto(let v)? = additionalMetadata {return v}
+      if case .directlySentCrypto(let v)? = _storage._additionalMetadata {return v}
       return Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .directlySentCrypto(newValue)}
+    set {_uniqueStorage()._additionalMetadata = .directlySentCrypto(newValue)}
   }
 
   public var receivedCrypto: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata {
     get {
-      if case .receivedCrypto(let v)? = additionalMetadata {return v}
+      if case .receivedCrypto(let v)? = _storage._additionalMetadata {return v}
       return Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .receivedCrypto(newValue)}
+    set {_uniqueStorage()._additionalMetadata = .receivedCrypto(newValue)}
   }
 
   public var withdrewCrypto: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata {
     get {
-      if case .withdrewCrypto(let v)? = additionalMetadata {return v}
+      if case .withdrewCrypto(let v)? = _storage._additionalMetadata {return v}
       return Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .withdrewCrypto(newValue)}
+    set {_uniqueStorage()._additionalMetadata = .withdrewCrypto(newValue)}
   }
 
   public var indirectlySentCrypto: Flipcash_Activity_V1_IndirectlySentCryptoNotificationMetadata {
     get {
-      if case .indirectlySentCrypto(let v)? = additionalMetadata {return v}
+      if case .indirectlySentCrypto(let v)? = _storage._additionalMetadata {return v}
       return Flipcash_Activity_V1_IndirectlySentCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .indirectlySentCrypto(newValue)}
+    set {_uniqueStorage()._additionalMetadata = .indirectlySentCrypto(newValue)}
   }
 
   public var depositedCrypto: Flipcash_Activity_V1_DepositedCryptoNotificationMetadata {
     get {
-      if case .depositedCrypto(let v)? = additionalMetadata {return v}
+      if case .depositedCrypto(let v)? = _storage._additionalMetadata {return v}
       return Flipcash_Activity_V1_DepositedCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .depositedCrypto(newValue)}
+    set {_uniqueStorage()._additionalMetadata = .depositedCrypto(newValue)}
   }
 
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var boughtCrypto: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata {
     get {
-      if case .boughtCrypto(let v)? = additionalMetadata {return v}
+      if case .boughtCrypto(let v)? = _storage._additionalMetadata {return v}
       return Flipcash_Activity_V1_BoughtCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .boughtCrypto(newValue)}
+    set {_uniqueStorage()._additionalMetadata = .boughtCrypto(newValue)}
   }
 
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var soldCrypto: Flipcash_Activity_V1_SoldCryptoNotificationMetadata {
     get {
-      if case .soldCrypto(let v)? = additionalMetadata {return v}
+      if case .soldCrypto(let v)? = _storage._additionalMetadata {return v}
       return Flipcash_Activity_V1_SoldCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .soldCrypto(newValue)}
+    set {_uniqueStorage()._additionalMetadata = .soldCrypto(newValue)}
+  }
+
+  public var swappedCrypto: Flipcash_Activity_V1_SwappedCryptoNotificationMetadata {
+    get {
+      if case .swappedCrypto(let v)? = _storage._additionalMetadata {return v}
+      return Flipcash_Activity_V1_SwappedCryptoNotificationMetadata()
+    }
+    set {_uniqueStorage()._additionalMetadata = .swappedCrypto(newValue)}
   }
 
   /// Ordered substitutions to apply to localized_text
-  public var textSubstitutions: [Flipcash_Common_V1_Substitution] = []
+  public var textSubstitutions: [Flipcash_Common_V1_Substitution] {
+    get {return _storage._textSubstitutions}
+    set {_uniqueStorage()._textSubstitutions = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -275,16 +300,17 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
     case withdrewCrypto(Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata)
     case indirectlySentCrypto(Flipcash_Activity_V1_IndirectlySentCryptoNotificationMetadata)
     case depositedCrypto(Flipcash_Activity_V1_DepositedCryptoNotificationMetadata)
+    /// NOTE: This field was marked as deprecated in the .proto file.
     case boughtCrypto(Flipcash_Activity_V1_BoughtCryptoNotificationMetadata)
+    /// NOTE: This field was marked as deprecated in the .proto file.
     case soldCrypto(Flipcash_Activity_V1_SoldCryptoNotificationMetadata)
+    case swappedCrypto(Flipcash_Activity_V1_SwappedCryptoNotificationMetadata)
 
   }
 
   public init() {}
 
-  fileprivate var _id: Flipcash_Activity_V1_NotificationId? = nil
-  fileprivate var _paymentAmount: Flipcash_Common_V1_CryptoPaymentAmount? = nil
-  fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public struct Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata: Sendable {
@@ -360,11 +386,24 @@ public struct Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata: Sendable 
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Deprecated in favour of swap_metadata
   public var swapState: Flipcash_Activity_V1_SwapState = .unknown
+
+  /// When a withdraw is a swap, the metadata for that swap
+  public var swapMetadata: Flipcash_Activity_V1_SwappedCryptoNotificationMetadata {
+    get {return _swapMetadata ?? Flipcash_Activity_V1_SwappedCryptoNotificationMetadata()}
+    set {_swapMetadata = newValue}
+  }
+  /// Returns true if `swapMetadata` has been explicitly set.
+  public var hasSwapMetadata: Bool {return self._swapMetadata != nil}
+  /// Clears the value of `swapMetadata`. Subsequent reads from it will return its default value.
+  public mutating func clearSwapMetadata() {self._swapMetadata = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _swapMetadata: Flipcash_Activity_V1_SwappedCryptoNotificationMetadata? = nil
 }
 
 public struct Flipcash_Activity_V1_IndirectlySentCryptoNotificationMetadata: Sendable {
@@ -402,6 +441,8 @@ public struct Flipcash_Activity_V1_DepositedCryptoNotificationMetadata: Sendable
   public init() {}
 }
 
+/// Deprecated: Use SwappedCryptoNotificationMetadata, which models both halves
+///             of the swap in a single notification.
 public struct Flipcash_Activity_V1_BoughtCryptoNotificationMetadata: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -414,6 +455,8 @@ public struct Flipcash_Activity_V1_BoughtCryptoNotificationMetadata: Sendable {
   public init() {}
 }
 
+/// Deprecated: Use SwappedCryptoNotificationMetadata, which models both halves
+///             of the swap in a single notification.
 public struct Flipcash_Activity_V1_SoldCryptoNotificationMetadata: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -424,6 +467,79 @@ public struct Flipcash_Activity_V1_SoldCryptoNotificationMetadata: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+}
+
+/// SwappedCryptoNotificationMetadata represents a swap between two mints as a
+/// single notification. It supersedes BoughtCryptoNotificationMetadata and
+/// SoldCryptoNotificationMetadata, which modelled the two halves of a swap as
+/// separate notifications.
+public struct Flipcash_Activity_V1_SwappedCryptoNotificationMetadata: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The amount the user gave up in the source mint
+  public var from: Flipcash_Common_V1_CryptoPaymentAmount {
+    get {return _from ?? Flipcash_Common_V1_CryptoPaymentAmount()}
+    set {_from = newValue}
+  }
+  /// Returns true if `from` has been explicitly set.
+  public var hasFrom: Bool {return self._from != nil}
+  /// Clears the value of `from`. Subsequent reads from it will return its default value.
+  public mutating func clearFrom() {self._from = nil}
+
+  /// What the user received in the destination mint. The mint is always known,
+  /// but the amount is only known once the swap has executed.
+  public var to: Flipcash_Activity_V1_SwappedCryptoNotificationMetadata.OneOf_To? = nil
+
+  /// The destination mint, when the amount isn't yet known
+  public var toMint: Flipcash_Common_V1_PublicKey {
+    get {
+      if case .toMint(let v)? = to {return v}
+      return Flipcash_Common_V1_PublicKey()
+    }
+    set {to = .toMint(newValue)}
+  }
+
+  /// The amount the user received in the destination mint
+  public var toAmount: Flipcash_Common_V1_CryptoPaymentAmount {
+    get {
+      if case .toAmount(let v)? = to {return v}
+      return Flipcash_Common_V1_CryptoPaymentAmount()
+    }
+    set {to = .toAmount(newValue)}
+  }
+
+  /// The fee charged for the swap, which is known upfront and is set regardless
+  /// of the state of the swap
+  public var fee: Flipcash_Common_V1_FiatPaymentAmount {
+    get {return _fee ?? Flipcash_Common_V1_FiatPaymentAmount()}
+    set {_fee = newValue}
+  }
+  /// Returns true if `fee` has been explicitly set.
+  public var hasFee: Bool {return self._fee != nil}
+  /// Clears the value of `fee`. Subsequent reads from it will return its default value.
+  public mutating func clearFee() {self._fee = nil}
+
+  /// The state of the swap as a whole
+  public var swapState: Flipcash_Activity_V1_SwapState = .unknown
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  /// What the user received in the destination mint. The mint is always known,
+  /// but the amount is only known once the swap has executed.
+  public enum OneOf_To: Equatable, Sendable {
+    /// The destination mint, when the amount isn't yet known
+    case toMint(Flipcash_Common_V1_PublicKey)
+    /// The amount the user received in the destination mint
+    case toAmount(Flipcash_Common_V1_CryptoPaymentAmount)
+
+  }
+
+  public init() {}
+
+  fileprivate var _from: Flipcash_Common_V1_CryptoPaymentAmount? = nil
+  fileprivate var _fee: Flipcash_Common_V1_FiatPaymentAmount? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -474,181 +590,246 @@ extension Flipcash_Activity_V1_NotificationId: SwiftProtobuf.Message, SwiftProto
 
 extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Notification"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}localized_text\0\u{3}payment_amount\0\u{1}ts\0\u{1}state\0\u{4}\u{2}directly_sent_crypto\0\u{3}received_crypto\0\u{3}withdrew_crypto\0\u{3}indirectly_sent_crypto\0\u{3}deposited_crypto\0\u{3}bought_crypto\0\u{3}sold_crypto\0\u{4}W\u{1}text_substitutions\0\u{c}\u{6}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}localized_text\0\u{3}payment_amount\0\u{1}ts\0\u{1}state\0\u{4}\u{2}directly_sent_crypto\0\u{3}received_crypto\0\u{3}withdrew_crypto\0\u{3}indirectly_sent_crypto\0\u{3}deposited_crypto\0\u{3}bought_crypto\0\u{3}sold_crypto\0\u{3}swapped_crypto\0\u{4}V\u{1}text_substitutions\0\u{c}\u{6}\u{1}")
+
+  fileprivate class _StorageClass {
+    var _id: Flipcash_Activity_V1_NotificationId? = nil
+    var _localizedText: String = String()
+    var _paymentAmount: Flipcash_Common_V1_CryptoPaymentAmount? = nil
+    var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _state: Flipcash_Activity_V1_NotificationState = .unknown
+    var _additionalMetadata: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?
+    var _textSubstitutions: [Flipcash_Common_V1_Substitution] = []
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _id = source._id
+      _localizedText = source._localizedText
+      _paymentAmount = source._paymentAmount
+      _ts = source._ts
+      _state = source._state
+      _additionalMetadata = source._additionalMetadata
+      _textSubstitutions = source._textSubstitutions
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.localizedText) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._paymentAmount) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
-      case 5: try { try decoder.decodeSingularEnumField(value: &self.state) }()
-      case 7: try {
-        var v: Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata?
-        var hadOneofValue = false
-        if let current = self.additionalMetadata {
-          hadOneofValue = true
-          if case .directlySentCrypto(let m) = current {v = m}
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._id) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._localizedText) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._paymentAmount) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._ts) }()
+        case 5: try { try decoder.decodeSingularEnumField(value: &_storage._state) }()
+        case 7: try {
+          var v: Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata?
+          var hadOneofValue = false
+          if let current = _storage._additionalMetadata {
+            hadOneofValue = true
+            if case .directlySentCrypto(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._additionalMetadata = .directlySentCrypto(v)
+          }
+        }()
+        case 8: try {
+          var v: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata?
+          var hadOneofValue = false
+          if let current = _storage._additionalMetadata {
+            hadOneofValue = true
+            if case .receivedCrypto(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._additionalMetadata = .receivedCrypto(v)
+          }
+        }()
+        case 9: try {
+          var v: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata?
+          var hadOneofValue = false
+          if let current = _storage._additionalMetadata {
+            hadOneofValue = true
+            if case .withdrewCrypto(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._additionalMetadata = .withdrewCrypto(v)
+          }
+        }()
+        case 10: try {
+          var v: Flipcash_Activity_V1_IndirectlySentCryptoNotificationMetadata?
+          var hadOneofValue = false
+          if let current = _storage._additionalMetadata {
+            hadOneofValue = true
+            if case .indirectlySentCrypto(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._additionalMetadata = .indirectlySentCrypto(v)
+          }
+        }()
+        case 11: try {
+          var v: Flipcash_Activity_V1_DepositedCryptoNotificationMetadata?
+          var hadOneofValue = false
+          if let current = _storage._additionalMetadata {
+            hadOneofValue = true
+            if case .depositedCrypto(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._additionalMetadata = .depositedCrypto(v)
+          }
+        }()
+        case 12: try {
+          var v: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata?
+          var hadOneofValue = false
+          if let current = _storage._additionalMetadata {
+            hadOneofValue = true
+            if case .boughtCrypto(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._additionalMetadata = .boughtCrypto(v)
+          }
+        }()
+        case 13: try {
+          var v: Flipcash_Activity_V1_SoldCryptoNotificationMetadata?
+          var hadOneofValue = false
+          if let current = _storage._additionalMetadata {
+            hadOneofValue = true
+            if case .soldCrypto(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._additionalMetadata = .soldCrypto(v)
+          }
+        }()
+        case 14: try {
+          var v: Flipcash_Activity_V1_SwappedCryptoNotificationMetadata?
+          var hadOneofValue = false
+          if let current = _storage._additionalMetadata {
+            hadOneofValue = true
+            if case .swappedCrypto(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._additionalMetadata = .swappedCrypto(v)
+          }
+        }()
+        case 100: try { try decoder.decodeRepeatedMessageField(value: &_storage._textSubstitutions) }()
+        default: break
         }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .directlySentCrypto(v)
-        }
-      }()
-      case 8: try {
-        var v: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata?
-        var hadOneofValue = false
-        if let current = self.additionalMetadata {
-          hadOneofValue = true
-          if case .receivedCrypto(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .receivedCrypto(v)
-        }
-      }()
-      case 9: try {
-        var v: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata?
-        var hadOneofValue = false
-        if let current = self.additionalMetadata {
-          hadOneofValue = true
-          if case .withdrewCrypto(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .withdrewCrypto(v)
-        }
-      }()
-      case 10: try {
-        var v: Flipcash_Activity_V1_IndirectlySentCryptoNotificationMetadata?
-        var hadOneofValue = false
-        if let current = self.additionalMetadata {
-          hadOneofValue = true
-          if case .indirectlySentCrypto(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .indirectlySentCrypto(v)
-        }
-      }()
-      case 11: try {
-        var v: Flipcash_Activity_V1_DepositedCryptoNotificationMetadata?
-        var hadOneofValue = false
-        if let current = self.additionalMetadata {
-          hadOneofValue = true
-          if case .depositedCrypto(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .depositedCrypto(v)
-        }
-      }()
-      case 12: try {
-        var v: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata?
-        var hadOneofValue = false
-        if let current = self.additionalMetadata {
-          hadOneofValue = true
-          if case .boughtCrypto(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .boughtCrypto(v)
-        }
-      }()
-      case 13: try {
-        var v: Flipcash_Activity_V1_SoldCryptoNotificationMetadata?
-        var hadOneofValue = false
-        if let current = self.additionalMetadata {
-          hadOneofValue = true
-          if case .soldCrypto(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .soldCrypto(v)
-        }
-      }()
-      case 100: try { try decoder.decodeRepeatedMessageField(value: &self.textSubstitutions) }()
-      default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._id {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    if !self.localizedText.isEmpty {
-      try visitor.visitSingularStringField(value: self.localizedText, fieldNumber: 2)
-    }
-    try { if let v = self._paymentAmount {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    try { if let v = self._ts {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
-    if self.state != .unknown {
-      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 5)
-    }
-    switch self.additionalMetadata {
-    case .directlySentCrypto?: try {
-      guard case .directlySentCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
-    }()
-    case .receivedCrypto?: try {
-      guard case .receivedCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
-    }()
-    case .withdrewCrypto?: try {
-      guard case .withdrewCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
-    }()
-    case .indirectlySentCrypto?: try {
-      guard case .indirectlySentCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
-    }()
-    case .depositedCrypto?: try {
-      guard case .depositedCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
-    }()
-    case .boughtCrypto?: try {
-      guard case .boughtCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
-    }()
-    case .soldCrypto?: try {
-      guard case .soldCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
-    }()
-    case nil: break
-    }
-    if !self.textSubstitutions.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.textSubstitutions, fieldNumber: 100)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._id {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      if !_storage._localizedText.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._localizedText, fieldNumber: 2)
+      }
+      try { if let v = _storage._paymentAmount {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      try { if let v = _storage._ts {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+      if _storage._state != .unknown {
+        try visitor.visitSingularEnumField(value: _storage._state, fieldNumber: 5)
+      }
+      switch _storage._additionalMetadata {
+      case .directlySentCrypto?: try {
+        guard case .directlySentCrypto(let v)? = _storage._additionalMetadata else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+      }()
+      case .receivedCrypto?: try {
+        guard case .receivedCrypto(let v)? = _storage._additionalMetadata else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      }()
+      case .withdrewCrypto?: try {
+        guard case .withdrewCrypto(let v)? = _storage._additionalMetadata else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+      }()
+      case .indirectlySentCrypto?: try {
+        guard case .indirectlySentCrypto(let v)? = _storage._additionalMetadata else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      }()
+      case .depositedCrypto?: try {
+        guard case .depositedCrypto(let v)? = _storage._additionalMetadata else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      }()
+      case .boughtCrypto?: try {
+        guard case .boughtCrypto(let v)? = _storage._additionalMetadata else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      }()
+      case .soldCrypto?: try {
+        guard case .soldCrypto(let v)? = _storage._additionalMetadata else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+      }()
+      case .swappedCrypto?: try {
+        guard case .swappedCrypto(let v)? = _storage._additionalMetadata else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
+      }()
+      case nil: break
+      }
+      if !_storage._textSubstitutions.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._textSubstitutions, fieldNumber: 100)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Activity_V1_Notification, rhs: Flipcash_Activity_V1_Notification) -> Bool {
-    if lhs._id != rhs._id {return false}
-    if lhs.localizedText != rhs.localizedText {return false}
-    if lhs._paymentAmount != rhs._paymentAmount {return false}
-    if lhs._ts != rhs._ts {return false}
-    if lhs.state != rhs.state {return false}
-    if lhs.additionalMetadata != rhs.additionalMetadata {return false}
-    if lhs.textSubstitutions != rhs.textSubstitutions {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._id != rhs_storage._id {return false}
+        if _storage._localizedText != rhs_storage._localizedText {return false}
+        if _storage._paymentAmount != rhs_storage._paymentAmount {return false}
+        if _storage._ts != rhs_storage._ts {return false}
+        if _storage._state != rhs_storage._state {return false}
+        if _storage._additionalMetadata != rhs_storage._additionalMetadata {return false}
+        if _storage._textSubstitutions != rhs_storage._textSubstitutions {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -790,7 +971,7 @@ extension Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: SwiftProtobuf
 
 extension Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".WithdrewCryptoNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}swap_state\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}swap_state\0\u{3}swap_metadata\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -799,20 +980,29 @@ extension Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata: SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.swapState) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._swapMetadata) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if self.swapState != .unknown {
       try visitor.visitSingularEnumField(value: self.swapState, fieldNumber: 1)
     }
+    try { if let v = self._swapMetadata {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata) -> Bool {
     if lhs.swapState != rhs.swapState {return false}
+    if lhs._swapMetadata != rhs._swapMetadata {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -930,6 +1120,88 @@ extension Flipcash_Activity_V1_SoldCryptoNotificationMetadata: SwiftProtobuf.Mes
   }
 
   public static func ==(lhs: Flipcash_Activity_V1_SoldCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_SoldCryptoNotificationMetadata) -> Bool {
+    if lhs.swapState != rhs.swapState {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Activity_V1_SwappedCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SwappedCryptoNotificationMetadata"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}from\0\u{3}to_mint\0\u{3}to_amount\0\u{1}fee\0\u{3}swap_state\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._from) }()
+      case 2: try {
+        var v: Flipcash_Common_V1_PublicKey?
+        var hadOneofValue = false
+        if let current = self.to {
+          hadOneofValue = true
+          if case .toMint(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.to = .toMint(v)
+        }
+      }()
+      case 3: try {
+        var v: Flipcash_Common_V1_CryptoPaymentAmount?
+        var hadOneofValue = false
+        if let current = self.to {
+          hadOneofValue = true
+          if case .toAmount(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.to = .toAmount(v)
+        }
+      }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._fee) }()
+      case 5: try { try decoder.decodeSingularEnumField(value: &self.swapState) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._from {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    switch self.to {
+    case .toMint?: try {
+      guard case .toMint(let v)? = self.to else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .toAmount?: try {
+      guard case .toAmount(let v)? = self.to else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case nil: break
+    }
+    try { if let v = self._fee {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    if self.swapState != .unknown {
+      try visitor.visitSingularEnumField(value: self.swapState, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Activity_V1_SwappedCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_SwappedCryptoNotificationMetadata) -> Bool {
+    if lhs._from != rhs._from {return false}
+    if lhs.to != rhs.to {return false}
+    if lhs._fee != rhs._fee {return false}
     if lhs.swapState != rhs.swapState {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

@@ -30,6 +30,9 @@ message Notification {
     }];
 
     // If a payment applies, the amount that was paid
+    //
+    // Note: For multi-mint operations, amounts are carried in additional_metadata
+    //       (eg. swapped_crypto).
     common.v1.CryptoPaymentAmount payment_amount = 3;
 
     // The timestamp of this notification
@@ -45,8 +48,9 @@ message Notification {
         WithdrewCryptoNotificationMetadata       withdrew_crypto        = 9;
         IndirectlySentCryptoNotificationMetadata indirectly_sent_crypto = 10;
         DepositedCryptoNotificationMetadata      deposited_crypto       = 11;
-        BoughtCryptoNotificationMetadata         bought_crypto          = 12;
-        SoldCryptoNotificationMetadata           sold_crypto            = 13;
+        BoughtCryptoNotificationMetadata         bought_crypto          = 12 [deprecated = true];
+        SoldCryptoNotificationMetadata           sold_crypto            = 13 [deprecated = true];
+        SwappedCryptoNotificationMetadata        swapped_crypto         = 14;
     }
 
     reserved 6; // Deprecated WelcomeBonusNotificationMetadata
@@ -70,7 +74,11 @@ message ReceivedCryptoNotificationMetadata {
 }
 
 message WithdrewCryptoNotificationMetadata {
+    // Deprecated in favour of swap_metadata
     SwapState swap_state = 1 [(validate.rules).enum.not_in = 0];
+
+    // When a withdraw is a swap, the metadata for that swap
+    SwappedCryptoNotificationMetadata swap_metadata = 2;
 }
 
 message IndirectlySentCryptoNotificationMetadata {
@@ -84,12 +92,44 @@ message IndirectlySentCryptoNotificationMetadata {
 message DepositedCryptoNotificationMetadata {
 }
 
+// Deprecated: Use SwappedCryptoNotificationMetadata, which models both halves
+//             of the swap in a single notification.
 message BoughtCryptoNotificationMetadata {
     SwapState swap_state = 1 [(validate.rules).enum.not_in = 0];
 }
 
+// Deprecated: Use SwappedCryptoNotificationMetadata, which models both halves
+//             of the swap in a single notification.
 message SoldCryptoNotificationMetadata {
     SwapState swap_state = 1 [(validate.rules).enum.not_in = 0];
+}
+
+// SwappedCryptoNotificationMetadata represents a swap between two mints as a
+// single notification. It supersedes BoughtCryptoNotificationMetadata and
+// SoldCryptoNotificationMetadata, which modelled the two halves of a swap as
+// separate notifications.
+message SwappedCryptoNotificationMetadata {
+    // The amount the user gave up in the source mint
+    common.v1.CryptoPaymentAmount from = 1 [(validate.rules).message.required = true];
+
+    // What the user received in the destination mint. The mint is always known,
+    // but the amount is only known once the swap has executed.
+    oneof to {
+        option (validate.required) = true;
+
+        // The destination mint, when the amount isn't yet known
+        common.v1.PublicKey           to_mint   = 2;
+
+        // The amount the user received in the destination mint
+        common.v1.CryptoPaymentAmount to_amount = 3;
+    }
+
+    // The fee charged for the swap, which is known upfront and is set regardless
+    // of the state of the swap
+    common.v1.FiatPaymentAmount fee = 4 [(validate.rules).message.required = true];
+
+    // The state of the swap as a whole
+    SwapState swap_state = 5 [(validate.rules).enum.not_in = 0];
 }
 
 // ActivityFeedType enables multiple activity feeds, where notifications may be
