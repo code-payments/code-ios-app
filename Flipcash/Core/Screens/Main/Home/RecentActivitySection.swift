@@ -7,7 +7,7 @@ import SwiftUI
 import FlipcashCore
 
 /// The "Recent" activity preview: a tappable header that opens the full history,
-/// over a short list of ``WalletActivityRow``s. Shared by the wallet (all tokens)
+/// over a short list of ``ActivityRow``s. Shared by the wallet (all tokens)
 /// and the currency info screen (a single token), which differ only in what the
 /// header opens.
 struct RecentActivitySection: View {
@@ -36,7 +36,7 @@ struct RecentActivitySection: View {
             .padding(.bottom, 4)
 
             ForEach(activities) { activity in
-                WalletActivityRow(activity: activity)
+                ActivityRow(activity: activity)
             }
         }
     }

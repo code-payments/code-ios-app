@@ -51,7 +51,7 @@ private struct ActivityHistoryContent: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 0) {
                         ForEach(activities) { activity in
-                            WalletActivityRow(activity: activity)
+                            ActivityRow(activity: activity)
                         }
                     }
                     .padding(.horizontal, 20)

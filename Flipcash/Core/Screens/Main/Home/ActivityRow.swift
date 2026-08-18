@@ -1,5 +1,5 @@
 //
-//  WalletActivityRow.swift
+//  ActivityRow.swift
 //  Flipcash
 //
 
@@ -7,13 +7,14 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// A single row in the v2 Wallet's "Recent" activity preview (Figma 8966:1910,
-/// ported from Android's `ActivityFeedRow`): a 40pt avatar, the title + relative
-/// time, and a signed amount. The avatar is the counterparty's profile photo for
-/// peer activity (tips/sends), the token image for token activity (deposits,
-/// buys), or a monogram fallback. A sent tip reads "Tipped <name>" once the
-/// counterparty resolves.
-struct WalletActivityRow: View {
+/// The single activity row used across every surface — the Wallet and Currency
+/// Info "Recent" previews, the cross-token Activity history, and the per-token
+/// Transaction history (Figma 8966:1910, ported from Android's `ActivityFeedRow`):
+/// a 40pt avatar, the title + relative time, and a signed amount. The avatar is
+/// the counterparty's profile photo for peer activity (tips/sends), the token
+/// image for token activity (deposits, buys), or a monogram fallback. A sent tip
+/// reads "Tipped <name>" once the counterparty resolves.
+struct ActivityRow: View {
 
     let activity: Activity
 
