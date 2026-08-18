@@ -312,7 +312,7 @@ struct CurrencyInfoContentV2: View {
             .frame(maxWidth: .infinity)
             .frame(height: 88)
             .background(Color.white.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }

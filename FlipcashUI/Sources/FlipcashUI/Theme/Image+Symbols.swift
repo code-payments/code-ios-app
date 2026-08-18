@@ -190,6 +190,7 @@ public enum Asset: String, Sendable {
     case camera
     case reload
     case globus
+    case coinsAdd
     
     // Third-Party
     

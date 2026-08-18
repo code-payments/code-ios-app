@@ -522,23 +522,45 @@ private struct WalletScreenContent: View {
     }
 
     private var walletTiles: some View {
-        HStack(spacing: 12) {
-            walletTile(icon: "plus.circle", title: "Add Money") {
-                router.presentAddMoney(.general, source: .balance)
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                // `.deposit`/`.withdraw` are the app's canonical design-system
+                // glyphs for these actions (see Settings' `.card(icon:)` buttons) —
+                // a matched arrow-to-baseline pair, not SF Symbols.
+                walletTile(icon: .asset(.deposit), title: "Add Money") {
+                    router.presentAddMoney(.general, source: .balance)
+                }
+                // `.withdrawCurrency` (not `.withdraw`) so the flow pops back to the
+                // wallet's own stack on finish — `.withdraw` hardcodes a return to
+                // the settings stack and would strand the user here.
+                walletTile(icon: .asset(.withdraw), title: "Withdraw Money") {
+                    router.push(.withdrawCurrency(.usdf))
+                }
             }
-            walletTile(icon: "globe", title: "Discover Currencies") {
-                router.push(.discoverCurrencies)
+            HStack(spacing: 12) {
+                walletTile(icon: .symbol("globe"), title: "Discover Currencies") {
+                    router.push(.discoverCurrencies)
+                }
+                walletTile(icon: .asset(.coinsAdd), title: "Create a Currency") {
+                    router.push(.currencyCreationSummary)
+                }
             }
         }
     }
 
+    /// A wallet tile's leading glyph: an SF Symbol, or a bundled design-system
+    /// asset for marks SF Symbols don't cover (the two-coin "create currency" one).
+    private enum TileGlyph {
+        case symbol(String)
+        case asset(Asset)
+    }
+
     /// A tile-style entry point: icon top-leading, label pinned bottom-leading,
-    /// inside a translucent rounded card. Two pair side by side in a row.
-    private func walletTile(icon: String, title: String, action: @escaping () -> Void) -> some View {
+    /// inside a translucent rounded card. They tile two-up per row.
+    private func walletTile(icon: TileGlyph, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
-                Image(systemName: icon)
-                    .font(.system(size: 22, weight: .regular))
+                tileGlyph(icon)
                     .foregroundStyle(Color.textMain)
                 Spacer(minLength: 24)
                 Text(title)
@@ -551,9 +573,25 @@ private struct WalletScreenContent: View {
             .frame(height: 96)
             .padding(16)
             .background(Color.white.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    /// Renders a `TileGlyph` at a consistent ~24pt: SF Symbols sized by font,
+    /// asset glyphs scaled to fit and tinted via the enclosing `foregroundStyle`.
+    @ViewBuilder
+    private func tileGlyph(_ glyph: TileGlyph) -> some View {
+        switch glyph {
+        case .symbol(let name):
+            Image(systemName: name)
+                .font(.system(size: 22, weight: .regular))
+        case .asset(let asset):
+            Image.asset(asset)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+        }
     }
 
     private var recentActivitySection: some View {
