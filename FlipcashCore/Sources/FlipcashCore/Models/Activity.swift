@@ -92,7 +92,7 @@ extension Activity.Counterparty {
             case .phone(let phone): self = .phone(phone.value)
             case .none:             return nil
             }
-        case .withdrewCrypto, .indirectlySentCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto, .none:
+        case .withdrewCrypto, .indirectlySentCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto, .swappedCrypto, .none:
             return nil
         }
     }
@@ -111,6 +111,10 @@ extension Activity {
         case distributed  = 7
         case bought       = 8
         case sold         = 9
+        /// A swap between two mints, modelled as a single notification. Supersedes
+        /// the deprecated `bought`/`sold` pair; also backs a withdraw that executes
+        /// as a swap (e.g. USDF withdrawn as USDC).
+        case swapped      = 10
         case unknown
     }
 }
@@ -229,6 +233,8 @@ extension Activity.Kind {
                 self = .bought
             case .soldCrypto:
                 self = .sold
+            case .swappedCrypto:
+                self = .swapped
             }
             
         } else {
@@ -242,7 +248,7 @@ extension Activity.Metadata {
         guard let proto else { return nil }
 
         switch proto {
-        case .directlySentCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto:
+        case .directlySentCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto, .swappedCrypto:
             return nil
         case .indirectlySentCrypto(let metadata):
             do {

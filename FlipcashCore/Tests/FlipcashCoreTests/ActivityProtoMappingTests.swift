@@ -109,6 +109,10 @@ struct ActivityProtoMappingTests {
             .soldCrypto(Flipcash_Activity_V1_SoldCryptoNotificationMetadata()),
             .sold,
         ),
+        (
+            .swappedCrypto(Flipcash_Activity_V1_SwappedCryptoNotificationMetadata()),
+            .swapped,
+        ),
     ] as [(Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata, Activity.Kind)])
     func kindMappingWithoutPayload(
         metadata: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata,

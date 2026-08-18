@@ -168,7 +168,7 @@ nonisolated extension Database {
 
     private func metadata(for kind: Activity.Kind, row: RowIterator.Element) -> Activity.Metadata? {
         switch kind {
-        case .gave, .received, .withdrew, .deposited, .paid, .distributed, .bought, .sold, .unknown:
+        case .gave, .received, .withdrew, .deposited, .paid, .distributed, .bought, .sold, .swapped, .unknown:
             return nil
         case .cashLink:
             let table = CashLinkMetadataTable()
@@ -210,7 +210,7 @@ nonisolated extension Database {
         )
         
         switch activity.kind {
-        case .gave, .received, .withdrew, .deposited, .paid, .distributed, .bought, .sold, .unknown:
+        case .gave, .received, .withdrew, .deposited, .paid, .distributed, .bought, .sold, .swapped, .unknown:
             break
         case .cashLink:
             if case .cashLink(let metadata) = activity.metadata {

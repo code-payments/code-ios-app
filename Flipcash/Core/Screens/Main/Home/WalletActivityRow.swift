@@ -110,7 +110,9 @@ struct WalletActivityRow: View {
             return "+\(formatted)"
         case .gave, .withdrew, .cashLink, .paid:
             return "-\(formatted)"
-        case .unknown:
+        case .swapped, .unknown:
+            // A swap's net effect on the wallet isn't inherently in or out, so it
+            // renders unsigned until the swap notification is modelled richly.
             return formatted
         }
     }
