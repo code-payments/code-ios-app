@@ -39,6 +39,11 @@ struct HomeTabView: View {
             // system tab bar's default red.
             items.normal.badgeBackgroundColor = UIColor(Color.unreadIndicator)
             items.selected.badgeBackgroundColor = UIColor(Color.unreadIndicator)
+            // Nudge the system badge down onto the glyph's top-right corner to match
+            // the Figma spec (node 8966:1846); by default it floats detached above.
+            let badgeOffset = UIOffset(horizontal: 10, vertical: 8)
+            items.normal.badgePositionAdjustment = badgeOffset
+            items.selected.badgePositionAdjustment = badgeOffset
 
             let appearance = UITabBarAppearance()
             appearance.configureWithTransparentBackground()

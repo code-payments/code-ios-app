@@ -60,9 +60,9 @@ struct HomeTabBar: View {
                                             color: .unreadIndicator
                                         )
                                         .fixedSize()
-                                        // Straddle the icon's top-right corner,
-                                        // matching the native tab bar's badge.
-                                        .offset(x: 10, y: -6)
+                                        // Overlap the icon's top-right corner to
+                                        // match the native bar's badge placement.
+                                        .offset(x: 2, y: -2)
                                         .accessibilityHidden(true)
                                     }
                                 }
