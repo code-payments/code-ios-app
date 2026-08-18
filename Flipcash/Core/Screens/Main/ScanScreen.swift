@@ -101,6 +101,12 @@ private struct ScanScreenContent: View {
                     .transition(.opacity)
             }
         }
+        // Fill the tab's full width and height. The iOS 26 native `TabView` does
+        // not stretch tab content to fill, so without this the ZStack collapses to
+        // its content width (the centered `CameraPromptView` at ~340pt, or the
+        // camera viewport), leaving black bars down both sides of the scanner. The
+        // v1 full-screen root masked this; only the embedded v2 tab exposed it.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
