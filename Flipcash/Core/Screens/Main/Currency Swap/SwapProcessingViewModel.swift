@@ -69,7 +69,7 @@ class SwapProcessingViewModel {
         case .processing:
             switch swapType {
             case .buyWithReserves, .buyWithCurrency:
-                "Purchasing \(currencyName)"
+                "Buying \(currencyName)"
             case .sell:
                 "Selling \(currencyName)"
             case .convert:

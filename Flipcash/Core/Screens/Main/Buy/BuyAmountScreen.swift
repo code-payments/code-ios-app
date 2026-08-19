@@ -26,7 +26,13 @@ struct BuyAmountScreen: View {
     var body: some View {
         BuyAmountScreenContent(
             mint: mint,
-            currencyName: sessionContainer.session.balance(for: mint)?.name ?? "this currency",
+            // A Get targets a token the user doesn't hold, so there's no balance
+            // to name it — fall back to the synced mint metadata before the
+            // generic placeholder, so the confirmation and processing screens
+            // read "Buying <name>" rather than "this currency".
+            currencyName: sessionContainer.session.balance(for: mint)?.name
+                ?? sessionContainer.session.storedMintMetadata(for: mint)?.name
+                ?? "this currency",
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
