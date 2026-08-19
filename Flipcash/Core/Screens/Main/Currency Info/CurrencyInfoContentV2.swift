@@ -286,28 +286,31 @@ struct CurrencyInfoContentV2: View {
 
     // MARK: - Actions
 
+    /// An action-tile glyph: either an SF Symbol or a bundled template asset.
+    private enum TileIcon {
+        case system(String)
+        case asset(String)
+    }
+
     @ViewBuilder private var actionTiles: some View {
         HStack(spacing: 12) {
             if isOwned {
-                // Give ships for community tokens only; USDF give comes later.
-                // Convert works from any held currency — including Dollars, which
-                // converts to a token via a reserves buy.
-                if !isUSDF {
-                    actionTile("Give", icon: "banknote", action: onGive)
-                }
-                actionTile("Convert", icon: "arrow.up.arrow.down", action: onConvert)
-                actionTile("Withdraw", icon: "arrow.up", action: onWithdraw)
+                // This layout is new-UI only, so Give (including Dollars) is
+                // inherently gated to the new UI. Convert works from any held
+                // currency — including Dollars, which converts via a reserves buy.
+                actionTile("Give", icon: .asset("IconBanknote"), action: onGive)
+                actionTile("Convert", icon: .system("arrow.up.arrow.down"), action: onConvert)
+                actionTile("Withdraw", icon: .system("arrow.up"), action: onWithdraw)
             } else {
-                actionTile("Get", icon: "arrow.down", action: onBuy)
+                actionTile("Get", icon: .system("arrow.down"), action: onBuy)
             }
         }
     }
 
-    private func actionTile(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+    private func actionTile(_ title: String, icon: TileIcon, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 22, weight: .regular))
+                tileIcon(icon)
                     .frame(height: 28)
                 Text(title)
                     .font(.appTextSmall)
@@ -319,6 +322,21 @@ struct CurrencyInfoContentV2: View {
             .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder private func tileIcon(_ icon: TileIcon) -> some View {
+        switch icon {
+        case .system(let name):
+            Image(systemName: name)
+                .font(.system(size: 22, weight: .regular))
+        case .asset(let name):
+            // Figma exports these glyphs at 28×28 (template-rendered, so they
+            // tint with the tile's foreground).
+            Image(name)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
+        }
     }
 
     // MARK: - Recent
