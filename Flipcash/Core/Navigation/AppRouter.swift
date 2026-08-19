@@ -362,6 +362,18 @@ final class AppRouter {
         }
     }
 
+    /// Presents the Send Cash amount sheet — as the root sheet when nothing is
+    /// presented (the chat lives inside a tab's nav stack), stacked on top of
+    /// the current sheet otherwise (the chat was itself opened as a sheet, e.g.
+    /// from the scanner's tips flow). Either way, dismissing it reveals the chat.
+    func presentSendAmount(_ target: SendTarget) {
+        if presentedSheets.isEmpty {
+            present(.sendAmount(target))
+        } else {
+            presentNested(.sendAmount(target))
+        }
+    }
+
     /// Whether the Add Money sheet is stacked directly over the buy sheet.
     var isAddMoneyOverBuy: Bool {
         guard presentedSheets.count >= 2 else { return false }
