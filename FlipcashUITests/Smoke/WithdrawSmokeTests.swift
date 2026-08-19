@@ -9,46 +9,24 @@ final class WithdrawSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    /// Settings → Withdraw lands on the USDC education screen with USDF
-    /// pre-selected as the source, and exposes a subtle "Withdraw Other
-    /// Flipcash Currencies" escape hatch.
-    func testWithdraw_landsOnUSDCEducationScreenWithBothButtons() {
+    /// Settings → Withdraw now lands directly on the "Select Currency" picker,
+    /// which lists every balance (Dollars included). USDF no longer gets a
+    /// dedicated intro-first entry; the "Withdraw as USDC" screen is reached by
+    /// picking Dollars.
+    func testWithdraw_landsOnCurrencyPicker() {
         assertMainScreenReached()
 
         openWithdrawFromSettings()
-
-        XCTAssertTrue(
-            app.staticTexts["Withdraw as USDC"].waitForExistence(timeout: 10),
-            "Expected the USDC education screen as the withdraw entry point"
-        )
-        XCTAssertTrue(app.buttons["Next"].exists, "Expected the primary Next button")
-        XCTAssertTrue(
-            app.buttons["Withdraw Other Flipcash Currencies"].exists,
-            "Expected the subtle 'Withdraw Other Flipcash Currencies' escape hatch below Next"
-        )
-    }
-
-    /// Tapping the escape hatch pushes the currency picker, and USDF is
-    /// absent from the list — USDF is reached exclusively via the intro
-    /// screen's Next button, so listing it in the picker would create two
-    /// paths to the same flow.
-    func testWithdraw_otherCurrenciesPickerHidesUSDF() {
-        assertMainScreenReached()
-
-        openWithdrawFromSettings()
-
-        waitAndTap(app.buttons["Withdraw Other Flipcash Currencies"])
 
         XCTAssertTrue(
             app.staticTexts["Select Currency"].waitForExistence(timeout: 10),
-            "Expected the 'Select Currency' picker after tapping the escape hatch"
+            "Expected the 'Select Currency' picker as the withdraw entry point"
         )
-
-        // Picker rows have accessibility labels of the form "<name>, $<amount>".
-        // USDF is the only mint the picker is required to hide; any other
-        // mint listed here is account-dependent and not asserted on.
-        let usdfRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'USDF,'"))
-        XCTAssertEqual(usdfRow.count, 0, "USDF must not appear in the 'other currencies' picker")
+        // The old USDF-first intro and its escape hatch are gone.
+        XCTAssertFalse(
+            app.buttons["Withdraw Other Flipcash Currencies"].exists,
+            "The 'other currencies' escape hatch should no longer exist — the picker is the entry"
+        )
     }
 
     // MARK: - Helpers

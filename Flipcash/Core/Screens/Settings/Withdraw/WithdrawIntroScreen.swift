@@ -10,12 +10,6 @@ import FlipcashUI
 struct WithdrawIntroScreen: View {
 
     let onNext: () -> Void
-    let onWithdrawOtherCurrencies: (() -> Void)?
-
-    init(onNext: @escaping () -> Void, onWithdrawOtherCurrencies: (() -> Void)? = nil) {
-        self.onNext = onNext
-        self.onWithdrawOtherCurrencies = onWithdrawOtherCurrencies
-    }
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -24,14 +18,14 @@ struct WithdrawIntroScreen: View {
 
                 ConversionGraphic()
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Convert USDF to USDC")
+                    .accessibilityLabel("Convert Dollars to USDC")
 
                 VStack(spacing: 8) {
                     Text("Withdraw as USDC")
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
 
-                    Text("Your USDF will be converted 1:1 to Solana USDC on withdrawal")
+                    Text("Your Dollars will be converted 1:1 to USDC on Solana")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
@@ -41,19 +35,12 @@ struct WithdrawIntroScreen: View {
 
                 Spacer()
 
-                VStack(spacing: 8) {
-                    Button("Next", action: onNext)
-                        .buttonStyle(.filled)
-
-                    if let onWithdrawOtherCurrencies {
-                        Button("Withdraw Other Flipcash Currencies", action: onWithdrawOtherCurrencies)
-                            .buttonStyle(.subtle)
-                    }
-                }
+                Button("Next", action: onNext)
+                    .buttonStyle(.filled)
             }
             .padding(20)
         }
-        .navigationTitle("Withdraw")
+        .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
     }
 }
@@ -61,7 +48,7 @@ struct WithdrawIntroScreen: View {
 private struct ConversionGraphic: View {
     var body: some View {
         HStack(spacing: 16) {
-            Image.asset(.buyFlipcash)
+            Image.asset(.buyDollars)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 100, height: 100)

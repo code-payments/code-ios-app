@@ -5,40 +5,41 @@
 
 import XCTest
 
-/// Regression: the "Withdraw Other Flipcash Currencies" picker must show
-/// an empty state when the user has no non-USDF currencies. Previously the
-/// screen rendered a blank black void under the navigation title because
-/// the `List`'s `ForEach` produced zero rows and the body had no
-/// empty-state branch.
+/// Redesign guard: the withdraw picker now lists **every** balance, Dollars
+/// included — USDF is no longer filtered out. A USDF-only account must therefore
+/// show its Dollars row (and *not* the empty state, which is reserved for an
+/// account with no displayable balances at all).
 ///
 /// **Prerequisites:**
 /// - `FLIPCASH_UI_TEST_USDF_ONLY_ACCESS_KEY` set in `secrets.local.xcconfig`
-/// - The account behind the key must hold a displayable USDF balance and
-///   **no** non-USDF currencies (the picker filters USDF out by design;
-///   any non-USDF mint would populate the list and bypass the empty state).
+/// - The account behind the key must hold a displayable USDF balance and no
+///   other currencies.
 final class WithdrawPickerEmptyRegressionTests: BaseUITestCase {
 
     override var requiresUsdfOnlyAccount: Bool { true }
 
-    func testWithdrawPicker_showsEmptyState_onUsdfOnlyAccount() {
+    func testWithdrawPicker_showsUsdfRow_onUsdfOnlyAccount() {
         let settings = SettingsUIScreen(app: app)
 
         assertMainScreenReached()
 
         settings.open(from: self)
         waitAndTap(settings.withdrawMoneyButton)
-        waitAndTap(app.buttons["Withdraw Other Flipcash Currencies"])
 
-        let emptyState = app.staticTexts["withdraw-picker-empty"]
         XCTAssertTrue(
-            emptyState.waitForExistence(timeout: 10),
-            "Withdraw picker must show the empty-state text when no non-USDF currencies are held — regression of the blank picker bug."
+            app.staticTexts["Select Currency"].waitForExistence(timeout: 10),
+            "Expected the 'Select Currency' picker as the withdraw entry point"
         )
 
         let currencyRows = app.buttons.matching(identifier: "currency-row")
-        XCTAssertEqual(
-            currencyRows.count, 0,
-            "No currency rows should render alongside the empty state."
+        XCTAssertGreaterThanOrEqual(
+            currencyRows.count, 1,
+            "A USDF-only account must show its Dollars row — USDF is no longer filtered from the picker."
+        )
+
+        XCTAssertFalse(
+            app.staticTexts["withdraw-picker-empty"].exists,
+            "The empty state must not show when the account holds a displayable balance."
         )
     }
 }

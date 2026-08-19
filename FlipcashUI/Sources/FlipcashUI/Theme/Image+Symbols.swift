@@ -131,6 +131,7 @@ public enum Asset: String, Sendable {
     // path so call sites can use `Image.asset(.buyPhantom)` etc.
     case buyPhantom = "buy/Phantom"
     case buyFlipcash = "buy/Flipcash"
+    case buyDollars = "buy/Dollars"
     case buyUSDC = "buy/USDC"
     case buySolana = "buy/Solana"
     case buyCheckmark = "buy/Checkmark"

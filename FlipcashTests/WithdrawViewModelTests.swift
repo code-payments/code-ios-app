@@ -393,8 +393,8 @@ struct WithdrawViewModelTests {
         #expect(viewModel.displayFee?.value == Decimal(string: "0.70"))
     }
 
-    @Test("selectCurrency pushes .enterAmount substep for USDF balance")
-    func selectCurrency_usdfBalance_pushesEnterAmountSubstep() {
+    @Test("selectCurrency pushes .intro substep for USDF balance")
+    func selectCurrency_usdfBalance_pushesIntroSubstep() {
         var pushed: [WithdrawNavigationPath] = []
         let viewModel = WithdrawViewModelTestHelpers.createViewModel()
         viewModel.pushSubstep = { pushed.append($0) }
@@ -402,7 +402,8 @@ struct WithdrawViewModelTests {
         let balance = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf)
         viewModel.selectCurrency(balance)
 
-        #expect(pushed == [.enterAmount])
+        // Dollars detours through the "Withdraw as USDC" intro before the amount screen.
+        #expect(pushed == [.intro])
     }
 
     @Test("selectCurrency pushes .enterAmount substep for non-USDF balance")
@@ -417,11 +418,11 @@ struct WithdrawViewModelTests {
         #expect(pushed == [.enterAmount])
     }
 
-    @Test("selectCurrency before pushSubstep is wired sets kind without pushing — PreselectedWithdrawRoot contract")
+    @Test("selectCurrency before pushSubstep is wired sets kind without pushing — WithdrawFlowRoot contract")
     func selectCurrency_withoutPushSubstepWired_setsKindWithoutPushing() {
         let viewModel = WithdrawViewModelTestHelpers.createViewModel()
-        // Intentionally do NOT wire pushSubstep — mirrors PreselectedWithdrawRoot.init
-        // calling selectCurrency before .onAppear wires the closure.
+        // Intentionally do NOT wire pushSubstep — mirrors WithdrawFlowRoot.init
+        // configuring the kind before .onAppear wires the closure.
         let balance = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf)
 
         viewModel.selectCurrency(balance)
