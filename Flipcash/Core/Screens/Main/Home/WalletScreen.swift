@@ -530,11 +530,12 @@ private struct WalletScreenContent: View {
                 walletTile(icon: .asset(.deposit), title: "Add Money") {
                     router.presentAddMoney(.general, source: .balance)
                 }
-                // `.withdrawCurrency` (not `.withdraw`) so the flow pops back to the
-                // wallet's own stack on finish — `.withdraw` hardcodes a return to
-                // the settings stack and would strand the user here.
+                // `.withdrawCurrency(nil)` (not `.withdraw`) so the flow pops back
+                // to the wallet's own stack on finish — `.withdraw` hardcodes a
+                // return to the settings stack and would strand the user here. A
+                // nil mint opens the currency picker (all balances).
                 walletTile(icon: .asset(.withdraw), title: "Withdraw Money") {
-                    router.push(.withdrawCurrency(.usdf))
+                    router.push(.withdrawCurrency(nil))
                 }
             }
             HStack(spacing: 12) {

@@ -32,11 +32,12 @@ extension AppRouter {
         /// Pushes the buy flow (`BuyAmountScreen`) onto the current stack instead
         /// of presenting it as a sheet — the new-UI currency-info "Convert"/"Get".
         case buyCurrency(PublicKey)
-        /// Skips the picker step in the withdraw flow with the currency
-        /// pre-selected: Dollars (USDF) lands on the "Withdraw as USDC" intro,
-        /// any other currency lands on the amount screen. Pushed from Currency
-        /// Info on the Wallet sheet.
-        case withdrawCurrency(PublicKey)
+        /// Withdraw flow on the Wallet's stack (pops back to the wallet on
+        /// finish). `nil` starts on the currency picker; a mint skips the picker
+        /// pre-selected — Dollars (USDF) lands on the "Withdraw as USDC" intro,
+        /// any other currency on the amount screen. Pushed from the Wallet
+        /// "Withdraw Money" tile (`nil`) and Currency Info (a mint).
+        case withdrawCurrency(PublicKey?)
         /// USDC → USDF deposit education screen.
         case usdcDepositEducation
         /// USDC → USDF deposit address screen. Shows the user's authority
@@ -138,9 +139,10 @@ extension AppRouter {
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
                  .give(let mint),
-                 .buyCurrency(let mint),
-                 .withdrawCurrency(let mint):
+                 .buyCurrency(let mint):
                 return mint.base58
+            case .withdrawCurrency(let mint):
+                return mint?.base58
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID):
                 return conversationID.description
