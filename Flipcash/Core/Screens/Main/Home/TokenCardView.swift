@@ -153,3 +153,40 @@ struct TokenCardView: View {
         }
     }
 }
+
+// MARK: - Previews -
+
+#Preview("Token cards") {
+    VStack(spacing: 16) {
+        // USDF: gold branding + the oversized "$" watermark.
+        TokenCardView(
+            name: "Dollars",
+            imageURL: nil,
+            balanceText: "$205.94",
+            appreciationText: "+$0.00",
+            colors: [],
+            isUSDF: true
+        )
+        // Bonded token: gradient painted from its bill-customization colors.
+        TokenCardView(
+            name: "Jeffy",
+            imageURL: nil,
+            balanceText: "$121.74",
+            appreciationText: "-$21.35",
+            colors: ["#F5B301", "#B06B00"],
+            isUSDF: false
+        )
+        // No customization → dark-green fallback, no appreciation pill.
+        TokenCardView(
+            name: "Testament",
+            imageURL: nil,
+            balanceText: "$10.00",
+            appreciationText: nil,
+            colors: [],
+            isUSDF: false
+        )
+    }
+    .padding(20)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Color.backgroundMain)
+}
