@@ -33,9 +33,14 @@ struct TransactionHistoryScreen: View {
                     switch historyController.loadingState {
                     case .loaded(let activities):
                         ForEach(activities) { activity in
-                            ActivityRow(activity: activity) {
+                            Button {
                                 rowAction(activity: activity)
+                            } label: {
+                                ActivityRow(activity: activity)
+                                    .padding(.horizontal, 20)
                             }
+                            .buttonStyle(.plain)
+                            .listRowBackground(Color.clear)
                         }
                     case .loading:
                         ProgressView()
@@ -94,42 +99,5 @@ struct TransactionHistoryScreen: View {
                 )
             }
         }
-    }
-}
-
-// MARK: - Activity Row -
-
-private struct ActivityRow: View {
-    let activity: Activity
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack {
-                HStack {
-                    Text(activity.title)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                    Spacer()
-                    AmountText(
-                        flagStyle: activity.exchangedFiat.nativeAmount.currency.flagStyle,
-                        flagSize: .small,
-                        content: activity.exchangedFiat.nativeAmount.formatted()
-                    )
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                }
-
-                HStack {
-                    Text(activity.date.formattedRelatively(useTimeForToday: true))
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                    Spacer()
-                }
-            }
-        }
-        .listRowBackground(Color.clear)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 20)
     }
 }

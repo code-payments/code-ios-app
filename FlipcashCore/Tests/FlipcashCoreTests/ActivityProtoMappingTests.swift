@@ -109,6 +109,10 @@ struct ActivityProtoMappingTests {
             .soldCrypto(Flipcash_Activity_V1_SoldCryptoNotificationMetadata()),
             .sold,
         ),
+        (
+            .swappedCrypto(Flipcash_Activity_V1_SwappedCryptoNotificationMetadata()),
+            .swapped,
+        ),
     ] as [(Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata, Activity.Kind)])
     func kindMappingWithoutPayload(
         metadata: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata,
@@ -130,6 +134,69 @@ struct ActivityProtoMappingTests {
 
         #expect(activity.kind == .cashLink)
         #expect(activity.metadata == .cashLink(.init(vault: expectedVault, canCancel: true)))
+    }
+
+    @Test("swappedCrypto maps to Kind.swapped AND populates SwapMetadata")
+    func kindSwapped() throws {
+        let fromMintBytes = Data(repeating: 7, count: 32)
+        let toMintBytes   = Data(repeating: 9, count: 32)
+
+        var swapped = Flipcash_Activity_V1_SwappedCryptoNotificationMetadata()
+        swapped.from.mint.value   = fromMintBytes
+        swapped.from.quarks       = 5_000_000
+        swapped.from.nativeAmount = 5.0
+        swapped.from.currency     = "usd"
+
+        var toAmount = Flipcash_Common_V1_CryptoPaymentAmount()
+        toAmount.mint.value   = toMintBytes
+        toAmount.quarks       = 100_000_000
+        toAmount.nativeAmount = 4.95
+        toAmount.currency     = "usd"
+        swapped.to = .toAmount(toAmount)
+
+        swapped.fee.nativeAmount = 0.05
+        swapped.fee.currency     = "usd"
+        swapped.swapState        = .succeeded
+
+        let activity = try Activity(baseNotification(metadata: .swappedCrypto(swapped)))
+
+        #expect(activity.kind == .swapped)
+        guard case .swap(let meta)? = activity.metadata else {
+            Issue.record("expected .swap metadata")
+            return
+        }
+        #expect(meta.fromMint == (try PublicKey(fromMintBytes)))
+        #expect(meta.fromQuarks == 5_000_000)
+        #expect(meta.fromFiat.doubleValue == 5.0)
+        #expect(meta.toMint == (try PublicKey(toMintBytes)))
+        #expect(meta.toQuarks == 100_000_000)
+        #expect(meta.toFiat?.doubleValue == 4.95)
+        #expect(meta.fee.doubleValue == 0.05)
+        #expect(meta.state == .succeeded)
+    }
+
+    @Test("swappedCrypto with only a destination mint leaves the To amount nil")
+    func kindSwappedPendingDestination() throws {
+        var swapped = Flipcash_Activity_V1_SwappedCryptoNotificationMetadata()
+        swapped.from.mint.value   = Self.mintBytes
+        swapped.from.quarks       = 1
+        swapped.from.nativeAmount = 1.0
+        swapped.from.currency     = "usd"
+        swapped.toMint.value      = Self.vaultBytes
+        swapped.fee.nativeAmount  = 0.01
+        swapped.fee.currency      = "usd"
+        swapped.swapState         = .pending
+
+        let activity = try Activity(baseNotification(metadata: .swappedCrypto(swapped)))
+
+        #expect(activity.kind == .swapped)
+        guard case .swap(let meta)? = activity.metadata else {
+            Issue.record("expected .swap metadata")
+            return
+        }
+        #expect(meta.toQuarks == nil)
+        #expect(meta.toFiat == nil)
+        #expect(meta.state == .pending)
     }
 
     @Test("Missing additionalMetadata maps to Kind.unknown with no Metadata")

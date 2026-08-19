@@ -176,6 +176,9 @@ message Mint {
 
     // Holder metrics. This is surfaced where needed (e.g. only in the Discover RPC)
     HolderMetrics holder_metrics = 12;
+
+    // Market cap metrics. This is surfaced where needed (e.g. only in the Discover RPC)
+    MarketCapMetrics market_cap_metrics = 13;
 }
 
 message VmMetadata {
@@ -359,6 +362,24 @@ message HolderMetrics {
 
         // Net holders within the time range
         int64 delta = 2;
+    }
+}
+
+message MarketCapMetrics {
+    // The current market capitalization in USD for a currency
+    double current_market_cap = 1;
+
+    repeated DeltaMarketCap market_cap_deltas = 2 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 4
+    }];
+
+    message DeltaMarketCap {
+        // Predefined range where delta is calculated from
+        PredefinedRange range = 1;
+
+        // Net change in market capitalization in USD within the time range
+        double delta = 2;
     }
 }
 

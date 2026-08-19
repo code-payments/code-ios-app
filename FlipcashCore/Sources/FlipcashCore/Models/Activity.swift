@@ -42,6 +42,12 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         return nil
     }
 
+    /// The swap legs + fee when this is a swap activity, else `nil`.
+    public var swapMetadata: SwapMetadata? {
+        if case .swap(let swapMetadata) = metadata { return swapMetadata }
+        return nil
+    }
+
     public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = [], counterparty: Counterparty? = nil) {
         self.id = id
         self.state = state
@@ -92,7 +98,7 @@ extension Activity.Counterparty {
             case .phone(let phone): self = .phone(phone.value)
             case .none:             return nil
             }
-        case .withdrewCrypto, .indirectlySentCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto, .none:
+        case .withdrewCrypto, .indirectlySentCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto, .swappedCrypto, .none:
             return nil
         }
     }
@@ -111,6 +117,10 @@ extension Activity {
         case distributed  = 7
         case bought       = 8
         case sold         = 9
+        /// A swap between two mints, modelled as a single notification. Supersedes
+        /// the deprecated `bought`/`sold` pair; also backs a withdraw that executes
+        /// as a swap (e.g. USDF withdrawn as USDC).
+        case swapped      = 10
         case unknown
     }
 }
@@ -140,6 +150,7 @@ extension Activity {
 extension Activity {
     public enum Metadata: Sendable, Equatable, Hashable {
         case cashLink(CashLinkMetadata)
+        case swap(SwapMetadata)
     }
 }
 
@@ -229,6 +240,8 @@ extension Activity.Kind {
                 self = .bought
             case .soldCrypto:
                 self = .sold
+            case .swappedCrypto:
+                self = .swapped
             }
             
         } else {
@@ -247,6 +260,12 @@ extension Activity.Metadata {
         case .indirectlySentCrypto(let metadata):
             do {
                 self = try .cashLink(.init(metadata))
+            } catch {
+                return nil
+            }
+        case .swappedCrypto(let metadata):
+            do {
+                self = try .swap(.init(metadata))
             } catch {
                 return nil
             }

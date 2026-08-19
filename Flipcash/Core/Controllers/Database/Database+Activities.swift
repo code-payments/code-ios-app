@@ -84,11 +84,24 @@ nonisolated extension Database {
             a.counterpartyPhone,
 
             c.vault,
-            c.canCancel
+            c.canCancel,
+
+            s.fromMint,
+            s.fromQuarks,
+            s.fromNativeAmount,
+            s.fromCurrency,
+            s.toMint,
+            s.toQuarks,
+            s.toNativeAmount,
+            s.toCurrency,
+            s.feeNativeAmount,
+            s.feeCurrency,
+            s.state AS swapState
 
         FROM activity a
 
         LEFT JOIN cashLinkMetadata c ON c.id = a.id
+        LEFT JOIN swapMetadata s ON s.id = a.id
 
         WHERE a.mint = ?
 
@@ -118,11 +131,24 @@ nonisolated extension Database {
             a.counterpartyPhone,
 
             c.vault,
-            c.canCancel
+            c.canCancel,
+
+            s.fromMint,
+            s.fromQuarks,
+            s.fromNativeAmount,
+            s.fromCurrency,
+            s.toMint,
+            s.toQuarks,
+            s.toNativeAmount,
+            s.toCurrency,
+            s.feeNativeAmount,
+            s.feeCurrency,
+            s.state AS swapState
 
         FROM activity a
 
         LEFT JOIN cashLinkMetadata c ON c.id = a.id
+        LEFT JOIN swapMetadata s ON s.id = a.id
 
         ORDER BY a.date DESC
         LIMIT ?;
@@ -178,7 +204,48 @@ nonisolated extension Database {
                     canCancel: row[table.canCancel]
                 )
             )
+        case .swapped:
+            return swapMetadata(from: row)
         }
+    }
+
+    /// Reads the joined `swapMetadata` columns. A `.swapped` row should always
+    /// have a match, but the reads are optional so a legacy/un-persisted swap
+    /// degrades to no metadata instead of trapping on a NULL column. `s.state` is
+    /// aliased to `swapState` in the SELECT to avoid colliding with `a.state`.
+    private func swapMetadata(from row: RowIterator.Element) -> Activity.Metadata? {
+        guard
+            let fromMint   = row[Expression<PublicKey?>("fromMint")],
+            let fromQuarks = row[Expression<UInt64?>("fromQuarks")],
+            let fromNative = row[Expression<Double?>("fromNativeAmount")],
+            let fromCurr   = row[Expression<CurrencyCode?>("fromCurrency")],
+            let toMint     = row[Expression<PublicKey?>("toMint")],
+            let feeNative  = row[Expression<Double?>("feeNativeAmount")],
+            let feeCurr    = row[Expression<CurrencyCode?>("feeCurrency")]
+        else {
+            return nil
+        }
+
+        let toFiat: FiatAmount?
+        if let toNative = row[Expression<Double?>("toNativeAmount")],
+           let toCurr = row[Expression<CurrencyCode?>("toCurrency")] {
+            toFiat = FiatAmount(value: Decimal(toNative), currency: toCurr)
+        } else {
+            toFiat = nil
+        }
+
+        return .swap(
+            Activity.SwapMetadata(
+                fromMint: fromMint,
+                fromQuarks: fromQuarks,
+                fromFiat: FiatAmount(value: Decimal(fromNative), currency: fromCurr),
+                toMint: toMint,
+                toQuarks: row[Expression<UInt64?>("toQuarks")],
+                toFiat: toFiat,
+                fee: FiatAmount(value: Decimal(feeNative), currency: feeCurr),
+                state: Activity.SwapMetadata.State(rawValue: row[Expression<Int?>("swapState")] ?? 0) ?? .unknown
+            )
+        )
     }
     
     // MARK: - Insert -
@@ -216,9 +283,13 @@ nonisolated extension Database {
             if case .cashLink(let metadata) = activity.metadata {
                 try insertCashLinkMetaData(id: activity.id, metadata: metadata)
             }
+        case .swapped:
+            if case .swap(let metadata) = activity.metadata {
+                try insertSwapMetadata(id: activity.id, metadata: metadata)
+            }
         }
     }
-    
+
     private func insertCashLinkMetaData(id: PublicKey, metadata: Activity.CashLinkMetadata) throws {
         let table = CashLinkMetadataTable()
         try writer.run(
@@ -226,7 +297,29 @@ nonisolated extension Database {
                 table.id        <- id,
                 table.vault     <- metadata.vault,
                 table.canCancel <- metadata.canCancel,
-                
+
+                onConflictOf: table.id,
+            )
+        )
+    }
+
+    private func insertSwapMetadata(id: PublicKey, metadata: Activity.SwapMetadata) throws {
+        let table = SwapMetadataTable()
+        try writer.run(
+            table.table.upsert(
+                table.id               <- id,
+                table.fromMint         <- metadata.fromMint,
+                table.fromQuarks       <- metadata.fromQuarks,
+                table.fromNativeAmount <- metadata.fromFiat.doubleValue,
+                table.fromCurrency     <- metadata.fromFiat.currency,
+                table.toMint           <- metadata.toMint,
+                table.toQuarks         <- metadata.toQuarks,
+                table.toNativeAmount   <- metadata.toFiat?.doubleValue,
+                table.toCurrency       <- metadata.toFiat?.currency,
+                table.feeNativeAmount  <- metadata.fee.doubleValue,
+                table.feeCurrency      <- metadata.fee.currency,
+                table.state            <- metadata.state.rawValue,
+
                 onConflictOf: table.id,
             )
         )

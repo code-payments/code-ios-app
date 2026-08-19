@@ -1161,7 +1161,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     ///
     /// Instruction formats:
     ///
-    /// Buy Tokens (Core Mint -> Launchpad Currency Mint):
+    /// Buy Tokens (Core Mint -> Launchpad Currency Mint) without a buy fee:
     ///  1. System::AdvanceNonce
     ///  2. [Optional] ComputeBudget::SetComputeUnitLimit
     ///  3. [Optional] ComputeBudget::SetComputeUnitPrice
@@ -1169,6 +1169,18 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     ///  5. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
     ///  6. VM::TransferForSwap (Core Mint VM swap ATA -> Core Mint temporary account)
     ///  7. Reserve::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
+    ///  8. Token::CloseAccount (closes Core Mint temporary account)
+    ///  9. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
+    ///
+    /// Buy Tokens (Core Mint -> Launchpad Currency Mint) with a buy fee, which
+    /// is used when fee_amount is non-zero:
+    ///  1. System::AdvanceNonce
+    ///  2. [Optional] ComputeBudget::SetComputeUnitLimit
+    ///  3. [Optional] ComputeBudget::SetComputeUnitPrice
+    ///  4. [Optional] Memo::Memo
+    ///  5. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
+    ///  6. VM::TransferForSwapWithFee (Core Mint VM swap ATA -> Core Mint temporary account (swap amount) and fee destination (fee amount))
+    ///  7. Reserve::BuyAndDepositIntoVm (bounded buy of the swap amount depositing to_mint tokens into the to_mint VM)
     ///  8. Token::CloseAccount (closes Core Mint temporary account)
     ///  9. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
     ///
@@ -1259,6 +1271,17 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
       /// The memory index where the destination virtual Timelock account lives
       public var memoryIndex: UInt32 = 0
 
+      /// Destination account where the buy fee should be paid. Only set when
+      /// a non-zero fee_amount was provided in the client parameters.
+      public var feeDestination: Ocp_Common_V1_SolanaAccountId {
+        get {return _feeDestination ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_feeDestination = newValue}
+      }
+      /// Returns true if `feeDestination` has been explicitly set.
+      public var hasFeeDestination: Bool {return self._feeDestination != nil}
+      /// Clears the value of `feeDestination`. Subsequent reads from it will return its default value.
+      public mutating func clearFeeDestination() {self._feeDestination = nil}
+
       public var unknownFields = SwiftProtobuf.UnknownStorage()
 
       public init() {}
@@ -1267,6 +1290,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
       fileprivate var _nonce: Ocp_Common_V1_SolanaAccountId? = nil
       fileprivate var _blockhash: Ocp_Common_V1_Blockhash? = nil
       fileprivate var _memoryAccount: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _feeDestination: Ocp_Common_V1_SolanaAccountId? = nil
     }
 
     /// Server parameters when executing stateful buy flows against the
@@ -4865,7 +4889,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters: SwiftProtobu
 
 extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.protoMessageName + ".ReserveExistingCurrencyServerParameters"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}nonce\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{3}memory_account\0\u{3}memory_index\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}nonce\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{3}memory_account\0\u{3}memory_index\0\u{3}fee_destination\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4882,6 +4906,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExisti
       case 7: try { try decoder.decodeSingularStringField(value: &self.memoValue) }()
       case 8: try { try decoder.decodeSingularMessageField(value: &self._memoryAccount) }()
       case 9: try { try decoder.decodeSingularUInt32Field(value: &self.memoryIndex) }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._feeDestination) }()
       default: break
       }
     }
@@ -4919,6 +4944,9 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExisti
     if self.memoryIndex != 0 {
       try visitor.visitSingularUInt32Field(value: self.memoryIndex, fieldNumber: 9)
     }
+    try { if let v = self._feeDestination {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4932,6 +4960,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExisti
     if lhs.memoValue != rhs.memoValue {return false}
     if lhs._memoryAccount != rhs._memoryAccount {return false}
     if lhs.memoryIndex != rhs.memoryIndex {return false}
+    if lhs._feeDestination != rhs._feeDestination {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

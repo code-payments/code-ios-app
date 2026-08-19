@@ -1,5 +1,5 @@
 //
-//  WalletActivityRow.swift
+//  ActivityRow.swift
 //  Flipcash
 //
 
@@ -7,13 +7,14 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// A single row in the v2 Wallet's "Recent" activity preview (Figma 8966:1910,
-/// ported from Android's `ActivityFeedRow`): a 40pt avatar, the title + relative
-/// time, and a signed amount. The avatar is the counterparty's profile photo for
-/// peer activity (tips/sends), the token image for token activity (deposits,
-/// buys), or a monogram fallback. A sent tip reads "Tipped <name>" once the
-/// counterparty resolves.
-struct WalletActivityRow: View {
+/// The single activity row used across every surface — the Wallet and Currency
+/// Info "Recent" previews, the cross-token Activity history, and the per-token
+/// Transaction history (Figma 8966:1910, ported from Android's `ActivityFeedRow`):
+/// a 40pt avatar, the title + relative time, and a signed amount. The avatar is
+/// the counterparty's profile photo for peer activity (tips/sends), the token
+/// image for token activity (deposits, buys), or a monogram fallback. A sent tip
+/// reads "Tipped <name>" once the counterparty resolves.
+struct ActivityRow: View {
 
     let activity: Activity
 
@@ -26,11 +27,14 @@ struct WalletActivityRow: View {
     @State private var avatarData: Data?
     @State private var avatarBlurhash: String?
 
+    /// Swap coin logos resolved beyond the held-balance cache (local mint store,
+    /// then a server fetch) so a swapped-away token still shows its real logo.
+    @State private var swapFromImageURL: URL?
+    @State private var swapToImageURL: URL?
+
     var body: some View {
         HStack(spacing: 12) {
             avatar
-                .frame(width: 40, height: 40)
-                .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(displayTitle)
@@ -44,13 +48,39 @@ struct WalletActivityRow: View {
 
             Spacer(minLength: 8)
 
+            amount
+        }
+        .padding(.vertical, 12)
+        .task(id: activity.id) {
+            await resolveCounterparty()
+            if let swap = activity.swapMetadata {
+                await resolveSwapLogos(swap)
+            }
+        }
+    }
+
+    // MARK: - Amount
+
+    /// A swap shows the converted (From) fiat amount over its fee; every other
+    /// row shows the single signed amount.
+    @ViewBuilder private var amount: some View {
+        if let swap = activity.swapMetadata {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(swap.fromFiat.formatted())
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                Text("-\(swap.fee.formatted()) Fee")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .lineLimit(1)
+            }
+        } else {
             Text(signedAmount)
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
                 .lineLimit(1)
         }
-        .padding(.vertical, 12)
-        .task(id: activity.id) { await resolveCounterparty() }
     }
 
     // MARK: - Title
@@ -72,6 +102,16 @@ struct WalletActivityRow: View {
     // MARK: - Avatar
 
     @ViewBuilder private var avatar: some View {
+        if let swap = activity.swapMetadata {
+            swapAvatar(swap)
+        } else {
+            singleAvatar
+                .frame(width: 40, height: 40)
+                .clipShape(Circle())
+        }
+    }
+
+    @ViewBuilder private var singleAvatar: some View {
         switch activity.counterparty {
         case .user(let userID):
             ContactAvatarView(
@@ -101,6 +141,51 @@ struct WalletActivityRow: View {
         }
     }
 
+    /// The two swapped tokens as overlapping coins — the destination (To) sits on
+    /// top of the source (From), per the Recent design. Each coin shows its mint
+    /// logo (held balance first, then the async-resolved fallback).
+    private func swapAvatar(_ swap: Activity.SwapMetadata) -> some View {
+        ZStack {
+            tokenCoin(url: coinURL(for: swap.fromMint, fallback: swapFromImageURL), monogramID: swap.fromMint.base58, size: 26)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            tokenCoin(url: coinURL(for: swap.toMint, fallback: swapToImageURL), monogramID: swap.toMint.base58, size: 26)
+                .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 2))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        }
+        .frame(width: 40, height: 40)
+    }
+
+    /// The held-balance logo (instant, from cache) or the async-resolved fallback.
+    private func coinURL(for mint: PublicKey, fallback: URL?) -> URL? {
+        session.balance(for: mint)?.imageURL ?? fallback
+    }
+
+    @ViewBuilder private func tokenCoin(url: URL?, monogramID: String, size: CGFloat) -> some View {
+        Group {
+            if let url {
+                RemoteImage(url: url)
+            } else {
+                ContactAvatarView(id: monogramID, displayName: "", size: size)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+
+    /// Resolves both coins' logos beyond the held-balance cache: the local mint
+    /// store, then a server fetch, so a swapped-away token still shows its logo.
+    private func resolveSwapLogos(_ swap: Activity.SwapMetadata) async {
+        swapFromImageURL = await resolveMintImageURL(swap.fromMint)
+        swapToImageURL   = await resolveMintImageURL(swap.toMint)
+    }
+
+    private func resolveMintImageURL(_ mint: PublicKey) async -> URL? {
+        if let url = session.storedMintMetadata(for: mint)?.imageURL {
+            return url
+        }
+        return try? await session.fetchMintMetadata(mint: mint).imageURL
+    }
+
     // MARK: - Amount
 
     private var signedAmount: String {
@@ -110,7 +195,9 @@ struct WalletActivityRow: View {
             return "+\(formatted)"
         case .gave, .withdrew, .cashLink, .paid:
             return "-\(formatted)"
-        case .unknown:
+        case .swapped, .unknown:
+            // A swap's net effect on the wallet isn't inherently in or out, so it
+            // renders unsigned until the swap notification is modelled richly.
             return formatted
         }
     }

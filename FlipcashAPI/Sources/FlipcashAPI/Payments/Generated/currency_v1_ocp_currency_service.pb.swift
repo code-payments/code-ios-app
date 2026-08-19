@@ -445,6 +445,16 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
   /// Clears the value of `holderMetrics`. Subsequent reads from it will return its default value.
   public mutating func clearHolderMetrics() {_uniqueStorage()._holderMetrics = nil}
 
+  /// Market cap metrics. This is surfaced where needed (e.g. only in the Discover RPC)
+  public var marketCapMetrics: Ocp_Currency_V1_MarketCapMetrics {
+    get {return _storage._marketCapMetrics ?? Ocp_Currency_V1_MarketCapMetrics()}
+    set {_uniqueStorage()._marketCapMetrics = newValue}
+  }
+  /// Returns true if `marketCapMetrics` has been explicitly set.
+  public var hasMarketCapMetrics: Bool {return _storage._marketCapMetrics != nil}
+  /// Clears the value of `marketCapMetrics`. Subsequent reads from it will return its default value.
+  public mutating func clearMarketCapMetrics() {_uniqueStorage()._marketCapMetrics = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -916,6 +926,37 @@ public struct Ocp_Currency_V1_HolderMetrics: Sendable {
 
     /// Net holders within the time range
     public var delta: Int64 = 0
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_MarketCapMetrics: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The current market capitalization in USD for a currency
+  public var currentMarketCap: Double = 0
+
+  public var marketCapDeltas: [Ocp_Currency_V1_MarketCapMetrics.DeltaMarketCap] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public struct DeltaMarketCap: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Predefined range where delta is calculated from
+    public var range: Ocp_Currency_V1_PredefinedRange = .allTime
+
+    /// Net change in market capitalization in USD within the time range
+    public var delta: Double = 0
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1967,7 +2008,7 @@ extension Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData: SwiftProtobuf.Mes
 
 extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Mint"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}decimals\0\u{1}name\0\u{1}symbol\0\u{1}description\0\u{3}image_url\0\u{3}vm_metadata\0\u{3}launchpad_metadata\0\u{3}created_at\0\u{3}social_links\0\u{3}bill_customization\0\u{3}holder_metrics\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}decimals\0\u{1}name\0\u{1}symbol\0\u{1}description\0\u{3}image_url\0\u{3}vm_metadata\0\u{3}launchpad_metadata\0\u{3}created_at\0\u{3}social_links\0\u{3}bill_customization\0\u{3}holder_metrics\0\u{3}market_cap_metrics\0")
 
   fileprivate class _StorageClass {
     var _address: Ocp_Common_V1_SolanaAccountId? = nil
@@ -1982,6 +2023,7 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     var _socialLinks: [Ocp_Currency_V1_SocialLink] = []
     var _billCustomization: Ocp_Currency_V1_BillCustomization? = nil
     var _holderMetrics: Ocp_Currency_V1_HolderMetrics? = nil
+    var _marketCapMetrics: Ocp_Currency_V1_MarketCapMetrics? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -2004,6 +2046,7 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       _socialLinks = source._socialLinks
       _billCustomization = source._billCustomization
       _holderMetrics = source._holderMetrics
+      _marketCapMetrics = source._marketCapMetrics
     }
   }
 
@@ -2034,6 +2077,7 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
         case 10: try { try decoder.decodeRepeatedMessageField(value: &_storage._socialLinks) }()
         case 11: try { try decoder.decodeSingularMessageField(value: &_storage._billCustomization) }()
         case 12: try { try decoder.decodeSingularMessageField(value: &_storage._holderMetrics) }()
+        case 13: try { try decoder.decodeSingularMessageField(value: &_storage._marketCapMetrics) }()
         default: break
         }
       }
@@ -2082,6 +2126,9 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       try { if let v = _storage._holderMetrics {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
       } }()
+      try { if let v = _storage._marketCapMetrics {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -2103,6 +2150,7 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
         if _storage._socialLinks != rhs_storage._socialLinks {return false}
         if _storage._billCustomization != rhs_storage._billCustomization {return false}
         if _storage._holderMetrics != rhs_storage._holderMetrics {return false}
+        if _storage._marketCapMetrics != rhs_storage._marketCapMetrics {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -2849,6 +2897,76 @@ extension Ocp_Currency_V1_HolderMetrics.DeltaHolders: SwiftProtobuf.Message, Swi
   }
 
   public static func ==(lhs: Ocp_Currency_V1_HolderMetrics.DeltaHolders, rhs: Ocp_Currency_V1_HolderMetrics.DeltaHolders) -> Bool {
+    if lhs.range != rhs.range {return false}
+    if lhs.delta != rhs.delta {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_MarketCapMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MarketCapMetrics"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}current_market_cap\0\u{3}market_cap_deltas\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.currentMarketCap) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.marketCapDeltas) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.currentMarketCap.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.currentMarketCap, fieldNumber: 1)
+    }
+    if !self.marketCapDeltas.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.marketCapDeltas, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_MarketCapMetrics, rhs: Ocp_Currency_V1_MarketCapMetrics) -> Bool {
+    if lhs.currentMarketCap != rhs.currentMarketCap {return false}
+    if lhs.marketCapDeltas != rhs.marketCapDeltas {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_MarketCapMetrics.DeltaMarketCap: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_MarketCapMetrics.protoMessageName + ".DeltaMarketCap"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}range\0\u{1}delta\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.range) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.delta) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.range != .allTime {
+      try visitor.visitSingularEnumField(value: self.range, fieldNumber: 1)
+    }
+    if self.delta.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.delta, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_MarketCapMetrics.DeltaMarketCap, rhs: Ocp_Currency_V1_MarketCapMetrics.DeltaMarketCap) -> Bool {
     if lhs.range != rhs.range {return false}
     if lhs.delta != rhs.delta {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
