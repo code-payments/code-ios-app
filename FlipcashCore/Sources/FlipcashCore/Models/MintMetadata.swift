@@ -69,6 +69,9 @@ public struct MintMetadata: Equatable, Sendable {
     /// Holder metrics (only populated by the Discover RPC)
     public let holderMetrics: HolderMetrics?
 
+    /// Market-cap metrics (only populated by the Discover RPC)
+    public let marketCapMetrics: MarketCapMetrics?
+
     public init(
         address: PublicKey,
         decimals: Int,
@@ -81,7 +84,8 @@ public struct MintMetadata: Equatable, Sendable {
         socialLinks: [SocialLink] = [],
         billColors: [String] = [],
         createdAt: Date? = nil,
-        holderMetrics: HolderMetrics? = nil
+        holderMetrics: HolderMetrics? = nil,
+        marketCapMetrics: MarketCapMetrics? = nil
     ) {
         self.address = address
         self.decimals = decimals
@@ -95,6 +99,7 @@ public struct MintMetadata: Equatable, Sendable {
         self.billColors = billColors
         self.createdAt = createdAt
         self.holderMetrics = holderMetrics
+        self.marketCapMetrics = marketCapMetrics
     }
 
     /// A bare-bones `MintMetadata` for a freshly-launched currency mint. Used
@@ -264,6 +269,31 @@ public struct HolderMetrics: Equatable, Sendable {
     }
 }
 
+// MARK: - MarketCapMetrics -
+
+public struct MarketCapMetrics: Equatable, Sendable {
+    /// Current market capitalization in USD
+    public let currentMarketCap: Double
+
+    /// Net market-cap changes (USD) for various time ranges
+    public let marketCapDeltas: [MarketCapDelta]
+
+    public struct MarketCapDelta: Equatable, Sendable {
+        public let range: Ocp_Currency_V1_PredefinedRange
+        public let delta: Double
+
+        public init(range: Ocp_Currency_V1_PredefinedRange, delta: Double) {
+            self.range = range
+            self.delta = delta
+        }
+    }
+
+    public init(currentMarketCap: Double, marketCapDeltas: [MarketCapDelta]) {
+        self.currentMarketCap = currentMarketCap
+        self.marketCapDeltas = marketCapDeltas
+    }
+}
+
 // MARK: - Errors -
 
 enum MintMetadataError: Swift.Error {
@@ -310,7 +340,8 @@ extension MintMetadata {
             socialLinks: socialLinks,
             billColors: billColors,
             createdAt: proto.hasCreatedAt ? proto.createdAt.date : nil,
-            holderMetrics: proto.hasHolderMetrics ? HolderMetrics(proto.holderMetrics) : nil
+            holderMetrics: proto.hasHolderMetrics ? HolderMetrics(proto.holderMetrics) : nil,
+            marketCapMetrics: proto.hasMarketCapMetrics ? MarketCapMetrics(proto.marketCapMetrics) : nil
         )
     }
     
@@ -366,6 +397,17 @@ extension HolderMetrics {
             currentHolders: proto.currentHolders,
             holderDeltas: proto.holderDeltas.map {
                 HolderDelta(range: $0.range, delta: $0.delta)
+            }
+        )
+    }
+}
+
+extension MarketCapMetrics {
+    init(_ proto: Ocp_Currency_V1_MarketCapMetrics) {
+        self.init(
+            currentMarketCap: proto.currentMarketCap,
+            marketCapDeltas: proto.marketCapDeltas.map {
+                MarketCapDelta(range: $0.range, delta: $0.delta)
             }
         )
     }

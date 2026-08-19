@@ -14,6 +14,11 @@ struct CurrencyDiscoveryList: View {
     @State private var mints: [MintMetadata]?
     @State private var isFailed: Bool = false
 
+    /// v2 ranks the leaderboard by market cap; the legacy UI stays on holders.
+    private var rankingSystem: RankingSystem {
+        BetaFlags.shared.hasEnabled(.newUI) ? .marketCap : .holders
+    }
+
     private enum LoadState {
         case loading
         case failed
@@ -37,7 +42,7 @@ struct CurrencyDiscoveryList: View {
                     Button {
                         onSelectMint(item.element.address)
                     } label: {
-                        CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element)
+                        CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element, rankingSystem: rankingSystem)
                     }
                     .buttonStyle(.plain)
                     // Stable handle for UI tests — the visible label is
