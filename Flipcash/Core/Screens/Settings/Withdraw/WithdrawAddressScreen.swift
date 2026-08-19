@@ -74,7 +74,7 @@ struct WithdrawAddressScreen: View {
             }
             .padding(20)
         }
-        .navigationTitle("Withdraw")
+        .navigationTitle("Enter Address")
         .toolbarTitleDisplayMode(.inline)
         .interactiveDismissDisabled()
     }

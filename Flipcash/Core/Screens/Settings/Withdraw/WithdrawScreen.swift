@@ -90,7 +90,7 @@ struct WithdrawSubstepDestination: View {
                 .dialog(item: $viewModel.dialogItem)
         case .enterAmount:
             WithdrawAmountScreen(
-                title: "Withdraw",
+                title: "Amount to Withdraw",
                 enteredAmount: $viewModel.enteredAmount,
                 subtitle: viewModel.amountSubtitle,
                 canProceed: viewModel.canProceedToAddress,
