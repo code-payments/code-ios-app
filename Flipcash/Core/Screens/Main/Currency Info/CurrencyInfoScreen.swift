@@ -462,16 +462,10 @@ private struct CurrencyInfoScreenContent: View {
                 }
                 .lineLimit(1)
                 .fixedSize()
-                // The capsule is drawn here rather than by the toolbar: the
-                // system platter sizes itself to the content with a fixed inset
-                // and swallows most of the trailing padding the spec calls for.
-                .padding(.leading, 8)
-                .padding(.trailing, 20)
-                // Sized to the chrome height rather than left to hug its two
-                // lines of text, which left the capsule a few points shorter
-                // than the round buttons either side of it.
-                .frame(height: Self.overlayBarHeight)
-                .modifier(CapsuleGlass())
+                // The pill's inset + height + glass are all iOS 26 only; on
+                // iOS 18 the title keeps natural toolbar spacing (no capsule, so
+                // no capsule padding to leave dead space around it).
+                .modifier(TitlePill())
             } else {
                 CurrencyLabel(
                     imageURL: metadata.imageURL,
@@ -545,12 +539,23 @@ private struct CircleGlass: ViewModifier {
     }
 }
 
-/// The title pill's Liquid Glass capsule on iOS 26. On iOS 18 the same title
-/// content shows without a pill background.
-private struct CapsuleGlass: ViewModifier {
+/// The title pill on iOS 26 — its inset, chrome-matched height, and Liquid Glass
+/// capsule. On iOS 18 it's a no-op: the title content keeps natural toolbar
+/// spacing, with no capsule and none of the capsule's padding leaving dead space.
+private struct TitlePill: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: .capsule)
+            content
+                // The capsule is drawn here rather than by the toolbar: the
+                // system platter sizes itself to the content with a fixed inset
+                // and swallows most of the trailing padding the spec calls for.
+                .padding(.leading, 8)
+                .padding(.trailing, 20)
+                // Sized to the chrome height (44 — the overlay bar height) rather
+                // than left to hug its two lines of text, which left the capsule a
+                // few points shorter than the round buttons either side of it.
+                .frame(height: 44)
+                .glassEffect(.regular, in: .capsule)
         } else {
             content
         }
