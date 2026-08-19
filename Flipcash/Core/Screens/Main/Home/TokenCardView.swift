@@ -88,13 +88,32 @@ struct TokenCardView: View {
     var body: some View {
         RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
             .fill(gradient)
+            .overlay(alignment: .trailing) {
+                if isUSDF { dollarWatermark }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
             )
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
             .overlay(alignment: .top) { header.padding(16) }
+    }
+
+    /// The Dollars bill's oversized "$", vertically centred and tucked toward the
+    /// right edge — taller than the card so it clips top and bottom. White at 30%
+    /// over an overlay blend, matching the Figma watermark (node 9223:23556).
+    private var dollarWatermark: some View {
+        Text("$")
+            .font(.default(size: 213, weight: .bold))
+            .foregroundStyle(.white)
+            .opacity(0.30)
+            .blendMode(.overlay)
+            .fixedSize()
+            .padding(.trailing, 10)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private var header: some View {
