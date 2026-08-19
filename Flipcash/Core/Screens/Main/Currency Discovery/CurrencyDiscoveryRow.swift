@@ -11,8 +11,9 @@ struct CurrencyDiscoveryRow: View {
     let rank: Int
     let mint: MintMetadata
     /// Drives which metric is prominent (trailing value + delta) and which is the
-    /// secondary line under the name. Market cap for v2 — see ``RankingSystem``.
-    var rankingSystem: RankingSystem = .marketCap
+    /// secondary line under the name. Callers pass `.marketCap` under v2; the
+    /// default stays on holders for the legacy UI. See ``RankingSystem``.
+    var rankingSystem: RankingSystem = .holders
 
     var body: some View {
         HStack(spacing: 12) {
