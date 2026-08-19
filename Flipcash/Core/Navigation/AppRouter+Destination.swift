@@ -30,8 +30,12 @@ extension AppRouter {
         case activity
         case give(PublicKey)
         /// Pushes the buy flow (`BuyAmountScreen`) onto the current stack instead
-        /// of presenting it as a sheet — the new-UI currency-info "Convert"/"Get".
+        /// of presenting it as a sheet — the new-UI currency-info "Get" tile.
         case buyCurrency(PublicKey)
+        /// Pushes the convert flow (`ConvertAmountScreen`) onto the current stack
+        /// — the new-UI currency-info "Convert" tile. Sells this currency into a
+        /// chosen destination (Dollars or another launchpad token).
+        case convertCurrency(PublicKey)
         /// Withdraw flow on the Wallet's stack (pops back to the wallet on
         /// finish). `nil` starts on the currency picker; a mint skips the picker
         /// pre-selected — Dollars (USDF) lands on the "Withdraw as USDC" intro,
@@ -79,8 +83,8 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .activity, .give, .buyCurrency, .withdrawCurrency,
-                 .usdcDepositEducation, .usdcDepositAddress:
+                 .transactionHistory, .activity, .give, .buyCurrency, .convertCurrency,
+                 .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
@@ -108,6 +112,7 @@ extension AppRouter {
             case .activity:                     "activity"
             case .give:                         "give"
             case .buyCurrency:                  "buyCurrency"
+            case .convertCurrency:              "convertCurrency"
             case .withdrawCurrency:             "withdrawCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
@@ -139,7 +144,8 @@ extension AppRouter {
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
                  .give(let mint),
-                 .buyCurrency(let mint):
+                 .buyCurrency(let mint),
+                 .convertCurrency(let mint):
                 return mint.base58
             case .withdrawCurrency(let mint):
                 return mint?.base58

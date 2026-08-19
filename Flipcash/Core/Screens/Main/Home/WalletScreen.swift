@@ -184,6 +184,11 @@ private struct WalletScreenContent: View {
                 openCardImmediately(mint)
                 router.requestedCardMint = nil
             }
+            // A flow launched from the expanded card (Convert, Get) finished and
+            // asked to land back on the wallet — close the card overlay.
+            .onChange(of: router.requestedCardDismiss) { _, _ in
+                closeCard()
+            }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { containerSize = $0 }
             .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeArea = $0 }
             // No top bar on the wallet root (per Figma) — the balance header

@@ -33,21 +33,21 @@ struct BuyConfirmationScreen: View {
                 BorderedContainer {
                     VStack(spacing: 0) {
                         ConfirmationAmountRow(
-                            title: "You Receive",
+                            title: "You Get",
                             currencyName: viewModel.targetName,
                             imageURL: viewModel.targetImageURL,
                             amount: viewModel.amountToBuy.nativeAmount.formatted()
                         )
                         .padding(.top, 24)
 
-                        if !viewModel.isUSDF {
+                        if viewModel.chargesFee {
                             VStack(spacing: 10) {
                                 ConfirmationBreakdownRow(
-                                    title: "Amount to buy",
+                                    title: "Amount to convert",
                                     value: viewModel.amountToBuy.nativeAmount.formatted()
                                 )
                                 ConfirmationBreakdownRow(
-                                    title: "Exchange fee",
+                                    title: "Conversion fee",
                                     value: viewModel.feeFormatted
                                 )
                             }
@@ -60,7 +60,7 @@ struct BuyConfirmationScreen: View {
                             imageURL: viewModel.payment.imageURL,
                             amount: viewModel.paymentAmount.nativeAmount.formatted()
                         )
-                        .padding(.top, viewModel.isUSDF ? 24 : 0)
+                        .padding(.top, viewModel.chargesFee ? 0 : 24)
                         .padding(.bottom, 24)
                     }
                 }
@@ -78,7 +78,7 @@ struct BuyConfirmationScreen: View {
                     CodeButton(
                         state: viewModel.actionButtonState,
                         style: .filled,
-                        title: "Buy",
+                        title: "Confirm",
                         disabled: !viewModel.canPerformAction,
                         action: performBuy
                     )
@@ -88,7 +88,7 @@ struct BuyConfirmationScreen: View {
             }
             .padding(20)
         }
-        .navigationTitle("Confirm Purchase")
+        .navigationTitle("Get")
         .toolbarTitleDisplayMode(.inline)
         // A submit is a live money movement — keep the user on this screen
         // until it resolves (the sheet's swipe-dismiss is already blocked at
@@ -109,56 +109,5 @@ struct BuyConfirmationScreen: View {
 
     private func performBuy() {
         Task { await viewModel.buyAction(session: session, router: router) }
-    }
-}
-
-/// A centered label-over-amount block with the currency's icon, used for the
-/// You Pay / You Receive rows.
-private struct ConfirmationAmountRow: View {
-    let title: String
-    let currencyName: String
-    let imageURL: URL?
-    let amount: String
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
-            HStack(spacing: 8) {
-                if let imageURL {
-                    RemoteImage(url: imageURL)
-                        .frame(width: 24, height: 24)
-                        .clipShape(Circle())
-                }
-                Text(amount)
-                    .font(.appDisplaySmall)
-                    .foregroundStyle(Color.textMain)
-                    .contentTransition(.numericText())
-            }
-        }
-        // The icon is the only visual carrier of WHICH currency this is —
-        // VoiceOver needs the name spoken alongside the amount.
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title): \(amount) of \(currencyName)")
-    }
-}
-
-/// A leading title / trailing value line for the fee breakdown.
-private struct ConfirmationBreakdownRow: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
-            Spacer()
-            Text(value)
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
-                .contentTransition(.numericText())
-        }
     }
 }

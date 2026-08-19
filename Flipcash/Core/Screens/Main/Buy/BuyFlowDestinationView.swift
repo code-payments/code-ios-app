@@ -18,15 +18,6 @@ struct BuyFlowDestinationView: View {
 
     var body: some View {
         switch path {
-        case .selectPaymentCurrency(let targetMint, let targetName, let entered):
-            BuyPaymentCurrencyScreen(
-                targetMint: targetMint,
-                targetName: targetName,
-                entered: entered,
-                session: sessionContainer.session,
-                ratesController: sessionContainer.ratesController
-            )
-
         case .paymentConfirmation(let targetMint, let targetName, let payment, let paymentAmount, let pinnedState):
             BuyConfirmationScreen(
                 targetMint: targetMint,

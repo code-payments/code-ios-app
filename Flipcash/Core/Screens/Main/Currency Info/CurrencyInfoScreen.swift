@@ -233,6 +233,9 @@ private struct CurrencyInfoScreenContent: View {
                             Analytics.buttonTapped(name: .give)
                             router.push(.give(mint))
                         },
+                        // New UI pushes the convert flow onto the current stack —
+                        // sells this currency into a chosen destination.
+                        onConvert: { router.push(.convertCurrency(mint)) },
                         // New UI pushes the buy flow onto the current stack rather
                         // than presenting it as a sheet.
                         onBuy: { router.push(.buyCurrency(mint)) },

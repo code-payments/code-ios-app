@@ -33,6 +33,10 @@ final class BuyConfirmationViewModel {
 
     var feeBps: UInt64 { UInt64(max(0, payment.sellFeeBps ?? 100)) }
 
+    /// New UI charges the 1% conversion fee on every buy, including
+    /// Dollars-funded ones; legacy pays no fee on the USDF path.
+    var chargesFee: Bool { !isUSDF || BetaFlags.shared.hasEnabled(.newUI) }
+
     var fee: ExchangedFiat {
         paymentAmount.launchpadSellFee(bps: feeBps)
     }
@@ -45,7 +49,7 @@ final class BuyConfirmationViewModel {
 
     /// What the buy leg actually purchases — the gross debit minus the pool fee.
     var amountToBuy: ExchangedFiat {
-        isUSDF ? paymentAmount : paymentAmount.subtractingFee(fee.onChainAmount)
+        chargesFee ? paymentAmount.subtractingFee(fee.onChainAmount) : paymentAmount
     }
 
     init(targetMint: PublicKey, targetName: String, payment: StoredBalance, paymentAmount: ExchangedFiat, pinnedState: VerifiedState) {

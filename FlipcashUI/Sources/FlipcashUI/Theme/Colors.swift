@@ -13,6 +13,9 @@ import FlipcashCore
 extension ShapeStyle where Self == Color {
     public static var textMain: Color                    { Color.white }
     public static var textSecondary: Color               { Color(r: 123, g: 123, b: 123) }
+    /// ~30% white — dimmer than `textSecondary`. Used for placeholder amounts
+    /// (e.g. the Convert/Get "$0" before entry).
+    public static var textTertiary: Color                { Color(r: 78,  g: 78,  b: 78) }
     public static var textAction: Color                  { Color.black }
     public static var textActionDisabled: Color          { Color(r: 78,  g: 78,  b: 78) }
     public static var textError: Color                   { Color(r: 255, g: 131, b: 131) }

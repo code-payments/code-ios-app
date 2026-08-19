@@ -25,7 +25,9 @@ class SwapProcessingViewModel {
         case .success:
             if let exchangedFiat {
                 switch swapType {
-                case .buyWithReserves, .buyWithCurrency:
+                case .buyWithReserves, .buyWithCurrency, .convert:
+                    // Convert names its destination via `currencyName`, so the
+                    // same "X of <currency>" reads correctly there too.
                     return "\(exchangedFiat.nativeAmount.formatted()) of \(currencyName)"
                 case .sell:
                     return "\(exchangedFiat.nativeAmount.formatted()) of USDF"
@@ -43,7 +45,7 @@ class SwapProcessingViewModel {
             return "This transaction typically takes about a minute. You may leave the app while it completes"
         case .success:
             switch swapType {
-            case .buyWithReserves, .buyWithCurrency, .sell:
+            case .buyWithReserves, .buyWithCurrency, .sell, .convert:
                 return "was just added to your Flipcash wallet"
             }
         case .failed:
@@ -70,6 +72,8 @@ class SwapProcessingViewModel {
                 "Purchasing \(currencyName)"
             case .sell:
                 "Selling \(currencyName)"
+            case .convert:
+                "Converting"
             }
         case .success:
             "Success"
@@ -189,6 +193,10 @@ class SwapProcessingViewModel {
             Analytics.tokenPurchase(method: .purchaseWithCurrency, targetMint: targetMint, exchangedFiat: amount, successful: successful)
         case .sell:
             Analytics.tokenSell(exchangedFiat: amount, successful: successful)
+        case .convert:
+            // A convert always disposes of the source token; record it as a
+            // sell of the amount that left the wallet.
+            Analytics.tokenSell(exchangedFiat: amount, successful: successful)
         }
     }
 }
@@ -215,4 +223,7 @@ nonisolated enum SwapType: CaseIterable {
     case buyWithReserves
     case buyWithCurrency
     case sell
+    /// Selling one currency straight into another (source → USDF, or source →
+    /// another launchpad token). Drives the "Converting" copy.
+    case convert
 }
