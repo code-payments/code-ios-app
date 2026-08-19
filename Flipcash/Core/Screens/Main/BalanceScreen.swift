@@ -256,7 +256,8 @@ struct ExchangedBalance: Identifiable, Hashable {
 extension Array where Element == ExchangedBalance {
 
     /// Balances eligible to send or give — every balance except USDF, the
-    /// on-Flipcash stablecoin, which is never transferred peer-to-peer.
+    /// on-Flipcash stablecoin. Dollars give is reached directly from the Dollars
+    /// card (new UI), not through this generic list.
     var giveable: [ExchangedBalance] {
         filter { $0.stored.mint != .usdf }
     }

@@ -508,4 +508,34 @@ struct GiveViewModelTests {
         // match.
         #expect(!title.contains("$0.00"))
     }
+
+    // MARK: - USDF give
+
+    @Test("Dollars give computes a 1:1 bill amount without a bonding supply")
+    func prepareSubmission_usdf_succeedsWithoutSupply() async throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 30_000_000), // $30
+        ])
+        container.ratesController.configureTestRates(
+            balanceCurrency: .usd,
+            rates: [Rate(fx: 1, currency: .usd)]
+        )
+        await container.ratesController.verifiedProtoService.saveRates([
+            .freshRate(currencyCode: "USD", rate: 1)
+        ])
+
+        // Reaching Give with an explicit USDF mint resolves the Dollars balance
+        // directly (the Dollars-card entry point).
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: .usdf)
+        #expect(viewModel.selectedBalance?.stored.mint == .usdf)
+
+        viewModel.enteredAmount = "10"
+
+        // The bonded path's supply guard used to reject USDF outright; the
+        // Dollars branch values the entry 1:1 against the pinned rate instead.
+        let submission = try #require(await viewModel.prepareSubmission())
+        #expect(submission.amount.mint == .usdf)
+        #expect(submission.amount.onChainAmount.quarks == 10_000_000) // $10 at 6 decimals
+        #expect(submission.pinnedState.exchangeRate == 1)
+    }
 }

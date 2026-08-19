@@ -136,7 +136,12 @@ public struct MintMetadata: Equatable, Sendable {
                 )!.publicKey,
                 authority: .usdcAuthority,
                 lockDurationInDays: Int(TimelockDerivedAccounts.lockoutInDays)),
-            launchpadMetadata: nil
+            launchpadMetadata: nil,
+            // Dollars has no server-provided bill colors — carry the Dollars
+            // wallet-card gradient (leading→trailing) so the give bill matches
+            // the card. The bill renders bottom→top, so [0] is the bill's top
+            // (card's leading) and [1] its bottom (card's trailing).
+            billColors: ["#C4980B", "#B06B00"]
         )
 
     public static let usdc: MintMetadata =
