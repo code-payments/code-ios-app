@@ -111,9 +111,11 @@ public struct EnterAmountView: View {
     public var body: some View {
         VStack(alignment: header == nil ? .center : .leading) {
             if let header {
-                // A fixed gap below the nav bar so the amount isn't jammed
-                // against the chrome; the flexible spacer below absorbs the rest.
-                Spacer().frame(height: 24)
+                // A gap below the nav bar so the amount isn't jammed against the
+                // chrome; capped at 24 but allowed to shrink on small screens so
+                // the keypad never gets pushed off. The flexible spacer below
+                // absorbs the rest on taller devices.
+                Spacer().frame(maxHeight: 24)
                 header
             } else {
                 Spacer()
