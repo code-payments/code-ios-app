@@ -322,7 +322,7 @@ struct ConversationScreen: View {
             session.dialogItem = dialog
             return
         }
-        router.presentNested(.sendAmount(sendTarget))
+        router.presentSendAmount(sendTarget)
     }
 
     /// Re-send a failed message tapped in the transcript. The id is the row's stable id, which for a
