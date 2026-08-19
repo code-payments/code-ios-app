@@ -34,6 +34,8 @@ struct ConfirmationAmountRow: View {
                     .font(.appDisplaySmall)
                     .foregroundStyle(Color.textMain)
                     .contentTransition(.numericText())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
             }
         }
         // The icon is the only visual carrier of WHICH currency this is —

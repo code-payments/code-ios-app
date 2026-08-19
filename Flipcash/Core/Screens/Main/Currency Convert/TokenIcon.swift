@@ -44,6 +44,8 @@ struct TokenIconWithName: View {
             Text(name)
                 .font(font)
                 .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
     }
 }

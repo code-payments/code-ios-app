@@ -434,43 +434,53 @@ private struct CurrencyInfoScreenContent: View {
         // USDF's name is already "Dollars", so no special-case is needed.
         if let metadata = mintMetadata {
             if isNewUI {
-                // Compact leading label — the system supplies the Liquid Glass
-                // platter around it on iOS 26. `.fixedSize()` is required: the
-                // toolbar compresses the item to its icon otherwise, dropping
-                // the text. `CurrencyLabel` is row-shaped (it spaces name and
-                // amount apart with a Spacer), so it can't be reused here.
-                HStack(spacing: 8) {
-                    RemoteImage(url: metadata.imageURL)
-                        .frame(width: 24, height: 24)
-                        .clipShape(Circle())
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Semantic styles rather than fixed white/grey: inside the
-                        // glass they pick up the system's vibrancy, so the label
-                        // stays legible over a bright bill card scrolling beneath.
-                        Text(metadata.name)
-                            .font(.appTextSmall)
-                            .foregroundStyle(.primary)
-                        // USDF has no market cap (no bonding curve), so it stays
-                        // a single-line pill.
-                        if !isUSDF {
-                            Text(viewModel.marketCap.formatted())
-                                .font(.appTextCaption)
-                                .foregroundStyle(.secondary)
+                if #available(iOS 26.0, *) {
+                    // Compact leading label — the system supplies the Liquid Glass
+                    // platter around it on iOS 26. `.fixedSize()` is required: the
+                    // toolbar compresses the item to its icon otherwise, dropping
+                    // the text. `CurrencyLabel` is row-shaped (it spaces name and
+                    // amount apart with a Spacer), so it can't be reused here.
+                    HStack(spacing: 8) {
+                        RemoteImage(url: metadata.imageURL)
+                            .frame(width: 24, height: 24)
+                            .clipShape(Circle())
+                        VStack(alignment: .leading, spacing: 0) {
+                            // Semantic styles rather than fixed white/grey: inside
+                            // the glass they pick up the system's vibrancy, so the
+                            // label stays legible over a bright bill card beneath.
+                            Text(metadata.name)
+                                .font(.appTextSmall)
+                                .foregroundStyle(.primary)
+                            // USDF has no market cap (no bonding curve), so it
+                            // stays a single-line pill.
+                            if !isUSDF {
+                                Text(viewModel.marketCap.formatted())
+                                    .font(.appTextCaption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
+                    .lineLimit(1)
+                    .fixedSize()
+                    // The capsule is drawn here rather than by the toolbar: the
+                    // system platter sizes itself to the content with a fixed inset
+                    // and swallows most of the trailing padding the spec calls for.
+                    .padding(.leading, 8)
+                    .padding(.trailing, 20)
+                    // Sized to the chrome height rather than left to hug its two
+                    // lines of text, which left the capsule a few points shorter
+                    // than the round buttons either side of it.
+                    .frame(height: Self.overlayBarHeight)
+                    .modifier(CapsuleGlass())
+                } else {
+                    // iOS 18 has no Liquid Glass; a materialized capsule reads as
+                    // heavy chrome, so the scroll-revealed title is just the plain
+                    // token name.
+                    Text(metadata.name)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
                 }
-                .lineLimit(1)
-                .fixedSize()
-                // The capsule is drawn here rather than by the toolbar: the
-                // system platter sizes itself to the content with a fixed inset
-                // and swallows most of the trailing padding the spec calls for.
-                .padding(.leading, 8)
-                .padding(.trailing, 20)
-                // Sized to the chrome height rather than left to hug its two
-                // lines of text, which left the capsule a few points shorter
-                // than the round buttons either side of it.
-                .frame(height: Self.overlayBarHeight)
-                .modifier(CapsuleGlass())
             } else {
                 CurrencyLabel(
                     imageURL: metadata.imageURL,

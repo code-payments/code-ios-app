@@ -168,8 +168,10 @@ public struct EnterAmountView: View {
 
             if let accessory {
                 accessory
+                // Capped but shrinkable so the keypad/button aren't pushed off
+                // on small (SE-class) screens.
                 Spacer()
-                    .frame(height: 20)
+                    .frame(maxHeight: 20)
             }
 
             KeyPadView(
