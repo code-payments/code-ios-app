@@ -434,53 +434,44 @@ private struct CurrencyInfoScreenContent: View {
         // USDF's name is already "Dollars", so no special-case is needed.
         if let metadata = mintMetadata {
             if isNewUI {
-                if #available(iOS 26.0, *) {
-                    // Compact leading label — the system supplies the Liquid Glass
-                    // platter around it on iOS 26. `.fixedSize()` is required: the
-                    // toolbar compresses the item to its icon otherwise, dropping
-                    // the text. `CurrencyLabel` is row-shaped (it spaces name and
-                    // amount apart with a Spacer), so it can't be reused here.
-                    HStack(spacing: 8) {
-                        RemoteImage(url: metadata.imageURL)
-                            .frame(width: 24, height: 24)
-                            .clipShape(Circle())
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Semantic styles rather than fixed white/grey: inside
-                            // the glass they pick up the system's vibrancy, so the
-                            // label stays legible over a bright bill card beneath.
-                            Text(metadata.name)
-                                .font(.appTextSmall)
-                                .foregroundStyle(.primary)
-                            // USDF has no market cap (no bonding curve), so it
-                            // stays a single-line pill.
-                            if !isUSDF {
-                                Text(viewModel.marketCap.formatted())
-                                    .font(.appTextCaption)
-                                    .foregroundStyle(.secondary)
-                            }
+                // Compact leading label — on iOS 26 the system supplies a Liquid
+                // Glass platter around it (`CapsuleGlass`); on iOS 18 the same
+                // content shows without a pill background. `.fixedSize()` is
+                // required: the toolbar compresses the item to its icon otherwise,
+                // dropping the text. `CurrencyLabel` is row-shaped (it spaces name
+                // and amount apart with a Spacer), so it can't be reused here.
+                HStack(spacing: 8) {
+                    RemoteImage(url: metadata.imageURL)
+                        .frame(width: 24, height: 24)
+                        .clipShape(Circle())
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Semantic styles rather than fixed white/grey: inside the
+                        // glass they pick up the system's vibrancy, so the label
+                        // stays legible over a bright bill card scrolling beneath.
+                        Text(metadata.name)
+                            .font(.appTextSmall)
+                            .foregroundStyle(.primary)
+                        // USDF has no market cap (no bonding curve), so it stays
+                        // a single-line pill.
+                        if !isUSDF {
+                            Text(viewModel.marketCap.formatted())
+                                .font(.appTextCaption)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .lineLimit(1)
-                    .fixedSize()
-                    // The capsule is drawn here rather than by the toolbar: the
-                    // system platter sizes itself to the content with a fixed inset
-                    // and swallows most of the trailing padding the spec calls for.
-                    .padding(.leading, 8)
-                    .padding(.trailing, 20)
-                    // Sized to the chrome height rather than left to hug its two
-                    // lines of text, which left the capsule a few points shorter
-                    // than the round buttons either side of it.
-                    .frame(height: Self.overlayBarHeight)
-                    .modifier(CapsuleGlass())
-                } else {
-                    // iOS 18 has no Liquid Glass; a materialized capsule reads as
-                    // heavy chrome, so the scroll-revealed title is just the plain
-                    // token name.
-                    Text(metadata.name)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
                 }
+                .lineLimit(1)
+                .fixedSize()
+                // The capsule is drawn here rather than by the toolbar: the
+                // system platter sizes itself to the content with a fixed inset
+                // and swallows most of the trailing padding the spec calls for.
+                .padding(.leading, 8)
+                .padding(.trailing, 20)
+                // Sized to the chrome height rather than left to hug its two
+                // lines of text, which left the capsule a few points shorter
+                // than the round buttons either side of it.
+                .frame(height: Self.overlayBarHeight)
+                .modifier(CapsuleGlass())
             } else {
                 CurrencyLabel(
                     imageURL: metadata.imageURL,
@@ -541,27 +532,27 @@ private struct OverlayTopInset: ViewModifier {
     }
 }
 
-/// Circular Liquid Glass for the overlay's back and share buttons, matching the
-/// platters the toolbar gives those items when the screen is pushed.
+/// Circular Liquid Glass for the overlay's back and share buttons on iOS 26. On
+/// iOS 18 there's no Liquid Glass and a material circle reads as heavy chrome, so
+/// the buttons stay plain (matching standard iOS 18 nav buttons).
 private struct CircleGlass: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.glassEffect(.regular, in: .circle)
         } else {
-            content.background(.ultraThinMaterial, in: Circle())
+            content
         }
     }
 }
 
-/// The title pill's Liquid Glass capsule. Drawn by the label itself so its
-/// padding is honoured — the toolbar's own platter hugs the content and clips
-/// most of the trailing inset away.
+/// The title pill's Liquid Glass capsule on iOS 26. On iOS 18 the same title
+/// content shows without a pill background.
 private struct CapsuleGlass: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.glassEffect(.regular, in: .capsule)
         } else {
-            content.background(.ultraThinMaterial, in: Capsule())
+            content
         }
     }
 }
