@@ -120,9 +120,14 @@ private struct BillOverlayContent: View {
     private var billSurface: some View {
         ZStack {
             if showsScrim {
+                // Snap the scrim in (no fade) so it is already covering the
+                // moment the bill begins its slide. This masks anything the
+                // bill is presented over — including a give's amount-entry
+                // popping back to the currency info — instead of letting it
+                // flash through mid-slide. It still fades out on dismiss.
                 Color.black.opacity(0.6)
                     .ignoresSafeArea()
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .identity, removal: .opacity))
             }
 
             billView()
@@ -141,8 +146,9 @@ private struct BillOverlayContent: View {
         }
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.15), value: session.billState.bill == nil)
-        // Ramp the scrim with the bill's slide-in (BillCanvas uses a 0.6s spring),
-        // so the backdrop and the card arrive together.
+        // The scrim now snaps in (its insertion transition is `.identity`), so
+        // it leads the bill's slide rather than arriving with it; this spring
+        // governs only its fade-out on dismiss.
         .animation(.spring(response: 0.6, dampingFraction: 0.6), value: showsScrim)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillDesigner)
     }
