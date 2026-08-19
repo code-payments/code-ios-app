@@ -43,6 +43,11 @@ private struct GiveScreenContent: View {
     @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingTokenSelection: Bool = false
 
+    /// True when this screen was pushed (from a currency's Give tile) rather
+    /// than hosted at a tab root (the Scan tab). Only the pushed instance pops
+    /// itself when the bill appears.
+    private let isPushed: Bool
+
     private var maxLimit: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
         let zero = ExchangedFiat.compute(
@@ -70,6 +75,9 @@ private struct GiveScreenContent: View {
             sessionContainer: sessionContainer,
             mint: mint
         ))
+        // The Scan tab hosts Give at its root with no mint; a currency's Give
+        // tile pushes it with the currency mint.
+        self.isPushed = mint != nil
     }
 
     // MARK: - Body -
@@ -105,6 +113,17 @@ private struct GiveScreenContent: View {
                 )
                 .id(viewModel.selectedBalance?.stored.mint)
             }
+        }
+        .onAppear {
+            // When pushed from a currency's Give tile, pop this entry screen as
+            // the bill appears so the bill sits over the currency info. The pop
+            // is un-animated so the entry doesn't visibly slide back out from
+            // under the bill. The Scan tab's root instance leaves it nil.
+            viewModel.onBillPresented = isPushed ? {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { router.popTopmost() }
+            } : nil
         }
         .onChange(of: viewModel.depositMint) { _, mint in
             guard let mint else { return }

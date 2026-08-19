@@ -20,6 +20,11 @@ final class GiveViewModel {
 
     var depositMint: PublicKey?
 
+    /// Invoked right after the give bill is presented. The pushed amount-entry
+    /// screen uses this to pop itself so the bill sits over the currency info
+    /// rather than over the amount entry.
+    @ObservationIgnored var onBillPresented: (() -> Void)?
+
     var canGive: Bool {
         enteredFiat != nil && (enteredFiat?.onChainAmount.quarks ?? 0) > 0
     }
@@ -98,6 +103,10 @@ final class GiveViewModel {
                         verifiedState: pinnedState
                     )
                 )
+
+                // Pop the amount entry behind the just-presented bill so the
+                // bill sits over the currency info instead of the entry screen.
+                onBillPresented?()
             }
 
         case .insufficient(let shortfall):
@@ -125,20 +134,33 @@ final class GiveViewModel {
               let entered = amountValidator.validate(enteredAmount),
               entered > 0 else { return nil }
 
-        guard let pinnedSupply = pin.supplyFromBonding else { return nil }
-
         let nativeEntered = FiatAmount(value: entered, currency: pin.rate.currency)
         let balance = session.balance(for: mint)
 
-        guard let amount = ExchangedFiat.compute(
-            fromEntered: nativeEntered,
-            rate: pin.rate,
-            mint: mint,
-            supplyQuarks: pinnedSupply,
-            balance: balance.map(\.usdf),
-            tokenBalanceQuarks: balance?.quarks
-        ) else { return nil }
+        let computed: ExchangedFiat?
+        if mint == .usdf {
+            // Dollars has no bonding curve; value the entry 1:1 against the
+            // pinned rate, capped to the USDF balance (mirrors the buy path).
+            computed = ExchangedFiat.compute(
+                fromEntered: nativeEntered,
+                rate: pin.rate,
+                mint: .usdf,
+                supplyQuarks: 0,
+                balance: balance.map(\.usdf)
+            )
+        } else {
+            guard let pinnedSupply = pin.supplyFromBonding else { return nil }
+            computed = ExchangedFiat.compute(
+                fromEntered: nativeEntered,
+                rate: pin.rate,
+                mint: mint,
+                supplyQuarks: pinnedSupply,
+                balance: balance.map(\.usdf),
+                tokenBalanceQuarks: balance?.quarks
+            )
+        }
 
+        guard let amount = computed else { return nil }
         return (amount, pin)
     }
 

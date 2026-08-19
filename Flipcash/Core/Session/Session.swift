@@ -1274,7 +1274,11 @@ class Session {
             secondaryAction = nil
         }
 
-        let billColors = storedMintMetadata?.metadata.billColors ?? []
+        // Dollars carries no server-provided bill colors; fall back to its
+        // model-defined Dollars-card gradient so the give bill matches the card.
+        let billColors = billDescription.exchangedFiat.mint == .usdf
+            ? MintMetadata.usdf.billColors
+            : (storedMintMetadata?.metadata.billColors ?? [])
 
         sendOperation     = operation
         presentationState = .visible(billDescription.received ? .pop : .slide)

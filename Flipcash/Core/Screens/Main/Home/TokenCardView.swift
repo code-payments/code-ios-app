@@ -68,7 +68,8 @@ struct TokenCardView: View {
 
     private static let cornerRadius: CGFloat = Metrics.boxRadius   // 12 — medium shape
     private static let fallback = Color(hex: "#06450F")!
-    private static let usdfGradient = [Color(hex: "#C4980B")!, Color(hex: "#B06B00")!]
+    // Sourced from the model so the Dollars card and its give bill can't drift.
+    private static let usdfGradient: [Color] = MintMetadata.usdf.billColors.compactMap { Color(hex: $0) }
 
     private var gradient: LinearGradient {
         let stops: [Color]
