@@ -11,8 +11,8 @@ struct CurrencyDiscoveryRow: View {
     let rank: Int
     let mint: MintMetadata
     /// Drives which metric is prominent (trailing value + delta) and which is the
-    /// secondary line under the name. Holders for now — see ``RankingSystem``.
-    var rankingSystem: RankingSystem = .holders
+    /// secondary line under the name. Market cap for v2 — see ``RankingSystem``.
+    var rankingSystem: RankingSystem = .marketCap
 
     var body: some View {
         HStack(spacing: 12) {
@@ -88,8 +88,13 @@ struct CurrencyDiscoveryRow: View {
                     .contentTransition(.numericText())
             }
         case .marketCap:
-            // Needs a market-cap weekly delta from the Discover API; not yet available.
-            EmptyView()
+            if let metrics = mint.marketCapMetrics,
+               let weekly = metrics.marketCapDeltas.first(where: { $0.range == .lastWeek }) {
+                Text(Self.formatMarketCapDelta(weekly.delta))
+                    .font(.appTextSmall)
+                    .foregroundStyle(weekly.delta > 0 ? Color.Sentiment.positive : Color.Sentiment.neutral)
+                    .contentTransition(.numericText())
+            }
         }
     }
 
@@ -100,9 +105,18 @@ struct CurrencyDiscoveryRow: View {
     }
 
     @ViewBuilder private var marketCapText: some View {
-        if let marketCap = mint.launchpadMetadata?.marketCap, marketCap > 0 {
+        if let marketCap = marketCapValue, marketCap > 0 {
             Text(marketCap, format: .compactCurrency(code: .usd))
         }
+    }
+
+    /// Prefer the Discover market-cap metric; fall back to the bonding-curve
+    /// estimate on `launchpadMetadata` when the metric isn't populated.
+    private var marketCapValue: Double? {
+        if let current = mint.marketCapMetrics?.currentMarketCap, current > 0 {
+            return current
+        }
+        return mint.launchpadMetadata?.marketCap
     }
 }
 
@@ -112,6 +126,12 @@ private extension CurrencyDiscoveryRow {
     static func formatHolderDelta(_ delta: Int64) -> String {
         let sign = delta >= 0 ? "+" : ""
         let compact = delta.formatted(.number.notation(.compactName))
+        return "\(sign)\(compact) this week"
+    }
+
+    static func formatMarketCapDelta(_ delta: Double) -> String {
+        let sign = delta >= 0 ? "+" : ""
+        let compact = delta.formatted(.compactCurrency(code: .usd))
         return "\(sign)\(compact) this week"
     }
 }
