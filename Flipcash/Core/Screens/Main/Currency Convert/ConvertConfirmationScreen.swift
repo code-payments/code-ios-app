@@ -44,14 +44,18 @@ struct ConvertConfirmationScreen: View {
                             title: "You Convert",
                             currencyName: sourceName,
                             imageURL: sourceImageURL,
-                            amount: viewModel.amount.nativeAmount.formatted()
+                            amount: viewModel.totalDebited.nativeAmount.formatted()
                         )
                         .padding(.top, 24)
 
+                        // Every conversion carries a fee: from Dollars it's added
+                        // on top of the purchase; otherwise it's taken out of the
+                        // converted amount. "Amount to convert" names the purchase
+                        // leg in both cases.
                         VStack(spacing: 10) {
                             ConfirmationBreakdownRow(
                                 title: "Amount to convert",
-                                value: viewModel.amount.nativeAmount.formatted()
+                                value: (viewModel.isFromDollars ? viewModel.amountAfterFee : viewModel.amount).nativeAmount.formatted()
                             )
                             ConfirmationBreakdownRow(
                                 title: "Conversion fee",

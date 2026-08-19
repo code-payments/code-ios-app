@@ -2,13 +2,19 @@
 //  BuyPaymentCurrencyViewModelTests.swift
 //  FlipcashTests
 //
+//  Payment-source selection and gross-debit compute now live inline on
+//  `BuyAmountViewModel` (the standalone `BuyPaymentCurrencyViewModel` was
+//  removed). These cover the row membership and `computePaymentAmount` behavior
+//  that step used to own. The push-on-select paths are covered by
+//  `BuyAmountViewModelTests`.
+//
 
 import Foundation
 import Testing
 @testable import FlipcashCore
 @testable import Flipcash
 
-@Suite("BuyPaymentCurrencyViewModel")
+@Suite("BuyAmountViewModel — payment source & compute")
 @MainActor
 struct BuyPaymentCurrencyViewModelTests {
 
@@ -42,20 +48,18 @@ struct BuyPaymentCurrencyViewModelTests {
 
     private static func makeViewModel(
         targetMint: PublicKey = .usdcAuthority,
-        entered: Decimal,
         currency: CurrencyCode = .usd,
         container: SessionContainer
-    ) -> BuyPaymentCurrencyViewModel {
-        BuyPaymentCurrencyViewModel(
-            targetMint: targetMint,
-            targetName: "Moony",
-            entered: FiatAmount(value: entered, currency: currency),
+    ) -> BuyAmountViewModel {
+        BuyAmountViewModel(
+            mint: targetMint,
+            currencyName: "Moony",
             session: container.session,
             ratesController: container.ratesController
         )
     }
 
-    // MARK: - Row membership
+    // MARK: - Payment source membership
 
     @Test("The target currency never appears in the payment list")
     func targetRow_removed() async throws {
@@ -63,29 +67,23 @@ struct BuyPaymentCurrencyViewModelTests {
             .init(mint: .usdf, quarks: 30_000_000),
             .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
-        let viewModel = Self.makeViewModel(targetMint: .jeffy, entered: 1, container: container)
+        let viewModel = Self.makeViewModel(targetMint: .jeffy, container: container)
 
-        #expect(viewModel.rows.allSatisfy { $0.stored.mint != .jeffy })
-        #expect(viewModel.rows.contains { $0.stored.mint == .usdf })
+        #expect(viewModel.paymentOptions.allSatisfy { $0.stored.mint != .jeffy })
+        #expect(viewModel.paymentOptions.contains { $0.stored.mint == .usdf })
     }
 
-    @Test("An underfunded balance stays listed and tappable")
+    @Test("An underfunded balance stays listed and selectable")
     func underfunded_staysListed() async throws {
+        // Even a balance worth far less than any plausible entry stays in the
+        // list so the confirmation's Buy can offer Buy Maximum Amount.
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 30_000_000),
             .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
+        let viewModel = Self.makeViewModel(container: container)
 
-        let rate = container.ratesController.rateForBalanceCurrency()
-        let jeffyDisplayed = try #require(container.session.balance(for: .jeffy))
-            .computeExchangedValue(with: rate)
-            .nativeAmount.value
-            .rounded(to: CurrencyCode.usd.maximumFractionDigits)
-
-        // Entered well above the balance: the row must remain selectable so
-        // the confirmation's Buy can offer Buy Maximum Amount.
-        let overBalance = Self.makeViewModel(entered: jeffyDisplayed + 5, container: container)
-        #expect(overBalance.rows.contains { $0.stored.mint == .jeffy })
+        #expect(viewModel.paymentOptions.contains { $0.stored.mint == .jeffy })
     }
 
     @Test("A zero-value USDF balance is not offered as a payment source")
@@ -94,28 +92,11 @@ struct BuyPaymentCurrencyViewModelTests {
             .init(mint: .usdf, quarks: 0),
             .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
-        let viewModel = Self.makeViewModel(entered: 1, container: container)
+        let viewModel = Self.makeViewModel(container: container)
 
         // The jeffy anchor keeps this from passing vacuously on an empty list.
-        #expect(viewModel.rows.contains { $0.stored.mint == .jeffy })
-        #expect(viewModel.rows.allSatisfy { $0.stored.mint != .usdf })
-    }
-
-    @Test("Selecting a funded row pins its state and pushes the confirmation")
-    func select_success_pushesConfirmation() async throws {
-        let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
-        ])
-        let viewModel = Self.makeViewModel(entered: 10, container: container)
-        let router = AppRouter()
-        router.present(.balance)
-        router.presentNested(.buy(.usdcAuthority))
-
-        let usdfRow = try #require(viewModel.rows.first { $0.stored.mint == .usdf })
-        await viewModel.select(usdfRow, router: router)
-
-        #expect(router[.buy].count == 1)
-        #expect(viewModel.dialogItem == nil)
+        #expect(viewModel.paymentOptions.contains { $0.stored.mint == .jeffy })
+        #expect(viewModel.paymentOptions.allSatisfy { $0.stored.mint != .usdf })
     }
 
     // MARK: - Payment compute
@@ -125,11 +106,11 @@ struct BuyPaymentCurrencyViewModelTests {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 30_000_000),
         ])
-        let viewModel = Self.makeViewModel(entered: 10, container: container)
+        let viewModel = Self.makeViewModel(container: container)
         let usdfBalance = try #require(container.session.balance(for: .usdf))
         let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .usdf))
 
-        let amount = try #require(viewModel.computePaymentAmount(for: usdfBalance, pin: pin))
+        let amount = try #require(viewModel.computePaymentAmount(for: usdfBalance, entered: FiatAmount(value: 10, currency: .usd), pin: pin))
 
         #expect(amount.onChainAmount.quarks == 10_000_000)
         #expect(amount.mint == .usdf)
@@ -140,11 +121,11 @@ struct BuyPaymentCurrencyViewModelTests {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 630_000), // $0.63
         ])
-        let viewModel = Self.makeViewModel(entered: Decimal(string: "0.74")!, container: container)
+        let viewModel = Self.makeViewModel(container: container)
         let usdfBalance = try #require(container.session.balance(for: .usdf))
         let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .usdf))
 
-        let amount = try #require(viewModel.computePaymentAmount(for: usdfBalance, pin: pin))
+        let amount = try #require(viewModel.computePaymentAmount(for: usdfBalance, entered: FiatAmount(value: Decimal(string: "0.74")!, currency: .usd), pin: pin))
 
         // The summary must show the true entered amount, not a silently
         // shrunken one — the confirmation's gate then surfaces the sheet.
@@ -154,8 +135,7 @@ struct BuyPaymentCurrencyViewModelTests {
 
     /// Regression port (deposit 1.00 CAD, buy 1.00 CAD): the USDF compute must
     /// cap the quarks to the balance so FX display rounding can't overshoot
-    /// the spendable reserves. Previously covered by
-    /// `BuyAmountViewModelTests.maxBuy_submissionCappedToBalance`.
+    /// the spendable reserves.
     @Test(
         "Displayed-balance max buy in a non-USD currency stays within the balance",
         arguments: [
@@ -169,11 +149,11 @@ struct BuyPaymentCurrencyViewModelTests {
             currency: .cad,
             fx: fx
         )
-        let viewModel = Self.makeViewModel(entered: 1, currency: .cad, container: container)
+        let viewModel = Self.makeViewModel(currency: .cad, container: container)
         let usdfBalance = try #require(container.session.balance(for: .usdf))
         let pin = try #require(await container.ratesController.currentPinnedState(for: .cad, mint: .usdf))
 
-        let amount = try #require(viewModel.computePaymentAmount(for: usdfBalance, pin: pin))
+        let amount = try #require(viewModel.computePaymentAmount(for: usdfBalance, entered: FiatAmount(value: 1, currency: .cad), pin: pin))
 
         #expect(amount.onChainAmount.quarks == usdfQuarks, "A max buy must spend exactly the balance, not overshoot or shrink")
     }
@@ -192,10 +172,10 @@ struct BuyPaymentCurrencyViewModelTests {
             .nativeAmount.value
             .rounded(to: CurrencyCode.usd.maximumFractionDigits)
 
-        let viewModel = Self.makeViewModel(entered: jeffyDisplayed, container: container)
+        let viewModel = Self.makeViewModel(container: container)
         let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .jeffy))
 
-        let amount = try #require(viewModel.computePaymentAmount(for: jeffyBalance, pin: pin))
+        let amount = try #require(viewModel.computePaymentAmount(for: jeffyBalance, entered: FiatAmount(value: jeffyDisplayed, currency: .usd), pin: pin))
 
         // Entering the full displayed balance must overshoot it by the fee —
         // that overshoot is what drives the insufficient-after-fees sheet.
@@ -205,8 +185,8 @@ struct BuyPaymentCurrencyViewModelTests {
 
     /// Regression (2026-07-20 log): paying with a freshly created currency the
     /// user wholly owns. The entered value exceeds the curve's entire TVL, so
-    /// the uncapped compute used to fail and select() dead-ended in a
-    /// "Rate Unavailable" dialog the user could never escape.
+    /// the uncapped compute used to fail and dead-ended in a "Rate Unavailable"
+    /// dialog the user could never escape.
     @Test("Token payment beyond the curve TVL clamps instead of failing")
     func tokenCompute_overTVL_returnsClampedQuote() async throws {
         let container = try await Self.makeContainer(
@@ -217,37 +197,15 @@ struct BuyPaymentCurrencyViewModelTests {
             fx: 1.37,
             jeffySupply: Self.soleHolderSupply
         )
-        let viewModel = Self.makeViewModel(entered: 50, currency: .cad, container: container)
+        let viewModel = Self.makeViewModel(currency: .cad, container: container)
         let jeffyBalance = try #require(container.session.balance(for: .jeffy))
         let pin = try #require(await container.ratesController.currentPinnedState(for: .cad, mint: .jeffy))
 
-        let amount = try #require(viewModel.computePaymentAmount(for: jeffyBalance, pin: pin))
+        let amount = try #require(viewModel.computePaymentAmount(for: jeffyBalance, entered: FiatAmount(value: 50, currency: .cad), pin: pin))
 
         // The maximum extractable quote: the whole curve, i.e. the whole balance.
         #expect(amount.onChainAmount.quarks == jeffyBalance.quarks)
         #expect(amount.mint == .jeffy)
-    }
-
-    @Test("Selecting a source worth less than the entered value still reaches the confirmation")
-    func select_overTVL_pushesConfirmation() async throws {
-        let container = try await Self.makeContainer(
-            holdings: [
-                .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.soleHolderSupply), quarks: Self.soleHolderSupply),
-            ],
-            currency: .cad,
-            fx: 1.37,
-            jeffySupply: Self.soleHolderSupply
-        )
-        let viewModel = Self.makeViewModel(entered: 50, currency: .cad, container: container)
-        let router = AppRouter()
-        router.present(.balance)
-        router.presentNested(.buy(.usdcAuthority))
-
-        let jeffyRow = try #require(viewModel.rows.first { $0.stored.mint == .jeffy })
-        await viewModel.select(jeffyRow, router: router)
-
-        #expect(router[.buy].count == 1)
-        #expect(viewModel.dialogItem == nil)
     }
 
     @Test("A pin without reserve supply fails the token compute")
@@ -255,11 +213,11 @@ struct BuyPaymentCurrencyViewModelTests {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
-        let viewModel = Self.makeViewModel(entered: 1, container: container)
+        let viewModel = Self.makeViewModel(container: container)
         let jeffyBalance = try #require(container.session.balance(for: .jeffy))
 
         let rateOnly = VerifiedState.fresh(bonded: false)
 
-        #expect(viewModel.computePaymentAmount(for: jeffyBalance, pin: rateOnly) == nil)
+        #expect(viewModel.computePaymentAmount(for: jeffyBalance, entered: FiatAmount(value: 1, currency: .usd), pin: rateOnly) == nil)
     }
 }

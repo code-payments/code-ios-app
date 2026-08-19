@@ -38,10 +38,12 @@ final class ConvertConfirmationViewModel {
 
     var canPerformAction: Bool { !pinnedState.isStale }
 
-    /// Every conversion carries the 1% fee, including from Dollars. USDF has no
-    /// `sellFeeBps` of its own, so it falls back to the 100 bps default.
+    /// The conversion fee. From Dollars it's a flat 1% added on top of the
+    /// purchase (a reserves buy — the server splits it off on-chain); token
+    /// conversions carry the source pool's sell fee taken out of the amount.
     var fee: ExchangedFiat {
-        amount.launchpadSellFee(bps: UInt64(max(0, sellFeeBps ?? 100)))
+        let bps: UInt64 = isFromDollars ? 100 : UInt64(max(0, sellFeeBps ?? 100))
+        return amount.launchpadSellFee(bps: bps)
     }
 
     /// Formats the fee, prefixing "~" when non-zero but below display precision.
@@ -50,9 +52,16 @@ final class ConvertConfirmationViewModel {
         return "\(prefix)\(fee.nativeAmount.formatted())"
     }
 
-    /// What the conversion nets after the source sell fee.
+    /// What the conversion nets. From Dollars the entered amount is received in
+    /// full (the fee is on top); otherwise the source sell fee comes out.
     var amountAfterFee: ExchangedFiat {
-        amount.subtractingFee(fee.onChainAmount)
+        isFromDollars ? amount : amount.subtractingFee(fee.onChainAmount)
+    }
+
+    /// The total source debited ("You Convert"). From Dollars it's the purchase
+    /// plus the on-top fee; otherwise the entered amount already is the debit.
+    var totalDebited: ExchangedFiat {
+        isFromDollars ? amount.adding(fee) : amount
     }
 
     // MARK: - Init -
@@ -79,8 +88,10 @@ final class ConvertConfirmationViewModel {
                     // Token → Dollars is the sell path.
                     swapId = try await session.sell(amount: amount, verifiedState: pinnedState, in: sourceMint)
                 } else if isFromDollars {
-                    // Dollars → a token is a buy paid from reserves.
-                    swapId = try await session.buy(amount: amount, verifiedState: pinnedState, of: destinationMint)
+                    // Dollars → a token is a buy paid from reserves. `amount` is
+                    // the net purchase; the 1% fee is added on top and split off
+                    // on-chain, so the debit is `amount + fee`.
+                    swapId = try await session.buy(amount: amount, feeAmount: fee, verifiedState: pinnedState, of: destinationMint)
                 } else {
                     // Token → token is buy-with-currency.
                     swapId = try await session.buy(amount: amount, with: sourceMint, verifiedState: pinnedState, of: destinationMint)

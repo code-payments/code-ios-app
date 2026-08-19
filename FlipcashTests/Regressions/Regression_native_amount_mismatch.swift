@@ -42,17 +42,16 @@ struct Regression_native_amount_mismatch {
             .freshRate(currencyCode: "CAD", rate: 1.35)
         ])
 
-        let vm = BuyPaymentCurrencyViewModel(
-            targetMint: .jeffy,
-            targetName: "Jeffy",
-            entered: FiatAmount(value: 1, currency: .cad),
+        let vm = BuyAmountViewModel(
+            mint: .jeffy,
+            currencyName: "Jeffy",
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
 
         let usdfBalance = try #require(sessionContainer.session.balance(for: .usdf))
         let pin = try #require(await sessionContainer.ratesController.currentPinnedState(for: .cad, mint: .usdf))
-        let amount = try #require(vm.computePaymentAmount(for: usdfBalance, pin: pin))
+        let amount = try #require(vm.computePaymentAmount(for: usdfBalance, entered: FiatAmount(value: 1, currency: .cad), pin: pin))
 
         // $1 CAD / 1.35 × 10^6, HALF_UP rounded via scaleUpInt → 740_741 USDF quarks.
         // The buggy live path (1.37) would round to 729_927 quarks — the value
@@ -151,10 +150,9 @@ struct Regression_native_amount_mismatch {
             rates: [Rate(fx: 1.35, currency: .cad)]
         )
 
-        let vm = BuyPaymentCurrencyViewModel(
-            targetMint: .jeffy,
-            targetName: "Jeffy",
-            entered: FiatAmount(value: 1, currency: .cad),
+        let vm = BuyAmountViewModel(
+            mint: .jeffy,
+            currencyName: "Jeffy",
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
@@ -163,8 +161,15 @@ struct Regression_native_amount_mismatch {
         router.present(.balance)
         router.presentNested(.buy(.jeffy))
 
-        let usdfRow = try #require(vm.rows.first { $0.stored.mint == .usdf })
-        await vm.select(usdfRow, router: router)
+        // Paying with the held USDF, but no pin is cached — Next must bail with
+        // Rate Unavailable rather than push a summary the server would reject.
+        vm.paymentMint = .usdf
+        vm.enteredAmount = "1"
+        vm.primaryAction(router: router)
+
+        // primaryAction resolves its pin lookup on a detached MainActor task;
+        // yield until it settles (bounded so a regression can't hang the suite).
+        for _ in 0..<200 where vm.dialogItem == nil { await Task.yield() }
 
         #expect(vm.dialogItem?.title == "Rate Unavailable")
         #expect(router[.buy].isEmpty, "A pinless selection must not push the summary")

@@ -700,15 +700,22 @@ class Session {
     
     // MARK: - Swaps -
 
+    /// Buys `mint` from USDF reserves. `amount` is the net purchase; `feeAmount`,
+    /// when non-nil, is the USDF fee added on top (the debit is `amount + feeAmount`)
+    /// and split off on-chain to the server's fee destination.
     @discardableResult
-    func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of mint: PublicKey) async throws -> SwapId {
+    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of mint: PublicKey) async throws -> SwapId {
         try assertFresh(verifiedState, operation: "buy", currency: amount.nativeAmount.currency, mint: amount.mint)
 
         let token = try await fetchMintMetadata(mint: mint)
 
-        logger.info("buying", metadata: ["amount": "\(amount.nativeAmount.formatted())", "symbol": "\(token.symbol)"])
+        logger.info("buying", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "feeAmount": "\(feeAmount?.nativeAmount.formatted() ?? "0")",
+            "symbol": "\(token.symbol)"
+        ])
 
-        return try await client.buy(amount: amount, verifiedState: verifiedState, of: token.metadata, owner: owner)
+        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner)
     }
 
     /// Buys `mint` paying with another launchpad currency. `amount` is denominated

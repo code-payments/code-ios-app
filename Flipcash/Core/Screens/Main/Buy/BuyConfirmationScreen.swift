@@ -58,7 +58,7 @@ struct BuyConfirmationScreen: View {
                             title: "You Pay",
                             currencyName: viewModel.payment.name,
                             imageURL: viewModel.payment.imageURL,
-                            amount: viewModel.paymentAmount.nativeAmount.formatted()
+                            amount: viewModel.grossDebit.nativeAmount.formatted()
                         )
                         .padding(.top, viewModel.chargesFee ? 0 : 24)
                         .padding(.bottom, 24)

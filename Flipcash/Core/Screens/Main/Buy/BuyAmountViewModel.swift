@@ -140,25 +140,25 @@ final class BuyAmountViewModel {
     /// Converts the entered (net) target fiat into the payment token's gross
     /// debit against the pinned rate + supply. Moved here from the old
     /// payment-currency step now that selection is inline.
-    private func computePaymentAmount(for balance: StoredBalance, entered: FiatAmount, pin: VerifiedState) -> ExchangedFiat? {
+    ///
+    /// Internal (not private) so the payment-compute tests can exercise the real
+    /// production path directly.
+    func computePaymentAmount(for balance: StoredBalance, entered: FiatAmount, pin: VerifiedState) -> ExchangedFiat? {
         let entered = FiatAmount(value: entered.value, currency: pin.rate.currency)
 
         if balance.mint == .usdf {
-            // New UI charges the same 1% conversion fee on Dollars-funded buys,
-            // so the debit is grossed up over the entered target; legacy pays
-            // exactly the entered amount. Within the displayed balance the
+            // No fee on the USDF path: buying from reserves has no on-chain fee
+            // to collect, so the debit equals the entered target — grossing it up
+            // would just make the user over-buy. Within the displayed balance the
             // compute is balance-capped so FX display rounding can't push the
             // quarks past the spendable reserves; past it it's deliberately
-            // uncapped so the confirmation's gate can offer Buy Maximum instead
-            // of silently shrinking the entry.
-            let debit = BetaFlags.shared.hasEnabled(.newUI)
-                ? entered.grossingUpLaunchpadSellFee(bps: UInt64(max(0, balance.sellFeeBps ?? 100)))
-                : entered
+            // uncapped so the confirmation's gate can offer Buy Maximum instead of
+            // silently shrinking the entry.
             let displayedBalance = balance.usdf.converting(to: pin.rate).value
                 .rounded(to: entered.currency.maximumFractionDigits)
-            let isWithinDisplayedBalance = debit.value <= displayedBalance
+            let isWithinDisplayedBalance = entered.value <= displayedBalance
             return ExchangedFiat.compute(
-                fromEntered: debit,
+                fromEntered: entered,
                 rate: pin.rate,
                 mint: .usdf,
                 supplyQuarks: 0, // unused on the USDF path

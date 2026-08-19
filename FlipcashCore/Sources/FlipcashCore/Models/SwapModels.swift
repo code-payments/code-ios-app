@@ -448,6 +448,9 @@ public struct SwapResponseServerParameters {
         public let memoValue: String
         public let memoryAccount: PublicKey
         public let memoryIndex: UInt32
+        /// Where the buy fee is deposited. The server sets this only when the
+        /// client requested a non-zero `fee_amount`; nil means a fee-free buy.
+        public let feeDestination: PublicKey?
 
         public init(
             payer: PublicKey,
@@ -456,7 +459,8 @@ public struct SwapResponseServerParameters {
             computeUnitPrice: UInt64,
             memoValue: String,
             memoryAccount: PublicKey,
-            memoryIndex: UInt32
+            memoryIndex: UInt32,
+            feeDestination: PublicKey? = nil
         ) {
             self.payer = payer
             self.alts = alts
@@ -465,6 +469,7 @@ public struct SwapResponseServerParameters {
             self.memoValue = memoValue
             self.memoryAccount = memoryAccount
             self.memoryIndex = memoryIndex
+            self.feeDestination = feeDestination
         }
     }
 
@@ -578,6 +583,12 @@ extension SwapResponseServerParameters.CurrencyCreatorStateful {
 
         let alts = proto.alts.compactMap { AddressLookupTable($0) }
 
+        // Present only when a non-zero fee_amount was sent in the client
+        // parameters; a fee-free buy leaves it unset.
+        let feeDestination = proto.hasFeeDestination
+            ? try? PublicKey(proto.feeDestination.value)
+            : nil
+
         self.init(
             payer: payer,
             alts: alts,
@@ -585,7 +596,8 @@ extension SwapResponseServerParameters.CurrencyCreatorStateful {
             computeUnitPrice: proto.computeUnitPrice,
             memoValue: proto.memoValue,
             memoryAccount: memoryAccount,
-            memoryIndex: proto.memoryIndex
+            memoryIndex: proto.memoryIndex,
+            feeDestination: feeDestination
         )
     }
 }

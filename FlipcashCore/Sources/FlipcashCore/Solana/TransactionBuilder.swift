@@ -17,8 +17,16 @@ extension TransactionBuilder {
         swapAuthority: PublicKey,
         direction: SwapDirection,
         amount: UInt64,
+        feeAmount: UInt64 = 0,
         minOutput: UInt64 = 0
     ) throws -> SolanaTransaction {
+        // The fee split on a buy is only defined for the stateful existing-currency
+        // path; the server sets `feeDestination` only when a fee was requested.
+        let statefulFeeDestination: PublicKey? = {
+            if case .stateful(let params) = responseParams.kind { return params.feeDestination }
+            return nil
+        }()
+
         // Extract server-provided parameters
         let (payer, blockhash, alts): (PublicKey, Hash, [AddressLookupTable]) = switch responseParams.kind {
         case .stateful(let params):
@@ -44,6 +52,8 @@ extension TransactionBuilder {
                 coreMintMetadata: coreMint,
                 targetMintMetadata: targetMint,
                 amount: amount,
+                feeAmount: feeAmount,
+                feeDestination: statefulFeeDestination,
                 minOutput: minOutput,
             )
 

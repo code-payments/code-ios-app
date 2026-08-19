@@ -43,6 +43,7 @@ protocol ReservesBuying: AnyObject {
 
     func buy(
         amount: ExchangedFiat,
+        feeAmount: ExchangedFiat?,
         verifiedState: VerifiedState,
         of mint: PublicKey
     ) async throws -> SwapId
