@@ -49,7 +49,9 @@ struct CurrencyInfoContentV2: View {
 
     /// Give — owned community tokens only.
     let onGive: () -> Void
-    /// Convert / Get — routes to the buy flow for now.
+    /// Convert — sells this (non-USDF) currency into a chosen destination.
+    let onConvert: () -> Void
+    /// Get — routes to the buy flow for unowned tokens.
     let onBuy: () -> Void
     /// Withdraw — the existing flow, pre-selected to this currency.
     let onWithdraw: () -> Void
@@ -288,10 +290,12 @@ struct CurrencyInfoContentV2: View {
         HStack(spacing: 12) {
             if isOwned {
                 // Give ships for community tokens only; USDF give comes later.
+                // Convert works from any held currency — including Dollars, which
+                // converts to a token via a reserves buy.
                 if !isUSDF {
                     actionTile("Give", icon: "banknote", action: onGive)
                 }
-                actionTile("Convert", icon: "arrow.up.arrow.down", action: onBuy)
+                actionTile("Convert", icon: "arrow.up.arrow.down", action: onConvert)
                 actionTile("Withdraw", icon: "arrow.up", action: onWithdraw)
             } else {
                 actionTile("Get", icon: "arrow.down", action: onBuy)

@@ -23,7 +23,7 @@ nonisolated struct EnterAmountCalculator {
 
     var currency: CurrencyCode {
         switch mode {
-        case .currency, .buy, .sell, .withdraw, .addMoney:
+        case .currency, .buy, .sell, .convert, .withdraw, .addMoney:
             selectedCurrency
         }
     }
@@ -46,8 +46,8 @@ nonisolated struct EnterAmountCalculator {
             // Add Money: per-tx limit is the daily cap (no daily accumulation limit)
             guard let limit = sendLimitProvider(currency) else { return nil }
             return limit.maxPerDay
-        case .sell, .withdraw:
-            // No per-transaction limits for these flows
+        case .sell, .convert, .withdraw:
+            // No per-transaction limits for these flows — capped by balance.
             return nil
         }
     }

@@ -116,9 +116,12 @@ extension Client {
     
     // MARK: - Swaps -
 
-    /// Buy tokens using default submitIntent funding (Phase 1 + Phase 2)
+    /// Buy tokens using default submitIntent funding (Phase 1 + Phase 2).
+    ///
+    /// `amount` is the net purchase; `feeAmount`, when non-nil, is split off
+    /// on-chain to the server's fee destination (the debit is `amount + feeAmount`).
     @discardableResult
-    public func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
+    public func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
         // Ensure the timelock vault account exists for this mint
         try await ensureAccountExists(
             owner: owner.authority.keyPair,
@@ -127,7 +130,7 @@ extension Client {
         )
 
         return try await withCheckedThrowingContinuation { c in
-            transactionService.buy(amount: amount, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
+            transactionService.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
         }
     }
 

@@ -26,7 +26,13 @@ struct BuyAmountScreen: View {
     var body: some View {
         BuyAmountScreenContent(
             mint: mint,
-            currencyName: sessionContainer.session.balance(for: mint)?.name ?? "this currency",
+            // A Get targets a token the user doesn't hold, so there's no balance
+            // to name it — fall back to the synced mint metadata before the
+            // generic placeholder, so the confirmation and processing screens
+            // read "Buying <name>" rather than "this currency".
+            currencyName: sessionContainer.session.balance(for: mint)?.name
+                ?? sessionContainer.session.storedMintMetadata(for: mint)?.name
+                ?? "this currency",
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
@@ -37,10 +43,9 @@ struct BuyAmountScreen: View {
 private struct BuyAmountScreenContent: View {
 
     @State private var viewModel: BuyAmountViewModel
-    @State private var isShowingCurrencySelection: Bool = false
+    @State private var isShowingPaymentPicker: Bool = false
 
     @Environment(AppRouter.self) private var router
-    @Environment(RatesController.self) private var ratesController
     /// True when this is the root of a presented sheet; false when pushed onto a
     /// host stack (new-UI Convert/Get) where the system back arrow replaces Close.
     @Environment(\.presentedAsSheetRoot) private var presentedAsSheetRoot
@@ -74,8 +79,12 @@ private struct BuyAmountScreenContent: View {
                 actionState: .constant(.normal),
                 actionEnabled: { viewModel.actionEnabled($0) },
                 action: { viewModel.primaryAction(router: router) },
-                currencySelectionAction: showCurrencySelection,
-                actionTitle: viewModel.actionTitle
+                actionTitle: viewModel.actionTitle,
+                accessory: AnyView(paymentSelector),
+                header: AnyView(SwapAmountHeader(
+                    enteredAmount: $viewModel.enteredAmount,
+                    available: viewModel.maxPossibleAmount
+                ))
             )
             .foregroundStyle(.textMain)
             .padding(20)
@@ -100,15 +109,53 @@ private struct BuyAmountScreenContent: View {
             // fresh view identity per path value so init-seeded @State can't
             // survive a same-depth value swap (the DestinationView convention).
             BuyFlowDestinationView(path: path)
-                .environment(\.dismissParentContainer, router.dismissSheet)
+                // The legacy buy sheet dismisses itself; the new-UI "Get" flow is
+                // pushed from a token's expanded card, so finishing pops back to
+                // the wallet and dismisses that card overlay.
+                .environment(\.dismissParentContainer, presentedAsSheetRoot
+                    ? router.dismissSheet
+                    : { router.popToRoot(); router.dismissExpandedCard() })
                 .id(path)
         }
-        .sheet(isPresented: $isShowingCurrencySelection) {
-            CurrencySelectionScreen(ratesController: ratesController)
+        .sheet(isPresented: $isShowingPaymentPicker) {
+            CurrencyPickerSheet(
+                options: viewModel.paymentOptions,
+                selectedMint: viewModel.paymentMint,
+                onSelect: { mint in
+                    viewModel.paymentMint = mint
+                    isShowingPaymentPicker = false
+                }
+            )
         }
+        .dialog(item: $viewModel.dialogItem)
     }
 
-    private func showCurrencySelection() {
-        isShowingCurrencySelection.toggle()
+    /// "Get with [currency ▾]" — the payment-source selector shown just above
+    /// the keypad; opens the picker sheet.
+    private var paymentSelector: some View {
+        HStack(spacing: 12) {
+            Text("Get with")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+
+            Spacer()
+
+            Button {
+                isShowingPaymentPicker = true
+            } label: {
+                HStack(spacing: 8) {
+                    TokenIconWithName(
+                        url: viewModel.paymentImageURL,
+                        monogramID: viewModel.paymentMint.base58,
+                        name: viewModel.paymentName
+                    )
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("get-payment-button")
+        }
     }
 }

@@ -49,7 +49,7 @@ struct BuyConfirmationViewModelTests {
         return container
     }
 
-    /// Runs the selector's real compute so the confirmation sees the same
+    /// Runs the amount screen's real compute so the confirmation sees the same
     /// gross amount production would.
     private static func makePaymentAmount(
         entered: Decimal,
@@ -58,14 +58,17 @@ struct BuyConfirmationViewModelTests {
         container: SessionContainer,
         currency: CurrencyCode = .usd
     ) throws -> ExchangedFiat {
-        let selector = BuyPaymentCurrencyViewModel(
-            targetMint: .usdcAuthority,
-            targetName: "Moony",
-            entered: FiatAmount(value: entered, currency: currency),
+        let amountViewModel = BuyAmountViewModel(
+            mint: .usdcAuthority,
+            currencyName: "Moony",
             session: container.session,
             ratesController: container.ratesController
         )
-        return try #require(selector.computePaymentAmount(for: balance, pin: pin))
+        return try #require(amountViewModel.computePaymentAmount(
+            for: balance,
+            entered: FiatAmount(value: entered, currency: currency),
+            pin: pin
+        ))
     }
 
     private static func makeViewModel(

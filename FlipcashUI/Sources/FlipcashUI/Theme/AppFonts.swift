@@ -9,6 +9,7 @@
 import SwiftUI
 
 extension Font {
+    public static let appDisplayExtraLarge: Font = .default(size: 74, weight: .bold)
     public static let appDisplayLarge:  Font = .default(size: 55, weight: .bold)
     public static let appDisplayMedium: Font = .default(size: 40, weight: .bold)
     public static let appDisplayCompact: Font = .default(size: 30, weight: .bold)
@@ -41,6 +42,7 @@ extension Font {
 import UIKit
 
 extension UIFont {
+    public static let appDisplayExtraLarge: UIFont = .default(size: 74, weight: .bold)
     public static let appDisplayLarge:  UIFont = .default(size: 55, weight: .bold)
     public static let appDisplayMedium: UIFont = .default(size: 40, weight: .bold)
     public static let appDisplaySmall:  UIFont = .default(size: 24, weight: .bold)

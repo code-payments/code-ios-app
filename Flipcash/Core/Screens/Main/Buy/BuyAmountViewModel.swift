@@ -9,45 +9,77 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
+private let logger = Logger(label: "flipcash.buy-amount")
+
 @Observable
 @MainActor
 final class BuyAmountViewModel {
     var enteredAmount: String = ""
+    var dialogItem: DialogItem?
+    /// The selected payment source ("Get with"). Defaults to Dollars when held,
+    /// otherwise the largest eligible balance.
+    var paymentMint: PublicKey
 
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let currencyName: String
 
-    /// Highest spendable balance among eligible payment sources — USDF plus
-    /// displayable launchpad tokens, excluding the currency being bought.
-    /// The keypad gate and the "Enter up to" subtitle both read this value.
-    var maxPossibleAmount: ExchangedFiat {
+    /// Eligible payment sources: held, displayable, excluding the currency being
+    /// bought (the server rejects same-mint swaps). Read by the picker sheet.
+    var paymentOptions: [ExchangedBalance] {
         let rate = ratesController.rateForBalanceCurrency()
-        let eligible = session.balances(for: rate).filter { $0.stored.mint != mint }
-        let zero = ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: rate, supplyQuarks: nil)
-        return eligible.max { $0.exchangedFiat.nativeAmount.value < $1.exchangedFiat.nativeAmount.value }?.exchangedFiat ?? zero
+        return session.balances(for: rate).filter { balance in
+            balance.stored.mint != mint && balance.exchangedFiat.hasDisplayableValue()
+        }
     }
 
-    /// True when no eligible source has a displayable value — the action
-    /// button becomes an Add Money CTA.
-    var isBalanceEmpty: Bool {
-        !maxPossibleAmount.nativeAmount.hasDisplayableValue
+    /// The selected payment source's balance — the entry cap and the "Enter up
+    /// to" subtitle both read this value.
+    var maxPossibleAmount: ExchangedFiat {
+        let rate = ratesController.rateForBalanceCurrency()
+        if let selected = session.balance(for: paymentMint) {
+            return selected.exchanged(with: rate).exchangedFiat
+        }
+        return ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: rate, supplyQuarks: nil)
     }
+
+    /// Display name of the selected payment source — "Dollars" for USDF.
+    var paymentName: String { session.balance(for: paymentMint)?.name ?? "Dollars" }
+
+    /// Logo of the selected payment source, from the held-balance cache.
+    var paymentImageURL: URL? { session.balance(for: paymentMint)?.imageURL }
+
+    /// True when nothing is spendable — the action button becomes an Add Money CTA.
+    var isBalanceEmpty: Bool { paymentOptions.isEmpty }
 
     var actionTitle: String {
         isBalanceEmpty ? "Add Money" : "Next"
     }
 
-    var screenTitle: String { "Amount" }
+    var screenTitle: String { "Get" }
 
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let amountValidator = AmountValidator()
+    /// Double-tap guard around the async pin fetch.
+    private var isSubmitting = false
 
     init(mint: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
         self.mint = mint
         self.currencyName = currencyName
         self.session = session
         self.ratesController = ratesController
+
+        // Default the payment source to Dollars when it's spendable, otherwise
+        // the largest eligible balance — so Next is never dead on arrival.
+        let rate = ratesController.rateForBalanceCurrency()
+        let options = session.balances(for: rate).filter { $0.stored.mint != mint && $0.exchangedFiat.hasDisplayableValue() }
+        if options.contains(where: { $0.stored.mint == .usdf }) {
+            self.paymentMint = .usdf
+        } else if let largest = options.max(by: { $0.exchangedFiat.nativeAmount.value < $1.exchangedFiat.nativeAmount.value }) {
+            self.paymentMint = largest.stored.mint
+        } else {
+            self.paymentMint = .usdf
+        }
     }
 
     // MARK: - Actions
@@ -63,18 +95,94 @@ final class BuyAmountViewModel {
         )
     }
 
-    /// Next pushes the payment-currency step; with nothing to spend the same
-    /// button routes to Add Money instead.
+    /// Next computes the payment debit for the selected source and pushes the
+    /// summary directly; with nothing to spend the same button routes to Add
+    /// Money instead.
     func primaryAction(router: AppRouter) {
         if isBalanceEmpty {
             router.presentAddMoney(.buyCurrency, source: .buyShortfall)
             return
         }
         guard let entered = amountValidator.validate(enteredAmount) else { return }
-        router.pushAny(BuyFlowPath.selectPaymentCurrency(
-            targetMint: mint,
-            targetName: currencyName,
-            entered: FiatAmount(value: entered, currency: ratesController.balanceCurrency)
-        ))
+        guard !isSubmitting else { return }
+        isSubmitting = true
+
+        Task {
+            defer { isSubmitting = false }
+
+            guard let selected = session.balance(for: paymentMint) else { return }
+            guard let pin = await ratesController.currentPinnedState(for: ratesController.balanceCurrency, mint: paymentMint) else {
+                logger.warning("No pinned state for payment mint", metadata: [
+                    "paymentMint": "\(paymentMint.base58)",
+                ])
+                showRateUnavailable()
+                return
+            }
+            guard let paymentAmount = computePaymentAmount(
+                for: selected,
+                entered: FiatAmount(value: entered, currency: ratesController.balanceCurrency),
+                pin: pin
+            ) else {
+                showRateUnavailable()
+                return
+            }
+
+            router.pushAny(BuyFlowPath.paymentConfirmation(
+                targetMint: mint,
+                targetName: currencyName,
+                payment: selected,
+                paymentAmount: paymentAmount,
+                pinnedState: pin
+            ))
+        }
+    }
+
+    /// Converts the entered (net) target fiat into the payment token's gross
+    /// debit against the pinned rate + supply. Moved here from the old
+    /// payment-currency step now that selection is inline.
+    ///
+    /// Internal (not private) so the payment-compute tests can exercise the real
+    /// production path directly.
+    func computePaymentAmount(for balance: StoredBalance, entered: FiatAmount, pin: VerifiedState) -> ExchangedFiat? {
+        let entered = FiatAmount(value: entered.value, currency: pin.rate.currency)
+
+        if balance.mint == .usdf {
+            // No fee on the USDF path: buying from reserves has no on-chain fee
+            // to collect, so the debit equals the entered target — grossing it up
+            // would just make the user over-buy. Within the displayed balance the
+            // compute is balance-capped so FX display rounding can't push the
+            // quarks past the spendable reserves; past it it's deliberately
+            // uncapped so the confirmation's gate can offer Buy Maximum instead of
+            // silently shrinking the entry.
+            let displayedBalance = balance.usdf.converting(to: pin.rate).value
+                .rounded(to: entered.currency.maximumFractionDigits)
+            let isWithinDisplayedBalance = entered.value <= displayedBalance
+            return ExchangedFiat.compute(
+                fromEntered: entered,
+                rate: pin.rate,
+                mint: .usdf,
+                supplyQuarks: 0, // unused on the USDF path
+                balance: isWithinDisplayedBalance ? session.balance(for: .usdf)?.usdf : nil
+            )
+        }
+
+        guard let supply = pin.supplyFromBonding else { return nil }
+
+        // Deliberately uncapped: when the fee doesn't fit, the gross must exceed
+        // the balance so the confirmation's gate can offer Buy Maximum explicitly
+        // instead of silently clamping.
+        let gross = entered.grossingUpLaunchpadSellFee(bps: UInt64(max(0, balance.sellFeeBps ?? 100)))
+        return ExchangedFiat.compute(
+            fromEntered: gross,
+            rate: pin.rate,
+            mint: balance.mint,
+            supplyQuarks: supply
+        )
+    }
+
+    // MARK: - Dialogs
+
+    private func showRateUnavailable() {
+        dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
     }
 }

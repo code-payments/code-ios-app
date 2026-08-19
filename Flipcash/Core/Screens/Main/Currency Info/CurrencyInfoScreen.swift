@@ -233,6 +233,9 @@ private struct CurrencyInfoScreenContent: View {
                             Analytics.buttonTapped(name: .give)
                             router.push(.give(mint))
                         },
+                        // New UI pushes the convert flow onto the current stack —
+                        // sells this currency into a chosen destination.
+                        onConvert: { router.push(.convertCurrency(mint)) },
                         // New UI pushes the buy flow onto the current stack rather
                         // than presenting it as a sheet.
                         onBuy: { router.push(.buyCurrency(mint)) },
@@ -431,11 +434,12 @@ private struct CurrencyInfoScreenContent: View {
         // USDF's name is already "Dollars", so no special-case is needed.
         if let metadata = mintMetadata {
             if isNewUI {
-                // Compact leading label — the system supplies the Liquid Glass
-                // platter around it on iOS 26. `.fixedSize()` is required: the
-                // toolbar compresses the item to its icon otherwise, dropping
-                // the text. `CurrencyLabel` is row-shaped (it spaces name and
-                // amount apart with a Spacer), so it can't be reused here.
+                // Compact leading label — on iOS 26 the system supplies a Liquid
+                // Glass platter around it (`CapsuleGlass`); on iOS 18 the same
+                // content shows without a pill background. `.fixedSize()` is
+                // required: the toolbar compresses the item to its icon otherwise,
+                // dropping the text. `CurrencyLabel` is row-shaped (it spaces name
+                // and amount apart with a Spacer), so it can't be reused here.
                 HStack(spacing: 8) {
                     RemoteImage(url: metadata.imageURL)
                         .frame(width: 24, height: 24)
@@ -458,16 +462,10 @@ private struct CurrencyInfoScreenContent: View {
                 }
                 .lineLimit(1)
                 .fixedSize()
-                // The capsule is drawn here rather than by the toolbar: the
-                // system platter sizes itself to the content with a fixed inset
-                // and swallows most of the trailing padding the spec calls for.
-                .padding(.leading, 8)
-                .padding(.trailing, 20)
-                // Sized to the chrome height rather than left to hug its two
-                // lines of text, which left the capsule a few points shorter
-                // than the round buttons either side of it.
-                .frame(height: Self.overlayBarHeight)
-                .modifier(CapsuleGlass())
+                // The pill's inset + height + glass are all iOS 26 only; on
+                // iOS 18 the title keeps natural toolbar spacing (no capsule, so
+                // no capsule padding to leave dead space around it).
+                .modifier(TitlePill())
             } else {
                 CurrencyLabel(
                     imageURL: metadata.imageURL,
@@ -528,27 +526,38 @@ private struct OverlayTopInset: ViewModifier {
     }
 }
 
-/// Circular Liquid Glass for the overlay's back and share buttons, matching the
-/// platters the toolbar gives those items when the screen is pushed.
+/// Circular Liquid Glass for the overlay's back and share buttons on iOS 26. On
+/// iOS 18 there's no Liquid Glass and a material circle reads as heavy chrome, so
+/// the buttons stay plain (matching standard iOS 18 nav buttons).
 private struct CircleGlass: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.glassEffect(.regular, in: .circle)
         } else {
-            content.background(.ultraThinMaterial, in: Circle())
+            content
         }
     }
 }
 
-/// The title pill's Liquid Glass capsule. Drawn by the label itself so its
-/// padding is honoured — the toolbar's own platter hugs the content and clips
-/// most of the trailing inset away.
-private struct CapsuleGlass: ViewModifier {
+/// The title pill on iOS 26 — its inset, chrome-matched height, and Liquid Glass
+/// capsule. On iOS 18 it's a no-op: the title content keeps natural toolbar
+/// spacing, with no capsule and none of the capsule's padding leaving dead space.
+private struct TitlePill: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: .capsule)
+            content
+                // The capsule is drawn here rather than by the toolbar: the
+                // system platter sizes itself to the content with a fixed inset
+                // and swallows most of the trailing padding the spec calls for.
+                .padding(.leading, 8)
+                .padding(.trailing, 20)
+                // Sized to the chrome height (44 — the overlay bar height) rather
+                // than left to hug its two lines of text, which left the capsule a
+                // few points shorter than the round buttons either side of it.
+                .frame(height: 44)
+                .glassEffect(.regular, in: .capsule)
         } else {
-            content.background(.ultraThinMaterial, in: Capsule())
+            content
         }
     }
 }

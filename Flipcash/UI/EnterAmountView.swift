@@ -24,6 +24,13 @@ public struct EnterAmountView: View {
     private let currencySelectionAction: (() -> Void)?
     private let actionOverride: AnyView?
     private let actionTitle: String?
+    /// Optional control shown just above the keypad — the Convert flow's
+    /// "Convert to [currency]" destination selector lives here.
+    private let accessory: AnyView?
+    /// Optional replacement for the default centered amount + subtitle block.
+    /// The Convert / Get flows pass a left-aligned `SwapAmountHeader`; when set,
+    /// the amount sits at the top rather than centered in the upper area.
+    private let header: AnyView?
 
     // MARK: - Calculator -
     
@@ -45,7 +52,9 @@ public struct EnterAmountView: View {
         actionEnabled: @escaping (String) -> Bool,
         action: @escaping () -> Void,
         currencySelectionAction: (() -> Void)? = nil,
-        actionTitle: String? = nil
+        actionTitle: String? = nil,
+        accessory: AnyView? = nil,
+        header: AnyView? = nil
     ) {
         self.mode                    = mode
         self.subtitle                = subtitle
@@ -56,6 +65,8 @@ public struct EnterAmountView: View {
         self.currencySelectionAction = currencySelectionAction
         self.actionOverride          = nil
         self.actionTitle             = actionTitle
+        self.accessory               = accessory
+        self.header                  = header
     }
 
     /// Variant where the caller supplies the bottom action control (e.g.
@@ -78,6 +89,8 @@ public struct EnterAmountView: View {
         self.currencySelectionAction = currencySelectionAction
         self.actionOverride          = AnyView(actionContent())
         self.actionTitle             = nil
+        self.accessory               = nil
+        self.header                  = nil
     }
     
     // MARK: - Computed -
@@ -96,54 +109,71 @@ public struct EnterAmountView: View {
     // MARK: - Body -
 
     public var body: some View {
-        VStack(alignment: .center) {
-            Spacer()
-            
-            Button {
-                currencySelectionAction?()
-            } label: {
-                VStack(spacing: 5) {
-                    HStack(spacing: 15) {
-                        AmountField(
-                            content: $enteredAmount,
-                            defaultValue: mode.defaultValue,
-                            prefix: .flagStyle(calculator.currency.flagStyle),
-                            formatter: mode.formatter(with: calculator.currency),
-                            suffix: nil,
-                            showChevron: currencySelectionAction != nil
-                        )
-                        .foregroundStyle(.textMain)
-                    }
-                    
-                    switch subtitle {
-                    case .singleTransactionLimit:
-                        if let limit = calculator.maxTransactionAmount {
-                            Text("Enter up to \(limit.formatted())")
+        VStack(alignment: header == nil ? .center : .leading) {
+            if let header {
+                // A gap below the nav bar so the amount isn't jammed against the
+                // chrome; capped at 24 but allowed to shrink on small screens so
+                // the keypad never gets pushed off. The flexible spacer below
+                // absorbs the rest on taller devices.
+                Spacer().frame(maxHeight: 24)
+                header
+            } else {
+                Spacer()
+
+                Button {
+                    currencySelectionAction?()
+                } label: {
+                    VStack(spacing: 5) {
+                        HStack(spacing: 15) {
+                            AmountField(
+                                content: $enteredAmount,
+                                defaultValue: mode.defaultValue,
+                                prefix: .flagStyle(calculator.currency.flagStyle),
+                                formatter: mode.formatter(with: calculator.currency),
+                                suffix: nil,
+                                showChevron: currencySelectionAction != nil
+                            )
+                            .foregroundStyle(.textMain)
+                        }
+
+                        switch subtitle {
+                        case .singleTransactionLimit:
+                            if let limit = calculator.maxTransactionAmount {
+                                Text("Enter up to \(limit.formatted())")
+                                    .fixedSize()
+                                    .foregroundStyle(subtitleColor)
+                                    .font(.appTextMedium)
+                            }
+
+                        case .balanceWithLimit(let maxBalance):
+                            Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
                                 .fixedSize()
                                 .foregroundStyle(subtitleColor)
                                 .font(.appTextMedium)
+
+                        case .error(let text):
+                            Text(text)
+                                .fixedSize()
+                                .foregroundStyle(.textError)
+                                .font(.appTextMedium)
                         }
-
-                    case .balanceWithLimit(let maxBalance):
-                        Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
-                            .fixedSize()
-                            .foregroundStyle(subtitleColor)
-                            .font(.appTextMedium)
-
-                    case .error(let text):
-                        Text(text)
-                            .fixedSize()
-                            .foregroundStyle(.textError)
-                            .font(.appTextMedium)
                     }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .disabled(currencySelectionAction == nil)
+                .accessibilityIdentifier("amount-currency-button")
             }
-            .disabled(currencySelectionAction == nil)
-            .accessibilityIdentifier("amount-currency-button")
-            
+
             Spacer()
-            
+
+            if let accessory {
+                accessory
+                // Capped but shrinkable so the keypad/button aren't pushed off
+                // on small (SE-class) screens.
+                Spacer()
+                    .frame(maxHeight: 20)
+            }
+
             KeyPadView(
                 content: $enteredAmount,
                 configuration: calculator.currency.maximumFractionDigits > 0 ? .decimal() : .number(),
@@ -181,18 +211,19 @@ extension EnterAmountView {
         case withdraw
         case buy
         case sell
+        case convert
         case addMoney
 
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .addMoney:
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
 
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .addMoney: return .number("0")
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney: return .number("0")
             }
         }
 
@@ -202,13 +233,14 @@ extension EnterAmountView {
             case .withdraw: return "Next"
             case .buy:      return "Buy"
             case .sell:     return "Next"
+            case .convert:  return "Next"
             case .addMoney: return "Add Money"
             }
         }
 
         fileprivate var buttonStyle: CodeButton.Style {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .addMoney: return .filled
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney: return .filled
             }
         }
     }

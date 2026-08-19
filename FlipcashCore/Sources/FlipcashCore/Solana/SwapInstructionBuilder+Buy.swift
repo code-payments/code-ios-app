@@ -17,7 +17,10 @@ extension SwapInstructionBuilder {
     ///   - swapAuthority: The swap authority signing the transaction
     ///   - coreMintMetadata: Metadata for the Core Mint (source)
     ///   - targetMintMetadata: Metadata for the target mint (destination)
-    ///   - amount: Amount to buy
+    ///   - amount: Net Core Mint amount that buys tokens (the swap leg)
+    ///   - feeAmount: Core Mint quarks split off to `feeDestination`; 0 for a
+    ///     fee-free buy, in which case the plain `TransferForSwap` is emitted.
+    ///   - feeDestination: Where the fee lands. Required when `feeAmount > 0`.
     ///   - minOutput: Minimum output required
     /// - Returns: Array of instructions in the correct order
     public static func buildBuyInstructions(
@@ -28,6 +31,8 @@ extension SwapInstructionBuilder {
         coreMintMetadata: MintMetadata,
         targetMintMetadata: MintMetadata,
         amount: UInt64,
+        feeAmount: UInt64 = 0,
+        feeDestination: PublicKey? = nil,
         minOutput: UInt64,
     ) throws -> [Instruction] {
         guard let coreVM = coreMintMetadata.vmMetadata else {
@@ -93,19 +98,42 @@ extension SwapInstructionBuilder {
             createTemporaryCoreMint.instruction()
         )
         
-        // 6. VM::TransferForSwap (Core Mint VM swap ATA -> Core Mint temporary account)
-        instructions.append(
-            VMProgram.TransferForSwap(
-                vmAuthority: coreVM.authority,
-                vm: coreVM.vm,
-                swapper: authority,
-                swapPda: coreTimelockAccounts.pda.publicKey,
-                swapAta: coreTimelockAccounts.ata.publicKey,
-                destination: createTemporaryCoreMint.address,
-                amount: amount,
-                bump: coreTimelockAccounts.pda.bump,
-            ).instruction()
-        )
+        // 6. VM::TransferForSwap[WithFee] (Core Mint VM swap ATA -> Core Mint
+        //    temporary account). When the buy carries a fee, the transfer splits
+        //    the swap leg (`amount`) to the temp account and the fee to the
+        //    server's fee destination; the VM debit is `amount + feeAmount`.
+        if feeAmount > 0 {
+            guard let feeDestination else {
+                throw SwapTransactionBuildError.invalidServerParameter("feeDestination")
+            }
+            instructions.append(
+                VMProgram.TransferForSwapWithFee(
+                    vmAuthority: coreVM.authority,
+                    vm: coreVM.vm,
+                    swapper: authority,
+                    swapPda: coreTimelockAccounts.pda.publicKey,
+                    swapAta: coreTimelockAccounts.ata.publicKey,
+                    swapDestination: createTemporaryCoreMint.address,
+                    feeDestination: feeDestination,
+                    swapAmount: amount,
+                    feeAmount: feeAmount,
+                    bump: coreTimelockAccounts.pda.bump,
+                ).instruction()
+            )
+        } else {
+            instructions.append(
+                VMProgram.TransferForSwap(
+                    vmAuthority: coreVM.authority,
+                    vm: coreVM.vm,
+                    swapper: authority,
+                    swapPda: coreTimelockAccounts.pda.publicKey,
+                    swapAta: coreTimelockAccounts.ata.publicKey,
+                    destination: createTemporaryCoreMint.address,
+                    amount: amount,
+                    bump: coreTimelockAccounts.pda.bump,
+                ).instruction()
+            )
+        }
         
         // 7. CurrencyCreator::BuyAndDepositIntoVm
         instructions.append(

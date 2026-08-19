@@ -62,6 +62,9 @@ struct DestinationView: View {
         case .buyCurrency(let mint):
             BuyAmountScreen(mint: mint)
 
+        case .convertCurrency(let mint):
+            ConvertAmountScreen(mint: mint)
+
         // MARK: - Settings flow
 
         case .settingsMyAccount:

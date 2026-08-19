@@ -201,7 +201,8 @@ final class SwapService: Sendable {
                             authority: owner.publicKey,
                             swapAuthority: swapAuthority.publicKey,
                             direction: direction,
-                            amount: amount.quarks
+                            amount: amount.quarks,
+                            feeAmount: resolvedFeeAmount.quarks
                         )
                     } catch {
                         logger.error("Failed to build swap transaction", metadata: ["error": "\(error)"])

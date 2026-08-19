@@ -60,18 +60,18 @@ final class MockSession:
 
     // MARK: - Reserves
 
-    var buyHandler: (@MainActor (ExchangedFiat, VerifiedState, PublicKey) async throws -> SwapId)?
+    var buyHandler: (@MainActor (ExchangedFiat, ExchangedFiat?, VerifiedState, PublicKey) async throws -> SwapId)?
     var buyNewCurrencyHandler: (@MainActor (ExchangedFiat, ExchangedFiat, VerifiedState, PublicKey, SwapId) async throws -> SwapId)?
 
-    private(set) var buyCalls: [(amount: ExchangedFiat, verifiedState: VerifiedState, mint: PublicKey)] = []
+    private(set) var buyCalls: [(amount: ExchangedFiat, feeAmount: ExchangedFiat?, verifiedState: VerifiedState, mint: PublicKey)] = []
     private(set) var buyNewCurrencyCalls: [(amount: ExchangedFiat, feeAmount: ExchangedFiat, verifiedState: VerifiedState, mint: PublicKey, swapId: SwapId)] = []
 
-    func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of mint: PublicKey) async throws -> SwapId {
-        buyCalls.append((amount, verifiedState, mint))
+    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat?, verifiedState: VerifiedState, of mint: PublicKey) async throws -> SwapId {
+        buyCalls.append((amount, feeAmount, verifiedState, mint))
         guard let handler = buyHandler else {
             throw MockSessionError.unimplemented(method: "buy")
         }
-        return try await handler(amount, verifiedState, mint)
+        return try await handler(amount, feeAmount, verifiedState, mint)
     }
 
     func buyNewCurrency(

@@ -194,14 +194,22 @@ final class TransactionService: Sendable {
 
     // MARK: - Swaps -
 
-    /// A buy is a swap from USDF to desired token (Phase 1 + Phase 2 via IntentFundSwap)
-    func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
+    /// A buy is a swap from USDF to desired token (Phase 1 + Phase 2 via IntentFundSwap).
+    ///
+    /// `amount` is the net purchase (the swap leg); `feeAmount`, when non-nil, is
+    /// the USDF fee split off on-chain via `TransferForSwapWithFee`. The funding
+    /// intent transfers `amount + feeAmount` so the VM swap PDA covers both legs.
+    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         let swapId = SwapId.generate()
         let fundingIntentID = KeyPair.generate()!.publicKey
         let ownerKeyPair = owner.authority.keyPair
 
+        let fundingAmount = feeAmount.map { amount.adding($0) } ?? amount
+
         logger.info("Starting buy", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
+            "feeAmount": "\(feeAmount?.nativeAmount.formatted() ?? "0")",
+            "fundingAmount": "\(fundingAmount.nativeAmount.formatted())",
             "symbol": "\(token.symbol)"
         ])
 
@@ -210,6 +218,7 @@ final class TransactionService: Sendable {
             swapId: swapId,
             direction: .buy(mint: token),
             amount: amount.onChainAmount,
+            feeAmount: feeAmount?.onChainAmount,
             fundingSource: .submitIntent(id: fundingIntentID),
             owner: ownerKeyPair
         ) { result in
@@ -217,12 +226,12 @@ final class TransactionService: Sendable {
             case .success(let metadata):
                 logger.info("Swap state created", metadata: ["swapId": "\(swapId.publicKey.base58)"])
 
-                // Phase 2: Fund via IntentFundSwap
+                // Phase 2: Fund via IntentFundSwap — the full swap + fee total.
                 let fundingIntent = IntentFundSwap(
                     intentID: fundingIntentID,
                     swapId: metadata.swapId,
                     sourceCluster: owner,
-                    amount: amount,
+                    amount: fundingAmount,
                     verifiedState: verifiedState,
                     fromMint: .usdf,
                     toMint: token

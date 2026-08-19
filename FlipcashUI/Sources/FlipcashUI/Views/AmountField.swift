@@ -17,7 +17,12 @@ public struct AmountField: View {
     public let formatter: NumberFormatter
     public let suffix: String?
     public let showChevron: Bool
-    
+    /// Type token for the amount digits. Defaults to `.appDisplayLarge`; the
+    /// Convert/Get amount header overrides it with `.appDisplayExtraLarge`.
+    public let font: Font
+    /// Height of the amount line — must fit `font`.
+    public let height: CGFloat
+
     private let insertionOffset: CGFloat = 30
     
     private var hasValue: Bool {
@@ -50,13 +55,15 @@ public struct AmountField: View {
         )
     }
     
-    public init(content: Binding<String>, defaultValue: DefaultValue, prefix: Prefix, formatter: NumberFormatter, suffix: String?, showChevron: Bool) {
+    public init(content: Binding<String>, defaultValue: DefaultValue, prefix: Prefix, formatter: NumberFormatter, suffix: String?, showChevron: Bool, font: Font = .appDisplayLarge, height: CGFloat = 70) {
         self._content = content
         self.defaultValue = defaultValue
         self.prefix = prefix
         self.formatter = formatter
         self.suffix = (suffix == nil) ? nil : " \(suffix!)"
         self.showChevron = showChevron
+        self.font = font
+        self.height = height
     }
     
     public var body: some View {
@@ -98,8 +105,8 @@ public struct AmountField: View {
             .animation(.springFastestDamped, value: content)
             .minimumScaleFactor(0.1)
             .scaledToFit()
-            .font(.appDisplayLarge)
-            .frame(height: 70.0) // Height must match font
+            .font(font)
+            .frame(height: height) // Height must match font
         }
     }
     

@@ -31,9 +31,22 @@ final class BuyConfirmationViewModel {
 
     var canPerformAction: Bool { !pinnedState.isStale }
 
-    var feeBps: UInt64 { UInt64(max(0, payment.sellFeeBps ?? 100)) }
+    /// The USDF reserves buy carries a flat 1% fee added on top of the purchase;
+    /// the token-funded path uses the payment pool's own sell fee.
+    var feeBps: UInt64 { isUSDF ? 100 : UInt64(max(0, payment.sellFeeBps ?? 100)) }
+
+    /// New-UI USDF reserves buys collect a 1% fee (split off on-chain via the
+    /// server's fee destination). Old UI leaves the reserves buy fee-free.
+    private var chargesUSDFFee: Bool { isUSDF && BetaFlags.shared.hasEnabled(.newUI) }
+
+    /// Whether a fee row is shown and collected. Token-funded buys always carry
+    /// the implicit sell fee; USDF buys only in the new UI.
+    var chargesFee: Bool { !isUSDF || chargesUSDFFee }
 
     var fee: ExchangedFiat {
+        // Same call both ways: for USDF `paymentAmount` is the net purchase so
+        // this is 1% on top; for tokens it's the gross debit so this is the
+        // implicit sell fee taken out.
         paymentAmount.launchpadSellFee(bps: feeBps)
     }
 
@@ -43,9 +56,20 @@ final class BuyConfirmationViewModel {
         return "\(prefix)\(fee.nativeAmount.formatted())"
     }
 
-    /// What the buy leg actually purchases — the gross debit minus the pool fee.
+    /// What the buy leg actually purchases ("You Get"). For USDF the entered
+    /// amount *is* the net purchase (fee added on top); for tokens it's the
+    /// gross debit minus the implicit sell fee.
     var amountToBuy: ExchangedFiat {
-        isUSDF ? paymentAmount : paymentAmount.subtractingFee(fee.onChainAmount)
+        guard chargesFee else { return paymentAmount }
+        return isUSDF ? paymentAmount : paymentAmount.subtractingFee(fee.onChainAmount)
+    }
+
+    /// The amount actually removed from the balance ("You Pay"). For USDF it's
+    /// the net purchase plus the on-top fee; for tokens `paymentAmount` already
+    /// is the gross debit.
+    var grossDebit: ExchangedFiat {
+        guard chargesFee else { return paymentAmount }
+        return isUSDF ? paymentAmount.adding(fee) : paymentAmount
     }
 
     init(targetMint: PublicKey, targetName: String, payment: StoredBalance, paymentAmount: ExchangedFiat, pinnedState: VerifiedState) {
@@ -68,13 +92,13 @@ final class BuyConfirmationViewModel {
         guard !hasCheckedFundsOnAppear else { return }
         hasCheckedFundsOnAppear = true
 
-        switch session.hasSufficientFunds(for: paymentAmount) {
+        switch session.hasSufficientFunds(for: grossDebit) {
         case .sufficient:
             break
         case .insufficient:
             logger.info("Buy gated on appear: insufficient balance", metadata: [
                 "paymentMint": "\(payment.mint.base58)",
-                "amountQuarks": "\(paymentAmount.onChainAmount.quarks)",
+                "amountQuarks": "\(grossDebit.onChainAmount.quarks)",
                 "balanceQuarks": "\(session.balance(for: payment.mint)?.quarks ?? 0)",
             ])
             showInsufficientBalance(session: session)
@@ -85,13 +109,14 @@ final class BuyConfirmationViewModel {
         // Re-entrancy guard: don't rely on the button disabling itself.
         guard actionButtonState == .normal else { return }
 
-        // The entry cap is balance-only; the send limit is enforced here.
-        let sendLimit = session.sendLimitFor(currency: paymentAmount.nativeAmount.currency) ?? .zero
-        guard paymentAmount.nativeAmount.value <= sendLimit.maxPerDay.value else {
+        // The entry cap is balance-only; the send limit is enforced here on the
+        // full debit (purchase + any on-top fee).
+        let sendLimit = session.sendLimitFor(currency: grossDebit.nativeAmount.currency) ?? .zero
+        guard grossDebit.nativeAmount.value <= sendLimit.maxPerDay.value else {
             logger.info("Buy rejected: amount exceeds limit", metadata: [
-                "amount": "\(paymentAmount.nativeAmount.formatted())",
+                "amount": "\(grossDebit.nativeAmount.formatted())",
                 "max_per_day": "\(sendLimit.maxPerDay.value)",
-                "currency": "\(paymentAmount.nativeAmount.currency)",
+                "currency": "\(grossDebit.nativeAmount.currency)",
             ])
             dialogItem = .error(
                 title: "Transaction Limit Reached",
@@ -100,7 +125,7 @@ final class BuyConfirmationViewModel {
             return
         }
 
-        switch session.hasSufficientFunds(for: paymentAmount) {
+        switch session.hasSufficientFunds(for: grossDebit) {
         case .sufficient:
             // Submit the pin-computed amount, not the gate's clamp — quarks
             // must stay tied to the pinned proof. A tolerance overshoot is
@@ -125,14 +150,26 @@ final class BuyConfirmationViewModel {
         let supply = pinnedState.supplyFromBonding
         guard isUSDF || supply != nil else { return }
 
+        // With an on-top USDF fee the debit is `net + net·bps/10⁴`, so the net
+        // purchase must be shrunk to keep the whole debit within the balance:
+        // net = ⌊balance · 10⁴ / (10⁴ + bps)⌋. Split-divide to avoid overflow.
+        let maxQuarks: UInt64
+        if chargesUSDFFee {
+            let denom = 10_000 + feeBps
+            maxQuarks = live.quarks / denom * 10_000 + (live.quarks % denom) * 10_000 / denom
+        } else {
+            maxQuarks = live.quarks
+        }
+
         logger.info("Buy maximum selected", metadata: [
             "paymentMint": "\(payment.mint.base58)",
             "previousQuarks": "\(paymentAmount.onChainAmount.quarks)",
             "balanceQuarks": "\(live.quarks)",
+            "maxQuarks": "\(maxQuarks)",
         ])
 
         paymentAmount = ExchangedFiat.compute(
-            onChainAmount: TokenAmount(quarks: live.quarks, mint: payment.mint),
+            onChainAmount: TokenAmount(quarks: maxQuarks, mint: payment.mint),
             rate: pinnedState.rate,
             supplyQuarks: supply
         )
@@ -145,7 +182,14 @@ final class BuyConfirmationViewModel {
             let swapType: SwapType
             if isUSDF {
                 Analytics.buttonTapped(name: .buyWithReserves)
-                swapId = try await session.buy(amount: paymentAmount, verifiedState: pinnedState, of: targetMint)
+                // `paymentAmount` is the net purchase; the fee is added on top
+                // and split off on-chain, so the debit is `paymentAmount + fee`.
+                swapId = try await session.buy(
+                    amount: paymentAmount,
+                    feeAmount: chargesFee ? fee : nil,
+                    verifiedState: pinnedState,
+                    of: targetMint
+                )
                 swapType = .buyWithReserves
             } else {
                 Analytics.buttonTapped(name: .buyWithCurrency)

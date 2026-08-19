@@ -77,6 +77,18 @@ final class AppRouter {
     /// it once opened.
     var requestedCardMint: PublicKey?
 
+    /// Bumped when a completed flow launched from a token's expanded card
+    /// (Convert, Get) wants that card overlay dismissed so the user lands back
+    /// on the wallet rather than the token info screen. The wallet observes this
+    /// and closes the card; it's a no-op when no card is open (e.g. currency
+    /// info was reached by a pushed deep link instead of the card overlay).
+    var requestedCardDismiss: Int = 0
+
+    /// Dismisses the wallet's expanded-card overlay, if one is open.
+    func dismissExpandedCard() {
+        requestedCardDismiss &+= 1
+    }
+
     /// A tab the router wants brought forward, named by the stack it owns.
     /// `HomeTabView` selects it and clears this. Deep-link routing only; nothing
     /// else drives tab selection.

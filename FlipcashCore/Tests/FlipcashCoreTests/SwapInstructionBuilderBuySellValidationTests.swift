@@ -105,7 +105,9 @@ struct SwapInstructionBuilderBuySellValidationTests {
     private func buildBuy(
         serverParameters: SwapResponseServerParameters,
         coreMint: MintMetadata,
-        targetMint: MintMetadata
+        targetMint: MintMetadata,
+        feeAmount: UInt64 = 0,
+        feeDestination: PublicKey? = nil
     ) throws -> [Instruction] {
         try SwapInstructionBuilder.buildBuyInstructions(
             serverParameters: serverParameters,
@@ -115,9 +117,15 @@ struct SwapInstructionBuilderBuySellValidationTests {
             coreMintMetadata: coreMint,
             targetMintMetadata: targetMint,
             amount: 1_000_000,
+            feeAmount: feeAmount,
+            feeDestination: feeDestination,
             minOutput: 0
         )
     }
+
+    /// VM command discriminator (first data byte) for the swap-transfer step.
+    /// `transferForSwap = 17`, `transferForSwapWithFee = 20`.
+    private static let transferInstructionIndex = 5
 
     private func buildSell(
         serverParameters: SwapResponseServerParameters,
@@ -293,5 +301,48 @@ struct SwapInstructionBuilderBuySellValidationTests {
         )
 
         #expect(instructions.count == 9)
+    }
+
+    // MARK: - Buy fee split
+
+    @Test("A fee-free buy emits the plain TransferForSwap (command 17)")
+    func buy_noFee_usesTransferForSwap() throws {
+        let instructions = try buildBuy(
+            serverParameters: Self.makeServerParameters(),
+            coreMint: Self.makeCoreMint(),
+            targetMint: Self.validTargetMint
+        )
+
+        #expect(instructions.count == 9)
+        #expect(instructions[Self.transferInstructionIndex].data.first == 17)
+    }
+
+    @Test("A buy with a fee emits TransferForSwapWithFee (command 20) and keeps 9 instructions")
+    func buy_withFee_usesTransferForSwapWithFee() throws {
+        let instructions = try buildBuy(
+            serverParameters: Self.makeServerParameters(),
+            coreMint: Self.makeCoreMint(),
+            targetMint: Self.validTargetMint,
+            feeAmount: 10_000,
+            feeDestination: Self.testKey(7)
+        )
+
+        // The fee split replaces the transfer in place — same instruction count,
+        // just the with-fee variant carrying the fee leg.
+        #expect(instructions.count == 9)
+        #expect(instructions[Self.transferInstructionIndex].data.first == 20)
+    }
+
+    @Test("A buy fee without a fee destination is rejected rather than silently dropped")
+    func buy_feeWithoutDestination_throws() {
+        #expect(throws: SwapTransactionBuildError.invalidServerParameter("feeDestination")) {
+            try self.buildBuy(
+                serverParameters: Self.makeServerParameters(),
+                coreMint: Self.makeCoreMint(),
+                targetMint: Self.validTargetMint,
+                feeAmount: 10_000,
+                feeDestination: nil
+            )
+        }
     }
 }
