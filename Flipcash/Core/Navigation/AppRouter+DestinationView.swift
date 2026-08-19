@@ -105,17 +105,14 @@ struct DestinationView: View {
                 .toolbarTitleDisplayMode(.inline)
 
         case .withdraw:
-            PreselectedWithdrawRoot(
-                mint: .usdf,
-                onComplete: { sessionContainer.appRouter.popToRoot(on: .settings) },
-                onWithdrawOtherCurrencies: {
-                    sessionContainer.appRouter.pushAny(WithdrawNavigationPath.picker)
-                }
+            // No preselected mint — the flow starts on the currency picker.
+            WithdrawFlowRoot(
+                onComplete: { sessionContainer.appRouter.popToRoot(on: .settings) }
             )
 
         case .withdrawCurrency(let mint):
-            PreselectedWithdrawRoot(
-                mint: mint,
+            WithdrawFlowRoot(
+                preselectedMint: mint,
                 // Reachable from the Wallet (.balance) and — since cash cards open currency info — from
                 // a chat (.send). Reset the host stack, not a hardcoded one, so the
                 // user isn't stranded on the finished withdraw screen when it ran over a chat.

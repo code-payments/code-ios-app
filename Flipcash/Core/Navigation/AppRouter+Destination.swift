@@ -32,9 +32,10 @@ extension AppRouter {
         /// Pushes the buy flow (`BuyAmountScreen`) onto the current stack instead
         /// of presenting it as a sheet — the new-UI currency-info "Convert"/"Get".
         case buyCurrency(PublicKey)
-        /// Skips the picker step in the withdraw flow and lands the user on
-        /// `WithdrawIntroScreen` with the currency pre-selected. Pushed from
-        /// USDF Currency Info on the Wallet sheet.
+        /// Skips the picker step in the withdraw flow with the currency
+        /// pre-selected: Dollars (USDF) lands on the "Withdraw as USDC" intro,
+        /// any other currency lands on the amount screen. Pushed from Currency
+        /// Info on the Wallet sheet.
         case withdrawCurrency(PublicKey)
         /// USDC → USDF deposit education screen.
         case usdcDepositEducation

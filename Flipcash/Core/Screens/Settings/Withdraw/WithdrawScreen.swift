@@ -9,10 +9,9 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// Currency picker reached via the "Withdraw Other Flipcash Currencies" button
-/// on `WithdrawIntroScreen`. Lists every balance except USDF — USDF lives on
-/// the intro screen as the default destination, so it's removed from the
-/// picker to avoid two paths to the same flow.
+/// The withdraw flow's first screen: a currency picker listing every balance
+/// (Dollars included). Selecting Dollars detours through the "Withdraw as USDC"
+/// intro; any other currency goes straight to the amount screen.
 struct WithdrawScreen: View {
 
     @Environment(Session.self) private var session
@@ -22,7 +21,6 @@ struct WithdrawScreen: View {
 
     private var balances: [ExchangedBalance] {
         session.balances(for: ratesController.rateForBalanceCurrency())
-            .filter { $0.stored.mint != .usdf }
     }
 
     var body: some View {
@@ -32,7 +30,7 @@ struct WithdrawScreen: View {
 
         Background(color: .backgroundMain) {
             if balances.isEmpty {
-                Text("No other currencies to withdraw")
+                Text("No currencies to withdraw")
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)
@@ -68,7 +66,7 @@ extension View {
 
     /// Registers the `WithdrawNavigationPath` substeps on the enclosing
     /// `NavigationStack`. Applied at the root of every withdraw flow
-    /// (`PreselectedWithdrawRoot`), so every substep — picker, amount,
+    /// (`WithdrawFlowRoot`), so every substep — picker, intro, amount,
     /// address, confirmation — resolves against the same view model.
     func withdrawSubstepDestinations(viewModel: WithdrawViewModel) -> some View {
         navigationDestination(for: WithdrawNavigationPath.self) { path in
@@ -77,7 +75,7 @@ extension View {
     }
 }
 
-private struct WithdrawSubstepDestination: View {
+struct WithdrawSubstepDestination: View {
 
     let path: WithdrawNavigationPath
     @Bindable var viewModel: WithdrawViewModel
@@ -86,6 +84,9 @@ private struct WithdrawSubstepDestination: View {
         switch path {
         case .picker:
             WithdrawScreen(onSelect: viewModel.selectCurrency)
+                .dialog(item: $viewModel.dialogItem)
+        case .intro:
+            WithdrawIntroScreen(onNext: viewModel.continueFromIntro)
                 .dialog(item: $viewModel.dialogItem)
         case .enterAmount:
             WithdrawAmountScreen(

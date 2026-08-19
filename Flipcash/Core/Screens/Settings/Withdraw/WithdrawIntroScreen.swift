@@ -10,12 +10,6 @@ import FlipcashUI
 struct WithdrawIntroScreen: View {
 
     let onNext: () -> Void
-    let onWithdrawOtherCurrencies: (() -> Void)?
-
-    init(onNext: @escaping () -> Void, onWithdrawOtherCurrencies: (() -> Void)? = nil) {
-        self.onNext = onNext
-        self.onWithdrawOtherCurrencies = onWithdrawOtherCurrencies
-    }
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -41,15 +35,8 @@ struct WithdrawIntroScreen: View {
 
                 Spacer()
 
-                VStack(spacing: 8) {
-                    Button("Next", action: onNext)
-                        .buttonStyle(.filled)
-
-                    if let onWithdrawOtherCurrencies {
-                        Button("Withdraw Other Flipcash Currencies", action: onWithdrawOtherCurrencies)
-                            .buttonStyle(.subtle)
-                    }
-                }
+                Button("Next", action: onNext)
+                    .buttonStyle(.filled)
             }
             .padding(20)
         }

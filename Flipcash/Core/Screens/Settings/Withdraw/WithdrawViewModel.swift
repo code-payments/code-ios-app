@@ -12,7 +12,7 @@ import FlipcashUI
 @Observable
 class WithdrawViewModel {
     /// Pushes a sub-step onto the parent NavigationStack. Wired by
-    /// `PreselectedWithdrawRoot.onAppear` to call `router.pushAny(_:)`.
+    /// `WithdrawFlowRoot.onAppear` to call `router.pushAny(_:)`.
     @ObservationIgnored var pushSubstep: (WithdrawNavigationPath) -> Void = { _ in }
 
     var withdrawButtonState: ButtonState = .normal
@@ -308,26 +308,29 @@ class WithdrawViewModel {
 
     // MARK: - Actions -
 
+    /// Picker selection. Dollars (USDF) detours through the "Withdraw as USDC"
+    /// intro before the amount screen; every other currency goes straight to the
+    /// amount screen.
     func selectCurrency(_ balance: ExchangedBalance) {
         setKind(for: balance)
-        pushEnterAmountScreen()
+        switch kind {
+        case .usdfToUsdc:
+            pushIntroScreen()
+        case .sameMint, .none:
+            pushEnterAmountScreen()
+        }
     }
 
-    /// Intro screen's "Next" action. Re-syncs `kind` to USDF in case the user
-    /// drifted into the "Withdraw Other Flipcash Currencies" picker, picked a
-    /// non-USDF balance, then backed out to the intro — the intro screen
-    /// represents the USDF→USDC path, so a USDF-only kind is the contract here.
+    /// Intro screen's "Next" action — advances the USDF→USDC path to the amount
+    /// screen. `kind` is already `.usdfToUsdc` here (a preselected USDF entry or
+    /// a Dollars pick from the currency picker), so this only navigates.
     func continueFromIntro() {
-        if kind?.sourceMint != .usdf, let stored = session.balance(for: .usdf) {
-            let rate = ratesController.rateForBalanceCurrency()
-            setKind(for: stored.exchanged(with: rate))
-        }
         pushEnterAmountScreen()
     }
 
     /// Sets `kind` from `balance` and clears per-flow inputs. Does NOT navigate;
     /// `selectCurrency` is the action that advances the flow. Called from
-    /// `PreselectedWithdrawRoot.init` to pre-select the entry mint before
+    /// `WithdrawFlowRoot.init` to pre-select the entry mint before
     /// navigation closures are wired.
     func setKind(for balance: ExchangedBalance) {
         kind = balance.stored.mint == .usdf
@@ -472,6 +475,10 @@ class WithdrawViewModel {
 
     // MARK: - Navigation -
 
+    private func pushIntroScreen() {
+        pushSubstep(.intro)
+    }
+
     func pushEnterAmountScreen() {
         pushSubstep(.enterAmount)
     }
@@ -529,6 +536,7 @@ class WithdrawViewModel {
 
 enum WithdrawNavigationPath {
     case picker
+    case intro
     case enterAmount
     case enterAddress
     case confirmation
