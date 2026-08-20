@@ -13,7 +13,8 @@ import FlipcashCore
 /// a 40pt avatar, the title + relative time, and a signed amount. The avatar is
 /// the counterparty's profile photo for peer activity (tips/sends), the token
 /// image for token activity (deposits, buys), or a monogram fallback. A sent tip
-/// reads "Tipped <name>" once the counterparty resolves.
+/// reads "Tipped <name>" once the counterparty resolves, and a swap reads
+/// "<From> → <To>" once both token names resolve.
 struct ActivityRow: View {
 
     let activity: Activity
@@ -27,10 +28,11 @@ struct ActivityRow: View {
     @State private var avatarData: Data?
     @State private var avatarBlurhash: String?
 
-    /// Swap coin logos resolved beyond the held-balance cache (local mint store,
-    /// then a server fetch) so a swapped-away token still shows its real logo.
-    @State private var swapFromImageURL: URL?
-    @State private var swapToImageURL: URL?
+    /// Swap coin metadata resolved beyond the held-balance cache (local mint
+    /// store, then a server fetch) so a swapped-away token still shows its real
+    /// name and logo.
+    @State private var swapFromMint: StoredMintMetadata?
+    @State private var swapToMint: StoredMintMetadata?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -54,7 +56,7 @@ struct ActivityRow: View {
         .task(id: activity.id) {
             await resolveCounterparty()
             if let swap = activity.swapMetadata {
-                await resolveSwapLogos(swap)
+                await resolveSwapMints(swap)
             }
         }
     }
@@ -86,9 +88,17 @@ struct ActivityRow: View {
     // MARK: - Title
 
     /// Peer tips render with the resolved counterparty name — "Tipped <name>"
-    /// for a sent tip, "Tip from <name>" for a received one — once it resolves;
-    /// every other row uses the server-rendered title.
+    /// for a sent tip, "Tip from <name>" for a received one — and a swap renders
+    /// its two token names, once they resolve; every other row uses the
+    /// server-rendered title.
     private var displayTitle: String {
+        if let swap = activity.swapMetadata {
+            return Self.swapTitle(
+                from: mintName(for: swap.fromMint, resolved: swapFromMint),
+                to: mintName(for: swap.toMint, resolved: swapToMint)
+            ) ?? activity.title
+        }
+
         if let name = counterpartyName, !name.isEmpty {
             switch activity.kind {
             case .gave:     return "Tipped \(name)"
@@ -97,6 +107,20 @@ struct ActivityRow: View {
             }
         }
         return activity.title
+    }
+
+    /// The conversion pair a swap row is titled with, or `nil` when either leg's
+    /// token name is still unresolved — the caller falls back to the
+    /// server-rendered title rather than showing a half-empty pair.
+    static func swapTitle(from: String?, to: String?) -> String? {
+        guard let from, !from.isEmpty, let to, !to.isEmpty else { return nil }
+        return "\(from) \u{2192} \(to)"
+    }
+
+    /// The token's display name: the held balance (instant, from cache) or the
+    /// async-resolved metadata.
+    private func mintName(for mint: PublicKey, resolved: StoredMintMetadata?) -> String? {
+        session.balance(for: mint)?.name ?? resolved?.name
     }
 
     // MARK: - Avatar
@@ -146,9 +170,9 @@ struct ActivityRow: View {
     /// logo (held balance first, then the async-resolved fallback).
     private func swapAvatar(_ swap: Activity.SwapMetadata) -> some View {
         ZStack {
-            tokenCoin(url: coinURL(for: swap.fromMint, fallback: swapFromImageURL), monogramID: swap.fromMint.base58, size: 26)
+            tokenCoin(url: coinURL(for: swap.fromMint, fallback: swapFromMint), monogramID: swap.fromMint.base58, size: 26)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            tokenCoin(url: coinURL(for: swap.toMint, fallback: swapToImageURL), monogramID: swap.toMint.base58, size: 26)
+            tokenCoin(url: coinURL(for: swap.toMint, fallback: swapToMint), monogramID: swap.toMint.base58, size: 26)
                 .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 2))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
@@ -156,8 +180,8 @@ struct ActivityRow: View {
     }
 
     /// The held-balance logo (instant, from cache) or the async-resolved fallback.
-    private func coinURL(for mint: PublicKey, fallback: URL?) -> URL? {
-        session.balance(for: mint)?.imageURL ?? fallback
+    private func coinURL(for mint: PublicKey, fallback: StoredMintMetadata?) -> URL? {
+        session.balance(for: mint)?.imageURL ?? fallback?.imageURL
     }
 
     @ViewBuilder private func tokenCoin(url: URL?, monogramID: String, size: CGFloat) -> some View {
@@ -172,18 +196,18 @@ struct ActivityRow: View {
         .clipShape(Circle())
     }
 
-    /// Resolves both coins' logos beyond the held-balance cache: the local mint
-    /// store, then a server fetch, so a swapped-away token still shows its logo.
-    private func resolveSwapLogos(_ swap: Activity.SwapMetadata) async {
-        swapFromImageURL = await resolveMintImageURL(swap.fromMint)
-        swapToImageURL   = await resolveMintImageURL(swap.toMint)
+    /// Resolves both coins beyond the held-balance cache: the local mint store,
+    /// then a server fetch, so a swapped-away token still shows its name + logo.
+    private func resolveSwapMints(_ swap: Activity.SwapMetadata) async {
+        swapFromMint = await resolveMintMetadata(swap.fromMint)
+        swapToMint   = await resolveMintMetadata(swap.toMint)
     }
 
-    private func resolveMintImageURL(_ mint: PublicKey) async -> URL? {
-        if let url = session.storedMintMetadata(for: mint)?.imageURL {
-            return url
+    private func resolveMintMetadata(_ mint: PublicKey) async -> StoredMintMetadata? {
+        if let stored = session.storedMintMetadata(for: mint) {
+            return stored
         }
-        return try? await session.fetchMintMetadata(mint: mint).imageURL
+        return try? await session.fetchMintMetadata(mint: mint)
     }
 
     // MARK: - Amount
