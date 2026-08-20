@@ -26,6 +26,7 @@ final class BuyConfirmationViewModel {
     private(set) var targetImageURL: URL?
 
     @ObservationIgnored private var hasCheckedFundsOnAppear = false
+    @ObservationIgnored private let collectsUSDFFee: Bool
 
     var isUSDF: Bool { payment.mint == .usdf }
 
@@ -37,7 +38,7 @@ final class BuyConfirmationViewModel {
 
     /// New-UI USDF reserves buys collect a 1% fee (split off on-chain via the
     /// server's fee destination). Old UI leaves the reserves buy fee-free.
-    private var chargesUSDFFee: Bool { isUSDF && BetaFlags.shared.hasEnabled(.newUI) }
+    private var chargesUSDFFee: Bool { isUSDF && collectsUSDFFee }
 
     /// Whether a fee row is shown and collected. Token-funded buys always carry
     /// the implicit sell fee; USDF buys only in the new UI.
@@ -72,12 +73,22 @@ final class BuyConfirmationViewModel {
         return isUSDF ? paymentAmount.adding(fee) : paymentAmount
     }
 
-    init(targetMint: PublicKey, targetName: String, payment: StoredBalance, paymentAmount: ExchangedFiat, pinnedState: VerifiedState) {
+    /// Injected rather than read from `BetaFlags.shared` at each use so both fee
+    /// branches stay testable without mutating the persisted flag.
+    init(
+        targetMint: PublicKey,
+        targetName: String,
+        payment: StoredBalance,
+        paymentAmount: ExchangedFiat,
+        pinnedState: VerifiedState,
+        collectsUSDFFee: Bool = BetaFlags.shared.hasEnabled(.newUI)
+    ) {
         self.targetMint = targetMint
         self.targetName = targetName
         self.payment = payment
         self.paymentAmount = paymentAmount
         self.pinnedState = pinnedState
+        self.collectsUSDFFee = collectsUSDFFee
     }
 
     // MARK: - Actions

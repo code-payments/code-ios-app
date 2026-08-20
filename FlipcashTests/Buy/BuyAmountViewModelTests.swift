@@ -63,15 +63,17 @@ struct BuyAmountViewModelTests {
         )
     }
 
-    @Test("Cap is the highest eligible balance")
-    func cap_isHighestBalance() async throws {
-        // USDF $30 dwarfs the small launchpad holding.
+    @Test("Cap follows the default Dollars payment source")
+    func cap_defaultsToDollars() async throws {
+        // Dollars is the default source whenever it's spendable, whatever the
+        // other holdings are worth.
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 30_000_000),
             .init(mint: .makeLaunchpad(address: .jeffy), quarks: 10_000_000_000), // 1 token ≈ $0.01
         ])
         let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
 
+        #expect(viewModel.paymentMint == .usdf)
         #expect(viewModel.maxPossibleAmount.nativeAmount.formatted() == "$30.00")
         #expect(!viewModel.isBalanceEmpty)
         #expect(viewModel.actionTitle == "Next")
@@ -91,19 +93,34 @@ struct BuyAmountViewModelTests {
         #expect(viewModel.maxPossibleAmount.nativeAmount.formatted() == "$5.00")
     }
 
-    @Test("A launchpad balance above USDF drives the cap when it isn't the target")
-    func cap_launchpadCanExceedUSDF() async throws {
-        let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000
+    @Test("Selecting a launchpad source lifts the cap above the Dollars balance")
+    func cap_followsSelectedPaymentSource() async throws {
+        let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000 // ≈ $20 of curve value
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 5_000_000),
             .init(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
         ])
         let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
 
+        #expect(viewModel.maxPossibleAmount.nativeAmount.formatted() == "$5.00")
+
+        viewModel.paymentMint = .jeffy
+
         let jeffyValue = try #require(container.session.balance(for: .jeffy))
             .computeExchangedValue(with: container.ratesController.rateForBalanceCurrency())
         #expect(viewModel.maxPossibleAmount.nativeAmount == jeffyValue.nativeAmount)
         #expect(viewModel.maxPossibleAmount.nativeAmount.value > 5)
+    }
+
+    @Test("Without Dollars the largest eligible balance becomes the source")
+    func defaultSource_fallsBackToLargestBalance() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .makeLaunchpad(address: .jeffy), quarks: 2_000 * 10_000_000_000),
+            .init(mint: .makeLaunchpad(address: .testMint(index: 1)), quarks: 10_000_000_000),
+        ])
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
+
+        #expect(viewModel.paymentMint == .jeffy)
     }
 
     @Test("Zero eligible balance flips the button to Add Money")
@@ -142,8 +159,8 @@ struct BuyAmountViewModelTests {
         #expect(router.presentedSheets.contains(.addMoney(.buyCurrency)))
     }
 
-    @Test("Next pushes the payment-currency step with the validated amount")
-    func next_pushesSelectPaymentCurrency() async throws {
+    @Test("Next pushes the payment confirmation with the validated amount")
+    func next_pushesPaymentConfirmation() async throws {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 30_000_000),
         ])
@@ -155,7 +172,9 @@ struct BuyAmountViewModelTests {
         viewModel.enteredAmount = "10"
         viewModel.primaryAction(router: router)
 
-        #expect(router[.buy].count == 1)
+        // The push lands after the async pin fetch, not on the calling turn.
+        try await waitUntil(router) { $0[.buy].count == 1 }
+        #expect(viewModel.dialogItem == nil)
     }
 
     @Test("An invalid entered amount does not push")
