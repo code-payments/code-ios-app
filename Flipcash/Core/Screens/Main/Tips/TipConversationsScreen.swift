@@ -19,38 +19,78 @@ struct TipConversationsScreen: View {
     var isEmbedded: Bool = false
 
     var body: some View {
+        let conversations = conversationController.conversations(of: .tipDm)
+
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
                 if isEmbedded {
                     ChatsTabTitle()
                 }
 
-                List {
-                    // v1 only — v2 reaches the tip card from its own tab.
-                    if !isEmbedded {
-                        Button("Show My Tip Card") {
-                            router.push(.tipcard)
+                // v1 keeps its list even when empty — the "Show My Tip Card"
+                // button lives in it, so there is no blank state to fill.
+                if isEmbedded, conversations.isEmpty {
+                    NoChatsView()
+                } else {
+                    List {
+                        // v1 only — v2 reaches the tip card from its own tab.
+                        if !isEmbedded {
+                            Button("Show My Tip Card") {
+                                router.push(.tipcard)
+                            }
+                            .buttonStyle(.filled)
+                            .accessibilityIdentifier("show-my-tipcard-button")
+                            .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                         }
-                        .buttonStyle(.filled)
-                        .accessibilityIdentifier("show-my-tipcard-button")
-                        .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                    }
 
-                    ForEach(conversationController.conversations(of: .tipDm)) { conversation in
-                        TipConversationRow(conversation: conversation) {
-                            router.push(.tipConversation(conversation.id))
+                        ForEach(conversations) { conversation in
+                            TipConversationRow(conversation: conversation) {
+                                router.push(.tipConversation(conversation.id))
+                            }
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             }
         }
         .navigationTitle(isEmbedded ? "" : "Tips")
         .toolbar(isEmbedded ? .hidden : .automatic, for: .navigationBar)
         .toolbarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - NoChatsView -
+
+/// The v2 Chats tab's empty state, shown until the first tip conversation
+/// exists — centred in the space between the "Chats" title and the tab bar, so
+/// it sits at the same height as the tippable-profile intro on this tab.
+private struct NoChatsView: View {
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(.Icons.chatBubbleLarge)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64)
+                .foregroundStyle(Color.textMain)
+
+            Text("No Chats Yet")
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+                .multilineTextAlignment(.center)
+
+            Text("Send a tip or share your Tip Card to start chatting")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+                // Holds the copy to the design's two-line wrap.
+                .frame(maxWidth: 220)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
