@@ -58,8 +58,14 @@ final class ActivityService: Sendable {
                 logger.info("Fetched activities", metadata: ["count": "\(activities.count)"])
                 await MainActor.run { completion(.success(activities)) }
             } catch let error as RPCError {
+                logger.error("Transaction history RPC failed", metadata: [
+                    "code": "\(error.code)",
+                    "message": "\(error.message)",
+                    "cause": "\(String(describing: error.cause))",
+                ])
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
+                logger.error("Transaction history call threw", metadata: ["error": "\(error)"])
                 await MainActor.run { completion(.failure(.unknown)) }
             }
         }
@@ -93,8 +99,14 @@ final class ActivityService: Sendable {
                 logger.info("Fetched activities by ID", metadata: ["count": "\(activities.count)"])
                 await MainActor.run { completion(.success(activities)) }
             } catch let error as RPCError {
+                logger.error("Transaction history batch RPC failed", metadata: [
+                    "code": "\(error.code)",
+                    "message": "\(error.message)",
+                    "cause": "\(String(describing: error.cause))",
+                ])
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
+                logger.error("Transaction history batch call threw", metadata: ["error": "\(error)"])
                 await MainActor.run { completion(.failure(.unknown)) }
             }
         }
@@ -120,6 +132,22 @@ public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
     case transportFailure = -2
     case cancelled = -3
     case rejected = -4
+}
+
+extension ErrorFetchTransactionHistory {
+    /// Whether a failed paged fetch should be retried from the start of
+    /// history. A stored paging cursor names a notification the server can
+    /// later drop, and it rejects the dead token with a server-side failure
+    /// rather than ignoring it — leaving a delta sync permanently stuck
+    /// unless it starts over with no cursor.
+    public var warrantsFullResync: Bool {
+        switch self {
+        case .unknown, .rejected:
+            true
+        case .ok, .denied, .transportFailure, .cancelled:
+            false
+        }
+    }
 }
 
 extension ErrorFetchTransactionHistory: ServerError, TransportClassifiableError {
