@@ -12,12 +12,25 @@ import SQLite
 /// after the user later spends the balance — mirroring Android.
 nonisolated extension Database {
 
-    /// True once a completed deposit or buy exists — the "added money" milestone.
+    /// Activity kinds that bring money *in* from outside the user's own
+    /// holdings: an on-ramp buy, an external deposit, a tip received, and a
+    /// pool distribution. `sold`/`swapped` are excluded — they move value
+    /// between tokens the user already holds rather than adding any.
+    private static let incomingKinds: [Int] = [
+        Activity.Kind.bought.rawValue,
+        Activity.Kind.deposited.rawValue,
+        Activity.Kind.received.rawValue,
+        Activity.Kind.distributed.rawValue,
+    ]
+
+    /// True once any completed incoming-money activity exists — the "added
+    /// money" milestone.
     func hasEverAddedMoney() throws -> Bool {
         let a = ActivityTable()
-        let funded = [Activity.Kind.deposited.rawValue, Activity.Kind.bought.rawValue]
         return try reader.pluck(
-            a.table.filter(funded.contains(a.kind) && a.state == Activity.State.completed.rawValue)
+            a.table.filter(
+                Self.incomingKinds.contains(a.kind) && a.state == Activity.State.completed.rawValue
+            )
         ) != nil
     }
 
