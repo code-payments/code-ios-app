@@ -273,7 +273,7 @@ struct DeepLinkAction {
                 Analytics.deeplinkRouted(kind: kind)
                 if sheet == .give {
                     let rate = container.ratesController.rateForBalanceCurrency()
-                    let gate = giveCashGate(session: container.session, rate: rate)
+                    let gate = giveCashGate(session: container.session, rate: rate, includingDollars: BetaFlags.shared.allowsDollarsGive)
                     if let dialog = gate.blockingDialog(router: container.appRouter, addMoneySource: .giveShortfall) {
                         container.session.dialogItem = dialog
                         return

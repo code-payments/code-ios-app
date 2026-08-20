@@ -78,10 +78,11 @@ struct SendAmountViewModelTests {
 
     // MARK: - Init resolution
 
-    @Test("Init with no mint and no prior selection skips USDF and auto-selects a giveable currency")
+    @Test("Init with no mint and no prior selection prefers a community currency over USDF")
     func testInit_NoMint_NoSelection_SkipsUSDF() throws {
-        // USDF holds the highest value, so the pre-fix resolver auto-selected it;
-        // the giveable filter must skip it and land on the launchpad currency.
+        // USDF is sendable, but it holds the highest value on nearly every
+        // account — auto-picking it would open every send in Dollars, so the
+        // resolver prefers the launchpad currency and keeps Dollars as a fallback.
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
             .init(
@@ -97,8 +98,10 @@ struct SendAmountViewModelTests {
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
-    @Test("Init with a stale USDF global selection still resolves to a giveable currency")
+    @Test("Init with a stale USDF global selection still resolves to a community currency")
     func testInit_NoMint_StaleUSDFSelection_SkipsUSDF() throws {
+        // `ensureValidTokenSelection` parks the global selection on the highest
+        // balance, which is routinely USDF — that isn't an intentional Dollars pick.
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 100_000_000_000),
             .init(

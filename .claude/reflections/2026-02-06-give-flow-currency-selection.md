@@ -41,3 +41,20 @@ Added back a fallback to `availableBalances.first` but forgot to sync the fallba
 4. **The smallest fix is usually the best fix.** One new method + one call site vs. restructuring the entire presentation flow.
 5. **When setting local state, check if shared state needs to sync too.** `selectedBalance` (local) and `ratesController.selectedTokenMint` (shared) must agree, or different UI components will show inconsistent state (toolbar vs. selection sheet).
 6. **"Trust the existing system" doesn't mean "assume it handles your specific case."** `ensureValidTokenSelection` is correct for its purpose, but the Give flow has additional constraints (no USDF) that the global selector doesn't know about.
+
+## Update (2026-08-20)
+
+Give/send/tip excludes USDF only on the old UI now. Dollars give ships with
+`BetaFlags.newUI` — its entry point is the Give tile on the Dollars card, which
+only the new currency-info layout draws — so the filter is a parameter rather
+than a constant: `giveable(includingDollars:)`,
+`Session.hasGiveableBalance(for:includingDollars:)`,
+`giveCashGate(session:rate:includingDollars:)`, and
+`RatesController.resolveInitialBalance(mint:session:includingDollars:)` all take
+it, and every call site passes `BetaFlags.shared.allowsDollarsGive`.
+
+The trap this reflection records still stands either way: `ensureValidTokenSelection`
+parks the global selection on the highest balance, which is routinely USDF, so
+`resolveInitialBalance` still declines to read a USDF selection as an intentional
+choice and prefers a community currency, falling back to Dollars only when there
+is nothing else and Dollars is giveable.

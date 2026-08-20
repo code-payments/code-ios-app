@@ -351,25 +351,34 @@ class RatesController {
         selectedTokenMint == mint
     }
 
-    /// The balance an amount-entry flow (Send, Give) should open with. An
+    /// The balance an amount-entry flow (Send, Give, Tip) should open with. An
     /// explicit `mint` wins; otherwise the current selection when it's giveable,
-    /// else the highest-value giveable balance — the fallback covers a stale or
-    /// USDF selection.
-    func resolveInitialBalance(mint: PublicKey?, session: Session) -> ExchangedBalance? {
+    /// else the highest-value giveable balance — the fallback covers a stale
+    /// selection.
+    ///
+    /// The auto-pick prefers a community currency and only lands on Dollars when
+    /// there's nothing else: `Session.ensureValidTokenSelection` parks the global
+    /// selection on the highest balance, which is routinely USDF, so treating it
+    /// as an intentional Dollars choice would open every flow in Dollars. Where
+    /// Dollars isn't giveable at all it can't be auto-picked either, so a
+    /// Dollars-only account resolves to nothing.
+    ///
+    /// - Parameter includingDollars: `BetaFlags.allowsDollarsGive`.
+    func resolveInitialBalance(mint: PublicKey?, session: Session, includingDollars: Bool) -> ExchangedBalance? {
         let rate = rateForBalanceCurrency()
 
         if let mint, let stored = session.balance(for: mint) {
             return stored.exchanged(with: rate)
         }
 
-        let giveable = session.balances(for: rate).giveable
+        let giveable = session.balances(for: rate).giveable(includingDollars: includingDollars)
 
-        if let stored = selectedTokenMint,
+        if let stored = selectedTokenMint, stored != .usdf,
            let match = giveable.first(where: { $0.stored.mint == stored }) {
             return match
         }
 
-        return giveable.first
+        return giveable.first { $0.stored.mint != .usdf } ?? giveable.first
     }
 
     /// Prepare for logout of current user

@@ -41,6 +41,15 @@ class BetaFlags {
         options.contains(option)
     }
     
+    /// Whether Dollars (USDF) can be given, sent, or tipped like a community
+    /// currency. Dollars give ships with the new UI: its only entry point is the
+    /// Give tile on the Dollars card, which the new currency-info layout alone
+    /// draws, so on the old UI a Dollars row in a give picker would offer a
+    /// currency the rest of that UI never gives.
+    var allowsDollarsGive: Bool {
+        hasEnabled(.newUI)
+    }
+
     /// Enables or disables a beta flag and persists the change to disk.
     func set(_ option: Option, enabled: Bool) {
         if enabled {

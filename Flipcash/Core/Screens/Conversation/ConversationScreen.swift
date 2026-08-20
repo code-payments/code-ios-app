@@ -318,7 +318,7 @@ struct ConversationScreen: View {
         case .contact: .giveCash
         }
         let rate = ratesController.rateForBalanceCurrency()
-        if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat, context: context) {
+        if let dialog = giveCashGate(session: session, rate: rate, includingDollars: BetaFlags.shared.allowsDollarsGive).blockingDialog(router: router, addMoneySource: .chat, context: context) {
             session.dialogItem = dialog
             return
         }

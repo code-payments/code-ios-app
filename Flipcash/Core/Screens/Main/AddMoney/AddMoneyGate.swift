@@ -44,30 +44,37 @@ func shouldAddMoneyBeforeLaunch(session: some LaunchBalanceReading, launchCost: 
 }
 
 /// The balance inputs the give/send cash gate needs — `USDFReserveReading`
-/// plus the community-currency predicate.
+/// plus the giveable-balance predicate.
 @MainActor
 protocol GiveBalanceReading: USDFReserveReading {
-    func hasGiveableBalance(for rate: Rate) -> Bool
+    func hasGiveableBalance(for rate: Rate, includingDollars: Bool) -> Bool
 }
 
 extension Session: GiveBalanceReading {}
 
-/// Where a "give cash" entry (Cash tab, in-chat Send, give deeplink) routes.
+/// Where a "give cash" entry (Cash tab, in-chat Send, tip sheet, give deeplink)
+/// routes.
 enum GiveCashGate: Equatable {
-    /// Community currency on hand.
+    /// Something spendable on hand — a community currency, or Dollars when the
+    /// new UI has them giveable.
     case proceed
-    /// USDF but no community currency.
+    /// Dollars on hand but nothing this UI can give (old UI only).
     case discoverCurrencies
     /// No balance at all.
     case addMoney
 }
 
-/// Returns where a give-cash entry routes given the user's balances. USDF
+/// Returns where a give-cash entry routes given the user's balances. Every mint
 /// counts only at displayable value, so the prompt agrees with the balance the
-/// wallet renders.
+/// wallet renders. `includingDollars` is `BetaFlags.allowsDollarsGive`.
 @MainActor
-func giveCashGate(session: some GiveBalanceReading, rate: Rate) -> GiveCashGate {
-    if session.hasGiveableBalance(for: rate) { return .proceed }
+func giveCashGate(session: some GiveBalanceReading, rate: Rate, includingDollars: Bool) -> GiveCashGate {
+    if session.hasGiveableBalance(for: rate, includingDollars: includingDollars) { return .proceed }
+
+    // Old UI only: Dollars is on hand but isn't giveable there, so point at
+    // Discover — the user has money, just nothing this UI can give. Once
+    // Dollars is giveable the branch is unreachable, since a displayable
+    // Dollars balance has already proceeded above.
     let hasUSDF = session.balance(for: .usdf)?
         .computeExchangedValue(with: rate)
         .hasDisplayableValue() ?? false

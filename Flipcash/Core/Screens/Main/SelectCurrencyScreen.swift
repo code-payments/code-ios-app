@@ -21,7 +21,7 @@ struct SelectCurrencyScreen: View {
 
     private var balances: [ExchangedBalance] {
         session.balances(for: ratesController.rateForBalanceCurrency())
-            .giveable
+            .giveable(includingDollars: BetaFlags.shared.allowsDollarsGive)
     }
 
     init(

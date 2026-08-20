@@ -435,7 +435,7 @@ struct GiveViewModelTests {
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
-    @Test("Init with no mint and no prior selection skips USDF and auto-selects a giveable currency")
+    @Test("Init with no mint and no prior selection prefers a community currency over USDF")
     func testInit_NoMint_NoSelection_SkipsUSDF() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
@@ -452,7 +452,7 @@ struct GiveViewModelTests {
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
-    @Test("Init with a stale USDF global selection still resolves to a giveable currency")
+    @Test("Init with a stale USDF global selection still resolves to a community currency")
     func testInit_NoMint_StaleUSDFSelection_SkipsUSDF() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 100_000_000_000),
