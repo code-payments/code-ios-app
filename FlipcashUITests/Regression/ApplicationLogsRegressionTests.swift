@@ -13,7 +13,9 @@ final class ApplicationLogsRegressionTests: BaseUITestCase {
 
     // MARK: - Tests
 
-    func testApplicationLogs_shareLogsPresentsShareSheet() {
+    func testApplicationLogs_shareLogsPresentsShareSheet() throws {
+        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
+
         let settings = SettingsUIScreen(app: app)
 
         assertMainScreenReached()

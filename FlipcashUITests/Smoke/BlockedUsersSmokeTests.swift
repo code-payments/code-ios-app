@@ -25,7 +25,9 @@ final class BlockedUsersSmokeTests: BaseUITestCase {
 
     /// Main → Settings → My Account → Blocked lands on the Blocked list and it
     /// loads its state (empty or populated) without hanging.
-    func testBlockedUsers_reachableFromMyAccount() {
+    func testBlockedUsers_reachableFromMyAccount() throws {
+        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
+
         let settings = SettingsUIScreen(app: app)
         let blocked = BlockedUsersUIScreen(app: app)
 

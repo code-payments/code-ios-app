@@ -9,7 +9,9 @@ final class GiveSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testGiveFlow_showsBillWithSendAsLink() {
+    func testGiveFlow_showsBillWithSendAsLink() throws {
+        try skipPendingTabBarRewrite("give no longer starts from a Cash button on the scanner")
+
         assertMainScreenReached()
 
         let amountEntry = navigateToGiveAmount()

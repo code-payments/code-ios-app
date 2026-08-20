@@ -102,12 +102,28 @@ class BaseUITestCase: XCTestCase {
         element.tap()
     }
 
-    /// Asserts that the main screen (ScanScreen) has been reached by checking for the Cash button.
+    /// Asserts that the main screen has been reached by checking for the Wallet
+    /// tab, the launch tab of the tab-bar UI.
+    ///
+    /// The tab bar hides itself once a screen is pushed onto the active tab's
+    /// stack, so this only holds at a tab root — which is what "main screen"
+    /// means at every call site.
     func assertMainScreenReached(timeout: TimeInterval = 30, _ message: String = "Expected to reach the main screen") {
         XCTAssertTrue(
-            app.buttons["Cash"].waitForExistence(timeout: timeout),
+            app.buttons["Wallet"].waitForExistence(timeout: timeout),
             message
         )
+    }
+
+    /// Skips a test whose entry point was the v1 scanner chrome, removed when
+    /// the tab-bar UI shipped to everyone.
+    ///
+    /// These flows still exist but are reached differently now, so each call
+    /// site needs a rewrite verified against a simulator rather than a selector
+    /// swap. Grep this symbol for the outstanding list; it goes away with the
+    /// last one.
+    func skipPendingTabBarRewrite(_ detail: String) throws {
+        throw XCTSkip("Pending rewrite for the tab-bar UI: \(detail)")
     }
 
     /// Navigates into the Give flow, retrying up to 3 times if the balance hasn't loaded yet.

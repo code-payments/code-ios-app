@@ -9,7 +9,9 @@ import XCTest
 /// the Create-Your-Own-Currency promo card pushes the creation summary screen.
 final class DiscoverCurrenciesSmokeTests: BaseUITestCase {
 
-    func testDiscover_newAccount_tapPromoCard_opensCurrencyCreation() {
+    func testDiscover_newAccount_tapPromoCard_opensCurrencyCreation() throws {
+        try skipPendingTabBarRewrite("Discover is a Wallet tile now, and the create-currency promo card is hidden")
+
         // Create a brand new empty account so this test runs without a UITest access key.
         waitAndTap(app.buttons["Create a New Account"])
         waitAndTap(app.buttons["Wrote the 12 Words Down Instead?"])

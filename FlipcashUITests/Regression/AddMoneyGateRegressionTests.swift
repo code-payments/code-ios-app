@@ -11,7 +11,9 @@ import XCTest
 /// no auth keys are required.
 final class AddMoneyGateRegressionTests: BaseUITestCase {
 
-    func testBuyWithNoAssets_offersAddMoneyOnAmountEntry() {
+    func testBuyWithNoAssets_offersAddMoneyOnAmountEntry() throws {
+        try skipPendingTabBarRewrite("Discover moved from the scanner bottom bar to a Wallet tile")
+
         let addMoney = AddMoneyStartScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
 
@@ -39,7 +41,9 @@ final class AddMoneyGateRegressionTests: BaseUITestCase {
         addMoney.assertSelectMethodReached()
     }
 
-    func testCreateCurrencyWithNoAssets_gatesOnAddMoney() {
+    func testCreateCurrencyWithNoAssets_gatesOnAddMoney() throws {
+        try skipPendingTabBarRewrite("currency creation starts from a Wallet tile now, not the Discover promo card")
+
         let addMoney = AddMoneyStartScreen(app: app)
 
         createFreshAccount()

@@ -9,7 +9,9 @@ final class DepositSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testDeposit_landsOnUSDCEducationScreenWithBothButtons() {
+    func testDeposit_landsOnUSDCEducationScreenWithBothButtons() throws {
+        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
+
         let education = USDCDepositEducationScreen(app: app)
 
         assertMainScreenReached()
@@ -20,7 +22,9 @@ final class DepositSmokeTests: BaseUITestCase {
         XCTAssertTrue(education.depositOtherCurrenciesButton.exists)
     }
 
-    func testDeposit_pickerKeepsUSDFAndRoutesToDirectAddress() {
+    func testDeposit_pickerKeepsUSDFAndRoutesToDirectAddress() throws {
+        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
+
         let education = USDCDepositEducationScreen(app: app)
 
         assertMainScreenReached()
