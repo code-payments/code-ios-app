@@ -170,9 +170,10 @@ class Session {
         (try? database.getRecentActivities(limit: limit)) ?? []
     }
 
-    /// Whether the caller has ever added money (a completed deposit or buy) —
-    /// the wallet onboarding "add money" milestone. Derived from durable history,
-    /// so it stays true after the balance is spent.
+    /// Whether the caller has ever received money from outside their own
+    /// holdings — a completed buy, deposit, tip received, or distribution. This
+    /// is the wallet onboarding "add money" milestone. Derived from durable
+    /// history, so it stays true after the balance is spent.
     func hasEverAddedMoney() -> Bool {
         (try? database.hasEverAddedMoney()) ?? false
     }
@@ -458,6 +459,12 @@ class Session {
     
     func didBecomeActive() {
         ratesController.ensureStreamConnected()
+        // Anything that landed while backgrounded — a tip received, a deposit
+        // that settled — is only in the local DB once history is pulled, and
+        // the balance poller does not pull it. Nothing else re-syncs on
+        // foreground, so the activity feed would stay stale until the next
+        // transaction of the user's own.
+        historyController.sync()
     }
 
     func didEnterBackground() {

@@ -131,8 +131,8 @@ private struct WalletScreenContent: View {
         _cards = State(initialValue: seed.cards)
         _total = State(initialValue: seed.total)
         _appreciation = State(initialValue: seed.appreciation)
-        _hasAddedMoney = State(initialValue: seed.hasAddedMoney)
-        _hasTipped = State(initialValue: seed.hasTipped)
+        _hasAddedMoney = State(initialValue: sessionContainer.session.hasEverAddedMoney())
+        _hasTipped = State(initialValue: sessionContainer.session.hasEverTipped())
         _recentActivities = State(initialValue: sessionContainer.session.recentActivities(limit: Self.recentPreviewCount))
     }
 
@@ -197,12 +197,21 @@ private struct WalletScreenContent: View {
             .toolbar(.hidden, for: .navigationBar)
             .appRouterDestinations()
             .onAppear { historyController.sync() }
-            .onChange(of: session.balances) { _, _ in refresh() }
+            .onChange(of: session.balances) { _, _ in
+                refresh()
+                // A balance that moved has an activity row on its way, so pull
+                // it now. `onAppear` cannot be the only sync: the tab stays
+                // alive behind sheets and behind the other tabs, so it fires
+                // once per launch and never again after a deposit lands.
+                historyController.sync()
+            }
             .onChange(of: rate) { _, _ in refresh() }
             // Activities land in the DB independently of a balance change (e.g.
-            // a synced history page), so reload the preview on any DB change.
+            // a synced history page), and both the recent preview and the
+            // onboarding milestones are derived from them — so reload both on
+            // any DB change rather than only when a balance moves.
             .onReceive(NotificationCenter.default.publisher(for: .databaseDidChange)) { _ in
-                recentActivities = session.recentActivities(limit: Self.recentPreviewCount)
+                reloadHistoryState()
             }
             // Popping back to the wallet restores the deck.
             // Deliberately not watching the stack depth to decide whether the
@@ -626,8 +635,28 @@ private struct WalletScreenContent: View {
             cards = snapshot.cards
             total = snapshot.total
             appreciation = snapshot.appreciation
-            hasAddedMoney = snapshot.hasAddedMoney
-            hasTipped = snapshot.hasTipped
+        }
+    }
+
+    /// Re-reads the history-derived state: the recent-activity preview and the
+    /// two onboarding milestones. All three come from the activity and message
+    /// tables, which a history sync writes without touching balances — so they
+    /// cannot ride on ``refresh()``'s balance trigger, and a deposit's activity
+    /// row routinely lands after the balance rise that preceded it.
+    private func reloadHistoryState() {
+        let activities = session.recentActivities(limit: Self.recentPreviewCount)
+        let addedMoney = session.hasEverAddedMoney()
+        let tipped = session.hasEverTipped()
+
+        guard activities != recentActivities
+                || addedMoney != hasAddedMoney
+                || tipped != hasTipped
+        else { return }
+
+        withAnimation(.default) {
+            recentActivities = activities
+            hasAddedMoney = addedMoney
+            hasTipped = tipped
         }
     }
 
@@ -637,7 +666,7 @@ private struct WalletScreenContent: View {
     private static func snapshot(
         session: Session,
         rate: Rate
-    ) -> (cards: [TokenCardData], total: ExchangedFiat, appreciation: (amount: FiatAmount, isPositive: Bool), hasAddedMoney: Bool, hasTipped: Bool) {
+    ) -> (cards: [TokenCardData], total: ExchangedFiat, appreciation: (amount: FiatAmount, isPositive: Bool)) {
         let all = session.balances(for: rate)
         let visible = all.filter { $0.stored.mint != .usdf || $0.exchangedFiat.hasDisplayableValue() }
 
@@ -670,7 +699,7 @@ private struct WalletScreenContent: View {
             isPositive: net >= 0
         )
 
-        return (cards, total, appreciation, session.hasEverAddedMoney(), session.hasEverTipped())
+        return (cards, total, appreciation)
     }
 }
 
