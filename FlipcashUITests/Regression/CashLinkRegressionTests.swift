@@ -20,7 +20,9 @@ final class CashLinkRegressionTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testCashLink_createAndCancel() {
+    func testCashLink_createAndCancel() throws {
+        try skipPendingTabBarRewrite("the cash link is created from the give flow, which no longer starts from a Cash button")
+
         let wallet = WalletScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
 

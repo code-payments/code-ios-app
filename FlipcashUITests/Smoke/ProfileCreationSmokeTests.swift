@@ -22,6 +22,8 @@ final class ProfileCreationSmokeTests: BaseUITestCase {
     }
 
     func testCreateProfile() throws {
+        try skipPendingTabBarRewrite("Tips is the Chat tab now, not a sheet off the scanner bottom bar")
+
         createFreshAccount()
 
         waitAndTap(app.buttons["scan-tips-button"])

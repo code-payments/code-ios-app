@@ -37,8 +37,12 @@ class BetaFlags {
     }
     
     /// Returns `true` when the given beta flag is currently active.
+    ///
+    /// A `.shipped` option reports on for everyone regardless of what is stored,
+    /// so a rollout needs no call-site edits and no user can opt back out.
     func hasEnabled(_ option: Option) -> Bool {
-        options.contains(option)
+        if option.availability == .shipped { return true }
+        return options.contains(option)
     }
     
     /// Whether Dollars (USDF) can be given, sent, or tipped like a community
@@ -156,7 +160,7 @@ extension BetaFlags {
             switch self {
             case .vibrateOnScan:   return .developer
             case .enableCoinbase:  return .developer
-            case .newUI:           return .developer
+            case .newUI:           return .shipped
             }
         }
     }
@@ -167,6 +171,10 @@ extension BetaFlags {
         case developer
         /// The public "Advanced ▸ Beta Features" screen, visible to every user.
         case publicBeta
+        /// Shipped to everyone: forced on by ``BetaFlags/hasEnabled(_:)`` and
+        /// listed nowhere, since there is no longer a choice to offer. The case
+        /// stays until its branches are torn out of the call sites.
+        case shipped
     }
 }
 

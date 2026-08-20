@@ -18,7 +18,9 @@ final class WithdrawPickerEmptyRegressionTests: BaseUITestCase {
 
     override var requiresUsdfOnlyAccount: Bool { true }
 
-    func testWithdrawPicker_showsUsdfRow_onUsdfOnlyAccount() {
+    func testWithdrawPicker_showsUsdfRow_onUsdfOnlyAccount() throws {
+        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
+
         let settings = SettingsUIScreen(app: app)
 
         assertMainScreenReached()

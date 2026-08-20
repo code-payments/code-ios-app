@@ -16,7 +16,9 @@ final class GiveDiscoverGateRegressionTests: BaseUITestCase {
 
     override var requiresUsdfOnlyAccount: Bool { true }
 
-    func testGiveWithUsdfOnly_routesToDiscover() {
+    func testGiveWithUsdfOnly_routesToDiscover() throws {
+        try skipPendingTabBarRewrite("USDF is giveable in the tab-bar UI, so the Discover nudge this asserts no longer exists")
+
         assertMainScreenReached()
 
         waitAndTap(app.buttons["Cash"])

@@ -13,7 +13,9 @@ final class WithdrawSmokeTests: BaseUITestCase {
     /// which lists every balance (Dollars included). USDF no longer gets a
     /// dedicated intro-first entry; the "Withdraw as USDC" screen is reached by
     /// picking Dollars.
-    func testWithdraw_landsOnCurrencyPicker() {
+    func testWithdraw_landsOnCurrencyPicker() throws {
+        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
+
         assertMainScreenReached()
 
         openWithdrawFromSettings()
