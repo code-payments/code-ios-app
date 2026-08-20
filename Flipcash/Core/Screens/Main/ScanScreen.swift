@@ -192,7 +192,7 @@ private struct ScanScreenContent: View {
 
     private func presentGive() {
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
-        if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .scanner) {
+        if let dialog = giveCashGate(session: session, rate: rate, includingDollars: BetaFlags.shared.allowsDollarsGive).blockingDialog(router: router, addMoneySource: .scanner) {
             session.dialogItem = dialog
             return
         }

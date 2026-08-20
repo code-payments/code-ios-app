@@ -197,12 +197,15 @@ class Session {
         return colors
     }
 
-    /// True when the user has at least one non-USDF balance with a displayable
-    /// fiat value. Skips the sort + allocate that `balances(for:)` does, so
-    /// callers gating a presentation pay only the early-exit predicate cost.
-    func hasGiveableBalance(for rate: Rate) -> Bool {
+    /// True when the user has at least one balance with a displayable fiat
+    /// value that a give, send, or tip can spend. Dollars counts only when
+    /// `includingDollars` — see `BetaFlags.allowsDollarsGive`. Skips the sort +
+    /// allocate that `balances(for:)` does, so callers gating a presentation pay
+    /// only the early-exit predicate cost.
+    func hasGiveableBalance(for rate: Rate, includingDollars: Bool) -> Bool {
         updateableBalances.value.contains { stored in
-            stored.mint != .usdf && stored.computeExchangedValue(with: rate).hasDisplayableValue()
+            guard stored.mint != .usdf || includingDollars else { return false }
+            return stored.computeExchangedValue(with: rate).hasDisplayableValue()
         }
     }
     

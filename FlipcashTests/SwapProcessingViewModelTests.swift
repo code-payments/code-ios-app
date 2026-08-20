@@ -12,12 +12,13 @@ import FlipcashCore
 @MainActor
 struct SwapProcessingViewModelTests {
 
-    @Test("SwapType exposes the reserves, currency-paid, and sell cases")
+    @Test("SwapType exposes the reserves, currency-paid, sell, and convert cases")
     func swapType_exposesExpectedCases() {
-        #expect(SwapType.allCases.count == 3)
+        #expect(SwapType.allCases.count == 4)
         #expect(SwapType.allCases.contains(.buyWithReserves))
         #expect(SwapType.allCases.contains(.buyWithCurrency))
         #expect(SwapType.allCases.contains(.sell))
+        #expect(SwapType.allCases.contains(.convert))
     }
 
     @Test("Processing navigation title reads the trimmed switch for every remaining case")
@@ -30,8 +31,10 @@ struct SwapProcessingViewModelTests {
                 amount: .mockOne
             )
         }
-        #expect(makeViewModel(.buyWithReserves).navigationTitle == "Purchasing TestCoin")
-        #expect(makeViewModel(.buyWithCurrency).navigationTitle == "Purchasing TestCoin")
+        #expect(makeViewModel(.buyWithReserves).navigationTitle == "Buying TestCoin")
+        #expect(makeViewModel(.buyWithCurrency).navigationTitle == "Buying TestCoin")
         #expect(makeViewModel(.sell).navigationTitle == "Selling TestCoin")
+        // Convert spans two currencies, so the title names neither.
+        #expect(makeViewModel(.convert).navigationTitle == "Converting")
     }
 }

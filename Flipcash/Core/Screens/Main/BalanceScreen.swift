@@ -255,11 +255,16 @@ struct ExchangedBalance: Identifiable, Hashable {
 
 extension Array where Element == ExchangedBalance {
 
-    /// Balances eligible to send or give — every balance except USDF, the
-    /// on-Flipcash stablecoin. Dollars give is reached directly from the Dollars
-    /// card (new UI), not through this generic list.
-    var giveable: [ExchangedBalance] {
-        filter { $0.stored.mint != .usdf }
+    /// Balances eligible to give, send, or tip. Dollars appears only when
+    /// `includingDollars` — see `BetaFlags.allowsDollarsGive` — and only when it
+    /// carries a displayable value: `balances(for:)` keeps USDF at any value so
+    /// the wallet can render a zero Dollars card, and an amount-entry picker has
+    /// no use for a balance that can't fund anything.
+    func giveable(includingDollars: Bool) -> [ExchangedBalance] {
+        filter { balance in
+            guard balance.stored.mint == .usdf else { return true }
+            return includingDollars && balance.exchangedFiat.hasDisplayableValue()
+        }
     }
 }
 
