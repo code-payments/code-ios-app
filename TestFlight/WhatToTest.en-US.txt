@@ -1,5 +1,14 @@
 What to test in this build
 
+New in this release:
+• The redesigned tab-bar navigation and full-screen wallet are now available to everyone — check the wallet, chats, scanner, tips, withdraw, add-money, and currency screens throughout the app
+• Send Dollars (USDF) in tips, chats, and from the Cash tab
+• Swaps now show up in your activity feed and notifications, titled with the token pair you swapped
+• The currency leaderboard now ranks by market cap
+• Activity history no longer stalls after certain items — your full history loads reliably
+• Received tips show the correct sender in your activity
+• The access key backup card no longer shows a white outline on its corners
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
