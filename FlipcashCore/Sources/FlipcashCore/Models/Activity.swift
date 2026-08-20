@@ -213,12 +213,31 @@ extension Activity {
                 template: proto.localizedText,
                 resolutions: substitutions.map(\.fallback)
             ),
-            exchangedFiat: try ExchangedFiat(proto.paymentAmount),
+            exchangedFiat: try ExchangedFiat(Self.displayAmount(of: proto)),
             date: proto.ts.date,
             metadata: .init(proto.additionalMetadata),
             textSubstitutions: substitutions,
             counterparty: .init(proto.additionalMetadata)
         )
+    }
+
+    /// The amount the activity renders. `payment_amount` is unset for multi-mint
+    /// operations — the contract carries those amounts in `additional_metadata`
+    /// instead — so a swap falls back to its source leg.
+    private static func displayAmount(
+        of proto: Flipcash_Activity_V1_Notification
+    ) -> Flipcash_Common_V1_CryptoPaymentAmount {
+        guard !proto.hasPaymentAmount else { return proto.paymentAmount }
+
+        switch proto.additionalMetadata {
+        case .swappedCrypto(let metadata):
+            return metadata.from
+        case .withdrewCrypto(let metadata) where metadata.hasSwapMetadata:
+            return metadata.swapMetadata.from
+        case .directlySentCrypto, .receivedCrypto, .withdrewCrypto, .indirectlySentCrypto,
+             .depositedCrypto, .boughtCrypto, .soldCrypto, .none:
+            return proto.paymentAmount
+        }
     }
 }
 

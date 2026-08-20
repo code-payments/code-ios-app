@@ -263,4 +263,74 @@ struct ActivityProtoMappingTests {
             _ = try Activity(proto)
         }
     }
+
+    // MARK: Swap notifications without a top-level payment amount
+
+    // The contract documents `payment_amount` as absent for multi-mint
+    // operations — those amounts are carried in `additional_metadata` instead.
+    // A swap notification must therefore still map with no top-level amount.
+
+    @Test("swappedCrypto without a top-level paymentAmount still maps, deriving the amount from the From leg")
+    func swappedWithoutPaymentAmount() throws {
+        let fromMintBytes = Data(repeating: 7, count: 32)
+        let toMintBytes   = Data(repeating: 9, count: 32)
+
+        var swapped = Flipcash_Activity_V1_SwappedCryptoNotificationMetadata()
+        swapped.from.mint.value   = fromMintBytes
+        swapped.from.quarks       = 5_000_000
+        swapped.from.nativeAmount = 5.0
+        swapped.from.currency     = "usd"
+
+        var toAmount = Flipcash_Common_V1_CryptoPaymentAmount()
+        toAmount.mint.value   = toMintBytes
+        toAmount.quarks       = 100_000_000
+        toAmount.nativeAmount = 4.95
+        toAmount.currency     = "usd"
+        swapped.to = .toAmount(toAmount)
+
+        swapped.fee.nativeAmount = 0.05
+        swapped.fee.currency     = "usd"
+        swapped.swapState        = .succeeded
+
+        var proto = Flipcash_Activity_V1_Notification()
+        proto.id.value      = Self.notificationId
+        proto.localizedText = "Converted"
+        proto.state         = .completed
+        proto.additionalMetadata = .swappedCrypto(swapped)
+        // Deliberately no `proto.paymentAmount`.
+
+        let activity = try Activity(proto)
+
+        #expect(activity.kind == .swapped)
+        #expect(activity.exchangedFiat.mint == (try PublicKey(fromMintBytes)))
+        #expect(activity.exchangedFiat.onChainAmount.quarks == 5_000_000)
+        #expect(activity.exchangedFiat.nativeAmount.value == Decimal(5.0))
+        #expect(activity.swapMetadata?.toQuarks == 100_000_000)
+    }
+
+    @Test("A pending swap without a top-level paymentAmount still maps")
+    func pendingSwapWithoutPaymentAmount() throws {
+        var swapped = Flipcash_Activity_V1_SwappedCryptoNotificationMetadata()
+        swapped.from.mint.value   = Self.mintBytes
+        swapped.from.quarks       = 1_000_000
+        swapped.from.nativeAmount = 1.0
+        swapped.from.currency     = "usd"
+        swapped.toMint.value      = Self.vaultBytes
+        swapped.fee.nativeAmount  = 0.01
+        swapped.fee.currency      = "usd"
+        swapped.swapState         = .pending
+
+        var proto = Flipcash_Activity_V1_Notification()
+        proto.id.value      = Self.notificationId
+        proto.localizedText = "Converting"
+        proto.state         = .pending
+        proto.additionalMetadata = .swappedCrypto(swapped)
+
+        let activity = try Activity(proto)
+
+        #expect(activity.kind == .swapped)
+        #expect(activity.state == .pending)
+        #expect(activity.exchangedFiat.mint == (try PublicKey(Self.mintBytes)))
+        #expect(activity.swapMetadata?.state == .pending)
+    }
 }

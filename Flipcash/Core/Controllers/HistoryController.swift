@@ -117,9 +117,26 @@ class HistoryController {
         return true
     }
 
+    /// Syncs everything newer than the latest locally-stored activity.
+    ///
+    /// The stored cursor is a server notification id, and the server can drop
+    /// the notification it names — a history migration does exactly that. It
+    /// then fails the request rather than ignoring the dead token, which would
+    /// wedge every later sync on the same cursor, so a server-side failure
+    /// falls back to a full resync.
     private func syncDeltaHistory() async throws -> Bool {
-        let latestID = try database.getLatestActivityID()
-        return try await syncHistory(since: latestID)
+        guard let latestID = try database.getLatestActivityID() else {
+            return try await syncHistory()
+        }
+        do {
+            return try await syncHistory(since: latestID)
+        } catch let error as ErrorFetchTransactionHistory where error.warrantsFullResync {
+            logger.warning("Delta sync failed, resyncing full history", metadata: [
+                "cursor": "\(latestID.base58)",
+                "error": "\(error)",
+            ])
+            return try await syncHistory()
+        }
     }
 
     private func syncHistory(since id: PublicKey? = nil) async throws -> Bool {
