@@ -53,7 +53,6 @@ extension AppRouter {
         case settingsAdvancedFeatures
         case settingsAdvancedBetaFeatures
         case settingsAppSettings
-        case settingsBetaFlags
         case settingsAccountSelection
         case settingsApplicationLogs
         case blockedUsers
@@ -87,7 +86,7 @@ extension AppRouter {
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
-                 .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
+                 .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .settings
             case .profileName, .profilePhoto, .tipcard,
@@ -120,7 +119,6 @@ extension AppRouter {
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAdvancedBetaFeatures: "settingsAdvancedBetaFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
-            case .settingsBetaFlags:            "settingsBetaFlags"
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
             case .blockedUsers:                 "blockedUsers"
@@ -158,7 +156,7 @@ extension AppRouter {
                  .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
-                 .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
+                 .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard:
                 return nil

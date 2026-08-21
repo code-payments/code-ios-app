@@ -79,9 +79,6 @@ struct DestinationView: View {
         case .settingsAppSettings:
             SettingsAppSettingsScreen()
 
-        case .settingsBetaFlags:
-            BetaFlagsScreen()
-
         case .settingsAccountSelection:
             // The action closure dismisses the settings sheet and switches accounts.
             // Captured at the modifier site so the AppRouter stays pure-navigation.

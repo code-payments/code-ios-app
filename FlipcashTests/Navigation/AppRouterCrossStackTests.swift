@@ -98,7 +98,7 @@ struct AppRouterCrossStackTests {
             (AppRouter.Destination.settingsMyAccount,               AppRouter.Stack.settings),
             (AppRouter.Destination.settingsAdvancedFeatures,        AppRouter.Stack.settings),
             (AppRouter.Destination.settingsAppSettings,             AppRouter.Stack.settings),
-            (AppRouter.Destination.settingsBetaFlags,               AppRouter.Stack.settings),
+            (AppRouter.Destination.settingsAdvancedBetaFeatures,    AppRouter.Stack.settings),
             (AppRouter.Destination.settingsAccountSelection,        AppRouter.Stack.settings),
             (AppRouter.Destination.settingsApplicationLogs,         AppRouter.Stack.settings),
             (AppRouter.Destination.accessKey,                       AppRouter.Stack.settings),
