@@ -407,6 +407,8 @@ extension Analytics {
         case quarks            = "Quarks"
         case mint              = "Mint"
         case paymentMint       = "Payment Mint"
+        case tokenSymbol       = "Token Symbol"
+        case paymentTokenSymbol = "Payment Token Symbol"
         case fiat              = "Fiat"
         case currency          = "Currency"
         case fx                = "Exchange Rate"
