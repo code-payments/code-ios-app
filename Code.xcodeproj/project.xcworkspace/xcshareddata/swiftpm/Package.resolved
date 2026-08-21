@@ -73,6 +73,15 @@
       }
     },
     {
+      "identity" : "flipcash-shared-core-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/code-payments/flipcash-shared-core-spm",
+      "state" : {
+        "revision" : "5b1a6e83b77492eac22cb2b8af334f014b7786eb",
+        "version" : "0.3.1"
+      }
+    },
+    {
       "identity" : "googleappmeasurement",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/GoogleAppMeasurement.git",

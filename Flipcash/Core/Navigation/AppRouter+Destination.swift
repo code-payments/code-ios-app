@@ -50,10 +50,13 @@ extension AppRouter {
 
         // Settings flow
         case settingsMyAccount
+        /// The display name on its own, edited from My Account. The full
+        /// profile-setup flow starts on the same screen but carries on to the
+        /// tip card; this one returns to the settings list.
+        case changeDisplayName
         case settingsAdvancedFeatures
         case settingsAdvancedBetaFeatures
         case settingsAppSettings
-        case settingsBetaFlags
         case settingsAccountSelection
         case settingsApplicationLogs
         case blockedUsers
@@ -86,8 +89,8 @@ extension AppRouter {
                  .transactionHistory, .activity, .give, .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
-            case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
-                 .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
+            case .settingsMyAccount, .changeDisplayName, .settingsAdvancedFeatures,
+                 .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .settings
             case .profileName, .profilePhoto, .tipcard,
@@ -117,10 +120,10 @@ extension AppRouter {
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
             case .settingsMyAccount:            "settingsMyAccount"
+            case .changeDisplayName:            "changeDisplayName"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAdvancedBetaFeatures: "settingsAdvancedBetaFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
-            case .settingsBetaFlags:            "settingsBetaFlags"
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
             case .blockedUsers:                 "blockedUsers"
@@ -157,8 +160,8 @@ extension AppRouter {
             case .activity,
                  .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
-                 .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
-                 .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
+                 .settingsMyAccount, .changeDisplayName, .settingsAdvancedFeatures,
+                 .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard:
                 return nil

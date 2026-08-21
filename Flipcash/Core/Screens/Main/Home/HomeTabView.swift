@@ -57,14 +57,16 @@ struct HomeTabView: View {
     }
 
     /// Hide the tab bar whenever the active tab has pushed a screen (e.g. Wallet →
-    /// Currency Info → Give) so that screen owns the full height, and while a
+    /// Currency Info → Give) so that screen owns the full height, while a
     /// bill/tipcard is up (the app-root overlay owns the screen then, as the v1
-    /// bill replaced the bottom bar). Sheets already cover the bar, so only
-    /// in-tab pushes need handling here.
+    /// bill replaced the bottom bar), and while the You tab's card is expanded.
+    /// Sheets already cover the bar, so only in-tab pushes need handling here.
     @State private var cardExpansion = WalletCardExpansion()
+    @State private var tipCardPresentation = TipCardPresentation()
 
     private var isTabBarHidden: Bool {
         if cardExpansion.isExpanded { return true }
+        if tipCardPresentation.isExpanded { return true }
         if sessionContainer.session.isShowingBill { return true }
         guard let stack = selection.pushStack else { return false }
         return !router[stack].isEmpty
@@ -96,7 +98,11 @@ struct HomeTabView: View {
                 selection = tab
                 router.requestedTabStack = nil
             }
-            .onChange(of: selection) { _, tab in router.activeTabStack = tab.pushStack }
+            .onChange(of: selection) { _, tab in
+                router.activeTabStack = tab.pushStack
+                // Leaving the tab puts the card back (and the brightness with it).
+                tipCardPresentation.collapse()
+            }
             .onDisappear { router.activeTabStack = nil }
     }
 
@@ -182,6 +188,7 @@ struct HomeTabView: View {
             ChatTab()
         case .tipCard:
             TipCardTab(onSetUp: { selection = .chat })
+                .environment(tipCardPresentation)
         }
     }
 }

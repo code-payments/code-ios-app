@@ -13,7 +13,13 @@ enum ShareSheet {
     // MARK: - Static Invocation -
     
     static func present(activityItem: UIActivityItemSource, completion: @escaping (Bool) -> Void) {
-        let controller = UIActivityViewController(activityItems: [activityItem], applicationActivities: nil)
+        present(activityItems: [activityItem], completion: completion)
+    }
+
+    /// Shares items that carry their own presentation — a file URL, say, which
+    /// the sheet titles and thumbnails from the file itself.
+    static func present(activityItems: [Any], completion: @escaping (Bool) -> Void) {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
 
         controller.completionWithItemsHandler = { _, isCompleted, _, _ in
             completion(isCompleted)
