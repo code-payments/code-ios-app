@@ -25,6 +25,10 @@ class SwapProcessingViewModel {
         case .success:
             if let exchangedFiat {
                 switch swapType {
+                case .convert where targetMint == .usdf:
+                    // Converting into the reserve would read "$1.00 of Dollars" —
+                    // the amount alone already says it.
+                    return exchangedFiat.nativeAmount.formatted()
                 case .buyWithReserves, .buyWithCurrency, .convert:
                     // Convert names its destination via `currencyName`, so the
                     // same "X of <currency>" reads correctly there too.
@@ -94,8 +98,9 @@ class SwapProcessingViewModel {
 
     private let swapId: SwapId
     private let swapType: SwapType
-    /// The token being bought — analytics-only; nil on the sell path, where
-    /// `amount.mint` already names the subject token.
+    /// The token being bought, or a convert's destination; nil on the sell path,
+    /// where `amount.mint` already names the subject token. Feeds analytics, and
+    /// the success title's check for a conversion landing in the reserve.
     private let targetMint: PublicKey?
     private let currencyName: String
     private let amount: ExchangedFiat
