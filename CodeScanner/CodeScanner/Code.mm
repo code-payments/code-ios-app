@@ -56,7 +56,7 @@
 }
 
 + (nullable NSData *)scan:(nonnull NSData *)data width:(NSInteger)width height:(NSInteger)height {
-    [self scan:data width:width height:height quality:KikCodesScanQualityHigh];
+    return [self scan:data width:width height:height quality:KikCodesScanQualityHigh];
 }
 
 + (nullable NSData *)scan:(nonnull NSData *)data width:(NSInteger)width height:(NSInteger)height quality:(KikCodesScanQuality)quality {
