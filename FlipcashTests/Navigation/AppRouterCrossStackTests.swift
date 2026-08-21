@@ -96,6 +96,7 @@ struct AppRouterCrossStackTests {
             (AppRouter.Destination.usdcDepositEducation,            AppRouter.Stack.balance),
             (AppRouter.Destination.usdcDepositAddress,              AppRouter.Stack.balance),
             (AppRouter.Destination.settingsMyAccount,               AppRouter.Stack.settings),
+            (AppRouter.Destination.changeDisplayName,               AppRouter.Stack.settings),
             (AppRouter.Destination.settingsAdvancedFeatures,        AppRouter.Stack.settings),
             (AppRouter.Destination.settingsAppSettings,             AppRouter.Stack.settings),
             (AppRouter.Destination.settingsAdvancedBetaFeatures,    AppRouter.Stack.settings),
