@@ -31,6 +31,10 @@ struct YouScreen: View {
     @State private var debugTapCount: Int = 0
     @State private var isShowingDownloadOptions = false
 
+    /// The format tapped in the download sheet, held until the sheet is gone so
+    /// the share sheet has a settled controller to present on.
+    @State private var pendingDownload: TipCardDownloadFormat?
+
     /// The card's slot in the page's layout, in global space — where the card
     /// sits before it travels to the middle of the screen.
     @State private var cardSlotFrame: CGRect = .zero
@@ -76,9 +80,9 @@ struct YouScreen: View {
                 }
             }
         }
-        .sheet(isPresented: $isShowingDownloadOptions) {
+        .sheet(isPresented: $isShowingDownloadOptions, onDismiss: exportPendingDownload) {
             TipCardDownloadSheet(
-                onSelect: download(as:),
+                onSelect: { pendingDownload = $0; isShowingDownloadOptions = false },
                 onCancel: { isShowingDownloadOptions = false }
             )
         }
@@ -304,10 +308,16 @@ struct YouScreen: View {
         ShareSheet.present(activityItem: item) { _ in }
     }
 
-    /// Exports the code in `format` and hands the file to the share sheet,
-    /// which is where iOS puts "Save to Files" and every other destination.
-    private func download(as format: TipCardDownloadFormat) {
-        isShowingDownloadOptions = false
+    /// Exports the format the sheet picked and hands the file to the share
+    /// sheet, which is where iOS puts "Save to Files" and every other
+    /// destination.
+    ///
+    /// Runs on the download sheet's dismissal rather than its tap: the share
+    /// sheet presents on the top-most view controller, which is the download
+    /// sheet itself until that dismissal finishes.
+    private func exportPendingDownload() {
+        guard let format = pendingDownload else { return }
+        pendingDownload = nil
 
         guard let file = TipCardExport.file(for: format, codeData: codeData, name: displayName) else {
             return
