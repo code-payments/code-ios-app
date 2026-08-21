@@ -11,6 +11,16 @@ private let logger = Logger(label: "flipcash.profile-name")
 
 struct ProfileNameScreen: View {
 
+    /// Where a saved name leads.
+    enum Completion {
+        /// Profile setup: on to the tip card the name unlocks.
+        case tipcard
+        /// A lone edit: back to the screen that opened this one.
+        case back
+    }
+
+    var completion: Completion = .tipcard
+
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
@@ -96,13 +106,20 @@ struct ProfileNameScreen: View {
                 )
                 try await sessionContainer.session.updateProfile()
 
-                // `push` resolves the stack when it runs, and this runs after two
-                // RPCs — by now the user may have swapped to another sheet, whose
-                // stack has no profile-creation state to mount against.
-                guard !Task.isCancelled, router.presentedSheet?.stack == .tips else { return }
-                // The photo-capture step is skipped for now — the card omits the
-                // profile photo, so setup goes straight from the name to the card.
-                router.push(.tipcard)
+                guard !Task.isCancelled else { return }
+
+                switch completion {
+                case .tipcard:
+                    // `push` resolves the stack when it runs, and this runs after two
+                    // RPCs — by now the user may have swapped to another sheet, whose
+                    // stack has no profile-creation state to mount against.
+                    guard router.presentedSheet?.stack == .tips else { return }
+                    // The photo-capture step is skipped for now — the card omits the
+                    // profile photo, so setup goes straight from the name to the card.
+                    router.push(.tipcard)
+                case .back:
+                    router.popTopmost()
+                }
 
             } catch ErrorProfile.moderated(let category) {
                 logger.info("Display name moderation denied", metadata: ["category": "\(category)"])

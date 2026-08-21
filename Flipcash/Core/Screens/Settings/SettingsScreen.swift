@@ -50,16 +50,6 @@ struct SettingsScreen: View {
                             SettingsRow(asset: .sliders, title: "Advanced", insets: insets) {
                                 router.push(.settingsAdvancedFeatures)
                             }
-
-                            if betaFlags.accessGranted {
-                                SettingsRow(asset: .debug, title: "Beta Features", badge: .beta, insets: insets) {
-                                    router.push(.settingsBetaFlags)
-                                }
-
-                                SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: .beta, insets: insets) {
-                                    router.push(.settingsAccountSelection)
-                                }
-                            }
                         }
                         .font(.appDisplayXS)
                         .foregroundStyle(Color.textMain)

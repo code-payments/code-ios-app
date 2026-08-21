@@ -178,6 +178,12 @@ public enum Asset: String, Sendable {
     case send2
     case people = "IconPeople"
     case kikCode = "IconKikCode"
+    case chainLink = "IconChainLink"
+    case squareBehindSquare = "IconSquareBehindSquare"
+    case shareOS = "IconShareOs"
+    case fileDownload = "IconFileDownload"
+    case fileBend = "IconFileBend"
+    case bezierCurve = "IconBezierCurve"
     case checklist = "IconChecklist"
     case lock = "IconLock"
     case peopleGear = "IconPeopleGear"

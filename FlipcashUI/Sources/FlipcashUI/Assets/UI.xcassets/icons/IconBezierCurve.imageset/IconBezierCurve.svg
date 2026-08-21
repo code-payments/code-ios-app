@@ -1,0 +1,15 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="IconBezierCurve">
+<path id="Vector" d="M23.6667 22.3333C23.6667 20.8605 24.8605 19.6667 26.3333 19.6667H27C28.4728 19.6667 29.6667 20.8605 29.6667 22.3333V23C29.6667 24.4728 28.4728 25.6667 27 25.6667H26.3333C24.8605 25.6667 23.6667 24.4728 23.6667 23V22.3333Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M2.33333 22.3333C2.33333 20.8605 3.52724 19.6667 5 19.6667H5.66667C7.13943 19.6667 8.33333 20.8605 8.33333 22.3333V23C8.33333 24.4728 7.13943 25.6667 5.66667 25.6667H5C3.52724 25.6667 2.33333 24.4728 2.33333 23V22.3333Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M5.66667 9.33333C5.66667 10.2538 4.92048 11 4 11C3.07952 11 2.33333 10.2538 2.33333 9.33333C2.33333 8.41285 3.07952 7.66667 4 7.66667C4.92048 7.66667 5.66667 8.41285 5.66667 9.33333Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_4" d="M29.6667 9.33333C29.6667 10.2538 28.9205 11 28 11C27.0795 11 26.3333 10.2538 26.3333 9.33333C26.3333 8.41285 27.0795 7.66667 28 7.66667C28.9205 7.66667 29.6667 8.41285 29.6667 9.33333Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_5" d="M15.6667 12.3333H16.3333C17.8061 12.3333 19 11.1394 19 9.66667V9C19 7.52724 17.8061 6.33333 16.3333 6.33333H15.6667C14.1939 6.33333 13 7.52724 13 9V9.66667C13 11.1394 14.1939 12.3333 15.6667 12.3333Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_6" d="M4 9.33333H12.6667" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_7" d="M19.3333 9.33333H28" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_8" d="M5.34375 19.1852C5.54425 14.6689 8.55312 10.8829 12.6664 9.53092" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_9" d="M19.3333 9.53092C23.4467 10.8829 26.4555 14.6689 26.656 19.1852" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_10" d="M4 10V8.66667" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_11" d="M28 10V8.66667" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

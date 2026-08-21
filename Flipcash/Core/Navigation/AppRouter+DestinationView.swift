@@ -70,6 +70,9 @@ struct DestinationView: View {
         case .settingsMyAccount:
             SettingsMyAccountScreen()
 
+        case .changeDisplayName:
+            ChangeDisplayNameScreen(currentName: sessionContainer.session.profile?.displayName ?? "")
+
         case .settingsAdvancedFeatures:
             SettingsAdvancedFeaturesScreen()
 
@@ -78,9 +81,6 @@ struct DestinationView: View {
 
         case .settingsAppSettings:
             SettingsAppSettingsScreen()
-
-        case .settingsBetaFlags:
-            BetaFlagsScreen()
 
         case .settingsAccountSelection:
             // The action closure dismisses the settings sheet and switches accounts.

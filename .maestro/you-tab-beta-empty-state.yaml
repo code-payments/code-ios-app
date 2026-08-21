@@ -1,0 +1,37 @@
+# Revokes developer access through the version easter egg (ten taps) and checks
+# the Beta Features row still opens — onto its empty state. Restores access at
+# the end, so the flow leaves the device as it found it.
+appId: com.flipcash.app.ios
+---
+- launchApp
+- tapOn: "You"
+- scrollUntilVisible:
+    element:
+      text: "Version .*"
+    centerElement: true
+- repeat:
+    times: 10
+    commands:
+      - tapOn: "Version .*"
+
+- tapOn: "Advanced"
+- assertVisible: "Beta Features"
+- tapOn: "Beta Features"
+- assertVisible: "No Beta Features"
+- assertVisible: "There are no beta features available right now."
+- takeScreenshot: .maestro/screenshots/beta-features-empty
+
+# --- put the access back ---
+- launchApp
+- tapOn: "You"
+- scrollUntilVisible:
+    element:
+      text: "Version .*"
+    centerElement: true
+- repeat:
+    times: 10
+    commands:
+      - tapOn: "Version .*"
+- tapOn: "Advanced"
+- tapOn: "Beta Features"
+- assertVisible: "Vibrate on scan"

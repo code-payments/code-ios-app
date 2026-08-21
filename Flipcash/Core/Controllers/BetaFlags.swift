@@ -54,6 +54,13 @@ class BetaFlags {
         hasEnabled(.newUI)
     }
 
+    /// Whether the Beta Features screen has anything to show — the public
+    /// flags everyone gets, plus the developer-only section once the version
+    /// easter egg unlocks access. False means the screen draws its empty state.
+    var hasVisibleOptions: Bool {
+        accessGranted || Option.allCases.contains { $0.availability == .publicBeta }
+    }
+
     /// Enables or disables a beta flag and persists the change to disk.
     func set(_ option: Option, enabled: Bool) {
         if enabled {

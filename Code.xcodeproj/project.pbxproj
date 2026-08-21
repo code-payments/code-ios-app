@@ -24,6 +24,7 @@
 		9A017D692EAC1DE200216925 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 9A017D682EAC1DE200216925 /* Kingfisher */; };
 		9A444EE72E8C414D002B1E39 /* BigDecimal in Frameworks */ = {isa = PBXBuildFile; productRef = 9A444EE62E8C414D002B1E39 /* BigDecimal */; };
 		9A780F972EDF817D009BC4D9 /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = 9A780F962EDF817D009BC4D9 /* CodeScanner */; };
+		9AE5C0122FA10003004C0DE0 /* SharedCoreKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9AE5C0112FA10002004C0DE0 /* SharedCoreKit */; };
 		9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
 		9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9AC011172DA4320F0030298E /* FlipcashUI */; };
 		9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E64B25F2BF3E007388AE /* opencv2.framework */; };
@@ -175,6 +176,7 @@
 				9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */,
 				9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */,
 				9ADEF1D92DD627C6001B260A /* Mixpanel in Frameworks */,
+				9AE5C0122FA10003004C0DE0 /* SharedCoreKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -378,6 +380,7 @@
 				9A780F962EDF817D009BC4D9 /* CodeScanner */,
 				4CB225752F77260D0075874E /* FirebaseInstallations */,
 				4CB225772F7726500075874E /* FirebaseMessaging */,
+				9AE5C0112FA10002004C0DE0 /* SharedCoreKit */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -506,6 +509,7 @@
 				10A6C0E8F8974C1887219D41 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */,
 				9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */,
 				9A780F952EDF817D009BC4D9 /* XCLocalSwiftPackageReference "CodeScanner" */,
+				9AE5C0102FA10001004C0DE0 /* XCRemoteSwiftPackageReference "flipcash-shared-core-spm" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
@@ -1759,6 +1763,14 @@
 				kind = branch;
 			};
 		};
+		9AE5C0102FA10001004C0DE0 /* XCRemoteSwiftPackageReference "flipcash-shared-core-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/code-payments/flipcash-shared-core-spm";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.3.1;
+			};
+		};
 		9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mixpanel/mixpanel-swift";
@@ -1815,6 +1827,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
+		};
+		9AE5C0112FA10002004C0DE0 /* SharedCoreKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9AE5C0102FA10001004C0DE0 /* XCRemoteSwiftPackageReference "flipcash-shared-core-spm" */;
+			productName = SharedCoreKit;
 		};
 		9ADEF1D62DD627C0001B260A /* Bugsnag */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -1,0 +1,31 @@
+# Drives the You tab's export path end to end, once per format: card page ->
+# Download -> pick a format -> the system share sheet holding the written file.
+appId: com.flipcash.app.ios
+---
+- launchApp
+- tapOn: "You"
+- assertVisible: "Full Screen"
+
+# --- SVG ---
+- tapOn:
+    id: "you-download-button"
+- assertVisible: "Download As"
+- assertVisible: "PNG"
+- assertVisible: "SVG"
+- assertVisible: "Stays sharp at any size"
+- tapOn:
+    id: "you-download-svg"
+# The share sheet titles and sizes itself from the exported file.
+- assertVisible: "Copy"
+- takeScreenshot: .maestro/screenshots/share-sheet-svg
+
+# --- PNG ---
+# Relaunching is the cheapest way to get the system sheet off screen.
+- launchApp
+- tapOn: "You"
+- tapOn:
+    id: "you-download-button"
+- tapOn:
+    id: "you-download-png"
+- assertVisible: "Copy"
+- takeScreenshot: .maestro/screenshots/share-sheet-png
