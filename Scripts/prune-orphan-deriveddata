@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# prune-orphan-deriveddata — delete Xcode DerivedData whose source project is gone.
+#
+# Xcode stores each project's build products in ~/Library/Developer/Xcode/DerivedData
+# under a <Name>-<pathhash> folder, keyed by the project's absolute path. Because the
+# key is the *path*, every git worktree gets its own folder — and `git worktree remove`
+# does NOT delete it. Over time these orphans pile up (this repo hit 63 GB this way).
+#
+# This prunes only folders whose recorded WorkspacePath no longer exists on disk, so
+# live checkouts/worktrees are never touched. DerivedData is a pure cache — anything
+# pruned is rebuilt on next build.
+#
+# Usage:
+#   Scripts/prune-orphan-deriveddata            # prune orphans
+#   Scripts/prune-orphan-deriveddata --dry-run  # show what would be pruned, delete nothing
+#
+# Run it automatically on worktree removal by adding this to your (gitignored)
+# .claude/settings.local.json — covers both manual `git worktree remove` and the
+# harness/ExitWorktree path:
+#
+#   "hooks": {
+#     "PostToolUse": [
+#       { "matcher": "Bash", "hooks": [ {
+#           "type": "command",
+#           "if": "Bash(git worktree remove*)",
+#           "command": "<repo>/Scripts/prune-orphan-deriveddata >/dev/null 2>&1 || true",
+#           "async": true, "statusMessage": "Pruning orphaned DerivedData" } ] }
+#     ],
+#     "WorktreeRemove": [
+#       { "hooks": [ {
+#           "type": "command",
+#           "command": "<repo>/Scripts/prune-orphan-deriveddata >/dev/null 2>&1 || true",
+#           "async": true, "statusMessage": "Pruning orphaned DerivedData" } ] }
+#     ]
+#   }
+
+set -euo pipefail
+
+DD="${DERIVED_DATA_DIR:-$HOME/Library/Developer/Xcode/DerivedData}"
+DRY_RUN=0
+[ "${1:-}" = "--dry-run" ] && DRY_RUN=1
+
+[ -d "$DD" ] || { echo "No DerivedData dir at $DD — nothing to do."; exit 0; }
+
+reclaimed_kb=0
+pruned=0
+kept=0
+
+for d in "$DD"/*/; do
+  d="${d%/}"
+  base="$(basename "$d")"
+
+  # Skip Xcode's shared caches — not per-project build products.
+  case "$base" in
+    ModuleCache.noindex|CompilationCache.noindex|SymbolCache.noindex|*.noindex) kept=$((kept+1)); continue ;;
+  esac
+
+  info="$d/info.plist"
+  wp=""
+  [ -f "$info" ] && wp="$(/usr/libexec/PlistBuddy -c 'Print :WorkspacePath' "$info" 2>/dev/null || true)"
+
+  # Conservative: only prune a folder that records a source path which is now gone.
+  # No recorded WorkspacePath => shared cache (SDK precompiled modules, etc.) or
+  # ambiguous => leave it alone. Source still on disk => live => leave it alone.
+  if [ -z "$wp" ]; then kept=$((kept+1)); continue; fi
+  if [ -e "$wp" ]; then kept=$((kept+1)); continue; fi
+
+  sz_kb="$(du -sk "$d" | cut -f1)"
+  reason="source gone: $wp"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf 'WOULD PRUNE  %6sM  %s  (%s)\n' "$((sz_kb/1024))" "$base" "$reason"
+  else
+    rm -rf "$d"
+    printf 'pruned       %6sM  %s  (%s)\n' "$((sz_kb/1024))" "$base" "$reason"
+  fi
+  reclaimed_kb=$((reclaimed_kb+sz_kb))
+  pruned=$((pruned+1))
+done
+
+verb="reclaimed"; [ "$DRY_RUN" -eq 1 ] && verb="would reclaim"
+printf '\n%s: %s orphan(s), %s live/cache kept, %s %sMB\n' \
+  "$([ "$DRY_RUN" -eq 1 ] && echo 'Dry run' || echo 'Done')" \
+  "$pruned" "$kept" "$verb" "$((reclaimed_kb/1024))"

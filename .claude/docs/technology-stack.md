@@ -68,3 +68,16 @@ C++ library for encoding, decoding, and scanning custom circular 2D codes ("Kik 
 - **Used by:** `CodeExtractor.swift`, `CashCode.Payload+Encoding.swift`
 - **Full spec:** `.claude/spec.md` (API details, build docs, OpenCV upgrade history)
 - **Updating OpenCV:** `cd CodeScanner && ./Scripts/build_opencv.sh --version <version>`
+
+## Orphaned DerivedData Pruning
+
+Every git worktree builds into its own `~/Library/Developer/Xcode/DerivedData/<Name>-<hash>`
+folder (Xcode keys on the checkout's path), and `git worktree remove` does **not** delete it.
+These orphans accumulate silently and can reach tens of GB across a handful of worktrees.
+
+- **Manual:** `Scripts/prune-orphan-deriveddata` (`--dry-run` to preview). It deletes only folders
+  whose recorded `WorkspacePath` no longer exists on disk, so live checkouts and Xcode's shared
+  caches are never touched. DerivedData is a pure cache — anything pruned is rebuilt on next build.
+- **Automatic:** wire it to a Claude Code hook (`PostToolUse` filtered to `git worktree remove`,
+  plus `WorktreeRemove`) in your gitignored `.claude/settings.local.json` so it runs on every
+  worktree removal. The exact hook block is in the script's header comment.
