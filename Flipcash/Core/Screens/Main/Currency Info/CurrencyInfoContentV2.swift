@@ -77,6 +77,11 @@ struct CurrencyInfoContentV2: View {
     /// True while the page is animating in: the chart build and the activity
     /// read are held back so they cannot stutter the transition.
     var defersHeavyContent: Bool = false
+    /// Whether pulling the card down closes the host. Only the wallet's overlay
+    /// closes that way; a pushed screen goes back instead, and its edge-swipe is
+    /// what the pull plumbing would cost — the origin-judging drag below
+    /// recognises on touch-down, which cancels the stack's interactive pop.
+    var supportsPullToClose: Bool = false
 
     private static let recentPreviewCount = 3
     /// Scroll distance that puts the hero card's title row behind the toolbar.
@@ -205,13 +210,17 @@ struct CurrencyInfoContentV2: View {
         // offset from global by wherever the scroll view sits — enough to move
         // the card's rectangle down onto the activity rows, so the dismissal
         // answered to a drag there instead of on the card.
+        // Off unless the host can be pulled closed: a zero-distance drag claims
+        // the touch the moment a finger lands, and a pushed screen needs that
+        // touch to reach the navigation stack's edge-swipe instead.
         .simultaneousGesture(
             DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { drag in
                     guard !hasJudgedOrigin else { return }
                     hasJudgedOrigin = true
                     touchBeganOnCard = heroFrame.contains(drag.startLocation)
-                }
+                },
+            isEnabled: supportsPullToClose
         )
         // Pull-to-close rides the scroll view's own overscroll rather than a
         // drag gesture of its own: a gesture layered over a scroll view has to

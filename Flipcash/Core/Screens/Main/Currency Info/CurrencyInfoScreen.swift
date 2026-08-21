@@ -264,7 +264,8 @@ private struct CurrencyInfoScreenContent: View {
                         showsHeroCard: showsHeroCard,
                         heroOffset: heroOffset,
                         contentOpacity: contentOpacity,
-                        defersHeavyContent: defersHeavyContent
+                        defersHeavyContent: defersHeavyContent,
+                        supportsPullToClose: overlayClose != nil
                     )
                 } else {
                     LoadedContent(
