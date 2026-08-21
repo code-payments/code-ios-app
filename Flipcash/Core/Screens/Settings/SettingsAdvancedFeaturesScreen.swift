@@ -18,7 +18,6 @@ struct SettingsAdvancedFeaturesScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     @Environment(ContactSyncController.self) private var contactSyncController
-    @Environment(BetaFlags.self) private var betaFlags
 
     @State private var dialogItem: DialogItem?
 
@@ -40,13 +39,8 @@ struct SettingsAdvancedFeaturesScreen: View {
                         }
                     }
 
-                    // Hidden outright when there is nothing behind it: the
-                    // developer flags only exist once access is unlocked, so
-                    // without any public flag the row would open an empty screen.
-                    if betaFlags.hasVisibleOptions {
-                        SettingsRow(asset: .debug, title: "Beta Features", insets: insets) {
-                            router.push(.settingsAdvancedBetaFeatures)
-                        }
+                    SettingsRow(asset: .debug, title: "Beta Features", insets: insets) {
+                        router.push(.settingsAdvancedBetaFeatures)
                     }
 
                     SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
