@@ -397,6 +397,15 @@ final class SessionAuthenticator {
 
         Analytics.setIdentity(initializedAccount.userID)
 
+        // Mint metadata lives in the session's local cache, so the symbol lookup can
+        // only be wired once a session exists. Weak: the resolver outlives a logout,
+        // and a stale session must not be kept alive by an analytics closure.
+        let sessionModel = session.session
+        Analytics.tokenSymbolResolver = { [weak sessionModel] base58 in
+            guard let mint = try? PublicKey(base58: base58) else { return nil }
+            return sessionModel?.storedMintMetadata(for: mint)?.symbol
+        }
+
         Task { await checkForUnusableAccount() }
     }
     
