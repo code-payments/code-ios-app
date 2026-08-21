@@ -16,7 +16,7 @@ struct WalletScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
-    /// Invoked by the funnel's "Scan a Tip Card" step to switch to the Scan tab.
+    /// Invoked by the tutorial's "Scan a Tip Card" step to switch to the Scan tab.
     let onScanTipCard: () -> Void
 
     var body: some View {
@@ -138,8 +138,8 @@ private struct WalletScreenContent: View {
 
     private var rate: Rate { ratesController.rateForBalanceCurrency() }
 
-    private var funnelState: OnboardingFunnelState {
-        OnboardingFunnelState(
+    private var tutorialState: NewUserTutorialState {
+        NewUserTutorialState(
             hasAddedMoney: hasAddedMoney,
             hasTipped: hasTipped,
             historySyncState: historyController.syncState,
@@ -451,7 +451,7 @@ private struct WalletScreenContent: View {
     private var walletContent: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
-                // Header + funnel scroll off first; the card stack then reaches the
+                // Header + tutorial scroll off first; the card stack then reaches the
                 // top and collapses into its back card. The stack measures the
                 // scroll itself (via `.visualEffect`), so no height plumbing here.
                 VStack(spacing: 0) {
@@ -461,11 +461,11 @@ private struct WalletScreenContent: View {
                         .padding(.top, headerTopPadding)
                         .padding(.bottom, 44)
 
-                    if funnelState.isVisible {
-                        OnboardingFunnelView(
+                    if tutorialState.isVisible {
+                        NewUserTutorialView(
                             title: "Send Your First Tip",
-                            items: funnelState.items,
-                            onTap: handleOnboardingTap
+                            items: tutorialState.items,
+                            onTap: handleTutorialTap
                         )
                         .padding(.bottom, 20)
                     }
@@ -495,7 +495,7 @@ private struct WalletScreenContent: View {
                     }
 
                     // Returning users (already funded) get the tile shortcuts
-                    // below the activity; new users use the funnel's own steps
+                    // below the activity; new users use the tutorial's own steps
                     // instead.
                     if hasAddedMoney {
                         walletTiles
@@ -621,7 +621,7 @@ private struct WalletScreenContent: View {
         .padding(.top, 24)
     }
 
-    private func handleOnboardingTap(_ item: OnboardingItem) {
+    private func handleTutorialTap(_ item: TutorialItem) {
         switch item {
         case .addMoney:
             router.presentAddMoney(.general, source: .balance)

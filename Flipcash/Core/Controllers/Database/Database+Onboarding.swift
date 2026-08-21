@@ -7,7 +7,7 @@ import Foundation
 import FlipcashCore
 import SQLite
 
-/// Durable-history checks backing the wallet onboarding funnel. These read the
+/// Durable-history checks backing the new-user tutorial. These read the
 /// event history (not the current balance), so a milestone stays complete even
 /// after the user later spends the balance — mirroring Android.
 nonisolated extension Database {

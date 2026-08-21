@@ -1,14 +1,14 @@
 //
-//  OnboardingFunnel.swift
+//  NewUserTutorial.swift
 //  Flipcash
 //
 
 import SwiftUI
 import FlipcashUI
 
-/// A step in the wallet onboarding funnel (Figma frame 8966:1516, ported from
-/// Android's `OnboardingItem`).
-enum OnboardingItem: Identifiable, Equatable {
+/// A step in the wallet's new-user tutorial (Figma frame 8966:1516, ported from
+/// Android's `TutorialItem`).
+enum TutorialItem: Identifiable, Equatable {
     case addMoney(isCompleted: Bool)
     case scanTipCard(isCompleted: Bool)
 
@@ -35,7 +35,7 @@ enum OnboardingItem: Identifiable, Equatable {
     }
 }
 
-/// Whether the wallet draws the onboarding funnel, and with which milestones
+/// Whether the wallet draws the new-user tutorial, and with which milestones
 /// checked off.
 ///
 /// Both milestones are reads of a *local* cache that starts empty on every fresh
@@ -44,7 +44,7 @@ enum OnboardingItem: Identifiable, Equatable {
 /// an established account signing in is greeted with the new-user tutorial for
 /// as long as its history takes to arrive. Mirrors Android's
 /// `WalletViewModel.State.isAwaitingActivity`.
-struct OnboardingFunnelState: Equatable {
+struct NewUserTutorialState: Equatable {
 
     let hasAddedMoney: Bool
     let hasTipped: Bool
@@ -54,7 +54,7 @@ struct OnboardingFunnelState: Equatable {
     /// account.
     let hasStoredActivity: Bool
 
-    var items: [OnboardingItem] {
+    var items: [TutorialItem] {
         [.addMoney(isCompleted: hasAddedMoney), .scanTipCard(isCompleted: hasTipped)]
     }
 
@@ -69,15 +69,15 @@ struct OnboardingFunnelState: Equatable {
     var isVisible: Bool { !isAwaitingHistory && !isComplete }
 }
 
-/// The "Send Your First Tip" onboarding funnel shown on the v2 Wallet: a title +
+/// The "Send Your First Tip" new-user tutorial shown on the v2 Wallet: a title +
 /// completed-count, then a card of tappable steps. Completed steps show a green
 /// check, dim, and stop responding to taps. Ported from Android's
-/// `OnboardingFunnel`.
-struct OnboardingFunnelView: View {
+/// `NewUserTutorial`.
+struct NewUserTutorialView: View {
 
     let title: String
-    let items: [OnboardingItem]
-    let onTap: (OnboardingItem) -> Void
+    let items: [TutorialItem]
+    let onTap: (TutorialItem) -> Void
 
     private var completedCount: Int { items.filter(\.isCompleted).count }
 
@@ -104,7 +104,7 @@ struct OnboardingFunnelView: View {
         }
     }
 
-    private func row(_ item: OnboardingItem) -> some View {
+    private func row(_ item: TutorialItem) -> some View {
         Button {
             onTap(item)
         } label: {
@@ -135,7 +135,7 @@ struct OnboardingFunnelView: View {
         .disabled(item.isCompleted)
     }
 
-    @ViewBuilder private func icon(_ item: OnboardingItem) -> some View {
+    @ViewBuilder private func icon(_ item: TutorialItem) -> some View {
         if item.isCompleted {
             Image(systemName: "checkmark.circle.fill")
                 .resizable()
