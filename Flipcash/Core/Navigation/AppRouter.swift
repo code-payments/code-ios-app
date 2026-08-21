@@ -58,18 +58,12 @@ final class AppRouter {
 
     private var paths: [Stack: NavigationPath] = [:]
 
-    /// In the v2 tab UI, the stack owned by the currently-selected tab. A tab is
-    /// the active surface without being a *sheet*, so `presentedSheet` is nil
-    /// while a tab is showing; the topmost-stack mutators (`push`, `popTopmost`,
-    /// …) fall back to this so in-tab navigation lands on the right stack.
-    /// `HomeTabView` keeps it in sync with the selected tab; nil in the v1
-    /// sheet-first UI, where a sheet is always the push target.
+    /// The stack owned by the currently-selected tab. A tab is the active
+    /// surface without being a *sheet*, so `presentedSheet` is nil while a tab
+    /// is showing; the topmost-stack mutators (`push`, `popTopmost`, …) fall
+    /// back to this so in-tab navigation lands on the right stack.
+    /// `HomeTabView` keeps it in sync with the selected tab.
     var activeTabStack: Stack?
-
-    /// The stacks a tab owns, registered by `HomeTabView`. A deep link into one
-    /// of these belongs on its tab, not in a sheet — the router itself has no
-    /// notion of tabs, so it is told.
-    var tabStacks: Set<Stack> = []
 
     /// A token the wallet should open in its expanded card state, rather than
     /// as a pushed screen. Deep links use this so following a link lands where
@@ -95,7 +89,7 @@ final class AppRouter {
     var requestedTabStack: Stack?
 
     /// The stack that `push`/`pop`-style calls target: the presented sheet's
-    /// stack, or — when no sheet is up (a v2 tab is the active surface) — the
+    /// stack, or — when no sheet is up and a tab is the active surface — the
     /// active tab's stack.
     private var topmostStack: Stack? { presentedSheet?.stack ?? activeTabStack }
 
@@ -121,18 +115,19 @@ final class AppRouter {
 
     // MARK: - Stack mutators
 
-    /// Pushes onto whatever stack is topmost (`presentedSheet?.stack`). With
-    /// nested sheets, that's the nested sheet's stack — pushes always land on
-    /// the visible NavigationStack, never on a stack hidden underneath.
+    /// Pushes onto whatever stack is topmost — the presented sheet's stack, or
+    /// the active tab's when no sheet is up. With nested sheets, that's the
+    /// nested sheet's stack: pushes always land on the visible NavigationStack,
+    /// never on a stack hidden underneath.
     ///
-    /// No-op with a warning if no sheet is presented — pushes onto a hidden
+    /// No-op with a warning if there is no topmost stack — pushes onto a hidden
     /// stack would silently corrupt that stack's path until the user later
-    /// presents that sheet.
+    /// surfaces it.
     ///
     /// Cross-stack navigation is `navigate(to:)`'s job, not `push`'s.
     func push(_ destination: Destination) {
         guard let stack = topmostStack else {
-            logger.warning("Push attempted with no sheet presented", metadata: [
+            logger.warning("Push attempted with no topmost stack", metadata: [
                 "destination": "\(destination)",
             ])
             return
@@ -145,10 +140,10 @@ final class AppRouter {
     /// whose destination types live outside `AppRouter.Destination` (e.g.,
     /// `WithdrawNavigationPath`, `BuyFlowPath`), so a single stack can carry
     /// mixed types without nesting `NavigationStack`s. No-op with a warning
-    /// if no sheet is presented.
+    /// if there is no topmost stack.
     func pushAny<H: Hashable>(_ value: H) {
         guard let stack = topmostStack else {
-            logger.warning("Push (sub-flow) attempted with no sheet presented", metadata: [
+            logger.warning("Push (sub-flow) attempted with no topmost stack", metadata: [
                 "type": "\(type(of: value))",
             ])
             return
@@ -182,14 +177,14 @@ final class AppRouter {
     /// presented sheet hosts. Symmetric with `push(_:)`. Used by callers
     /// that need to dismiss a state-driven screen on operation completion
     /// without hand-stamping which stack it lives on (the Phantom flow
-    /// screen, for instance, can ride on `.buy`, `.balance`, or `.discover`).
+    /// screen, for instance, can ride on `.buy` or the Wallet tab's `.balance`).
     func popTopmost() {
         guard let stack = topmostStack else { return }
         pop(on: stack)
     }
 
-    /// Atomic replace of the topmost destination on whichever stack the
-    /// currently-presented sheet hosts: pops the current top, then pushes
+    /// Atomic replace of the topmost destination on whichever stack is
+    /// topmost: pops the current top, then pushes
     /// `value` in a single mutation. Mirrors the `push` / `pushAny` split —
     /// this is the sub-flow variant that accepts any `Hashable` so sub-flow
     /// path types (e.g. `BuyFlowPath`) can be swapped in. Used for "swap
@@ -197,10 +192,10 @@ final class AppRouter {
     /// SwapProcessing on success) where leaving the old screen on the stack
     /// underneath would let a back-swipe reveal a dead UI.
     ///
-    /// No-op with a warning if no sheet is presented.
+    /// No-op with a warning if there is no topmost stack.
     func replaceTopmostAny<H: Hashable>(_ value: H) {
         guard let stack = topmostStack else {
-            logger.warning("replaceTopmostAny attempted with no sheet presented", metadata: [
+            logger.warning("replaceTopmostAny attempted with no topmost stack", metadata: [
                 "type": "\(type(of: value))",
             ])
             return
@@ -277,7 +272,7 @@ final class AppRouter {
     /// Semantics:
     /// - Already at this exact state (`presentedSheets == [sheet]`) → idempotent.
     /// - Same root with nested sheets above → pop the nested(s), keep root.
-    ///   `present(.balance)` while `[.balance, .buy(mint)]` is up → `[.balance]`.
+    ///   `present(.settings)` while `[.settings, .buy(mint)]` is up → `[.settings]`.
     /// - Different root (with or without nested above) → dismiss everything,
     ///   present new root.
     ///
@@ -408,10 +403,10 @@ final class AppRouter {
 
     /// The stack the deposit flow pushes onto once a method is chosen from the
     /// Add Money picker: the sheet directly beneath the picker, or — when the
-    /// picker is the root sheet over a v2 tab — that tab's stack. `nil` when
-    /// nothing sits beneath the picker (e.g. opened over the bare scanner via
-    /// the no-balance gate); the picker then falls back to its own flow sheet
-    /// since there is no navigation stack to host the push.
+    /// picker is the root sheet over a tab — that tab's stack. `nil` when
+    /// nothing sits beneath the picker (e.g. opened over the Scan tab via the
+    /// no-balance gate); the picker then falls back to its own flow sheet since
+    /// there is no navigation stack to host the push.
     var addMoneyPushStack: Stack? {
         if presentedSheets.count >= 2 {
             return presentedSheets[presentedSheets.count - 2].stack
@@ -471,16 +466,6 @@ final class AppRouter {
     /// > view's view model.
     func navigate(to destination: Destination) {
         let targetStack = destination.owningStack
-        // `Destination.owningStack` only ever names a root stack
-        // (balance/settings/give/discover) — `.buy` is nested-only and never
-        // an owning stack — so the optional `Stack.sheet` is never nil here.
-        guard let targetSheet = targetStack.sheet else {
-            logger.warning("navigate(to:) hit a nested-only stack — destination is misrouted", metadata: [
-                "stack": "\(targetStack)",
-                "destination": "\(destination)",
-            ])
-            return
-        }
 
         var expected = NavigationPath()
         expected.append(destination)
@@ -488,8 +473,9 @@ final class AppRouter {
         // A stack a tab owns is reached by bringing that tab forward. Presenting
         // its sheet instead lays a second copy of the surface over the tab that
         // already holds it — a token link, for instance, ends up in a sheet with
-        // no tab bar rather than pushed on the wallet.
-        if tabStacks.contains(targetStack) {
+        // no tab bar rather than pushed on the wallet. Checked before the sheet
+        // lookup below, since a tab stack need not have a sheet of its own.
+        if targetStack.isTabHosted {
             let alreadyThere = presentedSheets.isEmpty
                             && activeTabStack == targetStack
                             && paths[targetStack, default: NavigationPath()] == expected
@@ -505,6 +491,16 @@ final class AppRouter {
             return
         }
 
+        // Every non-tab owning stack has a sheet — `.buy` and friends are
+        // nested-only and never an owning stack — so a nil here is a misroute.
+        guard let targetSheet = targetStack.sheet else {
+            logger.warning("navigate(to:) hit a stack with no sheet — destination is misrouted", metadata: [
+                "stack": "\(targetStack)",
+                "destination": "\(destination)",
+            ])
+            return
+        }
+
         let alreadyThere = presentedSheets == [targetSheet]
                         && paths[targetStack, default: NavigationPath()] == expected
         guard !alreadyThere else { return }
@@ -514,21 +510,15 @@ final class AppRouter {
         setPath([destination], on: targetStack)
     }
 
-    /// Surfaces the user's own tip card: the You tab at its root in the tab UI,
-    /// or the "My Tip Card" screen in the tips sheet without tabs.
+    /// Surfaces the user's own tip card: the You tab at its root.
     ///
-    /// Not expressible as `navigate(to:)` in the tab UI — the You tab's stack is
-    /// entered by tab selection and has no destination that names the card.
+    /// Not expressible as `navigate(to:)` — the You tab's stack is entered by
+    /// tab selection and has no destination that names the card.
     ///
     /// Idempotent, like `navigate(to:)`: the scanner decodes a tipcode every
     /// frame until its camera tears down, so arriving is not allowed to re-fire
     /// the tab request.
     func showOwnTipCard() {
-        guard tabStacks.contains(.you) else {
-            navigate(to: .tipcard)
-            return
-        }
-
         // `requestedTabStack` covers the gap before `HomeTabView` selects the tab
         // and publishes `activeTabStack` — until then the request is in flight,
         // not yet arrived.

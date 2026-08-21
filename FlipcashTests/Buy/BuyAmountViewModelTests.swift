@@ -53,15 +53,13 @@ struct BuyAmountViewModelTests {
     private static func makeViewModel(
         mint: PublicKey = .jeffy,
         currencyName: String = "Jeffy",
-        container: SessionContainer,
-        collectsUSDFFee: Bool = false
+        container: SessionContainer
     ) -> BuyAmountViewModel {
         BuyAmountViewModel(
             mint: mint,
             currencyName: currencyName,
             session: container.session,
-            ratesController: container.ratesController,
-            collectsUSDFFee: collectsUSDFFee
+            ratesController: container.ratesController
         )
     }
 
@@ -154,7 +152,7 @@ struct BuyAmountViewModelTests {
         let container = try await Self.makeContainer(holdings: [])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
 
         viewModel.primaryAction(router: router)
 
@@ -168,7 +166,7 @@ struct BuyAmountViewModelTests {
         ])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
         router.presentNested(.buy(.jeffy))
 
         viewModel.enteredAmount = "10"
@@ -186,7 +184,7 @@ struct BuyAmountViewModelTests {
         ])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
         router.presentNested(.buy(.jeffy))
 
         viewModel.enteredAmount = ""
@@ -213,7 +211,7 @@ struct BuyAmountViewModelTests {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 10_000_000), // $10.00
         ])
-        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container, collectsUSDFFee: true)
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
         viewModel.enteredAmount = "10"
 
         viewModel.correctEntryToAffordable()
@@ -227,25 +225,12 @@ struct BuyAmountViewModelTests {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 10_000_000), // $10.00
         ])
-        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container, collectsUSDFFee: true)
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
         viewModel.enteredAmount = "5"
 
         viewModel.correctEntryToAffordable()
 
         #expect(viewModel.enteredAmount == "5")
-    }
-
-    @Test("Without the USDF fee the whole Dollars balance stays spendable")
-    func wholeDollarsBalance_feeFreeUI_isLeftAlone() async throws {
-        let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 10_000_000), // $10.00
-        ])
-        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container, collectsUSDFFee: false)
-        viewModel.enteredAmount = "10"
-
-        viewModel.correctEntryToAffordable()
-
-        #expect(viewModel.enteredAmount == "10")
     }
 
     @Test("Paying the whole token balance drops the entry to what the pool fee leaves")

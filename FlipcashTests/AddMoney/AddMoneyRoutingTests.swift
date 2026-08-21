@@ -35,16 +35,16 @@ struct AddMoneyRoutingTests {
     @Test("From inside the buy sheet, Add Money stacks on top — nothing dismisses on entry")
     func fromBuySheet_stacksOnTop() {
         let router = AppRouter()
-        router.present(.discover)
+        router.present(.give)
         router.presentNested(.buy(.usdc))
         router.presentAddMoney(.buyCurrency, source: .buyShortfall)
-        #expect(router.presentedSheets == [.discover, .buy(.usdc), .addMoney(.buyCurrency)])
+        #expect(router.presentedSheets == [.give, .buy(.usdc), .addMoney(.buyCurrency)])
     }
 
     @Test("The options over the buy sheet report the buy entry")
     func isAddMoneyOverBuy_buyEntry() {
         let router = AppRouter()
-        router.present(.discover)
+        router.present(.give)
         router.presentNested(.buy(.usdc))
         router.presentAddMoney(.buyCurrency, source: .buyShortfall)
         #expect(router.isAddMoneyOverBuy)
@@ -52,7 +52,7 @@ struct AddMoneyRoutingTests {
 
     @Test(
         "The options report a non-buy entry everywhere else",
-        arguments: [AppRouter.SheetPresentation.settings, .balance, .give]
+        arguments: [AppRouter.SheetPresentation.settings, .give, .tips]
     )
     func isAddMoneyOverBuy_nonBuyEntry(root: AppRouter.SheetPresentation) {
         let router = AppRouter()
@@ -71,10 +71,10 @@ struct AddMoneyRoutingTests {
     @Test("Re-presenting Add Money with a different context swaps in place")
     func presentNested_differentContext_swaps() {
         let router = AppRouter()
-        router.present(.discover)
+        router.present(.give)
         router.presentNested(.addMoney(.buyCurrency))
         router.presentNested(.addMoney(.general))
-        #expect(router.presentedSheets == [.discover, .addMoney(.general)])
+        #expect(router.presentedSheets == [.give, .addMoney(.general)])
     }
 
     @Test("The addMoney stack has no root sheet — it is nested-only")
@@ -85,7 +85,7 @@ struct AddMoneyRoutingTests {
     @Test("Method selection over buy pops the options and pushes the flow inside the buy sheet")
     func selectionOverBuy_popsOptionsAndPushesFlow() {
         let router = AppRouter()
-        router.present(.discover)
+        router.present(.give)
         router.presentNested(.buy(.usdc))
         router.presentAddMoney(.buyCurrency, source: .buyShortfall)
 
@@ -93,7 +93,7 @@ struct AddMoneyRoutingTests {
         router.dismissSheet()
         router.pushAny(AddMoneyFlowStep.method(.otherWallet))
 
-        #expect(router.presentedSheets == [.discover, .buy(.usdc)])
+        #expect(router.presentedSheets == [.give, .buy(.usdc)])
         #expect(router[.buy].count == 1, "The deposit flow step must land on the buy sheet's stack")
     }
 
@@ -108,7 +108,7 @@ struct AddMoneyRoutingTests {
     @Test("Over the buy sheet the deposit flow targets the buy stack")
     func addMoneyPushStack_overBuy_usesBuyStack() {
         let router = AppRouter()
-        router.present(.discover)
+        router.present(.give)
         router.presentNested(.buy(.usdc))
         router.presentAddMoney(.buyCurrency, source: .buyShortfall)
         #expect(router.addMoneyPushStack == .buy)

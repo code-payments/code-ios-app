@@ -16,7 +16,6 @@ extension AppRouter {
         case balance
         case settings
         case give
-        case discover
         case buy
         case addMoney
         case downloadApp
@@ -30,19 +29,41 @@ extension AppRouter {
         /// `.buy`, `.addMoney`, and `.sendAmount` return `nil` — their sheets
         /// carry a payload (mint / context / contact) that can't be synthesized
         /// from the stack alone, so they're entered via `presentNested`/`present`
-        /// directly, never via `navigate(to:)`.
+        /// directly, never via `navigate(to:)`. `.balance` and `.you` are tab
+        /// stacks, reached by bringing their tab forward.
         var sheet: SheetPresentation? {
             switch self {
-            case .balance:      .balance
+            case .balance:      nil
             case .settings:     .settings
             case .give:         .give
-            case .discover:     .discover
             case .buy:          nil
             case .addMoney:     nil
             case .downloadApp:  .downloadApp
             case .sendAmount:   nil
             case .tips:         .tips
-            case .you:          nil // a tab stack, entered by tab selection, never via navigate(to:)
+            case .you:          nil
+            }
+        }
+
+        /// Whether a tab hosts this stack rather than a sheet. `navigate(to:)`
+        /// reaches these by bringing the tab forward — presenting a sheet
+        /// instead would lay a second copy of the surface over the tab that
+        /// already holds it. Mirrored by `HomeTab.pushStack`.
+        ///
+        /// `.tips` is both: the Chat tab hosts it, and `present(.tips)` still
+        /// puts the same stack in a sheet from surfaces that have no tab bar.
+        /// The tab wins for `navigate(to:)`.
+        var isTabHosted: Bool {
+            switch self {
+            case .balance:      true
+            case .settings:     false
+            case .give:         false
+            case .buy:          false
+            case .addMoney:     false
+            case .downloadApp:  false
+            case .sendAmount:   false
+            case .tips:         true
+            case .you:          true
             }
         }
 
@@ -51,7 +72,6 @@ extension AppRouter {
             case .balance:      "balance"
             case .settings:     "settings"
             case .give:         "give"
-            case .discover:     "discover"
             case .buy:          "buy"
             case .addMoney:     "addMoney"
             case .downloadApp:  "downloadApp"

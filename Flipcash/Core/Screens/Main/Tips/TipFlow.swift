@@ -289,7 +289,7 @@ final class TipFlow {
             try? await Task.delay(milliseconds: 750)
             guard let self, submission != nil else { return }
             let rate = ratesController.rateForBalanceCurrency()
-            if let dialog = giveCashGate(session: session, rate: rate, includingDollars: BetaFlags.shared.allowsDollarsGive)
+            if let dialog = giveCashGate(session: session, rate: rate)
                 .blockingDialog(router: router, addMoneySource: .scanner, context: .sendTips)?
                 .onDismiss(perform: { [weak self] in self?.cancel() }) {
                 session.dialogItem = dialog

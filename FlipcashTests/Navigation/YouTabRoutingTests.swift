@@ -30,7 +30,6 @@ struct YouTabRoutingTests {
     @Test("a self tipcard link brings the You tab forward at its root")
     func showOwnTipCard_inTabUI_selectsYouTabAtRoot() {
         let router = AppRouter()
-        router.tabStacks = [.balance, .tips, .you]
         // Drilled into My Account behind a sheet — where a self link can land.
         router.setPath([.settingsMyAccount], on: .you)
         router.present(.settings)
@@ -45,7 +44,6 @@ struct YouTabRoutingTests {
     @Test("a repeat self scan is absorbed once the You tab request is in flight")
     func showOwnTipCard_whileRequestPending_doesNotRefire() {
         let router = AppRouter()
-        router.tabStacks = [.balance, .tips, .you]
         router.showOwnTipCard()
         #expect(router.requestedTabStack == .you)
 
@@ -61,7 +59,6 @@ struct YouTabRoutingTests {
     @Test("a self scan from a pushed You-tab screen returns to the card")
     func showOwnTipCard_fromPushedYouScreen_popsToRoot() {
         let router = AppRouter()
-        router.tabStacks = [.balance, .tips, .you]
         router.activeTabStack = .you
         router.push(.settingsMyAccount)
 
@@ -69,17 +66,6 @@ struct YouTabRoutingTests {
 
         #expect(router[.you].isEmpty)
         #expect(router.requestedTabStack == .you)
-    }
-
-    @Test("without the tab UI, a self tipcard link opens My Tip Card in the tips sheet")
-    func showOwnTipCard_withoutTabs_navigatesToTipcard() {
-        let router = AppRouter()
-
-        router.showOwnTipCard()
-
-        #expect(router.presentedSheet == .tips)
-        #expect(router[.tips] == AppRouter.navigationPath(.tipcard))
-        #expect(router.requestedTabStack == nil)
     }
 
     @Test("changing the display name pushes onto the You tab, and saving pops back")

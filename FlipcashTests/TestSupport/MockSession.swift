@@ -189,12 +189,11 @@ final class MockSession:
     var extraBalances: [StoredBalance] = []
 
     /// Whether a non-Dollars balance is on hand. Dollars is weighed separately,
-    /// from `usdfReserveBalance`, so the gate's Dollars routing can be exercised.
+    /// from `usdfReserveBalance`, so a Dollars-only holding can be exercised.
     var giveableBalanceExists = false
 
-    func hasGiveableBalance(for rate: Rate, includingDollars: Bool) -> Bool {
+    func hasGiveableBalance(for rate: Rate) -> Bool {
         if giveableBalanceExists { return true }
-        guard includingDollars else { return false }
         return usdfReserveBalance?.computeExchangedValue(with: rate).hasDisplayableValue() ?? false
     }
 

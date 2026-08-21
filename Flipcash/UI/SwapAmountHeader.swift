@@ -2,7 +2,7 @@
 //  SwapAmountHeader.swift
 //  Flipcash
 //
-//  The top half of the new-UI Convert / Get amount screen: a left-aligned
+//  The top half of the Convert / Get amount screen: a left-aligned
 //  amount field over an "$X available" hint. Shared by both flows (Convert
 //  swaps it in for its source amount, Get for the payment amount) and dropped
 //  into `EnterAmountView` via its `header` slot, replacing the default centered

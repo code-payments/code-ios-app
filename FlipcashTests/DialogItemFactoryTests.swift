@@ -68,17 +68,6 @@ struct DialogItemFactoryTests {
         #expect(dismissableSuccess.dismissable == true)
     }
 
-    @Test(".noCommunityCurrencies routes to Discover with a Cancel escape")
-    func noCommunityCurrencies_discoverCTA() {
-        let item = DialogItem.noCommunityCurrencies(onDiscover: {})
-        #expect(item.title == "No Community Currencies Yet")
-        #expect(item.subtitle == "Discover and buy a currency, or create your own")
-        #expect(item.style == .standard)
-        #expect(item.actions.count == 2)
-        #expect(item.actions[0].title == "Discover Currencies")
-        #expect(item.actions[1].title == "Cancel")
-    }
-
     @Test(
         ".contactsOnFlipcash pluralizes Contact/Contacts by count",
         arguments: [

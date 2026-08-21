@@ -34,24 +34,24 @@ struct AppRouterStressTests {
         let router = AppRouter()
 
         for _ in 0..<100 {
-            router.present(.balance)
+            router.present(.give)
             router.dismissSheet()
         }
 
         #expect(router.presentedSheet == nil)
-        #expect(router[.balance].isEmpty)
+        #expect(router[.give].isEmpty)
     }
 
     /// Cycling through every `SheetPresentation` case mirrors the real
-    /// "swap between top-level sheets" flow — the user opens Balance,
-    /// then Settings, then Give, etc., dismissing each in turn. After 100
+    /// "swap between top-level sheets" flow — the user opens Settings,
+    /// then Give, then Tips, etc., dismissing each in turn. After 100
     /// rounds the router must be back at no presented sheet with every
     /// per-stack path empty.
     @Test("100 rounds across all sheet cases converge on empty state")
     func cyclingAllSheets_convergesOnEmptyState() {
         let router = AppRouter()
-        // `compactMap` skips nested-only stacks (`.buy`) — they can't be
-        // a root sheet, so they're outside this stress test's scope.
+        // `compactMap` skips the tab stacks and the nested-only ones
+        // (`.buy`) — they can't be a root sheet, so they're outside scope.
         let sheets = AppRouter.Stack.allCases.compactMap(\.sheet)
 
         for i in 0..<100 {

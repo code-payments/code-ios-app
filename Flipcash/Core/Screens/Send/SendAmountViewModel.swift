@@ -78,7 +78,7 @@ final class SendAmountViewModel {
     ) {
         let session          = sessionContainer.session
         let ratesController  = sessionContainer.ratesController
-        let resolved         = ratesController.resolveInitialBalance(mint: mint, session: session, includingDollars: BetaFlags.shared.allowsDollarsGive)
+        let resolved         = ratesController.resolveInitialBalance(mint: mint, session: session)
 
         self.session         = session
         self.ratesController = ratesController

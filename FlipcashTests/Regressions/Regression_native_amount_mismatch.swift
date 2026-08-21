@@ -61,15 +61,20 @@ struct Regression_native_amount_mismatch {
         #expect(pin.exchangeRate == 1.35)
     }
 
-    // MARK: - Scenario D (sell)
+    // MARK: - Scenario D (convert)
 
-    @Test("Scenario D (sell): prepareSubmission computes quarks from the PINNED rate AND supply")
-    func scenarioD_sellPrepareSubmissionUsesPinnedRateAndSupply() async throws {
+    @Test("Scenario D (convert): prepareSubmission computes quarks from the PINNED rate AND supply")
+    func scenarioD_convertPrepareSubmissionUsesPinnedRateAndSupply() async throws {
         // Pinned: rate 1.35, supply 1M. Live cache: rate 1.37, supply 1.5M.
         let pinnedSupply: UInt64 = 1_000_000 * 10_000_000_000
         let liveSupply: UInt64 = 1_500_000 * 10_000_000_000
 
-        let sessionContainer = SessionContainer.mock
+        let sessionContainer = try SessionContainer.makeTest(holdings: [
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: liveSupply),
+                quarks: 100 * 10_000_000_000
+            ),
+        ])
         sessionContainer.ratesController.configureTestRates(
             balanceCurrency: .cad,
             rates: [Rate(fx: 1.37, currency: .cad)]
@@ -81,12 +86,9 @@ struct Regression_native_amount_mismatch {
             .freshReserve(mint: .jeffy, supplyFromBonding: pinnedSupply)
         ])
 
-        let metadata = StoredMintMetadata(MintMetadata.makeLaunchpad(
-            supplyFromBonding: liveSupply
-        ))
-
-        let vm = CurrencySellViewModel(
-            currencyMetadata: metadata,
+        let sourceBalance = try #require(sessionContainer.session.balance(for: .jeffy))
+        let vm = ConvertAmountViewModel(
+            sourceBalance: sourceBalance,
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
@@ -99,7 +101,7 @@ struct Regression_native_amount_mismatch {
         #expect(submission.amount.currencyRate.fx == Decimal(1.35))
         #expect(submission.amount.currencyRate.fx != Decimal(1.37))
 
-        // And the VerifiedState carried to Session.sell must be the pinned
+        // And the VerifiedState carried into the swap must be the pinned
         // proof — with pinned supply, not the live metadata supply.
         #expect(submission.pinnedState.exchangeRate == 1.35)
         #expect(submission.pinnedState.supplyFromBonding == pinnedSupply)
@@ -158,7 +160,7 @@ struct Regression_native_amount_mismatch {
         )
 
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
         router.presentNested(.buy(.jeffy))
 
         // Paying with the held USDF, but no pin is cached — Next must bail with
@@ -175,23 +177,25 @@ struct Regression_native_amount_mismatch {
         #expect(router[.buy].isEmpty, "A pinless selection must not push the summary")
     }
 
-    // MARK: - Scenario E (sell)
+    // MARK: - Scenario E (convert)
 
-    @Test("Scenario E (sell): prepareSubmission returns nil when no fresh pin is cached")
-    func scenarioE_sellPrepareSubmissionReturnsNilWhenNoPin() async {
+    @Test("Scenario E (convert): prepareSubmission returns nil when no fresh pin is cached")
+    func scenarioE_convertPrepareSubmissionReturnsNilWhenNoPin() async throws {
         // Live rate + live metadata supply are present; no pinned proof is.
-        let sessionContainer = SessionContainer.mock
+        let sessionContainer = try SessionContainer.makeTest(holdings: [
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 1_000_000 * 10_000_000_000),
+                quarks: 100 * 10_000_000_000
+            ),
+        ])
         sessionContainer.ratesController.configureTestRates(
             balanceCurrency: .cad,
             rates: [Rate(fx: 1.35, currency: .cad)]
         )
 
-        let metadata = StoredMintMetadata(MintMetadata.makeLaunchpad(
-            supplyFromBonding: 1_000_000 * 10_000_000_000
-        ))
-
-        let vm = CurrencySellViewModel(
-            currencyMetadata: metadata,
+        let sourceBalance = try #require(sessionContainer.session.balance(for: .jeffy))
+        let vm = ConvertAmountViewModel(
+            sourceBalance: sourceBalance,
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
