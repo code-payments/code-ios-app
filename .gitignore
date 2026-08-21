@@ -51,3 +51,5 @@ Package.resolved
 
 # Claude
 .claude/worktrees
+# Maestro flow screenshots
+.maestro/screenshots/

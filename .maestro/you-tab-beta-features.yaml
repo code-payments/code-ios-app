@@ -1,0 +1,15 @@
+# The Beta Features row is always offered, whether or not any flag is on: the
+# screen behind it draws its own empty state.
+appId: com.flipcash.app.ios
+---
+- launchApp
+- tapOn: "You"
+# The settings rows sit below the fold, under the tab bar.
+- scrollUntilVisible:
+    element:
+      text: "Advanced"
+    centerElement: true
+- tapOn: "Advanced"
+- assertVisible: "Beta Features"
+- tapOn: "Beta Features"
+- takeScreenshot: .maestro/screenshots/beta-features
