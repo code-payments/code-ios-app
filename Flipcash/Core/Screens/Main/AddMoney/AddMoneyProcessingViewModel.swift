@@ -33,7 +33,9 @@ final class AddMoneyProcessingViewModel {
         case .processing:
             return "This Will Take a Minute"
         case .success:
-            return "\(input.amount.nativeAmount.formatted()) of USDF"
+            // No "of <currency>" here: adding money always lands in the reserve, so
+            // "$1.00 of Dollars" only restates what the amount already says.
+            return input.amount.nativeAmount.formatted()
         case .failed:
             return "Something Went Wrong"
         }
