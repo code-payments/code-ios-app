@@ -29,7 +29,12 @@ struct BillCanvas: UIViewControllerRepresentable {
     /// so callers positioning the card (e.g. clearing the Send a Tip sheet) size
     /// it exactly as the canvas renders it.
     static func tipcardSize(canvasWidth: CGFloat) -> CGSize {
-        let width = min(canvasWidth * 0.82, 320)
+        // 302 is the designed full-screen card (node 9277:121417 draws it 302
+        // wide on a 402 frame), and it's what Android pins. The cap binds on
+        // every regular phone — the canvas is the screen inset by 20 a side —
+        // so the fraction is only the fallback for a canvas too narrow to hold
+        // the designed card.
+        let width = min(canvasWidth * 0.86, 302)
         return CGSize(width: width, height: width * TipcardView.aspectRatio)
     }
     

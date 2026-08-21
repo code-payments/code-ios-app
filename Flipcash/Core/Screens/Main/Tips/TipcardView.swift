@@ -13,8 +13,9 @@ import FlipcashUI
 struct TipcardView: View {
 
     /// The card's height-to-width proportion, shared by every surface that
-    /// sizes one.
-    static let aspectRatio: CGFloat = 1.16
+    /// sizes one. From Figma's 269 x 333 card, which holds that proportion both
+    /// on the You page (node 9276:4641) and full screen (node 9277:121417).
+    static let aspectRatio: CGFloat = 333.0 / 269.0
 
     /// Explicit because a rendered tree has no container to size against.
     let size: CGSize
