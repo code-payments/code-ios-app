@@ -33,6 +33,10 @@ struct SettingsMyAccountScreen: View {
     @ViewBuilder
     private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            SettingsRow(asset: .profile, title: "Change Display Name", insets: insets) {
+                router.push(.changeDisplayName)
+            }
+
             SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
                 router.push(.blockedUsers)
             }

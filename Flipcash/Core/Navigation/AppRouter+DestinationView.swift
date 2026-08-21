@@ -70,6 +70,9 @@ struct DestinationView: View {
         case .settingsMyAccount:
             SettingsMyAccountScreen()
 
+        case .changeDisplayName:
+            ChangeDisplayNameScreen(currentName: sessionContainer.session.profile?.displayName ?? "")
+
         case .settingsAdvancedFeatures:
             SettingsAdvancedFeaturesScreen()
 
