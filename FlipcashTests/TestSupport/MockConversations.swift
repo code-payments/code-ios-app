@@ -57,6 +57,9 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var olderQueries: [MessageID] { lock.withLock { _olderQueries } }
     /// The conversations `getMessages` was asked for the newest page of (`before == nil`).
     var latestPageQueries: [ConversationID] { lock.withLock { _latestPageQueries } }
+    /// Forget the recorded newest-page fetches, so a test can assert on the ones its own exercise
+    /// makes rather than the post-feed backfill that already ran during `start()`.
+    func clearLatestPageQueries() { lock.withLock { _latestPageQueries.removeAll() } }
     var sendResult: ConversationMessage? {
         get { lock.withLock { _sendResult } }
         set { lock.withLock { _sendResult = newValue } }
