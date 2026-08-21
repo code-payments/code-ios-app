@@ -108,6 +108,16 @@ extension FiatAmount {
 
     /// Non-zero but too small to display (would format as the currency's zero).
     public var isApproximatelyZero: Bool { value > 0 && !hasDisplayableValue }
+
+    /// This value truncated down to its currency's smallest displayable unit
+    /// (e.g. $9.90099 → $9.90). For values whose defining invariant rounding up
+    /// would break, such as a spend ceiling derived from a balance.
+    public func flooredToSmallestUnit() -> FiatAmount {
+        FiatAmount(
+            value: value.roundedDown(to: currency.maximumFractionDigits),
+            currency: currency
+        )
+    }
 }
 
 // MARK: - Description -

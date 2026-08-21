@@ -60,14 +60,25 @@ final class BuyAmountViewModel {
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let amountValidator = AmountValidator()
+    @ObservationIgnored private let collectsUSDFFee: Bool
     /// Double-tap guard around the async pin fetch.
     private var isSubmitting = false
 
-    init(mint: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
+    /// `collectsUSDFFee` is injected rather than read from `BetaFlags.shared` at
+    /// each use so both fee branches stay testable without mutating the
+    /// persisted flag — same convention as `BuyConfirmationViewModel`.
+    init(
+        mint: PublicKey,
+        currencyName: String,
+        session: Session,
+        ratesController: RatesController,
+        collectsUSDFFee: Bool = BetaFlags.shared.hasEnabled(.newUI)
+    ) {
         self.mint = mint
         self.currencyName = currencyName
         self.session = session
         self.ratesController = ratesController
+        self.collectsUSDFFee = collectsUSDFFee
 
         // Default the payment source to Dollars when it's spendable, otherwise
         // the largest eligible balance — so Next is never dead on arrival.
@@ -103,6 +114,7 @@ final class BuyAmountViewModel {
             router.presentAddMoney(.buyCurrency, source: .buyShortfall)
             return
         }
+        correctEntryToAffordable()
         guard let entered = amountValidator.validate(enteredAmount) else { return }
         guard !isSubmitting else { return }
         isSubmitting = true
@@ -137,6 +149,46 @@ final class BuyAmountViewModel {
         }
     }
 
+    /// The fee the selected payment source charges, and whether it lands *on
+    /// top* of the entry rather than being skimmed out of it.
+    ///
+    /// A token-funded buy pays the pool's sell fee out of the sale, so the debit
+    /// is the entry grossed up; a new-UI Dollars buy adds a flat 1% on top. The
+    /// old-UI reserves buy is fee-free.
+    private var paymentFee: (bps: UInt64, chargedOnTop: Bool) {
+        guard let selected = session.balance(for: paymentMint) else { return (0, false) }
+        guard selected.mint == .usdf else {
+            return (UInt64(max(0, selected.sellFeeBps ?? 100)), false)
+        }
+        return collectsUSDFFee ? (100, true) : (0, false)
+    }
+
+    /// Drops the entry to the most the payment balance can fund once its fee is
+    /// applied, when the entry as typed would overrun it.
+    ///
+    /// Entry is capped at the raw balance while the fee comes out of that same
+    /// balance, so entering the maximum always overruns — by the fee, and never
+    /// by more. That band is narrow enough to correct silently, and correcting
+    /// here rather than on the confirmation keeps the entry and the receipt
+    /// showing the same figure.
+    func correctEntryToAffordable() {
+        guard let entered = amountValidator.validate(enteredAmount) else { return }
+
+        let balance = maxPossibleAmount.nativeAmount
+        let fee = paymentFee
+        guard let corrected = entryAffordableAfterFee(
+            entered: entered,
+            balance: balance,
+            feeBps: fee.bps,
+            feeChargedOnTop: fee.chargedOnTop
+        ) else { return }
+
+        enteredAmount = amountValidator.string(
+            from: corrected.value,
+            fractionDigits: balance.currency.maximumFractionDigits
+        )
+    }
+
     /// Converts the entered (net) target fiat into the payment token's gross
     /// debit against the pinned rate + supply. Moved here from the old
     /// payment-currency step now that selection is inline.
@@ -151,9 +203,9 @@ final class BuyAmountViewModel {
             // to collect, so the debit equals the entered target — grossing it up
             // would just make the user over-buy. Within the displayed balance the
             // compute is balance-capped so FX display rounding can't push the
-            // quarks past the spendable reserves; past it it's deliberately
-            // uncapped so the confirmation's gate can offer Buy Maximum instead of
-            // silently shrinking the entry.
+            // quarks past the spendable reserves; past it it stays uncapped so
+            // the summary shows what was actually entered and the confirmation's
+            // gate can surface the shortfall.
             let displayedBalance = balance.usdf.converting(to: pin.rate).value
                 .rounded(to: entered.currency.maximumFractionDigits)
             let isWithinDisplayedBalance = entered.value <= displayedBalance
@@ -168,9 +220,9 @@ final class BuyAmountViewModel {
 
         guard let supply = pin.supplyFromBonding else { return nil }
 
-        // Deliberately uncapped: when the fee doesn't fit, the gross must exceed
-        // the balance so the confirmation's gate can offer Buy Maximum explicitly
-        // instead of silently clamping.
+        // Deliberately uncapped: the entry has already been corrected to what the
+        // balance can fund, so any remaining overrun is a real shortfall the
+        // confirmation's gate must surface rather than something to clamp away.
         let gross = entered.grossingUpLaunchpadSellFee(bps: UInt64(max(0, balance.sellFeeBps ?? 100)))
         return ExchangedFiat.compute(
             fromEntered: gross,

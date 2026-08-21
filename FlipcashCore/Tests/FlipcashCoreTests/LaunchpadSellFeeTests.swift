@@ -50,8 +50,8 @@ struct LaunchpadSellFeeTests {
         #expect(netted.nativeAmount.value.rounded(to: 2) == net.rounded(to: 2))
     }
 
-    @Test("Buy Maximum shape: full balance nets to balance × (1 − f)")
-    func buyMaximum_netting() {
+    @Test("Selling the whole balance nets to balance × (1 − f)")
+    func wholeBalance_netting() {
         let balance = ExchangedFiat(nativeAmount: FiatAmount.usd(20), rate: .oneToOne)
 
         let fee = balance.launchpadSellFee(bps: 100)
@@ -81,5 +81,45 @@ struct LaunchpadSellFeeTests {
         let net = FiatAmount.usd(20)
 
         #expect(net.grossingUpLaunchpadSellFee(bps: 10_000) == net)
+    }
+
+    // MARK: - Inverses: the most a balance can fund
+
+    @Test("Spendable under a grossed-up fee grosses back up to exactly the balance")
+    func spendableUnderGrossedUp_roundTrips() {
+        let balance = FiatAmount.usd(20)
+
+        let spendable = balance.spendableUnderGrossedUpSellFee(bps: 100)
+
+        #expect(spendable.formatted() == "$19.80")
+        #expect(spendable.grossingUpLaunchpadSellFee(bps: 100).value.rounded(to: 2) == balance.value)
+    }
+
+    @Test("Spendable under a fee charged on top leaves exactly enough for that fee")
+    func spendableUnderOnTop_leavesRoomForTheFee() {
+        let balance = FiatAmount.usd(Decimal(string: "10.10")!)
+
+        let spendable = balance.spendableUnderSellFeeOnTop(bps: 100)
+
+        #expect(spendable.formatted() == "$10.00")
+        // entry + its own fee lands back on the balance.
+        let debit = ExchangedFiat(nativeAmount: spendable, rate: .oneToOne)
+        #expect((spendable + debit.launchpadSellFee(bps: 100).nativeAmount).value.rounded(to: 2) == balance.value)
+    }
+
+    @Test("Spending the whole balance is only possible with a zero fee")
+    func spendable_zeroBps_isTheWholeBalance() {
+        let balance = FiatAmount.usd(20)
+
+        #expect(balance.spendableUnderSellFeeOnTop(bps: 0) == balance)
+        #expect(balance.spendableUnderGrossedUpSellFee(bps: 0) == balance)
+    }
+
+    @Test("An on-top fee above 100% is clamped rather than over-shrinking the entry")
+    func spendableUnderOnTop_bpsAboveMax_isClamped() {
+        let balance = FiatAmount.usd(20)
+
+        // Clamped to 10_000 (100%): half the balance covers a fee equal to the entry.
+        #expect(balance.spendableUnderSellFeeOnTop(bps: 12_000).formatted() == "$10.00")
     }
 }

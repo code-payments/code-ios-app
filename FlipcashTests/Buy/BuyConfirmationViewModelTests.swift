@@ -92,7 +92,10 @@ struct BuyConfirmationViewModelTests {
 
     // MARK: - Boundary gate
 
-    @Test("Entering the full token balance surfaces the insufficient-after-fees sheet, not a submit")
+    /// The amount screen trims an entry to what the fee leaves, so an amount
+    /// this short only reaches here when the balance moved under the quote.
+    /// The gate must still catch it rather than submit.
+    @Test("An amount the balance can no longer cover surfaces the insufficient sheet, not a submit")
     func boundary_showsSheet() async throws {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
@@ -111,86 +114,9 @@ struct BuyConfirmationViewModelTests {
 
         await viewModel.buyAction(session: container.session, router: router)
 
-        #expect(viewModel.dialogItem?.title == "Insufficient Balance After Fees")
+        #expect(viewModel.dialogItem?.title == "Insufficient Balance")
         #expect(viewModel.actionButtonState == .normal)
         #expect(router[.buy].isEmpty, "A short buy must never reach the processing push")
-    }
-
-    @Test("Buy Maximum recomputes the summary from the full balance and passes the gate")
-    func buyMaximum_recomputesAndPasses() async throws {
-        let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
-        ])
-        let rate = container.ratesController.rateForBalanceCurrency()
-        let jeffyBalance = try #require(container.session.balance(for: .jeffy))
-        let displayed = jeffyBalance.computeExchangedValue(with: rate)
-            .nativeAmount.value.rounded(to: CurrencyCode.usd.maximumFractionDigits)
-        let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .jeffy))
-        let paymentAmount = try Self.makePaymentAmount(entered: displayed, balance: jeffyBalance, pin: pin, container: container)
-
-        let viewModel = Self.makeViewModel(payment: jeffyBalance, paymentAmount: paymentAmount, pin: pin)
-
-        viewModel.buyMaximum(session: container.session)
-
-        #expect(viewModel.paymentAmount.onChainAmount.quarks == jeffyBalance.quarks)
-
-        // The recomputed summary must be internally consistent at display
-        // precision: amount to buy + fee == you pay.
-        let pay = viewModel.paymentAmount.nativeAmount.value
-        let net = viewModel.amountToBuy.nativeAmount.value.rounded(to: 2)
-        let fee = viewModel.fee.nativeAmount.value.rounded(to: 2)
-        #expect((net + fee).rounded(to: 2) == pay.rounded(to: 2))
-
-        // And the canonical gate must now pass.
-        switch container.session.hasSufficientFunds(for: viewModel.paymentAmount) {
-        case .sufficient:
-            break
-        case .insufficient:
-            Issue.record("Buy Maximum must satisfy the funds gate")
-        }
-    }
-
-    // MARK: - Appear-time gate
-
-    @Test("Landing on the confirmation with an underfunded amount surfaces the sheet without a Buy tap")
-    func appearGate_underfunded_showsSheet() async throws {
-        let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
-        ])
-        let rate = container.ratesController.rateForBalanceCurrency()
-        let jeffyBalance = try #require(container.session.balance(for: .jeffy))
-        let displayed = jeffyBalance.computeExchangedValue(with: rate)
-            .nativeAmount.value.rounded(to: CurrencyCode.usd.maximumFractionDigits)
-        let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .jeffy))
-        let paymentAmount = try Self.makePaymentAmount(entered: displayed, balance: jeffyBalance, pin: pin, container: container)
-
-        let viewModel = Self.makeViewModel(payment: jeffyBalance, paymentAmount: paymentAmount, pin: pin)
-
-        viewModel.presentInsufficientBalanceIfNeeded(session: container.session)
-
-        #expect(viewModel.dialogItem?.title == "Insufficient Balance After Fees")
-
-        // Dismissing must not let the next appear re-present it — the Buy tap
-        // is the only thing that fires the gate again.
-        viewModel.dialogItem = nil
-        viewModel.presentInsufficientBalanceIfNeeded(session: container.session)
-        #expect(viewModel.dialogItem == nil)
-    }
-
-    @Test("Landing on the confirmation with a covered amount surfaces nothing")
-    func appearGate_funded_staysSilent() async throws {
-        let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
-        ])
-        let usdfBalance = try #require(container.session.balance(for: .usdf))
-        let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .usdf))
-        let paymentAmount = try Self.makePaymentAmount(entered: 10, balance: usdfBalance, pin: pin, container: container)
-
-        let viewModel = Self.makeViewModel(payment: usdfBalance, paymentAmount: paymentAmount, pin: pin)
-
-        viewModel.presentInsufficientBalanceIfNeeded(session: container.session)
-
-        #expect(viewModel.dialogItem == nil)
     }
 
     // MARK: - USDF variant
@@ -212,7 +138,7 @@ struct BuyConfirmationViewModelTests {
     }
 
     @Test(
-        "An underfunded USDF payment surfaces the insufficient sheet, without the fee wording",
+        "An underfunded USDF payment surfaces the insufficient sheet under either fee branch",
         arguments: [false, true]
     )
     func usdfUnderfunded_showsSheet(collectsUSDFFee: Bool) async throws {
@@ -237,19 +163,7 @@ struct BuyConfirmationViewModelTests {
 
         #expect(viewModel.dialogItem?.title == "Insufficient Balance")
         #expect(router[.buy].isEmpty)
-
-        // Buy Maximum spends the whole USDF balance (no reserve supply needed):
-        // the debit lands on the balance, within a rounding quark of it.
-        viewModel.buyMaximum(session: container.session)
-        #expect(viewModel.grossDebit.onChainAmount.quarks <= usdfBalance.quarks)
-        #expect(viewModel.grossDebit.onChainAmount.quarks >= usdfBalance.quarks - usdfBalance.quarks / 1_000)
-
-        if collectsUSDFFee {
-            // The net purchase shrinks to leave room for the 1% on-top fee.
-            #expect(viewModel.paymentAmount.onChainAmount.quarks < usdfBalance.quarks)
-        } else {
-            #expect(viewModel.paymentAmount.onChainAmount.quarks == usdfBalance.quarks)
-        }
+        #expect(viewModel.grossDebit.onChainAmount.quarks > usdfBalance.quarks)
     }
 
     /// Regression: the funds gate must value the balance at the REQUESTED
@@ -288,7 +202,7 @@ struct BuyConfirmationViewModelTests {
 
         await viewModel.buyAction(session: container.session, router: router)
 
-        #expect(viewModel.dialogItem?.title == "Insufficient Balance After Fees")
+        #expect(viewModel.dialogItem?.title == "Insufficient Balance")
         #expect(router[.buy].isEmpty)
     }
 

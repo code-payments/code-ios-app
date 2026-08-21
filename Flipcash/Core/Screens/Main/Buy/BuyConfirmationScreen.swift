@@ -64,9 +64,6 @@ struct BuyConfirmationScreen: View {
                         .padding(.bottom, 24)
                     }
                 }
-                // Buy Maximum rewrites every figure in place — roll the
-                // digits instead of snapping them.
-                .animation(.default, value: viewModel.paymentAmount)
 
                 Spacer()
 
@@ -96,13 +93,6 @@ struct BuyConfirmationScreen: View {
         .navigationBarBackButtonHidden(viewModel.actionButtonState == .loading)
         .dialog(item: $viewModel.dialogItem)
         .task { await viewModel.loadTargetImage(session: session) }
-        .task {
-            // A sheet presented mid-push is swallowed by the transition — let
-            // the push land before offering Buy Maximum.
-            try? await Task.sleep(for: .seconds(0.35))
-            guard !Task.isCancelled else { return }
-            viewModel.presentInsufficientBalanceIfNeeded(session: session)
-        }
     }
 
     // MARK: - Actions -

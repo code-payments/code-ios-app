@@ -8,9 +8,9 @@ import XCTest
 /// Regression test for buying a currency paying with another launchpad
 /// currency: the multi-step flow (amount → Select Payment Currency → summary
 /// with fee breakdown → processing) with a real $0.01 swap. The insufficient
-/// sheet and Buy Maximum math are covered deterministically by
-/// `BuyConfirmationViewModelTests` — a UI rendition proved too balance-
-/// dependent to keep stable.
+/// sheet and the fee-affordable entry correction are covered deterministically
+/// by `BuyConfirmationViewModelTests` and `BuyAmountViewModelTests` — a UI
+/// rendition proved too balance-dependent to keep stable.
 ///
 /// **Prerequisites:**
 /// - A valid `FLIPCASH_UI_TEST_ACCESS_KEY` set in `secrets.local.xcconfig`

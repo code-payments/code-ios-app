@@ -53,13 +53,15 @@ struct BuyAmountViewModelTests {
     private static func makeViewModel(
         mint: PublicKey = .jeffy,
         currencyName: String = "Jeffy",
-        container: SessionContainer
+        container: SessionContainer,
+        collectsUSDFFee: Bool = false
     ) -> BuyAmountViewModel {
         BuyAmountViewModel(
             mint: mint,
             currencyName: currencyName,
             session: container.session,
-            ratesController: container.ratesController
+            ratesController: container.ratesController,
+            collectsUSDFFee: collectsUSDFFee
         )
     }
 
@@ -202,5 +204,66 @@ struct BuyAmountViewModelTests {
 
         #expect(viewModel.actionEnabled("30") == true)
         #expect(viewModel.actionEnabled("31") == false)
+    }
+
+    // MARK: - Fee-affordable entry
+
+    @Test("Paying the whole Dollars balance drops the entry to what the on-top fee leaves")
+    func wholeDollarsBalance_isCorrected() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 10_000_000), // $10.00
+        ])
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container, collectsUSDFFee: true)
+        viewModel.enteredAmount = "10"
+
+        viewModel.correctEntryToAffordable()
+
+        // $10.00 / 1.01 = $9.90099, floored to the cent so the debit fits.
+        #expect(viewModel.enteredAmount == "9.90")
+    }
+
+    @Test("A Dollars entry with room for its fee is left exactly as typed")
+    func dollarsEntryWithRoom_isLeftAlone() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 10_000_000), // $10.00
+        ])
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container, collectsUSDFFee: true)
+        viewModel.enteredAmount = "5"
+
+        viewModel.correctEntryToAffordable()
+
+        #expect(viewModel.enteredAmount == "5")
+    }
+
+    @Test("Without the USDF fee the whole Dollars balance stays spendable")
+    func wholeDollarsBalance_feeFreeUI_isLeftAlone() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 10_000_000), // $10.00
+        ])
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container, collectsUSDFFee: false)
+        viewModel.enteredAmount = "10"
+
+        viewModel.correctEntryToAffordable()
+
+        #expect(viewModel.enteredAmount == "10")
+    }
+
+    @Test("Paying the whole token balance drops the entry to what the pool fee leaves")
+    func wholeTokenBalance_isCorrected() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .makeLaunchpad(address: .jeffy), quarks: 2_000 * 10_000_000_000), // ≈ $20
+        ])
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
+        let balance = viewModel.maxPossibleAmount.nativeAmount
+        let displayed = balance.value.rounded(to: CurrencyCode.usd.maximumFractionDigits)
+        viewModel.enteredAmount = "\(displayed)"
+
+        viewModel.correctEntryToAffordable()
+
+        let corrected = try #require(AmountValidator().validate(viewModel.enteredAmount))
+        #expect(corrected < displayed)
+        // The entry is grossed up by the pool fee to form the debit — it must fit.
+        let debit = FiatAmount(value: corrected, currency: .usd).grossingUpLaunchpadSellFee(bps: 100)
+        #expect(debit.value <= balance.value)
     }
 }

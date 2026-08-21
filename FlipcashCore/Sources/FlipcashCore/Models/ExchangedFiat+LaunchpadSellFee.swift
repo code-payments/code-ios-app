@@ -45,4 +45,26 @@ public extension FiatAmount {
         let feeFraction = Decimal(bps) / Decimal(10_000)
         return FiatAmount(value: value / (1 - feeFraction), currency: currency)
     }
+
+    /// The most of this balance that can be spent when the pool's sell fee is
+    /// *grossed up* out of the spend: `balance × (1 − bps/10⁴)`, the inverse of
+    /// `grossingUpLaunchpadSellFee(bps:)`.
+    ///
+    /// Grossing the result back up lands exactly on this balance, which makes it
+    /// the largest entry the balance can fund. Unrounded, like its inverse —
+    /// callers that need an entry-precision value floor it themselves.
+    func spendableUnderGrossedUpSellFee(bps: UInt64) -> FiatAmount {
+        let feeFraction = Decimal(min(bps, 10_000)) / Decimal(10_000)
+        return FiatAmount(value: value * (1 - feeFraction), currency: currency)
+    }
+
+    /// The most of this balance that can be spent when the fee is charged *on
+    /// top* of the spend rather than skimmed out of it: `balance / (1 + bps/10⁴)`.
+    ///
+    /// Adding that entry's own fee back lands exactly on this balance. Unrounded,
+    /// for the same reason as `spendableUnderGrossedUpSellFee(bps:)`.
+    func spendableUnderSellFeeOnTop(bps: UInt64) -> FiatAmount {
+        let feeFraction = Decimal(min(bps, 10_000)) / Decimal(10_000)
+        return FiatAmount(value: value / (1 + feeFraction), currency: currency)
+    }
 }
