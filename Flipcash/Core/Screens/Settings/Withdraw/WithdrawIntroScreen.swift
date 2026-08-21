@@ -16,7 +16,7 @@ struct WithdrawIntroScreen: View {
             VStack(spacing: 24) {
                 Spacer()
 
-                ConversionGraphic()
+                ConversionGraphic(from: .dollars, to: .usdcOnSolana)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Convert Dollars to USDC")
 
@@ -42,24 +42,5 @@ struct WithdrawIntroScreen: View {
         }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
-    }
-}
-
-private struct ConversionGraphic: View {
-    var body: some View {
-        HStack(spacing: 16) {
-            Image.asset(.buyDollars)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 100, height: 100)
-
-            Image.system(.arrowRight)
-                .foregroundStyle(Color.textSecondary)
-
-            BadgedIcon(
-                icon: Image.asset(.buyUSDC),
-                badge: Image.asset(.buySolana)
-            )
-        }
     }
 }

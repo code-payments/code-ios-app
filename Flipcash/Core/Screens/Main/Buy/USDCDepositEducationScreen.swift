@@ -9,8 +9,8 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Pre-flight for the USDC → USDF conversion: explains that incoming Solana
-/// USDC is auto-converted 1:1 to USDF on receipt. Pass `onDepositOtherCurrencies`
+/// Pre-flight for the USDC → Dollars conversion: explains that incoming Solana
+/// USDC is auto-converted 1:1 to Dollars on receipt. Pass `onDepositOtherCurrencies`
 /// to expose a subtle escape hatch below Next.
 struct USDCDepositEducationScreen: View {
 
@@ -33,16 +33,16 @@ struct USDCDepositEducationScreen: View {
             VStack(spacing: 24) {
                 Spacer()
 
-                ConversionGraphic()
+                ConversionGraphic(from: .usdcOnSolana, to: .dollars)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Convert USDC to USDF")
+                    .accessibilityLabel("Convert USDC to Dollars")
 
                 VStack(spacing: 8) {
                     Text("Deposit USDC")
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
 
-                    Text("Your Solana USDC will be converted 1:1 to USD on Flipcash (USDF)")
+                    Text("Your USDC will be converted 1:1 to Dollars on Flipcash")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
@@ -66,24 +66,5 @@ struct USDCDepositEducationScreen: View {
         }
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
-    }
-}
-
-private struct ConversionGraphic: View {
-    var body: some View {
-        HStack(spacing: 16) {
-            BadgedIcon(
-                icon: Image.asset(.buyUSDC),
-                badge: Image.asset(.buySolana)
-            )
-
-            Image.system(.arrowRight)
-                .foregroundStyle(Color.textSecondary)
-
-            Image.asset(.buyFlipcash)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 100, height: 100)
-        }
     }
 }
