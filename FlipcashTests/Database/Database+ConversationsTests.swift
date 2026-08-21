@@ -649,4 +649,34 @@ struct DatabaseConversationsTests {
         #expect(remaining.map(\.id) == [tip.id, newContact.id])
         #expect(remaining.first?.members.map(\.displayName) == ["Fred"])
     }
+
+    @Test("The crossed window is the half-open interval (after, through]")
+    func crossedWindowIsHalfOpen() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+
+        try database.upsertConversationMessages(
+            [textMessage(id: 1, at: 10), textMessage(id: 2, at: 20), textMessage(id: 3, at: 30), textMessage(id: 4, at: 40)],
+            conversationID: id
+        )
+
+        let crossed = try database.messages(conversationID: id, after: MessageID(value: 2), through: MessageID(value: 3))
+        #expect(crossed.map(\.id.value) == [3])
+    }
+
+    @Test("A nil lower bound means the whole history up to the pointer")
+    func crossedWindowWithNoLowerBound() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+
+        try database.upsertConversationMessages(
+            [textMessage(id: 1, at: 10), textMessage(id: 2, at: 20), textMessage(id: 3, at: 30)],
+            conversationID: id
+        )
+
+        let crossed = try database.messages(conversationID: id, after: nil, through: MessageID(value: 2))
+        #expect(crossed.map(\.id.value) == [1, 2])
+    }
 }
