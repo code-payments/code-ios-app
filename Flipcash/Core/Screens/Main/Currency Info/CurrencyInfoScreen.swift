@@ -83,6 +83,11 @@ private struct CurrencyInfoScreenContent: View {
     /// How far through a pull-to-close the content currently is, 0 to 1. Used to
     /// fade the chrome so the gesture is legible before it commits.
     @State private var pullProgress: CGFloat = 0
+    /// Width of the navigation bar and of the title item's own content. Both
+    /// feed `titleOffset`, which walks a centred principal item back to the
+    /// leading edge; portrait-only, so the screen's width is the bar's width.
+    @State private var barWidth: CGFloat = 0
+    @State private var titleWidth: CGFloat = 0
 
     let session: Session
 
@@ -153,6 +158,31 @@ private struct CurrencyInfoScreenContent: View {
     private var usesToolbar: Bool {
         if case .pushed = presentation { return true }
         return false
+    }
+
+    /// Whether the navigation bar's title item is visible. The new UI reveals
+    /// it on scroll; the old UI shows it for the whole screen.
+    private var showsBarTitle: Bool {
+        !isNewUI || showsToolbarTitle
+    }
+
+    /// Where the title item sits. The old UI centres it. The new UI wants it
+    /// leading — but on iOS 26 a `.topBarLeading` item shares the back button's
+    /// Liquid Glass platter group, and popping the screen makes UIKit collapse
+    /// the departing platter into the back button's, which draws a hard-edged
+    /// rectangle inside the circle for the length of the transition. A
+    /// principal item is a group of its own with nothing to merge into, so iOS
+    /// 26 places it there and offsets it back to the leading edge instead.
+    private var titlePlacement: ToolbarItemPlacement {
+        isNewUI && !Self.hasGlassToolbar ? .topBarLeading : .principal
+    }
+
+    /// Horizontal nudge that puts the centred principal title where a leading
+    /// item would have sat. Zero until both widths are measured — the title is
+    /// hidden until the hero scrolls away, so it is never seen centred.
+    private var titleOffset: CGFloat {
+        guard isNewUI, Self.hasGlassToolbar, barWidth > 0, titleWidth > 0 else { return 0 }
+        return Self.titleLeadingInset - (barWidth - titleWidth) / 2
     }
 
     // MARK: - Init -
@@ -314,25 +344,30 @@ private struct CurrencyInfoScreenContent: View {
                     .opacity(contentOpacity * (1 - pullProgress))
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
         .toolbar(usesToolbar ? .automatic : .hidden, for: .navigationBar)
         .toolbarTitleDisplayMode(.inline)
         // The bar background is deliberately left in place: it renders the
         // scroll edge effect, and hiding it removes the soft fade the content
         // scrolls under (see CurrencyInfoContentV2's scrollEdgeEffectStyle).
         .toolbar {
-            // Kept mounted and faded rather than inserted/removed — churning
-            // toolbar items mid-transition wedges nav-bar layout. In the new UI
-            // the item draws its own capsule, so the system platter stays off.
+            // The item stays mounted and only fades — churning toolbar items
+            // mid-transition wedges nav-bar layout, and keeping it laid out
+            // while hidden means `titleOffset` is already settled by the time
+            // it appears. In the new UI the content draws its own capsule, so
+            // the system platter stays off.
             if #available(iOS 26.0, *) {
-                ToolbarItem(placement: isNewUI ? .topBarLeading : .principal) {
+                ToolbarItem(placement: titlePlacement) {
                     toolbarContent()
-                        .opacity(isNewUI && !showsToolbarTitle ? 0 : 1)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleWidth = $0 }
+                        .opacity(showsBarTitle ? 1 : 0)
+                        .offset(x: titleOffset)
                 }
                 .sharedBackgroundVisibility(isNewUI ? .hidden : .automatic)
             } else {
-                ToolbarItem(placement: isNewUI ? .topBarLeading : .principal) {
+                ToolbarItem(placement: titlePlacement) {
                     toolbarContent()
-                        .opacity(isNewUI && !showsToolbarTitle ? 0 : 1)
+                        .opacity(showsBarTitle ? 1 : 0)
                 }
             }
             if !isUSDF {
@@ -369,6 +404,16 @@ private struct CurrencyInfoScreenContent: View {
 
     /// Height of the chrome an overlay draws in place of the navigation bar.
     fileprivate static let overlayBarHeight: CGFloat = 44
+
+    /// Whether the toolbar wraps its items in Liquid Glass platters.
+    private static let hasGlassToolbar: Bool = {
+        if #available(iOS 26.0, *) { return true }
+        return false
+    }()
+
+    /// Leading edge of a `.topBarLeading` toolbar item: the bar's 16pt layout
+    /// margin, the 44pt back button, and the 16pt gap after it.
+    private static let titleLeadingInset: CGFloat = 76
 
     /// How far the content has to be pulled past its top to count as a close —
     /// far enough that an overscroll bounce at the end of a flick cannot reach
