@@ -59,7 +59,9 @@ extension Analytics {
     }
 
     enum ConversationEvent: String, AnalyticsEvent {
-        case sentMessage = "Sent Message"
+        case sentMessage     = "Sent Message"
+        case tipReceived     = "Tip Received"
+        case messageReceived = "Message Received"
     }
 
     /// The display name a user is known by. `Set` is a first name, `Updated` a
@@ -282,6 +284,19 @@ extension Analytics {
             properties: [.chatType: chatType.analyticsValue],
             error: error
         )
+    }
+
+    /// An inbound tipped Cash message the user has now read. Mutually exclusive with
+    /// `messageReceived` — a tip reports only as a tip.
+    static func tipReceived(chatType: ConversationType?, exchangedFiat: ExchangedFiat) {
+        var properties = amountProperties(exchangedFiat)
+        properties[.chatType] = chatType.analyticsValue
+        track(event: ConversationEvent.tipReceived, properties: properties)
+    }
+
+    /// An inbound non-tip message the user has now read.
+    static func messageReceived(chatType: ConversationType?) {
+        track(event: ConversationEvent.messageReceived, properties: [.chatType: chatType.analyticsValue])
     }
 }
 

@@ -110,6 +110,26 @@ extension Analytics {
     }
 }
 
+// MARK: - People counters -
+
+extension Analytics {
+    /// Cumulative per-user counters, stored as Mixpanel *people* properties.
+    ///
+    /// A people property carries no event identity and cannot be decremented, so a
+    /// replayed increment inflates the profile permanently and unattributably. Every
+    /// caller must therefore sit behind a watermark — see `ConversationReceiptReporter`.
+    enum ReceivedCounter: String {
+        case tips      = "Tips Received"
+        case tipsValue = "Tips Received Value"
+        case messages  = "Messages Received"
+    }
+
+    static func increment(_ counter: ReceivedCounter, by amount: Double = 1) {
+        guard isEnabled else { return }
+        mixpanel.people.increment(property: counter.rawValue, by: amount)
+    }
+}
+
 // MARK: - Private -
 
 private extension Analytics {

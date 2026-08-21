@@ -37,4 +37,17 @@ struct ReceivedEventsTests {
     func setVersusUpdated(_ hadPreviousName: Bool, _ expected: Analytics.DisplayNameEvent) {
         #expect(Analytics.displayNameEvent(hadPreviousName: hadPreviousName) == expected)
     }
+
+    @Test("Received event names are the shared contract")
+    func receivedEventNames() {
+        #expect(Analytics.ConversationEvent.tipReceived.eventName == "Tip Received")
+        #expect(Analytics.ConversationEvent.messageReceived.eventName == "Message Received")
+    }
+
+    @Test("Received counter names are the shared contract")
+    func receivedCounterNames() {
+        #expect(Analytics.ReceivedCounter.tips.rawValue == "Tips Received")
+        #expect(Analytics.ReceivedCounter.tipsValue.rawValue == "Tips Received Value")
+        #expect(Analytics.ReceivedCounter.messages.rawValue == "Messages Received")
+    }
 }
