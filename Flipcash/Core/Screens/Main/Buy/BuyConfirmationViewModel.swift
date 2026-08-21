@@ -26,7 +26,6 @@ final class BuyConfirmationViewModel {
     private(set) var targetImageURL: URL?
 
     @ObservationIgnored private var hasCheckedFundsOnAppear = false
-    @ObservationIgnored private let collectsUSDFFee: Bool
 
     var isUSDF: Bool { payment.mint == .usdf }
 
@@ -35,14 +34,6 @@ final class BuyConfirmationViewModel {
     /// The USDF reserves buy carries a flat 1% fee added on top of the purchase;
     /// the token-funded path uses the payment pool's own sell fee.
     var feeBps: UInt64 { isUSDF ? 100 : UInt64(max(0, payment.sellFeeBps ?? 100)) }
-
-    /// New-UI USDF reserves buys collect a 1% fee (split off on-chain via the
-    /// server's fee destination). Old UI leaves the reserves buy fee-free.
-    private var chargesUSDFFee: Bool { isUSDF && collectsUSDFFee }
-
-    /// Whether a fee row is shown and collected. Token-funded buys always carry
-    /// the implicit sell fee; USDF buys only in the new UI.
-    var chargesFee: Bool { !isUSDF || chargesUSDFFee }
 
     var fee: ExchangedFiat {
         // Same call both ways: for USDF `paymentAmount` is the net purchase so
@@ -61,34 +52,28 @@ final class BuyConfirmationViewModel {
     /// amount *is* the net purchase (fee added on top); for tokens it's the
     /// gross debit minus the implicit sell fee.
     var amountToBuy: ExchangedFiat {
-        guard chargesFee else { return paymentAmount }
-        return isUSDF ? paymentAmount : paymentAmount.subtractingFee(fee.onChainAmount)
+        isUSDF ? paymentAmount : paymentAmount.subtractingFee(fee.onChainAmount)
     }
 
     /// The amount actually removed from the balance ("You Pay"). For USDF it's
     /// the net purchase plus the on-top fee; for tokens `paymentAmount` already
     /// is the gross debit.
     var grossDebit: ExchangedFiat {
-        guard chargesFee else { return paymentAmount }
-        return isUSDF ? paymentAmount.adding(fee) : paymentAmount
+        isUSDF ? paymentAmount.adding(fee) : paymentAmount
     }
 
-    /// Injected rather than read from `BetaFlags.shared` at each use so both fee
-    /// branches stay testable without mutating the persisted flag.
     init(
         targetMint: PublicKey,
         targetName: String,
         payment: StoredBalance,
         paymentAmount: ExchangedFiat,
-        pinnedState: VerifiedState,
-        collectsUSDFFee: Bool = BetaFlags.shared.hasEnabled(.newUI)
+        pinnedState: VerifiedState
     ) {
         self.targetMint = targetMint
         self.targetName = targetName
         self.payment = payment
         self.paymentAmount = paymentAmount
         self.pinnedState = pinnedState
-        self.collectsUSDFFee = collectsUSDFFee
     }
 
     // MARK: - Actions
@@ -165,7 +150,7 @@ final class BuyConfirmationViewModel {
         // purchase must be shrunk to keep the whole debit within the balance:
         // net = ⌊balance · 10⁴ / (10⁴ + bps)⌋. Split-divide to avoid overflow.
         let maxQuarks: UInt64
-        if chargesUSDFFee {
+        if isUSDF {
             let denom = 10_000 + feeBps
             maxQuarks = live.quarks / denom * 10_000 + (live.quarks % denom) * 10_000 / denom
         } else {
@@ -197,7 +182,7 @@ final class BuyConfirmationViewModel {
                 // and split off on-chain, so the debit is `paymentAmount + fee`.
                 swapId = try await session.buy(
                     amount: paymentAmount,
-                    feeAmount: chargesFee ? fee : nil,
+                    feeAmount: fee,
                     verifiedState: pinnedState,
                     of: targetMint
                 )

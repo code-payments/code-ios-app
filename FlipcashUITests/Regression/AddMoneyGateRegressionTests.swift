@@ -27,9 +27,9 @@ final class AddMoneyGateRegressionTests: BaseUITestCase {
         )
         currencyInfo.assertReached()
 
-        // Buy always opens the amount sheet; on a $0 account the action
+        // Get always opens the amount sheet; on a $0 account the action
         // button becomes an Add Money CTA instead of Next.
-        waitAndTap(currencyInfo.buyButton)
+        waitAndTap(currencyInfo.getButton)
         XCTAssertTrue(
             app.navigationBars["Amount"].waitForExistence(timeout: 10),
             "The buy amount sheet must open even when the account has no balance"

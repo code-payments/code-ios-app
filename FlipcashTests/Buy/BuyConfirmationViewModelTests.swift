@@ -71,22 +71,17 @@ struct BuyConfirmationViewModelTests {
         ))
     }
 
-    /// `collectsUSDFFee` is pinned rather than left to `BetaFlags.shared`, whose
-    /// persisted value varies by simulator — every case here states the fee
-    /// branch it means to exercise.
     private static func makeViewModel(
         payment: StoredBalance,
         paymentAmount: ExchangedFiat,
-        pin: VerifiedState,
-        collectsUSDFFee: Bool = false
+        pin: VerifiedState
     ) -> BuyConfirmationViewModel {
         BuyConfirmationViewModel(
             targetMint: .usdcAuthority,
             targetName: "Moony",
             payment: payment,
             paymentAmount: paymentAmount,
-            pinnedState: pin,
-            collectsUSDFFee: collectsUSDFFee
+            pinnedState: pin
         )
     }
 
@@ -106,7 +101,7 @@ struct BuyConfirmationViewModelTests {
 
         let viewModel = Self.makeViewModel(payment: jeffyBalance, paymentAmount: paymentAmount, pin: pin)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
         router.presentNested(.buy(.usdcAuthority))
 
         await viewModel.buyAction(session: container.session, router: router)
@@ -195,8 +190,8 @@ struct BuyConfirmationViewModelTests {
 
     // MARK: - USDF variant
 
-    @Test("Fee-free USDF payments show no fee and amountToBuy equals the payment")
-    func usdfVariant_noFee() async throws {
+    @Test("USDF payments buy the entered amount and add the 1% fee on top of the debit")
+    func usdfVariant_feeOnTop() async throws {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 30_000_000),
         ])
@@ -207,15 +202,16 @@ struct BuyConfirmationViewModelTests {
         let viewModel = Self.makeViewModel(payment: usdfBalance, paymentAmount: paymentAmount, pin: pin)
 
         #expect(viewModel.isUSDF)
-        #expect(!viewModel.chargesFee)
+        #expect(viewModel.feeBps == 100)
+        // The entered amount is what gets purchased; the fee is charged on top,
+        // so only the debit grows.
         #expect(viewModel.amountToBuy == viewModel.paymentAmount)
+        #expect(viewModel.grossDebit.onChainAmount.quarks > paymentAmount.onChainAmount.quarks)
+        #expect(viewModel.grossDebit == paymentAmount.adding(viewModel.fee))
     }
 
-    @Test(
-        "An underfunded USDF payment surfaces the insufficient sheet, without the fee wording",
-        arguments: [false, true]
-    )
-    func usdfUnderfunded_showsSheet(collectsUSDFFee: Bool) async throws {
+    @Test("An underfunded USDF payment surfaces the insufficient sheet, without the fee wording")
+    func usdfUnderfunded_showsSheet() async throws {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 630_000), // $0.63
         ])
@@ -223,14 +219,9 @@ struct BuyConfirmationViewModelTests {
         let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .usdf))
         let paymentAmount = try Self.makePaymentAmount(entered: Decimal(string: "0.74")!, balance: usdfBalance, pin: pin, container: container)
 
-        let viewModel = Self.makeViewModel(
-            payment: usdfBalance,
-            paymentAmount: paymentAmount,
-            pin: pin,
-            collectsUSDFFee: collectsUSDFFee
-        )
+        let viewModel = Self.makeViewModel(payment: usdfBalance, paymentAmount: paymentAmount, pin: pin)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
         router.presentNested(.buy(.usdcAuthority))
 
         await viewModel.buyAction(session: container.session, router: router)
@@ -244,12 +235,8 @@ struct BuyConfirmationViewModelTests {
         #expect(viewModel.grossDebit.onChainAmount.quarks <= usdfBalance.quarks)
         #expect(viewModel.grossDebit.onChainAmount.quarks >= usdfBalance.quarks - usdfBalance.quarks / 1_000)
 
-        if collectsUSDFFee {
-            // The net purchase shrinks to leave room for the 1% on-top fee.
-            #expect(viewModel.paymentAmount.onChainAmount.quarks < usdfBalance.quarks)
-        } else {
-            #expect(viewModel.paymentAmount.onChainAmount.quarks == usdfBalance.quarks)
-        }
+        // The net purchase shrinks to leave room for the 1% on-top fee.
+        #expect(viewModel.paymentAmount.onChainAmount.quarks < usdfBalance.quarks)
     }
 
     /// Regression: the funds gate must value the balance at the REQUESTED
@@ -283,7 +270,7 @@ struct BuyConfirmationViewModelTests {
 
         let viewModel = Self.makeViewModel(payment: jeffyBalance, paymentAmount: paymentAmount, pin: pin)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
         router.presentNested(.buy(.usdcAuthority))
 
         await viewModel.buyAction(session: container.session, router: router)

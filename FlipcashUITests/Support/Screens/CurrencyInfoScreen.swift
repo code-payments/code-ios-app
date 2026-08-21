@@ -6,7 +6,8 @@
 import XCTest
 
 /// Page object for the CurrencyInfoScreen.
-/// Provides access to Buy, Sell, and Give actions in the floating footer.
+/// Provides access to the action tiles: Give / Convert / Withdraw for a held
+/// currency, and Get for one the account doesn't hold yet.
 @MainActor
 struct CurrencyInfoUIScreen {
 
@@ -18,17 +19,21 @@ struct CurrencyInfoUIScreen {
 
     // MARK: - Elements
 
-    var buyButton: XCUIElement { app.buttons["Buy"] }
-    var sellButton: XCUIElement { app.buttons["Sell"] }
+    /// Only present for a currency the account doesn't hold yet.
+    var getButton: XCUIElement { app.buttons["Get"] }
     var giveButton: XCUIElement { app.buttons["Give"] }
+    var convertButton: XCUIElement { app.buttons["Convert"] }
+    var withdrawButton: XCUIElement { app.buttons["Withdraw"] }
     var viewTransactionButton: XCUIElement { app.buttons["Transaction History"] }
 
     // MARK: - Assertions
 
     func assertReached(timeout: TimeInterval = 10) {
+        // The back chevron is the one element present regardless of whether
+        // the account holds this currency (the tiles differ by ownership).
         XCTAssertTrue(
-            buyButton.waitForExistence(timeout: timeout),
-            "Expected to reach CurrencyInfoScreen with Buy button"
+            app.buttons["currency-info-back"].waitForExistence(timeout: timeout),
+            "Expected to reach CurrencyInfoScreen"
         )
     }
 }

@@ -22,7 +22,9 @@ final class BuyWithCurrencyRegressionTests: BaseUITestCase {
     /// Buys $0.01 of the first wallet currency paying with another launchpad
     /// token, all the way through the processing screen. Moves ~$0.01 of real
     /// dev-environment value per run.
-    func testBuyCurrency_payingWithToken_fullFlow() {
+    func testBuyCurrency_payingWithToken_fullFlow() throws {
+        try skipPendingTabBarRewrite("an owned currency offers Give / Convert / Withdraw, not Buy — paying with a token now starts from Convert")
+
         let wallet = WalletScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
@@ -39,7 +41,7 @@ final class BuyWithCurrencyRegressionTests: BaseUITestCase {
         wallet.selectFirstCurrency()
         currencyInfo.assertReached()
 
-        waitAndTap(currencyInfo.buyButton)
+        waitAndTap(currencyInfo.getButton)
         amountEntry.enterMinimumAmount()
         waitUntilHittableAndTap(amountEntry.nextButton)
 

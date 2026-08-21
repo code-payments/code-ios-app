@@ -152,7 +152,7 @@ struct BuyAmountViewModelTests {
         let container = try await Self.makeContainer(holdings: [])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
 
         viewModel.primaryAction(router: router)
 
@@ -166,7 +166,7 @@ struct BuyAmountViewModelTests {
         ])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
         router.presentNested(.buy(.jeffy))
 
         viewModel.enteredAmount = "10"
@@ -184,7 +184,7 @@ struct BuyAmountViewModelTests {
         ])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
-        router.present(.balance)
+        router.present(.give)
         router.presentNested(.buy(.jeffy))
 
         viewModel.enteredAmount = ""

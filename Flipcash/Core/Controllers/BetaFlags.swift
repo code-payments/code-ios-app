@@ -45,15 +45,6 @@ class BetaFlags {
         return options.contains(option)
     }
     
-    /// Whether Dollars (USDF) can be given, sent, or tipped like a community
-    /// currency. Dollars give ships with the new UI: its only entry point is the
-    /// Give tile on the Dollars card, which the new currency-info layout alone
-    /// draws, so on the old UI a Dollars row in a give picker would offer a
-    /// currency the rest of that UI never gives.
-    var allowsDollarsGive: Bool {
-        hasEnabled(.newUI)
-    }
-
     /// Enables or disables a beta flag and persists the change to disk.
     func set(_ option: Option, enabled: Bool) {
         if enabled {
@@ -127,7 +118,6 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
-        case newUI
 
         var id: String {
             localizedTitle
@@ -139,8 +129,6 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
-            case .newUI:
-                return "New tab-bar UI"
             }
         }
 
@@ -150,8 +138,6 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
-            case .newUI:
-                return "If enabled, the app launches into the new tab-bar UI (Wallet, Scan, Chat, Tip Card) instead of the scanner-first UI"
             }
         }
 
@@ -160,7 +146,6 @@ extension BetaFlags {
             switch self {
             case .vibrateOnScan:   return .developer
             case .enableCoinbase:  return .developer
-            case .newUI:           return .shipped
             }
         }
     }

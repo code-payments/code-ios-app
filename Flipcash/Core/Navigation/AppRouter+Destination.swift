@@ -30,10 +30,10 @@ extension AppRouter {
         case activity
         case give(PublicKey)
         /// Pushes the buy flow (`BuyAmountScreen`) onto the current stack instead
-        /// of presenting it as a sheet — the new-UI currency-info "Get" tile.
+        /// of presenting it as a sheet — the currency-info "Get" tile.
         case buyCurrency(PublicKey)
         /// Pushes the convert flow (`ConvertAmountScreen`) onto the current stack
-        /// — the new-UI currency-info "Convert" tile. Sells this currency into a
+        /// — the currency-info "Convert" tile. Sells this currency into a
         /// chosen destination (Dollars or another launchpad token).
         case convertCurrency(PublicKey)
         /// Withdraw flow on the Wallet's stack (pops back to the wallet on

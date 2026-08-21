@@ -95,7 +95,6 @@ public enum Asset: String, Sendable {
     case graphicPushPermission
     case graphicPoolQuestion
     case graphicPoolPlaceholder
-    case hamburger
     case photo
     case deleteBubble
     case graphicWallet

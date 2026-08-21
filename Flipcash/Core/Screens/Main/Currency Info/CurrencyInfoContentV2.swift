@@ -2,10 +2,9 @@
 //  CurrencyInfoContentV2.swift
 //  Flipcash
 //
-//  The new-UI (BetaFlags.newUI) currency info layout: a hero bill card, inline
-//  Give / Convert / Withdraw (or Get) tiles, a per-token Recent preview, the
-//  reused market-cap chart, the About block, and a created-at footer. Gated
-//  behind the new UI; the legacy `LoadedContent` stays for the old shell.
+//  The currency info layout: a hero bill card, inline Give / Convert /
+//  Withdraw (or Get) tiles, a per-token Recent preview, the reused market-cap
+//  chart, the About block, and a created-at footer.
 //
 
 import SwiftUI
@@ -295,9 +294,8 @@ struct CurrencyInfoContentV2: View {
     @ViewBuilder private var actionTiles: some View {
         HStack(spacing: 12) {
             if isOwned {
-                // This layout is new-UI only, so Give (including Dollars) is
-                // inherently gated to the new UI. Convert works from any held
-                // currency — including Dollars, which converts via a reserves buy.
+                // Convert works from any held currency — including Dollars,
+                // which converts via a reserves buy.
                 actionTile("Give", icon: .asset("IconBanknote"), action: onGive)
                 actionTile("Convert", icon: .system("arrow.up.arrow.down"), action: onConvert)
                 actionTile("Withdraw", icon: .system("arrow.up"), action: onWithdraw)

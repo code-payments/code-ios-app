@@ -142,10 +142,10 @@ final class DeepLinkController {
             return action(.openSheet(.give))
 
         case .balance:
-            return action(.openSheet(.balance))
+            return action(.wallet)
 
         case .discover:
-            return action(.openSheet(.discover))
+            return action(.discoverCurrencies)
 
         case .unknown:
             break
@@ -223,19 +223,14 @@ struct DeepLinkAction {
         case .currencyInfo(let mint):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
+                // The wallet opens the token as its expanded card, so a link
+                // lands exactly where tapping the card would — same chrome, same
+                // dismissal. Pushing it instead gives a screen with a back
+                // chevron that belongs to a stack the user never navigated.
                 let router = container.appRouter
-                if router.tabStacks.contains(.balance) {
-                    // v2: the wallet opens the token as its expanded card, so a
-                    // link lands exactly where tapping the card would — same
-                    // chrome, same dismissal. Pushing it instead gives a screen
-                    // with a back chevron that belongs to a stack the user never
-                    // navigated.
-                    router.setPath([], on: .balance)
-                    router.requestedTabStack = .balance
-                    router.requestedCardMint = mint
-                } else {
-                    router.navigate(to: .currencyInfo(mint))
-                }
+                router.setPath([], on: .balance)
+                router.requestedTabStack = .balance
+                router.requestedCardMint = mint
             }
 
         case .chat(let conversationID):
@@ -268,36 +263,36 @@ struct DeepLinkAction {
                 container.tipFlow.begin(userID: userID)
             }
 
+        case .wallet:
+            if let container = sessionAuthenticator.loggedInContainer {
+                Analytics.deeplinkRouted(kind: kind)
+                // `flipcash://balance` means "show me the wallet" — bring the tab
+                // forward at its root rather than pushing anything onto it.
+                let router = container.appRouter
+                while router.presentedSheet != nil { router.dismissSheet() }
+                router.setPath([], on: .balance)
+                router.requestedTabStack = .balance
+            }
+
+        case .discoverCurrencies:
+            if let container = sessionAuthenticator.loggedInContainer {
+                Analytics.deeplinkRouted(kind: kind)
+                // Discover is a push from the wallet, the same as its tile.
+                container.appRouter.navigate(to: .discoverCurrencies)
+            }
+
         case .openSheet(let sheet):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
                 if sheet == .give {
                     let rate = container.ratesController.rateForBalanceCurrency()
-                    let gate = giveCashGate(session: container.session, rate: rate, includingDollars: BetaFlags.shared.allowsDollarsGive)
+                    let gate = giveCashGate(session: container.session, rate: rate)
                     if let dialog = gate.blockingDialog(router: container.appRouter, addMoneySource: .giveShortfall) {
                         container.session.dialogItem = dialog
                         return
                     }
                 }
-                let router = container.appRouter
-                // Discover is a push from the wallet in the tab UI, the same as
-                // its tile — its own sheet is the v1 route in.
-                if sheet == .discover, router.tabStacks.contains(.balance) {
-                    router.navigate(to: .discoverCurrencies)
-                    return
-                }
-
-                // A sheet whose stack a tab owns is that tab — `flipcash://balance`
-                // means "show me the wallet", and presenting the sheet puts the v1
-                // balance list over the wallet tab instead of selecting it.
-                let stack = sheet.stack
-                if router.tabStacks.contains(stack) {
-                    while router.presentedSheet != nil { router.dismissSheet() }
-                    router.setPath([], on: stack)
-                    router.requestedTabStack = stack
-                } else {
-                    router.present(sheet)
-                }
+                container.appRouter.present(sheet)
             }
         }
     }
@@ -314,6 +309,10 @@ extension DeepLinkAction {
         case chat(ConversationID)
         case chatSendCash(ConversationID)
         case tip(UserID)
+        /// The Wallet tab, at its root.
+        case wallet
+        /// Discover, pushed onto the Wallet tab.
+        case discoverCurrencies
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -328,6 +327,8 @@ extension DeepLinkAction.Kind {
         case .chat:                 "Chat"
         case .chatSendCash:         "ChatSendCash"
         case .tip:                  "Tip"
+        case .wallet:               "Wallet"
+        case .discoverCurrencies:   "DiscoverCurrencies"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }

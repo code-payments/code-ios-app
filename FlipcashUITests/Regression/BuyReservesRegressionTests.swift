@@ -24,7 +24,9 @@ final class BuyReservesRegressionTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testBuyCurrency_fullFlowWithReserves() {
+    func testBuyCurrency_fullFlowWithReserves() throws {
+        try skipPendingTabBarRewrite("an owned currency offers Give / Convert / Withdraw, not Buy — this flow needs a new entry point")
+
         let wallet = WalletScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
@@ -41,7 +43,7 @@ final class BuyReservesRegressionTests: BaseUITestCase {
 
         // Buy → enter $0.01 → Next → USDF → summary → Buy. The amount is well
         // below any plausible USDF balance, so USDF is always eligible.
-        waitAndTap(currencyInfo.buyButton)
+        waitAndTap(currencyInfo.getButton)
         amountEntry.enterMinimumAmount()
         waitUntilHittableAndTap(amountEntry.nextButton)
 

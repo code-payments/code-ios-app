@@ -227,6 +227,7 @@ private struct WalletScreenContent: View {
     /// Opens a token: the deck reorganises around the tapped card, which stays
     /// on screen while the detail panel rises beneath it.
     private func openCard(_ item: TokenCardData, currentTop: CGFloat) {
+        Analytics.tokenInfoOpened(from: .openedFromWallet, mint: item.mint)
         transitionToken &+= 1
         let token = transitionToken
 
@@ -366,6 +367,7 @@ private struct WalletScreenContent: View {
     /// to start from. Everything lands where the opening animation would have
     /// left it, so closing still puts the card back into the deck normally.
     private func openCardImmediately(_ mint: PublicKey) {
+        Analytics.tokenInfoOpened(from: .openedFromDeeplink, mint: mint)
         transitionToken &+= 1
 
         var immediate = Transaction()

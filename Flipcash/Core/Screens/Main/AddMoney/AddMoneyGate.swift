@@ -6,15 +6,6 @@
 import Foundation
 import FlipcashCore
 
-/// Read-only access to the user's USDF reserve balance.
-@MainActor
-protocol USDFReserveReading: AnyObject {
-    func balance(for mint: PublicKey) -> StoredBalance?
-}
-
-extension Session: USDFReserveReading {}
-
-
 /// Read access to every balance the launch gate weighs.
 @MainActor
 protocol LaunchBalanceReading: AnyObject {
@@ -43,11 +34,10 @@ func shouldAddMoneyBeforeLaunch(session: some LaunchBalanceReading, launchCost: 
     !session.balances.contains { canPayLaunchCost($0, launchCost: launchCost) }
 }
 
-/// The balance inputs the give/send cash gate needs — `USDFReserveReading`
-/// plus the giveable-balance predicate.
+/// The giveable-balance predicate the give/send cash gate reads.
 @MainActor
-protocol GiveBalanceReading: USDFReserveReading {
-    func hasGiveableBalance(for rate: Rate, includingDollars: Bool) -> Bool
+protocol GiveBalanceReading: AnyObject {
+    func hasGiveableBalance(for rate: Rate) -> Bool
 }
 
 extension Session: GiveBalanceReading {}
@@ -55,28 +45,16 @@ extension Session: GiveBalanceReading {}
 /// Where a "give cash" entry (Cash tab, in-chat Send, tip sheet, give deeplink)
 /// routes.
 enum GiveCashGate: Equatable {
-    /// Something spendable on hand — a community currency, or Dollars when the
-    /// new UI has them giveable.
+    /// Something spendable on hand — Dollars or a community currency.
     case proceed
-    /// Dollars on hand but nothing this UI can give (old UI only).
-    case discoverCurrencies
     /// No balance at all.
     case addMoney
 }
 
 /// Returns where a give-cash entry routes given the user's balances. Every mint
 /// counts only at displayable value, so the prompt agrees with the balance the
-/// wallet renders. `includingDollars` is `BetaFlags.allowsDollarsGive`.
+/// wallet renders.
 @MainActor
-func giveCashGate(session: some GiveBalanceReading, rate: Rate, includingDollars: Bool) -> GiveCashGate {
-    if session.hasGiveableBalance(for: rate, includingDollars: includingDollars) { return .proceed }
-
-    // Old UI only: Dollars is on hand but isn't giveable there, so point at
-    // Discover — the user has money, just nothing this UI can give. Once
-    // Dollars is giveable the branch is unreachable, since a displayable
-    // Dollars balance has already proceeded above.
-    let hasUSDF = session.balance(for: .usdf)?
-        .computeExchangedValue(with: rate)
-        .hasDisplayableValue() ?? false
-    return hasUSDF ? .discoverCurrencies : .addMoney
+func giveCashGate(session: some GiveBalanceReading, rate: Rate) -> GiveCashGate {
+    session.hasGiveableBalance(for: rate) ? .proceed : .addMoney
 }

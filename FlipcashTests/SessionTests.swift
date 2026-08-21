@@ -710,36 +710,32 @@ struct SessionOfflineCacheTests {
 @Suite("Session.hasGiveableBalance")
 struct SessionHasGiveableBalanceTests {
 
-    // `includingDollars` is `BetaFlags.allowsDollarsGive`: false on the old UI,
-    // which has no Dollars give affordance, true on the new.
-
-    @Test("Fresh account (USDF at zero) has no giveable balance", arguments: [false, true])
-    func freshAccount_hasNone(includingDollars: Bool) throws {
+    @Test("Fresh account (USDF at zero) has no giveable balance")
+    func freshAccount_hasNone() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 0),
         ])
-        #expect(container.session.hasGiveableBalance(for: .oneToOne, includingDollars: includingDollars) == false)
+        #expect(container.session.hasGiveableBalance(for: .oneToOne) == false)
     }
 
-    @Test("USDF balance alone is giveable only once Dollars can be given")
-    func usdfOnly_isGiveableWithDollars() throws {
+    @Test("USDF balance alone is giveable")
+    func usdfOnly_isGiveable() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 5 * 10_000_000_000),
         ])
-        #expect(container.session.hasGiveableBalance(for: .oneToOne, includingDollars: true) == true)
-        #expect(container.session.hasGiveableBalance(for: .oneToOne, includingDollars: false) == false)
+        #expect(container.session.hasGiveableBalance(for: .oneToOne) == true)
     }
 
-    @Test("USDF dust that displays as $0.00 is not giveable", arguments: [false, true])
-    func usdfDust_isNotGiveable(includingDollars: Bool) throws {
+    @Test("USDF dust that displays as $0.00 is not giveable")
+    func usdfDust_isNotGiveable() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 1_000), // $0.001
         ])
-        #expect(container.session.hasGiveableBalance(for: .oneToOne, includingDollars: includingDollars) == false)
+        #expect(container.session.hasGiveableBalance(for: .oneToOne) == false)
     }
 
-    @Test("A funded non-USDF balance is giveable", arguments: [false, true])
-    func fundedNonUSDF_isGiveable(includingDollars: Bool) throws {
+    @Test("A funded non-USDF balance is giveable")
+    func fundedNonUSDF_isGiveable() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 0),
             .init(
@@ -750,6 +746,6 @@ struct SessionHasGiveableBalanceTests {
                 quarks: 10 * 10_000_000_000
             ),
         ])
-        #expect(container.session.hasGiveableBalance(for: .oneToOne, includingDollars: includingDollars) == true)
+        #expect(container.session.hasGiveableBalance(for: .oneToOne) == true)
     }
 }

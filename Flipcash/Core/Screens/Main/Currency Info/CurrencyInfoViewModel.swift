@@ -29,8 +29,8 @@ class CurrencyInfoViewModel {
 
     private(set) var loadingState: LoadingState = .loading
 
-    /// Recent activity for this token (newest first), previewed on the new-UI
-    /// info screen. Loaded via ``loadRecentActivities(limit:)`` so DB access stays
+    /// Recent activity for this token (newest first), previewed on the info
+    /// screen. Loaded via ``loadRecentActivities(limit:)`` so DB access stays
     /// in the view model rather than the view.
     private(set) var recentActivities: [Activity] = []
 

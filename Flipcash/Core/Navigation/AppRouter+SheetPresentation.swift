@@ -11,13 +11,11 @@ import FlipcashCore
 extension AppRouter {
 
     /// Identifies a top-level modal sheet. The router can present multiple at
-    /// once — the bottom of the stack is the root sheet (overlays `ScanScreen`)
+    /// once — the bottom of the stack is the root sheet (overlays the tab bar)
     /// and any subsequent entries are nested sheets that visually stack on top.
     nonisolated enum SheetPresentation: Identifiable, Hashable, Sendable, CustomStringConvertible {
-        case balance
         case settings
         case give
-        case discover
         case buy(PublicKey)
         /// Standalone Add Money flow (deposit USDF). Payload selects the
         /// "No Balance Yet" subtitle; the flow itself is currency-agnostic.
@@ -36,10 +34,8 @@ extension AppRouter {
         /// re-presentation starts at root rather than restoring the stale leaf.
         var stack: Stack {
             switch self {
-            case .balance:      .balance
             case .settings:     .settings
             case .give:         .give
-            case .discover:     .discover
             case .buy:          .buy
             case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
@@ -53,10 +49,8 @@ extension AppRouter {
         /// comparing the stringly-typed `description`.
         var caseKind: CaseKind {
             switch self {
-            case .balance:      .balance
             case .settings:     .settings
             case .give:         .give
-            case .discover:     .discover
             case .buy:          .buy
             case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
@@ -66,10 +60,8 @@ extension AppRouter {
         }
 
         enum CaseKind: Hashable, Sendable {
-            case balance
             case settings
             case give
-            case discover
             case buy
             case addMoney
             case downloadApp
@@ -79,10 +71,8 @@ extension AppRouter {
 
         var description: String {
             switch self {
-            case .balance:      "balance"
             case .settings:     "settings"
             case .give:         "give"
-            case .discover:     "discover"
             case .buy:          "buy"
             case .addMoney:     "addMoney"
             case .downloadApp:  "downloadApp"

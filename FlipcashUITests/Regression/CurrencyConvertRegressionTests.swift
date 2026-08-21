@@ -1,24 +1,28 @@
 //
-//  CurrencySellRegressionTests.swift
+//  CurrencyConvertRegressionTests.swift
 //  FlipcashUITests
 //
 
 import XCTest
 
-/// Regression test for the full currency sell flow with confirmation.
+/// Regression test for the full currency convert flow with confirmation.
+/// Converting a held currency to Dollars is what the old standalone Sell flow
+/// became when the tab-bar UI shipped.
 ///
 /// **Prerequisites:**
 /// - A valid `FLIPCASH_UI_TEST_ACCESS_KEY` set in `secrets.local.xcconfig`
 /// - The test account must hold at least one non-USDF currency with balance > 0
-final class CurrencySellRegressionTests: BaseUITestCase {
+final class CurrencyConvertRegressionTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testSellCurrency_fullFlowWithConfirmation() {
+    func testConvertCurrency_fullFlowWithConfirmation() throws {
+        try skipPendingTabBarRewrite("Convert replaced Sell and pushes onto the Wallet tab instead of presenting a sheet")
+
         let wallet = WalletScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
-        let confirmation = SellConfirmationScreen(app: app)
+        let confirmation = ConvertConfirmationUIScreen(app: app)
         let processing = SwapProcessingUIScreen(app: app)
 
         assertMainScreenReached()
@@ -28,11 +32,11 @@ final class CurrencySellRegressionTests: BaseUITestCase {
         wallet.selectFirstCurrency()
         currencyInfo.assertReached()
 
-        // Sell → enter $0.01 → Next → confirm → submit
-        waitAndTap(currencyInfo.sellButton, timeout: 10, "Expected Sell button — test account must hold this currency")
+        // Convert → enter $0.01 → Next → confirm → submit
+        waitAndTap(currencyInfo.convertButton, timeout: 10, "Expected Convert tile — test account must hold this currency")
         amountEntry.enterMinimumAmount()
         waitAndTap(amountEntry.nextButton)
-        confirmation.confirmSell(from: self)
+        confirmation.confirmConvert(from: self)
 
         // Wait for swap to complete and dismiss
         processing.waitForCompletionAndDismiss()

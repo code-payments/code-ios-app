@@ -362,16 +362,14 @@ class RatesController {
     /// as an intentional Dollars choice would open every flow in Dollars. Where
     /// Dollars isn't giveable at all it can't be auto-picked either, so a
     /// Dollars-only account resolves to nothing.
-    ///
-    /// - Parameter includingDollars: `BetaFlags.allowsDollarsGive`.
-    func resolveInitialBalance(mint: PublicKey?, session: Session, includingDollars: Bool) -> ExchangedBalance? {
+    func resolveInitialBalance(mint: PublicKey?, session: Session) -> ExchangedBalance? {
         let rate = rateForBalanceCurrency()
 
         if let mint, let stored = session.balance(for: mint) {
             return stored.exchanged(with: rate)
         }
 
-        let giveable = session.balances(for: rate).giveable(includingDollars: includingDollars)
+        let giveable = session.balances(for: rate).giveable()
 
         if let stored = selectedTokenMint, stored != .usdf,
            let match = giveable.first(where: { $0.stored.mint == stored }) {

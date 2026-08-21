@@ -104,12 +104,6 @@ class Session {
         scanOperation != nil
     }
     
-    /// Whether the Tips tab is available. Always on — Tips shipped out of beta,
-    /// so the tab shows for every account.
-    var canUseTips: Bool {
-        true
-    }
-
     var hasCoinbaseOnramp: Bool {
         BetaFlags.shared.hasEnabled(.enableCoinbase) || userFlags?.hasCoinbase == true
     }
@@ -198,14 +192,12 @@ class Session {
     }
 
     /// True when the user has at least one balance with a displayable fiat
-    /// value that a give, send, or tip can spend. Dollars counts only when
-    /// `includingDollars` — see `BetaFlags.allowsDollarsGive`. Skips the sort +
-    /// allocate that `balances(for:)` does, so callers gating a presentation pay
-    /// only the early-exit predicate cost.
-    func hasGiveableBalance(for rate: Rate, includingDollars: Bool) -> Bool {
+    /// value that a give, send, or tip can spend. Skips the sort + allocate that
+    /// `balances(for:)` does, so callers gating a presentation pay only the
+    /// early-exit predicate cost.
+    func hasGiveableBalance(for rate: Rate) -> Bool {
         updateableBalances.value.contains { stored in
-            guard stored.mint != .usdf || includingDollars else { return false }
-            return stored.computeExchangedValue(with: rate).hasDisplayableValue()
+            stored.computeExchangedValue(with: rate).hasDisplayableValue()
         }
     }
     

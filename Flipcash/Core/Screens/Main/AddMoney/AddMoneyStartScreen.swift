@@ -23,13 +23,10 @@ struct AddMoneyStartScreen: View {
     @State private var pendingCoinbaseAmount = false
 
     var body: some View {
-        // The v2 tab-bar UI uses the richer "Add Money With" cards (Figma /
-        // Android parity); v1 keeps the plain "Select Method" buttons.
-        let isV2 = BetaFlags.shared.hasEnabled(.newUI)
         PartialSheet {
             VStack(spacing: 12) {
                 HStack {
-                    Text(isV2 ? "Add Money With" : "Select Method")
+                    Text("Add Money With")
                         .font(.appBarButton)
                         .foregroundStyle(Color.textMain)
                     Spacer()
@@ -37,11 +34,7 @@ struct AddMoneyStartScreen: View {
                 .padding(.vertical, 20)
 
                 ForEach(Self.visibleMethods(hasCoinbaseOnramp: session.hasCoinbaseOnramp), id: \.self) { method in
-                    if isV2 {
-                        AddMoneyMethodRow(method: method) { select(method) }
-                    } else {
-                        AddMoneyMethodButton(method: method) { select(method) }
-                    }
+                    AddMoneyMethodRow(method: method) { select(method) }
                 }
 
                 Button("Dismiss", action: { router.dismissSheet() })
@@ -49,13 +42,12 @@ struct AddMoneyStartScreen: View {
             }
             .padding(.horizontal)
             .padding(.top)
-            .padding(.bottom, isV2 ? 0 : 16)
         }
         .sheet(item: $flowMethod) { method in
             AddMoneyFlowSheet(method: method)
                 .environment(\.dismissParentContainer, { router.dismissSheet() })
         }
-        // Up-front (v2) Coinbase verification — presented directly over the
+        // Up-front Coinbase verification — presented directly over the
         // picker, before the amount flow opens.
         .sheet(item: $verificationViewModel.cancellingOnDismiss()) { vm in
             VerifyInfoScreen(viewModel: vm)
@@ -80,20 +72,9 @@ struct AddMoneyStartScreen: View {
     /// debit-card (Coinbase) deposit verifies phone/email first so no empty
     /// screen appears ahead of it (skipped over the buy sheet, already gated).
     ///
-    /// The v1 UI keeps the sheet-based flow unchanged: the deposit opens as its
-    /// own sheet, except over the buy sheet where it pushes as it always has.
     private func select(_ method: DepositMethod) {
         Analytics.addMoneyMethodSelected(method: method)
         let router = self.router
-
-        guard BetaFlags.shared.hasEnabled(.newUI) else {
-            if router.isAddMoneyOverBuy {
-                dismissThenPush(AddMoneyFlowStep.method(method), using: router)
-            } else {
-                flowMethod = method
-            }
-            return
-        }
 
         guard method == .coinbase, !router.isAddMoneyOverBuy else {
             startFlow(method, using: router)
@@ -102,8 +83,8 @@ struct AddMoneyStartScreen: View {
 
         // A debit-card deposit verifies phone/email up front. With a host stack
         // the whole verification (intro → phone → email) pushes onto it ahead of
-        // the deposit flow; without one (over the bare scanner) it falls back to
-        // the sheet-based verification and sheet deposit flow.
+        // the deposit flow; without one (over the Scan tab) it falls back to the
+        // sheet-based verification and sheet deposit flow.
         if let stack = router.addMoneyPushStack {
             startCoinbaseVerification(pushingOnto: stack, using: router)
         } else {
@@ -123,12 +104,11 @@ struct AddMoneyStartScreen: View {
         }
     }
 
-    /// Enters the deposit flow for `method` in the v2 UI. When the picker sits
-    /// over an existing navigation stack (the common case) it dismisses the
-    /// picker and pushes the flow onto that stack so it reads like the rest of
-    /// the app's navigation. With no stack beneath it — the no-balance gate
-    /// opened over the bare scanner — it falls back to presenting the flow as
-    /// its own sheet.
+    /// Enters the deposit flow for `method`. When the picker sits over an
+    /// existing navigation stack (the common case) it dismisses the picker and
+    /// pushes the flow onto that stack so it reads like the rest of the app's
+    /// navigation. With no stack beneath it — the no-balance gate opened over
+    /// the Scan tab — it falls back to presenting the flow as its own sheet.
     private func startFlow(_ method: DepositMethod, using router: AppRouter) {
         if router.addMoneyPushStack != nil {
             dismissThenPush(AddMoneyFlowStep.method(method), using: router)
@@ -197,45 +177,7 @@ struct AddMoneyStartScreen: View {
     }
 }
 
-private struct AddMoneyMethodButton: View {
-
-    let method: DepositMethod
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            switch method {
-            case .coinbase:
-                Text("\u{F8FF}Pay")
-                    .font(.body.bold())
-            case .phantom:
-                HStack(spacing: 4) {
-                    Image.asset(.phantom)
-                        .renderingMode(.template)
-                        .resizable()
-                        .frame(width: 20, height: 20)
-                    Text("Phantom")
-                }
-            case .otherWallet:
-                Text("Other Wallet")
-            }
-        }
-        .buttonStyle(.filled)
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    /// Stable identifier for UI tests — the Apple-glyph "Pay" label is
-    /// brittle to match by text.
-    private var accessibilityIdentifier: String {
-        switch method {
-        case .coinbase:    "apple-pay-method-button"
-        case .phantom:     "phantom-method-button"
-        case .otherWallet: "other-wallet-method-button"
-        }
-    }
-}
-
-/// The v2 "Add Money With" row: a titled/subtitled card with a trailing method
+/// An "Add Money With" row: a titled/subtitled card with a trailing method
 /// glyph (Figma / Android parity).
 private struct AddMoneyMethodRow: View {
 

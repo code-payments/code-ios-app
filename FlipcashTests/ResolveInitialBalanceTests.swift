@@ -8,13 +8,11 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-/// `includingDollars` is `BetaFlags.allowsDollarsGive` at every call site: false
-/// on the old UI, which has no Dollars give affordance anywhere, true on the new.
 @MainActor
 @Suite("RatesController.resolveInitialBalance")
 struct ResolveInitialBalanceTests {
 
-    @Test("A Dollars-only account resolves to Dollars once Dollars can be given")
+    @Test("A Dollars-only account resolves to Dollars")
     func dollarsOnly_withDollars_resolvesToUSDF() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: .usdf, quarks: 25_000_000), // $25
@@ -23,27 +21,10 @@ struct ResolveInitialBalanceTests {
 
         let resolved = container.ratesController.resolveInitialBalance(
             mint: nil,
-            session: container.session,
-            includingDollars: true
+            session: container.session
         )
 
         #expect(resolved?.stored.mint == .usdf)
-    }
-
-    @Test("A Dollars-only account resolves to nothing while Dollars can't be given")
-    func dollarsOnly_withoutDollars_resolvesToNil() throws {
-        let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 25_000_000),
-        ])
-        container.ratesController.selectedTokenMint = nil
-
-        let resolved = container.ratesController.resolveInitialBalance(
-            mint: nil,
-            session: container.session,
-            includingDollars: false
-        )
-
-        #expect(resolved == nil)
     }
 
     @Test("Dollars that displays as $0.00 can't fund anything, so it resolves to nothing")
@@ -55,8 +36,7 @@ struct ResolveInitialBalanceTests {
 
         let resolved = container.ratesController.resolveInitialBalance(
             mint: nil,
-            session: container.session,
-            includingDollars: true
+            session: container.session
         )
 
         #expect(resolved == nil)
@@ -69,8 +49,7 @@ struct ResolveInitialBalanceTests {
 
         let resolved = container.ratesController.resolveInitialBalance(
             mint: nil,
-            session: container.session,
-            includingDollars: true
+            session: container.session
         )
 
         #expect(resolved?.stored.mint == .jeffy)
@@ -86,8 +65,7 @@ struct ResolveInitialBalanceTests {
 
         let resolved = container.ratesController.resolveInitialBalance(
             mint: nil,
-            session: container.session,
-            includingDollars: true
+            session: container.session
         )
 
         #expect(resolved?.stored.mint == .jeffy)
@@ -100,8 +78,7 @@ struct ResolveInitialBalanceTests {
 
         let resolved = container.ratesController.resolveInitialBalance(
             mint: .usdf,
-            session: container.session,
-            includingDollars: true
+            session: container.session
         )
 
         #expect(resolved?.stored.mint == .usdf)
