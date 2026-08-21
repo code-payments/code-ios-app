@@ -30,7 +30,7 @@ struct OnboardingNameScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("What is your name?")
+                Text("What's your name?")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
                     .padding(.top, 20)
