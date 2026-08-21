@@ -138,10 +138,13 @@ private struct WalletScreenContent: View {
 
     private var rate: Rate { ratesController.rateForBalanceCurrency() }
 
-    private var isOnboardingComplete: Bool { hasAddedMoney && hasTipped }
-
-    private var onboardingItems: [OnboardingItem] {
-        [.addMoney(isCompleted: hasAddedMoney), .scanTipCard(isCompleted: hasTipped)]
+    private var funnelState: OnboardingFunnelState {
+        OnboardingFunnelState(
+            hasAddedMoney: hasAddedMoney,
+            hasTipped: hasTipped,
+            historySyncState: historyController.syncState,
+            hasStoredActivity: !recentActivities.isEmpty
+        )
     }
 
     var body: some View {
@@ -458,10 +461,10 @@ private struct WalletScreenContent: View {
                         .padding(.top, headerTopPadding)
                         .padding(.bottom, 44)
 
-                    if !isOnboardingComplete {
+                    if funnelState.isVisible {
                         OnboardingFunnelView(
                             title: "Send Your First Tip",
-                            items: onboardingItems,
+                            items: funnelState.items,
                             onTap: handleOnboardingTap
                         )
                         .padding(.bottom, 20)

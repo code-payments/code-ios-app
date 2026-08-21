@@ -35,6 +35,40 @@ enum OnboardingItem: Identifiable, Equatable {
     }
 }
 
+/// Whether the wallet draws the onboarding funnel, and with which milestones
+/// checked off.
+///
+/// Both milestones are reads of a *local* cache that starts empty on every fresh
+/// login — switching accounts included — so neither can be trusted until the
+/// history has been reconciled with the server at least once. Without that wait,
+/// an established account signing in is greeted with the new-user tutorial for
+/// as long as its history takes to arrive. Mirrors Android's
+/// `WalletViewModel.State.isAwaitingActivity`.
+struct OnboardingFunnelState: Equatable {
+
+    let hasAddedMoney: Bool
+    let hasTipped: Bool
+    let historySyncState: HistoryController.SyncState
+    /// Whether the local history already holds activity. Stored rows short-circuit
+    /// the wait: history that is already here is nothing to mistake for a new
+    /// account.
+    let hasStoredActivity: Bool
+
+    var items: [OnboardingItem] {
+        [.addMoney(isCompleted: hasAddedMoney), .scanTipCard(isCompleted: hasTipped)]
+    }
+
+    var isComplete: Bool { hasAddedMoney && hasTipped }
+
+    var isAwaitingHistory: Bool {
+        historySyncState == .unknown && !hasStoredActivity
+    }
+
+    /// Withheld while the milestones are still unknown — the tutorial is never
+    /// the thing the wallet guesses at.
+    var isVisible: Bool { !isAwaitingHistory && !isComplete }
+}
+
 /// The "Send Your First Tip" onboarding funnel shown on the v2 Wallet: a title +
 /// completed-count, then a card of tappable steps. Completed steps show a green
 /// check, dim, and stop responding to taps. Ported from Android's

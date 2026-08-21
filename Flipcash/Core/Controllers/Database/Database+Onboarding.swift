@@ -34,9 +34,30 @@ nonisolated extension Database {
         ) != nil
     }
 
-    /// True once the caller has *sent* a tip — the "scanned a tip card" milestone.
-    /// Received tips don't count, so it's scoped to `senderId == selfUserID`.
+    /// True once the caller has *sent* a tip — the "scanned a tip card"
+    /// milestone. Either source proves it, because neither is complete alone:
+    /// the activity feed re-syncs in full from the server on every login, while
+    /// chat messages sync lazily per conversation, so an account signed into on
+    /// a fresh database has activity long before it has any messages.
     func hasEverTipped(selfUserID: UserID) throws -> Bool {
+        try hasEverSentTipActivity() || hasEverSentTipMessage(selfUserID: selfUserID)
+    }
+
+    /// A completed outgoing direct send — the activity a tip writes to the
+    /// history feed. `cashLink` is excluded: an unclaimed link is a send to
+    /// nobody, not a tip given.
+    private func hasEverSentTipActivity() throws -> Bool {
+        let a = ActivityTable()
+        return try reader.pluck(
+            a.table.filter(
+                a.kind == Activity.Kind.gave.rawValue && a.state == Activity.State.completed.rawValue
+            )
+        ) != nil
+    }
+
+    /// A tip this user sent in a chat. Received tips don't count, so it's scoped
+    /// to `senderId == selfUserID`.
+    private func hasEverSentTipMessage(selfUserID: UserID) throws -> Bool {
         let m = ConversationMessageTable()
         // cashAction 1 == tipped (see ConversationMessageTable.cashAction).
         return try reader.pluck(

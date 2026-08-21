@@ -58,6 +58,16 @@ struct HistoryControllerTests {
         #expect(controller.loadingState == .loading)
     }
 
+    /// An empty local cache means "we haven't looked yet" until a sync says
+    /// otherwise — the wallet withholds its new-user tutorial on this.
+    @Test("Initial syncState is .unknown before the first sync")
+    func initialSyncStateIsUnknown() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let controller = Self.makeController(database: database)
+        #expect(controller.syncState == .unknown)
+    }
+
     // MARK: - setActiveMint
 
     @Test("setActiveMint loads the mint's activities from the local DB")
