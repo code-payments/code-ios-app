@@ -19,6 +19,7 @@ let package = Package(
         .package(url: "https://github.com/ekazaev/ChatLayout", from: "2.4.2"),
         .package(url: "https://github.com/ra1028/DifferenceKit", from: "1.3.0"),
         .package(url: "https://github.com/onevcat/Kingfisher", from: "8.3.0"),
+        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.3.1")),
     ],
     targets: [
         .target(
@@ -28,6 +29,7 @@ let package = Package(
                 .product(name: "ChatLayout", package: "ChatLayout", condition: .when(platforms: [.iOS])),
                 .product(name: "DifferenceKit", package: "DifferenceKit"),
                 .product(name: "Kingfisher", package: "Kingfisher"),
+                .product(name: "SharedCoreKit", package: "flipcash-shared-core-spm"),
             ],
             resources: [
                 .process("Assets")
