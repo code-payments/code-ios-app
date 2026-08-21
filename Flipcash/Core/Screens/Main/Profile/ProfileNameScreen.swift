@@ -96,6 +96,14 @@ struct ProfileNameScreen: View {
     private func submit() {
         guard let name = state.validatedDisplayName, !isSubmitting else { return }
 
+        // Read before the RPC: `updateProfile()` below installs the new name, after
+        // which every submission would look like a replacement.
+        let hadPreviousName = !(sessionContainer.session.profile?.displayName ?? "").isEmpty
+        let source: Analytics.DisplayNameSource = switch completion {
+        case .tipcard: .tipCardSetup
+        case .back:    .myAccount
+        }
+
         submitTask = Task {
             defer { submitTask = nil }
 
@@ -104,6 +112,7 @@ struct ProfileNameScreen: View {
                     name,
                     owner: sessionContainer.session.ownerKeyPair
                 )
+                Analytics.displayNameSubmitted(source: source, hadPreviousName: hadPreviousName)
                 try await sessionContainer.session.updateProfile()
 
                 guard !Task.isCancelled else { return }

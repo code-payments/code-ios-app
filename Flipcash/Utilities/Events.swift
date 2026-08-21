@@ -62,6 +62,20 @@ extension Analytics {
         case sentMessage = "Sent Message"
     }
 
+    /// The display name a user is known by. `Set` is a first name, `Updated` a
+    /// replacement — decided by whether a name already existed, not by the screen.
+    enum DisplayNameEvent: String, AnalyticsEvent {
+        case set     = "Display Name Set"
+        case updated = "Display Name Updated"
+    }
+
+    /// The surface a display-name submission came from.
+    enum DisplayNameSource {
+        case onboarding
+        case myAccount
+        case tipCardSetup
+    }
+
     /// The scanned-tipcard funnel: a tipcard is scanned, resolves and is
     /// presented, then a tip is sent (`TransferEvent.sentTip`). Names are
     /// shared verbatim with Android.
@@ -224,6 +238,36 @@ extension Analytics {
             properties: properties,
             error: error
         )
+    }
+}
+
+// MARK: - Display Name -
+
+extension Analytics {
+    /// Which of the two display-name events a submission is. Split out from
+    /// `displayNameSubmitted` so the rule is testable without the transport.
+    static func displayNameEvent(hadPreviousName: Bool) -> DisplayNameEvent {
+        hadPreviousName ? .updated : .set
+    }
+
+    /// A successful `SetDisplayName`. `hadPreviousName` is read *before* the RPC —
+    /// after it, every submission looks like a replacement.
+    static func displayNameSubmitted(source: DisplayNameSource, hadPreviousName: Bool) {
+        track(
+            event: displayNameEvent(hadPreviousName: hadPreviousName),
+            properties: [.source: source.analyticsValue]
+        )
+    }
+}
+
+extension Analytics.DisplayNameSource {
+    /// The `Source` property value, shared verbatim with Android.
+    var analyticsValue: String {
+        switch self {
+        case .onboarding:   "Onboarding"
+        case .myAccount:    "My Account"
+        case .tipCardSetup: "Tip Card Setup"
+        }
     }
 }
 

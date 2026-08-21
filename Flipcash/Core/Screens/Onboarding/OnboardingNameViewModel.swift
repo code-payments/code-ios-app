@@ -61,6 +61,9 @@ final class OnboardingNameViewModel {
 
             do {
                 try await flipClient.setDisplayName(name, owner: owner)
+                // Onboarding runs pre-login against a brand-new account, so there is
+                // never a prior name here — this is always a first set.
+                Analytics.displayNameSubmitted(source: .onboarding, hadPreviousName: false)
                 onComplete?()
 
             } catch ErrorProfile.moderated(let category) {
