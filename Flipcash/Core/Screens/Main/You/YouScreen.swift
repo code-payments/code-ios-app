@@ -23,8 +23,9 @@ struct YouScreen: View {
     @State private var previewCache = TipCodePreviewCache()
     @State private var debugTapCount: Int = 0
 
-    /// The on-screen card width; tuned to the Figma placement (card near the top).
-    private static let cardWidth: CGFloat = 230
+    /// The on-screen card width, from the Figma placement: node 9276:4641 draws
+    /// the You card 241.6 wide.
+    private static let cardWidth: CGFloat = 242
     private let rowInsets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
     var body: some View {
