@@ -563,6 +563,11 @@ final class SessionContainer {
             owner: session.ownerKeyPair,
             selfUserID: session.userID
         )
+        // Chat cash arrives in the sender's native currency; the counters are USD.
+        // Wired before `start()` so the first delivered message already normalises.
+        conversationController.receipts.usdRate = { [weak ratesController] currency in
+            ratesController?.rate(for: currency)
+        }
         conversationController.start()
         self.conversationController = conversationController
 
