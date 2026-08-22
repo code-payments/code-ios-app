@@ -23,4 +23,23 @@ public struct AmountValidator: Validator {
         let separator = self.separator ?? Self.localizedDecimalSeparator
         return Decimal(string: input.replacingOccurrences(of: separator, with: "."))
     }
+
+    /// Renders `value` back into the string the keypad itself would have
+    /// produced — the inverse of `validate(_:)`. For the rare correction a flow
+    /// makes on the user's behalf, such as dropping an entry to the maximum its
+    /// balance can fund; ordinary display goes through `FiatAmount.formatted()`.
+    ///
+    /// Truncates rather than rounds, so a correction derived as a ceiling can't
+    /// be nudged back above it.
+    public func string(from value: Decimal, fractionDigits: Int) -> String {
+        let separator = self.separator ?? Self.localizedDecimalSeparator
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.decimalSeparator = separator
+        formatter.minimumFractionDigits = fractionDigits
+        formatter.maximumFractionDigits = fractionDigits
+        formatter.roundingMode = .down
+        return formatter.string(from: value as NSDecimalNumber) ?? ""
+    }
 }

@@ -100,6 +100,7 @@ final class ConvertAmountViewModel {
     // MARK: - Actions -
 
     func showConfirmation(router: AppRouter) {
+        correctEntryToAffordable()
         guard enteredFiat != nil else { return }
 
         Task {
@@ -116,6 +117,32 @@ final class ConvertAmountViewModel {
                 pinnedState: pin
             ))
         }
+    }
+
+    /// Drops the entry to the most the source balance can fund once the fee is
+    /// applied, when the entry as typed would overrun it.
+    ///
+    /// Only converting *out of Dollars* can overrun: that leg charges its 1% on
+    /// top of the entry, while a token source has the pool fee taken out of the
+    /// sale, so the debit never exceeds what was entered. Amount entry is capped
+    /// at the raw balance, so the overrun is at most the fee — small and bounded
+    /// enough to correct silently rather than put to the user.
+    func correctEntryToAffordable() {
+        guard sourceBalance.mint == .usdf else { return }
+        guard let entered = amountValidator.validate(enteredAmount) else { return }
+
+        let balance = maxPossibleAmount.nativeAmount
+        guard let corrected = entryAffordableAfterFee(
+            entered: entered,
+            balance: balance,
+            feeBps: 100,
+            feeChargedOnTop: true
+        ) else { return }
+
+        enteredAmount = amountValidator.string(
+            from: corrected.value,
+            fractionDigits: balance.currency.maximumFractionDigits
+        )
     }
 
     /// Resolves the pin against the source mint and computes the source amount

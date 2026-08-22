@@ -20,12 +20,11 @@ final class BuyConfirmationViewModel {
 
     var dialogItem: DialogItem?
     private(set) var actionButtonState: ButtonState = .normal
-    /// Gross debit in the payment token. Mutated in place by Buy Maximum.
-    private(set) var paymentAmount: ExchangedFiat
+    /// Gross debit in the payment token, priced on the amount screen.
+    @ObservationIgnored let paymentAmount: ExchangedFiat
     /// Icon for the You Receive row, resolved from cached mint metadata.
     private(set) var targetImageURL: URL?
 
-    @ObservationIgnored private var hasCheckedFundsOnAppear = false
     @ObservationIgnored private let collectsUSDFFee: Bool
 
     var isUSDF: Bool { payment.mint == .usdf }
@@ -97,25 +96,6 @@ final class BuyConfirmationViewModel {
         targetImageURL = try? await session.fetchMintMetadata(mint: targetMint).imageURL
     }
 
-    /// Surfaces the insufficient-balance sheet when the amount pushed onto this
-    /// screen already exceeds the payment balance, at most once per screen.
-    func presentInsufficientBalanceIfNeeded(session: Session) {
-        guard !hasCheckedFundsOnAppear else { return }
-        hasCheckedFundsOnAppear = true
-
-        switch session.hasSufficientFunds(for: grossDebit) {
-        case .sufficient:
-            break
-        case .insufficient:
-            logger.info("Buy gated on appear: insufficient balance", metadata: [
-                "paymentMint": "\(payment.mint.base58)",
-                "amountQuarks": "\(grossDebit.onChainAmount.quarks)",
-                "balanceQuarks": "\(session.balance(for: payment.mint)?.quarks ?? 0)",
-            ])
-            showInsufficientBalance(session: session)
-        }
-    }
-
     func buyAction(session: Session, router: AppRouter) async {
         // Re-entrancy guard: don't rely on the button disabling itself.
         guard actionButtonState == .normal else { return }
@@ -148,42 +128,8 @@ final class BuyConfirmationViewModel {
                 "amountQuarks": "\(paymentAmount.onChainAmount.quarks)",
                 "balanceQuarks": "\(session.balance(for: payment.mint)?.quarks ?? 0)",
             ])
-            showInsufficientBalance(session: session)
+            showInsufficientBalance()
         }
-    }
-
-    /// Recomputes the summary in place to spend the entire payment balance —
-    /// the user still confirms with Buy.
-    func buyMaximum(session: Session) {
-        guard let live = session.balance(for: payment.mint) else { return }
-        // USDF needs no reserve supply; bonded mints do (a nil supply would
-        // value the balance as zero).
-        let supply = pinnedState.supplyFromBonding
-        guard isUSDF || supply != nil else { return }
-
-        // With an on-top USDF fee the debit is `net + net·bps/10⁴`, so the net
-        // purchase must be shrunk to keep the whole debit within the balance:
-        // net = ⌊balance · 10⁴ / (10⁴ + bps)⌋. Split-divide to avoid overflow.
-        let maxQuarks: UInt64
-        if chargesUSDFFee {
-            let denom = 10_000 + feeBps
-            maxQuarks = live.quarks / denom * 10_000 + (live.quarks % denom) * 10_000 / denom
-        } else {
-            maxQuarks = live.quarks
-        }
-
-        logger.info("Buy maximum selected", metadata: [
-            "paymentMint": "\(payment.mint.base58)",
-            "previousQuarks": "\(paymentAmount.onChainAmount.quarks)",
-            "balanceQuarks": "\(live.quarks)",
-            "maxQuarks": "\(maxQuarks)",
-        ])
-
-        paymentAmount = ExchangedFiat.compute(
-            onChainAmount: TokenAmount(quarks: maxQuarks, mint: payment.mint),
-            rate: pinnedState.rate,
-            supplyQuarks: supply
-        )
     }
 
     private func submit(session: Session, router: AppRouter) async {
@@ -253,15 +199,12 @@ final class BuyConfirmationViewModel {
 
     // MARK: - Dialogs
 
-    private func showInsufficientBalance(session: Session) {
-        dialogItem = .info(
-            title: isUSDF ? "Insufficient Balance" : "Insufficient Balance After Fees",
-            subtitle: "Switch to maximum amount, or go back and enter a smaller amount"
-        ) {
-            .standard("Buy Maximum Amount") { [weak self] in
-                self?.buyMaximum(session: session)
-            };
-            .dismiss(kind: .subtle)
-        }
+    /// The amount screen already trims an entry to what the fee leaves, so
+    /// reaching this is a genuine shortfall — the balance moved under the quote.
+    private func showInsufficientBalance() {
+        dialogItem = .error(
+            title: "Insufficient Balance",
+            subtitle: "Please go back and enter a smaller amount"
+        )
     }
 }

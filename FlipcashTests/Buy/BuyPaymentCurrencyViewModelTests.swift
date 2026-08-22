@@ -76,7 +76,8 @@ struct BuyPaymentCurrencyViewModelTests {
     @Test("An underfunded balance stays listed and selectable")
     func underfunded_staysListed() async throws {
         // Even a balance worth far less than any plausible entry stays in the
-        // list so the confirmation's Buy can offer Buy Maximum Amount.
+        // list — selecting it re-caps the entry, and the amount screen trims
+        // anything the fee can't cover.
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 30_000_000),
             .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
@@ -116,7 +117,7 @@ struct BuyPaymentCurrencyViewModelTests {
         #expect(amount.mint == .usdf)
     }
 
-    @Test("USDF entered above the displayed balance is deliberately uncapped so the gate can offer Buy Maximum")
+    @Test("USDF entered above the displayed balance is deliberately uncapped so the gate can surface the shortfall")
     func usdfCompute_aboveDisplayedBalance_uncapped() async throws {
         let container = try await Self.makeContainer(holdings: [
             .init(mint: .usdf, quarks: 630_000), // $0.63
@@ -128,7 +129,8 @@ struct BuyPaymentCurrencyViewModelTests {
         let amount = try #require(viewModel.computePaymentAmount(for: usdfBalance, entered: FiatAmount(value: Decimal(string: "0.74")!, currency: .usd), pin: pin))
 
         // The summary must show the true entered amount, not a silently
-        // shrunken one — the confirmation's gate then surfaces the sheet.
+        // shrunken one — the confirmation's gate then surfaces the sheet. (The
+        // entry itself is trimmed upstream by `correctEntryToAffordable`.)
         #expect(amount.onChainAmount.quarks == 740_000)
         #expect(amount.onChainAmount.quarks > usdfBalance.quarks)
     }
@@ -178,7 +180,8 @@ struct BuyPaymentCurrencyViewModelTests {
         let amount = try #require(viewModel.computePaymentAmount(for: jeffyBalance, entered: FiatAmount(value: jeffyDisplayed, currency: .usd), pin: pin))
 
         // Entering the full displayed balance must overshoot it by the fee —
-        // that overshoot is what drives the insufficient-after-fees sheet.
+        // that overshoot is exactly what `correctEntryToAffordable` trims away
+        // before this compute ever runs in production.
         #expect(amount.onChainAmount.quarks > jeffyBalance.quarks)
         #expect(amount.mint == .jeffy)
     }

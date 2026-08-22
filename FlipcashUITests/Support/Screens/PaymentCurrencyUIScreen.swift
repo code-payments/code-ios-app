@@ -22,8 +22,8 @@ struct PaymentCurrencyUIScreen {
     var usdfRow: XCUIElement { app.buttons["payment-currency-row-usdf"] }
 
     /// First non-USDF payment row. The buy target never appears in the list,
-    /// and underfunded rows stay tappable (their Buy surfaces the Buy Maximum
-    /// sheet).
+    /// and underfunded rows stay tappable (the amount screen trims the entry to
+    /// what the row's balance can fund).
     var firstTokenRow: XCUIElement { app.buttons.matching(identifier: "payment-currency-row").firstMatch }
 
     // MARK: - Assertions
