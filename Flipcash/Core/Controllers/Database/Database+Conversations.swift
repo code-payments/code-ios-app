@@ -165,6 +165,20 @@ nonisolated extension Database {
         return try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
     }
 
+    /// Every message in the half-open id interval `(after, through]`, oldest-first — the window a
+    /// read-pointer advance just crossed. A nil `after` means the pointer had never been set, so the
+    /// whole stored history up to `through` counts as newly read. Index-backed by the composite
+    /// `(conversationId, id)` primary key.
+    func messages(conversationID: ConversationID, after: MessageID?, through: MessageID) throws -> [ConversationMessage] {
+        let m = ConversationMessageTable()
+        var query = m.table.filter(m.conversationId == conversationID.data && m.id <= through.value)
+        if let after {
+            query = query.filter(m.id > after.value)
+        }
+        let rows = try reader.prepareRowIterator(query.order(m.id.asc))
+        return try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
+    }
+
     /// The id `step` rows older than `before` — the next anchor when the reader pages back — falling
     /// back to the oldest available older row; nil when nothing older is persisted.
     func olderAnchor(conversationID: ConversationID, before: UInt64, step: Int) throws -> UInt64? {

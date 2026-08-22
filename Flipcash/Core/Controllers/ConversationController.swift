@@ -130,6 +130,9 @@ final class ConversationController {
     /// out-of-order event may close it) before spending a `GetDelta`.
     @ObservationIgnored private var gapCatchUpTasks: [ConversationID: Task<Void, Never>] = [:]
     @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
+    /// The receive-side analytics concern (cumulative counters + received events),
+    /// owned by its own unit. Exposed so `SessionContainer` can wire its rate lookup.
+    @ObservationIgnored let receipts: ConversationReceiptReporter
 
     /// The typing-indicator concern, both directions (outgoing driver + incoming typist
     /// tracking), owned by its own unit. Reads chain through `@Observable` tracking.
@@ -146,7 +149,8 @@ final class ConversationController {
         selfUserID: UserID,
         typingHeartbeatInterval: Duration = .seconds(3),
         typingTimeout: Duration = .seconds(5),
-        incomingTypingExpiry: Duration = .seconds(10)
+        incomingTypingExpiry: Duration = .seconds(10),
+        receipts: ConversationReceiptReporter? = nil
     ) {
         self.fetching = fetching
         self.messaging = messaging
@@ -155,6 +159,7 @@ final class ConversationController {
         self.database = database
         self.owner = owner
         self.selfUserID = selfUserID
+        self.receipts = receipts ?? ConversationReceiptReporter(selfUserID: selfUserID)
         self.typing = ConversationTyping(
             messaging: messaging,
             owner: owner,
@@ -278,6 +283,9 @@ final class ConversationController {
         defer { catchUpInFlight.remove(conversationID) }
 
         let after = store.appliedCursor(for: conversationID)
+        // One baseline for the whole run. A per-batch watermark would let the second
+        // batch of a cold backfill count everything the first batch just seeded.
+        let countedThrough = (try? database.newestMessageID(conversationID: conversationID)) ?? nil
         do {
             var anyBatchFailed = false
             let head = try await messaging.getDelta(owner: owner, conversationID: conversationID, afterSequence: after) { [weak self] messages, checkpoint in
@@ -291,6 +299,7 @@ final class ConversationController {
                 }
                 if ok {
                     self.commitReconciled(pairs, in: conversationID)
+                    self.receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .catchUp)
                     if let checkpoint { self.store.setAppliedCursor(checkpoint, for: conversationID) }
                 } else {
                     anyBatchFailed = true
@@ -497,10 +506,14 @@ final class ConversationController {
     private func persist(event: ConversationStreamEvent) {
         switch event {
         case .newMessages(let conversationID, let messages):
+            // Read before the write: the newest stored id is the analytics watermark,
+            // and after the upsert it would already include this batch.
+            let countedThrough = (try? database.newestMessageID(conversationID: conversationID)) ?? nil
             let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
             let ok = persist(operation: "upsert-messages") { try database.upsertConversationMessages(reconciled, conversationID: conversationID) }
             if ok {
                 commitReconciled(pairs, in: conversationID)
+                receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .live)
             } else {
                 // The delivered batch is in neither the DB nor the store — refetch it from the event log.
                 scheduleGapCatchUp(conversationID)
@@ -508,6 +521,7 @@ final class ConversationController {
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
         case .chatEvents(let conversationID, let events):
+            let countedThrough = (try? database.newestMessageID(conversationID: conversationID)) ?? nil
             let (reconciled, pairs) = reconciledForPersist(events.flatMap { $0.mutations.map(\.message) }, in: conversationID)
             // Messages + the advanced cursor persist atomically. `store.apply` already advanced the
             // in-memory cursor optimistically, so if this write rolls back, re-seat the cursor to the
@@ -518,6 +532,7 @@ final class ConversationController {
             }
             if ok {
                 commitReconciled(pairs, in: conversationID)
+                receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .live)
             } else {
                 store.reseatCursor((try? database.catchupCursor(conversationID: conversationID)) ?? 0, for: conversationID)
                 scheduleGapCatchUp(conversationID)
@@ -933,12 +948,17 @@ final class ConversationController {
         guard let latestID = (try? database.newestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
         // Skip the round-trip when the server-known READ watermark already covers
         // the latest message. We advance the watermark locally after each success.
-        if let read = store.selfReadPointer(for: conversationID, selfUserID: selfUserID), latestID <= read {
+        let previousRead = store.selfReadPointer(for: conversationID, selfUserID: selfUserID)
+        if let previousRead, latestID <= previousRead {
             return
         }
         do {
             try await messaging.markRead(owner: owner, conversationID: conversationID, messageID: latestID)
             store.advanceSelfReadPointer(to: latestID, in: conversationID, selfUserID: selfUserID)
+            // The read pointer only moves forward, so the window it just crossed is
+            // exactly the set of messages the user is seeing for the first time.
+            let crossed = (try? database.messages(conversationID: conversationID, after: previousRead, through: latestID)) ?? []
+            receipts.reportRead(crossed, chatType: conversation(withID: conversationID)?.type)
             persistConversation(conversationID)
         } catch {
             logger.error("Failed to mark conversation read", metadata: [

@@ -59,7 +59,23 @@ extension Analytics {
     }
 
     enum ConversationEvent: String, AnalyticsEvent {
-        case sentMessage = "Sent Message"
+        case sentMessage     = "Sent Message"
+        case tipReceived     = "Tip Received"
+        case messageReceived = "Message Received"
+    }
+
+    /// The display name a user is known by. `Set` is a first name, `Updated` a
+    /// replacement — decided by whether a name already existed, not by the screen.
+    enum DisplayNameEvent: String, AnalyticsEvent {
+        case set     = "Display Name Set"
+        case updated = "Display Name Updated"
+    }
+
+    /// The surface a display-name submission came from.
+    enum DisplayNameSource {
+        case onboarding
+        case myAccount
+        case tipCardSetup
     }
 
     /// The scanned-tipcard funnel: a tipcard is scanned, resolves and is
@@ -188,12 +204,18 @@ extension Analytics {
         )
     }
 
-    static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?) {
+    /// `origin` applies to `Sent Tip` only: which surface the tip came from —
+    /// a scanned/opened tip card, or the money button inside an existing tip chat.
+    static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?, origin: TipOrigin? = nil) {
         var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
         properties[.state] = successful ? String.success : String.failure
 
         if let grabTime {
             properties[.grabTime] = grabTime
+        }
+
+        if let origin {
+            properties[.origin] = origin.analyticsValue
         }
 
         track(
@@ -221,6 +243,36 @@ extension Analytics {
     }
 }
 
+// MARK: - Display Name -
+
+extension Analytics {
+    /// Which of the two display-name events a submission is. Split out from
+    /// `displayNameSubmitted` so the rule is testable without the transport.
+    static func displayNameEvent(hadPreviousName: Bool) -> DisplayNameEvent {
+        hadPreviousName ? .updated : .set
+    }
+
+    /// A successful `SetDisplayName`. `hadPreviousName` is read *before* the RPC —
+    /// after it, every submission looks like a replacement.
+    static func displayNameSubmitted(source: DisplayNameSource, hadPreviousName: Bool) {
+        track(
+            event: displayNameEvent(hadPreviousName: hadPreviousName),
+            properties: [.source: source.analyticsValue]
+        )
+    }
+}
+
+extension Analytics.DisplayNameSource {
+    /// The `Source` property value, shared verbatim with Android.
+    var analyticsValue: String {
+        switch self {
+        case .onboarding:   "Onboarding"
+        case .myAccount:    "My Account"
+        case .tipCardSetup: "Tip Card Setup"
+        }
+    }
+}
+
 // MARK: - Conversation -
 
 extension Analytics {
@@ -232,6 +284,19 @@ extension Analytics {
             properties: [.chatType: chatType.analyticsValue],
             error: error
         )
+    }
+
+    /// An inbound tipped Cash message the user has now read. Mutually exclusive with
+    /// `messageReceived` — a tip reports only as a tip.
+    static func tipReceived(chatType: ConversationType?, exchangedFiat: ExchangedFiat) {
+        var properties = amountProperties(exchangedFiat)
+        properties[.chatType] = chatType.analyticsValue
+        track(event: ConversationEvent.tipReceived, properties: properties)
+    }
+
+    /// An inbound non-tip message the user has now read.
+    static func messageReceived(chatType: ConversationType?) {
+        track(event: ConversationEvent.messageReceived, properties: [.chatType: chatType.analyticsValue])
     }
 }
 
@@ -289,6 +354,16 @@ extension DepositMethod {
         case .coinbase:    "Coinbase"
         case .phantom:     "Phantom"
         case .otherWallet: "Other Wallet"
+        }
+    }
+}
+
+extension TipOrigin {
+    /// The `Origin` property value, shared verbatim with Android.
+    var analyticsValue: String {
+        switch self {
+        case .tipcard: "Tipcard"
+        case .chat:    "Chat"
         }
     }
 }
@@ -403,10 +478,13 @@ extension Analytics {
 
         case state             = "State"
         case source            = "Source"
+        case origin            = "Origin"
         case method            = "Method"
         case quarks            = "Quarks"
         case mint              = "Mint"
         case paymentMint       = "Payment Mint"
+        case tokenSymbol       = "Token Symbol"
+        case paymentTokenSymbol = "Payment Token Symbol"
         case fiat              = "Fiat"
         case currency          = "Currency"
         case fx                = "Exchange Rate"

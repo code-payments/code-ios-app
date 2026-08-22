@@ -26,6 +26,12 @@ enum Analytics {
 
     private static var isEnabled = false
 
+    /// Resolves a mint's base58 address to its ticker symbol. Installed once at
+    /// session start (see `SessionAuthenticator.completeLogin`) so no call site has
+    /// to look a symbol up; nil before login, and nil per-mint when the mint isn't
+    /// cached locally — in which case the symbol property is omitted, never blank.
+    static var tokenSymbolResolver: (@MainActor (String) -> String?)?
+
     static func initialize() {
         let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
         if let apiKey {
@@ -42,7 +48,14 @@ enum Analytics {
 
         var container: [String: AnalyticsValue] = [:]
 
-        properties?.forEach { key, value in
+        let resolved: [Property: AnalyticsValue]
+        if let properties, let tokenSymbolResolver {
+            resolved = withTokenSymbols(properties, resolve: tokenSymbolResolver)
+        } else {
+            resolved = properties ?? [:]
+        }
+
+        resolved.forEach { key, value in
             container[key.rawValue] = value
         }
 
@@ -52,6 +65,28 @@ enum Analytics {
         }
 
         mixpanel.track(event: event.eventName, properties: container)
+    }
+
+    /// Pairs every mint-valued property with the symbol property that shadows it.
+    private static let mintProperties: [(mint: Property, symbol: Property)] = [
+        (.mint, .tokenSymbol),
+        (.paymentMint, .paymentTokenSymbol),
+    ]
+
+    /// Adds the ticker symbol beside each mint `properties` carries. An unresolvable
+    /// mint leaves its symbol property absent — an empty or placeholder value would
+    /// be indistinguishable from a real symbol in a Mixpanel breakdown.
+    static func withTokenSymbols(
+        _ properties: [Property: AnalyticsValue],
+        resolve: (String) -> String?
+    ) -> [Property: AnalyticsValue] {
+        var enriched = properties
+        for pair in mintProperties {
+            guard let base58 = properties[pair.mint] as? String,
+                  let symbol = resolve(base58) else { continue }
+            enriched[pair.symbol] = symbol
+        }
+        return enriched
     }
 }
 
@@ -72,6 +107,26 @@ extension Analytics {
             mixpanel.identify(distinctId: userID)
             mixpanel.people.set(property: "$email", to: "userID:\(userID)")
         }
+    }
+}
+
+// MARK: - People counters -
+
+extension Analytics {
+    /// Cumulative per-user counters, stored as Mixpanel *people* properties.
+    ///
+    /// A people property carries no event identity and cannot be decremented, so a
+    /// replayed increment inflates the profile permanently and unattributably. Every
+    /// caller must therefore sit behind a watermark — see `ConversationReceiptReporter`.
+    enum ReceivedCounter: String {
+        case tips      = "Tips Received"
+        case tipsValue = "Tips Received Value"
+        case messages  = "Messages Received"
+    }
+
+    static func increment(_ counter: ReceivedCounter, by amount: Double = 1) {
+        guard isEnabled else { return }
+        mixpanel.people.increment(property: counter.rawValue, by: amount)
     }
 }
 
