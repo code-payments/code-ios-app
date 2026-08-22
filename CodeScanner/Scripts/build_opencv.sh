@@ -255,7 +255,7 @@ create_info_plist() {
     <key>DTXcodeBuild</key>
     <string>$xcode_build</string>
     <key>MinimumOSVersion</key>
-    <string>12.0</string>
+    <string>$IOS_DEPLOYMENT_TARGET</string>
     <key>UIDeviceFamily</key>
     <array>
         <integer>1</integer>
