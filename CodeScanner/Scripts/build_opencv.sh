@@ -34,6 +34,10 @@ OPENCV_DIR="/tmp/opencv_source"
 
 # Default OpenCV version (empty = latest release tag)
 OPENCV_VERSION=""
+
+# Minimum iOS the framework is built for. Only needs to be <= CodeScanner's Package.swift
+# platform floor; 15.0 is the oldest Xcode 16+ will accept.
+IOS_DEPLOYMENT_TARGET="15.0"
 CLEAN_BUILD=false
 
 # OpenCV modules to EXCLUDE (reduces size significantly)
@@ -124,13 +128,25 @@ build_xcframework() {
     done
 
     # Run the build script with --dynamic for a proper iOS framework
-    # Note: --dynamic is passed through to the underlying build_framework.py
+    # Note: --dynamic and everything after it is passed through to the underlying
+    # build_framework.py by build_xcframework.py.
+    #
+    # Two of those pass-through flags are load-bearing on a current Xcode:
+    #   --iphoneos_deployment_target  OpenCV still defaults this to 9.0, which Xcode 16+
+    #                                 rejects outright ("supported range is 15.0 to ...").
+    #                                 IOS_DEPLOYMENT_TARGET is well below CodeScanner's own
+    #                                 Package.swift floor, so it constrains nothing.
+    #   --disable-bitcode             bitcode was removed in Xcode 14; leaving it on adds
+    #                                 -fembed-bitcode and -Xlinker -bitcode_verify, which
+    #                                 the modern linker no longer honours.
     python3 platforms/apple/build_xcframework.py \
         --out "$BUILD_DIR" \
         --iphoneos_archs arm64 \
         --iphonesimulator_archs arm64,x86_64 \
         --build_only_specified_archs \
         --dynamic \
+        --disable-bitcode \
+        --iphoneos_deployment_target "$IOS_DEPLOYMENT_TARGET" \
         $WITHOUT_ARGS
 
     log "XCFramework built successfully"
@@ -239,7 +255,7 @@ create_info_plist() {
     <key>DTXcodeBuild</key>
     <string>$xcode_build</string>
     <key>MinimumOSVersion</key>
-    <string>12.0</string>
+    <string>$IOS_DEPLOYMENT_TARGET</string>
     <key>UIDeviceFamily</key>
     <array>
         <integer>1</integer>
