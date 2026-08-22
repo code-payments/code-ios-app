@@ -31,7 +31,20 @@ class HistoryController {
         case loaded([Activity])
     }
 
+    /// Whether the local history has been reconciled with the server yet, for
+    /// callers that must tell "nothing ever happened on this account" apart from
+    /// "we haven't looked". A fresh login starts every read of the local cache at
+    /// empty, so an established account looks brand new until the first sync
+    /// lands. `unavailable` ends the wait when the server can't be reached —
+    /// nothing further is coming, so callers act on what they have.
+    enum SyncState: Equatable {
+        case unknown
+        case synced
+        case unavailable
+    }
+
     private(set) var loadingState: LoadingState = .loading
+    private(set) var syncState: SyncState = .unknown
 
     @ObservationIgnored private let client: FlipClient
     @ObservationIgnored private let database: Database
@@ -94,11 +107,17 @@ class HistoryController {
             do {
                 let didDelta = try await syncDeltaHistory()
                 let didPending = try await syncPendingActivities()
+                syncState = .synced
                 if didDelta || didPending {
                     await reload()
                 }
             } catch {
                 logger.error("Sync failed", metadata: ["error": "\(error)"])
+                // A failure after a good sync leaves the state alone: the local
+                // history is still reconciled, just not freshly.
+                if syncState == .unknown {
+                    syncState = .unavailable
+                }
             }
         }
     }

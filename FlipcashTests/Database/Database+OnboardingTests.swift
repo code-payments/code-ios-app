@@ -89,4 +89,50 @@ struct DatabaseOnboardingTests {
 
         #expect(try db.hasEverAddedMoney() == true)
     }
+
+    // MARK: - hasEverTipped
+
+    @Test("hasEverTipped is true for a completed outgoing tip in the activity feed")
+    func hasEverTipped_gaveActivity() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        #expect(try db.hasEverTipped(selfUserID: UUID()) == false)
+
+        try db.insertActivities(activities: [Self.makeActivity(kind: .gave)])
+
+        // Chat messages sync lazily per conversation, so an account signed into
+        // on a fresh database has none — the activity feed is what carries the
+        // milestone across an account switch.
+        #expect(try db.hasEverTipped(selfUserID: UUID()) == true)
+    }
+
+    @Test("hasEverTipped ignores a pending tip until it completes")
+    func hasEverTipped_pendingDoesNotCount() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        try db.insertActivities(activities: [
+            Self.makeActivity(kind: .gave, state: .pending),
+        ])
+        #expect(try db.hasEverTipped(selfUserID: UUID()) == false)
+
+        try db.insertActivities(activities: [
+            Self.makeActivity(kind: .gave, state: .completed),
+        ])
+        #expect(try db.hasEverTipped(selfUserID: UUID()) == true)
+    }
+
+    @Test(
+        "hasEverTipped ignores kinds that aren't a tip given",
+        arguments: [Activity.Kind.received, .deposited, .bought, .withdrew, .cashLink, .sold, .swapped]
+    )
+    func hasEverTipped_nonTipKinds(kind: Activity.Kind) throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        try db.insertActivities(activities: [Self.makeActivity(kind: kind)])
+
+        #expect(try db.hasEverTipped(selfUserID: UUID()) == false)
+    }
 }
