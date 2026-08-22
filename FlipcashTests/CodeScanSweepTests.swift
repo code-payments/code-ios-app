@@ -229,7 +229,8 @@ struct CodeScanSweepTests {
             throw ScanHarnessError.contextCreationFailed
         }
 
-        context.setFillColor(gray: 1.0, alpha: 1.0)
+        // Dark field, matching the rendered code's polarity and Android's harness.
+        context.setFillColor(gray: 0.0, alpha: 1.0)
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
         if let cgImage = image.cgImage {
@@ -253,17 +254,22 @@ struct CodeScanSweepTests {
         return buffer
     }
 
-    /// Renders `CodeView`, which draws the code together with the centre badge. The badge matters:
-    /// the native detector finds a code by its centre ellipse, so a code rendered with an empty
-    /// well is undetectable.
+    /// Renders `CodeView`, which draws the code together with the centre badge.
+    ///
+    /// Polarity is not cosmetic. The detector finds a candidate code by thresholding for *bright*
+    /// blobs and fitting an ellipse to the centre badge, and only then looks at the ring around it
+    /// to decide whether the marks are inverted. So the badge has to be the bright part: light
+    /// marks and a light badge on a dark field, which is also what the bill draws and what
+    /// Android's harness renders. Black-on-white leaves the badge as a dark hole and nothing is
+    /// ever detected.
     private static func renderCode(side: CGFloat) throws -> UIImage {
         let encoded = KikCodes.encode(payload)
 
         let renderer = ImageRenderer(
             content: CodeView(data: encoded)
-                .foregroundStyle(.black)
+                .foregroundStyle(.white)
                 .frame(width: side, height: side)
-                .background(Color.white)
+                .background(Color.black)
         )
         renderer.scale = 1.0
 
