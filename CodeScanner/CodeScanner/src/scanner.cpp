@@ -655,7 +655,8 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
         for (int j = 0; j < contour.size(); ++j) {
             Point2i &point = contour[j];
 
-            if (matches_near_ellipses.at<char>(point.y, point.x) != 0) {
+            if (point.x >= 0 && point.y >= 0 && point.x < matches_near_ellipses.cols && point.y < matches_near_ellipses.rows
+                    && matches_near_ellipses.at<char>(point.y, point.x) != 0) {
                 pruned_contour.push_back(point);
             }
         }
@@ -718,7 +719,15 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
             float dist = sqrt(pow(center1.x - center2.x, 2)
                        + pow(center1.y - center2.y, 2));
 
-            if (dist < 50 && 2 * potential_ellipses[i].size.area() > potential_ellipses[j].size.area()) {
+            float area1 = potential_ellipses[i].size.area();
+            float area2 = potential_ellipses[j].size.area();
+
+            // Only prune true near-duplicates -- the same physical circle fitted twice from the
+            // inner and outer edge of its stroke, which are comparable in area. A nearby ellipse
+            // that is much smaller is a *different* feature nested inside this one (e.g. the dot
+            // knocked out of the centre badge's glyph), and dropping the enclosing candidate in
+            // its favour loses the only ellipse that can yield finder points.
+            if (dist < 50 && 2 * area1 > area2 && 2 * area2 > area1) {
                 allowed = false;
                 break;
             }
