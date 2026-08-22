@@ -129,6 +129,10 @@ final class ConversationController {
     /// Debounced live-gap catch-ups, one per conversation: a detected gap waits briefly (a late
     /// out-of-order event may close it) before spending a `GetDelta`.
     @ObservationIgnored private var gapCatchUpTasks: [ConversationID: Task<Void, Never>] = [:]
+    /// Conversations with a newest-page `GetMessages` in flight. Read by the backfill so it doesn't
+    /// re-fetch a page the open chat is already loading; `loadMessages` itself never short-circuits,
+    /// because the screen awaits it before marking read.
+    @ObservationIgnored private var messageLoadsInFlight: Set<ConversationID> = []
     @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
     /// The receive-side analytics concern (cumulative counters + received events),
     /// owned by its own unit. Exposed so `SessionContainer` can wire its rate lookup.
@@ -475,28 +479,121 @@ final class ConversationController {
     // MARK: - Feed
 
     func loadFeed() async {
+        let loaded = await loadFeeds()
+        // Outside the loading flag: the feed itself is on screen the moment the
+        // conversations apply, and the transcripts fill behind it.
+        await backfillMessages(for: loaded)
+    }
+
+    private func loadFeeds() async -> [Conversation] {
         isLoadingFeed = true
         defer { isLoadingFeed = false }
         // Both DM feeds load concurrently and apply independently, so one
         // type's failure doesn't drop the other's conversations.
-        async let contact: Void = loadFeed(type: .contactDm)
-        async let tip: Void = loadFeed(type: .tipDm)
-        _ = await (contact, tip)
+        async let contact = loadFeed(type: .contactDm)
+        async let tip = loadFeed(type: .tipDm)
+        return await contact + tip
     }
 
-    func loadFeed(type: ConversationType) async {
+    /// Loads one DM feed type and returns the conversations the server reported,
+    /// empty if the load failed.
+    @discardableResult
+    func loadFeed(type: ConversationType) async -> [Conversation] {
         do {
             let conversations = try await fetching.getDmChatFeed(owner: owner, type: type)
             store.setFeed(conversations, type: type)
             reconcileHidden()
             persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
+            return conversations
         } catch {
             logger.error("Failed to load conversation feed", metadata: [
                 "type": "\(type)",
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation feed")
+            return []
         }
+    }
+
+    // MARK: - Backfill
+
+    /// How many conversations backfill at once. The transcripts are wanted soon, not instantly — a
+    /// login with a large feed must not open a round trip per chat at the same moment as the balance,
+    /// rates, and history syncs it shares the launch with.
+    private static let backfillConcurrency = 4
+
+    /// What a conversation needs to bring its local transcript level with the server.
+    private enum Backfill: Equatable {
+        /// The local cursor lags the server's head: stream the missed window from it.
+        case delta
+        /// Nothing is cached at all: fetch the newest page, which also seats the cursor to head.
+        case newestPage
+    }
+
+    /// One conversation's backfill, queued.
+    private struct BackfillTask: Sendable {
+        let conversationID: ConversationID
+        let kind: Backfill
+    }
+
+    /// Brings every conversation in a freshly-loaded feed up to the server's head, so a transcript is
+    /// there when the chat is opened rather than fetched on arrival.
+    ///
+    /// Without this, chat history is only ever fetched by opening a chat, and each fresh login —
+    /// switching accounts included — starts from a per-owner database with no messages in it at all.
+    /// Ported from Android's `FeedSyncDelegate`, branch order included: a cursor that lags is streamed
+    /// forward from where it sits, and only a conversation holding nothing falls back to the newest
+    /// page. Reversing that would spend a `GetDelta(after: 0)` re-pulling whole histories.
+    private func backfillMessages(for conversations: [Conversation]) async {
+        // Deduped by id: the feed loads by type, and a conversation reported under more than one type
+        // must not queue its transcript twice.
+        var seen: Set<ConversationID> = []
+        let work = conversations.compactMap { conversation -> BackfillTask? in
+            guard seen.insert(conversation.id).inserted else { return nil }
+            return backfill(for: conversation).map { BackfillTask(conversationID: conversation.id, kind: $0) }
+        }
+        guard !work.isEmpty else { return }
+        logger.info("Backfilling chat history", metadata: [
+            "conversations": "\(work.count)",
+            "delta": "\(work.filter { $0.kind == .delta }.count)",
+        ])
+
+        await withTaskGroup(of: Void.self) { group in
+            var next = 0
+            // Start a window of tasks, then replace each as it finishes, so the queue drains at a
+            // steady width instead of in lock-stepped batches.
+            while next < min(Self.backfillConcurrency, work.count) {
+                group.addTask { [task = work[next]] in await self.perform(task) }
+                next += 1
+            }
+            while await group.next() != nil, next < work.count {
+                group.addTask { [task = work[next]] in await self.perform(task) }
+                next += 1
+            }
+        }
+    }
+
+    private func perform(_ task: BackfillTask) async {
+        switch task.kind {
+        case .delta:      await catchUp(conversationID: task.conversationID)
+        case .newestPage: await loadMessages(for: task.conversationID)
+        }
+    }
+
+    /// The work one conversation needs, or `nil` when its transcript is already current — or is
+    /// already being fetched by the open chat, whose own load lands the same page.
+    private func backfill(for conversation: Conversation) -> Backfill? {
+        let conversationID = conversation.id
+        guard !messageLoadsInFlight.contains(conversationID) else { return nil }
+
+        // The cursor, not the presence of messages, is what says whether a transcript was ever pulled:
+        // the feed persists each conversation's last-message preview as a message row before this runs,
+        // so "holds a message" is true for nearly every chat in a feed the client has otherwise never
+        // fetched. Only a newest page or an applied delta seats a cursor.
+        let cursor = store.appliedCursor(for: conversationID)
+        guard cursor > 0 else { return .newestPage }
+        // A zero head means the server reported no sequence for this chat — nothing to compare against.
+        return conversation.latestEventSequence > cursor ? .delta : nil
     }
 
     // MARK: - Persistence
@@ -781,6 +878,8 @@ final class ConversationController {
     }
 
     func loadMessages(for conversationID: ConversationID) async {
+        messageLoadsInFlight.insert(conversationID)
+        defer { messageLoadsInFlight.remove(conversationID) }
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)
             logger.info("Loaded conversation messages", metadata: [
