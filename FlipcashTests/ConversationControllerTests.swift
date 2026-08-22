@@ -711,6 +711,26 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [9])
     }
 
+    @Test("a chat holding only the feed's last-message preview still has its transcript fetched")
+    func loadFeedBackfillsConversationWithOnlyAPreviewRow() async {
+        let mock = MockConversations()
+        // The feed persists this preview as a message row before the backfill plans, so a check for
+        // "holds any message" would call this transcript cached and never fetch it — which is every
+        // conversation on a fresh login.
+        let preview = ConversationMessage(id: MessageID(value: 4), senderID: nil, content: .text("preview"), date: Date(timeIntervalSince1970: 40), unreadSeq: 4, eventSequence: 4)
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: preview, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [
+            ConversationMessage(id: MessageID(value: 3), senderID: nil, content: .text("older"), date: Date(timeIntervalSince1970: 30), unreadSeq: 3, eventSequence: 3),
+            preview,
+        ]
+        let controller = makeController(mock)
+
+        await controller.loadFeed()
+
+        #expect(mock.latestPageQueries == [ConversationID.test(1)])
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [3, 4])
+    }
+
     @Test("a second feed load leaves an already-cached transcript alone")
     func loadFeedSkipsCachedConversation() async {
         let mock = MockConversations()

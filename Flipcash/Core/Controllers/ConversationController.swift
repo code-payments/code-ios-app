@@ -577,13 +577,14 @@ final class ConversationController {
         let conversationID = conversation.id
         guard !messageLoadsInFlight.contains(conversationID) else { return nil }
 
-        // A zero head means the server reported no sequence for this chat, and a zero cursor means the
-        // client has never applied one — neither is a lag that `GetDelta` can resume from.
+        // The cursor, not the presence of messages, is what says whether a transcript was ever pulled:
+        // the feed persists each conversation's last-message preview as a message row before this runs,
+        // so "holds a message" is true for nearly every chat in a feed the client has otherwise never
+        // fetched. Only a newest page or an applied delta seats a cursor.
         let cursor = store.appliedCursor(for: conversationID)
-        if conversation.latestEventSequence > 0, cursor > 0, cursor < conversation.latestEventSequence {
-            return .delta
-        }
-        return hasMessages(for: conversationID) ? nil : .newestPage
+        guard cursor > 0 else { return .newestPage }
+        // A zero head means the server reported no sequence for this chat — nothing to compare against.
+        return conversation.latestEventSequence > cursor ? .delta : nil
     }
 
     // MARK: - Persistence
