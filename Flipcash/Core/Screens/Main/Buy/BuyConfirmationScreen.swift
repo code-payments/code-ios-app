@@ -33,10 +33,10 @@ struct BuyConfirmationScreen: View {
                 BorderedContainer {
                     VStack(spacing: 0) {
                         ConfirmationAmountRow(
-                            title: "You Get",
-                            currencyName: viewModel.targetName,
-                            imageURL: viewModel.targetImageURL,
-                            amount: viewModel.amountToBuy.nativeAmount.formatted()
+                            title: "You Pay",
+                            currencyName: viewModel.payment.name,
+                            imageURL: viewModel.payment.imageURL,
+                            amount: viewModel.grossDebit.nativeAmount.formatted()
                         )
                         .padding(.top, 24)
 
@@ -55,10 +55,10 @@ struct BuyConfirmationScreen: View {
                         }
 
                         ConfirmationAmountRow(
-                            title: "You Pay",
-                            currencyName: viewModel.payment.name,
-                            imageURL: viewModel.payment.imageURL,
-                            amount: viewModel.grossDebit.nativeAmount.formatted()
+                            title: "You Get",
+                            currencyName: viewModel.targetName,
+                            imageURL: viewModel.targetImageURL,
+                            amount: viewModel.amountToBuy.nativeAmount.formatted()
                         )
                         .padding(.top, viewModel.chargesFee ? 0 : 24)
                         .padding(.bottom, 24)
