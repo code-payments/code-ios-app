@@ -81,6 +81,35 @@ check_dependencies() {
     # Check cmake version (need 3.18.5+)
     CMAKE_VERSION=$(cmake --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
     log "Found cmake version: $CMAKE_VERSION"
+
+    check_sdk_version
+}
+
+# The App Store rejects any binary whose LC_BUILD_VERSION sdk exceeds the newest
+# released SDK (ITMS-90512), and the framework this script produces is committed
+# and shipped as-is — so a beta Xcode here becomes a failed submission weeks
+# later, long after the person who ran it has moved on. Refuse up front instead.
+#
+# Raise MAX_ALLOWED_SDK when Apple starts accepting a newer one; overriding via
+# the environment is for the case where that has happened and this constant has
+# not caught up yet.
+MAX_ALLOWED_SDK="${MAX_ALLOWED_SDK:-26.5}"
+
+check_sdk_version() {
+    local sdk_version
+    sdk_version=$(xcrun --sdk iphoneos --show-sdk-version 2>/dev/null) || \
+        error "Could not read the iphoneos SDK version from the active Xcode"
+
+    log "Found iOS SDK version: $sdk_version"
+
+    # Sort the two and see which lands last; equal versions are fine.
+    if [ "$sdk_version" != "$MAX_ALLOWED_SDK" ] && \
+       [ "$(printf '%s\n%s\n' "$sdk_version" "$MAX_ALLOWED_SDK" | sort -V | tail -1)" = "$sdk_version" ]; then
+        error "Active Xcode has iOS SDK $sdk_version, above the App Store's maximum of $MAX_ALLOWED_SDK.
+       A framework built here would be rejected with ITMS-90512 (Invalid sdk value).
+       Switch to a release Xcode first:  sudo xcode-select -s /Applications/Xcode_<release>.app
+       Current: $(xcodebuild -version 2>/dev/null | head -1) at $(xcode-select -p)"
+    fi
 }
 
 get_latest_opencv_version() {
