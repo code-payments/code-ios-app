@@ -9,6 +9,9 @@ New in this release:
 • Switch accounts — your tutorial should stay marked complete
 • Enter a max amount on the keypad — the maximum offered should already account for fees
 • Push into token info, then swipe back from the screen edge — the back gesture should work and the token name should not overlap the back button
+• On an account with no display name: the You tab should show a blurred tip card with the invitation over it, and My Account / Settings must still be reachable
+• On an account with no display name: the Chats tab should show your conversations (or "No Chats Yet") — not a second tip-card setup prompt
+• On an account that already holds any balance: the wallet should not still be asking you to add money
 
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
