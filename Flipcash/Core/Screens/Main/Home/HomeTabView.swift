@@ -187,7 +187,7 @@ struct HomeTabView: View {
         case .chat:
             ChatTab()
         case .tipCard:
-            TipCardTab(onSetUp: { selection = .chat })
+            TipCardTab()
                 .environment(tipCardPresentation)
         }
     }
@@ -230,52 +230,23 @@ private struct ChatTab: View {
 
 // MARK: - Tip Card tab -
 
-/// The Tip Card tab — the user's own shareable tip card. Only tippable profiles
-/// have a card; before then it prompts the user over to the Chat tab, where the
-/// add-your-name flow lives (avoiding a duplicate profile-creation push here).
+/// The Tip Card tab — the user's own shareable tip card, plus the settings list
+/// that is the tab-bar entry into My Account.
+///
+/// `YouScreen` renders whether or not the profile is tippable: without a display
+/// name it draws the add-your-name invitation where the card would be and drops
+/// the share affordances, keeping the settings rows reachable. Swapping the
+/// whole screen out for a bare prompt (as this once did) stranded name-less
+/// accounts with no way to reach Settings, and so no way to log out.
 private struct TipCardTab: View {
 
     @Environment(AppRouter.self) private var router
-    @Environment(SessionContainer.self) private var sessionContainer
-
-    let onSetUp: () -> Void
 
     var body: some View {
         @Bindable var router = router
         NavigationStack(path: $router[.you]) {
-            Group {
-                if sessionContainer.session.profile?.isTippable == true {
-                    YouScreen()
-                } else {
-                    TipCardSetupPrompt(onSetUp: onSetUp)
-                }
-            }
-            .appRouterDestinations()
-        }
-    }
-}
-
-/// Shown on the Tip Card tab before the user has a tippable profile.
-private struct TipCardSetupPrompt: View {
-
-    let onSetUp: () -> Void
-
-    var body: some View {
-        Background(color: .backgroundMain) {
-            VStack(spacing: 12) {
-                Text("Set Up Your Tip Card")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-
-                Text("Add your name to get a tip card you can share and receive tips.")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-
-                BubbleButton(text: "Get Started") { onSetUp() }
-                    .padding(.top, 8)
-            }
-            .padding(.horizontal, 40)
+            YouScreen()
+                .appRouterDestinations()
         }
     }
 }
