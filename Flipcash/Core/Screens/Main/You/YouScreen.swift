@@ -113,12 +113,13 @@ struct YouScreen: View {
                     .frame(width: Self.collapsedCardSize.width, height: Self.collapsedCardSize.height)
                     .overlay {
                         TipcardView(
-                            size: cardSize,
+                            size: Self.drawnCardSize,
                             name: name,
                             avatar: nil,
                             codeData: codeData,
                             tintOpacity: 0.36
                         )
+                        .scaleEffect(cardScale)
                         .offset(y: cardOffset)
                     }
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { cardSlotFrame = $0 }
@@ -256,9 +257,21 @@ struct YouScreen: View {
         height: cardWidth * TipcardView.aspectRatio
     )
 
-    private var cardSize: CGSize {
-        let width = isExpanded ? expandedCardWidth : Self.cardWidth
-        return CGSize(width: width, height: width * TipcardView.aspectRatio)
+    /// The size the card is always drawn at, whatever it currently measures on
+    /// screen — the widest it ever gets, so scaling it to size only ever
+    /// samples the drawing down.
+    private static let drawnCardSize = CGSize(
+        width: maxExpandedCardWidth,
+        height: maxExpandedCardWidth * TipcardView.aspectRatio
+    )
+
+    /// The expansion runs as one scale on the drawn card rather than a new size
+    /// for it to lay itself out at. Laid out, each of the card's metrics is a
+    /// separate animatable value — and the name's font size is not animatable
+    /// at all — so the parts arrived at their new sizes at different moments
+    /// and overlapped mid-flight. Scaled, the card travels as one figure.
+    private var cardScale: CGFloat {
+        (isExpanded ? expandedCardWidth : Self.cardWidth) / Self.drawnCardSize.width
     }
 
     /// The expanded width: the design's 302, narrowed only if the screen can't
