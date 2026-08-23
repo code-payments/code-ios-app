@@ -17,6 +17,13 @@ struct TipcardView: View {
     /// on the You page (node 9276:4641) and full screen (node 9277:121417).
     static let aspectRatio: CGFloat = 333.0 / 269.0
 
+    /// The name's size as a fraction of the card's width. Figma draws the name
+    /// at 17 on the 269-wide card and scales it with the card, so the 302-wide
+    /// full-screen card gets 19.1 (node 9277:121421) and the 242-wide You-page
+    /// card 15.3 (node 9276:4645). A fixed size instead left the name looking
+    /// oversized on the small card and undersized on the big one.
+    static let nameFraction: CGFloat = 17.0 / 269.0
+
     /// Explicit because a rendered tree has no container to size against.
     let size: CGSize
     let name: String
@@ -66,7 +73,7 @@ struct TipcardView: View {
             .truncationMode(.tail)
             .multilineTextAlignment(.center)
             .padding(.horizontal, size.width * 0.08)
-            .font(.appDisplayXS)
+            .font(.default(size: nameFontSize, weight: .bold))
             .foregroundStyle(Color.textMain)
             .padding(.top, size.height * 0.06)
         }
@@ -83,6 +90,10 @@ struct TipcardView: View {
         } else {
             Image(systemName: "person.crop.circle.fill")
         }
+    }
+
+    private var nameFontSize: CGFloat {
+        size.width * Self.nameFraction
     }
 
     private var codeDimension: CGFloat {
