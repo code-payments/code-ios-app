@@ -1,5 +1,15 @@
 What to test in this build
 
+New in this release:
+• The You tab now has a tip card — open it, check the name scales to fit and the card matches the design
+• Deposit USDC — the conversion graphic should read the right way round
+• Buy a currency — the Get receipt should lead with what you pay
+• Enter/change your display name — check the title and hint read clearly
+• Scan a Cash Link or code — detection should be quick and reliable
+• Switch accounts — your tutorial should stay marked complete
+• Enter a max amount on the keypad — the maximum offered should already account for fees
+• Push into token info, then swipe back from the screen edge — the back gesture should work and the token name should not overlap the back button
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
