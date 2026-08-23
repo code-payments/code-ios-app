@@ -19,7 +19,13 @@ struct TipsScreen: View {
     var isEmbedded: Bool = false
 
     var body: some View {
-        if sessionContainer.session.profile?.isTippable == true {
+        // v2's Chats tab is chats, whatever the profile says. A name-less
+        // account can still send tips, so it can still hold conversations —
+        // swapping the tab out for a setup prompt hid them, and hid the "No
+        // Chats Yet" empty state behind a second copy of the tip-card
+        // invitation the tip-card tab already makes. v1's sheet keeps the
+        // intro: it is that flow's only door into profile creation.
+        if isEmbedded || sessionContainer.session.profile?.isTippable == true {
             TipConversationsScreen(isEmbedded: isEmbedded)
         } else {
             TipsIntroScreen(isEmbedded: isEmbedded)
