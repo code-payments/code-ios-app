@@ -113,6 +113,10 @@ struct TransportClassificationTests {
         // Server verdicts on user input are expected outcomes, not defects.
         #expect(ErrorProfile.moderated(.nsfw).reportingLevel == .info)
         #expect(ErrorProfile.invalidDisplayName.reportingLevel == .info)
+        #expect(ErrorProfile.invalidUsername.reportingLevel == .info)
+        #expect(ErrorProfile.usernameTaken.reportingLevel == .info)
+        #expect(ErrorProfile.reservedWord.reportingLevel == .info)
+        #expect(ErrorProfile.insufficientBalance.reportingLevel == .info)
         #expect(ErrorProfile.blobRejected.reportingLevel == .info)
     }
 

@@ -214,6 +214,109 @@ public struct Flipcash_Profile_V1_SetDisplayNameResponse: Sendable {
   public init() {}
 }
 
+public struct Flipcash_Profile_V1_SetUsernameRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Username is the new username to set.
+  public var username: Flipcash_Common_V1_Username {
+    get {return _username ?? Flipcash_Common_V1_Username()}
+    set {_username = newValue}
+  }
+  /// Returns true if `username` has been explicitly set.
+  public var hasUsername: Bool {return self._username != nil}
+  /// Clears the value of `username`. Subsequent reads from it will return its default value.
+  public mutating func clearUsername() {self._username = nil}
+
+  public var auth: Flipcash_Common_V1_Auth {
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _username: Flipcash_Common_V1_Username? = nil
+  fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
+}
+
+public struct Flipcash_Profile_V1_SetUsernameResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipcash_Profile_V1_SetUsernameResponse.Result = .ok
+
+  /// The best-fit category that tripped moderation, mirroring the Moderation
+  /// service's vocabulary. Set only when result == FAILED_MODERATED; NONE
+  /// otherwise.
+  public var flaggedCategory: Flipcash_Moderation_V1_FlaggedCategory = .none
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case ok // = 0
+    case invalidUsername // = 1
+    case denied // = 2
+    case alreadyTaken // = 3
+    case failedModerated // = 4
+    case insufficientBalance // = 5
+    case reservedWord // = 6
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .invalidUsername
+      case 2: self = .denied
+      case 3: self = .alreadyTaken
+      case 4: self = .failedModerated
+      case 5: self = .insufficientBalance
+      case 6: self = .reservedWord
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .invalidUsername: return 1
+      case .denied: return 2
+      case .alreadyTaken: return 3
+      case .failedModerated: return 4
+      case .insufficientBalance: return 5
+      case .reservedWord: return 6
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Flipcash_Profile_V1_SetUsernameResponse.Result] = [
+      .ok,
+      .invalidUsername,
+      .denied,
+      .alreadyTaken,
+      .failedModerated,
+      .insufficientBalance,
+      .reservedWord,
+    ]
+
+  }
+
+  public init() {}
+}
+
 public struct Flipcash_Profile_V1_SetProfilePictureRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -819,6 +922,84 @@ extension Flipcash_Profile_V1_SetDisplayNameResponse: SwiftProtobuf.Message, Swi
 
 extension Flipcash_Profile_V1_SetDisplayNameResponse.Result: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}INVALID_DISPLAY_NAME\0\u{1}DENIED\0\u{1}FAILED_MODERATED\0")
+}
+
+extension Flipcash_Profile_V1_SetUsernameRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetUsernameRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0\u{2}\u{9}auth\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._username) }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._username {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Profile_V1_SetUsernameRequest, rhs: Flipcash_Profile_V1_SetUsernameRequest) -> Bool {
+    if lhs._username != rhs._username {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Profile_V1_SetUsernameResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetUsernameResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}flagged_category\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.flaggedCategory) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    if self.flaggedCategory != .none {
+      try visitor.visitSingularEnumField(value: self.flaggedCategory, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Profile_V1_SetUsernameResponse, rhs: Flipcash_Profile_V1_SetUsernameResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.flaggedCategory != rhs.flaggedCategory {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Profile_V1_SetUsernameResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}INVALID_USERNAME\0\u{1}DENIED\0\u{1}ALREADY_TAKEN\0\u{1}FAILED_MODERATED\0\u{1}INSUFFICIENT_BALANCE\0\u{1}RESERVED_WORD\0")
 }
 
 extension Flipcash_Profile_V1_SetProfilePictureRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

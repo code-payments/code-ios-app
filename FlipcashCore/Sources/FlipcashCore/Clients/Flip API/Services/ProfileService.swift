@@ -91,6 +91,39 @@ final class ProfileService: Sendable {
         }
     }
 
+    func setUsername(_ username: Username, owner: KeyPair) async throws {
+        var request = Flipcash_Profile_V1_SetUsernameRequest()
+        request.username = username.proto
+        request.auth     = owner.authFor(message: request)
+
+        do {
+            let response = try await service.setUsername(request, options: .unaryDefault)
+
+            switch response.result {
+            case .ok:
+                logger.info("Username set")
+            case .invalidUsername:
+                throw ErrorProfile.invalidUsername
+            case .denied:
+                throw ErrorProfile.denied
+            case .alreadyTaken:
+                throw ErrorProfile.usernameTaken
+            case .failedModerated:
+                throw ErrorProfile.moderated(response.flaggedCategory)
+            case .insufficientBalance:
+                throw ErrorProfile.insufficientBalance
+            case .reservedWord:
+                throw ErrorProfile.reservedWord
+            case .UNRECOGNIZED:
+                throw ErrorProfile.unknown
+            }
+        } catch let error as ErrorProfile {
+            throw error
+        } catch {
+            throw ErrorProfile.network(error)
+        }
+    }
+
     func setProfilePicture(blobID: BlobID, owner: KeyPair) async throws {
         var request = Flipcash_Profile_V1_SetProfilePictureRequest()
         request.blobID = .with { $0.value = blobID.data }
@@ -195,6 +228,10 @@ extension ErrorUpdateTipCard: ServerError, TransportClassifiableError {
 public enum ErrorProfile: Error, Sendable {
     case denied
     case invalidDisplayName
+    case invalidUsername
+    case usernameTaken
+    case reservedWord
+    case insufficientBalance
     case moderated(Flipcash_Moderation_V1_FlaggedCategory)
     case blobNotFound
     case blobNotReady
@@ -208,6 +245,7 @@ extension ErrorProfile: ServerError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .denied, .invalidDisplayName, .moderated,
+             .invalidUsername, .usernameTaken, .reservedWord, .insufficientBalance,
              .blobNotFound, .blobNotReady, .blobRejected, .invalidBlob:
             .info
         case .unknown:

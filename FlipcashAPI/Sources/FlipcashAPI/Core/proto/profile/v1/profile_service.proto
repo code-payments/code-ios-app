@@ -17,6 +17,10 @@ service Profile {
 
 	rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
 
+	// SetUsername sets the caller's username, replacing any username already
+	// set.
+	rpc SetUsername(SetUsernameRequest) returns (SetUsernameResponse);
+
 	// SetProfilePicture sets the caller's profile picture to a blob they have
 	// already uploaded via BlobStorage, replacing any picture already set.
 	//
@@ -88,6 +92,31 @@ message SetDisplayNameResponse {
     // service's vocabulary. Set only when result == FAILED_MODERATED; NONE
 	// otherwise.
     moderation.v1.FlaggedCategory flagged_category = 2;
+}
+
+message SetUsernameRequest {
+	// Username is the new username to set.
+	common.v1.Username username = 1 [(validate.rules).message.required = true];
+
+	common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message SetUsernameResponse {
+	Result result = 1;
+	enum Result {
+		OK                   = 0;
+		INVALID_USERNAME     = 1;
+		DENIED               = 2;
+		ALREADY_TAKEN        = 3;
+		FAILED_MODERATED     = 4;
+		INSUFFICIENT_BALANCE = 5;
+		RESERVED_WORD        = 6;
+	}
+
+	// The best-fit category that tripped moderation, mirroring the Moderation
+	// service's vocabulary. Set only when result == FAILED_MODERATED; NONE
+	// otherwise.
+	moderation.v1.FlaggedCategory flagged_category = 2;
 }
 
 message SetProfilePictureRequest {

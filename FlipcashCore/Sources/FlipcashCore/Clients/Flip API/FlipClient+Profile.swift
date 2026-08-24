@@ -31,6 +31,13 @@ extension FlipClient {
         try await profileService.setDisplayName(displayName, owner: owner)
     }
 
+    /// Claims `username` for the caller, replacing any handle already set.
+    /// The server moderates it and may charge for it, so this throws on a
+    /// taken, reserved, or unaffordable handle as well as a malformed one.
+    public func setUsername(_ username: Username, owner: KeyPair) async throws {
+        try await profileService.setUsername(username, owner: owner)
+    }
+
     /// Attaches an already-finalized blob as the caller's profile picture.
     public func setProfilePicture(blobID: BlobID, owner: KeyPair) async throws {
         try await profileService.setProfilePicture(blobID: blobID, owner: owner)
