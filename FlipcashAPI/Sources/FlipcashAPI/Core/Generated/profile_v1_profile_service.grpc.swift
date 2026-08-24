@@ -44,6 +44,18 @@ public enum Flipcash_Profile_V1_Profile {
                 method: "SetDisplayName"
             )
         }
+        /// Namespace for "SetUsername" metadata.
+        public enum SetUsername {
+            /// Request type for "SetUsername".
+            public typealias Input = Flipcash_Profile_V1_SetUsernameRequest
+            /// Response type for "SetUsername".
+            public typealias Output = Flipcash_Profile_V1_SetUsernameResponse
+            /// Descriptor for "SetUsername".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.profile.v1.Profile"),
+                method: "SetUsername"
+            )
+        }
         /// Namespace for "SetProfilePicture" metadata.
         public enum SetProfilePicture {
             /// Request type for "SetProfilePicture".
@@ -96,6 +108,7 @@ public enum Flipcash_Profile_V1_Profile {
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             GetProfile.descriptor,
             SetDisplayName.descriptor,
+            SetUsername.descriptor,
             SetProfilePicture.descriptor,
             UpdateTipCard.descriptor,
             LinkSocialAccount.descriptor,
@@ -155,6 +168,30 @@ extension Flipcash_Profile_V1_Profile {
             deserializer: some GRPCCore.MessageDeserializer<Flipcash_Profile_V1_SetDisplayNameResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetDisplayNameResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "SetUsername" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > SetUsername sets the caller's username, replacing any username already
+        /// > set.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Flipcash_Profile_V1_SetUsernameRequest` message.
+        ///   - serializer: A serializer for `Flipcash_Profile_V1_SetUsernameRequest` messages.
+        ///   - deserializer: A deserializer for `Flipcash_Profile_V1_SetUsernameResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func setUsername<Result>(
+            request: GRPCCore.ClientRequest<Flipcash_Profile_V1_SetUsernameRequest>,
+            serializer: some GRPCCore.MessageSerializer<Flipcash_Profile_V1_SetUsernameRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Flipcash_Profile_V1_SetUsernameResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetUsernameResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "SetProfilePicture" method.
@@ -326,6 +363,41 @@ extension Flipcash_Profile_V1_Profile {
             try await self.client.unary(
                 request: request,
                 descriptor: Flipcash_Profile_V1_Profile.Method.SetDisplayName.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "SetUsername" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > SetUsername sets the caller's username, replacing any username already
+        /// > set.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Flipcash_Profile_V1_SetUsernameRequest` message.
+        ///   - serializer: A serializer for `Flipcash_Profile_V1_SetUsernameRequest` messages.
+        ///   - deserializer: A deserializer for `Flipcash_Profile_V1_SetUsernameResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func setUsername<Result>(
+            request: GRPCCore.ClientRequest<Flipcash_Profile_V1_SetUsernameRequest>,
+            serializer: some GRPCCore.MessageSerializer<Flipcash_Profile_V1_SetUsernameRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Flipcash_Profile_V1_SetUsernameResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetUsernameResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Flipcash_Profile_V1_Profile.Method.SetUsername.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -531,6 +603,36 @@ extension Flipcash_Profile_V1_Profile.ClientProtocol {
         )
     }
 
+    /// Call the "SetUsername" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > SetUsername sets the caller's username, replacing any username already
+    /// > set.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Flipcash_Profile_V1_SetUsernameRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setUsername<Result>(
+        request: GRPCCore.ClientRequest<Flipcash_Profile_V1_SetUsernameRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetUsernameResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.setUsername(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Flipcash_Profile_V1_SetUsernameRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Flipcash_Profile_V1_SetUsernameResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "SetProfilePicture" method.
     ///
     /// > Source IDL Documentation:
@@ -710,6 +812,40 @@ extension Flipcash_Profile_V1_Profile.ClientProtocol {
             metadata: metadata
         )
         return try await self.setDisplayName(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetUsername" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > SetUsername sets the caller's username, replacing any username already
+    /// > set.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setUsername<Result>(
+        _ message: Flipcash_Profile_V1_SetUsernameRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetUsernameResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Flipcash_Profile_V1_SetUsernameRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.setUsername(
             request: request,
             options: options,
             onResponse: handleResponse
