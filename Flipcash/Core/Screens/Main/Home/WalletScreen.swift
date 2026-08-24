@@ -202,6 +202,11 @@ private struct WalletScreenContent: View {
             .onAppear { historyController.sync() }
             .onChange(of: session.balances) { _, _ in
                 refresh()
+                // The "add money" milestone is met by a balance as well as by
+                // history, so a balance that moved can settle it on its own —
+                // without this it would wait on an activity row that may never
+                // come.
+                reloadHistoryState()
                 // A balance that moved has an activity row on its way, so pull
                 // it now. `onAppear` cannot be the only sync: the tab stays
                 // alive behind sheets and behind the other tabs, so it fires

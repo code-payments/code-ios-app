@@ -172,10 +172,24 @@ class Session {
 
     /// Whether the caller has ever received money from outside their own
     /// holdings — a completed buy, deposit, tip received, or distribution. This
-    /// is the wallet onboarding "add money" milestone. Derived from durable
-    /// history, so it stays true after the balance is spent.
+    /// is the wallet onboarding "add money" milestone.
+    ///
+    /// Money in hand settles it before history is consulted: a balance cannot
+    /// exist without having arrived, and the history feed does not always carry
+    /// the arrival that put it there — an account holding a balance against an
+    /// empty activity table was being told to go add money. History still
+    /// answers for the spent case, where the balance is gone but the milestone
+    /// must stay met.
     func hasEverAddedMoney() -> Bool {
-        (try? database.hasEverAddedMoney()) ?? false
+        if holdsBalance { return true }
+        return (try? database.hasEverAddedMoney()) ?? false
+    }
+
+    /// Whether any token balance is non-zero. Unlike ``hasGiveableBalance(for:includingDollars:)``
+    /// this asks only whether money is held, not whether it can be spent — dust
+    /// too small to give away still proves money arrived.
+    private var holdsBalance: Bool {
+        updateableBalances.value.contains { $0.quarks > 0 }
     }
 
     /// Whether the caller has ever sent a tip — the "scan a tip card" milestone.

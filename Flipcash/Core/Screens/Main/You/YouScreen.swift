@@ -18,6 +18,11 @@ import FlipcashUI
 /// nothing is pushed or presented — so the card never leaves this screen.
 /// Settings rows push onto the tab's `.you` stack, so they never touch the v1
 /// scanner's Settings sheet.
+///
+/// A profile with no display name has no card: the page then shows the
+/// add-your-name invitation in the card's place and drops the link and share
+/// affordances, but still renders — the settings rows are this account's only
+/// way to reach My Account, and with it Log Out.
 struct YouScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
@@ -87,6 +92,9 @@ struct YouScreen: View {
             )
         }
         .task(id: profilePicture?.thumbnailBlobID) {
+            // There is no card to share, and so no preview worth rendering, until
+            // the profile has a name.
+            guard displayName != nil else { return }
             previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
         }
     }
@@ -95,6 +103,10 @@ struct YouScreen: View {
 
     /// The card plus its "Full Screen" caption. Tapping either expands the card;
     /// tapping the expanded card puts it back.
+    ///
+    /// A profile without a display name has no card to draw, so the slot carries
+    /// the invitation to add one instead. The rest of the page stays where it is
+    /// either way — settings included, which is the only route to logging out.
     @ViewBuilder
     private var cardSection: some View {
         if let name = displayName {
@@ -133,8 +145,84 @@ struct YouScreen: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(isExpanded ? "Close tip card" : "View tip card full screen")
             .accessibilityIdentifier("you-fullscreen-button")
+        } else {
+            setupPrompt
         }
     }
+
+    /// Stands in for the card until the profile has a display name: the card the
+    /// user is about to get, blurred out behind the invitation to claim it, so
+    /// the slot shows what is on offer rather than sitting empty.
+    ///
+    /// "Get Started" opens the name editor, which pops back here on save — by
+    /// which point the profile is tippable and the real card has taken this slot.
+    private var setupPrompt: some View {
+        ZStack {
+            // A stand-in name, never read: it only has to give the blur a card
+            // shaped like the one the user gets.
+            TipcardView(
+                size: Self.collapsedCardSize,
+                name: Self.placeholderName,
+                avatar: nil,
+                codeData: codeData,
+                // The card's own tint is black over a frosted backdrop, which
+                // on this black page paints black on black — it can only take
+                // brightness away from the base below, so it takes none.
+                tintOpacity: 0
+            )
+            // The base the card is missing: without it the stand-in has no
+            // surface, just a code glowing in the dark.
+            .background(Self.placeholderShape.fill(Color.white.opacity(0.08)))
+            .blur(radius: 12)
+            // Blur bleeds past the card's edge and, on a black page, a card
+            // whose edge has dissolved is just a smudge — so clip the softened
+            // content back to the card's own outline and draw that outline.
+            .clipShape(Self.placeholderShape)
+            .overlay {
+                Self.placeholderShape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+            }
+            .accessibilityHidden(true)
+
+            // Word for word the Chats tab's own name-less state
+            // (`TipsScreen.TipsIntroScreen`): the same account hits both, and
+            // two different asks for the one thing read as two different jobs.
+            VStack(spacing: 0) {
+                Text("Receive Tips From Everyone")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                    .multilineTextAlignment(.center)
+
+                // Full strength where the Chats tab uses secondary grey: this
+                // copy sits over the blurred code's brightest patch, and grey
+                // on that glow is the one line you can't read.
+                Text("Add your name to receive tips")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textMain)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 8)
+
+                BubbleButton(text: "Start Receiving Tips") {
+                    router.push(.changeDisplayName)
+                }
+                .padding(.top, 20)
+                .accessibilityIdentifier("you-start-receiving-tips-button")
+            }
+            // Held inside the card it sits on, so the copy reads as part of the
+            // card rather than spilling past its edges.
+            .frame(maxWidth: Self.collapsedCardSize.width - 16)
+        }
+    }
+
+    /// Fills the blurred placeholder card's name line. Long enough to occupy the
+    /// line the real name will, short enough not to wrap.
+    private static let placeholderName = "Your Name"
+
+    /// The placeholder card's outline, matching `TipcardView`'s own corner
+    /// rounding — which it derives from the card's width.
+    private static let placeholderShape = RoundedRectangle(
+        cornerRadius: collapsedCardSize.width * 0.08,
+        style: .continuous
+    )
 
     /// The expanded card's collapse control (Figma node 9276:4601): the same
     /// caption as "Full Screen", chevron flipped, sitting at the bottom of the
@@ -174,24 +262,30 @@ struct YouScreen: View {
     // MARK: - Page -
 
     /// Everything below the card — the part that clears out when the card expands.
+    ///
+    /// The link and the Share/Download pair all address a card that a name-less
+    /// profile does not have, so they sit out until it does; the settings rows
+    /// take up the slack.
     private var pageContent: some View {
         VStack(spacing: 0) {
-            TipCardLinkRow(url: url)
-                .padding(.top, 70)
+            if displayName != nil {
+                TipCardLinkRow(url: url)
+                    .padding(.top, 70)
 
-            HStack(spacing: 10) {
-                TipCardActionButton(asset: .shareOS, title: "Share", action: shareTipCard)
-                    .accessibilityIdentifier("you-share-button")
+                HStack(spacing: 10) {
+                    TipCardActionButton(asset: .shareOS, title: "Share", action: shareTipCard)
+                        .accessibilityIdentifier("you-share-button")
 
-                TipCardActionButton(asset: .fileDownload, title: "Download") {
-                    isShowingDownloadOptions = true
+                    TipCardActionButton(asset: .fileDownload, title: "Download") {
+                        isShowingDownloadOptions = true
+                    }
+                    .accessibilityIdentifier("you-download-button")
                 }
-                .accessibilityIdentifier("you-download-button")
+                .padding(.top, 11)
             }
-            .padding(.top, 11)
 
             settingsList
-                .padding(.top, 19)
+                .padding(.top, displayName == nil ? 48 : 19)
 
             // v2 scrolls the version string with the content rather than
             // pinning it above the tab bar (the v1 Settings sheet pinned it).
