@@ -67,4 +67,9 @@ extension Username {
     init?(_ proto: Flipcash_Common_V1_Username) {
         self.init(proto.value)
     }
+
+    /// The wire form of the handle, for requests that claim or change it.
+    var proto: Flipcash_Common_V1_Username {
+        .with { $0.value = value }
+    }
 }
