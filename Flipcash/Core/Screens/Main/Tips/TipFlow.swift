@@ -77,13 +77,21 @@ final class TipFlow {
 
     // MARK: - Entry -
 
-    /// Handles a scanned or deeplinked tipcode. Gates in order: own-id scans
-    /// (ignored), then a tippable profile (held + profile creation presented).
+    /// Handles a scanned or deeplinked tipcode. Gates in order: own-id codes
+    /// (routed to the user's own tip card), then a tippable profile (held +
+    /// profile creation presented).
     /// The card always shows for a tippable recipient; the giveable-balance gate
     /// is deferred to ``present(_:)``, where it blocks the Send a Tip sheet
     /// (surfacing the Add Money / Discover dialog) without hiding the card.
     func begin(userID: UserID) {
-        guard userID != session.userID else { return }
+        // Tipping yourself is a payment no-op, so there's no flow to start from
+        // your own code — show the user their own tip card rather than swallow
+        // the scan or tap. `showOwnTipCard()` absorbs the repeat calls the
+        // per-frame scanner makes until the camera tears down.
+        guard userID != session.userID else {
+            router.showOwnTipCard()
+            return
+        }
         guard submission == nil, pendingUserID == nil, prepTask == nil else { return }
         // A dialog is already asking the user something (commonly this flow's
         // own balance gate) — don't churn it on every decoded camera frame.
