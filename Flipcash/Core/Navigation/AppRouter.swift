@@ -501,4 +501,33 @@ final class AppRouter {
         present(targetSheet)
         setPath([destination], on: targetStack)
     }
+
+    /// Surfaces the user's own tip card: the You tab at its root in the tab UI,
+    /// or the "My Tip Card" screen in the tips sheet without tabs.
+    ///
+    /// Not expressible as `navigate(to:)` in the tab UI — the You tab's stack is
+    /// entered by tab selection and has no destination that names the card.
+    ///
+    /// Idempotent, like `navigate(to:)`: the scanner decodes a tipcode every
+    /// frame until its camera tears down, so arriving is not allowed to re-fire
+    /// the tab request.
+    func showOwnTipCard() {
+        guard tabStacks.contains(.you) else {
+            navigate(to: .tipcard)
+            return
+        }
+
+        // `requestedTabStack` covers the gap before `HomeTabView` selects the tab
+        // and publishes `activeTabStack` — until then the request is in flight,
+        // not yet arrived.
+        let alreadyThere = presentedSheets.isEmpty
+                        && activeTabStack == .you
+                        && self[.you].isEmpty
+        guard !alreadyThere, requestedTabStack != .you else { return }
+
+        while !presentedSheets.isEmpty { dismissSheet() }
+        setPath([], on: .you)
+        requestedTabStack = .you
+        logger.info("Routed to own tip card", metadata: ["stack": "\(Stack.you)"])
+    }
 }

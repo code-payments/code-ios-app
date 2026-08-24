@@ -265,6 +265,8 @@ struct DeepLinkAction {
         case .tip(let userID):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
+                // `begin` owns the own-id case: a self link lands on the user's
+                // own tip card rather than starting a tip.
                 container.tipFlow.begin(userID: userID)
             }
 
