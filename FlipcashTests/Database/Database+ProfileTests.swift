@@ -22,6 +22,7 @@ struct DatabaseProfileTests {
         newCurrencyFeeAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
         withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
         minimumHolderValue: TokenAmount(quarks: 100_000, mint: .usdf),
+        usernameMinBalance: TokenAmount(quarks: 250_000, mint: .usdf),
         enablePhoneNumberSend: true,
         requireCoinbaseEmailVerification: true,
         preferredOnrampUsdcLiquidityPool: .coinbaseStableSwapper,
@@ -43,6 +44,7 @@ struct DatabaseProfileTests {
         newCurrencyFeeAmount: .zero(mint: .usdf),
         withdrawalFeeAmount: .zero(mint: .usdf),
         minimumHolderValue: .zero(mint: .usdf),
+        usernameMinBalance: .zero(mint: .usdf),
         enablePhoneNumberSend: false,
         requireCoinbaseEmailVerification: false,
         preferredOnrampUsdcLiquidityPool: .unknown,
@@ -113,6 +115,7 @@ struct DatabaseProfileTests {
         #expect(restored.newCurrencyFeeAmount == original.newCurrencyFeeAmount)
         #expect(restored.withdrawalFeeAmount == original.withdrawalFeeAmount)
         #expect(restored.minimumHolderValue == original.minimumHolderValue)
+        #expect(restored.usernameMinBalance == original.usernameMinBalance)
         #expect(restored.preferredOnrampUsdcLiquidityPool == original.preferredOnrampUsdcLiquidityPool)
         #expect(restored.tipPresets == original.tipPresets)
     }

@@ -661,6 +661,7 @@ struct SessionOfflineCacheTests {
             newCurrencyFeeAmount: .zero(mint: .usdf),
             withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
+            usernameMinBalance: .zero(mint: .usdf),
             enablePhoneNumberSend: false,
             requireCoinbaseEmailVerification: false,
             preferredOnrampUsdcLiquidityPool: .unknown,
