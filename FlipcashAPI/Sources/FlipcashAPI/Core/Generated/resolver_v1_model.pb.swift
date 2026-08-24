@@ -45,11 +45,20 @@ public struct Flipcash_Resolver_V1_Identifier: Sendable {
     set {kind = .userID(newValue)}
   }
 
+  public var username: Flipcash_Common_V1_Username {
+    get {
+      if case .username(let v)? = kind {return v}
+      return Flipcash_Common_V1_Username()
+    }
+    set {kind = .username(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Kind: Equatable, Sendable {
     case phone(Flipcash_Common_V1_PhoneNumber)
     case userID(Flipcash_Common_V1_UserId)
+    case username(Flipcash_Common_V1_Username)
 
   }
 
@@ -89,7 +98,7 @@ fileprivate let _protobuf_package = "flipcash.resolver.v1"
 
 extension Flipcash_Resolver_V1_Identifier: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Identifier"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0\u{3}user_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0\u{3}user_id\0\u{1}username\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -123,6 +132,19 @@ extension Flipcash_Resolver_V1_Identifier: SwiftProtobuf.Message, SwiftProtobuf.
           self.kind = .userID(v)
         }
       }()
+      case 3: try {
+        var v: Flipcash_Common_V1_Username?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .username(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .username(v)
+        }
+      }()
       default: break
       }
     }
@@ -141,6 +163,10 @@ extension Flipcash_Resolver_V1_Identifier: SwiftProtobuf.Message, SwiftProtobuf.
     case .userID?: try {
       guard case .userID(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .username?: try {
+      guard case .username(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     }()
     case nil: break
     }

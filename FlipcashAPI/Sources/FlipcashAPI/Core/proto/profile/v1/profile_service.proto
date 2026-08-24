@@ -38,7 +38,14 @@ service Profile {
 }
 
 message GetProfileRequest {
-	common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+	// The user whose profile is being fetched, identified either by their user
+	// ID or by their username. Exactly one must be set.
+	oneof identifier {
+		option (validate.required) = true;
+
+		common.v1.UserId   user_id  = 1;
+		common.v1.Username username = 3;
+	}
 
 	// Optional auth to retrieve private profile information for self
 	common.v1.Auth auth = 2;

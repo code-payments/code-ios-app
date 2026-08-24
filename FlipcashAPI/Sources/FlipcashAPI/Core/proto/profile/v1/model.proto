@@ -12,11 +12,19 @@ import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 message UserProfile {
+	// The ID of the user this profile belongs to. Always set, so a caller that
+	// looked the profile up by username learns the user's ID from the response.
+	common.v1.UserId user_id = 9 [(validate.rules).message.required = true];
+
 	// Display name is the display name of the user (if found).
 	string display_name = 1 [(validate.rules).string = {
 		min_len: 0
 		max_len: 64
 	}];
+
+	// The user's username on Flipcash. Public, so it is returned for any user,
+	// not just the caller. Unset when the user hasn't claimed one yet.
+	common.v1.Username username = 8;
 
 	// Social profiles are links to external social accounts
 	repeated SocialProfile social_profiles = 2 [(validate.rules).repeated = {

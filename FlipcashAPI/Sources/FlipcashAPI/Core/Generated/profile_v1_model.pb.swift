@@ -25,8 +25,30 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// The ID of the user this profile belongs to. Always set, so a caller that
+  /// looked the profile up by username learns the user's ID from the response.
+  public var userID: Flipcash_Common_V1_UserId {
+    get {return _userID ?? Flipcash_Common_V1_UserId()}
+    set {_userID = newValue}
+  }
+  /// Returns true if `userID` has been explicitly set.
+  public var hasUserID: Bool {return self._userID != nil}
+  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
+  public mutating func clearUserID() {self._userID = nil}
+
   /// Display name is the display name of the user (if found).
   public var displayName: String = String()
+
+  /// The user's username on Flipcash. Public, so it is returned for any user,
+  /// not just the caller. Unset when the user hasn't claimed one yet.
+  public var username: Flipcash_Common_V1_Username {
+    get {return _username ?? Flipcash_Common_V1_Username()}
+    set {_username = newValue}
+  }
+  /// Returns true if `username` has been explicitly set.
+  public var hasUsername: Bool {return self._username != nil}
+  /// Clears the value of `username`. Subsequent reads from it will return its default value.
+  public mutating func clearUsername() {self._username = nil}
 
   /// Social profiles are links to external social accounts
   public var socialProfiles: [Flipcash_Profile_V1_SocialProfile] = []
@@ -97,6 +119,8 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
 
   public init() {}
 
+  fileprivate var _userID: Flipcash_Common_V1_UserId? = nil
+  fileprivate var _username: Flipcash_Common_V1_Username? = nil
   fileprivate var _phoneNumber: Flipcash_Common_V1_PhoneNumber? = nil
   fileprivate var _emailAddress: Flipcash_Common_V1_EmailAddress? = nil
   fileprivate var _profilePicture: Flipcash_Blob_V1_Media? = nil
@@ -232,7 +256,7 @@ fileprivate let _protobuf_package = "flipcash.profile.v1"
 
 extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserProfile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}social_profiles\0\u{3}phone_number\0\u{3}email_address\0\u{3}profile_picture\0\u{3}join_ts\0\u{3}tip_card_customization\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}social_profiles\0\u{3}phone_number\0\u{3}email_address\0\u{3}profile_picture\0\u{3}join_ts\0\u{3}tip_card_customization\0\u{1}username\0\u{3}user_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -247,6 +271,8 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
       case 5: try { try decoder.decodeSingularMessageField(value: &self._profilePicture) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._joinTs) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._tipCardCustomization) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._username) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
       default: break
       }
     }
@@ -278,11 +304,19 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._tipCardCustomization {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     } }()
+    try { if let v = self._username {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    try { if let v = self._userID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Profile_V1_UserProfile, rhs: Flipcash_Profile_V1_UserProfile) -> Bool {
+    if lhs._userID != rhs._userID {return false}
     if lhs.displayName != rhs.displayName {return false}
+    if lhs._username != rhs._username {return false}
     if lhs.socialProfiles != rhs.socialProfiles {return false}
     if lhs._phoneNumber != rhs._phoneNumber {return false}
     if lhs._emailAddress != rhs._emailAddress {return false}
