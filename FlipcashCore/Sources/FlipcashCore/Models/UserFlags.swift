@@ -25,6 +25,14 @@ public struct UserFlags: Codable, Sendable {
     /// USDF amount a user must hold to be counted on the Discover leaderboard.
     public let minimumHolderValue: TokenAmount
 
+    /// USDF-denominated balance a user must hold, summed across every mint,
+    /// to set a username.
+    ///
+    /// The `.usdf` mint is the denomination, not the account to measure: this
+    /// compares against the cumulative total across all currencies, never the
+    /// USDF balance alone. Nothing is debited — the user keeps the balance.
+    public let usernameMinBalance: TokenAmount
+
     /// Whether the send-to-phone-number feature is enabled for this user.
     public let enablePhoneNumberSend: Bool
 
@@ -132,6 +140,10 @@ extension UserFlags {
             ),
             minimumHolderValue: TokenAmount(
                 quarks: proto.minimumHolderValue,
+                mint: .usdf
+            ),
+            usernameMinBalance: TokenAmount(
+                quarks: proto.usernameMinBalance,
                 mint: .usdf
             ),
             enablePhoneNumberSend: proto.enablePhoneNumberSend,

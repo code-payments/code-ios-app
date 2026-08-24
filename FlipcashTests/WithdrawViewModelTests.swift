@@ -328,6 +328,7 @@ struct WithdrawViewModelTests {
                 newCurrencyFeeAmount: .zero(mint: .usdf),
                 withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf),
                 minimumHolderValue: .zero(mint: .usdf),
+                usernameMinBalance: .zero(mint: .usdf),
                 enablePhoneNumberSend: false,
                 requireCoinbaseEmailVerification: false,
                 preferredOnrampUsdcLiquidityPool: .unknown,

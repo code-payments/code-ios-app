@@ -255,24 +255,21 @@ public struct Flipcash_Account_V1_GetUserFlagsRequest: Sendable {
   fileprivate var _countryCode: Flipcash_Common_V1_CountryCode? = nil
 }
 
-public struct Flipcash_Account_V1_GetUserFlagsResponse: @unchecked Sendable {
+public struct Flipcash_Account_V1_GetUserFlagsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var result: Flipcash_Account_V1_GetUserFlagsResponse.Result {
-    get {return _storage._result}
-    set {_uniqueStorage()._result = newValue}
-  }
+  public var result: Flipcash_Account_V1_GetUserFlagsResponse.Result = .ok
 
   public var userFlags: Flipcash_Account_V1_UserFlags {
-    get {return _storage._userFlags ?? Flipcash_Account_V1_UserFlags()}
-    set {_uniqueStorage()._userFlags = newValue}
+    get {return _userFlags ?? Flipcash_Account_V1_UserFlags()}
+    set {_userFlags = newValue}
   }
   /// Returns true if `userFlags` has been explicitly set.
-  public var hasUserFlags: Bool {return _storage._userFlags != nil}
+  public var hasUserFlags: Bool {return self._userFlags != nil}
   /// Clears the value of `userFlags`. Subsequent reads from it will return its default value.
-  public mutating func clearUserFlags() {_uniqueStorage()._userFlags = nil}
+  public mutating func clearUserFlags() {self._userFlags = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -312,7 +309,7 @@ public struct Flipcash_Account_V1_GetUserFlagsResponse: @unchecked Sendable {
 
   public init() {}
 
-  fileprivate var _storage = _StorageClass.defaultInstance
+  fileprivate var _userFlags: Flipcash_Account_V1_UserFlags? = nil
 }
 
 public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest: Sendable {
@@ -338,24 +335,21 @@ public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest: Sendable {
   fileprivate var _countryCode: Flipcash_Common_V1_CountryCode? = nil
 }
 
-public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: @unchecked Sendable {
+public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var result: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result {
-    get {return _storage._result}
-    set {_uniqueStorage()._result = newValue}
-  }
+  public var result: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result = .ok
 
   public var userFlags: Flipcash_Account_V1_UserFlags {
-    get {return _storage._userFlags ?? Flipcash_Account_V1_UserFlags()}
-    set {_uniqueStorage()._userFlags = newValue}
+    get {return _userFlags ?? Flipcash_Account_V1_UserFlags()}
+    set {_userFlags = newValue}
   }
   /// Returns true if `userFlags` has been explicitly set.
-  public var hasUserFlags: Bool {return _storage._userFlags != nil}
+  public var hasUserFlags: Bool {return self._userFlags != nil}
   /// Clears the value of `userFlags`. Subsequent reads from it will return its default value.
-  public mutating func clearUserFlags() {_uniqueStorage()._userFlags = nil}
+  public mutating func clearUserFlags() {self._userFlags = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -391,68 +385,116 @@ public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: @unchecke
 
   public init() {}
 
-  fileprivate var _storage = _StorageClass.defaultInstance
+  fileprivate var _userFlags: Flipcash_Account_V1_UserFlags? = nil
 }
 
-public struct Flipcash_Account_V1_UserFlags: Sendable {
+public struct Flipcash_Account_V1_UserFlags: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Is this a fully registered account using IAP for account creation?
-  public var isRegisteredAccount: Bool = false
+  public var isRegisteredAccount: Bool {
+    get {return _storage._isRegisteredAccount}
+    set {_uniqueStorage()._isRegisteredAccount = newValue}
+  }
 
   /// Is this user associated with a Flipcash staff member?
-  public var isStaff: Bool = false
+  public var isStaff: Bool {
+    get {return _storage._isStaff}
+    set {_uniqueStorage()._isStaff = newValue}
+  }
 
   /// Does this user require IAP for registration in the account creation flow?
-  public var requiresIapForRegistration: Bool = false
+  public var requiresIapForRegistration: Bool {
+    get {return _storage._requiresIapForRegistration}
+    set {_uniqueStorage()._requiresIapForRegistration = newValue}
+  }
 
   /// The set of supported on ramp providers for the user, based on their platform
   /// and locale if provided
-  public var supportedOnRampProviders: [Flipcash_Account_V1_UserFlags.OnRampProvider] = []
+  public var supportedOnRampProviders: [Flipcash_Account_V1_UserFlags.OnRampProvider] {
+    get {return _storage._supportedOnRampProviders}
+    set {_uniqueStorage()._supportedOnRampProviders = newValue}
+  }
 
   /// The preferred on ramp provider for this user. If the value is UNKNOWN, client
   /// should show the list of all supported providers.
-  public var preferredOnRampProvider: Flipcash_Account_V1_UserFlags.OnRampProvider = .unknownOnRampProvider
+  public var preferredOnRampProvider: Flipcash_Account_V1_UserFlags.OnRampProvider {
+    get {return _storage._preferredOnRampProvider}
+    set {_uniqueStorage()._preferredOnRampProvider = newValue}
+  }
 
   /// The minumum build number for this user. If their build number is less than the
   /// provided value, client should show a forced upgrade screen.
-  public var minBuildNumber: UInt32 = 0
+  public var minBuildNumber: UInt32 {
+    get {return _storage._minBuildNumber}
+    set {_uniqueStorage()._minBuildNumber = newValue}
+  }
 
   /// Exchange data timeout for sequential give/grabs for bills
   public var billExchangeDataTimeout: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _billExchangeDataTimeout ?? SwiftProtobuf.Google_Protobuf_Duration()}
-    set {_billExchangeDataTimeout = newValue}
+    get {return _storage._billExchangeDataTimeout ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_uniqueStorage()._billExchangeDataTimeout = newValue}
   }
   /// Returns true if `billExchangeDataTimeout` has been explicitly set.
-  public var hasBillExchangeDataTimeout: Bool {return self._billExchangeDataTimeout != nil}
+  public var hasBillExchangeDataTimeout: Bool {return _storage._billExchangeDataTimeout != nil}
   /// Clears the value of `billExchangeDataTimeout`. Subsequent reads from it will return its default value.
-  public mutating func clearBillExchangeDataTimeout() {self._billExchangeDataTimeout = nil}
+  public mutating func clearBillExchangeDataTimeout() {_uniqueStorage()._billExchangeDataTimeout = nil}
 
   /// USDF amount, in quarks, that must be purchased when launching a new currency
-  public var newCurrencyPurchaseAmount: UInt64 = 0
+  public var newCurrencyPurchaseAmount: UInt64 {
+    get {return _storage._newCurrencyPurchaseAmount}
+    set {_uniqueStorage()._newCurrencyPurchaseAmount = newValue}
+  }
 
   /// USDF amount, in quarks, that must be paid in a fee when launching a new currency
-  public var newCurrencyFeeAmount: UInt64 = 0
+  public var newCurrencyFeeAmount: UInt64 {
+    get {return _storage._newCurrencyFeeAmount}
+    set {_uniqueStorage()._newCurrencyFeeAmount = newValue}
+  }
 
   /// USDF amount, in quarks, that must be paid when doing a withdrawal
-  public var withdrawalFeeAmount: UInt64 = 0
+  public var withdrawalFeeAmount: UInt64 {
+    get {return _storage._withdrawalFeeAmount}
+    set {_uniqueStorage()._withdrawalFeeAmount = newValue}
+  }
 
   /// The preferred USDC liquidity pool for external wallet on ramp flows
-  public var preferredOnRampUsdcLiquidityPool: Flipcash_Account_V1_UserFlags.UsdcLiquidityPool = .unknownUsdcLiquidityPool
+  public var preferredOnRampUsdcLiquidityPool: Flipcash_Account_V1_UserFlags.UsdcLiquidityPool {
+    get {return _storage._preferredOnRampUsdcLiquidityPool}
+    set {_uniqueStorage()._preferredOnRampUsdcLiquidityPool = newValue}
+  }
 
   /// Whether the send by phone number feature is enabled
-  public var enablePhoneNumberSend: Bool = false
+  public var enablePhoneNumberSend: Bool {
+    get {return _storage._enablePhoneNumberSend}
+    set {_uniqueStorage()._enablePhoneNumberSend = newValue}
+  }
 
   /// USDF amount, in quarks, that a user must hold to be counted as a holder on the leaderboard
-  public var minimumHolderValue: UInt64 = 0
+  public var minimumHolderValue: UInt64 {
+    get {return _storage._minimumHolderValue}
+    set {_uniqueStorage()._minimumHolderValue = newValue}
+  }
 
   /// Whether email verification is required for Coinbase purchase flows
-  public var requireCoinbaseEmailVerification: Bool = false
+  public var requireCoinbaseEmailVerification: Bool {
+    get {return _storage._requireCoinbaseEmailVerification}
+    set {_uniqueStorage()._requireCoinbaseEmailVerification = newValue}
+  }
 
   /// Tip presets for all currencies
-  public var tipPresets: [Flipcash_Account_V1_TipPresets] = []
+  public var tipPresets: [Flipcash_Account_V1_TipPresets] {
+    get {return _storage._tipPresets}
+    set {_uniqueStorage()._tipPresets = newValue}
+  }
+
+  /// USDF amount, in quarks, that must be held across all currencies in order to set a username
+  public var usernameMinBalance: UInt64 {
+    get {return _storage._usernameMinBalance}
+    set {_uniqueStorage()._usernameMinBalance = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -558,7 +600,7 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
 
   public init() {}
 
-  fileprivate var _billExchangeDataTimeout: SwiftProtobuf.Google_Protobuf_Duration? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public struct Flipcash_Account_V1_TipPresets: Sendable {
@@ -811,74 +853,36 @@ extension Flipcash_Account_V1_GetUserFlagsResponse: SwiftProtobuf.Message, Swift
   public static let protoMessageName: String = _protobuf_package + ".GetUserFlagsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}user_flags\0")
 
-  fileprivate class _StorageClass {
-    var _result: Flipcash_Account_V1_GetUserFlagsResponse.Result = .ok
-    var _userFlags: Flipcash_Account_V1_UserFlags? = nil
-
-      // This property is used as the initial default value for new instances of the type.
-      // The type itself is protecting the reference to its storage via CoW semantics.
-      // This will force a copy to be made of this reference when the first mutation occurs;
-      // hence, it is safe to mark this as `nonisolated(unsafe)`.
-      static nonisolated(unsafe) let defaultInstance = _StorageClass()
-
-    private init() {}
-
-    init(copying source: _StorageClass) {
-      _result = source._result
-      _userFlags = source._userFlags
-    }
-  }
-
-  fileprivate mutating func _uniqueStorage() -> _StorageClass {
-    if !isKnownUniquelyReferenced(&_storage) {
-      _storage = _StorageClass(copying: _storage)
-    }
-    return _storage
-  }
-
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    _ = _uniqueStorage()
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      while let fieldNumber = try decoder.nextFieldNumber() {
-        // The use of inline closures is to circumvent an issue where the compiler
-        // allocates stack space for every case branch when no optimizations are
-        // enabled. https://github.com/apple/swift-protobuf/issues/1034
-        switch fieldNumber {
-        case 1: try { try decoder.decodeSingularEnumField(value: &_storage._result) }()
-        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._userFlags) }()
-        default: break
-        }
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._userFlags) }()
+      default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every if/case branch local when no optimizations
-      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-      // https://github.com/apple/swift-protobuf/issues/1182
-      if _storage._result != .ok {
-        try visitor.visitSingularEnumField(value: _storage._result, fieldNumber: 1)
-      }
-      try { if let v = _storage._userFlags {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-      } }()
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
     }
+    try { if let v = self._userFlags {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Account_V1_GetUserFlagsResponse, rhs: Flipcash_Account_V1_GetUserFlagsResponse) -> Bool {
-    if lhs._storage !== rhs._storage {
-      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
-        let _storage = _args.0
-        let rhs_storage = _args.1
-        if _storage._result != rhs_storage._result {return false}
-        if _storage._userFlags != rhs_storage._userFlags {return false}
-        return true
-      }
-      if !storagesAreEqual {return false}
-    }
+    if lhs.result != rhs.result {return false}
+    if lhs._userFlags != rhs._userFlags {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -931,9 +935,66 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: SwiftProtobuf
   public static let protoMessageName: String = _protobuf_package + ".GetUnauthenticatedUserFlagsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}user_flags\0")
 
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._userFlags) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try { if let v = self._userFlags {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse, rhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs._userFlags != rhs._userFlags {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0")
+}
+
+extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UserFlags"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0\u{3}withdrawal_fee_amount\0\u{3}preferred_on_ramp_usdc_liquidity_pool\0\u{3}enable_phone_number_send\0\u{3}minimum_holder_value\0\u{3}require_coinbase_email_verification\0\u{3}tip_presets\0\u{3}username_min_balance\0")
+
   fileprivate class _StorageClass {
-    var _result: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result = .ok
-    var _userFlags: Flipcash_Account_V1_UserFlags? = nil
+    var _isRegisteredAccount: Bool = false
+    var _isStaff: Bool = false
+    var _requiresIapForRegistration: Bool = false
+    var _supportedOnRampProviders: [Flipcash_Account_V1_UserFlags.OnRampProvider] = []
+    var _preferredOnRampProvider: Flipcash_Account_V1_UserFlags.OnRampProvider = .unknownOnRampProvider
+    var _minBuildNumber: UInt32 = 0
+    var _billExchangeDataTimeout: SwiftProtobuf.Google_Protobuf_Duration? = nil
+    var _newCurrencyPurchaseAmount: UInt64 = 0
+    var _newCurrencyFeeAmount: UInt64 = 0
+    var _withdrawalFeeAmount: UInt64 = 0
+    var _preferredOnRampUsdcLiquidityPool: Flipcash_Account_V1_UserFlags.UsdcLiquidityPool = .unknownUsdcLiquidityPool
+    var _enablePhoneNumberSend: Bool = false
+    var _minimumHolderValue: UInt64 = 0
+    var _requireCoinbaseEmailVerification: Bool = false
+    var _tipPresets: [Flipcash_Account_V1_TipPresets] = []
+    var _usernameMinBalance: UInt64 = 0
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -944,8 +1005,22 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: SwiftProtobuf
     private init() {}
 
     init(copying source: _StorageClass) {
-      _result = source._result
-      _userFlags = source._userFlags
+      _isRegisteredAccount = source._isRegisteredAccount
+      _isStaff = source._isStaff
+      _requiresIapForRegistration = source._requiresIapForRegistration
+      _supportedOnRampProviders = source._supportedOnRampProviders
+      _preferredOnRampProvider = source._preferredOnRampProvider
+      _minBuildNumber = source._minBuildNumber
+      _billExchangeDataTimeout = source._billExchangeDataTimeout
+      _newCurrencyPurchaseAmount = source._newCurrencyPurchaseAmount
+      _newCurrencyFeeAmount = source._newCurrencyFeeAmount
+      _withdrawalFeeAmount = source._withdrawalFeeAmount
+      _preferredOnRampUsdcLiquidityPool = source._preferredOnRampUsdcLiquidityPool
+      _enablePhoneNumberSend = source._enablePhoneNumberSend
+      _minimumHolderValue = source._minimumHolderValue
+      _requireCoinbaseEmailVerification = source._requireCoinbaseEmailVerification
+      _tipPresets = source._tipPresets
+      _usernameMinBalance = source._usernameMinBalance
     }
   }
 
@@ -964,8 +1039,22 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: SwiftProtobuf
         // allocates stack space for every case branch when no optimizations are
         // enabled. https://github.com/apple/swift-protobuf/issues/1034
         switch fieldNumber {
-        case 1: try { try decoder.decodeSingularEnumField(value: &_storage._result) }()
-        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._userFlags) }()
+        case 1: try { try decoder.decodeSingularBoolField(value: &_storage._isRegisteredAccount) }()
+        case 2: try { try decoder.decodeSingularBoolField(value: &_storage._isStaff) }()
+        case 3: try { try decoder.decodeSingularBoolField(value: &_storage._requiresIapForRegistration) }()
+        case 4: try { try decoder.decodeRepeatedEnumField(value: &_storage._supportedOnRampProviders) }()
+        case 5: try { try decoder.decodeSingularEnumField(value: &_storage._preferredOnRampProvider) }()
+        case 6: try { try decoder.decodeSingularUInt32Field(value: &_storage._minBuildNumber) }()
+        case 7: try { try decoder.decodeSingularMessageField(value: &_storage._billExchangeDataTimeout) }()
+        case 8: try { try decoder.decodeSingularUInt64Field(value: &_storage._newCurrencyPurchaseAmount) }()
+        case 9: try { try decoder.decodeSingularUInt64Field(value: &_storage._newCurrencyFeeAmount) }()
+        case 10: try { try decoder.decodeSingularUInt64Field(value: &_storage._withdrawalFeeAmount) }()
+        case 11: try { try decoder.decodeSingularEnumField(value: &_storage._preferredOnRampUsdcLiquidityPool) }()
+        case 12: try { try decoder.decodeSingularBoolField(value: &_storage._enablePhoneNumberSend) }()
+        case 13: try { try decoder.decodeSingularUInt64Field(value: &_storage._minimumHolderValue) }()
+        case 14: try { try decoder.decodeSingularBoolField(value: &_storage._requireCoinbaseEmailVerification) }()
+        case 15: try { try decoder.decodeRepeatedMessageField(value: &_storage._tipPresets) }()
+        case 16: try { try decoder.decodeSingularUInt64Field(value: &_storage._usernameMinBalance) }()
         default: break
         }
       }
@@ -978,135 +1067,83 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: SwiftProtobuf
       // allocates stack space for every if/case branch local when no optimizations
       // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
       // https://github.com/apple/swift-protobuf/issues/1182
-      if _storage._result != .ok {
-        try visitor.visitSingularEnumField(value: _storage._result, fieldNumber: 1)
+      if _storage._isRegisteredAccount != false {
+        try visitor.visitSingularBoolField(value: _storage._isRegisteredAccount, fieldNumber: 1)
       }
-      try { if let v = _storage._userFlags {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      if _storage._isStaff != false {
+        try visitor.visitSingularBoolField(value: _storage._isStaff, fieldNumber: 2)
+      }
+      if _storage._requiresIapForRegistration != false {
+        try visitor.visitSingularBoolField(value: _storage._requiresIapForRegistration, fieldNumber: 3)
+      }
+      if !_storage._supportedOnRampProviders.isEmpty {
+        try visitor.visitPackedEnumField(value: _storage._supportedOnRampProviders, fieldNumber: 4)
+      }
+      if _storage._preferredOnRampProvider != .unknownOnRampProvider {
+        try visitor.visitSingularEnumField(value: _storage._preferredOnRampProvider, fieldNumber: 5)
+      }
+      if _storage._minBuildNumber != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._minBuildNumber, fieldNumber: 6)
+      }
+      try { if let v = _storage._billExchangeDataTimeout {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
       } }()
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse, rhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse) -> Bool {
-    if lhs._storage !== rhs._storage {
-      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
-        let _storage = _args.0
-        let rhs_storage = _args.1
-        if _storage._result != rhs_storage._result {return false}
-        if _storage._userFlags != rhs_storage._userFlags {return false}
-        return true
+      if _storage._newCurrencyPurchaseAmount != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._newCurrencyPurchaseAmount, fieldNumber: 8)
       }
-      if !storagesAreEqual {return false}
-    }
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0")
-}
-
-extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".UserFlags"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0\u{3}withdrawal_fee_amount\0\u{3}preferred_on_ramp_usdc_liquidity_pool\0\u{3}enable_phone_number_send\0\u{3}minimum_holder_value\0\u{3}require_coinbase_email_verification\0\u{3}tip_presets\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBoolField(value: &self.isRegisteredAccount) }()
-      case 2: try { try decoder.decodeSingularBoolField(value: &self.isStaff) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.requiresIapForRegistration) }()
-      case 4: try { try decoder.decodeRepeatedEnumField(value: &self.supportedOnRampProviders) }()
-      case 5: try { try decoder.decodeSingularEnumField(value: &self.preferredOnRampProvider) }()
-      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.minBuildNumber) }()
-      case 7: try { try decoder.decodeSingularMessageField(value: &self._billExchangeDataTimeout) }()
-      case 8: try { try decoder.decodeSingularUInt64Field(value: &self.newCurrencyPurchaseAmount) }()
-      case 9: try { try decoder.decodeSingularUInt64Field(value: &self.newCurrencyFeeAmount) }()
-      case 10: try { try decoder.decodeSingularUInt64Field(value: &self.withdrawalFeeAmount) }()
-      case 11: try { try decoder.decodeSingularEnumField(value: &self.preferredOnRampUsdcLiquidityPool) }()
-      case 12: try { try decoder.decodeSingularBoolField(value: &self.enablePhoneNumberSend) }()
-      case 13: try { try decoder.decodeSingularUInt64Field(value: &self.minimumHolderValue) }()
-      case 14: try { try decoder.decodeSingularBoolField(value: &self.requireCoinbaseEmailVerification) }()
-      case 15: try { try decoder.decodeRepeatedMessageField(value: &self.tipPresets) }()
-      default: break
+      if _storage._newCurrencyFeeAmount != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._newCurrencyFeeAmount, fieldNumber: 9)
       }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.isRegisteredAccount != false {
-      try visitor.visitSingularBoolField(value: self.isRegisteredAccount, fieldNumber: 1)
-    }
-    if self.isStaff != false {
-      try visitor.visitSingularBoolField(value: self.isStaff, fieldNumber: 2)
-    }
-    if self.requiresIapForRegistration != false {
-      try visitor.visitSingularBoolField(value: self.requiresIapForRegistration, fieldNumber: 3)
-    }
-    if !self.supportedOnRampProviders.isEmpty {
-      try visitor.visitPackedEnumField(value: self.supportedOnRampProviders, fieldNumber: 4)
-    }
-    if self.preferredOnRampProvider != .unknownOnRampProvider {
-      try visitor.visitSingularEnumField(value: self.preferredOnRampProvider, fieldNumber: 5)
-    }
-    if self.minBuildNumber != 0 {
-      try visitor.visitSingularUInt32Field(value: self.minBuildNumber, fieldNumber: 6)
-    }
-    try { if let v = self._billExchangeDataTimeout {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
-    } }()
-    if self.newCurrencyPurchaseAmount != 0 {
-      try visitor.visitSingularUInt64Field(value: self.newCurrencyPurchaseAmount, fieldNumber: 8)
-    }
-    if self.newCurrencyFeeAmount != 0 {
-      try visitor.visitSingularUInt64Field(value: self.newCurrencyFeeAmount, fieldNumber: 9)
-    }
-    if self.withdrawalFeeAmount != 0 {
-      try visitor.visitSingularUInt64Field(value: self.withdrawalFeeAmount, fieldNumber: 10)
-    }
-    if self.preferredOnRampUsdcLiquidityPool != .unknownUsdcLiquidityPool {
-      try visitor.visitSingularEnumField(value: self.preferredOnRampUsdcLiquidityPool, fieldNumber: 11)
-    }
-    if self.enablePhoneNumberSend != false {
-      try visitor.visitSingularBoolField(value: self.enablePhoneNumberSend, fieldNumber: 12)
-    }
-    if self.minimumHolderValue != 0 {
-      try visitor.visitSingularUInt64Field(value: self.minimumHolderValue, fieldNumber: 13)
-    }
-    if self.requireCoinbaseEmailVerification != false {
-      try visitor.visitSingularBoolField(value: self.requireCoinbaseEmailVerification, fieldNumber: 14)
-    }
-    if !self.tipPresets.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.tipPresets, fieldNumber: 15)
+      if _storage._withdrawalFeeAmount != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._withdrawalFeeAmount, fieldNumber: 10)
+      }
+      if _storage._preferredOnRampUsdcLiquidityPool != .unknownUsdcLiquidityPool {
+        try visitor.visitSingularEnumField(value: _storage._preferredOnRampUsdcLiquidityPool, fieldNumber: 11)
+      }
+      if _storage._enablePhoneNumberSend != false {
+        try visitor.visitSingularBoolField(value: _storage._enablePhoneNumberSend, fieldNumber: 12)
+      }
+      if _storage._minimumHolderValue != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._minimumHolderValue, fieldNumber: 13)
+      }
+      if _storage._requireCoinbaseEmailVerification != false {
+        try visitor.visitSingularBoolField(value: _storage._requireCoinbaseEmailVerification, fieldNumber: 14)
+      }
+      if !_storage._tipPresets.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._tipPresets, fieldNumber: 15)
+      }
+      if _storage._usernameMinBalance != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._usernameMinBalance, fieldNumber: 16)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Account_V1_UserFlags, rhs: Flipcash_Account_V1_UserFlags) -> Bool {
-    if lhs.isRegisteredAccount != rhs.isRegisteredAccount {return false}
-    if lhs.isStaff != rhs.isStaff {return false}
-    if lhs.requiresIapForRegistration != rhs.requiresIapForRegistration {return false}
-    if lhs.supportedOnRampProviders != rhs.supportedOnRampProviders {return false}
-    if lhs.preferredOnRampProvider != rhs.preferredOnRampProvider {return false}
-    if lhs.minBuildNumber != rhs.minBuildNumber {return false}
-    if lhs._billExchangeDataTimeout != rhs._billExchangeDataTimeout {return false}
-    if lhs.newCurrencyPurchaseAmount != rhs.newCurrencyPurchaseAmount {return false}
-    if lhs.newCurrencyFeeAmount != rhs.newCurrencyFeeAmount {return false}
-    if lhs.withdrawalFeeAmount != rhs.withdrawalFeeAmount {return false}
-    if lhs.preferredOnRampUsdcLiquidityPool != rhs.preferredOnRampUsdcLiquidityPool {return false}
-    if lhs.enablePhoneNumberSend != rhs.enablePhoneNumberSend {return false}
-    if lhs.minimumHolderValue != rhs.minimumHolderValue {return false}
-    if lhs.requireCoinbaseEmailVerification != rhs.requireCoinbaseEmailVerification {return false}
-    if lhs.tipPresets != rhs.tipPresets {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._isRegisteredAccount != rhs_storage._isRegisteredAccount {return false}
+        if _storage._isStaff != rhs_storage._isStaff {return false}
+        if _storage._requiresIapForRegistration != rhs_storage._requiresIapForRegistration {return false}
+        if _storage._supportedOnRampProviders != rhs_storage._supportedOnRampProviders {return false}
+        if _storage._preferredOnRampProvider != rhs_storage._preferredOnRampProvider {return false}
+        if _storage._minBuildNumber != rhs_storage._minBuildNumber {return false}
+        if _storage._billExchangeDataTimeout != rhs_storage._billExchangeDataTimeout {return false}
+        if _storage._newCurrencyPurchaseAmount != rhs_storage._newCurrencyPurchaseAmount {return false}
+        if _storage._newCurrencyFeeAmount != rhs_storage._newCurrencyFeeAmount {return false}
+        if _storage._withdrawalFeeAmount != rhs_storage._withdrawalFeeAmount {return false}
+        if _storage._preferredOnRampUsdcLiquidityPool != rhs_storage._preferredOnRampUsdcLiquidityPool {return false}
+        if _storage._enablePhoneNumberSend != rhs_storage._enablePhoneNumberSend {return false}
+        if _storage._minimumHolderValue != rhs_storage._minimumHolderValue {return false}
+        if _storage._requireCoinbaseEmailVerification != rhs_storage._requireCoinbaseEmailVerification {return false}
+        if _storage._tipPresets != rhs_storage._tipPresets {return false}
+        if _storage._usernameMinBalance != rhs_storage._usernameMinBalance {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
