@@ -683,7 +683,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -724,7 +724,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -761,7 +761,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -797,7 +797,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -837,7 +837,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1017,7 +1017,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1072,7 +1072,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1123,7 +1123,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1173,7 +1173,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1550,7 +1550,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1587,7 +1587,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1623,7 +1623,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.8.3;
+				MARKETING_VERSION = 2026.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
