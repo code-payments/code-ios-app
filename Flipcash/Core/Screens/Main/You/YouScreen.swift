@@ -16,6 +16,8 @@ import FlipcashUI
 /// under it slides out, the tab bar hides, and the card grows into the middle of
 /// the screen with a close button at the bottom. The page owns that transition —
 /// nothing is pushed or presented — so the card never leaves this screen.
+/// Pulling the expanded card up walks it back to its slot under the finger, so
+/// it can be put away without reaching for the close button.
 /// Settings rows push onto the tab's `.you` stack, so they never touch the v1
 /// scanner's Settings sheet.
 ///
@@ -44,6 +46,10 @@ struct YouScreen: View {
     /// sits before it travels to the middle of the screen.
     @State private var cardSlotFrame: CGRect = .zero
 
+    /// The live pull on the expanded card, negative upward — the card's travel
+    /// home, scrubbed by hand until the finger lets go.
+    @State private var dragTranslation: CGFloat = 0
+
     /// The on-screen card width, from the Figma placement: node 9276:4641 draws
     /// the You card 241.6 wide.
     private static let cardWidth: CGFloat = 242
@@ -54,6 +60,26 @@ struct YouScreen: View {
     private static let horizontalInset: CGFloat = 20
 
     private static let expansion: Animation = .spring(response: 0.45, dampingFraction: 0.85)
+
+    /// Puts a pull that fell short back where it started. Shorter than
+    /// `expansion` — the card has barely moved, and a long settle reads as a stall.
+    private static let settle: Animation = .spring(response: 0.3, dampingFraction: 0.85)
+
+    /// How much of the card's travel home a pull has to cover to finish the job.
+    private static let collapseThreshold: CGFloat = 0.3
+
+    /// How much of that travel a flick has to project onto instead — a short,
+    /// fast swipe closes the card even though it never covered the distance.
+    private static let flickThreshold: CGFloat = 0.75
+
+    /// The fraction of a downward drag the card follows. Down is where expanding
+    /// already put the card, so the pull has nowhere to take it and gives only
+    /// enough to show the drag is being felt.
+    private static let overdragResistance: CGFloat = 0.25
+
+    /// The slack the drag recogniser swallows before it fires, handed back so
+    /// the card picks up from where it stands instead of jumping that distance.
+    private static let dragActivationSlack: CGFloat = 10
 
     private let rowInsets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
@@ -71,6 +97,11 @@ struct YouScreen: View {
                             // `HomeTabView` hides on the same state. Opacity and
                             // offset (not removal) keep the layout stable so
                             // nothing reflows on the way back.
+                            //
+                            // Bound to the card being expanded, not to how far a
+                            // pull has taken it back: the card is translucent and
+                            // sits over this content until it is nearly home, so
+                            // anything faded in under way shows through it.
                             .opacity(isExpanded ? 0 : 1)
                             .offset(y: isExpanded ? 60 : 0)
                             .allowsHitTesting(!isExpanded)
@@ -82,8 +113,14 @@ struct YouScreen: View {
                 if isExpanded {
                     closeButton
                         .transition(.opacity)
+                        .opacity(1 - collapseProgress)
                 }
             }
+            // On the whole page rather than the card: expanded, the card is the
+            // page, and a pull that has to land on it exactly is a pull that
+            // misses. Nothing here scrolls while the card is up, so there is no
+            // scroll for the drag to fight.
+            .simultaneousGesture(collapseDrag, isEnabled: isExpanded)
         }
         .sheet(isPresented: $isShowingDownloadOptions, onDismiss: exportPendingDownload) {
             TipCardDownloadSheet(
@@ -136,6 +173,9 @@ struct YouScreen: View {
                     }
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { cardSlotFrame = $0 }
 
+                // Sits directly under the card, which covers it until the very
+                // end of the pull — so it waits for the card to be home rather
+                // than fading in through it.
                 Self.caption("Full Screen", pointsUp: false)
                     .opacity(isExpanded ? 0 : 1)
             }
@@ -365,7 +405,11 @@ struct YouScreen: View {
     /// at all — so the parts arrived at their new sizes at different moments
     /// and overlapped mid-flight. Scaled, the card travels as one figure.
     private var cardScale: CGFloat {
-        (isExpanded ? expandedCardWidth : Self.cardWidth) / Self.drawnCardSize.width
+        guard isExpanded else { return Self.cardWidth / Self.drawnCardSize.width }
+        // Mid-pull the card sits between its two widths, in step with everything
+        // else the pull drives.
+        let width = expandedCardWidth + (Self.cardWidth - expandedCardWidth) * collapseProgress
+        return width / Self.drawnCardSize.width
     }
 
     /// The expanded width: the design's 302, narrowed only if the screen can't
@@ -383,14 +427,69 @@ struct YouScreen: View {
         UIApplication.shared.firstWindowScene?.screen.bounds ?? .zero
     }
 
-    /// How far the card moves to sit in the middle of the screen — the gap
-    /// between its slot's centre and the screen's.
-    private var cardOffset: CGFloat {
-        guard isExpanded, !cardSlotFrame.isEmpty, !screenBounds.isEmpty else { return 0 }
+    /// The gap between the card's slot's centre and the screen's: how far the
+    /// card moves to sit in the middle of the screen, and so how far a pull has
+    /// to bring it back.
+    private var expandedTravel: CGFloat {
+        guard !cardSlotFrame.isEmpty, !screenBounds.isEmpty else { return 0 }
         return screenBounds.midY - cardSlotFrame.midY
     }
 
+    /// How far the card currently sits from its slot.
+    private var cardOffset: CGFloat {
+        guard isExpanded else { return 0 }
+        return expandedTravel * (1 - collapseProgress) + overdrag
+    }
+
+    /// How far a downward drag pushes the card past its expanded resting place.
+    private var overdrag: CGFloat {
+        max(0, dragTranslation) * Self.overdragResistance
+    }
+
+    /// How far the pull has taken the card back toward its slot: 0 where
+    /// expanding left it, 1 once it is home. The card's place, its size and the
+    /// close control all read it, so they run backwards under the finger and
+    /// hold wherever the finger holds.
+    private var collapseProgress: CGFloat {
+        guard isExpanded, dragTranslation < 0, expandedTravel > 0 else { return 0 }
+        return min(1, -dragTranslation / expandedTravel)
+    }
+
     // MARK: - Actions -
+
+    /// Puts the expanded card back by pulling it toward its slot — upward,
+    /// where the card came from and where the "Close" chevron points. The card
+    /// shrinks back along its travel under the finger, the close control fading
+    /// with it, and lets go once the pull has covered enough of the way home or
+    /// flicked hard enough to have got there. A downward pull, which has nowhere
+    /// to take the card, is met with resistance instead.
+    private var collapseDrag: some Gesture {
+        DragGesture(minimumDistance: Self.dragActivationSlack)
+            .onChanged { drag in
+                let translation = drag.translation.height
+                dragTranslation = translation < 0
+                    ? min(0, translation + Self.dragActivationSlack)
+                    : max(0, translation - Self.dragActivationSlack)
+            }
+            .onEnded(endCollapseDrag)
+    }
+
+    private func endCollapseDrag(_ drag: DragGesture.Value) {
+        let travel = expandedTravel
+        let closes = travel > 0 && (
+            -dragTranslation >= travel * Self.collapseThreshold
+            || -drag.predictedEndTranslation.height >= travel * Self.flickThreshold
+        )
+
+        withAnimation(closes ? Self.expansion : Self.settle) {
+            // Cleared in the same transaction as the collapse it may carry, so
+            // the card carries on from where the finger left it either way.
+            dragTranslation = 0
+            if closes {
+                presentation.collapse()
+            }
+        }
+    }
 
     private func toggleExpanded() {
         withAnimation(Self.expansion) {
