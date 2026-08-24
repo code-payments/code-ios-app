@@ -27,6 +27,32 @@ struct YouTabRoutingTests {
         #expect(router[.settings].isEmpty) // never leaks onto the Settings sheet's stack
     }
 
+    @Test("a self tipcard link brings the You tab forward at its root")
+    func showOwnTipCard_inTabUI_selectsYouTabAtRoot() {
+        let router = AppRouter()
+        router.tabStacks = [.balance, .tips, .you]
+        // Drilled into My Account behind a sheet — where a self link can land.
+        router.setPath([.settingsMyAccount], on: .you)
+        router.present(.settings)
+
+        router.showOwnTipCard()
+
+        #expect(router.requestedTabStack == .you)
+        #expect(router.presentedSheet == nil)
+        #expect(router[.you].isEmpty) // the card itself, not a pushed screen
+    }
+
+    @Test("without the tab UI, a self tipcard link opens My Tip Card in the tips sheet")
+    func showOwnTipCard_withoutTabs_navigatesToTipcard() {
+        let router = AppRouter()
+
+        router.showOwnTipCard()
+
+        #expect(router.presentedSheet == .tips)
+        #expect(router[.tips] == AppRouter.navigationPath(.tipcard))
+        #expect(router.requestedTabStack == nil)
+    }
+
     @Test("changing the display name pushes onto the You tab, and saving pops back")
     func changeDisplayName_pushesAndPopsOnYouStack() {
         let router = AppRouter()
