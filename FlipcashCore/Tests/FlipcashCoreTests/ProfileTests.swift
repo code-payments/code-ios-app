@@ -7,7 +7,8 @@
 
 import Foundation
 import Testing
-import FlipcashCore
+import FlipcashAPI
+@testable import FlipcashCore
 
 @Suite("Profile Tests")
 struct ProfileTests {
@@ -157,6 +158,77 @@ struct ProfileTests {
 
         #expect(profile.displayName == "Ted Livingston")
         #expect(profile.tipCardCustomization == nil)
+    }
+
+    // MARK: - Username -
+
+    @Test("Username round-trips")
+    func usernameRoundTrips() throws {
+        let profile = Profile(
+            displayName: "Ted",
+            phone: Optional<Phone>.none,
+            email: nil,
+            username: Username("ted_1")
+        )
+
+        let restored = try JSONDecoder().decode(
+            Profile.self,
+            from: try JSONEncoder().encode(profile)
+        )
+
+        #expect(restored.username?.value == "ted_1")
+    }
+
+    /// Profiles persist as a JSON blob, so `username` is optional and rows
+    /// written before it still decode — which is why this ships without a
+    /// `SQLiteVersion` bump.
+    @Test("A row persisted before usernames still decodes")
+    func decodesProfilePersistedBeforeUsernames() throws {
+        let legacy = Data(#"{"displayName":"Ted Livingston","email":"ted@example.com"}"#.utf8)
+
+        let profile = try JSONDecoder().decode(Profile.self, from: legacy)
+
+        #expect(profile.displayName == "Ted Livingston")
+        #expect(profile.username == nil)
+    }
+
+    /// The field is public, so it arrives on any profile the client fetches —
+    /// not just the caller's own.
+    @Test("A username on the proto maps onto the profile")
+    func mapsUsernameFromProto() throws {
+        let proto = Flipcash_Profile_V1_UserProfile.with {
+            $0.displayName = "Ted"
+            $0.username = .with { $0.value = "ted_1" }
+        }
+
+        #expect(try Profile(proto).username?.value == "ted_1")
+    }
+
+    /// Always set by the server, so a caller that looked the profile up by
+    /// handle learns the user's id from the response.
+    @Test("A user id on the proto maps onto the profile")
+    func mapsUserIDFromProto() throws {
+        let userID = UUID()
+        let proto = Flipcash_Profile_V1_UserProfile.with {
+            $0.displayName = "Ted"
+            $0.userID = .with { $0.value = userID.data }
+        }
+
+        #expect(try Profile(proto).userID == userID)
+    }
+
+    @Test("A profile without a user id maps to nil")
+    func mapsMissingUserIDToNil() throws {
+        let proto = Flipcash_Profile_V1_UserProfile.with { $0.displayName = "Ted" }
+
+        #expect(try Profile(proto).userID == nil)
+    }
+
+    @Test("A profile without a claimed username maps to nil")
+    func mapsUnclaimedUsernameToNil() throws {
+        let proto = Flipcash_Profile_V1_UserProfile.with { $0.displayName = "Ted" }
+
+        #expect(try Profile(proto).username == nil)
     }
 }
 

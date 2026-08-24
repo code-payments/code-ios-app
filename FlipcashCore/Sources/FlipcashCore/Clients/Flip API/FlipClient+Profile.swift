@@ -10,8 +10,18 @@ import Foundation
 extension FlipClient {
     
     public func fetchProfile(userID: UserID, owner: KeyPair) async throws -> Profile {
+        try await fetchProfile(.userID(userID), owner: owner)
+    }
+
+    /// Fetches the profile behind a claimed handle. The response carries the
+    /// user's id, so a caller holding only a handle learns it from the result.
+    public func fetchProfile(username: Username, owner: KeyPair) async throws -> Profile {
+        try await fetchProfile(.username(username), owner: owner)
+    }
+
+    private func fetchProfile(_ identifier: ProfileIdentifier, owner: KeyPair) async throws -> Profile {
         try await withCheckedThrowingContinuation { c in
-            profileService.fetchProfile(userID: userID, owner: owner) { c.resume(with: $0) }
+            profileService.fetchProfile(identifier, owner: owner) { c.resume(with: $0) }
         }
     }
 
