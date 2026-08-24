@@ -21,10 +21,16 @@ struct HomeTabBar: View {
 
     // Figma tab bar (node 8966:1557): 32pt icons in 50pt-tall items (9pt above
     // and below), inside a capsule with 4pt padding → 58pt overall.
-    private let itemVerticalPadding: CGFloat = 9
-    private let iconSize: CGFloat = 32
+    private static let itemVerticalPadding: CGFloat = 9
+    private static let iconSize: CGFloat = 32
+    private static let capsulePadding: CGFloat = 4
 
-    private var itemHeight: CGFloat { iconSize + itemVerticalPadding * 2 }
+    private static var itemHeight: CGFloat { iconSize + itemVerticalPadding * 2 }
+
+    /// The pill's overall height. It floats over the tab content instead of
+    /// sitting in the safe area, so a tab that scrolls has to leave room for it
+    /// itself — see ``HomeTabView/legacyPillClearance``.
+    static var height: CGFloat { itemHeight + capsulePadding * 2 }
 
     var body: some View {
         GeometryReader { proxy in
@@ -35,7 +41,7 @@ struct HomeTabBar: View {
                 // Selected-state pill, drawn behind the icons, sliding to the active tab.
                 Capsule()
                     .fill(Color.white.opacity(0.2))
-                    .frame(width: itemWidth, height: itemHeight)
+                    .frame(width: itemWidth, height: Self.itemHeight)
                     .offset(x: itemWidth * CGFloat(selectedIndex))
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: selection)
 
@@ -48,7 +54,7 @@ struct HomeTabBar: View {
                                 .renderingMode(.template)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: iconSize, height: iconSize)
+                                .frame(width: Self.iconSize, height: Self.iconSize)
                                 .foregroundStyle(Color.white)
                                 .opacity(selection == tab ? 1 : 0.5)
                                 .overlay(alignment: .topTrailing) {
@@ -66,7 +72,7 @@ struct HomeTabBar: View {
                                         .accessibilityHidden(true)
                                     }
                                 }
-                                .frame(width: itemWidth, height: itemHeight)
+                                .frame(width: itemWidth, height: Self.itemHeight)
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
@@ -77,8 +83,8 @@ struct HomeTabBar: View {
                 }
             }
         }
-        .frame(height: itemHeight)
-        .padding(4)
+        .frame(height: Self.itemHeight)
+        .padding(Self.capsulePadding)
         .capsuleGlassBackground()
     }
 }
