@@ -121,6 +121,19 @@ private struct WalletScreenContent: View {
     /// How far below the status bar content returns to full strength.
     private static let topFadeLength: CGFloat = 20
 
+    /// The gap the content keeps between its last tile and the tab bar.
+    private static let tabBarGap: CGFloat = 40
+
+    /// Bottom inset for the scrolling content. The iOS 26 tab bar sits in the
+    /// safe area, so the gap is the whole inset there; the legacy pill floats
+    /// over the content and has to be cleared on top of it.
+    private var bottomContentInset: CGFloat {
+        if #available(iOS 26, *) {
+            return Self.tabBarGap
+        }
+        return Self.tabBarGap + HomeTabView.legacyPillClearance
+    }
+
     init(sessionContainer: SessionContainer, onScanTipCard: @escaping () -> Void) {
         self.session = sessionContainer.session
         self.onScanTipCard = onScanTipCard
@@ -509,8 +522,8 @@ private struct WalletScreenContent: View {
                 }
                 .opacity(deckOpacity)
 
-                // Bottom inset so the last card clears the floating tab bar.
-                Color.clear.frame(height: 96)
+                // Bottom inset so the last tile clears the tab bar.
+                Color.clear.frame(height: bottomContentInset)
             }
             .padding(.horizontal, 20)
         }

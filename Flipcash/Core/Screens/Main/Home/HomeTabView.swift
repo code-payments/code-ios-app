@@ -148,6 +148,13 @@ struct HomeTabView: View {
         .background(TabBarSelectedIcons(tabs: HomeTab.allCases))
     }
 
+    private static let pillBottomMargin: CGFloat = 8
+
+    /// The room the legacy pill occupies above the safe area. The pill is an
+    /// overlay, so unlike the iOS 26 system bar it adds nothing to the safe
+    /// area — a tab that scrolls under it has to inset for it itself.
+    static var legacyPillClearance: CGFloat { HomeTabBar.height + pillBottomMargin }
+
     /// iOS 18–25 fallback: the home-grown floating pill hovering over the tab
     /// content, sliding out when `isTabBarHidden`.
     private var legacyTabs: some View {
@@ -162,7 +169,7 @@ struct HomeTabView: View {
                     // 402pt frame); a fixed margin keeps the floating look across
                     // device widths.
                     .padding(.horizontal, 42)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, Self.pillBottomMargin)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
