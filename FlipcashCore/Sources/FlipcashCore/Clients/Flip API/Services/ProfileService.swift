@@ -20,11 +20,13 @@ final class ProfileService: Sendable {
         self.service = Flipcash_Profile_V1_Profile.Client(wrapping: client)
     }
 
-    func fetchProfile(userID: UserID, owner: KeyPair, completion: @Sendable @escaping (Result<Profile, Error>) -> Void) {
-        logger.info("Fetching profile", metadata: ["userId": "\(userID)"])
+    /// Fetches the profile `identifier` names — by user id, or by the handle the
+    /// user has claimed.
+    func fetchProfile(_ identifier: ProfileIdentifier, owner: KeyPair, completion: @Sendable @escaping (Result<Profile, Error>) -> Void) {
+        logger.info("Fetching profile", metadata: ["identifier": "\(identifier)"])
 
         let request = Flipcash_Profile_V1_GetProfileRequest.with {
-            $0.userID = .with { $0.value = userID.data }
+            $0.identifier = identifier.proto
             $0.auth = owner.authFor(message: $0)
         }
 
@@ -47,7 +49,7 @@ final class ProfileService: Sendable {
                     await MainActor.run { completion(.success(.empty)) }
 
                 } else {
-                    logger.error("Failed to fetch profile", metadata: ["userId": "\(userID)"])
+                    logger.error("Failed to fetch profile", metadata: ["identifier": "\(identifier)"])
                     await MainActor.run { completion(.failure(error)) }
                 }
             } catch let error as RPCError {

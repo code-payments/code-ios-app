@@ -24,4 +24,13 @@ extension FlipClient {
             resolverService.resolveUserID(userID, owner: owner) { c.resume(with: $0) }
         }
     }
+
+    /// Resolve a claimed handle to the Flipcash payment destination.
+    /// Throws `.notFound` when the handle is unclaimed; throws for other hard
+    /// failures.
+    public func resolveUsername(_ username: Username, owner: KeyPair) async throws -> PublicKey {
+        try await withCheckedThrowingContinuation { c in
+            resolverService.resolveUsername(username, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

@@ -207,6 +207,32 @@ struct ConversationModelMappingTests {
         #expect(member.profilePicture?.thumbnailBlobID == BlobID(data: thumbnailBlob))
     }
 
+    /// The handle rides along on the member's embedded profile, so a chat
+    /// renders it without a separate fetch — the same second mapping site
+    /// Android carries it through.
+    @Test("Member maps the handle off its embedded profile")
+    func memberMapsUsername() {
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = UUID().data }
+            $0.userProfile = .with {
+                $0.displayName = "Ted"
+                $0.username = .with { $0.value = "ted_1" }
+            }
+        }
+
+        #expect(ConversationMember(proto).username?.value == "ted_1")
+    }
+
+    @Test("Member has no handle when the profile omits one")
+    func memberWithoutUsername() {
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = UUID().data }
+            $0.userProfile = .with { $0.displayName = "Ted" }
+        }
+
+        #expect(ConversationMember(proto).username == nil)
+    }
+
     @Test("Member has no profile picture when the profile omits one")
     func memberWithoutProfilePicture() {
         let proto = Flipcash_Chat_V1_Member.with {

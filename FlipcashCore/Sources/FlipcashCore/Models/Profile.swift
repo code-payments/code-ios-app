@@ -30,6 +30,15 @@ public struct Profile: Codable, Equatable, Sendable {
     /// resolves defaults for anything the user hasn't customized.
     public let tipCardCustomization: TipCardCustomization?
 
+    /// The id of the user this profile belongs to. Server-provided on any
+    /// fetched profile, so a caller holding only a handle learns the user's id
+    /// from the response; `nil` on a locally-constructed profile.
+    public let userID: UserID?
+
+    /// The user's handle on Flipcash, or `nil` when they haven't claimed one.
+    /// Public — the server returns it for any user, not just the caller.
+    public let username: Username?
+
     public var isPhoneVerified: Bool {
         phone != nil
     }
@@ -47,7 +56,7 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil && phone?.e164 != previous?.phone?.e164
     }
 
-    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil) throws {
+    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil) throws {
 
         // Only parse phone if it's not empty
         var parsedPhone: Phone?
@@ -69,17 +78,21 @@ public struct Profile: Codable, Equatable, Sendable {
             email: normalizedEmail,
             profilePicture: profilePicture,
             joinedAt: joinedAt,
-            tipCardCustomization: tipCardCustomization
+            tipCardCustomization: tipCardCustomization,
+            userID: userID,
+            username: username
         )
     }
 
-    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil) {
+    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil) {
         self.displayName = displayName
         self.phone = phone
         self.email = email
         self.profilePicture = profilePicture
         self.joinedAt = joinedAt
         self.tipCardCustomization = tipCardCustomization
+        self.userID = userID
+        self.username = username
     }
 }
 
@@ -111,7 +124,9 @@ extension Profile {
             email: proto.emailAddress.value,
             profilePicture: proto.hasProfilePicture ? ProfilePicture(proto.profilePicture) : nil,
             joinedAt: proto.hasJoinTs ? proto.joinTs.date : nil,
-            tipCardCustomization: proto.hasTipCardCustomization ? TipCardCustomization(proto.tipCardCustomization) : nil
+            tipCardCustomization: proto.hasTipCardCustomization ? TipCardCustomization(proto.tipCardCustomization) : nil,
+            userID: proto.hasUserID ? try? UUID(data: proto.userID.value) : nil,
+            username: proto.hasUsername ? Username(proto.username) : nil
         )
     }
 }

@@ -61,6 +61,13 @@ message UserId {
     }];
 }
 
+// Username is a user's unique handle on Flipcash. It uses the same character
+// set as X — letters, digits and underscores — with the exception that it must
+// be lowercase.
+message Username {
+    string value = 1 [(validate.rules).string.pattern = "^[a-z0-9_]{2,15}$"];
+}
+
 message ChatId {
     // value has the following structure:
     //  - 32 byte hash for DMs

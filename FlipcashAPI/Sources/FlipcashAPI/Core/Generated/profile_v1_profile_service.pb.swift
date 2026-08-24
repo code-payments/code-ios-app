@@ -25,14 +25,25 @@ public struct Flipcash_Profile_V1_GetProfileRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// The user whose profile is being fetched, identified either by their user
+  /// ID or by their username. Exactly one must be set.
+  public var identifier: Flipcash_Profile_V1_GetProfileRequest.OneOf_Identifier? = nil
+
   public var userID: Flipcash_Common_V1_UserId {
-    get {return _userID ?? Flipcash_Common_V1_UserId()}
-    set {_userID = newValue}
+    get {
+      if case .userID(let v)? = identifier {return v}
+      return Flipcash_Common_V1_UserId()
+    }
+    set {identifier = .userID(newValue)}
   }
-  /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
-  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
-  public mutating func clearUserID() {self._userID = nil}
+
+  public var username: Flipcash_Common_V1_Username {
+    get {
+      if case .username(let v)? = identifier {return v}
+      return Flipcash_Common_V1_Username()
+    }
+    set {identifier = .username(newValue)}
+  }
 
   /// Optional auth to retrieve private profile information for self
   public var auth: Flipcash_Common_V1_Auth {
@@ -46,9 +57,16 @@ public struct Flipcash_Profile_V1_GetProfileRequest: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
+  /// The user whose profile is being fetched, identified either by their user
+  /// ID or by their username. Exactly one must be set.
+  public enum OneOf_Identifier: Equatable, Sendable {
+    case userID(Flipcash_Common_V1_UserId)
+    case username(Flipcash_Common_V1_Username)
+
+  }
+
   public init() {}
 
-  fileprivate var _userID: Flipcash_Common_V1_UserId? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
 
@@ -617,7 +635,7 @@ fileprivate let _protobuf_package = "flipcash.profile.v1"
 
 extension Flipcash_Profile_V1_GetProfileRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetProfileRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{1}auth\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{1}auth\0\u{1}username\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -625,8 +643,33 @@ extension Flipcash_Profile_V1_GetProfileRequest: SwiftProtobuf.Message, SwiftPro
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      case 1: try {
+        var v: Flipcash_Common_V1_UserId?
+        var hadOneofValue = false
+        if let current = self.identifier {
+          hadOneofValue = true
+          if case .userID(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.identifier = .userID(v)
+        }
+      }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      case 3: try {
+        var v: Flipcash_Common_V1_Username?
+        var hadOneofValue = false
+        if let current = self.identifier {
+          hadOneofValue = true
+          if case .username(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.identifier = .username(v)
+        }
+      }()
       default: break
       }
     }
@@ -637,17 +680,20 @@ extension Flipcash_Profile_V1_GetProfileRequest: SwiftProtobuf.Message, SwiftPro
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._userID {
+    try { if case .userID(let v)? = self.identifier {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    try { if case .username(let v)? = self.identifier {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Profile_V1_GetProfileRequest, rhs: Flipcash_Profile_V1_GetProfileRequest) -> Bool {
-    if lhs._userID != rhs._userID {return false}
+    if lhs.identifier != rhs.identifier {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

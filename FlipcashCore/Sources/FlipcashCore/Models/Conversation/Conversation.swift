@@ -144,16 +144,21 @@ public struct ConversationMember: Hashable, Sendable, Identifiable {
     /// The blobs backing this member's profile picture, when they have one.
     /// The renditions authorize through the member's profile access context.
     public var profilePicture: ProfilePicture?
+    /// The member's Flipcash handle, when they have claimed one. Carried on the
+    /// same `profile.v1.UserProfile` the member embeds, so it arrives with the
+    /// conversation and needs no separate profile fetch.
+    public var username: Username?
 
     public var id: String { userID?.uuidString ?? displayName }
 
-    public init(userID: UserID?, displayName: String, phoneE164: String? = nil, readPointer: MessageID? = nil, readPointerTimestamp: Date? = nil, profilePicture: ProfilePicture? = nil) {
+    public init(userID: UserID?, displayName: String, phoneE164: String? = nil, readPointer: MessageID? = nil, readPointerTimestamp: Date? = nil, profilePicture: ProfilePicture? = nil, username: Username? = nil) {
         self.userID = userID
         self.displayName = displayName
         self.phoneE164 = phoneE164
         self.readPointer = readPointer
         self.readPointerTimestamp = readPointerTimestamp
         self.profilePicture = profilePicture
+        self.username = username
     }
 
     /// The member's phone number formatted for display, used as a conversation
@@ -186,6 +191,9 @@ extension ConversationMember {
         self.readPointerTimestamp = readAt
         self.profilePicture = proto.userProfile.hasProfilePicture
             ? ProfilePicture(proto.userProfile.profilePicture)
+            : nil
+        self.username = proto.userProfile.hasUsername
+            ? Username(proto.userProfile.username)
             : nil
     }
 }

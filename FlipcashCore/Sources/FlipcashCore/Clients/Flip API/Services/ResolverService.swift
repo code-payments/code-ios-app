@@ -57,6 +57,26 @@ final class ResolverService: Sendable {
         resolve(request, completion: completion)
     }
 
+    /// Resolve a claimed handle to the on-chain payment destination. Throws
+    /// `.notFound` when the handle is unclaimed; throws for hard failures
+    /// (DENIED, network errors).
+    func resolveUsername(
+        _ username: Username,
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<PublicKey, ErrorResolve>) -> Void
+    ) {
+        logger.info("Resolving username to payment destination")
+
+        let request = Flipcash_Resolver_V1_ResolveRequest.with {
+            $0.identifier = .with {
+                $0.username = .with { $0.value = username.value }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        resolve(request, completion: completion)
+    }
+
     private func resolve(
         _ request: Flipcash_Resolver_V1_ResolveRequest,
         completion: @Sendable @escaping (Result<PublicKey, ErrorResolve>) -> Void
