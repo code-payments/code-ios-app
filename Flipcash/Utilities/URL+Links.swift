@@ -18,8 +18,17 @@ extension URL {
     }
 
     /// The public page that opens this user's tipcard.
-    static func tipcard(for userID: UserID) -> URL {
-        URL(string: "https://app.flipcash.com/tip/\(userID.uuidString.lowercased())")!
+    ///
+    /// A claimed handle gets the vanity form — no `/tip/` segment and no `@`,
+    /// so the link reads as a name. Both platforms build the URL here and only
+    /// here: the host becomes `flipcash.com` once the web app serves it, and
+    /// that has to be a one-line change on each side.
+    static func tipcard(for userID: UserID, username: Username?) -> URL {
+        let host = "https://app.flipcash.com"
+        if let username {
+            return URL(string: "\(host)/\(username.value)")!
+        }
+        return URL(string: "\(host)/tip/\(userID.uuidString.lowercased())")!
     }
 
     static var privacyPolicy: URL {

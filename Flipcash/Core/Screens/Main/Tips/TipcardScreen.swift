@@ -76,7 +76,7 @@ struct TipcardScreen: View {
     }
 
     private var url: URL {
-        .tipcard(for: sessionContainer.session.userID)
+        .tipcard(for: sessionContainer.session.userID, username: profile?.username)
     }
 
     private var codeData: Data {
@@ -91,7 +91,8 @@ struct TipcardScreen: View {
             name: name,
             avatar: avatar,
             codeData: codeData,
-            tintOpacity: 0.36
+            tintOpacity: 0.36,
+            subtitle: profile?.username.map(\.handle)
         )
     }
 

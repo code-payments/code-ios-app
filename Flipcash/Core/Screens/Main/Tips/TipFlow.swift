@@ -177,6 +177,7 @@ final class TipFlow {
                 let recipient = TipRecipient(
                     userID: userID,
                     displayName: resolved.displayName ?? "",
+                    username: resolved.username,
                     origin: .tipcard
                 )
                 guard !Task.isCancelled else { return }
@@ -224,6 +225,7 @@ final class TipFlow {
         session.billState = BillState(bill: .tipcard(
             codeData: TipCode.Payload(userID: recipient.userID).codeData(),
             name: recipient.displayName,
+            username: recipient.username.map(\.handle),
             avatar: nil
         ))
         session.presentationState = .visible(.pop)
@@ -256,8 +258,8 @@ final class TipFlow {
         await store.load(userID: recipient.userID, picture: picture)
         guard let data = store.data(for: recipient.userID),
               let avatar = UIImage(data: data),
-              case .tipcard(let codeData, let name, _) = session.billState.bill else { return }
-        session.billState.bill = .tipcard(codeData: codeData, name: name, avatar: avatar)
+              case .tipcard(let codeData, let name, let username, _) = session.billState.bill else { return }
+        session.billState.bill = .tipcard(codeData: codeData, name: name, username: username, avatar: avatar)
     }
 
     // MARK: - Amounts -

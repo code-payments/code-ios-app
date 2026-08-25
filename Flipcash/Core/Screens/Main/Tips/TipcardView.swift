@@ -24,6 +24,10 @@ struct TipcardView: View {
     /// oversized on the small card and undersized on the big one.
     static let nameFraction: CGFloat = 17.0 / 269.0
 
+    /// The subtitle's size as a fraction of the card's width, scaling with the
+    /// card on the same basis as the name.
+    static let subtitleFraction: CGFloat = 12.0 / 269.0
+
     /// Explicit because a rendered tree has no container to size against.
     let size: CGSize
     let name: String
@@ -38,6 +42,11 @@ struct TipcardView: View {
     /// avatar is gated off by default. Kept as a flag (rather than deleted) so
     /// re-enabling it is a one-line change once the product decision reverts.
     var includePhoto: Bool = false
+
+    /// An optional second line under the name — the owner's `@handle` once they
+    /// have claimed one. Cards without a username pass nil and keep the name
+    /// sitting where it always has.
+    var subtitle: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -76,6 +85,17 @@ struct TipcardView: View {
             .font(.default(size: nameFontSize, weight: .bold))
             .foregroundStyle(Color.textMain)
             .padding(.top, size.height * 0.06)
+
+            if let subtitle {
+                Text(subtitle)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, size.width * 0.08)
+                    .font(.default(size: subtitleFontSize, weight: .medium))
+                    .foregroundStyle(Color.textMain)
+                    .opacity(0.6)
+                    .padding(.top, size.height * 0.015)
+            }
         }
         .frame(width: size.width, height: size.height)
         .background(Color.black.opacity(tintOpacity).background(BackdropBlur(radius: 20)))
@@ -94,6 +114,10 @@ struct TipcardView: View {
 
     private var nameFontSize: CGFloat {
         size.width * Self.nameFraction
+    }
+
+    private var subtitleFontSize: CGFloat {
+        size.width * Self.subtitleFraction
     }
 
     private var codeDimension: CGFloat {

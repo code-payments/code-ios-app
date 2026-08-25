@@ -119,13 +119,14 @@ private class _BillCanvasController: UIViewController {
                     mint: mint
                 )
 
-            case .tipcard(let codeData, let name, let avatar):
+            case .tipcard(let codeData, let name, let username, let avatar):
                 TipcardView(
                     size: tipcardSize(),
                     name: name,
                     avatar: avatar,
                     codeData: codeData,
-                    tintOpacity: 0.72
+                    tintOpacity: 0.72,
+                    subtitle: username
                 )
                 .frame(width: canvasSize().width, height: canvasSize().height)
             }
