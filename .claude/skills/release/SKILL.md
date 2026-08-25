@@ -115,6 +115,15 @@ xcodebuild test -scheme Flipcash \
 ```
 The `AllTargets` test plan already includes UI tests. Do NOT run UI tests separately.
 
+Then the unit targets under Thread Sanitizer:
+```bash
+xcodebuild test -scheme Flipcash \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -testPlan Sanitizers
+```
+`Sanitizers` covers `FlipcashTests` + `FlipcashCoreTests` only; TSan cannot run against the UI
+tests (see `.claude/plans/2026-08-25-tsan-ui-test-crash.md`).
+
 Any failure → STOP.
 
 ### 7. Generate changelog

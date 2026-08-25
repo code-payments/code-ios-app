@@ -34,6 +34,19 @@ Use the project scripts — they encode the correct scheme and destination:
   - One test: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests/myTestCase`
 - **Full `AllTargets` suite is the user's job** — don't run it. If you think it's required before declaring work done, ask the user to run it.
 
+### Test plans
+
+- **`AllTargets`** (scheme default) — all three test targets, no sanitizers. `Scripts/test.sh`
+  passes no `-testPlan`, so targeted runs land here.
+- **`Sanitizers`** — `FlipcashTests` + `FlipcashCoreTests` under Thread Sanitizer:
+  `xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -testPlan Sanitizers`
+
+TSan is scoped to the unit targets because its runtime crashes the app under test during
+XCUITest's accessibility snapshots — the crash is inside the sanitizer, not app code, and no race
+report is produced. Details and repro steps in
+[2026-08-25-tsan-ui-test-crash.md](../plans/2026-08-25-tsan-ui-test-crash.md). Don't move TSan
+back onto `AllTargets` without re-checking that analysis against the current Xcode.
+
 **Never run `swift test` in a package directory** (`FlipcashCore`, `FlipcashUI`, etc.). Packages are iOS-only; `swift test` targets the macOS host and fails with code-signing errors. Always go through `./Scripts/test.sh` (which routes through the `Flipcash` scheme on the iOS Simulator).
 
 For paired-device builds, see [Xcode MCP Server](quick-reference.md#xcode-mcp-server).

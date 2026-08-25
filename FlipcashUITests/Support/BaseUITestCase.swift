@@ -200,9 +200,19 @@ class BaseUITestCase: XCTestCase {
     /// Handles the push notification permission screen if it appears.
     /// The screen is skipped when notification permissions are already determined,
     /// so this helper is resilient to both states.
-    func allowPushNotificationsIfNeeded() {
+    func allowPushNotificationsIfNeeded(timeout: TimeInterval = 30) {
         let okButton = app.buttons["OK"]
-        guard okButton.waitForExistence(timeout: 2) else { return }
+        let deadline = Date().addingTimeInterval(timeout)
+
+        // Account registration gates the screen, so after a fresh sign-up it can
+        // take well over ten seconds to appear. The tab bar is the only other
+        // outcome, and checking for it each round ends the wait immediately when
+        // the screen was skipped.
+        while !okButton.waitForExistence(timeout: 1) {
+            if app.buttons["Wallet"].exists { return }
+            if Date() >= deadline { return }
+        }
+
         okButton.tap()
 
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")

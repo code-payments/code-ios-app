@@ -46,11 +46,14 @@
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
-      enableThreadSanitizer = "YES">
+      enableThreadSanitizer = "NO">
       <TestPlans>
          <TestPlanReference
             reference = "container:FlipcashTests/AllTargets.xctestplan"
             default = "YES">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:FlipcashTests/Sanitizers.xctestplan">
          </TestPlanReference>
       </TestPlans>
       <Testables>

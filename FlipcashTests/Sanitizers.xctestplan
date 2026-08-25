@@ -1,26 +1,22 @@
 {
   "configurations" : [
     {
-      "id" : "58506254-EA72-4991-9A2B-7AF77633620F",
+      "id" : "0B9E0D6F-4C4E-4E9B-9E1B-2C6D1F0A77A1",
       "name" : "Test Scheme Action",
-      "options" : {
-
-      }
+      "options" : {}
     }
   ],
   "defaultOptions" : {
     "defaultTestExecutionTimeAllowance" : 120,
     "maximumTestExecutionTimeAllowance" : 600,
-    "maximumTestRepetitions" : 3,
     "performanceAntipatternCheckerEnabled" : true,
     "targetForVariableExpansion" : {
       "containerPath" : "container:Code.xcodeproj",
       "identifier" : "9A516F792D9B12E800AF478B",
       "name" : "Flipcash"
     },
-    "testRepetitionMode" : "retryOnFailure",
     "testTimeoutsEnabled" : true,
-    "threadSanitizerEnabled" : false
+    "threadSanitizerEnabled" : true
   },
   "testTargets" : [
     {
@@ -29,13 +25,6 @@
         "containerPath" : "container:Code.xcodeproj",
         "identifier" : "9A516F882D9B12EA00AF478B",
         "name" : "FlipcashTests"
-      }
-    },
-    {
-      "target" : {
-        "containerPath" : "container:Code.xcodeproj",
-        "identifier" : "9A516F922D9B12EA00AF478B",
-        "name" : "FlipcashUITests"
       }
     },
     {
