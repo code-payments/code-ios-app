@@ -26,7 +26,8 @@ happens in the package repos.
 ## Pre-flight context
 
 - Pinned versions: !`grep -E 'client-protocol' FlipcashAPI/Package.swift`
-- Git status: !`git status --short FlipcashAPI/`
+- Local override: !`echo "${FLIPCASH_PROTO_LOCAL:-none — building against the pins above}"`
+- Git status: !`git status --short FlipcashAPI/ Code.xcodeproj/`
 
 ## Input
 
@@ -55,9 +56,24 @@ gh release list --repo code-payments/ocp-client-protocol --limit 5
 gh release list --repo code-payments/flipcash2-client-protocol --limit 5
 ```
 
-If the contract change you want is not released yet, stop: it has to be synced and published
-from the package repo first (see that repo's README — `scripts/sync-protos.sh`, then the
-`publish.yml` workflow). Releasing is a deliberate, human-gated step; do not start it from here.
+If the contract change you want is not released yet, do not reach for a release. Publishing is
+for CI release builds, and it is human-gated — never start it from here. Build against the client
+checkouts instead:
+
+```bash
+export FLIPCASH_PROTO_LOCAL=~/dev/bmcreations/code
+xed .
+```
+
+`FlipcashAPI/Package.swift` swaps both `.package(url:, exact:)` requirements for `.package(path:)`
+when that variable names a directory holding `ocp-client-protocol/` and `flipcash2-client-protocol/`.
+Xcode inherits the environment of whatever launched it, so it has to be started from the shell that
+exported the variable — if Xcode was already open, relaunch it. Nothing tracked is edited to enter
+this mode.
+
+Producing the unreleased change — editing a `.proto` and syncing it into the client repo — happens in
+the client repo; the orchestrator's `/contract-change` skill drives both halves. In this mode skip
+Step 2 and Step 3: there is no pin to bump, and the diff is whatever is in your checkout.
 
 Android pins the same two packages in its `gradle/libs.versions.toml`. The versions are not
 required to match across platforms, but a contract change that matters to both should land on
@@ -73,6 +89,15 @@ xcodebuild -resolvePackageDependencies -project Code.xcodeproj -scheme Flipcash
 
 Show the resulting `Package.resolved` diff — it should change only the bumped package's
 `version` and `revision`.
+
+If `FLIPCASH_PROTO_LOCAL` is set, resolving instead **drops** both contract entries from
+`Code.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`, because path
+dependencies are not recorded there. That is noise rather than a version change — the pins are
+`exact` — but restore the file before committing:
+
+```bash
+git checkout -- Code.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+```
 
 ### Step 3 — Diff and summarize changes
 
@@ -233,6 +258,12 @@ feat: scaffold <domain> service for new RPCs
 
 ## Never
 
+- Cut a release of a client package just to try a change. Use the local override; release when the
+  change is settled and a build you do not control needs it.
+- Commit a `Package.resolved` that lost its contract entries — that is the local override leaking,
+  not a dependency change.
+- Leave `FLIPCASH_PROTO_LOCAL` exported once you are done. A later Xcode launched from that shell
+  quietly builds someone's working tree instead of the pinned release.
 - Patch generated code locally to work around a contract problem. It lives in the package repos; fix it there and cut a release. Update the wrapping `*Service.swift` instead when the gap is app-side.
 - Give a streaming RPC a deadline (`.unaryDefault`). Streaming passes `.defaults`.
 - Interpolate variables (especially base58/keys) into log message strings — variables go in `metadata`.
