@@ -141,7 +141,9 @@ public final class ChatScreenViewController: UIViewController {
             object: nil,
             queue: nil
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.bar.firstTextInputResponder?.resignFirstResponder() }
+            MainActor.assumeIsolated {
+                _ = self?.bar.firstTextInputResponder?.resignFirstResponder()
+            }
         }
     }
 
