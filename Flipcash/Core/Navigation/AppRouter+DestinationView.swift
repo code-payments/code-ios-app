@@ -73,6 +73,9 @@ struct DestinationView: View {
         case .changeDisplayName:
             ChangeDisplayNameScreen(currentName: sessionContainer.session.profile?.displayName ?? "")
 
+        case .username(let username):
+            UsernameEntryScreen(currentUsername: username)
+
         case .settingsAdvancedFeatures:
             SettingsAdvancedFeaturesScreen()
 

@@ -16,6 +16,7 @@ struct SettingsMyAccountScreen: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(BetaFlags.self) private var betaFlags
+    @Environment(Session.self) private var session
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
@@ -35,6 +36,16 @@ struct SettingsMyAccountScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsRow(asset: .profile, title: "Change Display Name", insets: insets) {
                 router.push(.changeDisplayName)
+            }
+
+            // No balance gate here: the gate exists to stop squatting at claim time. A user who
+            // already holds a handle has cleared it, and re-gating a change would hold their
+            // handle hostage to a balance that has since moved.
+            if let username = session.profile?.username {
+                SettingsRow(asset: .profile, title: "Change Username", insets: insets) {
+                    router.push(.username(username))
+                }
+                .accessibilityIdentifier("account-change-username-row")
             }
 
             SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
