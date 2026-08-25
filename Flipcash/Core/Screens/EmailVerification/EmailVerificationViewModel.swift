@@ -211,12 +211,13 @@ final class EmailVerificationViewModel: EmailVerifying {
         }
     }
 
-    func applyDeeplinkVerification(_ verification: VerificationDescription) {
-        guard !isAlreadyVerified else { return }
+    @discardableResult
+    func applyDeeplinkVerification(_ verification: VerificationDescription) -> Bool {
+        guard !isAlreadyVerified else { return false }
         // Drop overlapping deeplinks while one is in flight — two concurrent
         // Tasks would fight over `confirmEmailButtonState` and could both
         // call `onVerified` / `finish`, double-finishing.
-        guard deeplinkTask == nil else { return }
+        guard deeplinkTask == nil else { return false }
 
         enteredEmail = verification.email
         // Standalone mode lands the user on the confirm screen so the API
@@ -273,6 +274,8 @@ final class EmailVerificationViewModel: EmailVerifying {
                 showGenericError()
             }
         }
+
+        return true
     }
 
     // MARK: - Dialog factories -

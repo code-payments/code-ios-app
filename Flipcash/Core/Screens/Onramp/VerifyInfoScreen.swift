@@ -105,11 +105,8 @@ struct OnrampVerificationPushedStep: View {
                 .toolbarTitleDisplayMode(.inline)
                 .onDisappear {
                     // Popping the root step means the user abandoned
-                    // verification; cancel to release the awaiting gate. A
-                    // no-op once the flow has finished (continuation cleared).
-                    if path == viewModel.rootPushedStep {
-                        viewModel.cancel()
-                    }
+                    // verification; cancel to release the awaiting gate.
+                    viewModel.cancelIfBackedOut(from: path)
                 }
         }
     }

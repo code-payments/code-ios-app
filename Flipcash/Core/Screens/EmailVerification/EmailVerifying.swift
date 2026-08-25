@@ -32,5 +32,9 @@ protocol EmailVerifying: Verifying {
 
     /// Applies an out-of-flow deeplink that delivered a verification code.
     /// Idempotent: drops overlapping deeplinks while one is in flight.
-    func applyDeeplinkVerification(_ verification: VerificationDescription)
+    /// Returns `true` when the deeplink was taken — hosts navigate to their
+    /// confirm-email step only then, so a dropped deeplink can't move the user
+    /// off the step they're on.
+    @discardableResult
+    func applyDeeplinkVerification(_ verification: VerificationDescription) -> Bool
 }

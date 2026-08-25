@@ -161,9 +161,14 @@ struct AddMoneyStartScreen: View {
             for: session,
             bind: { vm in
                 guard let vm else { return }
-                vm.onAdvance = { router.pushAny($0) }
                 let first = vm.initialStep()
-                vm.rootPushedStep = first
+                vm.pushedHost = PushedVerificationHost(
+                    rootStep: first,
+                    push: { router.pushAny($0) },
+                    // Everything above the depth the stack had before the flow
+                    // started is the flow's own steps.
+                    liveStepCount: { router[stack].count - baseline }
+                )
                 dismissThenPush(first, using: router)
             },
             perform: {
