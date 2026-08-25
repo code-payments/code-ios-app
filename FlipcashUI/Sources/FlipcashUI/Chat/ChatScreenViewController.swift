@@ -11,15 +11,14 @@ import SwiftUI
 import FlipcashCore
 
 /// The full chat screen, entirely in UIKit: the transcript fills the view and one injected bar
-/// floats over its bottom (so content flows under it). The bar is pinned to the keyboard layout
-/// guide, which rests at the bottom safe area when the keyboard is down and rides it when shown —
-/// one bar covers both states. This screen stays agnostic about *what* the bar is and only owns
-/// layout + keyboard handling.
+/// floats over its bottom (so content flows under it). `KeyboardFloor` holds the bar at the bottom
+/// safe area when the keyboard is down and on the keyboard's top edge when it is up — one bar
+/// covers both states. This screen stays agnostic about *what* the bar is and only owns layout +
+/// keyboard handling.
 ///
-/// Keyboard handling is deliberately *not* hand-rolled. The host's safe area already grows to
-/// include the keyboard, so the bar rides the keyboard for free and the transcript only reserves
-/// the bar's own height — the safe area supplies the keyboard. Doing both ourselves was what
-/// double-counted the keyboard.
+/// The transcript reserves only the bar's own height. The system already grows the collection
+/// view's content inset by the keyboard, so counting the keyboard here too overscrolls the
+/// transcript by a whole keyboard.
 public final class ChatScreenViewController: UIViewController {
 
     private let transcript = ChatViewController()
@@ -29,6 +28,8 @@ public final class ChatScreenViewController: UIViewController {
     /// content exactly — a hosting controller's intrinsic size mis-measures multiline growth and
     /// lets the composer overflow below its frame, under the keyboard.
     private var barHeightConstraint: NSLayoutConstraint!
+    /// Keeps the bar above the keyboard. Not `view.keyboardLayoutGuide`: see `KeyboardFloor`.
+    private var keyboardFloor: KeyboardFloor!
 
     /// Raise the keyboard once the screen has finished appearing (post-tip open). Driven from
     /// UIKit rather than a SwiftUI `@FocusState`: a hosted composer's programmatic focus updates
@@ -38,7 +39,7 @@ public final class ChatScreenViewController: UIViewController {
     private var didFocusComposer = false
 
     /// - Parameters:
-    ///   - bar: pinned to the keyboard layout guide; rides the keyboard.
+    ///   - bar: pinned to the bottom of the view; rides the keyboard.
     ///   - barController: the view controller owning the bar, when hosted (e.g. a
     ///     `UIHostingController` for a SwiftUI bar). Adopted as a child so its lifecycle and
     ///     environment work. Pass `nil` for a plain `UIView` bar.
@@ -97,26 +98,33 @@ public final class ChatScreenViewController: UIViewController {
             transcript.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        barHeightConstraint = addBar(bar, controller: barController, pinnedTo: view.keyboardLayoutGuide.topAnchor)
+        let constraints = addBar(bar, controller: barController)
+        barHeightConstraint = constraints.height
+        keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom)
         lowerComposerOnResignActive()
     }
 
-    /// Adds a hosted bar pinned to the view's width and the given bottom anchor; returns its height
-    /// constraint (driven later by the bar's measured SwiftUI content height).
-    private func addBar(_ bar: UIView, controller: UIViewController?, pinnedTo bottomAnchor: NSLayoutYAxisAnchor) -> NSLayoutConstraint {
+    /// Adds a hosted bar pinned to the view's width and bottom; returns the height constraint
+    /// (driven later by the bar's measured SwiftUI content height) and the bottom constraint
+    /// (driven by the keyboard).
+    private func addBar(
+        _ bar: UIView,
+        controller: UIViewController?
+    ) -> (height: NSLayoutConstraint, bottom: NSLayoutConstraint) {
         if let controller { addChild(controller) }
         bar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(bar)
         controller?.didMove(toParent: self)
 
         let heightConstraint = bar.heightAnchor.constraint(equalToConstant: 80)
+        let bottomConstraint = bar.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         NSLayoutConstraint.activate([
             bar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             bar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            bar.bottomAnchor.constraint(equalTo: bottomAnchor),
+            bottomConstraint,
             heightConstraint,
         ])
-        return heightConstraint
+        return (heightConstraint, bottomConstraint)
     }
 
     /// Drops the composer's focus as the app leaves the foreground.
@@ -177,10 +185,100 @@ public final class ChatScreenViewController: UIViewController {
 
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        keyboardFloor.refresh()
         // Reserve only the bar's own height. On-device the system already grows the collection
         // view's adjusted content inset by the keyboard when it's up, so adding the keyboard here
         // too (via the bar's risen position) double-counts it and overscrolls by a whole keyboard.
         transcript.setBottomInset(bar.frame.height)
+    }
+}
+
+/// Holds a bar clear of the keyboard by driving its bottom constraint from the keyboard
+/// notifications.
+///
+/// `UIView.keyboardLayoutGuide` is the shorter way to write this and is what this screen used
+/// to do, but the guide is per-view and can be torn down for good: presenting the tipcard's
+/// sheet over an open chat collapses that chat view's guide to a zero-size frame at the bottom
+/// of the screen, and it never tracks again — no layout pass, safe-area toggle, or later
+/// presentation brings it back, so the composer sits behind the keyboard for as long as the
+/// screen is up. The notifications keep reporting the right frame the whole time.
+@MainActor
+private final class KeyboardFloor {
+
+    private let bottomConstraint: NSLayoutConstraint
+    private weak var view: UIView?
+    private var observer: (any NSObjectProtocol)?
+
+    /// The keyboard's current overlap of the view, in points; zero when it is down.
+    private var overlap: CGFloat = 0
+
+    init(view: UIView, bottomConstraint: NSLayoutConstraint) {
+        self.view = view
+        self.bottomConstraint = bottomConstraint
+
+        // `willChangeFrame` alone covers showing, hiding, height changes and the interactive
+        // drag-to-dismiss, all of which post it.
+        observer = NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] notification in
+            let info = notification.userInfo
+            let endFrame = info?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+            let duration = info?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval
+            let curve = info?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt
+            MainActor.assumeIsolated {
+                // A zero end frame says nothing about where the keyboard is; UIKit posts one as
+                // the app returns to the foreground. Taken literally its top edge is the top of
+                // the screen, which would drive the bar up over the transcript.
+                guard let endFrame, !endFrame.isEmpty else { return }
+                self?.apply(endFrame: endFrame, duration: duration ?? 0, curve: curve)
+            }
+        }
+    }
+
+    isolated deinit {
+        if let observer {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    /// Re-applies the current overlap. Called from layout so the resting inset picks up a safe
+    /// area that wasn't known yet when the bar was added.
+    func refresh() {
+        setInset(max(overlap, restingInset))
+    }
+
+    private func apply(endFrame: CGRect, duration: TimeInterval, curve: UInt?) {
+        guard let view, view.window != nil else { return }
+
+        // Keyboard frames arrive in window coordinates.
+        let frameInView = view.convert(endFrame, from: nil)
+        overlap = max(0, view.bounds.maxY - frameInView.minY)
+        guard setInset(max(overlap, restingInset)) else { return }
+
+        let options: UIView.AnimationOptions = [
+            .beginFromCurrentState,
+            curve.map { UIView.AnimationOptions(rawValue: $0 << 16) } ?? .curveEaseInOut,
+        ]
+        UIView.animate(withDuration: duration, delay: 0, options: options) {
+            view.layoutIfNeeded()
+        }
+    }
+
+    /// The keyboard-down resting inset. Zero wherever the host already ends the view at the safe
+    /// area, which is what the SwiftUI container hosting this screen does — taking the window's
+    /// inset instead counts the home indicator twice and parks the bar over the transcript.
+    private var restingInset: CGFloat {
+        view?.safeAreaInsets.bottom ?? 0
+    }
+
+    /// Returns whether the constraint actually moved, so callers can skip a no-op animation.
+    @discardableResult
+    private func setInset(_ inset: CGFloat) -> Bool {
+        guard bottomConstraint.constant != -inset else { return false }
+        bottomConstraint.constant = -inset
+        return true
     }
 }
 
