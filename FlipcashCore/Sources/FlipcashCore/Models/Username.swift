@@ -6,7 +6,8 @@
 import Foundation
 import FlipcashAPI
 
-/// A user's unique handle on Flipcash, without a leading `@`.
+/// A user's unique handle on Flipcash. ``value`` stores it bare; ``handle``
+/// renders it with the leading `@`.
 ///
 /// The character set matches X — letters, digits and underscores — except that
 /// a handle is always lowercase. Public: the server returns it for any user,
@@ -26,6 +27,11 @@ public struct Username: Codable, Equatable, Hashable, Sendable {
 
         self.value = string
     }
+
+    /// The handle prefixed with `@`, for display only. The `@` is never part of
+    /// ``value``, never in a tip URL, and never submitted — anything talking to the
+    /// server or building a link wants ``value``.
+    public var handle: String { "@\(value)" }
 
     // Mirrors the `validate.rules.string.pattern` on `common.v1.Username`;
     // keep the two in step when the contract moves.
