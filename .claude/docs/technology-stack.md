@@ -4,24 +4,23 @@
 
 Open `Code.xcodeproj` in Xcode 16.x. Swift packages resolve automatically on first open. Build and run the `Flipcash` scheme.
 
-## Regenerating Protos
+## Protos: consumed, not generated here
 
-Swift gRPC bindings in `FlipcashAPI/Sources/FlipcashAPI/Payments/Generated` and `FlipcashAPI/Sources/FlipcashAPI/Core/Generated` are generated from `.proto` files pulled from the server-protobuf repos. To regenerate:
+This repo no longer vendors `.proto` files or runs protoc. The generated Swift ships from two
+published packages, and `FlipcashAPI` is a thin umbrella that `@_exported import`s both so
+`import FlipcashAPI` keeps working:
 
-```
-cd Scripts
-./run -a flipcashPayments
-./run -a flipcashCore
-```
+| Module | Package | Contract |
+|---|---|---|
+| `OCPClientProtocol` | [`ocp-client-protocol`](https://github.com/code-payments/ocp-client-protocol) | `ocp-protobuf-api` |
+| `Flipcash2ClientProtocol` | [`flipcash2-client-protocol`](https://github.com/code-payments/flipcash2-client-protocol) | `flipcash2-protobuf-api` |
 
-Each invocation clones the latest `.proto` files from the upstream repo, replaces the local `proto/` directory, and regenerates the Swift code in `Generated/`.
+Android consumes the Kotlin half of the same two packages, so both apps now generate from one
+place instead of each vendoring the contract.
 
-**Required tools** (checked by the script; aborts if missing):
-- `protoc` — `brew install protobuf`
-- `protoc-gen-swift` — `brew install swift-protobuf`
-- `protoc-gen-grpc-swift-2` (grpc-swift **2.x**) — `./Scripts/install-grpc-swift-2-plugin.sh`
-
-**Never modify files under `Generated/` directly** — changes will be overwritten on the next regen.
+**To pick up a contract change:** sync and release it in the client-protocol repo (its README has
+the steps), then bump the `exact:` version in `FlipcashAPI/Package.swift`. Nothing in this repo
+needs protoc, swift-protobuf, or the grpc-swift plugin installed.
 
 ## Required Technologies
 
@@ -41,7 +40,7 @@ Each invocation clones the latest `.proto` files from the upstream repo, replace
 Flipcash/          # Main app - focus here
 FlipcashCore/      # Business logic, models, clients
 FlipcashUI/        # UI components, theme
-FlipcashAPI/       # gRPC proto definitions + generated v2 bindings (Payments/ + Core/)
+FlipcashAPI/       # umbrella over the two published contract packages
 CodeCurves/        # Ed25519 cryptography
 CodeScanner/       # C++/OpenCV circular code scanning (see below)
 ```

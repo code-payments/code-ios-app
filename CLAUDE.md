@@ -12,7 +12,7 @@ and is linked from the map below. **Read the relevant doc before working in that
 |---|---|
 | About to write/change any code | [Hard Rules](.claude/docs/hard-rules.md) — full text, rationale, examples (checklist below) |
 | Working on DI, gRPC, navigation, transport errors, or core concepts | [Architecture & Patterns](.claude/docs/architecture.md) |
-| Setting up, building, or regenerating protos; touching SQLite/CodeScanner | [Technology Stack, Setup & Tooling](.claude/docs/technology-stack.md) |
+| Setting up, building, or bumping the contract packages; touching SQLite/CodeScanner | [Technology Stack, Setup & Tooling](.claude/docs/technology-stack.md) |
 | Writing or running tests | [Testing](.claude/docs/testing.md) |
 | Naming, file placement, imports, or committing | [Code Style & Git Workflow](.claude/docs/code-style.md) |
 | About to touch cash bills, navigation, dialogs, amounts, or DI | [Common Pitfalls](.claude/docs/common-pitfalls.md) |
@@ -93,7 +93,7 @@ it before touching the relevant area.
 - **Testing framework** — Swift Testing (`import Testing`, `@Suite`/`@Test`), never XCTest.
 - **Exhaustive switches** — Prefer `switch` over `if case` for enums so the compiler flags new cases.
 - **Modernize incrementally** — Use modern Swift/SwiftUI APIs in net-new/isolated code; don't refactor working code just to modernize. One observation system per class.
-- **Generated files** — Never edit files under `Generated/`; change the wrapping service files instead.
+- **Generated protos** — `FlipcashAPI` only re-exports the published contract packages; there is no generated code to edit here. Change the wrapping service files instead.
 - **Database schema** — Bump `SQLiteVersion` in Info.plist on every schema change (no migrations; DB is rebuilt from server).
 - **Logging** — Message string is a constant; every variable goes in structured `metadata`. Never log proto blobs whole.
 - **Error reporting** — Call `ErrorReporting.captureError(...)` unconditionally; classify via `ServerError.reportingLevel`, never gate at the call site. Best-effort chatter never reports.
