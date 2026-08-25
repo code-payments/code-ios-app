@@ -203,39 +203,48 @@ struct RouteTests {
 
     // MARK: - Sheet Routes -
     //
-    // The home-screen quick actions open sheets via these routes. The
-    // `flipcash://` deep link and the universal link must parse to the same case.
+    // The home-screen quick actions open sheets via these routes, and they emit
+    // the custom scheme (`QuickActionsController`). The universal-link forms are
+    // deliberately NOT routes: `app.flipcash.com/<username>` puts handles in
+    // that namespace, and a claimed `discover` that opened the Discover tab
+    // would be a link that goes somewhere other than the person it names.
 
-    @Test(
-        "Give route parses from both URL formats",
-        arguments: ["flipcash://give", "https://app.flipcash.com/give"]
-    )
-    func giveRoute(urlString: String) throws {
-        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+    @Test("Give route parses from the custom scheme")
+    func giveRoute_customScheme() throws {
+        let path = try #require(Route(url: URL(string: "flipcash://give")!)?.path)
         if case .give = path {} else {
-            Issue.record("\(urlString) should parse as .give")
+            Issue.record("flipcash://give should parse as .give")
         }
     }
 
-    @Test(
-        "Balance route parses from both URL formats",
-        arguments: ["flipcash://balance", "https://app.flipcash.com/balance"]
-    )
-    func balanceRoute(urlString: String) throws {
-        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+    @Test("Balance route parses from the custom scheme")
+    func balanceRoute_customScheme() throws {
+        let path = try #require(Route(url: URL(string: "flipcash://balance")!)?.path)
         if case .balance = path {} else {
-            Issue.record("\(urlString) should parse as .balance")
+            Issue.record("flipcash://balance should parse as .balance")
+        }
+    }
+
+    @Test("Discover route parses from the custom scheme")
+    func discoverRoute_customScheme() throws {
+        let path = try #require(Route(url: URL(string: "flipcash://discover")!)?.path)
+        if case .discover = path {} else {
+            Issue.record("flipcash://discover should parse as .discover")
         }
     }
 
     @Test(
-        "Discover route parses from both URL formats",
-        arguments: ["flipcash://discover", "https://app.flipcash.com/discover"]
+        "Quick-action names are not universal-link routes",
+        arguments: [
+            "https://app.flipcash.com/give",
+            "https://app.flipcash.com/balance",
+            "https://app.flipcash.com/discover",
+        ]
     )
-    func discoverRoute(urlString: String) throws {
+    func quickActionNames_universalLink_areUnknown(urlString: String) throws {
         let path = try #require(Route(url: URL(string: urlString)!)?.path)
-        if case .discover = path {} else {
-            Issue.record("\(urlString) should parse as .discover")
+        if case .unknown = path {} else {
+            Issue.record("\(urlString) should parse as .unknown, not a route")
         }
     }
 
