@@ -15,21 +15,15 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.4.0"),
-        .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
+        .package(url: "https://github.com/code-payments/ocp-client-protocol", exact: "0.1.0"),
+        .package(url: "https://github.com/code-payments/flipcash2-client-protocol", exact: "0.1.0"),
     ],
     targets: [
         .target(
             name: "FlipcashAPI",
             dependencies: [
-                .product(name: "GRPCCore", package: "grpc-swift-2"),
-                .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf"),
-            ],
-            exclude: [
-                "Payments/proto",
-                "Payments/proto_deps",
-                "Core/proto",
-                "Core/proto_deps",
+                .product(name: "OCPClientProtocol", package: "ocp-client-protocol"),
+                .product(name: "Flipcash2ClientProtocol", package: "flipcash2-client-protocol"),
             ]
         ),
     ]

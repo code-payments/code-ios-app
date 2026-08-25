@@ -82,6 +82,15 @@
       }
     },
     {
+      "identity" : "flipcash2-client-protocol",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/code-payments/flipcash2-client-protocol",
+      "state" : {
+        "revision" : "73372b30748d8eb36c1a2f5a18ea9c8d1f7c6241",
+        "version" : "0.1.0"
+      }
+    },
+    {
       "identity" : "googleappmeasurement",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/GoogleAppMeasurement.git",
@@ -196,6 +205,15 @@
       "state" : {
         "revision" : "b7e1104502eca3a213b46303391ca4d3bc8ddec1",
         "version" : "2.30910.0"
+      }
+    },
+    {
+      "identity" : "ocp-client-protocol",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/code-payments/ocp-client-protocol",
+      "state" : {
+        "revision" : "7ebdcdff462307abd2bb7548010d455e6eca1f3a",
+        "version" : "0.1.0"
       }
     },
     {
