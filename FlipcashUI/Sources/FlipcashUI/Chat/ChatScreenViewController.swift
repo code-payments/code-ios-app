@@ -98,6 +98,7 @@ public final class ChatScreenViewController: UIViewController {
         ])
 
         barHeightConstraint = addBar(bar, controller: barController, pinnedTo: view.keyboardLayoutGuide.topAnchor)
+        lowerComposerOnResignActive()
     }
 
     /// Adds a hosted bar pinned to the view's width and the given bottom anchor; returns its height
@@ -116,6 +117,24 @@ public final class ChatScreenViewController: UIViewController {
             heightConstraint,
         ])
         return heightConstraint
+    }
+
+    /// Drops the composer's focus as the app leaves the foreground.
+    ///
+    /// UIKit otherwise restores the composer as first responder during the next activation and
+    /// raises the keyboard with it. Anything that lowers the keyboard while that restore is still
+    /// in flight — routing a deep link, say — leaves the keyboard with no owner, and SwiftUI keeps
+    /// the inset it had already reserved for it, so a sheet presented by that routing is laid out
+    /// around a keyboard that is no longer on screen. Resigning here happens while the app is
+    /// still active and nothing is animating, which leaves the restore nothing to restore.
+    private func lowerComposerOnResignActive() {
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.bar.firstTextInputResponder?.resignFirstResponder() }
+        }
     }
 
     public override func viewWillAppear(_ animated: Bool) {
