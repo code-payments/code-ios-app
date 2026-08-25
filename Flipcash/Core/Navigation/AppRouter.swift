@@ -153,6 +153,18 @@ final class AppRouter {
             ])
             return
         }
+        pushAny(value, on: stack)
+    }
+
+    /// Pushes any Hashable value onto `stack`, named rather than inferred from
+    /// what is topmost. For multi-step sub-flows that resolve their host stack
+    /// once at the start and then measure their own depth against it (e.g. the
+    /// onramp verification steps): inferring per push would let a later step
+    /// land on a different stack from the one the flow is counting, which reads
+    /// as the flow having been unwound.
+    ///
+    /// Prefer `pushAny(_:)` for a single push onto the visible stack.
+    func pushAny<H: Hashable>(_ value: H, on stack: Stack) {
         paths[stack, default: NavigationPath()].append(value)
         logger.info("Push (sub-flow)", metadata: [
             "stack": "\(stack)",

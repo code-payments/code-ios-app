@@ -242,6 +242,24 @@ struct AppRouterTests {
         #expect(router[.give].isEmpty)
     }
 
+    @Test("pushAny(on:) lands on the named stack, not the topmost one")
+    func pushAnyOnStack_landsOnNamedStack() {
+        let router = AppRouter()
+        router.present(.settings)
+        router.pushAny(WithdrawNavigationPath.enterAmount, on: .balance)
+        #expect(router[.balance].count == 1)
+        #expect(router[.settings].isEmpty)
+    }
+
+    @Test("pushAny(on:) pushes with no sheet presented")
+    func pushAnyOnStack_pushesWithNoSheet() {
+        // The stack is named, so there is nothing to infer and nothing to
+        // warn about — a sub-flow can keep pushing after its sheet closes.
+        let router = AppRouter()
+        router.pushAny(WithdrawNavigationPath.enterAmount, on: .balance)
+        #expect(router[.balance].count == 1)
+    }
+
     // MARK: - present / dismissSheet
 
     @Test("present sets the sheet")

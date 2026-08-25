@@ -87,8 +87,8 @@ struct AddMoneyStartScreen: View {
         let router = self.router
 
         guard BetaFlags.shared.hasEnabled(.newUI) else {
-            if router.isAddMoneyOverBuy {
-                dismissThenPush(AddMoneyFlowStep.method(method), using: router)
+            if router.isAddMoneyOverBuy, let stack = router.addMoneyPushStack {
+                dismissThenPush(AddMoneyFlowStep.method(method), onto: stack, using: router)
             } else {
                 flowMethod = method
             }
@@ -130,23 +130,25 @@ struct AddMoneyStartScreen: View {
     /// opened over the bare scanner — it falls back to presenting the flow as
     /// its own sheet.
     private func startFlow(_ method: DepositMethod, using router: AppRouter) {
-        if router.addMoneyPushStack != nil {
-            dismissThenPush(AddMoneyFlowStep.method(method), using: router)
+        if let stack = router.addMoneyPushStack {
+            dismissThenPush(AddMoneyFlowStep.method(method), onto: stack, using: router)
         } else {
             flowMethod = method
         }
     }
 
-    /// Dismisses the picker, then pushes `value` onto the revealed stack once
-    /// the sheet's dismiss animation has cleared. Pushing while the partial
-    /// sheet is still sliding down runs the revealed stack's push animation at
-    /// the same time, which flickers the new screen's back arrow — so the push
-    /// waits for the sheet to settle (the app's dismiss-then-mutate pattern).
-    private func dismissThenPush<H: Hashable>(_ value: H, using router: AppRouter) {
+    /// Dismisses the picker, then pushes `value` onto `stack` once the sheet's
+    /// dismiss animation has cleared. Pushing while the partial sheet is still
+    /// sliding down runs the revealed stack's push animation at the same time,
+    /// which flickers the new screen's back arrow — so the push waits for the
+    /// sheet to settle (the app's dismiss-then-mutate pattern). The stack is
+    /// named rather than inferred after the wait, since anything presented in
+    /// the meantime would otherwise capture the push.
+    private func dismissThenPush<H: Hashable>(_ value: H, onto stack: AppRouter.Stack, using router: AppRouter) {
         router.dismissSheet()
         Task { @MainActor in
             try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
-            router.pushAny(value)
+            router.pushAny(value, on: stack)
         }
     }
 
@@ -164,18 +166,18 @@ struct AddMoneyStartScreen: View {
                 let first = vm.initialStep()
                 vm.pushedHost = PushedVerificationHost(
                     rootStep: first,
-                    push: { router.pushAny($0) },
+                    push: { router.pushAny($0, on: stack) },
                     // Everything above the depth the stack had before the flow
                     // started is the flow's own steps.
                     liveStepCount: { router[stack].count - baseline }
                 )
-                dismissThenPush(first, using: router)
+                dismissThenPush(first, onto: stack, using: router)
             },
             perform: {
                 if case .addMoney? = router.presentedSheet {
                     // Already verified: the picker is still up. Dismiss it and
                     // push the deposit once it clears (same anti-flicker beat).
-                    dismissThenPush(AddMoneyFlowStep.method(.coinbase), using: router)
+                    dismissThenPush(AddMoneyFlowStep.method(.coinbase), onto: stack, using: router)
                 } else {
                     // Verified via the pushed steps: unwind them and push the
                     // deposit inline on the already-visible stack.
@@ -183,7 +185,7 @@ struct AddMoneyStartScreen: View {
                     if depth > baseline {
                         router.popLast(depth - baseline, on: stack)
                     }
-                    router.pushAny(AddMoneyFlowStep.method(.coinbase))
+                    router.pushAny(AddMoneyFlowStep.method(.coinbase), on: stack)
                 }
             }
         )
