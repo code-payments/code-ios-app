@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import FlipcashCore
 
 private let logger = Logger(label: "flipcash.deeplink")
@@ -43,6 +44,15 @@ final class DeepLinkController {
         // error would bury genuine deep-link parse failures in expected noise.
         if let action {
             Analytics.deeplinkParsed(action: action, url: url)
+            // Every action below reroutes what's on screen, and a link can land
+            // while a text field elsewhere still holds focus — most often a chat
+            // composer the user left focused. Take the keyboard down before any
+            // of it runs. A one-shot, so a destination that focuses a field of
+            // its own on appear still gets its keyboard: that ask comes after
+            // this. It does not survive the first-responder restore that scene
+            // activation performs, which is why the tipcard path additionally bars
+            // the keyboard for a window (see `KeyboardSuppressor`).
+            KeyboardSuppressor.lower()
         }
 
         Task {

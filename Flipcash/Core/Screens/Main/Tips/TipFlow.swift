@@ -38,6 +38,12 @@ final class TipFlow {
 
     @ObservationIgnored private var prepTask: Task<Void, Never>?
 
+    /// Keeps the keyboard down while a tipcard is being routed to. A tipcard
+    /// link is commonly followed from a chat the user left focused, and the
+    /// card is an overlay — it never displaces the composer that owns the
+    /// keyboard, so the keyboard has to be taken away deliberately.
+    @ObservationIgnored private let keyboard = KeyboardSuppressor()
+
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let sessionContainer: SessionContainer
     @ObservationIgnored private let ratesController: RatesController
@@ -89,6 +95,7 @@ final class TipFlow {
         // the scan or tap. `showOwnTipCard()` absorbs the repeat calls the
         // per-frame scanner makes until the camera tears down.
         guard userID != session.userID else {
+            keyboard.suppress()
             router.showOwnTipCard()
             return
         }
@@ -100,10 +107,13 @@ final class TipFlow {
         guard session.profile?.isTippable == true else {
             pendingUserID = userID
             logger.info("Tip held for profile creation", metadata: ["recipient": "\(userID)"])
+            // Deliberately unsuppressed: profile creation focuses its name
+            // field on appear, and that keyboard is wanted.
             router.present(.tips)
             return
         }
 
+        keyboard.suppress()
         prepare(userID: userID)
     }
 
@@ -191,6 +201,11 @@ final class TipFlow {
         // The card is resolved and about to show, whether reached from a scan or
         // a deep link — the second step of the Scanned → Presented → Sent Tip funnel.
         Analytics.track(event: Analytics.TipCardEvent.presented)
+        // Again, because the resolve above retries: a cold-foreground `.unavailable`
+        // outlasts the window opened at `begin`, so the restore can win after it has
+        // closed. The card is a focused modal and must never share the screen with a
+        // keyboard, so it takes one down on the way up regardless.
+        keyboard.suppress()
         selection = nil
         customAmount = nil
         submission = SendAmountViewModel(
