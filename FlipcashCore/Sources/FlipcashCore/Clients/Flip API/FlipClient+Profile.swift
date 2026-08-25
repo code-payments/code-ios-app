@@ -19,7 +19,10 @@ extension FlipClient {
         try await fetchProfile(.username(username), owner: owner)
     }
 
-    private func fetchProfile(_ identifier: ProfileIdentifier, owner: KeyPair) async throws -> Profile {
+    /// Fetches a profile by whichever identifier the caller holds. Used where
+    /// the identifier is data — a deep link that may carry either a user id or
+    /// a handle — rather than a fixed choice at the call site.
+    public func fetchProfile(_ identifier: ProfileIdentifier, owner: KeyPair) async throws -> Profile {
         try await withCheckedThrowingContinuation { c in
             profileService.fetchProfile(identifier, owner: owner) { c.resume(with: $0) }
         }

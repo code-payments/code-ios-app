@@ -234,18 +234,22 @@ struct RouteTests {
     }
 
     @Test(
-        "Quick-action names are not universal-link routes",
+        "Quick-action names are ordinary handles on the web",
         arguments: [
-            "https://app.flipcash.com/give",
-            "https://app.flipcash.com/balance",
-            "https://app.flipcash.com/discover",
+            ("https://app.flipcash.com/give", "give"),
+            ("https://app.flipcash.com/balance", "balance"),
+            ("https://app.flipcash.com/discover", "discover"),
         ]
     )
-    func quickActionNames_universalLink_areUnknown(urlString: String) throws {
+    func quickActionNames_universalLink_areHandles(urlString: String, handle: String) throws {
         let path = try #require(Route(url: URL(string: urlString)!)?.path)
-        if case .unknown = path {} else {
-            Issue.record("\(urlString) should parse as .unknown, not a route")
+        guard case .username(let username) = path else {
+            Issue.record("\(urlString) should parse as .username, not a quick action")
+            return
         }
+        // The server's reserved list decides whether these are claimable; the
+        // client only decides that they aren't quick actions off the custom scheme.
+        #expect(username.value == handle)
     }
 
     // MARK: - Wallet Callback URLs -
@@ -298,4 +302,75 @@ struct RouteTests {
         #expect(Route(url: URL(string: urlString)!) == nil)
     }
 
+    // MARK: - Vanity Handle URLs -
+
+    @Test("A vanity link parses the handle from every host and scheme", arguments: [
+        "https://app.flipcash.com/taylor",
+        "https://flipcash.com/taylor",
+        "flipcash://taylor",
+    ])
+    func usernameRoute(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        guard case .username(let username) = path else {
+            Issue.record("\(urlString) should parse as .username")
+            return
+        }
+        #expect(username.value == "taylor")
+    }
+
+    @Test("A capitalized handle parses as the lowercase one it names", arguments: [
+        "https://app.flipcash.com/Taylor",
+        "https://app.flipcash.com/TAYLOR",
+    ])
+    func usernameRoute_capitalized_lowercased(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        guard case .username(let username) = path else {
+            Issue.record("\(urlString) should parse as .username")
+            return
+        }
+        #expect(username.value == "taylor")
+    }
+
+    @Test("The handle bounds hold at both ends", arguments: [
+        ("https://app.flipcash.com/te", "te"),
+        ("https://app.flipcash.com/abcdefghijklmno", "abcdefghijklmno"),
+        ("https://app.flipcash.com/a_1", "a_1"),
+    ])
+    func usernameRoute_bounds(urlString: String, handle: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        guard case .username(let username) = path else {
+            Issue.record("\(urlString) should parse as .username")
+            return
+        }
+        #expect(username.value == handle)
+    }
+
+    @Test("A segment that can't be a handle stays unknown", arguments: [
+        // One character, sixteen characters, and a hyphen — the three ways the
+        // handle pattern is missed.
+        "https://app.flipcash.com/t",
+        "https://app.flipcash.com/abcdefghijklmnop",
+        "https://app.flipcash.com/not-a-handle",
+        // A handle is the whole path or it isn't a handle.
+        "https://app.flipcash.com/taylor/photos",
+    ])
+    func usernameRoute_malformed_isUnknown(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        if case .unknown = path {} else {
+            Issue.record("\(urlString) should parse as .unknown, not a handle")
+        }
+    }
+
+    @Test("Named routes still win over the handle fallback", arguments: [
+        "https://app.flipcash.com/login",
+        "https://app.flipcash.com/cash",
+        "https://app.flipcash.com/verify",
+        "https://app.flipcash.com/wallet",
+    ])
+    func usernameRoute_doesNotShadowNamedRoutes(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        if case .username = path {
+            Issue.record("\(urlString) should not parse as a handle")
+        }
+    }
 }

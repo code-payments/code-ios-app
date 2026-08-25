@@ -33,8 +33,10 @@ final class TipFlow {
     private(set) var submission: SendAmountViewModel?
 
     /// A recipient held while the user creates a profile; resumed by
-    /// ``resumeAfterProfileCreation()`` once `isTippable` flips true.
-    @ObservationIgnored private(set) var pendingUserID: UserID?
+    /// ``resumeAfterProfileCreation()`` once `isTippable` flips true. Holds
+    /// whichever identifier the entry carried — a scanned code's user id or a
+    /// vanity link's handle.
+    @ObservationIgnored private(set) var pendingRecipient: ProfileIdentifier?
 
     @ObservationIgnored private var prepTask: Task<Void, Never>?
 
@@ -95,18 +97,33 @@ final class TipFlow {
         // the scan or tap. `showOwnTipCard()` absorbs the repeat calls the
         // per-frame scanner makes until the camera tears down.
         guard userID != session.userID else {
-            keyboard.suppress()
-            router.showOwnTipCard()
+            showOwnTipCard()
             return
         }
-        guard submission == nil, pendingUserID == nil, prepTask == nil else { return }
+        begin(.userID(userID))
+    }
+
+    /// Handles a vanity tipcard link — `app.flipcash.com/<handle>`. The handle
+    /// resolves to the same card a scanned code opens; the own-handle case is
+    /// caught here when the local profile knows its handle, and again after the
+    /// resolve when it doesn't.
+    func begin(username: Username) {
+        guard session.profile?.username != username else {
+            showOwnTipCard()
+            return
+        }
+        begin(.username(username))
+    }
+
+    private func begin(_ identifier: ProfileIdentifier) {
+        guard submission == nil, pendingRecipient == nil, prepTask == nil else { return }
         // A dialog is already asking the user something (commonly this flow's
         // own balance gate) — don't churn it on every decoded camera frame.
         guard session.dialogItem == nil else { return }
 
         guard session.profile?.isTippable == true else {
-            pendingUserID = userID
-            logger.info("Tip held for profile creation", metadata: ["recipient": "\(userID)"])
+            pendingRecipient = identifier
+            logger.info("Tip held for profile creation", metadata: ["recipient": "\(identifier)"])
             // Deliberately unsuppressed: profile creation focuses its name
             // field on appear, and that keyboard is wanted.
             router.present(.tips)
@@ -114,20 +131,25 @@ final class TipFlow {
         }
 
         keyboard.suppress()
-        prepare(userID: userID)
+        prepare(identifier)
+    }
+
+    private func showOwnTipCard() {
+        keyboard.suppress()
+        router.showOwnTipCard()
     }
 
     /// Re-enters a held tip once the profile became tippable.
     func resumeAfterProfileCreation() {
-        guard let pendingUserID, session.profile?.isTippable == true else { return }
-        self.pendingUserID = nil
+        guard let pendingRecipient, session.profile?.isTippable == true else { return }
+        self.pendingRecipient = nil
         router.dismissSheet()
-        begin(userID: pendingUserID)
+        begin(pendingRecipient)
     }
 
     /// Drops a held recipient — the user backed out of profile creation.
     func abandonPendingTip() {
-        pendingUserID = nil
+        pendingRecipient = nil
     }
 
     /// Tears down the card, the sheet, and any in-flight preparation.
@@ -145,7 +167,11 @@ final class TipFlow {
 
     // MARK: - Recipient -
 
-    private func prepare(userID: UserID) {
+    /// Thrown when a handle resolved to a profile the server didn't stamp with
+    /// a user id — a tip has nobody to pay without one.
+    private struct UnidentifiedRecipient: Error {}
+
+    private func prepare(_ identifier: ProfileIdentifier) {
         prepTask = Task {
             defer { prepTask = nil }
             do {
@@ -166,13 +192,37 @@ final class TipFlow {
                         return false
                     }
                 ) {
-                    async let profile = flipClient.fetchProfile(userID: userID, owner: session.ownerKeyPair)
-                    async let destination = flipClient.resolveUserID(userID, owner: session.ownerKeyPair)
+                    async let profile = flipClient.fetchProfile(identifier, owner: session.ownerKeyPair)
+                    async let destination = flipClient.resolve(identifier, owner: session.ownerKeyPair)
                     // The destination is re-resolved (and cached) by the send
                     // itself; here it only proves the user can be paid at all.
                     _ = try await destination
                     return try await profile
                 }
+
+                let userID: UserID
+                switch identifier {
+                case .userID(let resolvedUserID):
+                    userID = resolvedUserID
+                case .username:
+                    // A handle link learns whose card it is only from the
+                    // response, so the id is load-bearing rather than
+                    // confirmatory here.
+                    guard let responseUserID = resolved.userID else {
+                        throw UnidentifiedRecipient()
+                    }
+                    userID = responseUserID
+                }
+
+                guard !Task.isCancelled else { return }
+                // The second half of the own-handle check `begin(username:)`
+                // starts: a link to your own handle followed before the local
+                // profile has loaded its handle only shows itself here.
+                guard userID != session.userID else {
+                    showOwnTipCard()
+                    return
+                }
+
                 session.cacheUserProfile(resolved, for: userID)
                 let recipient = TipRecipient(
                     userID: userID,
@@ -186,7 +236,7 @@ final class TipFlow {
             } catch {
                 guard !Task.isCancelled else { return }
                 logger.error("Failed to prepare tip recipient", metadata: [
-                    "recipient": "\(userID)",
+                    "recipient": "\(identifier)",
                     "error": "\(error)",
                 ])
                 ErrorReporting.captureError(error, reason: "Failed to prepare tip recipient")

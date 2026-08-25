@@ -148,6 +148,9 @@ final class DeepLinkController {
         case .tip(let userID):
             return action(.tip(userID))
 
+        case .username(let username):
+            return action(.username(username))
+
         case .give:
             return action(.openSheet(.give))
 
@@ -280,6 +283,14 @@ struct DeepLinkAction {
                 container.tipFlow.begin(userID: userID)
             }
 
+        case .username(let username):
+            if let container = sessionAuthenticator.loggedInContainer {
+                Analytics.deeplinkRouted(kind: kind)
+                // Same destination as `.tip`, reached by handle — including the
+                // own-handle case, which `begin` routes to the user's own card.
+                container.tipFlow.begin(username: username)
+            }
+
         case .openSheet(let sheet):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
@@ -326,6 +337,7 @@ extension DeepLinkAction {
         case chat(ConversationID)
         case chatSendCash(ConversationID)
         case tip(UserID)
+        case username(Username)
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -340,6 +352,7 @@ extension DeepLinkAction.Kind {
         case .chat:                 "Chat"
         case .chatSendCash:         "ChatSendCash"
         case .tip:                  "Tip"
+        case .username:             "Username"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }

@@ -88,6 +88,10 @@ nonisolated extension Route {
         case chat(ConversationID)
         case chatSendCash(ConversationID)
         case tip(UserID)
+        /// A vanity tipcard link — `app.flipcash.com/<handle>`, no `/tip/`
+        /// segment and no `@`. The same destination as ``tip(_:)``, reached by
+        /// the handle its owner claimed rather than by their user id.
+        case username(Username)
         case give
         case balance
         case discover
@@ -99,7 +103,12 @@ nonisolated extension Route {
         /// `scheme` separates a home-screen quick action (`flipcash://give`)
         /// from a web link (`app.flipcash.com/give`). Only the custom scheme
         /// carries the quick-action routes; on the web those names are ordinary
-        /// path segments, and Phase 2 reads an unmatched one as a handle.
+        /// path segments, and an unmatched one reads as a handle.
+        ///
+        /// Host-agnostic by design: `app.flipcash.com/<handle>` and
+        /// `flipcash.com/<handle>` are the same link, and which hosts reach the
+        /// app at all is the associated-domains entitlement's decision, not
+        /// this parser's.
         static func parse(path: String, scheme: String?) -> Path? {
             guard let url = URL(string: path.trimmingCharacters(in: .init(charactersIn: "/"))) else {
                 return nil
@@ -154,6 +163,15 @@ nonisolated extension Route {
             case "discover" where scheme == customScheme:
                 return .discover
             default:
+                // A single unmatched segment is a claimed handle. Lowercased
+                // first: handles are stored lowercase, and a link a messaging
+                // app auto-capitalized is still the same link. Whether the
+                // handle *can* be claimed — the reserved list — is the server's
+                // to say, so nothing is filtered out here beyond the routes
+                // above.
+                if components.count == 1, let username = Username(components[0].lowercased()) {
+                    return .username(username)
+                }
                 return .unknown(url.lastPathComponent)
             }
         }

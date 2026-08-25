@@ -139,7 +139,9 @@ class ScanViewModel {
         }
 
         switch route.path {
-        case .cash, .token, .tip:
+        // `.username` is the vanity form of `.tip` — the same tipcard link, so
+        // a printed handle QR scans where the user id one already does.
+        case .cash, .token, .tip, .username:
             return true
         case .login, .verifyEmail, .chat, .chatSendCash, .give, .balance, .discover, .unknown:
             return false
