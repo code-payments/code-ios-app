@@ -1,5 +1,12 @@
 What to test in this build
 
+New in this release:
+• Add money and go through identity verification — the flow should stay on screen from start to finish, with no blank screen partway through
+• Open a link to your own tip card, or scan your own tipcode — either should land on the You tab showing your card, with any open sheet dismissed
+• Follow a tip link with the keyboard up — the keyboard should go down as the link opens
+• Open the tip card full screen on the You tab, then pull it up — it should track your finger back into its slot; a short pull, or a downward one, should spring back
+• Scroll the wallet to the bottom — the last tile should sit a normal gap above the tab bar, not a large empty space
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
