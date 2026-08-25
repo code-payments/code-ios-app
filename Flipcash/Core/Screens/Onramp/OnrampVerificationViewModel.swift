@@ -58,26 +58,32 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
 
     // MARK: - Pushed navigation -
 
-    /// When set, step advances route through this sink — used to push the flow
-    /// onto the app's navigation stack — instead of the view-model-owned
-    /// `verificationPath`. Sheet hosts (`VerifyInfoScreen`) leave it nil and let
-    /// `verificationPath` drive their own `NavigationStack`.
-    @ObservationIgnored var onAdvance: (@MainActor (OnrampVerificationPath) -> Void)?
+    /// Set when the flow runs on the app's navigation stack rather than in a
+    /// sheet: step advances push through it instead of appending to the
+    /// view-model-owned `verificationPath`. Sheet hosts (`VerifyInfoScreen`)
+    /// leave it nil and let `verificationPath` drive their own
+    /// `NavigationStack`.
+    @ObservationIgnored var pushedHost: PushedVerificationHost?
 
-    /// The first step pushed when the flow runs on the app's navigation stack.
-    /// The pushed host cancels the flow when this step is popped (the user
-    /// backed out of verification); later steps back within the flow.
-    @ObservationIgnored var rootPushedStep: OnrampVerificationPath?
-
-    /// Advances to `step` — pushing through `onAdvance` when the flow is hosted
-    /// on the app's navigation stack, otherwise appending to the sheet-owned
+    /// Advances to `step` — pushing onto the app's navigation stack when the
+    /// flow is hosted there, otherwise appending to the sheet-owned
     /// `verificationPath`.
     private func advance(to step: OnrampVerificationPath) {
-        if let onAdvance {
-            onAdvance(step)
+        if let pushedHost {
+            pushedHost.advance(to: step)
         } else {
             verificationPath.append(step)
         }
+    }
+
+    /// Called by the pushed host when `step` leaves the screen. SwiftUI reports
+    /// that both when a step is popped and when the next one covers it, so the
+    /// flow is cancelled only if the root step went away because the host stack
+    /// unwound — the user backed out of verification. A no-op once the flow has
+    /// finished, since the continuation is already cleared.
+    func cancelIfBackedOut(from step: OnrampVerificationPath) {
+        guard let pushedHost, step == pushedHost.rootStep, pushedHost.hasUnwound else { return }
+        cancel()
     }
 
     // MARK: - Init -
@@ -185,16 +191,88 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
     // MARK: - Deeplinks -
 
     /// Forwards to the inner email verifier and parks the user on the
-    /// confirm-email screen. Guards on the inner state BEFORE mutating the
-    /// shared path so a deeplink that the inner verifier would drop
-    /// (already verified, or another deeplink in flight) doesn't yank the
-    /// user off their current step.
+    /// confirm-email screen so the code check has somewhere to surface.
+    /// Navigates only if the verifier took the deeplink — one it drops
+    /// (already verified, or another deeplink in flight) must not yank the
+    /// user off the step they're on.
     func applyDeeplinkVerification(_ verification: VerificationDescription) {
-        guard !emailVerifier.isAlreadyVerified else { return }
-        if verificationPath.last != .confirmEmailCode {
+        guard emailVerifier.applyDeeplinkVerification(verification) else { return }
+        showConfirmEmailCode()
+    }
+
+    /// Moves the user to the confirm-email step unless they're already there —
+    /// pushing onto the host stack when the flow is hosted there, otherwise
+    /// replacing the sheet-owned path.
+    private func showConfirmEmailCode() {
+        if let pushedHost {
+            guard pushedHost.currentStep != .confirmEmailCode else { return }
+            pushedHost.advance(to: .confirmEmailCode)
+        } else if verificationPath.last != .confirmEmailCode {
             verificationPath = [.confirmEmailCode]
         }
-        emailVerifier.applyDeeplinkVerification(verification)
+    }
+}
+
+// MARK: - Pushed hosting -
+
+/// How a verification flow that runs on the app's navigation stack — rather
+/// than in its own sheet — reaches that stack, and the record of which of its
+/// steps that stack still holds.
+///
+/// The host stack carries other destinations below the flow and its path is
+/// type-erased, so it can only be asked how many steps it holds, never which.
+/// This type keeps the step list the count indexes into: the flow pushes
+/// through `advance(to:)`, the user pops from the top, so the live steps are
+/// always the first `liveStepCount()` of what was pushed.
+@MainActor
+final class PushedVerificationHost {
+
+    /// The first step pushed onto the host stack. Popping it backs out of
+    /// verification entirely; later steps back within the flow.
+    let rootStep: OnrampVerificationPath
+
+    private let push: @MainActor (OnrampVerificationPath) -> Void
+    private let liveStepCount: @MainActor () -> Int
+
+    private var pushedSteps: [OnrampVerificationPath]
+
+    /// - Parameters:
+    ///   - rootStep: the step the caller pushes to open the flow.
+    ///   - push: pushes a step onto the host stack.
+    ///   - liveStepCount: how many of the flow's steps the host stack holds
+    ///     right now — its depth less the depth it had before the flow began.
+    init(
+        rootStep: OnrampVerificationPath,
+        push: @MainActor @escaping (OnrampVerificationPath) -> Void,
+        liveStepCount: @MainActor @escaping () -> Int
+    ) {
+        self.rootStep = rootStep
+        self.push = push
+        self.liveStepCount = liveStepCount
+        self.pushedSteps = [rootStep]
+    }
+
+    /// The flow step the user is on, or nil once the stack has unwound past
+    /// the flow.
+    var currentStep: OnrampVerificationPath? {
+        liveSteps.last
+    }
+
+    /// `true` once the host stack no longer holds any of the flow's steps.
+    var hasUnwound: Bool {
+        liveSteps.isEmpty
+    }
+
+    /// Pushes `step` onto the host stack, dropping the record of any steps the
+    /// user has already popped.
+    func advance(to step: OnrampVerificationPath) {
+        pushedSteps = Array(liveSteps)
+        pushedSteps.append(step)
+        push(step)
+    }
+
+    private var liveSteps: ArraySlice<OnrampVerificationPath> {
+        pushedSteps.prefix(max(0, liveStepCount()))
     }
 }
 
