@@ -37,10 +37,16 @@ platform :ios do
   desc "Usage: fastlane release version:1.2.3"
   desc "       fastlane release version:1.2.3 build:42"
   desc "       fastlane release version:1.2.3 notes:'Bug fixes'"
+  desc "       fastlane release version:1.2.3 review_notes:'Fixes a production bug…'"
+  desc "       fastlane release version:1.2.3 phased:false   # release to everyone at once"
   lane :release do |options|
     version = options[:version] || version_from_tag
     build_number = options[:build] # Optional: specific build number
     release_notes = options[:notes] || default_release_notes
+    review_notes = options[:review_notes]
+    # Phased release is the right default, but a fix shipping under an expedited
+    # review wants every user on it the day it clears — not 1% of them.
+    phased = options.key?(:phased) ? options[:phased].to_s == "true" : true
 
     UI.user_error!("Version required. Usage: fastlane release version:1.2.3") unless version
 
@@ -73,6 +79,7 @@ platform :ios do
     # deliver skipped whatsNew (skip_metadata); set it on the editable version's
     # en-US localization directly, then submit.
     set_whats_new(version, release_notes)
+    set_review_notes(review_notes) if review_notes
 
     deliver(
       api_key: api_key,
@@ -84,7 +91,7 @@ platform :ios do
       force: true,
       submit_for_review: true,
       automatic_release: true,
-      phased_release: true,
+      phased_release: phased,
       submission_information: {
         add_id_info_uses_idfa: false
       },
@@ -302,6 +309,32 @@ platform :ios do
 
     loc.update(attributes: { whatsNew: notes })
     UI.success("Set 'What's New' for #{version}")
+  end
+
+  # Set "Notes for Review" on the editable App Store version. deliver skips it
+  # under skip_metadata, and an expedited-review request needs its justification
+  # in front of the reviewer rather than only in the request form.
+  def set_review_notes(notes)
+    Spaceship::ConnectAPI.token = asc_token
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("App '#{ENV['APP_IDENTIFIER']}' not found in App Store Connect") unless app
+
+    edit_version = app.get_edit_app_store_version(platform: "IOS")
+    UI.user_error!("No editable App Store version to set review notes on") unless edit_version
+
+    detail = begin
+      edit_version.fetch_app_store_review_detail
+    rescue StandardError
+      nil
+    end
+
+    if detail
+      detail.update(attributes: { notes: notes })
+    else
+      edit_version.create_app_store_review_detail(attributes: { notes: notes })
+    end
+
+    UI.success("Set review notes for #{edit_version.version_string}")
   end
 
   def current_branch
