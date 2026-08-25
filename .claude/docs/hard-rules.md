@@ -59,9 +59,13 @@ case .insufficient(let shortfall):
 
 Existing `ObservableObject` classes (`Client`, `FlipClient`) stay as-is until their dependents are migrated. A single class must use one system — either `ObservableObject` with `@Published`, or `@Observable`. Mixing causes silent observation failures.
 
-## Generated Files
+## Generated Protos
 
-**Never modify files under `Generated/` directly** — they're regenerated from upstream protos by the scripts in [Regenerating Protos](technology-stack.md#regenerating-protos), and any local edits will be overwritten. Update the service files that wrap the generated code instead.
+**Generated proto code is not in this repo.** `FlipcashAPI` re-exports `OCPClientProtocol` and
+`Flipcash2ClientProtocol`, which are published from their own repos (see
+[Protos: consumed, not generated here](technology-stack.md#protos-consumed-not-generated-here)).
+A contract fix belongs in the package repo and reaches the app as a version bump; anything the
+app can fix itself belongs in the service files that wrap the generated code.
 
 ## Database Schema Changes
 

@@ -1,8 +1,8 @@
 ---
 name: fetch-protos
 description: >
-  Fetch latest protobuf definitions, regenerate Swift bindings, verify the build,
-  summarize API changes, and scaffold new service stubs. Usage: /fetch-protos [core|payments] [both]
+  Bump the published contract packages, verify the build, summarize API changes,
+  and scaffold new service stubs. Usage: /fetch-protos [core|payments] [both]
 argument-hint: "[core|payments] (default: both)"
 allowed-tools:
   - Bash
@@ -16,74 +16,70 @@ allowed-tools:
 
 # Fetch Protos
 
-Pull `.proto` files from upstream, regenerate the Swift gRPC bindings under
-`FlipcashAPI/Sources/FlipcashAPI/{Core,Payments}/Generated`, verify they compile,
-summarize the API changes, and scaffold missing service-layer implementations.
+Move the app onto newer contract packages, verify they compile, summarize the API changes,
+and scaffold missing service-layer implementations.
+
+This repo does not generate protos. `FlipcashAPI` is an umbrella that re-exports two published
+packages, and picking up a contract change means bumping their versions — the generation itself
+happens in the package repos.
 
 ## Pre-flight context
 
-- Core protos: !`find FlipcashAPI/Sources/FlipcashAPI/Core/proto -name "*.proto" 2>/dev/null | wc -l | tr -d ' '`
-- Payments protos: !`find FlipcashAPI/Sources/FlipcashAPI/Payments/proto -name "*.proto" 2>/dev/null | wc -l | tr -d ' '`
+- Pinned versions: !`grep -E 'client-protocol' FlipcashAPI/Package.swift`
 - Git status: !`git status --short FlipcashAPI/`
 
 ## Input
 
-Parse `$ARGUMENTS` to determine which domain(s) to fetch.
+Parse `$ARGUMENTS` to determine which domain(s) to bump.
 
 **Rules:**
-- Known targets: `core` (→ `flipcashCore`), `payments` (→ `flipcashPayments`)
-- If no target specified, fetch **both**
-- `both` explicitly fetches both
+- Known targets: `core` (→ flipcash2), `payments` (→ ocp)
+- If no target specified, bump **both**
+- `both` explicitly bumps both
 - Examples:
-  - `/fetch-protos` → fetch core + payments
-  - `/fetch-protos core` → fetch core only
-  - `/fetch-protos payments` → fetch payments only
+  - `/fetch-protos` → bump core + payments
+  - `/fetch-protos core` → bump core only
+  - `/fetch-protos payments` → bump payments only
 
-Target-to-repo mapping (handled by `Scripts/run`):
-
-| Target | App flag | Upstream repo |
-|--------|----------|---------------|
-| `core` | `flipcashCore` | `code-payments/flipcash2-protobuf-api` |
-| `payments` | `flipcashPayments` | `code-payments/ocp-protobuf-api` |
+| Target | Swift module | Package | Upstream contract |
+|--------|--------------|---------|-------------------|
+| `core` | `Flipcash2ClientProtocol` | `code-payments/flipcash2-client-protocol` | `code-payments/flipcash2-protobuf-api` |
+| `payments` | `OCPClientProtocol` | `code-payments/ocp-client-protocol` | `code-payments/ocp-protobuf-api` |
 
 ## Steps
 
-### Step 1 — Pre-flight tool check
-
-The script aborts if any generator is missing, but confirm first so the user can
-install before anything destructive runs:
+### Step 1 — Find the release to move to
 
 ```bash
-command -v protoc protoc-gen-swift protoc-gen-grpc-swift-2
+gh release list --repo code-payments/ocp-client-protocol --limit 5
+gh release list --repo code-payments/flipcash2-client-protocol --limit 5
 ```
 
-If any are missing, install and stop:
-- `protoc` → `brew install protobuf`
-- `protoc-gen-swift` → `brew install swift-protobuf`
-- `protoc-gen-grpc-swift-2` → `./Scripts/install-grpc-swift-2-plugin.sh`
+If the contract change you want is not released yet, stop: it has to be synced and published
+from the package repo first (see that repo's README — `scripts/sync-protos.sh`, then the
+`publish.yml` workflow). Releasing is a deliberate, human-gated step; do not start it from here.
 
-### Step 2 — Fetch protos and regenerate
+Android pins the same two packages in its `gradle/libs.versions.toml`. The versions are not
+required to match across platforms, but a contract change that matters to both should land on
+both — flag it if only one side is moving.
 
-For each target, run from the repo root:
+### Step 2 — Bump the pin
+
+Edit the `exact:` requirement in `FlipcashAPI/Package.swift` for each target, then resolve:
 
 ```bash
-cd Scripts && ./run -a flipcashCore      # core
-cd Scripts && ./run -a flipcashPayments  # payments
+xcodebuild -resolvePackageDependencies -project Code.xcodeproj -scheme Flipcash
 ```
 
-Each invocation clones the latest `.proto` files from upstream, replaces the local
-`proto/` directory, copies `proto_deps/` back in, and regenerates the Swift bindings
-in `Generated/`. It also drops `validate_validate.pb.swift` (unused client mirror)
-and, for core, renames the messaging service files to avoid a basename collision with
-the payments messaging service in the merged `FlipcashAPI` module. Show the output.
+Show the resulting `Package.resolved` diff — it should change only the bumped package's
+`version` and `revision`.
 
 ### Step 3 — Diff and summarize changes
 
-The meaningful diff is the regenerated Swift, since `proto/` is wiped and re-cloned:
+The packages ship their generated Swift committed, so the API diff is readable directly:
 
 ```bash
-git diff --stat FlipcashAPI/Sources/FlipcashAPI/Core/Generated FlipcashAPI/Sources/FlipcashAPI/Payments/Generated
-git diff FlipcashAPI/Sources/FlipcashAPI/*/proto
+gh api repos/code-payments/<package>/compare/<old-tag>...<new-tag> --jq '.files[].filename'
 ```
 
 For each changed service, summarize:
@@ -92,19 +88,19 @@ For each changed service, summarize:
 - **Removed RPCs**
 - **New/modified messages, fields, and enum result cases**
 
-Present a structured change summary. If nothing changed, report that protos are
-already up to date and stop here.
+Present a structured change summary. If nothing changed, report that the app is already on the
+latest release and stop here.
 
 ### Step 4 — Build verification
 
-Verify the regenerated code compiles before touching anything else:
+Verify the app compiles against the new packages before touching anything else:
 
 ```bash
 ./Scripts/build.sh
 ```
 
-If the build fails, show errors and stop — a broken generation must be resolved
-(usually a proto rename that orphaned a Swift type reference) before proceeding.
+If the build fails, show errors and stop — a broken bump must be resolved (usually a proto
+rename that orphaned a Swift type reference) before proceeding.
 
 ### Step 5 — Trace service-layer impact
 
@@ -226,7 +222,7 @@ Show the user a summary of all changes (proto/generated updates + any scaffolded
 service code). Offer to commit only after approval, with a conventional message:
 
 ```
-chore: sync <core|payments> protos
+chore: bump <core|payments> client-protocol to <version>
 ```
 
 If service stubs were scaffolded, suggest a separate commit:
@@ -237,7 +233,7 @@ feat: scaffold <domain> service for new RPCs
 
 ## Never
 
-- Edit generated files under `Generated/` directly — they are overwritten on the next regen. Update the wrapping `*Service.swift` instead.
+- Patch generated code locally to work around a contract problem. It lives in the package repos; fix it there and cut a release. Update the wrapping `*Service.swift` instead when the gap is app-side.
 - Give a streaming RPC a deadline (`.unaryDefault`). Streaming passes `.defaults`.
 - Interpolate variables (especially base58/keys) into log message strings — variables go in `metadata`.
 - Skip the build verification in Step 4.
