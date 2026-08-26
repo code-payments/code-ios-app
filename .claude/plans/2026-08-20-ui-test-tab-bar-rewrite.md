@@ -19,6 +19,7 @@ call site.
 | `scan-discover-button` | Wallet tab → "Discover Currencies" tile (a push, not a sheet) |
 | `discover-create-currency-card` promo | Wallet tab → "Create a Currency" tile — `CurrencyDiscoveryScreen.hidesPromo` hides the card |
 | Settings "Add Money" / "Withdraw Money" rows | Wallet tab tiles of the same name |
+| `CurrencyInfoScreen` "Transaction History" button | the **"Recent"** section header (`RecentActivitySection.onShowAll`); the rows under it are a non-interactive preview |
 | `CurrencyInfoScreen` "Buy" / "Sell" / "Give" footer | `CurrencyInfoContentV2` action tiles — **Give / Convert / Withdraw** for a currency you hold, **Get** for one you don't. No Buy, no Sell. |
 | Buy paying with reserves / Sell to Dollars | **Convert**, from either end. Open the balance you are paying *from* and convert to the one you want: token → Dollars replaces Sell, Dollars → token replaces buy-with-reserves, token → token replaces buy-with-currency. |
 
@@ -29,12 +30,30 @@ call site.
   `assertMainScreenReached()` (now the Wallet tab) only holds at a tab root — pop first.
 - **The You tab's settings rows sit below the fold.** They render under the tip card, so
   scroll them into view (`scrollUpToAndTap(_:in:)`) rather than tapping blind.
-- **`GiveDiscoverGateRegressionTests` tests behavior that no longer exists.** USDF is
-  giveable now (`BetaFlags.allowsDollarsGive`), so `GiveCashGate.discoverCurrencies` is
-  unreachable and the "No Community Currencies Yet" dialog never shows. Delete the test
-  with the phase-2 teardown rather than rewriting it.
-- **`BaseUITestCase.navigateToGiveAmount()` still taps the v1 Cash button.** Its only
-  callers are skipped; rewrite it against whichever give entry the tests should cover.
+- **`GiveCashGate` has no v2 entry from a tab root.** `ScanBottomBar` — the only caller
+  that gated a *give* — renders under `if !isEmbedded`, and the Scan tab embeds
+  `ScanScreen`. The gate still fires from a chat's Send Cash (`ConversationScreen`),
+  `TipFlow`, and the give deeplink, none of which a fresh empty account can reach. So
+  both dialog regressions built on the Cash button lose their subject:
+  `GiveDiscoverGateRegressionTests` doubly so, since USDF is giveable now
+  (`BetaFlags.allowsDollarsGive`) and `GiveCashGate.discoverCurrencies` is unreachable
+  either way. Deleted. `GiveRegressionTests` (the "No Balance Yet" gate) is the same
+  shape and stays skipped pending the same call.
+- **Per-token history moved into the "Recent" header.** `CurrencyInfoContentV2` has no
+  "Transaction History" button; the header button is the only way in, and it sits below
+  the hero card and the action tiles, so it needs scrolling into view.
+- **The Access Key row is on Advanced, not My Account.** `SettingsMyAccountScreen` says
+  so in its own header doc: it keeps Access Key, Log Out and Delete Account off itself,
+  and holds only Change Display Name, Blocked, and the beta-gated Switch Accounts.
+- **The Chat tab is chats only — it is not a door into profile creation.**
+  `TipsScreen(isEmbedded: true)` renders `TipConversationsScreen` unconditionally, so
+  `TipsIntroScreen` and its `start-receiving-tips-button` never appear in v2. The v2 door
+  is the You tab's `you-start-receiving-tips-button`, which pushes `.changeDisplayName`
+  → `ProfileNameScreen(completion: .back)`: name only, returning to the You tab.
+- **The profile photo step is dead in the app, not just in v2.** `ProfileNameScreen`'s
+  `.tipcard` completion pushes straight past it — "the card omits the profile photo" —
+  so `.profilePhoto` has no caller at all. Any rewrite drops `profile-photo-picker` and
+  `profile-photo-next-button` rather than re-routing to them.
 - **A wallet card opens `CurrencyInfoScreen` as an overlay, not a push.** `TokenCardStack`
   reports the tap through `onCardTap`; the wallet lifts the page over the deck with a
   close box instead of a back chevron, so there is no `navigationBars` entry to wait on.
@@ -66,6 +85,18 @@ call site.
   verified-contact gate *before* "Amount to Add".
 - `WalletUsdfRowRegressionTests` — the v2 deck's cards carry `currency-row` /
   `currency-row-usdf`, so the wallet page object matches again.
+- The You-tab settings group — `AccessKeyBackupSmokeTests` (×3), `BlockedUsersSmokeTests`,
+  `ApplicationLogsRegressionTests` — enters through the You tab and scrolls to the row.
+  Access Key and Application Logs are on **Advanced**; Blocked is on **My Account**.
+  `SettingsUIScreen` lost `addMoneyButton` / `withdrawMoneyButton` with the rows.
+- The wallet money-tile group — `WithdrawSmokeTests`,
+  `WithdrawPickerEmptyRegressionTests`, `DepositSmokeTests` (×2) — enters through
+  `wallet-tile-withdraw-money` / `wallet-tile-add-money` instead of the Settings rows.
+- `GiveSmokeTests` and `CashLinkRegressionTests` — `navigateToGiveAmount()` now goes
+  Wallet → first currency card → its **Give** tile. The keypad pops itself as the bill
+  appears (`GiveScreen.onBillPresented`, when `isPushed`), so both flows end on
+  `CurrencyInfoScreen` rather than a tab root — the cash link reaches its history from
+  there without a second trip through the wallet.
 - The three buy/sell tests, rewritten as the convert routes that replaced them and
   renamed for what they now exercise: `CurrencySellRegressionTests` →
   `ConvertToDollarsRegressionTests`, `BuyReservesRegressionTests` →

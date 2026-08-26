@@ -20,15 +20,13 @@ final class CashLinkRegressionTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testCashLink_createAndCancel() throws {
-        try skipPendingTabBarRewrite("the cash link is created from the give flow, which no longer starts from a Cash button")
-
-        let wallet = WalletScreen(app: app)
+    func testCashLink_createAndCancel() {
         let currencyInfo = CurrencyInfoUIScreen(app: app)
 
         assertMainScreenReached()
 
-        // Step 1: Create a cash link via the Give flow.
+        // Step 1: Create a cash link via the Give flow — Wallet → the first
+        // currency card → its Give tile.
         let amountEntry = navigateToGiveAmount()
         amountEntry.enterMinimumAmount()
         waitAndTap(amountEntry.nextButton)
@@ -52,19 +50,15 @@ final class CashLinkRegressionTests: BaseUITestCase {
         // "Did You Send The Link?" confirmation — tap "Yes"
         waitAndTap(app.buttons["Yes"], timeout: 10, "Expected 'Did You Send The Link?' confirmation")
 
-        // Back on main screen
-        assertMainScreenReached(timeout: 10, "Expected to return to main screen after sending cash link")
-
         // Step 2: Navigate to the pending cash link via transaction history.
-        wallet.open(from: self)
-        wallet.selectFirstCurrency()
+        // Sending lands back on the currency the give started from — the keypad
+        // popped itself as the bill appeared — so the history is one tap away
+        // rather than a fresh trip through the wallet.
+        currencyInfo.assertHeldCurrencyReached(timeout: 30)
 
-        // CurrencyInfoScreen — tap "Transaction History" to open history
-        waitAndTap(
-            currencyInfo.viewTransactionButton,
-            timeout: 10,
-            "Expected 'Transaction History' button on CurrencyInfoScreen"
-        )
+        // CurrencyInfoScreen — the "Recent" section header opens the full
+        // per-token history.
+        currencyInfo.tapRecentActivityHeader(from: self)
 
         // Step 3: Tap the first "Sending" row to trigger the cancel dialog.
         // Rows are List cells containing "Sending" as a static text label.

@@ -9,26 +9,22 @@ final class DepositSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testDeposit_landsOnUSDCEducationScreenWithBothButtons() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
-
+    func testDeposit_landsOnUSDCEducationScreenWithBothButtons() {
         let education = USDCDepositEducationScreen(app: app)
 
         assertMainScreenReached()
-        openDepositFromSettings()
+        openDeposit()
 
         education.assertReached()
         XCTAssertTrue(education.nextButton.exists)
         XCTAssertTrue(education.depositOtherCurrenciesButton.exists)
     }
 
-    func testDeposit_pickerKeepsUSDFAndRoutesToDirectAddress() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
-
+    func testDeposit_pickerKeepsUSDFAndRoutesToDirectAddress() {
         let education = USDCDepositEducationScreen(app: app)
 
         assertMainScreenReached()
-        openDepositFromSettings()
+        openDeposit()
 
         education.tapDepositOtherCurrencies(from: self)
 
@@ -56,13 +52,13 @@ final class DepositSmokeTests: BaseUITestCase {
 
     // MARK: - Helpers
 
-    /// Settings → Add Money → Other Wallet, landing on the USDC education
-    /// screen the old Deposit row used to open directly.
-    private func openDepositFromSettings() {
-        let settings = SettingsUIScreen(app: app)
+    /// Wallet tile → Add Money → Other Wallet, landing on the USDC education
+    /// screen the old Settings Deposit row used to open directly.
+    private func openDeposit() {
+        let wallet = WalletScreen(app: app)
         let addMoney = AddMoneyStartScreen(app: app)
-        settings.open(from: self)
-        waitAndTap(settings.addMoneyButton)
+        wallet.open(from: self)
+        wallet.tapAddMoneyTile(from: self)
         addMoney.assertMethodPickerReached()
         addMoney.selectOtherWallet(from: self)
     }

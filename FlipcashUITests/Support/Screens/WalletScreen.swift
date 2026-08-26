@@ -43,6 +43,10 @@ struct WalletScreen {
     /// that row is completed and therefore disabled.
     var addMoneyTile: XCUIElement { app.buttons["wallet-tile-add-money"] }
 
+    /// The "Withdraw Money" tile, which pushes the currency picker onto the
+    /// wallet's own stack.
+    var withdrawMoneyTile: XCUIElement { app.buttons["wallet-tile-withdraw-money"] }
+
     // MARK: - Actions
 
     /// Opens the Wallet tab and waits for it to load.
@@ -59,6 +63,11 @@ struct WalletScreen {
     /// the card deck and the recent activity, so they start off-screen.
     func tapAddMoneyTile(from testCase: BaseUITestCase) {
         testCase.scrollUpToAndTap(addMoneyTile, in: scrollView)
+    }
+
+    /// Scrolls the "Withdraw Money" tile into view and taps it.
+    func tapWithdrawMoneyTile(from testCase: BaseUITestCase) {
+        testCase.scrollUpToAndTap(withdrawMoneyTile, in: scrollView)
     }
 
     /// Selects the first currency card and verifies CurrencyInfoScreen is reached.

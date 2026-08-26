@@ -17,7 +17,7 @@ import XCTest
 final class GiveRegressionTests: BaseUITestCase {
 
     func testGiveWithNoBalance_showsAddMoneyWithoutPresentingAmountEntry() throws {
-        try skipPendingTabBarRewrite("the no-balance gate is no longer reached by tapping Cash on the scanner")
+        try skipPendingTabBarRewrite("no fresh-account entry raises the gate — give starts from a held currency's Give tile, which an empty account has no card for")
 
         // Walk the fastest fresh-account path: write-down branch, no Photos
         // permission needed.

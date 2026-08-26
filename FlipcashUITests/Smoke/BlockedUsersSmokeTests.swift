@@ -5,8 +5,8 @@
 
 import XCTest
 
-/// Smoke tests for the Blocked users list reached from Settings › My Account ›
-/// Blocked.
+/// Smoke tests for the Blocked users list reached from the You tab › My Account
+/// › Blocked.
 ///
 /// **Scope.** These cover the navigation into the list and that the screen loads
 /// — the parts most likely to regress from a routing change. The
@@ -23,11 +23,9 @@ final class BlockedUsersSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    /// Main → Settings → My Account → Blocked lands on the Blocked list and it
+    /// Wallet → You → My Account → Blocked lands on the Blocked list and it
     /// loads its state (empty or populated) without hanging.
-    func testBlockedUsers_reachableFromMyAccount() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
-
+    func testBlockedUsers_reachableFromMyAccount() {
         let settings = SettingsUIScreen(app: app)
         let blocked = BlockedUsersUIScreen(app: app)
 

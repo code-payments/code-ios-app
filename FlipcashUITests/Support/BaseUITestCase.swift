@@ -176,24 +176,34 @@ class BaseUITestCase: XCTestCase {
         throw XCTSkip("Pending rewrite for the tab-bar UI: \(detail)")
     }
 
-    /// Navigates into the Give flow, retrying up to 3 times if the balance hasn't loaded yet.
-    /// On CI the balance may not be fetched immediately, showing a "No Balance Yet" dialog.
-    /// Returns an `AmountEntryScreen` ready for amount entry.
+    /// Navigates into the Give flow through a held currency's Give tile — the
+    /// tab-bar UI's only entry, now that the scanner's Cash button went with the
+    /// bottom bar. Returns an `AmountEntryScreen` ready for amount entry.
+    ///
+    /// Picks the first non-USDF card, so the flow runs on a community currency
+    /// the way the Cash button's default did. No balance retry: the Give tile is
+    /// only drawn for a currency the account holds, so there is no "No Balance
+    /// Yet" gate on this path — an unloaded balance shows up as a missing card,
+    /// which `selectFirstCurrency` already waits out.
+    ///
+    /// The keypad is pushed over the currency's info screen and pops itself as
+    /// the bill appears, so the flow ends up back on `CurrencyInfoScreen` rather
+    /// than on a tab root.
     @discardableResult
     func navigateToGiveAmount() -> AmountEntryScreen {
+        let wallet = WalletScreen(app: app)
+        let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
 
-        for attempt in 1...3 {
-            waitAndTap(app.buttons["Cash"])
-            if amountEntry.keypadZero.waitForExistence(timeout: 10) { break }
+        wallet.open(from: self)
+        wallet.selectFirstCurrency()
+        currencyInfo.assertHeldCurrencyReached(timeout: 30)
+        waitAndTap(currencyInfo.giveButton)
 
-            let ok = app.buttons["OK"]
-            if ok.exists { ok.tap() }
-
-            if attempt == 3 {
-                XCTFail("Balance did not load after 3 attempts")
-            }
-        }
+        XCTAssertTrue(
+            amountEntry.keypadZero.waitForExistence(timeout: 30),
+            "Expected the give keypad after tapping the currency's Give tile"
+        )
 
         return amountEntry
     }

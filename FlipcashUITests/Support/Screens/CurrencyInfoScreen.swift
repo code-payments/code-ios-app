@@ -30,7 +30,24 @@ struct CurrencyInfoUIScreen {
     /// The only tile shown for a currency the account doesn't hold.
     var getButton: XCUIElement { app.buttons["Get"] }
 
-    var viewTransactionButton: XCUIElement { app.buttons["Transaction History"] }
+    /// The currency's scrolling content, the container the lower sections are
+    /// scrolled in.
+    var scrollView: XCUIElement { app.scrollViews.firstMatch }
+
+    /// Opens the per-token transaction history. In the tab-bar UI that is the
+    /// "Recent" section header (`RecentActivitySection.onShowAll`) — the rows
+    /// under it are a non-interactive preview, and the v1 "Transaction History"
+    /// button went with the old footer.
+    var recentActivityHeader: XCUIElement { app.buttons["Recent"] }
+
+    // MARK: - Actions
+
+    /// Scrolls the "Recent" header into view and taps it, opening the full
+    /// per-token history. It sits below the hero card and the action tiles, so
+    /// it starts off-screen.
+    func tapRecentActivityHeader(from testCase: BaseUITestCase) {
+        testCase.scrollUpToAndTap(recentActivityHeader, in: scrollView)
+    }
 
     // MARK: - Assertions
 
