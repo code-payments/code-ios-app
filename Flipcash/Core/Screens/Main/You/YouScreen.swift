@@ -35,7 +35,9 @@ struct YouScreen: View {
     /// Warms the share-sheet preview image ahead of the share tap so it never
     /// lands on the tap; keyed by user.
     @State private var previewCache = TipCodePreviewCache()
-    @State private var debugTapCount: Int = 0
+    /// The version footer's beta-access easter egg — the tap count and the line
+    /// it shows for the last few taps.
+    @State private var versionUnlock = VersionTapUnlock()
     @State private var isShowingDownloadOptions = false
 
     /// The format tapped in the download sheet, held until the sheet is gone so
@@ -412,7 +414,9 @@ struct YouScreen: View {
 
     private var versionFooter: some View {
         Button {
-            handleVersionTap()
+            versionUnlock.registerTap(isUnlocked: betaFlags.accessGranted) {
+                betaFlags.setAccessGranted(!betaFlags.accessGranted)
+            }
         } label: {
             Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
                 .lineLimit(1)
@@ -423,6 +427,21 @@ struct YouScreen: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Overlaid rather than stacked: the countdown speaks on consecutive
+        // taps, and a toast that took up space would walk the version string
+        // out from under the finger.
+        .overlay(alignment: .top) {
+            if let message = versionUnlock.message {
+                ToastLabel(message)
+                    .offset(y: -22)
+                    .transition(
+                        .offset(x: 0, y: 20)
+                        .combined(with: .opacity.animation(.easeOutFastest))
+                    )
+            }
+        }
+        .animation(.springFaster, value: versionUnlock.message)
+        .accessibilityIdentifier("you-version-footer")
     }
 
     // MARK: - Content -
@@ -601,15 +620,6 @@ struct YouScreen: View {
             // The sheet has taken its copy by now, whether or not the user went
             // through with it.
             TipCardExport.discard(file)
-        }
-    }
-
-    private func handleVersionTap() {
-        if debugTapCount >= 9 {
-            betaFlags.setAccessGranted(!betaFlags.accessGranted)
-            debugTapCount = 0
-        } else {
-            debugTapCount += 1
         }
     }
 
