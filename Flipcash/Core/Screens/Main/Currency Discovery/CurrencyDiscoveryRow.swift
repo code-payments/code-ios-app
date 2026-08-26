@@ -101,7 +101,7 @@ struct CurrencyDiscoveryRow: View {
 
     @ViewBuilder private var holdersText: some View {
         if let metrics = mint.holderMetrics {
-            Text("\(metrics.currentHolders, format: .number.notation(.compactName)) \(metrics.currentHolders == 1 ? "person" : "people")")
+            Text("\(metrics.currentHolders, format: .number.notation(.compactName)) \(metrics.currentHolders == 1 ? "member" : "members")")
         }
     }
 
