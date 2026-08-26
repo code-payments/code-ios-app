@@ -94,7 +94,9 @@ extension NumberFormatter {
 
         let prefix = currency.singleCharacterCurrencySymbols ?? ""
         f.positivePrefix = prefix
-        f.negativePrefix = prefix
+        // Setting a negative prefix replaces the locale's whole "-$" pattern, so the
+        // minus has to be carried explicitly or negatives format as if positive.
+        f.negativePrefix = "-\(prefix)"
         f.positiveSuffix = resolvedSuffix
         f.negativeSuffix = resolvedSuffix
 

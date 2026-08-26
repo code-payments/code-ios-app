@@ -34,6 +34,14 @@ struct CompactCurrencyFormatStyleTests {
         #expect(format.format(200.17) == "$200")
     }
 
+    @Test("Negative values put the sign before the currency symbol")
+    func negativeValues() {
+        #expect(format.format(-12_400) == "-$12K")
+        #expect(format.format(-6_600) == "-$6.6K")
+        #expect(format.format(-384) == "-$384")
+        #expect(format.format(-1_299_217.10) == "-$1.3M")
+    }
+
     @Test("Zero formats correctly")
     func zero() {
         #expect(format.format(0) == "$0")
