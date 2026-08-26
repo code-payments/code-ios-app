@@ -18,6 +18,7 @@ call site.
 | `scan-tips-button` | Chat tab (`app.buttons["Chat"]`) — embedded, so no `navigationBars["Tips"]` Close button |
 | `scan-discover-button` | Wallet tab → "Discover Currencies" tile (a push, not a sheet) |
 | `discover-create-currency-card` promo | Wallet tab → "Create a Currency" tile — `CurrencyDiscoveryScreen.hidesPromo` hides the card |
+| Tips intro → name → photo → tipcard (profile creation) | nothing — onboarding sets the name and the You tab draws the card. The name is editable at You → My Account → **Change Display Name**. |
 | Settings "Add Money" / "Withdraw Money" rows | Wallet tab tiles of the same name |
 | `CurrencyInfoScreen` "Transaction History" button | the **"Recent"** section header (`RecentActivitySection.onShowAll`); the rows under it are a non-interactive preview |
 | `CurrencyInfoScreen` "Buy" / "Sell" / "Give" footer | `CurrencyInfoContentV2` action tiles — **Give / Convert / Withdraw** for a currency you hold, **Get** for one you don't. No Buy, no Sell. |
@@ -45,15 +46,23 @@ call site.
 - **The Access Key row is on Advanced, not My Account.** `SettingsMyAccountScreen` says
   so in its own header doc: it keeps Access Key, Log Out and Delete Account off itself,
   and holds only Change Display Name, Blocked, and the beta-gated Switch Accounts.
-- **The Chat tab is chats only — it is not a door into profile creation.**
-  `TipsScreen(isEmbedded: true)` renders `TipConversationsScreen` unconditionally, so
-  `TipsIntroScreen` and its `start-receiving-tips-button` never appear in v2. The v2 door
-  is the You tab's `you-start-receiving-tips-button`, which pushes `.changeDisplayName`
-  → `ProfileNameScreen(completion: .back)`: name only, returning to the You tab.
+- **Profile creation has no entry left, in either UI.** `OnboardingNameScreen` is
+  mandatory after the access key, so every account reaches the app already named. Both
+  name-less prompts — `TipsIntroScreen.start-receiving-tips-button` and the You tab's
+  `you-start-receiving-tips-button` — are gated on an empty `profile.displayName` and
+  so are unreachable from a test. On top of that, `TipsScreen(isEmbedded: true)` renders
+  `TipConversationsScreen` unconditionally, so the Chat tab never shows the intro at all.
+  The reachable name route is You → My Account → **Change Display Name**
+  (`.changeDisplayName` → `ProfileNameScreen(completion: .back)`), which pops just itself
+  and lands back on My Account, not on the tab root.
 - **The profile photo step is dead in the app, not just in v2.** `ProfileNameScreen`'s
   `.tipcard` completion pushes straight past it — "the card omits the profile photo" —
-  so `.profilePhoto` has no caller at all. Any rewrite drops `profile-photo-picker` and
-  `profile-photo-next-button` rather than re-routing to them.
+  so `.profilePhoto` has no caller at all. `selectFirstPhotoFromLibrary` went with its
+  last caller.
+- **The embedded Chats list has no tip-card row and no toolbar.** `isEmbedded` drops the
+  `show-my-tipcard-button` cell (the card has its own tab) and hides the navigation bar,
+  so `navigationBars["Tips"].buttons["Close"]` does not exist and every cell in the list
+  is a conversation — page objects must not skip a leading row.
 - **A wallet card opens `CurrencyInfoScreen` as an overlay, not a push.** `TokenCardStack`
   reports the tap through `onCardTap`; the wallet lifts the page over the deck with a
   close box instead of a back chevron, so there is no `navigationBars` entry to wait on.
@@ -97,6 +106,12 @@ call site.
   appears (`GiveScreen.onBillPresented`, when `isPushed`), so both flows end on
   `CurrencyInfoScreen` rather than a tab root — the cash link reaches its history from
   there without a second trip through the wallet.
+- The chat group — `BlockUnblockSmokeTests` now blocks from the Chat tab and unblocks
+  through You › My Account › Blocked; its `tearDown` unblock tapped the removed Settings
+  button, so it had been silently no-opping. `ProfileCreationSmokeTests` became
+  `DisplayNameSmokeTests`: a fresh account's card on the You tab, then a rename through
+  My Account. The intro screen and the photo step were dropped, not re-routed — neither
+  has a caller left.
 - The three buy/sell tests, rewritten as the convert routes that replaced them and
   renamed for what they now exercise: `CurrencySellRegressionTests` →
   `ConvertToDollarsRegressionTests`, `BuyReservesRegressionTests` →

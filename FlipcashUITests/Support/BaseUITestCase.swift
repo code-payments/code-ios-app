@@ -279,39 +279,6 @@ class BaseUITestCase: XCTestCase {
         waitUntilHittableAndTap(springboard.buttons["Allow"])
     }
 
-    /// Picks the newest photo from the system library and commits the crop
-    /// editor. Returns false when the library is empty, which is the state of a
-    /// freshly created simulator.
-    func selectFirstPhotoFromLibrary(via picker: XCUIElement) -> Bool {
-        picker.tap()
-
-        // The Menu offers Photo Library / Choose File.
-        waitAndTap(app.buttons["Photo Library"])
-
-        // The library is a remote view hosted inside the app's own hierarchy, so
-        // it is reachable from `app` rather than a separate process. Its
-        // thumbnails are images tagged `PXGGridLayout-Info` — they are not
-        // collection-view cells, and querying `cells` finds nothing. The head of
-        // the grid is always on screen; thumbnails further down are in the tree
-        // but below the fold, so a coordinate tap on them lands nowhere.
-        let thumbnail = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
-        guard thumbnail.waitForExistence(timeout: 30) else { return false }
-
-        if thumbnail.isHittable {
-            thumbnail.tap()
-        } else {
-            thumbnail.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        }
-
-        // `allowsEditing` puts a crop editor in front of the selection; "Choose"
-        // is what actually returns the image.
-        let choose = app.buttons["Choose"]
-        guard choose.waitForExistence(timeout: 20) else { return false }
-        choose.tap()
-
-        return true
-    }
-
     /// Everything legible on screen, for failure messages.
     func visibleText() -> String {
         app.staticTexts.allElementsBoundByIndex

@@ -6,8 +6,8 @@
 import XCTest
 
 /// End-to-end round-trip for the Blocking feature: block a user from their tip
-/// DM, confirm the conversation disappears from the Tips list, then unblock them
-/// from Settings and confirm the block is cleared.
+/// DM, confirm the conversation disappears from the Chat tab, then unblock them
+/// from the You tab and confirm the block is cleared.
 ///
 /// **Fixture (non-mutating by design).** The Block affordance only exists on a
 /// tip-DM conversation, so the test drives whatever tip DM the standing
@@ -19,7 +19,7 @@ import XCTest
 /// leaves the shared account with a user blocked.
 ///
 /// **Prerequisites:** the standing account needs a tip profile and at least one
-/// tip DM in its Tips list.
+/// tip DM in its Chat tab.
 @MainActor
 final class BlockUnblockSmokeTests: BaseUITestCase {
 
@@ -35,11 +35,9 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         executionTimeAllowance = 600
     }
 
-    /// Blocks the first tip-DM counterpart, asserts their chat leaves the Tips
-    /// list, then unblocks them from Settings and asserts the block is gone.
+    /// Blocks the first tip-DM counterpart, asserts their chat leaves the Chat
+    /// tab, then unblocks them from the You tab and asserts the block is gone.
     func testBlock_hidesTipConversation_thenUnblockRestores() throws {
-        try skipPendingTabBarRewrite("the Tips list is the Chat tab now — no sheet to open or close")
-
         let tips = TipsUIScreen(app: app)
         let settings = SettingsUIScreen(app: app)
         let blocked = BlockedUsersUIScreen(app: app)
@@ -49,7 +47,7 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         // MARK: Reach a tip DM (skip when the account has none).
         tips.open(from: self)
         guard let row = tips.firstConversationRow() else {
-            throw XCTSkip("No tip DM in the standing account's Tips list — skipping the block/unblock round-trip")
+            throw XCTSkip("No tip DM in the standing account's Chat tab — skipping the block/unblock round-trip")
         }
         // The row label is the counterpart's display name, plus an ", unread
         // messages" suffix when unread. Strip it to the bare name, which the
@@ -83,17 +81,17 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         blockDialog.buttons["Block"].tap()
         blockedName = name
 
-        // MARK: The chat leaves the Tips list.
-        // Block returns to the Tips root; the reconcile hides the conversation,
-        // and there is no empty-state label, so assert the row's absence.
+        // MARK: The chat leaves the Chat tab.
+        // Block returns to the Chat tab's root; the reconcile hides the
+        // conversation, so assert the row's absence rather than an empty state —
+        // the account may still hold other tip DMs.
         let hiddenRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
         XCTAssertTrue(
             hiddenRow.waitForNonExistence(timeout: 20),
-            "Expected '\(name)' tip conversation to disappear from the Tips list after blocking"
+            "Expected '\(name)' tip conversation to disappear from the Chat tab after blocking"
         )
 
-        // MARK: Unblock from Settings › My Account › Blocked.
-        tips.close(from: self)
+        // MARK: Unblock from You › My Account › Blocked.
         settings.open(from: self)
         settings.navigateToMyAccount(from: self)
         waitAndTap(settings.blockedRow)
@@ -133,15 +131,17 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         try await super.tearDown()
     }
 
-    /// Navigates Settings › My Account › Blocked and unblocks `name` if present,
-    /// tolerating every step so a failed test's teardown stays quiet.
+    /// Navigates You › My Account › Blocked and unblocks `name` if present,
+    /// tolerating every step so a failed test's teardown stays quiet. It cannot
+    /// reuse `SettingsUIScreen`'s navigation helpers: those assert, and a
+    /// teardown assertion would mask the failure that brought us here.
     private func bestEffortUnblock(named name: String) {
         let settings = SettingsUIScreen(app: app)
-        guard app.buttons["Settings"].waitForExistence(timeout: 30) else { return }
-        app.buttons["Settings"].tap()
-        guard settings.myAccountRow.waitForExistence(timeout: 10) else { return }
+        guard app.buttons["You"].waitForExistence(timeout: 30) else { return }
+        app.buttons["You"].tap()
+        guard scrollTo(settings.myAccountRow, in: settings.scrollView) else { return }
         settings.myAccountRow.tap()
-        guard settings.blockedRow.waitForExistence(timeout: 10) else { return }
+        guard scrollTo(settings.blockedRow, in: settings.scrollView) else { return }
         settings.blockedRow.tap()
 
         let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
@@ -152,5 +152,17 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
             .firstMatch
         guard dialog.waitForExistence(timeout: 10) else { return }
         dialog.buttons["Unblock"].tap()
+    }
+
+    /// Swipes `container` until `element` is hittable, reporting whether it got
+    /// there. The non-asserting counterpart of `scrollUpToAndTap`, for teardown.
+    private func scrollTo(_ element: XCUIElement, in container: XCUIElement, maxSwipes: Int = 6) -> Bool {
+        guard element.waitForExistence(timeout: 10) else { return false }
+        var swipes = 0
+        while !element.isHittable && swipes < maxSwipes {
+            container.swipeUp(velocity: .slow)
+            swipes += 1
+        }
+        return element.isHittable
     }
 }
