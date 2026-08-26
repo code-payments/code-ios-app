@@ -39,6 +39,10 @@ extension ShapeStyle where Self == Color {
     public static var unreadIndicator: Color             { Color(r: 10,  g: 132, b: 255) }
 
     public static var checkmarkBackground: Color         { Color.white }
+
+    /// `#34C759` — Apple's system green. Backed by the `success` asset (already
+    /// in the catalog, unused as a named token until the username progress card).
+    public static var success: Color                     { Color("success") }
 }
 
 extension Color {

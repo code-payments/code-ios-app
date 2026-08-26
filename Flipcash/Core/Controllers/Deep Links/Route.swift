@@ -24,7 +24,7 @@ nonisolated struct Route {
         // - Deep Links: flipcash://token/ABC → host = "token", path = "/ABC"
         //   Need to combine as "/token/ABC"
         let normalizedPath: String
-        if components.scheme == "flipcash", let host = components.host {
+        if components.scheme == Path.customScheme, let host = components.host {
             // Deep link: combine host + path
             normalizedPath = "/\(host)\(components.path)"
         } else {
@@ -32,7 +32,7 @@ nonisolated struct Route {
             normalizedPath = components.path
         }
 
-        guard let path = Path.parse(path: normalizedPath) else {
+        guard let path = Path.parse(path: normalizedPath, scheme: components.scheme) else {
             return nil
         }
         
@@ -88,12 +88,28 @@ nonisolated extension Route {
         case chat(ConversationID)
         case chatSendCash(ConversationID)
         case tip(UserID)
+        /// A vanity tipcard link — `flipcash.com/<handle>`, no `/tip/`
+        /// segment and no `@`. The same destination as ``tip(_:)``, reached by
+        /// the handle its owner claimed rather than by their user id.
+        case username(Username)
         case give
         case balance
         case discover
         case unknown(String)
-        
-        static func parse(path: String) -> Path? {
+
+        /// The app's custom URL scheme, registered in `Info.plist`.
+        static let customScheme = "flipcash"
+
+        /// `scheme` separates a home-screen quick action (`flipcash://give`)
+        /// from a web link (`app.flipcash.com/give`). Only the custom scheme
+        /// carries the quick-action routes; on the web those names are ordinary
+        /// path segments, and an unmatched one reads as a handle.
+        ///
+        /// Host-agnostic by design: `app.flipcash.com/<handle>` and
+        /// `flipcash.com/<handle>` are the same link, and which hosts reach the
+        /// app at all is the associated-domains entitlement's decision, not
+        /// this parser's.
+        static func parse(path: String, scheme: String?) -> Path? {
             guard let url = URL(string: path.trimmingCharacters(in: .init(charactersIn: "/"))) else {
                 return nil
             }
@@ -135,18 +151,27 @@ nonisolated extension Route {
                     return nil
                 }
                 return .tip(userID)
-            case "give":
+            case "give" where scheme == customScheme:
                 return .give
-            case "balance":
+            case "balance" where scheme == customScheme:
                 return .balance
             case "wallet":
                 // Reserved for Phantom callbacks (consumed by
                 // `WalletConnection.didReceiveURL`). Home-screen
                 // "Wallet" quick action uses `/balance` instead.
                 return .unknown(url.lastPathComponent)
-            case "discover":
+            case "discover" where scheme == customScheme:
                 return .discover
             default:
+                // A single unmatched segment is a claimed handle. Lowercased
+                // first: handles are stored lowercase, and a link a messaging
+                // app auto-capitalized is still the same link. Whether the
+                // handle *can* be claimed — the reserved list — is the server's
+                // to say, so nothing is filtered out here beyond the routes
+                // above.
+                if components.count == 1, let username = Username(components[0].lowercased()) {
+                    return .username(username)
+                }
                 return .unknown(url.lastPathComponent)
             }
         }

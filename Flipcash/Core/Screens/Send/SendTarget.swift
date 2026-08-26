@@ -18,8 +18,22 @@ nonisolated enum SendTarget: Hashable, Sendable {
 nonisolated struct TipRecipient: Hashable, Sendable {
     let userID: UserID
     let displayName: String
+    /// The recipient's public handle, shown under their name on the card.
+    /// Defaulted for the test fixtures only — both production sites pass one.
+    let username: Username?
     /// The surface this tip is being sent from — reported to the server.
     let origin: TipOrigin
+
+    // A hand-written init rather than the synthesized memberwise one: a `let`
+    // with an inline default loses its parameter entirely (the default becomes
+    // fixed, unoverridable), so the default has to live here instead to stay
+    // both immutable and omittable by the fixtures that don't supply one.
+    init(userID: UserID, displayName: String, username: Username? = nil, origin: TipOrigin) {
+        self.userID = userID
+        self.displayName = displayName
+        self.username = username
+        self.origin = origin
+    }
 }
 
 extension SendTarget {
@@ -36,7 +50,7 @@ extension SendTarget {
                   let userID = counterpart.userID else {
                 return nil
             }
-            self = .tip(TipRecipient(userID: userID, displayName: counterpart.displayName, origin: .chat))
+            self = .tip(TipRecipient(userID: userID, displayName: counterpart.displayName, username: counterpart.username, origin: .chat))
         case .contactDm, nil:
             guard let target = ResolvedContact.sendTarget(
                 in: conversation,

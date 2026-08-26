@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UIKit
+import FlipcashCore
 import FlipcashUI
 
 /// The tip-card link row (Figma node 9276:4748): a chain-link glyph, the
@@ -32,6 +33,16 @@ struct TipCardLinkRow: View {
                     Text(Self.displayText(for: url))
                         .font(.appTextMedium)
                         .lineLimit(1)
+                        // Elides only when the handle genuinely doesn't fit —
+                        // no shrinking to dodge it, which would render the row
+                        // at a smaller size than the ones around it. The forced
+                        // clip in `displayText` is for the uuid form alone; a
+                        // handle keeps every character it has room for and
+                        // loses the tail only past that. On the narrowest
+                        // supported screen (375pt) the budget is 257pt, which
+                        // covered a 15-character handle of average width even
+                        // under the four-character-longer `app.flipcash.com`;
+                        // the apex host only widens that margin.
                         .truncationMode(.tail)
                 }
 
@@ -74,8 +85,12 @@ struct TipCardLinkRow: View {
         }
     }
 
-    /// The link with its scheme dropped and its identifier clipped to a stub,
-    /// so a full-width uuid doesn't push the row's copy button off the edge.
+    /// The link with its scheme dropped, and a uuid identifier clipped to a
+    /// stub so a full-width one doesn't push the row's copy button off the edge.
+    ///
+    /// A claimed handle is never clipped here. It is at most 15 characters —
+    /// shorter than the `/tip/` segment it replaces — so it is handed to the
+    /// layout whole and elides only if it truly overruns the row.
     static func displayText(for url: URL) -> String {
         let stripped = url.absoluteString
             .replacingOccurrences(of: "https://", with: "")
@@ -84,7 +99,9 @@ struct TipCardLinkRow: View {
         guard let slash = stripped.lastIndex(of: "/") else { return stripped }
 
         let identifier = stripped[stripped.index(after: slash)...]
-        guard identifier.count > identifierStubLength else { return stripped }
+        guard identifier.count > identifierStubLength, Username(String(identifier)) == nil else {
+            return stripped
+        }
 
         return String(stripped[...slash]) + String(identifier.prefix(identifierStubLength)) + "…"
     }

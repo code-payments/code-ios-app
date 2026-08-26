@@ -140,12 +140,13 @@ extension Analytics {
     /// The `Source` property of `AddMoneyEvent.opened` — where the user
     /// entered the flow. Values are shared verbatim with Android.
     enum AddMoneySource: String {
-        case menu          = "Menu"
-        case giveShortfall = "Give Shortfall"
-        case buyShortfall  = "Buy Shortfall"
-        case chat          = "Chat"
-        case scanner       = "Scanner"
-        case balance       = "Balance"
+        case menu              = "Menu"
+        case giveShortfall     = "Give Shortfall"
+        case buyShortfall      = "Buy Shortfall"
+        case usernameShortfall = "Username Shortfall"
+        case chat              = "Chat"
+        case scanner           = "Scanner"
+        case balance           = "Balance"
     }
 }
 

@@ -42,6 +42,9 @@ struct YouScreen: View {
     /// the share sheet has a settled controller to present on.
     @State private var pendingDownload: TipCardDownloadFormat?
 
+    /// The balance gate, raised when the card is tapped below the minimum.
+    @State private var usernameDialog: DialogItem?
+
     /// The card's slot in the page's layout, in global space — where the card
     /// sits before it travels to the middle of the screen.
     @State private var cardSlotFrame: CGRect = .zero
@@ -83,6 +86,20 @@ struct YouScreen: View {
 
     private let rowInsets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
+    /// The gap the page keeps between the version footer and the tab bar.
+    private static let tabBarGap: CGFloat = 24
+
+    /// Bottom inset for the scrolling content. Mirrors `WalletScreen`: the iOS 26
+    /// tab bar sits in the safe area, so the gap is the whole inset there; the
+    /// legacy pill floats over the content and has to be cleared on top of it,
+    /// or the footer's last scroll position lands underneath it.
+    private var bottomContentInset: CGFloat {
+        if #available(iOS 26, *) {
+            return Self.tabBarGap
+        }
+        return Self.tabBarGap + HomeTabView.legacyPillClearance
+    }
+
     var body: some View {
         Background(color: .backgroundMain) {
             ZStack {
@@ -107,6 +124,7 @@ struct YouScreen: View {
                             .allowsHitTesting(!isExpanded)
                     }
                     .padding(.horizontal, Self.horizontalInset)
+                    .padding(.bottom, bottomContentInset)
                 }
                 .scrollDisabled(isExpanded)
 
@@ -134,6 +152,7 @@ struct YouScreen: View {
             guard displayName != nil else { return }
             previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
         }
+        .dialog(item: $usernameDialog)
     }
 
     // MARK: - Card -
@@ -166,7 +185,8 @@ struct YouScreen: View {
                             name: name,
                             avatar: nil,
                             codeData: codeData,
-                            tintOpacity: 0.36
+                            tintOpacity: 0.36,
+                            subtitle: username.map(\.handle)
                         )
                         .scaleEffect(cardScale)
                         .offset(y: cardOffset)
@@ -322,6 +342,12 @@ struct YouScreen: View {
                     .accessibilityIdentifier("you-download-button")
                 }
                 .padding(.top, 11)
+
+                if shouldPromptForUsername {
+                    usernameProgressCard
+                        .padding(.top, 11)
+                        .accessibilityIdentifier("you-username-progress-card")
+                }
             }
 
             settingsList
@@ -347,6 +373,41 @@ struct YouScreen: View {
         }
         .font(.appDisplayXS)
         .foregroundStyle(Color.textMain)
+    }
+
+    // MARK: - Username progress -
+
+    /// The balance's standing against the username minimum. Read once per
+    /// render and switched on here rather than re-derived at tap time — the
+    /// card's tappability and this switch's `.proceed` branch already agree
+    /// on the same value.
+    private var usernameProgress: UsernameGate {
+        usernameGate(
+            session: sessionContainer.session,
+            minimum: sessionContainer.session.userFlags?.usernameMinBalance
+        )
+    }
+
+    @ViewBuilder
+    private var usernameProgressCard: some View {
+        switch usernameProgress {
+        case .proceed:
+            UsernameProgressCard(
+                state: .complete,
+                subtitle: "Tap to select your username now",
+                trailing: nil,
+                fraction: 1,
+                action: beginUsernameClaim
+            )
+        case .addMoney(let minimum, let shortfall, let fraction):
+            UsernameProgressCard(
+                state: .incomplete,
+                subtitle: "Get your balance to \(minimum.formatted(minimumFractionDigits: 0)) \(minimum.currency.rawValue.uppercased()) or more to unlock",
+                trailing: "\(shortfall.formatted(minimumFractionDigits: 0)) \(shortfall.currency.rawValue.uppercased()) to go",
+                fraction: fraction,
+                action: { presentBalanceGate(minimum: minimum) }
+            )
+        }
     }
 
     private var versionFooter: some View {
@@ -376,11 +437,18 @@ struct YouScreen: View {
         return name
     }
 
+    private var username: Username? { profile?.username }
+
+    /// Whether to offer the handle. Derived from the handle being absent rather
+    /// than from a separate claimed flag, so a handle that disappears across a
+    /// profile refresh puts the offer back on its own.
+    private var shouldPromptForUsername: Bool { username == nil }
+
     private var codeData: Data {
         TipCode.Payload(userID: sessionContainer.session.userID).codeData()
     }
 
-    private var url: URL { .tipcard(for: sessionContainer.session.userID) }
+    private var url: URL { .tipcard(for: sessionContainer.session.userID, username: username) }
 
     // MARK: - Card geometry -
 
@@ -542,6 +610,22 @@ struct YouScreen: View {
             debugTapCount = 0
         } else {
             debugTapCount += 1
+        }
+    }
+
+    /// Opens the claim screen. Only ever wired to `usernameProgressCard`'s tap
+    /// in its `.complete` state, which already means `usernameProgress` is
+    /// `.proceed` — there is nothing left here to branch on.
+    private func beginUsernameClaim() {
+        router.push(.username(username))
+    }
+
+    /// The `.incomplete` card's tap: names the minimum and offers the way to
+    /// meet it. The card draws the shortfall but not the reason for it, so the
+    /// dialog is where the squatting rule gets stated.
+    private func presentBalanceGate(minimum: FiatAmount) {
+        usernameDialog = .usernameMinimumBalance(minimum: minimum) {
+            router.presentAddMoney(.general, source: .usernameShortfall)
         }
     }
 }

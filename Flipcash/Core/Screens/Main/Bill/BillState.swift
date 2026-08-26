@@ -55,7 +55,7 @@ extension BillState {
         case cash(CashCode.Payload, mint: PublicKey, billColors: [String] = [])
         /// A scanned (or deeplinked) recipient's tipcard, shown over the
         /// camera while the Send a Tip sheet is up.
-        case tipcard(codeData: Data, name: String, avatar: UIImage?)
+        case tipcard(codeData: Data, name: String, username: String?, avatar: UIImage?)
 
         var canSwipeToDismiss: Bool {
             switch self {

@@ -62,6 +62,13 @@ struct UsernameTests {
         #expect(try JSONDecoder().decode(Username.self, from: data).value == "NotAValidHandle")
     }
 
+    @Test("The display handle prefixes @ without touching the stored value")
+    func handle_prefixesAtSign() {
+        let username = Username("brandon")
+        #expect(username?.handle == "@brandon")
+        #expect(username?.value == "brandon")
+    }
+
     // MARK: - Proto -
 
     @Test("An unset proto handle maps to nil")

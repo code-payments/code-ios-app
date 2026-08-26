@@ -54,6 +54,10 @@ extension AppRouter {
         /// profile-setup flow starts on the same screen but carries on to the
         /// tip card; this one returns to the settings list.
         case changeDisplayName
+        /// The public handle, claimed from the You page or changed from My
+        /// Account. One destination for both: the screen seeds itself from the
+        /// handle already on the profile, so there is nothing to distinguish.
+        case username(Username?)
         case settingsAdvancedFeatures
         case settingsAdvancedBetaFeatures
         case settingsAppSettings
@@ -89,7 +93,7 @@ extension AppRouter {
                  .transactionHistory, .activity, .give, .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
-            case .settingsMyAccount, .changeDisplayName, .settingsAdvancedFeatures,
+            case .settingsMyAccount, .changeDisplayName, .username, .settingsAdvancedFeatures,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .settings
@@ -121,6 +125,7 @@ extension AppRouter {
             case .usdcDepositAddress:           "usdcDepositAddress"
             case .settingsMyAccount:            "settingsMyAccount"
             case .changeDisplayName:            "changeDisplayName"
+            case .username:                     "username"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAdvancedBetaFeatures: "settingsAdvancedBetaFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
@@ -157,6 +162,8 @@ extension AppRouter {
                 return conversationID.description
             case .userProfile(let userID):
                 return userID.uuidString
+            case .username(let username):
+                return username?.value
             case .activity,
                  .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,

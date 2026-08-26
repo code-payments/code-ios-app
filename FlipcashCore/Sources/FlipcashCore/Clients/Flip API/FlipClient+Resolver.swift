@@ -33,4 +33,14 @@ extension FlipClient {
             resolverService.resolveUsername(username, owner: owner) { c.resume(with: $0) }
         }
     }
+
+    /// Resolve whichever identifier the caller holds to the Flipcash payment
+    /// destination. The counterpart to ``fetchProfile(_:owner:)`` for callers
+    /// whose identifier is data rather than a fixed choice.
+    public func resolve(_ identifier: ProfileIdentifier, owner: KeyPair) async throws -> PublicKey {
+        switch identifier {
+        case .userID(let userID):     try await resolveUserID(userID, owner: owner)
+        case .username(let username): try await resolveUsername(username, owner: owner)
+        }
+    }
 }
