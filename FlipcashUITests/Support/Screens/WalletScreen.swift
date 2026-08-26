@@ -69,4 +69,14 @@ struct WalletScreen {
         )
         firstCurrencyRow.tap()
     }
+
+    /// Selects the USDF (Dollars) card — the source for a convert that buys
+    /// more of a currency the account already holds.
+    func selectUsdfCurrency() {
+        XCTAssertTrue(
+            usdfRow.waitForExistence(timeout: 30),
+            "Expected the USDF card in the Wallet"
+        )
+        usdfRow.tap()
+    }
 }

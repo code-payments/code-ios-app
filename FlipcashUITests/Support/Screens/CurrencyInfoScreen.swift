@@ -5,8 +5,12 @@
 
 import XCTest
 
-/// Page object for the CurrencyInfoScreen.
-/// Provides access to Buy, Sell, and Give actions in the floating footer.
+/// Page object for `CurrencyInfoScreen`'s action tiles.
+///
+/// The tab-bar UI renders `CurrencyInfoContentV2`, which gates the tiles on
+/// whether the account holds the currency: Give / Convert / Withdraw when it
+/// does, a lone Get when it doesn't. There is no Buy or Sell tile — acquiring
+/// more of a currency you already hold is a Convert from another balance.
 @MainActor
 struct CurrencyInfoUIScreen {
 
@@ -18,17 +22,31 @@ struct CurrencyInfoUIScreen {
 
     // MARK: - Elements
 
-    var buyButton: XCUIElement { app.buttons["Buy"] }
-    var sellButton: XCUIElement { app.buttons["Sell"] }
+    /// Tiles shown for a currency the account holds.
     var giveButton: XCUIElement { app.buttons["Give"] }
+    var convertButton: XCUIElement { app.buttons["Convert"] }
+    var withdrawButton: XCUIElement { app.buttons["Withdraw"] }
+
+    /// The only tile shown for a currency the account doesn't hold.
+    var getButton: XCUIElement { app.buttons["Get"] }
+
     var viewTransactionButton: XCUIElement { app.buttons["Transaction History"] }
 
     // MARK: - Assertions
 
-    func assertReached(timeout: TimeInterval = 10) {
+    /// Asserts the page for a currency the account holds.
+    func assertHeldCurrencyReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            buyButton.waitForExistence(timeout: timeout),
-            "Expected to reach CurrencyInfoScreen with Buy button"
+            convertButton.waitForExistence(timeout: timeout),
+            "Expected CurrencyInfoScreen for a held currency, with a Convert tile"
+        )
+    }
+
+    /// Asserts the page for a currency the account doesn't hold.
+    func assertUnheldCurrencyReached(timeout: TimeInterval = 10) {
+        XCTAssertTrue(
+            getButton.waitForExistence(timeout: timeout),
+            "Expected CurrencyInfoScreen for an unheld currency, with a Get tile"
         )
     }
 }

@@ -25,14 +25,14 @@ final class AddMoneyGateRegressionTests: BaseUITestCase {
             app.buttons.matching(identifier: "discover-leaderboard-row").firstMatch,
             "Expected the Discover leaderboard to list at least one currency"
         )
-        currencyInfo.assertReached()
+        currencyInfo.assertUnheldCurrencyReached()
 
-        // Buy always opens the amount sheet; on a $0 account the action
+        // Get always opens the amount sheet; on a $0 account the action
         // button becomes an Add Money CTA instead of Next.
-        waitAndTap(currencyInfo.buyButton)
+        waitAndTap(currencyInfo.getButton)
         XCTAssertTrue(
             app.navigationBars["Amount"].waitForExistence(timeout: 10),
-            "The buy amount sheet must open even when the account has no balance"
+            "The Get amount sheet must open even when the account has no balance"
         )
 
         // Add Money → the Add Money With picker. This flow enters from
