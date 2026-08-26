@@ -21,6 +21,9 @@ import Foundation
 ///
 /// Text(99_999, format: .compactCurrency(code: .usd))
 /// // → "$100K"
+///
+/// Text(-12_400, format: .compactCurrency(code: .usd))
+/// // → "-$12K"
 /// ```
 public struct CompactCurrencyFormatStyle: FormatStyle {
 
@@ -32,8 +35,12 @@ public struct CompactCurrencyFormatStyle: FormatStyle {
 
     public func format(_ value: Double) -> String {
         let symbol = currencyCode.singleCharacterCurrencySymbols ?? ""
-        let compact = Int(value).formatted(.number.notation(.compactName))
-        return "\(symbol)\(compact)"
+        let whole = Int(value)
+        // The sign belongs outside the symbol ("-$12K"), so format the magnitude
+        // and prepend the minus ourselves rather than letting it land after the symbol.
+        let sign = whole < 0 ? "-" : ""
+        let compact = whole.magnitude.formatted(.number.notation(.compactName))
+        return "\(sign)\(symbol)\(compact)"
     }
 }
 

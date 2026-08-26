@@ -135,6 +135,12 @@ struct FiatAmountFormattedTests {
             (.jpy,             Decimal(1000),             nil,     nil,     "¥1,000"),
             (.jpy,             Decimal(10),               nil,     nil,     "¥10"),
             (.jpy,             Decimal(string: "10.5")!,  nil,     nil,     "¥11"),     // halfUp
+
+            // Negatives — the minus leads the currency symbol.
+            (.usd,             Decimal(-10),              nil,     nil,     "-$10.00"),
+            (.usd,             Decimal(string: "-10.5")!, Int?(0), nil,     "-$10.5"),
+            (.usd,             Decimal(-10),              Int?(0), " USD",  "-$10 USD"),
+            (.jpy,             Decimal(-1000),            nil,     nil,     "-¥1,000"),
         ] as [(CurrencyCode, Decimal, Int?, String?, String)]
     )
     func formatted(currency: CurrencyCode, value: Decimal, minimumFractionDigits: Int?, suffix: String?, expected: String) {
