@@ -165,17 +165,6 @@ class BaseUITestCase: XCTestCase {
         )
     }
 
-    /// Skips a test whose entry point was the v1 scanner chrome, removed when
-    /// the tab-bar UI shipped to everyone.
-    ///
-    /// These flows still exist but are reached differently now, so each call
-    /// site needs a rewrite verified against a simulator rather than a selector
-    /// swap. Grep this symbol for the outstanding list; it goes away with the
-    /// last one.
-    func skipPendingTabBarRewrite(_ detail: String) throws {
-        throw XCTSkip("Pending rewrite for the tab-bar UI: \(detail)")
-    }
-
     /// Navigates into the Give flow through a held currency's Give tile — the
     /// tab-bar UI's only entry, now that the scanner's Cash button went with the
     /// bottom bar. Returns an `AmountEntryScreen` ready for amount entry.

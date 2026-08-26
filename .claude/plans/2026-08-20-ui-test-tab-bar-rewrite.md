@@ -1,12 +1,14 @@
 # UI test rewrite for the tab-bar UI
 
 Shipping the tab-bar UI to everyone (`BetaFlags.Option.newUI` → `.shipped`) removed the
-v1 scanner chrome that the XCUITest suite navigated through. The affected tests are
-skipped via `BaseUITestCase.skipPendingTabBarRewrite(_:)` so the release can run; this
-is the map for putting them back.
+v1 scanner chrome that the XCUITest suite navigated through. Every affected test has
+been rewritten or dropped, and `BaseUITestCase.skipPendingTabBarRewrite(_:)` went with
+the last call site. This is the record of where each flow moved and what the v2 routes
+cost the suite.
 
-Grep `skipPendingTabBarRewrite` for the live list. The helper is deleted with the last
-call site.
+One test is still skipped, for a fixture rather than a route:
+`AddMoneyGateRegressionTests` needs an account spent down to nothing, which the suite
+cannot produce — see the Wallet-tile gotcha below.
 
 ## What moved
 
