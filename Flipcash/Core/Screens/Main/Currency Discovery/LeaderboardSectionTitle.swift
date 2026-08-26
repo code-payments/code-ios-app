@@ -42,7 +42,7 @@ struct LeaderboardSectionTitle: View {
         )
         session.dialogItem = .info(
             title: "Leaderboard Ranking",
-            subtitle: "People must have a minimum balance of \(amount.nativeAmount.formatted(minimumFractionDigits: 0)) USD to be counted"
+            subtitle: "Members must have a minimum balance of \(amount.nativeAmount.formatted(minimumFractionDigits: 0)) USD to be counted"
         )
     }
 }
