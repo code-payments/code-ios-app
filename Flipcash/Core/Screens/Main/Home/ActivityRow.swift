@@ -12,9 +12,9 @@ import FlipcashCore
 /// Transaction history (Figma 8966:1910, ported from Android's `ActivityFeedRow`):
 /// a 40pt avatar, the title + relative time, and a signed amount. The avatar is
 /// the counterparty's profile photo for peer activity (tips/sends), the token
-/// image for token activity (deposits, buys), or a monogram fallback. A sent tip
-/// reads "Tipped <name>" once the counterparty resolves, and a swap reads
-/// "<From> → <To>" once both token names resolve.
+/// image for token activity (deposits, buys), or a monogram fallback. A peer
+/// payment reads "Tipped <name>" or "Sent to <name>" once the counterparty
+/// resolves, and a swap reads "<From> → <To>" once both token names resolve.
 struct ActivityRow: View {
 
     let activity: Activity
@@ -87,9 +87,8 @@ struct ActivityRow: View {
 
     // MARK: - Title
 
-    /// Peer tips render with the resolved counterparty name — "Tipped <name>"
-    /// for a sent tip, "Tip from <name>" for a received one — and a swap renders
-    /// its two token names, once they resolve; every other row uses the
+    /// A peer payment renders with the resolved counterparty name, and a swap
+    /// renders its two token names, once they resolve; every other row uses the
     /// server-rendered title.
     private var displayTitle: String {
         if let swap = activity.swapMetadata {
@@ -99,14 +98,38 @@ struct ActivityRow: View {
             ) ?? activity.title
         }
 
-        if let name = counterpartyName, !name.isEmpty {
-            switch activity.kind {
-            case .gave:     return "Tipped \(name)"
-            case .received: return "Tip from \(name)"
-            default:        break
-            }
+        return Self.peerTitle(
+            kind: activity.kind,
+            name: counterpartyName,
+            serverTitle: activity.title
+        ) ?? activity.title
+    }
+
+    /// How a peer payment is titled once its counterparty resolves — "Tipped
+    /// <name>" / "Tip from <name>" for a tip, "Sent to <name>" / "Received from
+    /// <name>" for a plain send. Returns `nil` for a row that is not a peer
+    /// payment, or whose counterparty has not resolved yet, so the caller falls
+    /// back to the server-rendered title.
+    ///
+    /// The tip/send split rides on the server's verb alone: the backend picks it
+    /// from the payment's `ChatMetadata.TipDmPayment.Location`, so a tip-card tip
+    /// arrives titled "Tipped" and an in-chat send "Sent". `activity/v1` models
+    /// both as plain sent/received crypto with no structured tip flag, so there
+    /// is no other signal to read. Matching the verb is safe while `serverTitle`
+    /// is English-only; a localized feed would need the distinction promoted into
+    /// the notification metadata.
+    static func peerTitle(kind: Activity.Kind, name: String?, serverTitle: String) -> String? {
+        guard let name, !name.isEmpty else { return nil }
+        let isTip = serverTitle
+            .trimmingCharacters(in: .whitespaces)
+            .lowercased()
+            .hasPrefix("tip")
+
+        switch kind {
+        case .gave:     return isTip ? "Tipped \(name)" : "Sent to \(name)"
+        case .received: return isTip ? "Tip from \(name)" : "Received from \(name)"
+        default:        return nil
         }
-        return activity.title
     }
 
     /// The conversion pair a swap row is titled with, or `nil` when either leg's
@@ -247,8 +270,8 @@ struct ActivityRow: View {
     /// A cached full profile (someone you've viewed or tipped) is authoritative;
     /// otherwise fall back to the tip conversation's member, which carries the
     /// name + picture for counterparties you've only *received* tips from (those
-    /// are never written to the profile cache). Without this, received tips show
-    /// the server title and a monogram instead of "Tip from <name>".
+    /// are never written to the profile cache). Without this, received payments
+    /// show the server title and a monogram instead of a named row.
     private func resolveUser(_ userID: UserID) async {
         let picture: ProfilePicture?
 
