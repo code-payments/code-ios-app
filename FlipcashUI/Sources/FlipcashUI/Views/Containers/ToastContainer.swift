@@ -28,13 +28,8 @@ public struct ToastContainer<Content>: View where Content: View {
         VStack(alignment: .center, spacing: 0) {
             HStack {
                 if let toast = toast {
-                    Text(toast)
-                        .padding([.leading, .trailing], 10)
-                        .padding([.top, .bottom], 6)
-                        .foregroundStyle(.textMain)
-                        .font(.appTextSmall)
+                    ToastLabel(toast)
                         .fixedSize()
-                        .background(.ultraThinMaterial, in: Capsule())
                         .transition(
                             .offset(x: 0, y: 20)
                             .combined(with: .opacity.animation(.easeOutFastest))
@@ -45,6 +40,28 @@ public struct ToastContainer<Content>: View where Content: View {
             .frame(width: 1, alignment: .center)
             content()
         }
+    }
+}
+
+// MARK: - Label -
+
+/// The app's toast look: a short line in a translucent capsule.
+public struct ToastLabel: View {
+
+    private let text: String
+
+    public init(_ text: String) {
+        self.text = text
+    }
+
+    public var body: some View {
+        Text(text)
+            .multilineTextAlignment(.center)
+            .padding([.leading, .trailing], 10)
+            .padding([.top, .bottom], 6)
+            .foregroundStyle(.textMain)
+            .font(.appTextSmall)
+            .background(.ultraThinMaterial, in: Capsule())
     }
 }
 
