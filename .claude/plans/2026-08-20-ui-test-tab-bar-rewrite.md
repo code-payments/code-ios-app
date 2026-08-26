@@ -6,10 +6,6 @@ been rewritten or dropped, and `BaseUITestCase.skipPendingTabBarRewrite(_:)` wen
 the last call site. This is the record of where each flow moved and what the v2 routes
 cost the suite.
 
-One test is still skipped, for a fixture rather than a route:
-`AddMoneyGateRegressionTests` needs an account spent down to nothing, which the suite
-cannot produce — see the Wallet-tile gotcha below.
-
 ## What moved
 
 | v1 affordance | v2 route |
@@ -46,12 +42,13 @@ cannot produce — see the Wallet-tile gotcha below.
   `WalletScreen` draws `walletTiles` only when `session.hasEverAddedMoney()`
   (`holdsBalance || database.hasEverAddedMoney()`); an unfunded account gets the
   new-user tutorial in their place. That gate collides with the two add-money
-  regressions, which need an empty balance by definition. The buy gate has no way out:
-  `flipcash://discover` reaches the same destination, but `app.open` relaunches the app
-  and a freshly created account does not survive the relaunch — the app comes back on
-  "Create a New Account" — while both standing accounts hold displayable USDF, so
-  `BuyAmountViewModel.paymentOptions` is non-empty and the button reads Next. The
-  creation gate survives because `shouldAddMoneyBeforeLaunch` is a *shortfall* check,
+  regressions, which need an empty balance by definition. The buy gate has no way out,
+  so `AddMoneyGateRegressionTests` is deleted: `flipcash://discover` reaches the same
+  destination, but `app.open` relaunches the app and a freshly created account does not
+  survive the relaunch — the app comes back on "Create a New Account" — while both
+  standing accounts hold displayable USDF, so `BuyAmountViewModel.paymentOptions` is
+  non-empty and the button reads Next. The gate itself is live, and a spent-down
+  fixture would restore the test. The creation gate survives because `shouldAddMoneyBeforeLaunch` is a *shortfall* check,
   not a $0 check: the standing account holds money but not the launch cost
   (`newCurrencyPurchaseAmount` + `newCurrencyFeeAmount`), so Get Started still raises the
   prompt. That is fixture-dependent, so the test skips if the account can afford it.
@@ -142,4 +139,5 @@ cannot produce — see the Wallet-tile gotcha below.
   card), and the currency-creation gate moved to its own
   `CurrencyCreationGateRegressionTests`. Both now need the standing account, because
   both entries are Wallet tiles and the tiles are gated on funding — see below.
-  `AddMoneyGateRegressionTests`' buy gate stays skipped: no fixture reaches it.
+  `AddMoneyGateRegressionTests`' buy gate has no fixture that can reach it, so it is
+  deleted alongside the give gates.
