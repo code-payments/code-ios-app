@@ -650,6 +650,30 @@ struct DatabaseConversationsTests {
         #expect(remaining.first?.members.map(\.displayName) == ["Fred"])
     }
 
+    @Test("A member's handle round-trips, and an unclaimed member stays nil")
+    func roundTripPreservesMemberUsername() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let claimed = UUID()
+        let unclaimed = UUID()
+        let tip = Conversation(
+            id: ConversationID.test(1),
+            members: [
+                ConversationMember(userID: claimed, displayName: "Fred", username: Username("fred_wilson")),
+                ConversationMember(userID: unclaimed, displayName: "Anna"),
+            ],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 100),
+            type: .tipDm
+        )
+
+        try database.upsertConversation(tip)
+        let restored = try #require(try database.getConversations().first)
+
+        #expect(restored.members.first(where: { $0.userID == claimed })?.username == Username("fred_wilson"))
+        #expect(restored.members.first(where: { $0.userID == unclaimed })?.username == nil)
+    }
+
     @Test("The crossed window is the half-open interval (after, through]")
     func crossedWindowIsHalfOpen() throws {
         let (database, url) = try Database.makeTemp()

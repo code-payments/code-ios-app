@@ -63,7 +63,8 @@ nonisolated extension Database {
                     phoneE164: row[m.phoneE164],
                     readPointer: row[m.readPointer].map(MessageID.init(value:)),
                     readPointerTimestamp: row[m.readPointerTimestamp].map { Date(timeIntervalSinceReferenceDate: $0) },
-                    profilePicture: memberProfilePicture(from: row)
+                    profilePicture: memberProfilePicture(from: row),
+                    username: row[m.username].flatMap(Username.init)
                 )
             )
         }
@@ -319,7 +320,8 @@ nonisolated extension Database {
                     m.readPointerTimestamp  <- member.readPointerTimestamp?.timeIntervalSinceReferenceDate,
                     m.profilePictureBlobID          <- member.profilePicture?.blobID.data,
                     m.profilePictureThumbnailBlobID <- member.profilePicture?.thumbnailBlobID.data,
-                    m.profilePictureThumbnailBlurhash <- member.profilePicture?.thumbnailBlurhash
+                    m.profilePictureThumbnailBlurhash <- member.profilePicture?.thumbnailBlurhash,
+                    m.username <- member.username?.value
                 )
             )
         }
