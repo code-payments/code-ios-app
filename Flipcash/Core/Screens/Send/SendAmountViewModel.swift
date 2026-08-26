@@ -195,12 +195,12 @@ final class SendAmountViewModel {
                 return .failed
             }
 
-            // A payment into a tip DM reports as a tip; a contact DM is a plain
-            // cash send. This covers both the scanned-tipcard flow and the
-            // Send Cash action inside a tip thread, since both submit here —
-            // `Origin` is what tells the two apart.
-            let tipOrigin: TipOrigin? = if case .tip(let recipient) = target { recipient.origin } else { nil }
-            let transferEvent: Analytics.TransferEvent = tipOrigin == nil ? .sentCash : .sentTip
+            // Only a tip card payment is a tip — the same line the activity feed
+            // draws, from `ChatMetadata.TipDmPayment.Location`. Both the scanned
+            // tipcard flow and the Send Cash action inside a tip thread submit
+            // here, and the latter reports as a plain cash send.
+            let isTip = if case .tip(let recipient) = target { recipient.origin == .tipcard } else { false }
+            let transferEvent: Analytics.TransferEvent = isTip ? .sentTip : .sentCash
 
             do {
                 try await sender.send(
@@ -209,10 +209,10 @@ final class SendAmountViewModel {
                     to: recipient,
                     chat: chatPaymentMetadata()
                 )
-                Analytics.transfer(event: transferEvent, exchangedFiat: amountToSend, grabTime: nil, successful: true, error: nil, origin: tipOrigin)
+                Analytics.transfer(event: transferEvent, exchangedFiat: amountToSend, grabTime: nil, successful: true, error: nil)
                 return .success
             } catch {
-                Analytics.transfer(event: transferEvent, exchangedFiat: amountToSend, grabTime: nil, successful: false, error: error, origin: tipOrigin)
+                Analytics.transfer(event: transferEvent, exchangedFiat: amountToSend, grabTime: nil, successful: false, error: error)
                 showSendError()
                 return .failed
             }

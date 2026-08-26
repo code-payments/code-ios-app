@@ -204,18 +204,12 @@ extension Analytics {
         )
     }
 
-    /// `origin` applies to `Sent Tip` only: which surface the tip came from —
-    /// a scanned/opened tip card, or the money button inside an existing tip chat.
-    static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?, origin: TipOrigin? = nil) {
+    static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?) {
         var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
         properties[.state] = successful ? String.success : String.failure
 
         if let grabTime {
             properties[.grabTime] = grabTime
-        }
-
-        if let origin {
-            properties[.origin] = origin.analyticsValue
         }
 
         track(
@@ -358,16 +352,6 @@ extension DepositMethod {
     }
 }
 
-extension TipOrigin {
-    /// The `Origin` property value, shared verbatim with Android.
-    var analyticsValue: String {
-        switch self {
-        case .tipcard: "Tipcard"
-        case .chat:    "Chat"
-        }
-    }
-}
-
 // MARK: - Wallet -
 
 extension Analytics {
@@ -478,7 +462,6 @@ extension Analytics {
 
         case state             = "State"
         case source            = "Source"
-        case origin            = "Origin"
         case method            = "Method"
         case quarks            = "Quarks"
         case mint              = "Mint"
