@@ -35,11 +35,11 @@ call site.
   that gated a *give* — renders under `if !isEmbedded`, and the Scan tab embeds
   `ScanScreen`. The gate still fires from a chat's Send Cash (`ConversationScreen`),
   `TipFlow`, and the give deeplink, none of which a fresh empty account can reach. So
-  both dialog regressions built on the Cash button lose their subject:
-  `GiveDiscoverGateRegressionTests` doubly so, since USDF is giveable now
+  both dialog regressions built on the Cash button lose their subject, and both are
+  deleted. `GiveDiscoverGateRegressionTests` doubly so, since USDF is giveable now
   (`BetaFlags.allowsDollarsGive`) and `GiveCashGate.discoverCurrencies` is unreachable
-  either way. Deleted. `GiveRegressionTests` (the "No Balance Yet" gate) is the same
-  shape and stays skipped pending the same call.
+  either way. `GiveRegressionTests` covered the "No Balance Yet" gate: an empty account
+  has no currency card, so it cannot reach the Give tile that would raise it.
 - **Per-token history moved into the "Recent" header.** `CurrencyInfoContentV2` has no
   "Transaction History" button; the header button is the only way in, and it sits below
   the hero card and the action tiles, so it needs scrolling into view.
