@@ -5,10 +5,11 @@
 
 import XCTest
 
-/// Redesign guard: the withdraw picker now lists **every** balance, Dollars
-/// included — USDF is no longer filtered out. A USDF-only account must therefore
-/// show its Dollars row (and *not* the empty state, which is reserved for an
-/// account with no displayable balances at all).
+/// Redesign guard: the withdraw picker lists every balance carrying a
+/// displayable value, Dollars included — USDF is no longer filtered out on mint
+/// alone. A USDF-only account holding a displayable balance must therefore show
+/// its Dollars row (and *not* the empty state, which is reserved for an account
+/// with no displayable balances at all).
 ///
 /// **Prerequisites:**
 /// - `FLIPCASH_UI_TEST_USDF_ONLY_ACCESS_KEY` set in `secrets.local.xcconfig`

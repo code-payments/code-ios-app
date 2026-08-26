@@ -590,6 +590,48 @@ struct SessionBalancesUSDFInclusionTests {
 }
 
 @MainActor
+@Suite("Outgoing-amount pickers drop zero balances")
+struct FundableBalanceFilterTests {
+
+    @Test("USDF at zero is dropped — the withdraw picker can't fund from $0.00")
+    func withdrawable_dropsZeroUSDF() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 0),
+            .init(
+                mint: .makeLaunchpad(
+                    address: .jeffy,
+                    supplyFromBonding: 1_000_000 * 10_000_000_000
+                ),
+                quarks: 10 * 10_000_000_000
+            ),
+        ])
+
+        let mints = container.session.balances(for: .oneToOne).withdrawable().map(\.stored.mint)
+        #expect(mints.contains(.usdf) == false, "Dollars at $0.00 must not be offered")
+        #expect(mints.contains(.jeffy), "funded balances continue to appear")
+    }
+
+    @Test("USDF dust that displays as $0.00 is dropped")
+    func withdrawable_dropsUSDFDust() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 1_000), // $0.001
+        ])
+
+        #expect(container.session.balances(for: .oneToOne).withdrawable().isEmpty)
+    }
+
+    @Test("Funded USDF is kept")
+    func withdrawable_keepsFundedUSDF() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 5 * 10_000_000_000),
+        ])
+
+        let mints = container.session.balances(for: .oneToOne).withdrawable().map(\.stored.mint)
+        #expect(mints == [.usdf])
+    }
+}
+
+@MainActor
 @Suite("Session.withdraw verified state")
 struct SessionWithdrawVerifiedStateTests {
 
