@@ -57,7 +57,11 @@ struct ConversationBottomBar: View {
                     symbol: symbol,
                     composing: model.isComposing,
                     standalone: !chatExists,
-                    alwaysMinimized: isTipDm,
+                    // A tip chat sits minimized beside its composer, but before
+                    // the first tip there is no composer to sit beside: the
+                    // design draws the full-width "Send a Tip" (node 9443:8928).
+                    alwaysMinimized: isTipDm && chatExists,
+                    expandedTitle: isTipDm ? "Send a Tip" : nil,
                     action: onSendCash
                 )
             }
@@ -196,6 +200,9 @@ struct SendCashMorphButton: View {
     /// Forces the compact symbol-only presentation regardless of composing.
     /// Tip chats always show it minimized; ordinary chats expand at rest.
     var alwaysMinimized: Bool = false
+    /// Replaces "Send <symbol>" while expanded. A tip chat names the tip
+    /// instead of the currency, because the amount is chosen on the next screen.
+    var expandedTitle: String?
     let action: () -> Void
 
     /// The compact glass "€" presentation: while composing, or always in a tip
@@ -214,15 +221,19 @@ struct SendCashMorphButton: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 if !minimized {
-                    Text("Send")
+                    Text(expandedTitle ?? "Send")
                         .font(.appTextMedium)
                         .transition(.opacity)
                 }
-                Text(symbol)
-                    // Same persistent Text — .interpolate animates the glyph
-                    // between sizes; swapping views would crossfade.
-                    .font(minimized ? .appTextXL : .appTextMedium)
-                    .contentTransition(.interpolate)
+                // Suppressed while a custom title is showing: "Send a Tip $"
+                // isn't a label. It returns when the button minimizes.
+                if minimized || expandedTitle == nil {
+                    Text(symbol)
+                        // Same persistent Text — .interpolate animates the glyph
+                        // between sizes; swapping views would crossfade.
+                        .font(minimized ? .appTextXL : .appTextMedium)
+                        .contentTransition(.interpolate)
+                }
             }
             .foregroundStyle(minimized ? Color.textMain : Color.textAction)
             // The label must never reflow to "Se…" mid-morph; overflow is
@@ -243,7 +254,7 @@ struct SendCashMorphButton: View {
         }
         .glassBackground(cornerRadius: cornerRadius)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .accessibilityLabel("Send Cash")
+        .accessibilityLabel(expandedTitle ?? "Send Cash")
         .accessibilityIdentifier("send-cash-button")
     }
 }
