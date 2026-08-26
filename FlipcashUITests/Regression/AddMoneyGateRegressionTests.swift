@@ -35,10 +35,10 @@ final class AddMoneyGateRegressionTests: BaseUITestCase {
             "The buy amount sheet must open even when the account has no balance"
         )
 
-        // Add Money → the Select Method picker. This flow enters from
+        // Add Money → the Add Money With picker. This flow enters from
         // Discover, so the sheet's CTA is the only Add Money button on screen.
         waitUntilHittableAndTap(app.buttons["Add Money"].firstMatch)
-        addMoney.assertSelectMethodReached()
+        addMoney.assertMethodPickerReached()
     }
 
     func testCreateCurrencyWithNoAssets_gatesOnAddMoney() throws {
@@ -67,8 +67,8 @@ final class AddMoneyGateRegressionTests: BaseUITestCase {
             "Expected the create-context subtitle on the No Balance prompt"
         )
 
-        // Add Money → the Select Method picker.
+        // Add Money → the Add Money With picker.
         addMoney.tapAddMoney(from: self)
-        addMoney.assertSelectMethodReached()
+        addMoney.assertMethodPickerReached()
     }
 }

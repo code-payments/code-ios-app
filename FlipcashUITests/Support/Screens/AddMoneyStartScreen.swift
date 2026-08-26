@@ -6,7 +6,7 @@
 import XCTest
 
 /// Page object for the standalone Add Money flow: "No Balance Yet" →
-/// "Select Method" → the per-method screens.
+/// "Add Money With" → the per-method screens.
 @MainActor
 struct AddMoneyStartScreen {
 
@@ -22,19 +22,23 @@ struct AddMoneyStartScreen {
         app.staticTexts["No Balance Yet"]
     }
 
-    /// The "No Balance Yet" primary CTA.
+    /// The "No Balance Yet" primary CTA, scoped to the dialog. An unscoped
+    /// "Add Money" match can resolve to the wallet behind the dialog, which has
+    /// both a tile and a new-user tutorial row under that label.
     var addMoneyButton: XCUIElement {
-        app.buttons["Add Money"].firstMatch
+        app.otherElements["No Balance Yet"].buttons["Add Money"]
     }
 
-    // MARK: - Select Method
+    // MARK: - Add Money With
 
-    var selectMethodTitle: XCUIElement {
-        app.staticTexts["Select Method"]
+    /// The method picker's heading. The tab-bar UI titles it "Add Money With";
+    /// "Select Method" was the pre-tab-bar heading.
+    var methodPickerTitle: XCUIElement {
+        app.staticTexts["Add Money With"]
     }
 
-    /// Coinbase row, matched by identifier — the visible label is the U+F8FF
-    /// Apple glyph + "Pay", brittle to match by label predicate.
+    /// Debit card (Coinbase) row, matched by identifier — the row carries the
+    /// U+F8FF Apple glyph + "Pay" as its trailing icon, brittle to match by label.
     var payDebitCardButton: XCUIElement {
         app.buttons["apple-pay-method-button"]
     }
@@ -57,18 +61,6 @@ struct AddMoneyStartScreen {
         app.buttons["Connect Your Phantom Wallet"]
     }
 
-    // MARK: - Amount to Add
-
-    var amountToAddNavBar: XCUIElement {
-        app.navigationBars["Amount to Add"]
-    }
-
-    /// The action button on the "Amount to Add" screen. The "No Balance Yet"
-    /// dialog is gone before this screen exists, so "Add Money" is unambiguous.
-    var amountToAddActionButton: XCUIElement {
-        app.buttons["Add Money"].firstMatch
-    }
-
     // MARK: - Assertions
 
     func assertNoBalanceReached(timeout: TimeInterval = 10) {
@@ -78,17 +70,10 @@ struct AddMoneyStartScreen {
         )
     }
 
-    func assertSelectMethodReached(timeout: TimeInterval = 10) {
+    func assertMethodPickerReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            selectMethodTitle.waitForExistence(timeout: timeout),
-            "Expected the 'Select Method' sheet"
-        )
-    }
-
-    func assertAmountToAddReached(timeout: TimeInterval = 10) {
-        XCTAssertTrue(
-            amountToAddNavBar.waitForExistence(timeout: timeout),
-            "Expected the 'Amount to Add' screen"
+            methodPickerTitle.waitForExistence(timeout: timeout),
+            "Expected the 'Add Money With' sheet"
         )
     }
 

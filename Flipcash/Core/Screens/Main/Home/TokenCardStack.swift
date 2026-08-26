@@ -103,6 +103,9 @@ struct TokenCardStack: View {
                     TokenCardView(data: item, height: cardHeight)
                 }
                 .buttonStyle(.plain)
+                // USDF carries its own identifier so a test can target an
+                // investable token without depending on where USDF sorts.
+                .accessibilityIdentifier(item.isUSDF ? "currency-row-usdf" : "currency-row")
                 // Resting fan, and the reorganisation when a card is opened, are
                 // both expressed here so they interpolate as one animation.
                 .opacity(item.mint == hiddenMint ? 0 : 1)
