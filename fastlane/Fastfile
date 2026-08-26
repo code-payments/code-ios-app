@@ -9,6 +9,7 @@
 #   1. Push your branch to origin
 #   2. Run: fastlane deploy                     (triggers the "Deploy Flipcash" Xcode Cloud workflow)
 #      or:  fastlane deploy group:'Internal'    (also waits, then assigns the build to a TestFlight group)
+#      add: notes_file:<path>                   (sets the build's TestFlight "What to Test")
 #
 # Required environment variables (set in fastlane/.env):
 #   APP_IDENTIFIER  - App bundle identifier
@@ -171,15 +172,18 @@ platform :ios do
   desc "Usage: fastlane deploy"
   desc "       fastlane deploy branch:my-feature"
   desc "       fastlane deploy group:'Internal'          # trigger, wait, then assign to a TestFlight group"
+  desc "       fastlane deploy notes_file:/tmp/what-to-test.txt   # also set the build's TestFlight 'What to Test'"
   desc "       fastlane deploy dry_run:true              # validate creds/workflow/branch + list groups, trigger nothing"
   desc "       fastlane deploy workflow:'Deploy Flipcash'"
   lane :deploy do |options|
     workflow_name = options[:workflow] || "Deploy Flipcash"
     branch = options[:branch] || current_branch
     group_name = options[:group] || ENV["TESTFLIGHT_GROUP"]
+    notes = resolve_beta_notes(options)
     dry_run = options[:dry_run].to_s == "true"
-    # Only block for the (long) Xcode Cloud build when we have a group to hand it to.
-    should_wait = options.key?(:wait) ? options[:wait].to_s == "true" : !group_name.nil?
+    # Only block for the (long) Xcode Cloud build when there's something to do with
+    # the finished build — hand it to a group, give it notes, or both.
+    should_wait = options.key?(:wait) ? options[:wait].to_s == "true" : !(group_name.nil? && notes.nil?)
 
     ensure_branch_on_origin(branch)
 
@@ -194,6 +198,7 @@ platform :ios do
       names = testflight_group_names(token)
       UI.message("TestFlight groups: #{names.empty? ? '(none)' : names.join(', ')}")
       UI.message(group_name ? "group:'#{group_name}' #{names.include?(group_name) ? '✓ matches' : "✗ NOT FOUND — pick one of the above"}" : "Pass group:'<name>' to assign the build to a TestFlight group.")
+      UI.message(notes ? "What to Test: #{notes.bytesize} bytes — would be set once the build finishes processing." : "Pass notes:'…' or notes_file:<path> to set the build's TestFlight 'What to Test'.")
       next
     end
 
@@ -202,55 +207,76 @@ platform :ios do
     UI.success("🚀 Started '#{workflow_name}' build ##{run[:number]} for #{branch}")
     UI.message("Track it in App Store Connect → Xcode Cloud → Builds.")
 
-    next unless group_name
+    next if group_name.nil? && notes.nil?
 
     unless should_wait
-      UI.important("Run `fastlane distribute group:'#{group_name}'` once build ##{run[:number]} finishes processing.")
+      pending = [group_name && "assign it to '#{group_name}'", notes && "set its 'What to Test'"].compact.join(" and ")
+      UI.important("Not waiting. Run `fastlane distribute …` once build ##{run[:number]} finishes processing to #{pending}.")
       next
     end
 
     wait_for_build_run(run[:id])
-    distribute(group: group_name)
+    distribute(group: group_name, notes: notes)
   end
 
   # ──────────────────────────────────────────────────────────────────
   # Distribute Lane (TestFlight)
   # ──────────────────────────────────────────────────────────────────
 
-  desc "Assign a processed build to a TestFlight group"
+  desc "Assign a processed build to a TestFlight group and/or set its 'What to Test'"
   desc "Usage: fastlane distribute group:'Internal'            # latest processed build"
   desc "       fastlane distribute group:'Internal' build:42   # a specific build number"
-  desc "       fastlane distribute group:'Internal' dry_run:true  # validate group + build, assign nothing"
+  desc "       fastlane distribute group:'Internal' notes_file:/tmp/what-to-test.txt"
+  desc "       fastlane distribute notes:'Tip card deep links'    # notes only, no group change"
+  desc "       fastlane distribute group:'Internal' dry_run:true  # validate group + build, change nothing"
   lane :distribute do |options|
     group_name = options[:group] || ENV["TESTFLIGHT_GROUP"]
-    UI.user_error!("Group required. Pass group:'Internal' or set TESTFLIGHT_GROUP in fastlane/.env") unless group_name
+    notes = resolve_beta_notes(options)
     dry_run = options[:dry_run].to_s == "true"
+
+    if group_name.nil? && notes.nil?
+      UI.user_error!("Nothing to do. Pass group:'Internal' (or set TESTFLIGHT_GROUP in fastlane/.env) and/or notes:'…'")
+    end
 
     Spaceship::ConnectAPI.token = asc_token
     app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
     UI.user_error!("App '#{ENV['APP_IDENTIFIER']}' not found in App Store Connect") unless app
 
-    group = app.get_beta_groups(filter: { name: group_name }).find { |g| g.name == group_name }
-    UI.user_error!("No TestFlight group named '#{group_name}'") unless group
+    group = nil
+    if group_name
+      group = app.get_beta_groups(filter: { name: group_name }).find { |g| g.name == group_name }
+      UI.user_error!("No TestFlight group named '#{group_name}'") unless group
+    end
+
+    plan = [
+      group_name && "assign → '#{group_name}'",
+      notes && "set 'What to Test' (#{notes.bytesize} bytes)"
+    ].compact.join(", ")
 
     # Dry run reports against whatever's uploaded right now — it never blocks
-    # waiting for processing, and never assigns.
+    # waiting for processing, and never assigns or writes notes.
     if dry_run
       build = latest_build(app, options[:build])
       if build.nil?
-        UI.important("Group '#{group_name}' ✓ found. No matching build uploaded yet — a real run would wait for one.")
+        UI.important("Would #{plan}. No matching build uploaded yet — a real run would wait for one.")
       elsif build.processed?
-        UI.success("Dry run — nothing assigned. Would assign build #{build.version} → '#{group_name}' (processed, ready).")
+        UI.success("Dry run — nothing changed. Would take build #{build.version} and #{plan}.")
       else
-        UI.important("Group '#{group_name}' ✓ found. Build #{build.version} is still processing — a real run would wait, then assign.")
+        UI.important("Would #{plan}. Build #{build.version} is still processing — a real run would wait, then apply.")
       end
       next
     end
 
     build = wait_for_processed_build(app, options[:build])
-    build.add_beta_groups(beta_groups: [group])
 
-    UI.success("✅ Added build #{build.version} to TestFlight group '#{group_name}'")
+    # Notes before the group: adding the group is what notifies testers, and they
+    # should open a build that already carries the right "What to Test".
+    set_beta_build_notes(build, notes) if notes
+
+    if group
+      build.add_beta_groups(beta_groups: [group])
+      UI.success("✅ Added build #{build.version} to TestFlight group '#{group_name}'")
+    end
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -487,6 +513,66 @@ platform :ios do
       sleep(interval)
       waited += interval
     end
+  end
+
+  # ── TestFlight "What to Test" ────────────────────────────────────────
+
+  # Apple caps a build's "What to Test" at 4000 bytes and rejects longer ones.
+  MAX_BETA_NOTES_BYTES = 4000
+
+  # `notes:` inline, or `notes_file:` pointing at a file — the file form keeps
+  # multi-line notes out of shell quoting. Returns nil when neither is set.
+  def resolve_beta_notes(options)
+    text =
+      if options[:notes_file]
+        path = File.expand_path(options[:notes_file].to_s)
+        UI.user_error!("notes_file '#{path}' not found") unless File.exist?(path)
+        File.read(path)
+      else
+        options[:notes]
+      end
+
+    text = text.to_s.strip
+    text.empty? ? nil : text
+  end
+
+  # Sets a build's TestFlight "What to Test" through the App Store Connect API.
+  #
+  # Xcode Cloud attaches `TestFlight/WhatToTest.en-US.txt` from the commit it
+  # built, so a branch build inherits whatever notes the last release committed.
+  # Patching the build's en-US betaBuildLocalization afterwards is what gives an
+  # ad-hoc build its own notes without committing a notes file to the branch.
+  # It must run after the build has uploaded — Xcode Cloud writes the file's
+  # contents at upload time and would overwrite an earlier write.
+  def set_beta_build_notes(build, notes)
+    notes = truncate_beta_notes(notes)
+    localization = build.get_beta_build_localizations.find { |l| l.locale == "en-US" }
+
+    if localization
+      Spaceship::ConnectAPI.patch_beta_build_localizations(
+        localization_id: localization.id,
+        attributes: { whatsNew: notes }
+      )
+    else
+      Spaceship::ConnectAPI.post_beta_build_localizations(
+        build_id: build.id,
+        attributes: { whatsNew: notes, locale: "en-US" }
+      )
+    end
+
+    UI.success("📝 Set TestFlight 'What to Test' on build #{build.version}")
+  end
+
+  def truncate_beta_notes(notes)
+    return notes if notes.bytesize <= MAX_BETA_NOTES_BYTES
+
+    UI.important("'What to Test' is #{notes.bytesize} bytes, over Apple's #{MAX_BETA_NOTES_BYTES}-byte limit — truncating.")
+    truncated = +""
+    notes.each_char do |char|
+      break if truncated.bytesize + char.bytesize > MAX_BETA_NOTES_BYTES - 3
+      truncated << char
+    end
+    "#{truncated}..."
   end
 
   # Names of every TestFlight group on the app, for picking a `group:` value.
