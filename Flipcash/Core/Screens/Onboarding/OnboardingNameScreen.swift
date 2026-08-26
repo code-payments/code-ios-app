@@ -61,11 +61,7 @@ struct OnboardingNameScreen: View {
                 }
 
                 Button(action: viewModel.submit) {
-                    if viewModel.isSubmitting {
-                        ProgressView().progressViewStyle(.circular)
-                    } else {
-                        Text("Next")
-                    }
+                    ButtonStateLabel("Next", state: viewModel.buttonState)
                 }
                 .buttonStyle(.filled)
                 .disabled(viewModel.validatedDisplayName == nil || viewModel.isSubmitting)

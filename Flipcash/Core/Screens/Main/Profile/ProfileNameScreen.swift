@@ -30,6 +30,12 @@ struct ProfileNameScreen: View {
     @State private var submitTask: Task<Void, Never>?
     @State private var errorDialog: DialogItem?
 
+    /// Drives the Next button: spinner while saving, then the checkmark the
+    /// rest of the app shows on a completed action.
+    @State private var buttonState: ButtonState = .normal
+
+    /// True while the submission is in flight, including the checkmark hold at
+    /// the end of it, so the field stays locked through the confirmation.
     private var isSubmitting: Bool { submitTask != nil }
 
     /// Shown only once the limit is close enough to explain a disabled Next.
@@ -71,11 +77,7 @@ struct ProfileNameScreen: View {
                 }
 
                 Button(action: submit) {
-                    if isSubmitting {
-                        ProgressView().progressViewStyle(.circular)
-                    } else {
-                        Text("Next")
-                    }
+                    ButtonStateLabel("Next", state: buttonState)
                 }
                 .buttonStyle(.filled)
                 .disabled(state.validatedDisplayName == nil || isSubmitting)
@@ -104,6 +106,7 @@ struct ProfileNameScreen: View {
         case .back:    .myAccount
         }
 
+        buttonState = .loading
         submitTask = Task {
             defer { submitTask = nil }
 
@@ -114,6 +117,11 @@ struct ProfileNameScreen: View {
                 )
                 Analytics.displayNameSubmitted(source: source, hadPreviousName: hadPreviousName)
                 try await sessionContainer.session.updateProfile()
+
+                buttonState = .success
+                // Same beat onboarding holds its checkmark for, so the
+                // confirmation is seen before the screen changes.
+                try? await Task.delay(milliseconds: 500)
 
                 guard !Task.isCancelled else { return }
 
@@ -131,6 +139,7 @@ struct ProfileNameScreen: View {
                 }
 
             } catch ErrorProfile.moderated(let category) {
+                buttonState = .normal
                 logger.info("Display name moderation denied", metadata: ["category": "\(category)"])
                 errorDialog = .error(
                     title: "This Name is Not Allowed",
@@ -138,6 +147,7 @@ struct ProfileNameScreen: View {
                 )
 
             } catch ErrorProfile.invalidDisplayName {
+                buttonState = .normal
                 logger.info("Display name rejected as invalid")
                 errorDialog = .error(
                     title: "This Name Isn't Valid",
@@ -145,6 +155,7 @@ struct ProfileNameScreen: View {
                 )
 
             } catch {
+                buttonState = .normal
                 guard !Task.isCancelled else { return }
                 logger.error("Failed to set display name", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Failed to set display name")

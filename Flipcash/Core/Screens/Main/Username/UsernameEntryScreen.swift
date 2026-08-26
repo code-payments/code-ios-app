@@ -31,8 +31,14 @@ struct UsernameEntryScreen: View {
     @State private var submitTask: Task<Void, Never>?
     @State private var errorDialog: DialogItem?
 
+    /// Drives the Next button: spinner while claiming, then the checkmark the
+    /// rest of the app shows on a completed action.
+    @State private var buttonState: ButtonState = .normal
+
     private static let validator = UsernameValidator()
 
+    /// True while the submission is in flight, including the checkmark hold at
+    /// the end of it, so the field stays locked through the confirmation.
     private var isSubmitting: Bool { submitTask != nil }
 
     var body: some View {
@@ -72,11 +78,7 @@ struct UsernameEntryScreen: View {
                 Spacer()
 
                 Button(action: submit) {
-                    if isSubmitting {
-                        ProgressView().progressViewStyle(.circular)
-                    } else {
-                        Text("Next")
-                    }
+                    ButtonStateLabel("Next", state: buttonState)
                 }
                 .buttonStyle(.filled)
                 // Enabled for anything non-empty, unlike `ProfileNameScreen`'s
@@ -116,6 +118,7 @@ struct UsernameEntryScreen: View {
 
         guard let username = Self.validator.validate(input) else { return }
 
+        buttonState = .loading
         submitTask = Task {
             defer { submitTask = nil }
 
@@ -126,10 +129,16 @@ struct UsernameEntryScreen: View {
                 )
                 try await session.updateProfile()
 
+                buttonState = .success
+                // Same beat onboarding holds its checkmark for, so the
+                // confirmation is seen before the screen pops.
+                try? await Task.delay(milliseconds: 500)
+
                 guard !Task.isCancelled else { return }
                 router.popTopmost()
 
             } catch let error as ErrorProfile {
+                buttonState = .normal
                 guard !Task.isCancelled else { return }
                 logger.info("Username rejected", metadata: ["error": "\(error)"])
 
@@ -144,6 +153,7 @@ struct UsernameEntryScreen: View {
                 }
 
             } catch {
+                buttonState = .normal
                 guard !Task.isCancelled else { return }
                 logger.error("Failed to set username", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Failed to set username")
