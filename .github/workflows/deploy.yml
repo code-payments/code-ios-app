@@ -13,6 +13,10 @@ name: Deploy to TestFlight (Xcode Cloud)
 #   APP_IDENTIFIER   - App bundle identifier
 #   TESTFLIGHT_GROUP - default TestFlight group to assign builds to
 #                      (kept in secrets so the name stays out of the repo)
+#
+# The optional "notes" input overwrites the build's TestFlight "What to Test"
+# after it processes; leaving it blank keeps whatever Xcode Cloud attached from
+# the branch's committed TestFlight/WhatToTest.en-US.txt.
 
 on:
   workflow_dispatch:
@@ -25,8 +29,12 @@ on:
         description: 'TestFlight group — leave blank to use the TESTFLIGHT_GROUP secret; type "none" to trigger only'
         required: false
         default: ""
+      notes:
+        description: 'TestFlight "What to Test" — blank keeps the notes Xcode Cloud takes from TestFlight/WhatToTest.en-US.txt. Use \n for line breaks.'
+        required: false
+        default: ""
       wait:
-        description: Wait for the build to finish and assign it to the group
+        description: Wait for the build to finish, set the notes, and assign it to the group
         required: false
         default: true
         type: boolean
@@ -62,10 +70,18 @@ jobs:
           GROUP_SECRET: ${{ secrets.TESTFLIGHT_GROUP }}
           BRANCH: ${{ inputs.branch }}
           GROUP_INPUT: ${{ inputs.group }}
+          NOTES_INPUT: ${{ inputs.notes }}
           WAIT: ${{ inputs.wait }}
         run: |
           set -euo pipefail
           args=(branch:"$BRANCH" wait:"$WAIT")
+          # "What to Test" is set on the finished build via the App Store Connect
+          # API, so it needs the wait. A one-line dispatch input carries line
+          # breaks as literal \n — expand them into a file the lane reads.
+          if [ -n "$NOTES_INPUT" ]; then
+            printf '%b\n' "$NOTES_INPUT" > "$RUNNER_TEMP/what-to-test.txt"
+            args+=(notes_file:"$RUNNER_TEMP/what-to-test.txt")
+          fi
           # blank input  -> use the TESTFLIGHT_GROUP secret (auto-assign)
           # "none"       -> trigger only, assign nothing
           # any name     -> one-off override of the secret
