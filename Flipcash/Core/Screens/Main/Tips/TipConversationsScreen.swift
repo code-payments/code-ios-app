@@ -82,7 +82,7 @@ private struct NoChatsView: View {
                 .foregroundStyle(Color.textMain)
                 .multilineTextAlignment(.center)
 
-            Text("Send a tip or share your Tip Card to start chatting")
+            Text("Start a new chat, or share your profile")
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)

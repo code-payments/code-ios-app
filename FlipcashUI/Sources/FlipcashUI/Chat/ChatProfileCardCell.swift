@@ -46,7 +46,7 @@ private struct ProfileCardView: View {
             case .contact, .unknown:
                 ContactActionPill(counterpart: card.counterpart, action: onContactAction)
                     .padding(.top, 16)
-            case .none:
+            case .handle, .none:
                 EmptyView()
             }
         }
@@ -110,6 +110,9 @@ private struct ProfileCardSubtitle: View {
         case .unknown:
             Text("Unknown Contact")
                 .foregroundStyle(Color.warning)
+        case .handle(let username):
+            Text(username.handle)
+                .foregroundStyle(Color.textSecondary)
         case .none:
             // No relationship to surface — renders nothing.
             EmptyView()
@@ -145,6 +148,16 @@ private struct ProfileCardSubtitle: View {
                 avatarID: "raul",
                 imageData: nil,
                 counterpart: .none
+            ),
+            onContactAction: {},
+            onProfileTap: nil
+        )
+        ProfileCardView(
+            card: ChatProfileCard(
+                name: "Fred Wilson",
+                avatarID: "fred",
+                imageData: nil,
+                counterpart: .handle(Username("fred_wilson")!)
             ),
             onContactAction: {},
             onProfileTap: nil

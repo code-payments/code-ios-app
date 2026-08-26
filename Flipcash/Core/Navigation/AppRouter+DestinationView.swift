@@ -144,6 +144,9 @@ struct DestinationView: View {
         case .tipcard:
             TipcardScreen()
 
+        case .usernameLookup:
+            UsernameLookupScreen()
+
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID))
@@ -154,6 +157,12 @@ struct DestinationView: View {
             // comes up. `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID), openKeyboard: true)
                 .id(conversationID)
+
+        case .tipConversationForUser(let userID):
+            // Opened before the chat exists, so the screen is given the person
+            // and derives the chat id itself. `.id` forces fresh view identity.
+            ConversationScreen(context: .tipDM(counterpart: userID))
+                .id(userID)
 
         case .userProfile(let userID):
             UserProfileScreen(userID: userID)

@@ -72,6 +72,9 @@ extension AppRouter {
         case profilePhoto
         /// The signed-in user's own tipcard, pushed from the Tips list.
         case tipcard
+        /// Finding someone by their Flipcash handle, opened from the Chats tab.
+        /// Distinct from `.username`, which claims the signed-in user's own.
+        case usernameLookup
         /// A tip DM conversation, pushed onto the `.tips` stack — from the
         /// Tips list or a tip-DM push notification.
         case tipConversation(ConversationID)
@@ -81,6 +84,10 @@ extension AppRouter {
         /// trace shows "post-tip, keyboard up" distinctly, and so the ordinary
         /// tip-list / push-notification opens stay keyboard-closed untouched.
         case tipConversationWithKeyboard(ConversationID)
+        /// A tip DM named by its counterpart rather than its chat id — the
+        /// username lookup's destination. The chat is created by the first tip,
+        /// so before then there is no id to push; the screen derives one.
+        case tipConversationForUser(UserID)
         /// The counterpart's Flipcash profile, pushed from a tip DM's title/card; hosts the Block action.
         case userProfile(UserID)
 
@@ -97,8 +104,9 @@ extension AppRouter {
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .settings
-            case .profileName, .profilePhoto, .tipcard,
-                 .tipConversation, .tipConversationWithKeyboard, .userProfile:
+            case .profileName, .profilePhoto, .tipcard, .usernameLookup,
+                 .tipConversation, .tipConversationWithKeyboard, .tipConversationForUser,
+                 .userProfile:
                 return .tips
             }
         }
@@ -137,8 +145,10 @@ extension AppRouter {
             case .profileName:                  "profileName"
             case .profilePhoto:                 "profilePhoto"
             case .tipcard:                      "tipcard"
+            case .usernameLookup:               "usernameLookup"
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
+            case .tipConversationForUser:       "tipConversationForUser"
             case .userProfile:                  "userProfile"
             }
         }
@@ -160,7 +170,8 @@ extension AppRouter {
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID):
                 return conversationID.description
-            case .userProfile(let userID):
+            case .userProfile(let userID),
+                 .tipConversationForUser(let userID):
                 return userID.uuidString
             case .username(let username):
                 return username?.value
@@ -170,7 +181,7 @@ extension AppRouter {
                  .settingsMyAccount, .changeDisplayName, .settingsAdvancedFeatures,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
-                 .profileName, .profilePhoto, .tipcard:
+                 .profileName, .profilePhoto, .tipcard, .usernameLookup:
                 return nil
             }
         }

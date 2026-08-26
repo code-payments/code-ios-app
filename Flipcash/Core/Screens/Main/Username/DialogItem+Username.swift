@@ -109,4 +109,40 @@ extension DialogItem {
             return generic
         }
     }
+
+    /// The lookup screen's miss (node 9442:103386). Informational for the same
+    /// reason the claim screen's rejections are: nobody has claimed this handle
+    /// is an answer, not a fault, and the user fixes it by typing something else.
+    ///
+    /// Deliberately different copy from the tip card's `No Such Account` /
+    /// `Nobody has claimed @x`. That one is reached by following someone's link,
+    /// where naming the handle back is what explains the dead end; here the
+    /// handle is still in the field the user is looking at.
+    static var usernameNotFound: DialogItem {
+        .info(title: "Username Not Found", subtitle: "Please try a different username")
+    }
+
+    /// A lookup that never got an answer. Keeps the red banner and the apology,
+    /// because unlike a miss this one is worth retrying.
+    static var usernameLookupFailure: DialogItem {
+        .error(
+            title: "Couldn't Look Up Username",
+            subtitle: "Please check your connection and try again"
+        )
+    }
+
+    /// Which of the two a thrown lookup gets. `ProfileService` turns the
+    /// server's own `notFound` into `Profile.empty` rather than a throw, so the
+    /// caller detects a miss from the result and this mapper mostly answers
+    /// with the failure. It maps `.notFound` anyway, because the alternative if
+    /// that ever changes is telling the user their connection is broken.
+    static func usernameLookup(for error: Error) -> DialogItem {
+        guard let error = error as? ErrorFetchProfile else { return .usernameLookupFailure }
+        switch error {
+        case .notFound:
+            return .usernameNotFound
+        case .ok, .unknown, .transportFailure, .cancelled, .rejected:
+            return .usernameLookupFailure
+        }
+    }
 }

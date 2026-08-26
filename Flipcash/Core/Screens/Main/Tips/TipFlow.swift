@@ -168,10 +168,22 @@ final class TipFlow {
     // MARK: - Recipient -
 
     /// Thrown when a handle resolved to a profile the server didn't stamp with
-    /// a user id — a tip has nobody to pay without one.
-    private struct UnidentifiedRecipient: Error {}
+    /// a user id — a tip has nobody to pay without one. `fetchProfile` answers
+    /// an unclaimed handle with `Profile.empty` rather than throwing, so this
+    /// is the shape that case arrives in.
+    private struct UnidentifiedRecipient: ServerError {
+        var reportingLevel: ErrorReportingLevel { .info }
+    }
 
     private func prepare(_ identifier: ProfileIdentifier) {
+        // Whether the link named a handle rather than an id decides both the
+        // retry policy below and which copy a failure gets.
+        let handle: Username?
+        switch identifier {
+        case .userID:                 handle = nil
+        case .username(let username): handle = username
+        }
+
         prepTask = Task {
             defer { prepTask = nil }
             do {
@@ -187,7 +199,14 @@ final class TipFlow {
                     maxAttempts: 3,
                     delay: .milliseconds(500),
                     shouldRetry: { error in
-                        if let error = error as? ErrorResolve { return error == .notFound || error.isRetryable }
+                        if let error = error as? ErrorResolve {
+                            // `.notFound` is retried for an id only: there it means a
+                            // just-made-tippable recipient whose destination hasn't
+                            // propagated yet. For a handle it is the settled answer,
+                            // so retrying only spends the backoff before saying so.
+                            if error == .notFound { return handle == nil }
+                            return error.isRetryable
+                        }
                         if let error = error as? ErrorFetchProfile { return error.isRetryable }
                         return false
                     }
@@ -240,11 +259,44 @@ final class TipFlow {
                     "error": "\(error)",
                 ])
                 ErrorReporting.captureError(error, reason: "Failed to prepare tip recipient")
-                session.dialogItem = .error(
-                    title: "Tipcard Not Available",
-                    subtitle: "This tipcard can't receive tips right now. Please try again."
-                )
+                session.dialogItem = Self.failureDialog(for: error, handle: handle)
             }
+        }
+    }
+
+    /// The dialog a failed resolve earns.
+    ///
+    /// An id comes off a code the camera just read, so a miss there is a fetch
+    /// that didn't land. A handle is the opposite: it is typed, printed on
+    /// merch, or pasted out of a bio, and it goes stale the moment its owner
+    /// changes it. An unclaimed one is therefore a fact about the link rather
+    /// than a fault in the app — informational, and specific about whose handle
+    /// went nowhere. Only the network case is ours to apologise for.
+    ///
+    /// Copy is shared with Android, which splits the same two cases.
+    static func failureDialog(for error: Error, handle: Username?) -> DialogItem {
+        if let handle, isUnclaimed(error) {
+            return .info(
+                title: "No Such Account",
+                subtitle: "Nobody has claimed @\(handle.value)"
+            )
+        }
+
+        return .error(
+            title: "Couldn't Open Tip Card",
+            subtitle: "Please check your connection and try again"
+        )
+    }
+
+    /// Whether `error` means the handle belongs to nobody. Both halves of the
+    /// resolve can say so: `resolve` throws `.notFound`, while `fetchProfile`
+    /// returns an id-less `Profile.empty` that becomes `UnidentifiedRecipient`.
+    private static func isUnclaimed(_ error: Error) -> Bool {
+        switch error {
+        case is UnidentifiedRecipient:      true
+        case let error as ErrorResolve:     error == .notFound
+        case let error as ErrorFetchProfile: error == .notFound
+        default:                            false
         }
     }
 

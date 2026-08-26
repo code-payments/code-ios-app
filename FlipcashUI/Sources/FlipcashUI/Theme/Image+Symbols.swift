@@ -48,7 +48,8 @@ public enum SystemSymbol: String {
     case circleCheck = "checkmark.circle.fill"
     case circlePerson = "person.circle"
     case personBadgePlus = "person.badge.plus"
-    
+    case plus = "plus"
+
     case arrowUp = "arrow.up"
     case arrowDown = "arrow.down"
     case arrowRight = "arrow.right"

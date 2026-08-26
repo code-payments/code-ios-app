@@ -21,12 +21,16 @@ public struct ChatProfileCard: Hashable, Sendable, Codable {
     public var blurhash: String?
     public var counterpart: Counterpart
 
-    /// How the counterpart relates to the address book.
+    /// What the card's subtitle line says about the counterpart, and whether it
+    /// offers a contact action.
     public enum Counterpart: Hashable, Sendable, Codable {
         /// In the address book: the subtitle is their number and the CTA views their contact card.
         case contact(phone: String)
         /// Not in the address book: an "Unknown Contact" subtitle and a CTA that adds them.
         case unknown
+        /// Known by their Flipcash handle: the subtitle is `@handle` and there is no
+        /// contact CTA — the address book has nothing to say about them.
+        case handle(Username)
         /// No address-book relationship to surface (e.g. a tip DM counterpart known by
         /// profile only): just the avatar and name, no subtitle and no contact CTA.
         case none

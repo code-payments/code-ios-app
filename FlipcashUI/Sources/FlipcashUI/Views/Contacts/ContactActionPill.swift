@@ -50,7 +50,7 @@ private struct ContactActionLabel: View {
             } icon: {
                 Image.system(.personBadgePlus)
             }
-        case .none:
+        case .handle, .none:
             // Carries no contact action; the hosting card omits the pill entirely.
             EmptyView()
         }
