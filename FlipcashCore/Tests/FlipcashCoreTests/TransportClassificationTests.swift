@@ -40,6 +40,7 @@ struct TransportClassificationTests {
     // MARK: - Registry (one line per TransportClassifiableError conformer) -
 
     @Test func errorFetchBalance() { assertClassifies(ErrorFetchBalance.self) }
+    @Test func errorGetBalance() { assertClassifies(ErrorGetBalance.self) }
 
     @Test func errorRegisterAccount() { assertClassifies(ErrorRegisterAccount.self) }
     @Test func errorLoginAccount() { assertClassifies(ErrorLoginAccount.self) }
