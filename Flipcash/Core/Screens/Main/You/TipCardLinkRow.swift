@@ -40,8 +40,9 @@ struct TipCardLinkRow: View {
                         // handle keeps every character it has room for and
                         // loses the tail only past that. On the narrowest
                         // supported screen (375pt) the budget is 257pt, which
-                        // covers a 15-character handle of average width but not
-                        // one made of the widest glyphs.
+                        // covered a 15-character handle of average width even
+                        // under the four-character-longer `app.flipcash.com`;
+                        // the apex host only widens that margin.
                         .truncationMode(.tail)
                 }
 

@@ -88,7 +88,7 @@ nonisolated extension Route {
         case chat(ConversationID)
         case chatSendCash(ConversationID)
         case tip(UserID)
-        /// A vanity tipcard link — `app.flipcash.com/<handle>`, no `/tip/`
+        /// A vanity tipcard link — `flipcash.com/<handle>`, no `/tip/`
         /// segment and no `@`. The same destination as ``tip(_:)``, reached by
         /// the handle its owner claimed rather than by their user id.
         case username(Username)

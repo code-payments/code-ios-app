@@ -103,7 +103,7 @@ final class TipFlow {
         begin(.userID(userID))
     }
 
-    /// Handles a vanity tipcard link — `app.flipcash.com/<handle>`. The handle
+    /// Handles a vanity tipcard link — `flipcash.com/<handle>`. The handle
     /// resolves to the same card a scanned code opens; the own-handle case is
     /// caught here when the local profile knows its handle, and again after the
     /// resolve when it doesn't.
