@@ -27,6 +27,7 @@ public class Client: ObservableObject {
     internal let transactionService: TransactionService
     internal let currencyService: CurrencyService
     internal let messagingService: MessagingService
+    internal let balanceService: BalanceService
 
     // MARK: - Init -
 
@@ -53,6 +54,7 @@ public class Client: ObservableObject {
         self.transactionService = TransactionService(client: client)
         self.currencyService    = CurrencyService(client: client)
         self.messagingService   = MessagingService(client: client)
+        self.balanceService     = BalanceService(client: client)
     }
 
     deinit {
