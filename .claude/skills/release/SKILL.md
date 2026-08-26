@@ -115,16 +115,56 @@ xcodebuild test -scheme Flipcash \
 ```
 The `AllTargets` test plan already includes UI tests. Do NOT run UI tests separately.
 
-Then the unit targets under Thread Sanitizer:
+**Any `AllTargets` failure → STOP.** This is the release gate.
+
+### 6a. Thread Sanitizer (advisory, not a blocker)
+
 ```bash
 xcodebuild test -scheme Flipcash \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -testPlan Sanitizers
+  -testPlan Sanitizers 2>&1 | tee /tmp/sanitizers.log
 ```
-`Sanitizers` covers `FlipcashTests` + `FlipcashCoreTests` only; TSan cannot run against the UI
-tests (see `.claude/plans/2026-08-25-tsan-ui-test-crash.md`).
 
-Any failure → STOP.
+`Sanitizers` covers `FlipcashTests` + `FlipcashCoreTests` only; TSan cannot run against the UI
+tests. **Expect this to exit 65 with hundreds of failures — that is the current known state, not a
+regression.** The TSan runtime re-enters its own interceptors from `DoReset` and aborts the host
+partway through, and xcodebuild marks everything in flight as failed. Neither target completes
+alone, so there is no narrower scope to fall back to. Full evidence in
+`.claude/plans/2026-08-25-tsan-ui-test-crash.md`.
+
+Do not read the failure count — it is 1100–1400 on a healthy-as-it-gets run. Classify with these
+three numbers instead:
+
+```bash
+grep -c 'WARNING: ThreadSanitizer: data race' /tmp/sanitizers.log   # A: races reported
+grep ' failed on ' /tmp/sanitizers.log | grep -vc '(0.000 seconds)' # B: failures that actually ran
+grep -c 'recorded an issue' /tmp/sanitizers.log                     # C: Swift Testing failures
+```
+
+- **A > 0 → STOP.** A data race is a genuine finding; triage before shipping.
+- **B > 0 or C > 0 → STOP.** Something failed on its own merits rather than as an abort casualty.
+- **A, B and C all 0 → continue the release**, whatever the exit code and failure count. If the run
+  exited non-zero, record it as "TSan inconclusive (known runtime abort)" in the release thread so
+  the skipped coverage is on the record.
+- **A, B, C all 0 *and* exit 0 → the runtime is fixed.** Tell the user: step 6a should go back to
+  being a hard gate, and the inconclusive branch should be deleted here and in the plan doc.
+
+C is the one that carries the weight: every test target here is Swift Testing (the codebase has no
+`import XCTest`), so a genuine failure always records an issue no matter how fast it failed. B is a
+backstop for anything that reports through the XCTest bridge instead. Don't substitute `grep
+'error:'` for either — several parameterized test names contain the literal `error:expected:`, and
+they match while passing.
+
+Deliberately not part of the test: the `ThreadSanitizer:DEADLYSIGNAL` banner. It reaches the
+xcodebuild log in most runs but went missing in two of the seven recorded in the plan doc, while
+the host still died and restarted. If you want to confirm an abort happened, count host pids —
+more than one means the runner died and restarted:
+
+```bash
+grep -oE 'iPhone 17 - Flipcash \([0-9]+\)' /tmp/sanitizers.log | sort -u
+```
+
+(That only reports pids while `FlipcashTests` is in scope, which it is for the plan as run above.)
 
 ### 7. Generate changelog
 Use the Agent tool with `model: "haiku"`. Pass the commit list with this prompt:

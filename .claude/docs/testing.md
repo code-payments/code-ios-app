@@ -41,11 +41,17 @@ Use the project scripts — they encode the correct scheme and destination:
 - **`Sanitizers`** — `FlipcashTests` + `FlipcashCoreTests` under Thread Sanitizer:
   `xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -testPlan Sanitizers`
 
-TSan is scoped to the unit targets because its runtime crashes the app under test during
-XCUITest's accessibility snapshots — the crash is inside the sanitizer, not app code, and no race
-report is produced. Details and repro steps in
-[2026-08-25-tsan-ui-test-crash.md](../plans/2026-08-25-tsan-ui-test-crash.md). Don't move TSan
-back onto `AllTargets` without re-checking that analysis against the current Xcode.
+**`Sanitizers` cannot currently pass.** The TSan runtime aborts the host partway through and
+xcodebuild marks everything in flight as failed, so the run exits 65 with hundreds of failures and
+no race report. Those failures are casualties, not findings — they all report `(0.000 seconds)`
+and record no issue. Neither target completes alone, so there is no narrower scope that works. The
+release checklist runs it as an advisory step and reads only the race count; see
+[the release skill](../skills/release/SKILL.md) step 6a for the classification commands.
+
+TSan came off the UI tests first, where its runtime crashes during XCUITest's accessibility
+snapshots. The crash is inside the sanitizer, not app code, in both cases. Details, evidence, and
+repro steps in [2026-08-25-tsan-ui-test-crash.md](../plans/2026-08-25-tsan-ui-test-crash.md).
+Don't move TSan back onto `AllTargets` without re-checking that analysis against the current Xcode.
 
 **Never run `swift test` in a package directory** (`FlipcashCore`, `FlipcashUI`, etc.). Packages are iOS-only; `swift test` targets the macOS host and fails with code-signing errors. Always go through `./Scripts/test.sh` (which routes through the `Flipcash` scheme on the iOS Simulator).
 
