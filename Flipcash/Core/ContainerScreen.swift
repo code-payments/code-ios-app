@@ -11,7 +11,6 @@ import FlipcashUI
 struct ContainerScreen: View {
 
     @Environment(SessionAuthenticator.self) var sessionAuthenticator
-    @Environment(BetaFlags.self) var betaFlags
 
     var body: some View {
         VStack {
@@ -35,21 +34,15 @@ struct ContainerScreen: View {
 
                 case .loggedIn(let sessionContainer):
                     ZStack {
-                        Group {
-                            if betaFlags.hasEnabled(.newUI) {
-                                HomeTabView()
-                            } else {
-                                ScanScreen()
-                            }
-                        }
-                        .modifier(OnrampHostModifier())
+                        HomeTabView()
+                            .modifier(OnrampHostModifier())
 
-                        // Bills / tipcards render at the app root (over both the v1
-                        // scanner and the v2 tab bar) so a bill set by a push or deep
-                        // link appears over whatever tab is showing, not buried in the
-                        // unmounted Scan tab. Mirrors Android's app-root BillOverlay.
-                        // Kept a sibling *inside* the injected scope (rather than an
-                        // `.overlay` on the Group) so it inherits `SessionContainer`.
+                        // Bills / tipcards render at the app root, over the tab bar,
+                        // so a bill set by a push or deep link appears over whatever
+                        // tab is showing, not buried in the unmounted Scan tab.
+                        // Mirrors Android's app-root BillOverlay. Kept a sibling
+                        // *inside* the injected scope (rather than an `.overlay` on
+                        // the tab view) so it inherits `SessionContainer`.
                         BillOverlayView()
                     }
                     .injectingEnvironment(from: sessionContainer)

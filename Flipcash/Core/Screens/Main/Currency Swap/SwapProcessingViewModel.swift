@@ -33,8 +33,6 @@ class SwapProcessingViewModel {
                     // Convert names its destination via `currencyName`, so the
                     // same "X of <currency>" reads correctly there too.
                     return "\(exchangedFiat.nativeAmount.formatted()) of \(currencyName)"
-                case .sell:
-                    return "\(exchangedFiat.nativeAmount.formatted()) of USDF"
                 }
             }
             return "Transaction Complete"
@@ -49,7 +47,7 @@ class SwapProcessingViewModel {
             return "This transaction typically takes about a minute. You may leave the app while it completes"
         case .success:
             switch swapType {
-            case .buyWithReserves, .buyWithCurrency, .sell, .convert:
+            case .buyWithReserves, .buyWithCurrency, .convert:
                 return "was just added to your Flipcash wallet"
             }
         case .failed:
@@ -74,8 +72,6 @@ class SwapProcessingViewModel {
             switch swapType {
             case .buyWithReserves, .buyWithCurrency:
                 "Buying \(currencyName)"
-            case .sell:
-                "Selling \(currencyName)"
             case .convert:
                 "Converting"
             }
@@ -98,8 +94,7 @@ class SwapProcessingViewModel {
 
     private let swapId: SwapId
     private let swapType: SwapType
-    /// The token being bought, or a convert's destination; nil on the sell path,
-    /// where `amount.mint` already names the subject token. Feeds analytics, and
+    /// The token being bought, or a convert's destination. Feeds analytics, and
     /// the success title's check for a conversion landing in the reserve.
     private let targetMint: PublicKey?
     private let currencyName: String
@@ -196,8 +191,6 @@ class SwapProcessingViewModel {
             Analytics.tokenPurchase(method: .purchaseWithReserves, targetMint: targetMint, exchangedFiat: amount, successful: successful)
         case .buyWithCurrency:
             Analytics.tokenPurchase(method: .purchaseWithCurrency, targetMint: targetMint, exchangedFiat: amount, successful: successful)
-        case .sell:
-            Analytics.tokenSell(exchangedFiat: amount, successful: successful)
         case .convert:
             // A convert always disposes of the source token; record it as a
             // sell of the amount that left the wallet.
@@ -227,7 +220,6 @@ enum SwapError: Error {
 nonisolated enum SwapType: CaseIterable {
     case buyWithReserves
     case buyWithCurrency
-    case sell
     /// Selling one currency straight into another (source → USDF, or source →
     /// another launchpad token). Drives the "Converting" copy.
     case convert

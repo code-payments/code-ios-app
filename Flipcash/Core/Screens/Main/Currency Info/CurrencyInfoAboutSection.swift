@@ -8,8 +8,8 @@ import FlipcashCore
 import FlipcashUI
 
 /// The "About" block on the currency info screen: an expand/collapse description
-/// and, for community tokens, the social link chips. Reused across the legacy and
-/// new-UI layouts so the copy + expand/collapse behaviour stays in one place.
+/// and, for community tokens, the social link chips. Split out so the copy +
+/// expand/collapse behaviour stays in one place.
 struct CurrencyInfoAboutSection: View {
     let description: String
     let socialLinks: [SocialLink]

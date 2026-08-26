@@ -40,19 +40,17 @@ struct BuyConfirmationScreen: View {
                         )
                         .padding(.top, 24)
 
-                        if viewModel.chargesFee {
-                            VStack(spacing: 10) {
-                                ConfirmationBreakdownRow(
-                                    title: "Amount to convert",
-                                    value: viewModel.amountToBuy.nativeAmount.formatted()
-                                )
-                                ConfirmationBreakdownRow(
-                                    title: "Conversion fee",
-                                    value: viewModel.feeFormatted
-                                )
-                            }
-                            .padding()
+                        VStack(spacing: 10) {
+                            ConfirmationBreakdownRow(
+                                title: "Amount to convert",
+                                value: viewModel.amountToBuy.nativeAmount.formatted()
+                            )
+                            ConfirmationBreakdownRow(
+                                title: "Conversion fee",
+                                value: viewModel.feeFormatted
+                            )
                         }
+                        .padding()
 
                         ConfirmationAmountRow(
                             title: "You Get",
@@ -60,7 +58,6 @@ struct BuyConfirmationScreen: View {
                             imageURL: viewModel.targetImageURL,
                             amount: viewModel.amountToBuy.nativeAmount.formatted()
                         )
-                        .padding(.top, viewModel.chargesFee ? 0 : 24)
                         .padding(.bottom, 24)
                     }
                 }

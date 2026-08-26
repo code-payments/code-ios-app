@@ -124,40 +124,30 @@ struct AddMoneyGateTests {
 
     // MARK: - Give / send cash
 
-    // `includingDollars` is `BetaFlags.allowsDollarsGive` at every call site:
-    // false on the old UI, which has no Dollars give affordance, true on the new.
-
-    @Test("Give gate proceeds when a community currency is on hand", arguments: [false, true])
-    func give_communityCurrency_proceeds(includingDollars: Bool) {
+    @Test("Give gate proceeds when a community currency is on hand")
+    func give_communityCurrency_proceeds() {
         let session = MockSession()
         session.giveableBalanceExists = true
-        #expect(giveCashGate(session: session, rate: .oneToOne, includingDollars: includingDollars) == .proceed)
+        #expect(giveCashGate(session: session, rate: .oneToOne) == .proceed)
     }
 
-    @Test("Give gate routes to Discover when only Dollars is on hand and Dollars can't be given")
-    func give_usdfOnly_oldUI_discovers() throws {
+    @Test("Give gate proceeds on Dollars alone")
+    func give_usdfOnly_proceeds() throws {
         let session = MockSession()
         session.usdfReserveBalance = try makeUSDFBalance(quarks: 1_000_000)
-        #expect(giveCashGate(session: session, rate: .oneToOne, includingDollars: false) == .discoverCurrencies)
+        #expect(giveCashGate(session: session, rate: .oneToOne) == .proceed)
     }
 
-    @Test("Give gate proceeds on Dollars alone once Dollars can be given")
-    func give_usdfOnly_newUI_proceeds() throws {
+    @Test("Give gate routes to Add Money when there is no balance at all")
+    func give_noBalance_addsMoney() {
         let session = MockSession()
-        session.usdfReserveBalance = try makeUSDFBalance(quarks: 1_000_000)
-        #expect(giveCashGate(session: session, rate: .oneToOne, includingDollars: true) == .proceed)
+        #expect(giveCashGate(session: session, rate: .oneToOne) == .addMoney)
     }
 
-    @Test("Give gate routes to Add Money when there is no balance at all", arguments: [false, true])
-    func give_noBalance_addsMoney(includingDollars: Bool) {
-        let session = MockSession()
-        #expect(giveCashGate(session: session, rate: .oneToOne, includingDollars: includingDollars) == .addMoney)
-    }
-
-    @Test("Give gate treats Dollars that displays as $0.00 as no balance", arguments: [false, true])
-    func give_dustUSDF_addsMoney(includingDollars: Bool) throws {
+    @Test("Give gate treats Dollars that displays as $0.00 as no balance")
+    func give_dustUSDF_addsMoney() throws {
         let session = MockSession()
         session.usdfReserveBalance = try makeUSDFBalance(quarks: 1_000) // $0.001
-        #expect(giveCashGate(session: session, rate: .oneToOne, includingDollars: includingDollars) == .addMoney)
+        #expect(giveCashGate(session: session, rate: .oneToOne) == .addMoney)
     }
 }

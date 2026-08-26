@@ -7,11 +7,10 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// The v2 Wallet tab: the big balance header, per-token bill cards in a
-/// collapsing ``TokenCardStack``, and an add-money affordance. Replaces the v1
-/// ``BalanceScreen`` list in the tab-bar UI. Owns its own `NavigationStack` bound
-/// to `router[.balance]`, so the existing push destinations (currency info,
-/// transaction history) work unchanged.
+/// The Wallet tab: the big balance header, per-token bill cards in a collapsing
+/// ``TokenCardStack``, and an add-money affordance. Owns its own
+/// `NavigationStack` bound to `router[.balance]`, so the push destinations
+/// (currency info, transaction history) work unchanged.
 struct WalletScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
@@ -139,7 +138,7 @@ private struct WalletScreenContent: View {
         self.onScanTipCard = onScanTipCard
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         // Seed synchronously so the first render shows real balances, not an
-        // empty-state flash (mirrors BalanceScreen).
+        // empty-state flash.
         let seed = Self.snapshot(session: sessionContainer.session, rate: rate)
         _cards = State(initialValue: seed.cards)
         _total = State(initialValue: seed.total)
@@ -248,6 +247,7 @@ private struct WalletScreenContent: View {
     /// Opens a token: the deck reorganises around the tapped card, which stays
     /// on screen while the detail panel rises beneath it.
     private func openCard(_ item: TokenCardData, currentTop: CGFloat) {
+        Analytics.tokenInfoOpened(from: .openedFromWallet, mint: item.mint)
         transitionToken &+= 1
         let token = transitionToken
 
@@ -387,6 +387,7 @@ private struct WalletScreenContent: View {
     /// to start from. Everything lands where the opening animation would have
     /// left it, so closing still puts the card back into the deck normally.
     private func openCardImmediately(_ mint: PublicKey) {
+        Analytics.tokenInfoOpened(from: .openedFromDeeplink, mint: mint)
         transitionToken &+= 1
 
         var immediate = Transaction()

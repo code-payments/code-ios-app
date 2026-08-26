@@ -60,25 +60,19 @@ final class BuyAmountViewModel {
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let amountValidator = AmountValidator()
-    @ObservationIgnored private let collectsUSDFFee: Bool
     /// Double-tap guard around the async pin fetch.
     private var isSubmitting = false
 
-    /// `collectsUSDFFee` is injected rather than read from `BetaFlags.shared` at
-    /// each use so both fee branches stay testable without mutating the
-    /// persisted flag — same convention as `BuyConfirmationViewModel`.
     init(
         mint: PublicKey,
         currencyName: String,
         session: Session,
-        ratesController: RatesController,
-        collectsUSDFFee: Bool = BetaFlags.shared.hasEnabled(.newUI)
+        ratesController: RatesController
     ) {
         self.mint = mint
         self.currencyName = currencyName
         self.session = session
         self.ratesController = ratesController
-        self.collectsUSDFFee = collectsUSDFFee
 
         // Default the payment source to Dollars when it's spendable, otherwise
         // the largest eligible balance — so Next is never dead on arrival.
@@ -153,14 +147,13 @@ final class BuyAmountViewModel {
     /// top* of the entry rather than being skimmed out of it.
     ///
     /// A token-funded buy pays the pool's sell fee out of the sale, so the debit
-    /// is the entry grossed up; a new-UI Dollars buy adds a flat 1% on top. The
-    /// old-UI reserves buy is fee-free.
+    /// is the entry grossed up; a Dollars buy adds a flat 1% on top.
     private var paymentFee: (bps: UInt64, chargedOnTop: Bool) {
         guard let selected = session.balance(for: paymentMint) else { return (0, false) }
         guard selected.mint == .usdf else {
             return (UInt64(max(0, selected.sellFeeBps ?? 100)), false)
         }
-        return collectsUSDFFee ? (100, true) : (0, false)
+        return (100, true)
     }
 
     /// Drops the entry to the most the payment balance can fund once its fee is

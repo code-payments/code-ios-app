@@ -53,7 +53,7 @@ final class GiveViewModel {
     init(container: Container, sessionContainer: SessionContainer, mint: PublicKey?) {
         let session          = sessionContainer.session
         let ratesController  = sessionContainer.ratesController
-        let resolved         = ratesController.resolveInitialBalance(mint: mint, session: session, includingDollars: BetaFlags.shared.allowsDollarsGive)
+        let resolved         = ratesController.resolveInitialBalance(mint: mint, session: session)
 
         self.container        = container
         self.sessionContainer = sessionContainer

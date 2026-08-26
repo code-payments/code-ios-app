@@ -75,9 +75,7 @@ private struct CurrencyInfoScreenContent: View {
     /// Set by the wallet so this screen zooms out of the tapped token card.
     @Environment(\.walletCardNamespace) private var cardNamespace
 
-    @State private var presentedSellViewModel: CurrencySellViewModel?
-    @State private var isShowingCurrencySelection: Bool = false
-    /// New UI: the toolbar title only appears once the hero card's own title has
+    /// The toolbar title only appears once the hero card's own title has
     /// scrolled out of view (Apple Wallet / App Store behaviour).
     @State private var showsToolbarTitle: Bool = false
     /// How far through a pull-to-close the content currently is, 0 to 1. Used to
@@ -109,8 +107,6 @@ private struct CurrencyInfoScreenContent: View {
     private let showBuyOnAppear: Bool
     private let presentation: CurrencyInfoScreen.Presentation
     private let defersHeavyContent: Bool
-
-    private var isNewUI: Bool { BetaFlags.shared.hasEnabled(.newUI) }
 
     /// Overlay hosting draws its own chrome; pushed hosting uses `.toolbar`.
     private var overlayClose: (() -> Void)? {
@@ -160,28 +156,22 @@ private struct CurrencyInfoScreenContent: View {
         return false
     }
 
-    /// Whether the navigation bar's title item is visible. The new UI reveals
-    /// it on scroll; the old UI shows it for the whole screen.
-    private var showsBarTitle: Bool {
-        !isNewUI || showsToolbarTitle
-    }
-
-    /// Where the title item sits. The old UI centres it. The new UI wants it
-    /// leading — but on iOS 26 a `.topBarLeading` item shares the back button's
+    /// Where the title item sits. The title wants to be leading — but on
+    /// iOS 26 a `.topBarLeading` item shares the back button's
     /// Liquid Glass platter group, and popping the screen makes UIKit collapse
     /// the departing platter into the back button's, which draws a hard-edged
     /// rectangle inside the circle for the length of the transition. A
     /// principal item is a group of its own with nothing to merge into, so iOS
     /// 26 places it there and offsets it back to the leading edge instead.
     private var titlePlacement: ToolbarItemPlacement {
-        isNewUI && !Self.hasGlassToolbar ? .topBarLeading : .principal
+        Self.hasGlassToolbar ? .principal : .topBarLeading
     }
 
     /// Horizontal nudge that puts the centred principal title where a leading
     /// item would have sat. Zero until both widths are measured — the title is
     /// hidden until the hero scrolls away, so it is never seen centred.
     private var titleOffset: CGFloat {
-        guard isNewUI, Self.hasGlassToolbar, barWidth > 0, titleWidth > 0 else { return 0 }
+        guard Self.hasGlassToolbar, barWidth > 0, titleWidth > 0 else { return 0 }
         return Self.titleLeadingInset - (barWidth - titleWidth) / 2
     }
 
@@ -251,78 +241,49 @@ private struct CurrencyInfoScreenContent: View {
             case .loading:
                 CurrencyInfoLoadingView()
             case .loaded(let metadata, let decodedMetadata):
-                if isNewUI {
-                    CurrencyInfoContentV2(
-                        metadata: metadata,
-                        decodedMetadata: decodedMetadata,
-                        viewModel: viewModel,
-                        ratesController: ratesController,
-                        marketCapController: marketCapController,
-                        session: session,
-                        onGive: {
-                            Analytics.buttonTapped(name: .give)
-                            router.push(.give(mint))
-                        },
-                        // New UI pushes the convert flow onto the current stack —
-                        // sells this currency into a chosen destination.
-                        onConvert: { router.push(.convertCurrency(mint)) },
-                        // New UI pushes the buy flow onto the current stack rather
-                        // than presenting it as a sheet.
-                        onBuy: { router.push(.buyCurrency(mint)) },
-                        onWithdraw: { router.push(.withdrawCurrency(mint)) },
-                        onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
-                        onScrolledPastTitle: { scrolledPast in
-                            guard showsToolbarTitle != scrolledPast else { return }
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showsToolbarTitle = scrolledPast
-                            }
-                        },
-                        onPulledDown: { pulled in
-                            guard overlayClose != nil else { return }
-                            let progress = min(1, pulled / Self.pullToCloseDistance)
-                            pullProgress = progress
-                            onPull(progress)
-                        },
-                        onPullEnded: { pulled in
-                            guard overlayClose != nil else { return }
-                            let passed = pulled >= Self.pullToCloseDistance
-                            if !passed {
-                                withAnimation(.smooth(duration: 0.25)) { pullProgress = 0 }
-                            }
-                            onPullEnded(passed, pulled)
-                        },
-                        showsHeroCard: showsHeroCard,
-                        heroOffset: heroOffset,
-                        contentOpacity: contentOpacity,
-                        defersHeavyContent: defersHeavyContent,
-                        supportsPullToClose: overlayClose != nil
-                    )
-                } else {
-                    LoadedContent(
+                CurrencyInfoContentV2(
                     metadata: metadata,
                     decodedMetadata: decodedMetadata,
                     viewModel: viewModel,
                     ratesController: ratesController,
                     marketCapController: marketCapController,
-                    onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
-                    onShowCurrencySelection: { isShowingCurrencySelection = true },
-                    onBuy: { router.presentNested(.buy(mint)) },
+                    session: session,
                     onGive: {
                         Analytics.buttonTapped(name: .give)
                         router.push(.give(mint))
                     },
-                    onSell: {
-                        Analytics.buttonTapped(name: .sell)
-                        presentedSellViewModel = CurrencySellViewModel(
-                            currencyMetadata: metadata,
-                            session: session,
-                            ratesController: ratesController
-                        )
+                    // Convert and buy push onto the current stack rather than
+                    // presenting as sheets, so they keep this screen behind them.
+                    onConvert: { router.push(.convertCurrency(mint)) },
+                    onBuy: { router.push(.buyCurrency(mint)) },
+                    onWithdraw: { router.push(.withdrawCurrency(mint)) },
+                    onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
+                    onScrolledPastTitle: { scrolledPast in
+                        guard showsToolbarTitle != scrolledPast else { return }
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showsToolbarTitle = scrolledPast
+                        }
                     },
-                    onDeposit: { router.push(.usdcDepositEducation) },
-                    onWithdraw: { router.push(.withdrawCurrency(mint)) }
-                    )
-                }
+                    onPulledDown: { pulled in
+                        guard overlayClose != nil else { return }
+                        let progress = min(1, pulled / Self.pullToCloseDistance)
+                        pullProgress = progress
+                        onPull(progress)
+                    },
+                    onPullEnded: { pulled in
+                        guard overlayClose != nil else { return }
+                        let passed = pulled >= Self.pullToCloseDistance
+                        if !passed {
+                            withAnimation(.smooth(duration: 0.25)) { pullProgress = 0 }
+                        }
+                        onPullEnded(passed, pulled)
+                    },
+                    showsHeroCard: showsHeroCard,
+                    heroOffset: heroOffset,
+                    contentOpacity: contentOpacity,
+                    defersHeavyContent: defersHeavyContent,
+                    supportsPullToClose: overlayClose != nil
+                )
             case .error(let error):
                 CurrencyInfoErrorView(error: error) {
                     dismiss()
@@ -360,14 +321,14 @@ private struct CurrencyInfoScreenContent: View {
                 ToolbarItem(placement: titlePlacement) {
                     toolbarContent()
                         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleWidth = $0 }
-                        .opacity(showsBarTitle ? 1 : 0)
+                        .opacity(showsToolbarTitle ? 1 : 0)
                         .offset(x: titleOffset)
                 }
-                .sharedBackgroundVisibility(isNewUI ? .hidden : .automatic)
+                .sharedBackgroundVisibility(.hidden)
             } else {
                 ToolbarItem(placement: titlePlacement) {
                     toolbarContent()
-                        .opacity(showsBarTitle ? 1 : 0)
+                        .opacity(showsToolbarTitle ? 1 : 0)
                 }
             }
             if !isUSDF {
@@ -388,12 +349,6 @@ private struct CurrencyInfoScreenContent: View {
             if showBuyOnAppear {
                 router.presentNested(.buy(mint))
             }
-        }
-        .sheet(item: $presentedSellViewModel) { sellViewModel in
-            CurrencySellAmountScreen(viewModel: sellViewModel)
-        }
-        .sheet(isPresented: $isShowingCurrencySelection) {
-            CurrencySelectionScreen(ratesController: ratesController)
         }
         // Dialogs originating in the buy flow route through
         // `session.dialogItem` so they surface in `DialogWindow` rather than
@@ -479,46 +434,38 @@ private struct CurrencyInfoScreenContent: View {
     @ViewBuilder private func toolbarContent() -> some View {
         // USDF's name is already "Dollars", so no special-case is needed.
         if let metadata = mintMetadata {
-            if isNewUI {
-                // Compact leading label — on iOS 26 the system supplies a Liquid
-                // Glass platter around it (`CapsuleGlass`); on iOS 18 the same
-                // content shows without a pill background. `.fixedSize()` is
-                // required: the toolbar compresses the item to its icon otherwise,
-                // dropping the text. `CurrencyLabel` is row-shaped (it spaces name
-                // and amount apart with a Spacer), so it can't be reused here.
-                HStack(spacing: 8) {
-                    RemoteImage(url: metadata.imageURL)
-                        .frame(width: 24, height: 24)
-                        .clipShape(Circle())
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Semantic styles rather than fixed white/grey: inside the
-                        // glass they pick up the system's vibrancy, so the label
-                        // stays legible over a bright bill card scrolling beneath.
-                        Text(metadata.name)
-                            .font(.appTextSmall)
-                            .foregroundStyle(.primary)
-                        // USDF has no market cap (no bonding curve), so it stays
-                        // a single-line pill.
-                        if !isUSDF {
-                            Text(viewModel.marketCap.formatted())
-                                .font(.appTextCaption)
-                                .foregroundStyle(.secondary)
-                        }
+            // Compact leading label — on iOS 26 the system supplies a Liquid
+            // Glass platter around it (`CapsuleGlass`); on iOS 18 the same
+            // content shows without a pill background. `.fixedSize()` is
+            // required: the toolbar compresses the item to its icon otherwise,
+            // dropping the text. `CurrencyLabel` is row-shaped (it spaces name
+            // and amount apart with a Spacer), so it can't be reused here.
+            HStack(spacing: 8) {
+                RemoteImage(url: metadata.imageURL)
+                    .frame(width: 24, height: 24)
+                    .clipShape(Circle())
+                VStack(alignment: .leading, spacing: 0) {
+                    // Semantic styles rather than fixed white/grey: inside the
+                    // glass they pick up the system's vibrancy, so the label
+                    // stays legible over a bright bill card scrolling beneath.
+                    Text(metadata.name)
+                        .font(.appTextSmall)
+                        .foregroundStyle(.primary)
+                    // USDF has no market cap (no bonding curve), so it stays
+                    // a single-line pill.
+                    if !isUSDF {
+                        Text(viewModel.marketCap.formatted())
+                            .font(.appTextCaption)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .lineLimit(1)
-                .fixedSize()
-                // The pill's inset + height + glass are all iOS 26 only; on
-                // iOS 18 the title keeps natural toolbar spacing (no capsule, so
-                // no capsule padding to leave dead space around it).
-                .modifier(TitlePill())
-            } else {
-                CurrencyLabel(
-                    imageURL: metadata.imageURL,
-                    name: metadata.name,
-                    amount: nil
-                )
             }
+            .lineLimit(1)
+            .fixedSize()
+            // The pill's inset + height + glass are all iOS 26 only; on
+            // iOS 18 the title keeps natural toolbar spacing (no capsule, so
+            // no capsule padding to leave dead space around it).
+            .modifier(TitlePill())
         }
     }
 }
@@ -608,137 +555,3 @@ private struct TitlePill: ViewModifier {
     }
 }
 
-// MARK: - Loaded Content -
-
-/// Extracted subview that isolates observation tracking from the parent.
-/// Reads from `viewModel`, `ratesController`, and `session` (indirectly)
-/// are scoped to this view's body — the parent body is not invalidated
-/// when poll-driven rate/balance changes occur every ~10 seconds.
-private struct LoadedContent: View {
-    let metadata: StoredMintMetadata
-    /// Pre-decoded `MintMetadata` from the view model. Passed in ready-made
-    /// so the body doesn't JSON-decode on every observation-churn re-eval.
-    let decodedMetadata: MintMetadata
-    let viewModel: CurrencyInfoViewModel
-    let ratesController: RatesController
-    let marketCapController: MarketCapController
-
-    let onShowTransactionHistory: () -> Void
-    let onShowCurrencySelection: () -> Void
-    let onBuy: () -> Void
-    let onGive: () -> Void
-    let onSell: () -> Void
-    let onDeposit: () -> Void
-    let onWithdraw: () -> Void
-
-    private var isUSDF: Bool {
-        metadata.mint == .usdf
-    }
-
-    private var currencyDescription: String {
-        metadata.bio ?? "No information"
-    }
-
-    var body: some View {
-        let balance = viewModel.balance
-        let appreciation = viewModel.appreciation
-        let marketCap = viewModel.marketCap
-
-        ZStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    CurrencyInfoHeaderSection(
-                        balance: balance,
-                        appreciation: appreciation,
-                        isUSDF: isUSDF,
-                        onCurrencySelection: onShowCurrencySelection,
-                        onViewTransaction: onShowTransactionHistory
-                    )
-
-                    // Currency Info
-                    section(spacing: 20) {
-                        if !isUSDF {
-                            HStack {
-                                Image(systemName: "text.justify.left")
-                                    .padding(.bottom, -1)
-                                Text("Currency Info")
-                            }
-                            .font(.appBarButton)
-                            .foregroundStyle(Color.textMain)
-
-                            if let createdAt = metadata.createdAt {
-                                Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))")
-                                    .foregroundStyle(Color.textSecondary)
-                                    .font(.appTextSmall)
-                            }
-                        }
-
-                        ExpandableText(currencyDescription)
-                            .foregroundStyle(Color.textSecondary)
-                            .font(.appTextSmall)
-
-                        if !isUSDF && !decodedMetadata.socialLinks.isEmpty {
-                            CurrencyInfoSocialLinksSection(socialLinks: decodedMetadata.socialLinks)
-                        }
-                    }
-
-                    // Market Cap
-                    if !isUSDF {
-                        CurrencyInfoMarketCapSection(
-                            marketCap: marketCap,
-                            currencyCode: ratesController.balanceCurrency,
-                            marketCapController: marketCapController
-                        )
-                    }
-
-                    // Reserve space so the floating footer doesn't overlap
-                    // scrolled content.
-                    Color
-                        .clear
-                        .padding(.bottom, 100)
-                }
-            }
-
-            // Floating Footer
-            if isUSDF {
-                CurrencyInfoFooter {
-                    Button("Deposit") {
-                        onDeposit()
-                    }
-                    .buttonStyle(.filled)
-
-                    CodeButton(style: .filledSecondary, title: "Withdraw") {
-                        onWithdraw()
-                    }
-                }
-            } else {
-                CurrencyInfoFooter {
-                    Button("Buy") {
-                        onBuy()
-                    }
-                    .buttonStyle(.filled)
-
-                    if balance.hasDisplayableValue {
-                        CodeButton(style: .filledSecondary, title: "Give") {
-                            onGive()
-                        }
-
-                        CodeButton(style: .filledSecondary, title: "Sell") {
-                            onSell()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder private func section(spacing: CGFloat = 0, @ViewBuilder builder: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: spacing) {
-            builder()
-        }
-        .padding(.top, 20)
-        .padding(.bottom, 25)
-        .vSeparator(color: .rowSeparator)
-        .padding(.horizontal, 20)
-    }
-}

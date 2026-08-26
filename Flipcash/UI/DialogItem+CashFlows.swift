@@ -30,17 +30,6 @@ extension DialogItem {
         }
     }
 
-    /// Nudges the user toward Discover when they hold USDF but no community
-    /// currency to give.
-    static func noCommunityCurrencies(onDiscover: @escaping () -> Void) -> DialogItem {
-        .info(
-            title: "No Community Currencies Yet",
-            subtitle: "Discover and buy a currency, or create your own"
-        ) {
-            .standard("Discover Currencies", action: onDiscover);
-            .cancel()
-        }
-    }
 }
 
 extension GiveCashGate {
@@ -57,8 +46,6 @@ extension GiveCashGate {
         switch self {
         case .proceed:
             nil
-        case .discoverCurrencies:
-            .noCommunityCurrencies { router.present(.discover) }
         case .addMoney:
             .noBalance(subtitle: context.noBalanceSubtitle) {
                 router.presentAddMoney(context, source: addMoneySource)

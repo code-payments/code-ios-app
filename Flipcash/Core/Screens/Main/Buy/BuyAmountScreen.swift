@@ -47,7 +47,7 @@ private struct BuyAmountScreenContent: View {
 
     @Environment(AppRouter.self) private var router
     /// True when this is the root of a presented sheet; false when pushed onto a
-    /// host stack (new-UI Convert/Get) where the system back arrow replaces Close.
+    /// host stack (Convert/Get) where the system back arrow replaces Close.
     @Environment(\.presentedAsSheetRoot) private var presentedAsSheetRoot
 
     init(mint: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
@@ -109,7 +109,7 @@ private struct BuyAmountScreenContent: View {
             // fresh view identity per path value so init-seeded @State can't
             // survive a same-depth value swap (the DestinationView convention).
             BuyFlowDestinationView(path: path)
-                // The legacy buy sheet dismisses itself; the new-UI "Get" flow is
+                // The presented buy sheet dismisses itself; the pushed "Get" flow is
                 // pushed from a token's expanded card, so finishing pops back to
                 // the wallet and dismisses that card overlay.
                 .environment(\.dismissParentContainer, presentedAsSheetRoot

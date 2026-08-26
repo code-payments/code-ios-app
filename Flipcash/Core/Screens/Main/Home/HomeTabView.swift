@@ -6,10 +6,8 @@
 import SwiftUI
 import FlipcashUI
 
-/// The v2 tab-bar root, shown post-login when `BetaFlags.newUI` is enabled (in
-/// place of the scanner-first `ScanScreen`). Hosts the four tabs, launches on
-/// Wallet, and owns the app-level `router.rootSheet` host so `router.present(_:)`
-/// works from any tab.
+/// The post-login root. Hosts the four tabs, launches on Wallet, and owns the
+/// app-level `router.rootSheet` host so `router.present(_:)` works from any tab.
 ///
 /// On iOS 26 the tabs live in a native `TabView`, which renders the system
 /// Liquid Glass tab bar; below that we fall back to the home-grown floating
@@ -82,28 +80,31 @@ struct HomeTabView: View {
     var body: some View {
         tabs
             .background(Color.backgroundMain)
-            // The app-level sheet host lives here in v2 (ScanScreen suppresses its
-            // own copy when embedded) so `router.present(_:)` works from any tab.
-            .modifier(RootSheetHostModifier(enabled: true))
+            // The app-level sheet host, so `router.present(_:)` works from any tab.
+            .modifier(RootSheetHostModifier())
             .onAppear {
                 router.activeTabStack = selection.pushStack
-                // Tells the router which stacks live behind tabs, so a deep link
-                // into one selects its tab instead of presenting it as a sheet.
-                router.tabStacks = Set(HomeTab.allCases.compactMap(\.pushStack))
+                // A deep link that landed before this view started observing
+                // (cold start into a tab route) parked its request on the router;
+                // consume it here so it isn't dropped.
+                selectRequestedTab()
             }
-            .onChange(of: router.requestedTabStack) { _, requested in
-                guard let requested,
-                      let tab = HomeTab.allCases.first(where: { $0.pushStack == requested })
-                else { return }
-                selection = tab
-                router.requestedTabStack = nil
-            }
+            .onChange(of: router.requestedTabStack) { _, _ in selectRequestedTab() }
             .onChange(of: selection) { _, tab in
                 router.activeTabStack = tab.pushStack
                 // Leaving the tab puts the card back (and the brightness with it).
                 tipCardPresentation.collapse()
             }
             .onDisappear { router.activeTabStack = nil }
+    }
+
+    /// Brings the tab the router asked for forward and clears the request.
+    private func selectRequestedTab() {
+        guard let requested = router.requestedTabStack,
+              let tab = HomeTab.allCases.first(where: { $0.pushStack == requested })
+        else { return }
+        selection = tab
+        router.requestedTabStack = nil
     }
 
     @ViewBuilder private var tabs: some View {
@@ -184,7 +185,7 @@ struct HomeTabView: View {
         switch tab {
         case .scan:
             if selection == .scan {
-                ScanScreen(isEmbedded: true)
+                ScanScreen()
             } else {
                 Color.backgroundMain
             }
@@ -200,10 +201,13 @@ struct HomeTabView: View {
     }
 }
 
-private extension HomeTab {
+extension HomeTab {
     /// The router stack this tab pushes onto, published to `AppRouter` as the
     /// active push target. `nil` for tabs that only present sheets (Scan) or
     /// never push (Tip Card owns a local stack).
+    ///
+    /// Must agree with `AppRouter.Stack.isTabHosted`, which is what the router
+    /// routes on; `AppRouterCrossStackTests` pins the two together.
     var pushStack: AppRouter.Stack? {
         switch self {
         case .wallet:  return .balance

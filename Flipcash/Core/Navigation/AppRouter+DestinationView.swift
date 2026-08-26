@@ -199,15 +199,9 @@ private struct AddMoneyFlowStepDestination: View {
     var body: some View {
         AddMoneyFlowDestination(step: step, onStep: { router.pushAny($0) })
             .environment(\.dismissParentContainer, {
-                // v2 pushes the flow onto the host stack, so finishing pops back
-                // to that stack's root, returning to where it was launched. v1
-                // only reaches here over the buy sheet, where finishing dismisses
-                // the sheet as it always has.
-                if BetaFlags.shared.hasEnabled(.newUI) {
-                    router.popToRoot()
-                } else {
-                    router.dismissSheet()
-                }
+                // The flow is pushed onto the host stack, so finishing pops back
+                // to that stack's root, returning to where it was launched.
+                router.popToRoot()
             })
     }
 }

@@ -115,16 +115,13 @@ private struct BillOverlayContent: View {
         session.isShowingBill && !session.isScannerForeground
     }
 
-    /// How the scrim enters. For an outgoing give in the new UI, snap it in
-    /// (`.identity` insertion) so it masks the amount-entry popping back to the
-    /// currency info behind the sliding bill — instead of letting it flash
-    /// through mid-slide. A received bill / cash link (presented with `.pop`)
-    /// and legacy UI keep the v1 ramp that arrives with the bill. Both fade out
-    /// on dismiss.
+    /// How the scrim enters. For an outgoing give, snap it in (`.identity`
+    /// insertion) so it masks the amount-entry popping back to the currency info
+    /// behind the sliding bill — instead of letting it flash through mid-slide.
+    /// A received bill / cash link (presented with `.pop`) keeps the ramp that
+    /// arrives with the bill. Both fade out on dismiss.
     private var scrimTransition: AnyTransition {
-        let isOutgoingGive = presentationStyle == .slide
-        let snapsIn = BetaFlags.shared.hasEnabled(.newUI) && isOutgoingGive
-        return snapsIn
+        presentationStyle == .slide
             ? .asymmetric(insertion: .identity, removal: .opacity)
             : .opacity
     }
@@ -164,7 +161,7 @@ private struct BillOverlayContent: View {
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.15), value: session.billState.bill == nil)
         // Governs the scrim's fade-out on dismiss, and its ramp-in everywhere
-        // except a new-UI outgoing give, which snaps in via `.identity` (see
+        // except an outgoing give, which snaps in via `.identity` (see
         // `scrimTransition`) so this doesn't animate its entrance there.
         .animation(.spring(response: 0.6, dampingFraction: 0.6), value: showsScrim)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillDesigner)
