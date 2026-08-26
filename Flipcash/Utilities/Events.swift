@@ -204,8 +204,9 @@ extension Analytics {
         )
     }
 
-    /// `origin` applies to `Sent Tip` only: which surface the tip came from —
-    /// a scanned/opened tip card, or the money button inside an existing tip chat.
+    /// `origin` applies to `Sent Tip` only: which surface the tip came from. A
+    /// payment sent from inside a tip thread reports `Sent Cash` and passes no
+    /// origin, so this is `tipcard` in practice.
     static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?, origin: TipOrigin? = nil) {
         var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
         properties[.state] = successful ? String.success : String.failure
