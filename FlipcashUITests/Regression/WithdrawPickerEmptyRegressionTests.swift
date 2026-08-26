@@ -18,15 +18,13 @@ final class WithdrawPickerEmptyRegressionTests: BaseUITestCase {
 
     override var requiresUsdfOnlyAccount: Bool { true }
 
-    func testWithdrawPicker_showsUsdfRow_onUsdfOnlyAccount() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
-
-        let settings = SettingsUIScreen(app: app)
+    func testWithdrawPicker_showsUsdfRow_onUsdfOnlyAccount() {
+        let wallet = WalletScreen(app: app)
 
         assertMainScreenReached()
 
-        settings.open(from: self)
-        waitAndTap(settings.withdrawMoneyButton)
+        wallet.open(from: self)
+        wallet.tapWithdrawMoneyTile(from: self)
 
         XCTAssertTrue(
             app.staticTexts["Select Currency"].waitForExistence(timeout: 10),

@@ -9,16 +9,17 @@ final class WithdrawSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    /// Settings → Withdraw now lands directly on the "Select Currency" picker,
-    /// which lists every balance (Dollars included). USDF no longer gets a
-    /// dedicated intro-first entry; the "Withdraw as USDC" screen is reached by
-    /// picking Dollars.
-    func testWithdraw_landsOnCurrencyPicker() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
+    /// The Wallet tab's "Withdraw Money" tile lands directly on the "Select
+    /// Currency" picker, which lists every balance (Dollars included). USDF no
+    /// longer gets a dedicated intro-first entry; the "Withdraw as USDC" screen
+    /// is reached by picking Dollars.
+    func testWithdraw_landsOnCurrencyPicker() {
+        let wallet = WalletScreen(app: app)
 
         assertMainScreenReached()
 
-        openWithdrawFromSettings()
+        wallet.open(from: self)
+        wallet.tapWithdrawMoneyTile(from: self)
 
         XCTAssertTrue(
             app.staticTexts["Select Currency"].waitForExistence(timeout: 10),
@@ -29,13 +30,5 @@ final class WithdrawSmokeTests: BaseUITestCase {
             app.buttons["Withdraw Other Flipcash Currencies"].exists,
             "The 'other currencies' escape hatch should no longer exist — the picker is the entry"
         )
-    }
-
-    // MARK: - Helpers
-
-    private func openWithdrawFromSettings() {
-        let settings = SettingsUIScreen(app: app)
-        settings.open(from: self)
-        waitAndTap(settings.withdrawMoneyButton)
     }
 }

@@ -1,0 +1,98 @@
+//
+//  DisplayNameSmokeTests.swift
+//  FlipcashUITests
+//
+
+import XCTest
+
+/// Covers the display name and the tip card it earns: a freshly registered
+/// account lands on the You tab with a card it can share, and the name behind
+/// that card can be changed from My Account.
+///
+/// This replaces the old profile-creation walkthrough (Tips intro → name →
+/// photo → tipcard), which has no subject left. The name step is mandatory
+/// during onboarding now, so no account ever reaches the app without one — the
+/// You tab's "Start Receiving Tips" prompt and the Chats tab's intro are both
+/// unreachable — and the photo step has no caller: `ProfileNameScreen` goes
+/// straight from the name to the card because the card omits the photo.
+///
+/// It registers a new account rather than using the standing one: the card's
+/// first appearance is only observable on an account that has just been made,
+/// and renaming a shared account would leave it renamed.
+@MainActor
+final class DisplayNameSmokeTests: BaseUITestCase {
+
+    override func setUp() async throws {
+        try await super.setUp()
+        // Registration plus a second `SetDisplayName` round-trip runs past
+        // XCTest's 2-minute default, which kills the test before any assertion
+        // can report.
+        executionTimeAllowance = 300
+    }
+
+    func testDisplayName_yieldsTipCard_andCanBeChanged() throws {
+        let settings = SettingsUIScreen(app: app)
+
+        // Onboarding's mandatory name step sets the display name, so the account
+        // arrives already tippable.
+        createFreshAccount()
+
+        // MARK: The card is there, with its actions.
+        settings.open(from: self)
+        XCTAssertTrue(
+            app.buttons["you-share-button"].waitForExistence(timeout: 30),
+            "Expected the tip card's Share action on a named account. On screen: [\(visibleText())]"
+        )
+        XCTAssertTrue(
+            app.buttons["you-download-button"].exists,
+            "Expected the tip card's Download action alongside Share"
+        )
+        XCTAssertTrue(
+            app.buttons["you-fullscreen-button"].exists,
+            "Expected the card itself, not the name-less setup prompt"
+        )
+
+        // MARK: Change the name from My Account.
+        settings.navigateToMyAccount(from: self)
+        waitAndTap(settings.changeDisplayNameRow)
+
+        let next = app.buttons["profile-name-next-button"]
+        XCTAssertTrue(next.waitForExistence(timeout: 30), "Expected the name editor")
+
+        // The editor is seeded with the name already on the profile, so Next
+        // starts enabled — clear the field to see it disable.
+        let field = app.textFields["Your Name"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10), "Expected the name field")
+        XCTAssertTrue(next.isEnabled, "Next must start enabled with the existing name in the field")
+
+        field.tap()
+        let seeded = (field.value as? String) ?? ""
+        XCTAssertFalse(seeded.isEmpty, "Expected the editor to be seeded with the current name")
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: seeded.count))
+        XCTAssertFalse(next.isEnabled, "Next must disable while the name is empty")
+
+        field.typeText("Renamed \(Int.random(in: 1_000...9_999))")
+        XCTAssertTrue(next.isEnabled, "Next must re-enable once the name is valid")
+        next.tap()
+
+        // `ProfileNameScreen(completion: .back)` pops itself only once
+        // `SetDisplayName` returns, so landing back on My Account is proof the
+        // new name was accepted and moderated — a rejection keeps the editor up
+        // behind a dialog. It pops just the one screen, so this is My Account
+        // rather than the You tab root.
+        XCTAssertTrue(
+            settings.changeDisplayNameRow.waitForExistence(timeout: 60),
+            "Expected the name editor to pop back to My Account once the name saved. On screen: [\(visibleText())]"
+        )
+
+        // MARK: The card survives the rename.
+        // Unwind the last screen by hand: the tab bar stays hidden while the
+        // You tab has a stack, so there is no You button to tap back to.
+        waitAndTap(app.navigationBars.buttons.firstMatch)
+        assertMainScreenReached(timeout: 30, "Expected the You tab root after backing out of My Account")
+        XCTAssertTrue(
+            app.buttons["you-share-button"].waitForExistence(timeout: 30),
+            "Expected the tip card still on the You tab after renaming"
+        )
+    }
+}

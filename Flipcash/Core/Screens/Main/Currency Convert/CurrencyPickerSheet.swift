@@ -38,6 +38,14 @@ struct CurrencyPickerSheet: View {
                             row(for: balance)
                         }
                         .buttonStyle(.plain)
+                        // Dollars carries its own identifier so a test can pick
+                        // it, or any token, without depending on where balances
+                        // sort.
+                        .accessibilityIdentifier(
+                            balance.stored.mint == .usdf
+                                ? "currency-picker-row-usdf"
+                                : "currency-picker-row"
+                        )
                         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)

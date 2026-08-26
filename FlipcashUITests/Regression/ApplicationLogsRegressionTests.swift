@@ -13,14 +13,12 @@ final class ApplicationLogsRegressionTests: BaseUITestCase {
 
     // MARK: - Tests
 
-    func testApplicationLogs_shareLogsPresentsShareSheet() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
-
+    func testApplicationLogs_shareLogsPresentsShareSheet() {
         let settings = SettingsUIScreen(app: app)
 
         assertMainScreenReached()
 
-        // Navigate: Main → Settings → Advanced Features → Application Logs
+        // Navigate: Wallet → You → Advanced → Application Logs
         settings.open(from: self)
         settings.navigateToAdvancedFeatures(from: self)
         waitAndTap(settings.applicationLogsRow)

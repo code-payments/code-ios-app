@@ -165,35 +165,34 @@ class BaseUITestCase: XCTestCase {
         )
     }
 
-    /// Skips a test whose entry point was the v1 scanner chrome, removed when
-    /// the tab-bar UI shipped to everyone.
+    /// Navigates into the Give flow through a held currency's Give tile — the
+    /// tab-bar UI's only entry, now that the scanner's Cash button went with the
+    /// bottom bar. Returns an `AmountEntryScreen` ready for amount entry.
     ///
-    /// These flows still exist but are reached differently now, so each call
-    /// site needs a rewrite verified against a simulator rather than a selector
-    /// swap. Grep this symbol for the outstanding list; it goes away with the
-    /// last one.
-    func skipPendingTabBarRewrite(_ detail: String) throws {
-        throw XCTSkip("Pending rewrite for the tab-bar UI: \(detail)")
-    }
-
-    /// Navigates into the Give flow, retrying up to 3 times if the balance hasn't loaded yet.
-    /// On CI the balance may not be fetched immediately, showing a "No Balance Yet" dialog.
-    /// Returns an `AmountEntryScreen` ready for amount entry.
+    /// Picks the first non-USDF card, so the flow runs on a community currency
+    /// the way the Cash button's default did. No balance retry: the Give tile is
+    /// only drawn for a currency the account holds, so there is no "No Balance
+    /// Yet" gate on this path — an unloaded balance shows up as a missing card,
+    /// which `selectFirstCurrency` already waits out.
+    ///
+    /// The keypad is pushed over the currency's info screen and pops itself as
+    /// the bill appears, so the flow ends up back on `CurrencyInfoScreen` rather
+    /// than on a tab root.
     @discardableResult
     func navigateToGiveAmount() -> AmountEntryScreen {
+        let wallet = WalletScreen(app: app)
+        let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
 
-        for attempt in 1...3 {
-            waitAndTap(app.buttons["Cash"])
-            if amountEntry.keypadZero.waitForExistence(timeout: 10) { break }
+        wallet.open(from: self)
+        wallet.selectFirstCurrency()
+        currencyInfo.assertHeldCurrencyReached(timeout: 30)
+        waitAndTap(currencyInfo.giveButton)
 
-            let ok = app.buttons["OK"]
-            if ok.exists { ok.tap() }
-
-            if attempt == 3 {
-                XCTFail("Balance did not load after 3 attempts")
-            }
-        }
+        XCTAssertTrue(
+            amountEntry.keypadZero.waitForExistence(timeout: 30),
+            "Expected the give keypad after tapping the currency's Give tile"
+        )
 
         return amountEntry
     }
@@ -267,39 +266,6 @@ class BaseUITestCase: XCTestCase {
 
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         waitUntilHittableAndTap(springboard.buttons["Allow"])
-    }
-
-    /// Picks the newest photo from the system library and commits the crop
-    /// editor. Returns false when the library is empty, which is the state of a
-    /// freshly created simulator.
-    func selectFirstPhotoFromLibrary(via picker: XCUIElement) -> Bool {
-        picker.tap()
-
-        // The Menu offers Photo Library / Choose File.
-        waitAndTap(app.buttons["Photo Library"])
-
-        // The library is a remote view hosted inside the app's own hierarchy, so
-        // it is reachable from `app` rather than a separate process. Its
-        // thumbnails are images tagged `PXGGridLayout-Info` — they are not
-        // collection-view cells, and querying `cells` finds nothing. The head of
-        // the grid is always on screen; thumbnails further down are in the tree
-        // but below the fold, so a coordinate tap on them lands nowhere.
-        let thumbnail = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
-        guard thumbnail.waitForExistence(timeout: 30) else { return false }
-
-        if thumbnail.isHittable {
-            thumbnail.tap()
-        } else {
-            thumbnail.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        }
-
-        // `allowsEditing` puts a crop editor in front of the selection; "Choose"
-        // is what actually returns the image.
-        let choose = app.buttons["Choose"]
-        guard choose.waitForExistence(timeout: 20) else { return false }
-        choose.tap()
-
-        return true
     }
 
     /// Everything legible on screen, for failure messages.

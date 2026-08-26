@@ -5,15 +5,18 @@
 
 import XCTest
 
+/// Smoke: a give started from a held currency's Give tile reaches the bill, and
+/// cancelling the bill returns to the currency it was started from.
 final class GiveSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testGiveFlow_showsBillWithSendAsLink() throws {
-        try skipPendingTabBarRewrite("give no longer starts from a Cash button on the scanner")
+    func testGiveFlow_showsBillWithSendAsLink() {
+        let currencyInfo = CurrencyInfoUIScreen(app: app)
 
         assertMainScreenReached()
 
+        // Wallet → first currency card → Give tile → keypad.
         let amountEntry = navigateToGiveAmount()
 
         // Enter $0.01 and proceed to bill
@@ -30,7 +33,12 @@ final class GiveSmokeTests: BaseUITestCase {
         // Dismiss the bill
         waitAndTap(app.buttons["Cancel"])
 
-        // Should return to main screen
-        assertMainScreenReached("Expected to return to the main screen after cancelling the bill")
+        // The keypad popped itself as the bill appeared, so the bill sits over
+        // the currency's info screen — that, not a tab root, is what cancelling
+        // reveals. The tab bar stays hidden while the wallet stack is pushed, so
+        // `assertMainScreenReached` would not hold here.
+        currencyInfo.assertHeldCurrencyReached(
+            timeout: 30
+        )
     }
 }

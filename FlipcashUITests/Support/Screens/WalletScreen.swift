@@ -43,6 +43,19 @@ struct WalletScreen {
     /// that row is completed and therefore disabled.
     var addMoneyTile: XCUIElement { app.buttons["wallet-tile-add-money"] }
 
+    /// The "Withdraw Money" tile, which pushes the currency picker onto the
+    /// wallet's own stack.
+    var withdrawMoneyTile: XCUIElement { app.buttons["wallet-tile-withdraw-money"] }
+
+    /// The "Discover Currencies" tile, which pushes the leaderboard onto the
+    /// wallet's own stack — v1 opened it as a sheet off the scanner.
+    var discoverCurrenciesTile: XCUIElement { app.buttons["wallet-tile-discover-currencies"] }
+
+    /// The "Create a Currency" tile, which pushes the creation summary directly.
+    /// It replaces Discover's promo card, which the tab-bar UI hides
+    /// (`CurrencyDiscoveryScreen.hidesPromo`).
+    var createCurrencyTile: XCUIElement { app.buttons["wallet-tile-create-currency"] }
+
     // MARK: - Actions
 
     /// Opens the Wallet tab and waits for it to load.
@@ -61,6 +74,19 @@ struct WalletScreen {
         testCase.scrollUpToAndTap(addMoneyTile, in: scrollView)
     }
 
+    /// Scrolls the "Withdraw Money" tile into view and taps it.
+    func tapWithdrawMoneyTile(from testCase: BaseUITestCase) {
+        testCase.scrollUpToAndTap(withdrawMoneyTile, in: scrollView)
+    }
+
+    func tapDiscoverCurrenciesTile(from testCase: BaseUITestCase) {
+        testCase.scrollUpToAndTap(discoverCurrenciesTile, in: scrollView)
+    }
+
+    func tapCreateCurrencyTile(from testCase: BaseUITestCase) {
+        testCase.scrollUpToAndTap(createCurrencyTile, in: scrollView)
+    }
+
     /// Selects the first currency card and verifies CurrencyInfoScreen is reached.
     func selectFirstCurrency() {
         XCTAssertTrue(
@@ -68,5 +94,15 @@ struct WalletScreen {
             "Expected at least one currency in the Wallet"
         )
         firstCurrencyRow.tap()
+    }
+
+    /// Selects the USDF (Dollars) card — the source for a convert that buys
+    /// more of a currency the account already holds.
+    func selectUsdfCurrency() {
+        XCTAssertTrue(
+            usdfRow.waitForExistence(timeout: 30),
+            "Expected the USDF card in the Wallet"
+        )
+        usdfRow.tap()
     }
 }

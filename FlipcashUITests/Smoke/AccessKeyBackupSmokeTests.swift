@@ -5,7 +5,8 @@
 
 import XCTest
 
-/// Smoke tests for viewing and interacting with the Access Key from Settings.
+/// Smoke tests for viewing and interacting with the Access Key, reached
+/// through the You tab's Advanced list.
 final class AccessKeyBackupSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
@@ -13,16 +14,16 @@ final class AccessKeyBackupSmokeTests: BaseUITestCase {
 
     // MARK: - Tests
 
-    func testAccessKeyBackup_viewFromSettings() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
-
+    func testAccessKeyBackup_viewFromSettings() {
         let settings = SettingsUIScreen(app: app)
 
         assertMainScreenReached()
 
-        // Navigate: Main → Settings → My Account → Access Key
+        // Navigate: Wallet → You → Advanced → Access Key. The row is on
+        // Advanced, not My Account — `SettingsMyAccountScreen` keeps the
+        // account-level actions (Access Key, Log Out, Delete Account) off itself.
         settings.open(from: self)
-        settings.navigateToMyAccount(from: self)
+        settings.navigateToAdvancedFeatures(from: self)
         waitAndTap(settings.accessKeyRow)
 
         // Confirmation dialog: "View Your Access Key?"
@@ -38,16 +39,14 @@ final class AccessKeyBackupSmokeTests: BaseUITestCase {
         )
     }
 
-    func testAccessKeyBackup_copyToClipboard() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
-
+    func testAccessKeyBackup_copyToClipboard() {
         let settings = SettingsUIScreen(app: app)
 
         assertMainScreenReached()
 
-        // Navigate to the Access Key screen
+        // Wallet → You → Advanced → Access Key.
         settings.open(from: self)
-        settings.navigateToMyAccount(from: self)
+        settings.navigateToAdvancedFeatures(from: self)
         waitAndTap(settings.accessKeyRow)
 
         let dialog = app.otherElements["View Your Access Key?"]
@@ -73,16 +72,14 @@ final class AccessKeyBackupSmokeTests: BaseUITestCase {
         waitUntilHittableAndTap(copyButton, timeout: 5, "Expected 'Copy' option in context menu")
     }
 
-    func testAccessKeyBackup_saveToPhotos() throws {
-        try skipPendingTabBarRewrite("the settings list moved to the You tab; Add/Withdraw Money are Wallet tiles now")
-
+    func testAccessKeyBackup_saveToPhotos() {
         let settings = SettingsUIScreen(app: app)
 
         assertMainScreenReached()
 
-        // Navigate to the Access Key screen
+        // Wallet → You → Advanced → Access Key.
         settings.open(from: self)
-        settings.navigateToMyAccount(from: self)
+        settings.navigateToAdvancedFeatures(from: self)
         waitAndTap(settings.accessKeyRow)
 
         let dialog = app.otherElements["View Your Access Key?"]
