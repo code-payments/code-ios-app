@@ -562,22 +562,22 @@ private struct WalletScreenContent: View {
                 // `.deposit`/`.withdraw` are the app's canonical design-system
                 // glyphs for these actions (see Settings' `.card(icon:)` buttons) —
                 // a matched arrow-to-baseline pair, not SF Symbols.
-                walletTile(icon: .asset(.deposit), title: "Add Money") {
+                walletTile(icon: .asset(.deposit), title: "Add Money", identifier: "wallet-tile-add-money") {
                     router.presentAddMoney(.general, source: .balance)
                 }
                 // `.withdrawCurrency(nil)` (not `.withdraw`) so the flow pops back
                 // to the wallet's own stack on finish — `.withdraw` hardcodes a
                 // return to the settings stack and would strand the user here. A
                 // nil mint opens the currency picker (all balances).
-                walletTile(icon: .asset(.withdraw), title: "Withdraw Money") {
+                walletTile(icon: .asset(.withdraw), title: "Withdraw Money", identifier: "wallet-tile-withdraw-money") {
                     router.push(.withdrawCurrency(nil))
                 }
             }
             HStack(spacing: 12) {
-                walletTile(icon: .symbol("globe"), title: "Discover Currencies") {
+                walletTile(icon: .symbol("globe"), title: "Discover Currencies", identifier: "wallet-tile-discover-currencies") {
                     router.push(.discoverCurrencies)
                 }
-                walletTile(icon: .asset(.coinsAdd), title: "Create a Currency") {
+                walletTile(icon: .asset(.coinsAdd), title: "Create a Currency", identifier: "wallet-tile-create-currency") {
                     router.push(.currencyCreationSummary)
                 }
             }
@@ -593,7 +593,11 @@ private struct WalletScreenContent: View {
 
     /// A tile-style entry point: icon top-leading, label pinned bottom-leading,
     /// inside a translucent rounded card. They tile two-up per row.
-    private func walletTile(icon: TileGlyph, title: String, action: @escaping () -> Void) -> some View {
+    ///
+    /// `identifier` is what tests target: several of these titles also appear on
+    /// the new-user tutorial rows above, where a completed milestone renders
+    /// disabled, so matching on the label alone can resolve to an untappable row.
+    private func walletTile(icon: TileGlyph, title: String, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
                 tileGlyph(icon)
@@ -612,6 +616,7 @@ private struct WalletScreenContent: View {
             .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 
     /// Renders a `TileGlyph` at a consistent ~24pt: SF Symbols sized by font,

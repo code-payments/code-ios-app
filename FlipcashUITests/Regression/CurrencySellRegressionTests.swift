@@ -14,7 +14,11 @@ final class CurrencySellRegressionTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testSellCurrency_fullFlowWithConfirmation() {
+    func testSellCurrency_fullFlowWithConfirmation() throws {
+        try skipPendingTabBarRewrite(
+            "Sell is Convert in the tab-bar UI, pushed onto the wallet stack rather than presented as the sell sheet this asserts"
+        )
+
         let wallet = WalletScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)

@@ -102,6 +102,56 @@ class BaseUITestCase: XCTestCase {
         element.tap()
     }
 
+    /// Waits for an element to exist, swipes `container` up until it is hittable,
+    /// and taps it.
+    ///
+    /// Use for content that is in the hierarchy but below the fold — an
+    /// off-screen element is never hittable, so `waitUntilHittableAndTap` just
+    /// burns its whole timeout waiting for a scroll that nothing performs.
+    func scrollUpToAndTap(
+        _ element: XCUIElement,
+        in container: XCUIElement,
+        maxSwipes: Int = 8,
+        _ message: String? = nil
+    ) {
+        XCTAssertTrue(
+            element.waitForExistence(timeout: 30),
+            message ?? "Expected \(element) to exist within 30s"
+        )
+
+        // `.slow` keeps the scroll from flinging: a fling is still decelerating
+        // when the swipe call returns, so the element the query just found
+        // hittable has moved by the time the tap lands.
+        var swipes = 0
+        while !element.isHittable, swipes < maxSwipes {
+            container.swipeUp(velocity: .slow)
+            swipes += 1
+        }
+
+        XCTAssertTrue(
+            element.isHittable,
+            message ?? "Expected \(element) to be hittable after \(maxSwipes) swipes"
+        )
+
+        waitForStableFrame(element)
+        element.tap()
+    }
+
+    /// Blocks until `element`'s frame stops moving, so a tap can't land on
+    /// whatever slid into its place. Content arriving asynchronously (balances,
+    /// recent activity) reflows the page under a scroll that has already ended,
+    /// which a settled scroll offset alone wouldn't catch.
+    func waitForStableFrame(_ element: XCUIElement, timeout: TimeInterval = 5) {
+        let deadline = Date().addingTimeInterval(timeout)
+        var previous = element.frame
+        while Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.2)
+            let current = element.frame
+            if current == previous { return }
+            previous = current
+        }
+    }
+
     /// Asserts that the main screen has been reached by checking for the Wallet
     /// tab, the launch tab of the tab-bar UI.
     ///

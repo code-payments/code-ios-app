@@ -11,7 +11,7 @@ import XCTest
 /// - Next pushes the Select Payment Currency step; picking USDF lands on the
 ///   Buy summary in its simple (no fee breakdown) variant.
 /// - A covered entry routes straight to the swap-processing screen (the Add
-///   Money "Select Method" sheet never appears).
+///   Money "Add Money With" picker never appears).
 /// - After OK on the processing screen, the user lands back on
 ///   CurrencyInfoScreen — not the Wallet root, not the Scanner.
 ///
@@ -24,7 +24,11 @@ final class BuyReservesRegressionTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testBuyCurrency_fullFlowWithReserves() {
+    func testBuyCurrency_fullFlowWithReserves() throws {
+        try skipPendingTabBarRewrite(
+            "an owned currency's info page offers Give/Convert/Withdraw in the tab-bar UI — there is no Buy, and the buy flow pushes instead of opening a nested sheet"
+        )
+
         let wallet = WalletScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
@@ -57,9 +61,9 @@ final class BuyReservesRegressionTests: BaseUITestCase {
         waitUntilHittableAndTap(confirmation.buyButton)
 
         // A covered amount must not detour through the Add Money flow — the
-        // "Select Method" sheet must never appear.
+        // "Add Money With" picker must never appear.
         XCTAssertFalse(
-            app.staticTexts["Select Method"].waitForExistence(timeout: 2),
+            app.staticTexts["Add Money With"].waitForExistence(timeout: 2),
             "A covered amount must route straight to the swap, not the Add Money sheet"
         )
 

@@ -9,7 +9,7 @@ import XCTest
 /// Exercises the in-app flow as far as can be tested without a real Phantom
 /// install:
 ///
-/// - The Balance screen's Add Money button opens "Select Method".
+/// - The Wallet tab's Add Money tile opens the "Add Money With" picker.
 /// - Selecting Phantom opens the "Add Money With Phantom" education screen
 ///   with the "Connect Your Phantom Wallet" CTA.
 ///
@@ -17,7 +17,7 @@ import XCTest
 /// deeplink, and only a successful connect pushes "Amount to Add" — out of
 /// scope for the local simulator without a real Phantom install.
 ///
-/// Entry is the Balance screen's own Add Money button — buy entry is capped
+/// Entry is the Wallet tab's own Add Money tile — buy entry is capped
 /// at the highest spendable balance, so the old buy-shortfall vehicle into
 /// Add Money no longer exists.
 ///
@@ -33,10 +33,10 @@ final class BuyPhantomRegressionTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Navigate: Main → Wallet → Add Money → Select Method → Phantom.
+        // Navigate: Wallet tab → Add Money tile → Add Money With → Phantom.
         wallet.open(from: self)
-        waitUntilHittableAndTap(app.buttons["Add Money"].firstMatch)
-        addMoney.assertSelectMethodReached()
+        wallet.tapAddMoneyTile(from: self)
+        addMoney.assertMethodPickerReached()
         addMoney.selectPhantom(from: self)
 
         addMoney.assertPhantomEducationReached()

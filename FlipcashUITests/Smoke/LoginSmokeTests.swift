@@ -10,7 +10,7 @@ final class LoginSmokeTests: BaseUITestCase {
 
     func testLoginViaAccessKey_reachesMainScreen() {
         assertMainScreenReached(
-            "Expected to reach the main screen with the Cash button after login"
+            "Expected to reach the main screen with the Wallet tab after login"
         )
 
         let walletButton = app.buttons["Wallet"]
@@ -24,9 +24,10 @@ final class LoginSmokeTests: BaseUITestCase {
         // Verify we're on the main screen
         assertMainScreenReached()
 
-        // Open Settings, go to My Account, and log out
-        waitAndTap(app.buttons["Settings"])
-        waitAndTap(app.buttons["My Account"])
+        // Settings lives on the You tab now: You → Advanced → Log Out. The
+        // settings rows sit under the tip card, so scroll them into view.
+        waitAndTap(app.buttons["You"])
+        scrollUpToAndTap(app.buttons["Advanced"], in: app.scrollViews.firstMatch)
         waitAndTap(app.buttons["Log Out"])
 
         // Confirmation dialog — scoped to the dialog container

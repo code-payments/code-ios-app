@@ -63,7 +63,7 @@ final class DepositSmokeTests: BaseUITestCase {
         let addMoney = AddMoneyStartScreen(app: app)
         settings.open(from: self)
         waitAndTap(settings.addMoneyButton)
-        addMoney.assertSelectMethodReached()
+        addMoney.assertMethodPickerReached()
         addMoney.selectOtherWallet(from: self)
     }
 }
