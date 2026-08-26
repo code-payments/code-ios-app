@@ -22,7 +22,9 @@ final class OnboardingNameViewModel {
     var displayName: String = ""
     var dialogItem: DialogItem?
 
-    private(set) var isSubmitting: Bool = false
+    /// Drives the Next button: spinner while saving, then the checkmark the
+    /// rest of the app shows on a completed action.
+    private(set) var buttonState: ButtonState = .normal
 
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
@@ -50,23 +52,33 @@ final class OnboardingNameViewModel {
         validator.remaining(in: displayName)
     }
 
+    /// True from the tap until the flow leaves this screen — the checkmark
+    /// holds after the save, so the field stays locked through it.
+    var isSubmitting: Bool {
+        !buttonState.isNormal
+    }
+
     // MARK: - Submit -
 
     func submit() {
         guard let name = validatedDisplayName, !isSubmitting else { return }
 
-        isSubmitting = true
+        buttonState = .loading
         Task {
-            defer { isSubmitting = false }
-
             do {
                 try await flipClient.setDisplayName(name, owner: owner)
                 // Onboarding runs pre-login against a brand-new account, so there is
                 // never a prior name here — this is always a first set.
                 Analytics.displayNameSubmitted(source: .onboarding, hadPreviousName: false)
+
+                buttonState = .success
+                // Same beat the access-key step holds its checkmark for, so the
+                // confirmation is seen before the next screen pushes.
+                try? await Task.delay(milliseconds: 500)
                 onComplete?()
 
             } catch ErrorProfile.moderated(let category) {
+                buttonState = .normal
                 logger.info("Display name moderation denied", metadata: ["category": "\(category)"])
                 dialogItem = .error(
                     title: "This Name is Not Allowed",
@@ -74,6 +86,7 @@ final class OnboardingNameViewModel {
                 )
 
             } catch ErrorProfile.invalidDisplayName {
+                buttonState = .normal
                 logger.info("Display name rejected as invalid")
                 dialogItem = .error(
                     title: "This Name Isn't Valid",
@@ -81,6 +94,7 @@ final class OnboardingNameViewModel {
                 )
 
             } catch {
+                buttonState = .normal
                 logger.error("Failed to set display name", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Failed to set display name during onboarding")
                 dialogItem = .error(
