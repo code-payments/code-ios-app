@@ -40,6 +40,22 @@ call site.
   (`BetaFlags.allowsDollarsGive`) and `GiveCashGate.discoverCurrencies` is unreachable
   either way. `GiveRegressionTests` covered the "No Balance Yet" gate: an empty account
   has no currency card, so it cannot reach the Give tile that would raise it.
+- **The Wallet tiles are gated on funding, and a $0 account has no way around it.**
+  `WalletScreen` draws `walletTiles` only when `session.hasEverAddedMoney()`
+  (`holdsBalance || database.hasEverAddedMoney()`); an unfunded account gets the
+  new-user tutorial in their place. That gate collides with the two add-money
+  regressions, which need an empty balance by definition. The buy gate has no way out:
+  `flipcash://discover` reaches the same destination, but `app.open` relaunches the app
+  and a freshly created account does not survive the relaunch — the app comes back on
+  "Create a New Account" — while both standing accounts hold displayable USDF, so
+  `BuyAmountViewModel.paymentOptions` is non-empty and the button reads Next. The
+  creation gate survives because `shouldAddMoneyBeforeLaunch` is a *shortfall* check,
+  not a $0 check: the standing account holds money but not the launch cost
+  (`newCurrencyPurchaseAmount` + `newCurrencyFeeAmount`), so Get Started still raises the
+  prompt. That is fixture-dependent, so the test skips if the account can afford it.
+- **Currency creation has exactly two doors, both on the funded path.**
+  `.currencyCreationSummary` is pushed from the Wallet tile and from Discover's promo
+  card, which `CurrencyDiscoveryScreen.hidesPromo` hides in v2. There is no deeplink.
 - **Per-token history moved into the "Recent" header.** `CurrencyInfoContentV2` has no
   "Transaction History" button; the header button is the only way in, and it sits below
   the hero card and the action tiles, so it needs scrolling into view.
@@ -119,3 +135,9 @@ call site.
   `ConvertBetweenTokensRegressionTests`. `CurrencyPickerSheet` rows gained
   `currency-picker-row` / `currency-picker-row-usdf`; `SellConfirmationScreen` went with
   the v1 sell sheet.
+- The discover group — `DiscoverCurrenciesSmokeTests` checks the Discover Currencies and
+  Create a Currency tiles side by side (v1 reached creation *through* Discover's promo
+  card), and the currency-creation gate moved to its own
+  `CurrencyCreationGateRegressionTests`. Both now need the standing account, because
+  both entries are Wallet tiles and the tiles are gated on funding — see below.
+  `AddMoneyGateRegressionTests`' buy gate stays skipped: no fixture reaches it.

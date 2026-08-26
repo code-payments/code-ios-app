@@ -5,42 +5,56 @@
 
 import XCTest
 
-/// Tests the Discover top-level sheet entry from the Scan screen and verifies
-/// the Create-Your-Own-Currency promo card pushes the creation summary screen.
+/// Covers the two currency-discovery tiles on the Wallet tab: Discover
+/// Currencies opens the leaderboard, and Create a Currency opens the creation
+/// summary.
+///
+/// The v1 pair was one route — Discover, opened as a sheet off the scanner, with
+/// currency creation reached from the promo card at the top of its list. The
+/// tab-bar UI splits them into sibling tiles and hides the promo card
+/// (`CurrencyDiscoveryScreen.hidesPromo`), so the entries are checked side by
+/// side rather than one through the other.
+///
+/// **Fixture.** Needs the standing `FLIPCASH_UI_TEST_ACCESS_KEY` account rather
+/// than a fresh one: `WalletScreen` draws the tiles only when
+/// `session.hasEverAddedMoney()` is true, and gives an unfunded account the
+/// new-user tutorial in their place. The test only navigates, so it leaves the
+/// account untouched.
 final class DiscoverCurrenciesSmokeTests: BaseUITestCase {
 
-    func testDiscover_newAccount_tapPromoCard_opensCurrencyCreation() throws {
-        try skipPendingTabBarRewrite("Discover is a Wallet tile now, and the create-currency promo card is hidden")
+    override var requiresAuthentication: Bool { true }
 
-        // Create a brand new empty account so this test runs without a UITest access key.
-        waitAndTap(app.buttons["Create a New Account"])
-        waitAndTap(app.buttons["Wrote the 12 Words Down Instead?"])
-        waitAndTap(app.buttons["Yes, I Wrote Them Down"])
-        enterDisplayNameIfNeeded()
-        allowPushNotificationsIfNeeded()
+    func testWalletTiles_openDiscoverAndCurrencyCreation() throws {
+        let wallet = WalletScreen(app: app)
 
-        assertMainScreenReached()
+        // MARK: Discover Currencies → the leaderboard.
+        wallet.open(from: self)
+        wallet.tapDiscoverCurrenciesTile(from: self)
 
-        // Tap the new Discover tab on the scan screen.
-        let discoverButton = app.buttons["scan-discover-button"]
-        waitAndTap(discoverButton, "Expected Discover tab on scan screen")
-
-        // The Discover sheet should appear with the matching navigation title.
-        let title = app.navigationBars["Discover Currencies"]
         XCTAssertTrue(
-            title.waitForExistence(timeout: 10),
-            "Expected 'Discover Currencies' sheet to appear after tapping the Discover tab"
+            app.navigationBars["Discover Currencies"].waitForExistence(timeout: 10),
+            "Expected the Discover Currencies leaderboard after tapping its tile"
+        )
+        XCTAssertTrue(
+            app.buttons.matching(identifier: "discover-leaderboard-row").firstMatch
+                .waitForExistence(timeout: 30),
+            "Expected the leaderboard to list at least one currency"
+        )
+        XCTAssertFalse(
+            app.buttons["discover-create-currency-card"].exists,
+            "The promo card belongs to v1 — creation has its own Wallet tile now"
         )
 
-        // Tap the promo card to navigate to the currency creation summary.
-        let promoCard = app.buttons["discover-create-currency-card"]
-        waitUntilHittableAndTap(promoCard, "Expected Create-Your-Own-Currency promo card to be hittable")
+        // MARK: Create a Currency → the creation summary.
+        // Discover is a push onto the wallet's stack, so back out to the tab
+        // root; the tab bar is hidden while the stack is non-empty.
+        waitAndTap(app.navigationBars.buttons.firstMatch)
+        assertMainScreenReached(timeout: 15, "Expected the Wallet root after leaving Discover")
 
-        // Verify the creation summary screen is reached.
-        let creationTitle = app.navigationBars["Create Your Currency"]
+        wallet.tapCreateCurrencyTile(from: self)
         XCTAssertTrue(
-            creationTitle.waitForExistence(timeout: 10),
-            "Expected 'Create Your Currency' summary screen after tapping the promo card"
+            app.navigationBars["Create Your Currency"].waitForExistence(timeout: 10),
+            "Expected the Create Your Currency summary after tapping its tile"
         )
     }
 }

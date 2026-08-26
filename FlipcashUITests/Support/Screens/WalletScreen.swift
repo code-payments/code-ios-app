@@ -47,6 +47,15 @@ struct WalletScreen {
     /// wallet's own stack.
     var withdrawMoneyTile: XCUIElement { app.buttons["wallet-tile-withdraw-money"] }
 
+    /// The "Discover Currencies" tile, which pushes the leaderboard onto the
+    /// wallet's own stack — v1 opened it as a sheet off the scanner.
+    var discoverCurrenciesTile: XCUIElement { app.buttons["wallet-tile-discover-currencies"] }
+
+    /// The "Create a Currency" tile, which pushes the creation summary directly.
+    /// It replaces Discover's promo card, which the tab-bar UI hides
+    /// (`CurrencyDiscoveryScreen.hidesPromo`).
+    var createCurrencyTile: XCUIElement { app.buttons["wallet-tile-create-currency"] }
+
     // MARK: - Actions
 
     /// Opens the Wallet tab and waits for it to load.
@@ -68,6 +77,14 @@ struct WalletScreen {
     /// Scrolls the "Withdraw Money" tile into view and taps it.
     func tapWithdrawMoneyTile(from testCase: BaseUITestCase) {
         testCase.scrollUpToAndTap(withdrawMoneyTile, in: scrollView)
+    }
+
+    func tapDiscoverCurrenciesTile(from testCase: BaseUITestCase) {
+        testCase.scrollUpToAndTap(discoverCurrenciesTile, in: scrollView)
+    }
+
+    func tapCreateCurrencyTile(from testCase: BaseUITestCase) {
+        testCase.scrollUpToAndTap(createCurrencyTile, in: scrollView)
     }
 
     /// Selects the first currency card and verifies CurrencyInfoScreen is reached.

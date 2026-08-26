@@ -5,70 +5,29 @@
 
 import XCTest
 
-/// Regression tests for the reserves-only gates: an account with no USDF must
-/// route through "No Balance Yet" → Add Money instead of entering the buy or
-/// create flow. Uses fresh-account creation for a guaranteed $0 balance, so
-/// no auth keys are required.
+/// Regression test for the reserves-only buy gate: an account with nothing
+/// spendable must still reach the Get amount screen, where
+/// `BuyAmountViewModel.actionTitle` swaps Next for an Add Money CTA.
+///
+/// **Skipped: no fixture can reach it.** The gate needs an account with no
+/// spendable balance, and the tab-bar UI gives such an account no door to a
+/// currency's Get button:
+///
+/// - The Wallet's Discover tile is drawn only for
+///   `session.hasEverAddedMoney()`, which is exactly the accounts the gate does
+///   not apply to; an unfunded account gets the new-user tutorial instead.
+/// - `flipcash://discover` routes to the same destination, but `app.open`
+///   relaunches the app and a freshly created account does not survive the
+///   relaunch — the app comes back on "Create a New Account".
+/// - The standing `FLIPCASH_UI_TEST_ACCESS_KEY` and USDF-only accounts both
+///   hold displayable USDF, so `paymentOptions` is non-empty and the button
+///   reads Next.
+///
+/// The gate itself is live: a funded account spent down to nothing hits it. The
+/// test needs a spent-down fixture that the suite doesn't have.
 final class AddMoneyGateRegressionTests: BaseUITestCase {
 
     func testBuyWithNoAssets_offersAddMoneyOnAmountEntry() throws {
-        try skipPendingTabBarRewrite("Discover moved from the scanner bottom bar to a Wallet tile")
-
-        let addMoney = AddMoneyStartScreen(app: app)
-        let currencyInfo = CurrencyInfoUIScreen(app: app)
-
-        createFreshAccount()
-
-        // Discover → first leaderboard currency → CurrencyInfoScreen.
-        waitAndTap(app.buttons["scan-discover-button"])
-        waitUntilHittableAndTap(
-            app.buttons.matching(identifier: "discover-leaderboard-row").firstMatch,
-            "Expected the Discover leaderboard to list at least one currency"
-        )
-        currencyInfo.assertUnheldCurrencyReached()
-
-        // Get always opens the amount sheet; on a $0 account the action
-        // button becomes an Add Money CTA instead of Next.
-        waitAndTap(currencyInfo.getButton)
-        XCTAssertTrue(
-            app.navigationBars["Amount"].waitForExistence(timeout: 10),
-            "The Get amount sheet must open even when the account has no balance"
-        )
-
-        // Add Money → the Add Money With picker. This flow enters from
-        // Discover, so the sheet's CTA is the only Add Money button on screen.
-        waitUntilHittableAndTap(app.buttons["Add Money"].firstMatch)
-        addMoney.assertMethodPickerReached()
-    }
-
-    func testCreateCurrencyWithNoAssets_gatesOnAddMoney() throws {
-        try skipPendingTabBarRewrite("currency creation starts from a Wallet tile now, not the Discover promo card")
-
-        let addMoney = AddMoneyStartScreen(app: app)
-
-        createFreshAccount()
-
-        // Discover → promo card → Create Your Currency summary.
-        waitAndTap(app.buttons["scan-discover-button"])
-        waitUntilHittableAndTap(
-            app.buttons["discover-create-currency-card"],
-            "Expected the Create-Your-Own-Currency promo card"
-        )
-        XCTAssertTrue(
-            app.navigationBars["Create Your Currency"].waitForExistence(timeout: 10),
-            "Expected the currency creation summary screen"
-        )
-
-        // Get Started on a $0 account must gate on Add Money, not enter the wizard.
-        waitUntilHittableAndTap(app.buttons["Get Started"])
-        addMoney.assertNoBalanceReached()
-        XCTAssertTrue(
-            app.staticTexts["Add money to create a currency"].exists,
-            "Expected the create-context subtitle on the No Balance prompt"
-        )
-
-        // Add Money → the Add Money With picker.
-        addMoney.tapAddMoney(from: self)
-        addMoney.assertMethodPickerReached()
+        throw XCTSkip("Needs a spent-down account: the Get screen has no entry from a $0 balance in the tab-bar UI")
     }
 }
