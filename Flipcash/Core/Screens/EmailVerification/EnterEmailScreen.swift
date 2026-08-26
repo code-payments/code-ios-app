@@ -28,12 +28,14 @@ struct EnterEmailScreen<VM: EmailVerifying>: View {
             VStack(alignment: .center, spacing: 15) {
                 Spacer()
                 InputContainer(size: .regular) {
+                    // Autocorrection stays on: turning it off hides the
+                    // QuickType bar, which is where iOS renders the
+                    // `.emailAddress` AutoFill suggestion from the contact card.
                     TextField("Email", text: $viewModel.enteredEmail)
                         .font(.appTextXL)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 15)
