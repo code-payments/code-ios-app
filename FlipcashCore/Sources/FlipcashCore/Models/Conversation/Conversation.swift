@@ -24,7 +24,16 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// where the counterpart's name is used instead.
     public var title: String?
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil) {
+    /// The newest event-log sequence the server holds for this chat, as reported
+    /// by the feed. Compared against the locally-applied catch-up cursor to tell
+    /// a transcript that lags the server from one that is current.
+    ///
+    /// Server truth valid only at fetch time, so it is deliberately not cached:
+    /// a conversation restored from the local database reports `0`, meaning
+    /// "unknown", not "empty".
+    public var latestEventSequence: UInt64
+
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -32,6 +41,7 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.type = type
         self.isHidden = isHidden
         self.title = title
+        self.latestEventSequence = latestEventSequence
     }
 }
 
@@ -77,6 +87,7 @@ extension Conversation {
         // Proto represents an unset title as an empty string; normalize to nil so
         // DMs (which never carry a title) and untitled groups behave the same.
         self.title = proto.title.isEmpty ? nil : proto.title
+        self.latestEventSequence = proto.latestEventSequence
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.

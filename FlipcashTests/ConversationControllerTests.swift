@@ -618,6 +618,11 @@ struct ConversationControllerTests {
         try await waitUntil { !controller.conversations.isEmpty }
         controller.visibleConversationID = ConversationID.test(1)
 
+        // start()'s feed load backfilled the (then-empty) transcript already; this test is about the
+        // page the reset path fetches, so wait that one out and forget it.
+        try await waitUntil { !mock.latestPageQueries.isEmpty }
+        mock.clearLatestPageQueries()
+
         // The cursor is too far behind: GetDelta returns RESET_REQUIRED, so catch-up falls back to the
         // newest page and re-establishes the cursor from that page's floor.
         mock.deltaError = ErrorGetDelta.resetRequired
@@ -669,8 +674,8 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
-    @Test("a reconnect with no conversation open refreshes the feed but fetches no transcript")
-    func reconnectWithoutVisibleConversationSkipsMessages() async throws {
+    @Test("a reconnect backfills a chat it surfaces, without a catch-up it has no cursor for")
+    func reconnectBackfillsSurfacedConversation() async throws {
         let mock = MockConversations()
         let controller = makeController(mock)
 
@@ -678,16 +683,92 @@ struct ConversationControllerTests {
         try await waitUntil { mock.connectionStateStreamOpened }
         mock.emitConnectionState(.live)   // initial connection — baseline
 
-        // No conversation is visible. The feed refresh proves the refetch ran;
-        // the transcript page must not be fetched.
+        // A conversation the client has never held anything for appears on the refreshed feed. Its
+        // transcript is fetched even though nothing is on screen — that is the backfill — but as a
+        // newest page, since a zero cursor is nothing GetDelta could resume from.
         mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
         mock.emitConnectionState(.disconnected)
-        mock.emitConnectionState(.live)   // reconnect → loadFeed only
+        mock.emitConnectionState(.live)   // reconnect → refetch
 
-        try await waitUntil { controller.conversations.map(\.id) == [ConversationID.test(1)] }
-        #expect(mock.latestPageQueries.isEmpty)
-        #expect(mock.deltaAfterSequences.isEmpty) // no visible chat → no catch-up
+        try await waitUntil { mock.latestPageQueries == [ConversationID.test(1)] }
+        #expect(controller.conversations.map(\.id) == [ConversationID.test(1)])
+        #expect(mock.deltaAfterSequences.isEmpty)
         controller.stop()
+    }
+
+    // MARK: - Backfill -
+
+    @Test("a feed load fetches the transcript of a conversation the client holds nothing for")
+    func loadFeedBackfillsEmptyConversation() async {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 9), senderID: nil, content: .text("hi"), date: Date(timeIntervalSince1970: 90), unreadSeq: 9, eventSequence: 9)]
+        let controller = makeController(mock)
+
+        await controller.loadFeed()
+
+        #expect(mock.latestPageQueries == [ConversationID.test(1)])
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [9])
+    }
+
+    @Test("a chat holding only the feed's last-message preview still has its transcript fetched")
+    func loadFeedBackfillsConversationWithOnlyAPreviewRow() async {
+        let mock = MockConversations()
+        // The feed persists this preview as a message row before the backfill plans, so a check for
+        // "holds any message" would call this transcript cached and never fetch it — which is every
+        // conversation on a fresh login.
+        let preview = ConversationMessage(id: MessageID(value: 4), senderID: nil, content: .text("preview"), date: Date(timeIntervalSince1970: 40), unreadSeq: 4, eventSequence: 4)
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: preview, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [
+            ConversationMessage(id: MessageID(value: 3), senderID: nil, content: .text("older"), date: Date(timeIntervalSince1970: 30), unreadSeq: 3, eventSequence: 3),
+            preview,
+        ]
+        let controller = makeController(mock)
+
+        await controller.loadFeed()
+
+        #expect(mock.latestPageQueries == [ConversationID.test(1)])
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [3, 4])
+    }
+
+    @Test("a second feed load leaves an already-cached transcript alone")
+    func loadFeedSkipsCachedConversation() async {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 9), senderID: nil, content: .text("hi"), date: Date(timeIntervalSince1970: 90), unreadSeq: 9, eventSequence: 9)]
+        let controller = makeController(mock)
+
+        await controller.loadFeed()
+        await controller.loadFeed()
+
+        #expect(mock.latestPageQueries == [ConversationID.test(1)])
+    }
+
+    @Test("a feed load streams the missed window when the local cursor lags the server's head")
+    func loadFeedBackfillsLaggingConversationViaDelta() async {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("old"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)]
+        let controller = makeController(mock)
+
+        // Seed the cache: the newest page lands and seats the cursor at 2.
+        await controller.loadFeed()
+
+        // The server has moved past that cursor. The lag is streamed forward from where the cursor
+        // sits — not re-pulled as a newest page, which would spend a GetDelta(after: 0)'s worth of
+        // history and prepend it.
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200), latestEventSequence: 5)]
+        mock.deltaHead = 5
+        mock.deltaBatches = [MockConversations.DeltaBatch(
+            messages: [ConversationMessage(id: MessageID(value: 3), senderID: nil, content: .text("new"), date: Date(timeIntervalSince1970: 30), unreadSeq: 3, eventSequence: 5)],
+            checkpoint: 5
+        )]
+
+        await controller.loadFeed()
+
+        #expect(mock.deltaAfterSequences == [2])
+        #expect(mock.latestPageQueries == [ConversationID.test(1)]) // no second newest-page fetch
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [2, 3])
     }
 
     // MARK: - Pagination -
