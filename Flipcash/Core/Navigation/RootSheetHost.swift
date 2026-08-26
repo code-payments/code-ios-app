@@ -19,8 +19,6 @@ private struct RoutedSheet: View {
     var body: some View {
         @Bindable var router = router
         switch sheet {
-        case .settings:
-            SettingsScreen()
         case .give:
             NavigationStack(path: $router[.give]) {
                 GiveScreen(mint: nil)
@@ -116,8 +114,8 @@ struct RootSheetHostModifier: ViewModifier {
                     .appRouterNestedSheet()
             }
             // Dismiss all presented sheets when a bill is about to appear.
-            // Bills render behind sheets, so any sheet on top (Settings, Give,
-            // Tips) would obscure them. This ensures cash links received via
+            // Bills render behind sheets, so any sheet on top (Give, Tips)
+            // would obscure them. This ensures cash links received via
             // push notifications or deep links are always visible regardless of
             // the current navigation state.
             .onChange(of: session.presentationState.isPresenting) { _, isPresenting in

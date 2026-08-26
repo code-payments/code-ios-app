@@ -158,9 +158,9 @@ struct AppRouterNestedSheetTests {
         router.present(.give)
         router.presentNested(.buy(Self.mintA))
 
-        router.present(.settings)
+        router.present(.tips)
 
-        #expect(router.presentedSheets == [.settings])
+        #expect(router.presentedSheets == [.tips])
     }
 
     @Test("present(.sameRoot) when nested is up pops the nested and keeps root")
@@ -184,7 +184,7 @@ struct AppRouterNestedSheetTests {
         router.push(.currencyInfoForDeposit(Self.mintA))
         router.dismissSheet()  // .give stack now flagged dismissed
 
-        router.present(.settings)
+        router.present(.tips)
         router.presentNested(.buy(Self.mintA))
 
         // Now re-present .give — should clear its stale path.
@@ -243,16 +243,17 @@ struct AppRouterNestedSheetTests {
 
     // MARK: - navigate with nested up
 
-    @Test("navigate(to:) when nested is up dismisses nested and sets target root")
-    func navigate_dismissesNestedAndSetsRoot() {
+    @Test("navigate(to:) to a settings destination while nested is up dismisses every sheet")
+    func navigate_settingsDestination_dismissesNestedAndRequestsYouTab() {
         let router = AppRouter()
         router.present(.give)
         router.presentNested(.buy(Self.mintA))
 
         router.navigate(to: .settingsApplicationLogs)
 
-        #expect(router.presentedSheets == [.settings])
-        #expect(router[.settings] == AppRouter.navigationPath(.settingsApplicationLogs))
+        #expect(router.presentedSheets.isEmpty, "the You tab hosts the settings list — there is no sheet")
+        #expect(router.requestedTabStack == .you)
+        #expect(router[.you] == AppRouter.navigationPath(.settingsApplicationLogs))
     }
 
     @Test("navigate(to:) on a tab-stack destination while nested is up dismisses every sheet")

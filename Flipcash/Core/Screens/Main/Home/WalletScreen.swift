@@ -561,15 +561,12 @@ private struct WalletScreenContent: View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 // `.deposit`/`.withdraw` are the app's canonical design-system
-                // glyphs for these actions (see Settings' `.card(icon:)` buttons) —
-                // a matched arrow-to-baseline pair, not SF Symbols.
+                // glyphs for these actions — a matched arrow-to-baseline pair,
+                // not SF Symbols.
                 walletTile(icon: .asset(.deposit), title: "Add Money", identifier: "wallet-tile-add-money") {
                     router.presentAddMoney(.general, source: .balance)
                 }
-                // `.withdrawCurrency(nil)` (not `.withdraw`) so the flow pops back
-                // to the wallet's own stack on finish — `.withdraw` hardcodes a
-                // return to the settings stack and would strand the user here. A
-                // nil mint opens the currency picker (all balances).
+                // A nil mint opens the currency picker (all balances).
                 walletTile(icon: .asset(.withdraw), title: "Withdraw Money", identifier: "wallet-tile-withdraw-money") {
                     router.push(.withdrawCurrency(nil))
                 }

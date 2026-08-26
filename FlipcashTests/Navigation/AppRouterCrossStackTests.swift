@@ -26,8 +26,8 @@ struct AppRouterCrossStackTests {
     @Test("Navigating to a tab-owned destination dismisses whatever sheet is up")
     func navigate_fromSheetToTabStack_dismissesSheet() {
         let router = AppRouter()
-        router.present(.settings)
-        router.setPath([.settingsMyAccount, .settingsAdvancedFeatures], on: .settings)
+        router.present(.give)
+        router.setPath([.currencyInfoForDeposit(.usdf)], on: .give)
 
         router.navigate(to: .currencyInfo(.usdc))
 
@@ -65,16 +65,17 @@ struct AppRouterCrossStackTests {
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdf)))
     }
 
-    @Test("Push notification routing to a settings destination from the wallet tab presents settings")
-    func navigate_fromWalletTabToSettingsDestination_presentsSettings() {
+    @Test("Push notification routing to a settings destination from the wallet tab brings the You tab forward")
+    func navigate_fromWalletTabToSettingsDestination_requestsYouTab() {
         let router = AppRouter()
         router.activeTabStack = .balance
         router.setPath([.currencyInfo(.usdc)], on: .balance)
 
         router.navigate(to: .settingsApplicationLogs)
 
-        #expect(router.presentedSheet == .settings)
-        #expect(router[.settings] == AppRouter.navigationPath(.settingsApplicationLogs))
+        #expect(router.presentedSheets.isEmpty, "the You tab hosts the settings list — there is no sheet")
+        #expect(router.requestedTabStack == .you)
+        #expect(router[.you] == AppRouter.navigationPath(.settingsApplicationLogs))
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)),
                 "the wallet tab is preserved underneath")
     }
@@ -108,15 +109,15 @@ struct AppRouterCrossStackTests {
             (AppRouter.Destination.withdrawCurrency(.usdc),         AppRouter.Stack.balance),
             (AppRouter.Destination.usdcDepositEducation,            AppRouter.Stack.balance),
             (AppRouter.Destination.usdcDepositAddress,              AppRouter.Stack.balance),
-            (AppRouter.Destination.settingsMyAccount,               AppRouter.Stack.settings),
-            (AppRouter.Destination.changeDisplayName,               AppRouter.Stack.settings),
-            (AppRouter.Destination.settingsAdvancedFeatures,        AppRouter.Stack.settings),
-            (AppRouter.Destination.settingsAppSettings,             AppRouter.Stack.settings),
-            (AppRouter.Destination.settingsAdvancedBetaFeatures,    AppRouter.Stack.settings),
-            (AppRouter.Destination.settingsAccountSelection,        AppRouter.Stack.settings),
-            (AppRouter.Destination.settingsApplicationLogs,         AppRouter.Stack.settings),
-            (AppRouter.Destination.accessKey,                       AppRouter.Stack.settings),
-            (AppRouter.Destination.withdraw,                        AppRouter.Stack.settings),
+            (AppRouter.Destination.settingsMyAccount,               AppRouter.Stack.you),
+            (AppRouter.Destination.changeDisplayName,               AppRouter.Stack.you),
+            (AppRouter.Destination.settingsAdvancedFeatures,        AppRouter.Stack.you),
+            (AppRouter.Destination.settingsAppSettings,             AppRouter.Stack.you),
+            (AppRouter.Destination.settingsAdvancedBetaFeatures,    AppRouter.Stack.you),
+            (AppRouter.Destination.settingsAccountSelection,        AppRouter.Stack.you),
+            (AppRouter.Destination.settingsApplicationLogs,         AppRouter.Stack.you),
+            (AppRouter.Destination.accessKey,                       AppRouter.Stack.you),
+            (AppRouter.Destination.withdraw,                        AppRouter.Stack.you),
         ]
     )
     func destination_hasCorrectOwningStack(
@@ -146,7 +147,6 @@ struct AppRouterCrossStackTests {
     @Test(
         "Stack maps to its sheet presentation",
         arguments: [
-            (AppRouter.Stack.settings, AppRouter.SheetPresentation.settings),
             (AppRouter.Stack.give,     AppRouter.SheetPresentation.give),
             (AppRouter.Stack.tips,     AppRouter.SheetPresentation.tips),
         ]
