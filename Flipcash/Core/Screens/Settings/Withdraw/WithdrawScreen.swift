@@ -10,8 +10,10 @@ import FlipcashUI
 import FlipcashCore
 
 /// The withdraw flow's first screen: a currency picker listing every balance
-/// (Dollars included). Selecting Dollars detours through the "Withdraw as USDC"
-/// intro; any other currency goes straight to the amount screen.
+/// that carries a displayable value, Dollars included — a balance rounding to
+/// zero can't fund a withdrawal, so it's left out. Selecting Dollars detours
+/// through the "Withdraw as USDC" intro; any other currency goes straight to
+/// the amount screen.
 struct WithdrawScreen: View {
 
     @Environment(Session.self) private var session
@@ -21,6 +23,7 @@ struct WithdrawScreen: View {
 
     private var balances: [ExchangedBalance] {
         session.balances(for: ratesController.rateForBalanceCurrency())
+            .withdrawable()
     }
 
     var body: some View {

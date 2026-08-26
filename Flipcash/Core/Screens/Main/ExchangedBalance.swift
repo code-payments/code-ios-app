@@ -20,11 +20,22 @@ struct ExchangedBalance: Identifiable, Hashable {
 
 extension Array where Element == ExchangedBalance {
 
-    /// Balances eligible to give, send, or tip. Dollars appears only when it
-    /// carries a displayable value: `balances(for:)` keeps USDF at any value so
-    /// the wallet can render a zero Dollars card, and an amount-entry picker has
-    /// no use for a balance that can't fund anything.
+    /// Balances eligible to give, send, or tip.
     func giveable() -> [ExchangedBalance] {
+        fundable()
+    }
+
+    /// Balances eligible to withdraw.
+    func withdrawable() -> [ExchangedBalance] {
+        fundable()
+    }
+
+    /// Balances that can fund an outgoing amount. Dollars appears only when it
+    /// carries a displayable value: `balances(for:)` keeps USDF at any value so
+    /// the wallet can render a zero Dollars card, and a picker that funds an
+    /// outgoing amount has no use for a balance that can't fund anything. Every
+    /// other mint is already filtered to a displayable value upstream.
+    private func fundable() -> [ExchangedBalance] {
         filter { balance in
             guard balance.stored.mint == .usdf else { return true }
             return balance.exchangedFiat.hasDisplayableValue()
