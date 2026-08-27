@@ -66,3 +66,5 @@ BondingCurve.maxSupply   // 21,000,000 tokens
 When you need to confirm a paired iPhone, use the `list_devices` MCP tool (or `xcrun devicectl list devices`). **Do not use `xcrun xctrace list devices`** — it mislabels paired iPhones as `Offline` and will lead you to falsely claim no device is connected.
 
 If the user says "build on my device," take them at their word and just do it — don't push back claiming only simulators are available. Tests remain simulator-only.
+
+**Installing to the simulator preserves the app's data.** `xcrun simctl install <udid> <path>.app` over an existing install keeps the container, so the signed-in session survives. Never reach for `simctl uninstall` or `simctl erase` to "make the install clean" — signing back in needs an account or a wallet access key, neither of which an agent can supply. Wipe only when the user asks, or when a schema change without a `SQLiteVersion` bump has genuinely corrupted the store.
