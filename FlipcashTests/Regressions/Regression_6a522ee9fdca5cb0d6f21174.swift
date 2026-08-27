@@ -68,7 +68,7 @@ struct Regression_6a522ee9fdca5cb0d6f21174 {
         // "n" is new (insert at target 0); "a" changes content only (an update at source 0).
         transcript.controller.update(items: [
             .message(ChatMessage(id: "n", text: "newest", sender: .other)),
-            .message(ChatMessage(id: "a", text: "alpha", sender: .me, receipt: "Read")),
+            .message(ChatMessage(id: "a", text: "alpha", sender: .me, receipt: .read(time: nil))),
             .message(ChatMessage(id: "b", text: "bravo", sender: .me)),
         ])
         await settle(transcript.controller)
@@ -87,7 +87,7 @@ struct Regression_6a522ee9fdca5cb0d6f21174 {
 
         transcript.controller.update(items: [
             .message(ChatMessage(id: "n", content: .cash(ChatCashContent(amount: "$5.00", token: "Cash", flagImageName: "us")), sender: .other)),
-            .message(ChatMessage(id: "a", text: "alpha", sender: .me, receipt: "Read")),
+            .message(ChatMessage(id: "a", text: "alpha", sender: .me, receipt: .read(time: nil))),
             .message(ChatMessage(id: "b", text: "bravo", sender: .me)),
         ])
         await settle(transcript.controller)

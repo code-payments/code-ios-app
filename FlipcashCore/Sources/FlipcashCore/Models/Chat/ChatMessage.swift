@@ -33,13 +33,13 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     public let isContinuationFromPrevious: Bool
     /// The row below is the same sender — flatten the inner bottom corner.
     public let isContinuedByNext: Bool
-    /// The status line shown under this bubble ("Delivered" / "Read 3:42 PM" / "Not Delivered. Tap to
-    /// retry"), or nil when the row carries none. Carried on the message — not a separate transcript
-    /// row — so a send stays a clean insert instead of tearing the line down and rebuilding it.
-    public let receipt: String?
+    /// The status line shown under this bubble, or nil when the row carries none. Carried on the
+    /// message — not a separate transcript row — so a send stays a clean insert instead of tearing
+    /// the line down and rebuilding it.
+    public let receipt: ChatReceipt?
     /// Whether this row failed to send: turns the status line red and makes the row tappable to retry.
-    /// Other states (sending, delivered, received) render the same — the text comes from `receipt`.
-    public let isFailed: Bool
+    /// Other states (sending, delivered, received) render the same.
+    public var isFailed: Bool { receipt?.isFailed ?? false }
     /// The web link this text row contains, or nil when it carries none — marks the row to render as
     /// tappable text. Derived from the text at map time (not stored/sent) — cash rows never carry one.
     public let linkPreview: LinkPreview?
@@ -50,8 +50,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         sender: Sender,
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
-        receipt: String? = nil,
-        isFailed: Bool = false,
+        receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil
     ) {
         self.id = id
@@ -60,7 +59,6 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.isContinuationFromPrevious = isContinuationFromPrevious
         self.isContinuedByNext = isContinuedByNext
         self.receipt = receipt
-        self.isFailed = isFailed
         self.linkPreview = linkPreview
     }
 
@@ -71,8 +69,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         sender: Sender,
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
-        receipt: String? = nil,
-        isFailed: Bool = false,
+        receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil
     ) {
         self.init(
@@ -82,7 +79,6 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             isContinuationFromPrevious: isContinuationFromPrevious,
             isContinuedByNext: isContinuedByNext,
             receipt: receipt,
-            isFailed: isFailed,
             linkPreview: linkPreview
         )
     }

@@ -85,7 +85,7 @@ public class ChatColumnCell: UICollectionViewCell {
         retryID = message.isFailed ? message.id : nil
         receipt.textColor = message.isFailed ? ChatReceiptLabel.failedColor : ChatReceiptLabel.defaultColor
         retryTap?.isEnabled = message.isFailed
-        setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
+        setReceipt(message.receipt?.displayText, animated: isInPlaceUpdate && window != nil)
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
     }

@@ -18,7 +18,7 @@ struct ChatLinkMessageCellTests {
         let cell = makeCell()
         cell.configure(
             with: ChatMessage(id: "1", text: "https://apple.com", sender: .me,
-                              isFailed: true,
+                              receipt: .failed("Not Delivered. Tap to retry"),
                               linkPreview: LinkPreview(url: url("https://apple.com"))),
             maxWidth: 250
         )

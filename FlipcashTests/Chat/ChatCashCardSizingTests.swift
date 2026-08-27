@@ -53,7 +53,7 @@ struct ChatCashCardSizingTests {
             )),
             .dateSeparator(id: "sep", text: "Today 1:00 PM"),
             .message(ChatMessage(id: "1", text: "hello", sender: .other)),
-            .message(ChatMessage(id: "2", text: "sent", sender: .me, receipt: "Delivered")),
+            .message(ChatMessage(id: "2", text: "sent", sender: .me, receipt: .delivered)),
         ]
         for index in items.indices {
             #expect(sized(items, at: index) == .auto, "row \(index) should self-size")

@@ -39,7 +39,7 @@ struct ChatMessageMappingTests {
     }
 
     private func receiptText(_ items: [ChatItem]) -> String? {
-        items.compactMap { if case .message(let message) = $0 { message.receipt } else { nil } }.last
+        items.compactMap { if case .message(let message) = $0 { message.receipt?.displayText } else { nil } }.last
     }
 
     private func sending(_ clientID: UUID, _ body: String, after offset: TimeInterval) -> ConversationMessage {
@@ -190,7 +190,7 @@ struct ChatMessageMappingTests {
         let deleted = beforeIDs.subtracting(afterIDs)
         let reconfigured = beforeIDs.intersection(afterIDs).filter { beforeByID[$0] != afterByID[$0] }
         func receipt(_ id: String) -> String? {
-            if case .message(let m) = afterByID[id] { m.receipt } else { nil }
+            if case .message(let m) = afterByID[id] { m.receipt?.displayText } else { nil }
         }
 
         // The delivery line rides on the message, so there is no separate receipt row to insert or
@@ -232,7 +232,7 @@ struct ChatMessageMappingTests {
         #expect(failedFlags(items) == [false, false])
         // "b" (sending) shows nothing; the prior delivered "a" keeps its "Delivered" line.
         let rows = messageRows(items)
-        #expect(rows.first?.receipt == "Delivered")
+        #expect(rows.first?.receipt?.displayText == "Delivered")
         #expect(rows.last?.id == clientID.uuidString)
         #expect(rows.last?.receipt == nil)
     }
@@ -249,8 +249,8 @@ struct ChatMessageMappingTests {
         )
         #expect(failedFlags(items) == [false, true])
         let rows = messageRows(items)
-        #expect(rows.first?.receipt == "Delivered")                     // prior delivered receipt preserved
-        #expect(rows.last?.receipt == "Not Delivered. Tap to retry")    // failed row shows its own line
+        #expect(rows.first?.receipt?.displayText == "Delivered")                     // prior delivered receipt preserved
+        #expect(rows.last?.receipt?.displayText == "Not Delivered. Tap to retry")    // failed row shows its own line
     }
 
     @Test("A settling send's Delivered receipt is held back, then shows once the gate clears")

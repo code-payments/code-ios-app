@@ -76,7 +76,7 @@ struct ChatViewControllerTests {
         window.makeKeyAndVisible()
 
         let before = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
-            .message(ChatMessage(id: "sent-1", text: "first send", sender: .me, receipt: "Delivered")),
+            .message(ChatMessage(id: "sent-1", text: "first send", sender: .me, receipt: .delivered)),
         ]
         controller.update(items: before)
         for _ in 0..<3 {
@@ -86,7 +86,7 @@ struct ChatViewControllerTests {
 
         let after = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
             .message(ChatMessage(id: "sent-1", text: "first send", sender: .me, isContinuedByNext: true)),
-            .message(ChatMessage(id: "sent-2", text: "second send", sender: .me, isContinuationFromPrevious: true, receipt: "Delivered")),
+            .message(ChatMessage(id: "sent-2", text: "second send", sender: .me, isContinuationFromPrevious: true, receipt: .delivered)),
         ]
         controller.update(items: after)
         #expect(controller.collectionView.numberOfItems(inSection: 0) == after.count)
