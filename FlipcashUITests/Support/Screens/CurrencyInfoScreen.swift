@@ -8,9 +8,9 @@ import XCTest
 /// Page object for `CurrencyInfoScreen`'s action tiles.
 ///
 /// The tab-bar UI renders `CurrencyInfoContentV2`, which gates the tiles on
-/// whether the account holds the currency: Give / Convert / Withdraw when it
-/// does, a lone Get when it doesn't. There is no Buy or Sell tile — acquiring
-/// more of a currency you already hold is a Convert from another balance.
+/// whether the account holds the currency: Give / Buy More / Convert when it
+/// does, a lone Buy In when it doesn't. Dollars keeps its own held row —
+/// Give / Convert / Withdraw — since it is the currency others are bought with.
 @MainActor
 struct CurrencyInfoUIScreen {
 
@@ -24,11 +24,14 @@ struct CurrencyInfoUIScreen {
 
     /// Tiles shown for a currency the account holds.
     var giveButton: XCUIElement { app.buttons["Give"] }
+    var buyMoreButton: XCUIElement { app.buttons["Buy More"] }
     var convertButton: XCUIElement { app.buttons["Convert"] }
+
+    /// Shown in place of Buy More on Dollars.
     var withdrawButton: XCUIElement { app.buttons["Withdraw"] }
 
     /// The only tile shown for a currency the account doesn't hold.
-    var getButton: XCUIElement { app.buttons["Get"] }
+    var buyInButton: XCUIElement { app.buttons["Buy In"] }
 
     /// The currency's scrolling content, the container the lower sections are
     /// scrolled in.
@@ -62,8 +65,8 @@ struct CurrencyInfoUIScreen {
     /// Asserts the page for a currency the account doesn't hold.
     func assertUnheldCurrencyReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            getButton.waitForExistence(timeout: timeout),
-            "Expected CurrencyInfoScreen for an unheld currency, with a Get tile"
+            buyInButton.waitForExistence(timeout: timeout),
+            "Expected CurrencyInfoScreen for an unheld currency, with a Buy In tile"
         )
     }
 }

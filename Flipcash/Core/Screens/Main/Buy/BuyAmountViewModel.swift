@@ -16,7 +16,7 @@ private let logger = Logger(label: "flipcash.buy-amount")
 final class BuyAmountViewModel {
     var enteredAmount: String = ""
     var dialogItem: DialogItem?
-    /// The selected payment source ("Get with"). Defaults to Dollars when held,
+    /// The selected payment source ("Buy with"). Defaults to Dollars when held,
     /// otherwise the largest eligible balance.
     var paymentMint: PublicKey
 
@@ -55,7 +55,9 @@ final class BuyAmountViewModel {
         isBalanceEmpty ? "Add Money" : "Next"
     }
 
-    var screenTitle: String { "Get" }
+    var screenTitle: String {
+        BuyFlowTitle.forCurrency(mint, session: session, ratesController: ratesController)
+    }
 
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
