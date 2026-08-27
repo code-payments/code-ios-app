@@ -35,4 +35,9 @@ struct ReceiptSettleGateTests {
         gate.cancel()
         #expect(gate.settlingID == nil)
     }
+
+    @Test("The default settle floor is the spec's 0.70s")
+    func defaultDelayIsSettleFloor() {
+        #expect(ReceiptSettleGate.defaultDelay == .milliseconds(700))
+    }
 }
