@@ -481,7 +481,7 @@ private struct WalletScreenContent: View {
                         .padding(.bottom, 44)
 
                     if tutorialState.isVisible {
-                        NewUserTutorialView(
+                        TutorialChecklistCard(
                             title: "Send Your First Tip",
                             items: tutorialState.items,
                             onTap: handleTutorialTap

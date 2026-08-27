@@ -331,8 +331,28 @@ struct YouScreen: View {
     private var pageContent: some View {
         VStack(spacing: 0) {
             if displayName != nil {
-                TipCardLinkRow(url: url)
-                    .padding(.top, 70)
+                if profileTutorialState.isVisible {
+                    TutorialChecklistCard(
+                        title: "Finish Your Profile",
+                        items: profileTutorialState.items,
+                        onTap: handleProfileTutorialTap
+                    )
+                    .padding(.top, 32)
+                    .accessibilityIdentifier("you-profile-tutorial-card")
+
+                    // Fences the checklist off from the tip-card block below it
+                    // — the two are unrelated chores that would otherwise read
+                    // as one list.
+                    Color.rowSeparator
+                        .frame(height: 1)
+                        .padding(.top, 20)
+
+                    TipCardLinkRow(url: url)
+                        .padding(.top, 20)
+                } else {
+                    TipCardLinkRow(url: url)
+                        .padding(.top, 70)
+                }
 
                 HStack(spacing: 10) {
                     TipCardActionButton(asset: .shareOS, title: "Share", action: shareTipCard)
@@ -454,6 +474,7 @@ struct YouScreen: View {
 
     private var profile: Profile? { sessionContainer.session.profile }
     private var profilePicture: ProfilePicture? { profile?.profilePicture }
+    private var profileTutorialState: ProfileTutorialState { .init(profile: profile) }
 
     private var displayName: String? {
         guard let name = profile?.displayName, !name.isEmpty else { return nil }
@@ -632,6 +653,18 @@ struct YouScreen: View {
     /// `.proceed` — there is nothing left here to branch on.
     private func beginUsernameClaim() {
         router.push(.username(username))
+    }
+
+    private func handleProfileTutorialTap(_ item: ProfileTutorialItem) {
+        switch item {
+        case .profilePicture:
+            router.push(.changeProfilePicture)
+        case .minimumTipAmount:
+            // Stubbed: setting the minimum tip is separate work. The row still
+            // renders and counts, and checks itself off if the profile already
+            // carries a fee.
+            break
+        }
     }
 
     /// The `.incomplete` card's tap: names the minimum and offers the way to

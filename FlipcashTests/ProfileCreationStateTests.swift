@@ -75,8 +75,8 @@ struct ProfileCreationStateTests {
         #expect(state.reservedBlobID == nil)
     }
 
-    @Test("A successful upload attaches the picture and releases the bitmap")
-    func successAttachesAndReleases() async throws {
+    @Test("A successful upload attaches the picture and keeps the bitmap on screen")
+    func successAttachesAndKeepsTheBitmap() async throws {
         let uploader = StubUploader()
         let state = try await makeState()
 
@@ -84,8 +84,21 @@ struct ProfileCreationStateTests {
 
         #expect(uploader.setPictureCount == 1)
         #expect(uploader.refreshCount == 1)
-        #expect(state.selectedImage == nil)
+        // Still selected: the photo screen draws it through its checkmark, and
+        // clearing it here would blink the avatar back to its placeholder.
+        #expect(state.selectedImage != nil)
         #expect(state.isUploading == false)
+    }
+
+    @Test("Releasing the selection drops the bitmap the screen was drawing")
+    func releaseDropsTheBitmap() async throws {
+        let uploader = StubUploader()
+        let state = try await makeState()
+
+        try await state.uploadPhoto(with: uploader)
+        state.releaseSelectedImage()
+
+        #expect(state.selectedImage == nil)
     }
 
     @Test("Uploading without a photo fails before reserving anything")
