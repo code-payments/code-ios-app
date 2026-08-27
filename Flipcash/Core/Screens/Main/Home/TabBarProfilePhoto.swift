@@ -7,8 +7,6 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-private let logger = Logger(label: "flipcash.tab-bar-photo")
-
 /// The You tab's icon once the profile carries a picture: the photo in a white
 /// ring, standing in the slot the outline glyph otherwise occupies (Figma node
 /// 9641:17115).
@@ -79,23 +77,15 @@ final class TabBarProfilePhoto {
         // this runs again whenever the profile is refreshed.
         guard blobID != loadedBlobID else { return }
 
-        do {
-            // Download URLs expire, so one is minted per load and never stored.
-            guard let url = try await client.blobDownloadURL(blobID: blobID, owner: owner) else {
-                logger.info("Profile picture blob has no download URL", metadata: ["blobId": "\(blobID)"])
-                return
-            }
+        // A failed fetch leaves the previous icon up rather than clearing it: the
+        // tab keeps whatever it was already drawing.
+        guard let image = await ProfilePictureLoader.thumbnail(for: picture, using: client, owner: owner),
+              !Task.isCancelled
+        else { return }
 
-            let image = try await RemoteImageLoader.image(at: url, cacheKey: blobID.description)
-            guard !Task.isCancelled else { return }
-
-            photo = image
-            itemImages = Self.render(image)
-            loadedBlobID = blobID
-        } catch {
-            guard !Task.isCancelled else { return }
-            logger.info("Failed to load the profile picture for the tab bar", metadata: ["error": "\(error)"])
-        }
+        photo = image
+        itemImages = Self.render(image)
+        loadedBlobID = blobID
     }
 
     /// Draws the icon into the pair of images a `UITabBarItem` holds.
