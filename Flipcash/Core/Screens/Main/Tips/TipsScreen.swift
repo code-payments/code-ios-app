@@ -36,16 +36,44 @@ struct TipsScreen: View {
 // MARK: - Chats title -
 
 /// The v2 large, flush start-aligned "Chats" tab title (Android parity —
-/// `screenTitleLarge` / `appTitleLarge`).
+/// `screenTitleLarge` / `appTitleLarge`), with the new-chat button beside it.
 struct ChatsTabTitle: View {
+
+    @Environment(AppRouter.self) private var router
+
     var body: some View {
-        Text("Chats")
-            .font(.appTitleLarge)
-            .foregroundStyle(Color.textMain)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 12)
+        HStack(spacing: 0) {
+            Text("Chats")
+                .font(.appTitleLarge)
+                .foregroundStyle(Color.textMain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                router.push(.usernameLookup)
+            } label: {
+                // The design draws a 44pt circle (node 9443:8560). On iOS 26
+                // `.buttonStyle(.glass)` pads outside the label, so the label
+                // is 32 and the glass reaches 44; the fallback style draws the
+                // circle at the label's own bounds, so there it is 44 already.
+                if #available(iOS 26, *) {
+                    Image.system(.plus)
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.textMain)
+                        .frame(width: 32, height: 32)
+                } else {
+                    Image.system(.plus)
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.textMain)
+                        .frame(width: 44, height: 44)
+                }
+            }
+            .liquidGlassButtonStyle(shape: .circle)
+            .accessibilityLabel("New chat")
+            .accessibilityIdentifier("new-chat-button")
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
     }
 }
 

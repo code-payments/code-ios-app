@@ -14,8 +14,8 @@ struct TipCardLinkRowTests {
 
     @Test("A uuid is still clipped to a stub")
     func displayText_uuid_clipped() {
-        let url = URL(string: "https://flipcash.com/tip/b0ced1d2-3f4a-4b5c-8d9e-0f1a2b3c4d5e")!
-        #expect(TipCardLinkRow.displayText(for: url) == "flipcash.com/tip/b0ced…")
+        let url = URL(string: "https://flipcash.com/b0ced1d2-3f4a-4b5c-8d9e-0f1a2b3c4d5e")!
+        #expect(TipCardLinkRow.displayText(for: url) == "flipcash.com/b0ced…")
     }
 
     @Test("The longest handle renders whole")

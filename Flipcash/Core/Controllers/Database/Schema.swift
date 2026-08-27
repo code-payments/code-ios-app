@@ -243,6 +243,9 @@ nonisolated struct ConversationMemberTable: Sendable {
     let profilePictureThumbnailBlobID = Expression <Data?>   ("profilePictureThumbnailBlobID")
     // The thumbnail rendition's BlurHash preview, when present.
     let profilePictureThumbnailBlurhash = Expression <String?> ("profilePictureThumbnailBlurhash")
+    // The member's claimed handle, when they have one. Carried on the same
+    // profile the feed embeds, so it is cached rather than refetched.
+    let username = Expression <String?> ("username")
 }
 
 // One row per message; cash content is decomposed across the amount columns
@@ -497,6 +500,7 @@ nonisolated extension Database {
                 t.column(conversationMemberTable.profilePictureBlobID)
                 t.column(conversationMemberTable.profilePictureThumbnailBlobID)
                 t.column(conversationMemberTable.profilePictureThumbnailBlurhash)
+                t.column(conversationMemberTable.username)
             })
         }
 

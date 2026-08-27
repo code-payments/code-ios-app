@@ -56,6 +56,7 @@ struct SettingsMyAccountScreen: View {
                 SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: .beta, insets: insets) {
                     router.push(.settingsAccountSelection)
                 }
+                .accessibilityIdentifier("account-switch-accounts-row")
             }
         }
         .font(.appDisplayXS)

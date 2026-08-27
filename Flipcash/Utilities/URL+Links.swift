@@ -19,9 +19,11 @@ extension URL {
 
     /// The public page that opens this user's tipcard.
     ///
-    /// A claimed handle gets the vanity form — no `/tip/` segment and no `@`,
-    /// so the link reads as a name. Both platforms build the URL here and only
-    /// here, on the apex host: its `apple-app-site-association` ends in a `/*`
+    /// Both forms sit at the root — a claimed handle, or the lowercase user id
+    /// when there isn't one — with no `/tip/` segment and no `@`, so the link
+    /// reads as a name as soon as its owner claims one and the shape of the URL
+    /// doesn't change when they do. Both platforms build it here and only here,
+    /// on the apex host: its `apple-app-site-association` ends in a `/*`
     /// component, so a bare handle opens the app, and the marketing pages the
     /// app itself links to are excluded there by path.
     static func tipcard(for userID: UserID, username: Username?) -> URL {
@@ -29,7 +31,7 @@ extension URL {
         if let username {
             return URL(string: "\(host)/\(username.value)")!
         }
-        return URL(string: "\(host)/tip/\(userID.uuidString.lowercased())")!
+        return URL(string: "\(host)/\(userID.uuidString.lowercased())")!
     }
 
     static var privacyPolicy: URL {

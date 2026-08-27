@@ -280,7 +280,11 @@ struct RouteTests {
         }
     }
 
-    @Test("Tip route parses the user id from both URL formats", arguments: [
+    @Test("Tip route parses the user id from every host and scheme", arguments: [
+        "https://flipcash.com/11111111-2222-3333-4444-555555555555",
+        "https://app.flipcash.com/11111111-2222-3333-4444-555555555555",
+        "flipcash://11111111-2222-3333-4444-555555555555",
+        // The `/tip/` form links already shared still carry.
         "https://app.flipcash.com/tip/11111111-2222-3333-4444-555555555555",
         "flipcash://tip/11111111-2222-3333-4444-555555555555",
     ])
@@ -300,6 +304,14 @@ struct RouteTests {
     ])
     func tipRouteMalformed(urlString: String) {
         #expect(Route(url: URL(string: urlString)!) == nil)
+    }
+
+    @Test("A root segment that only resembles a uuid stays unknown")
+    func tipRoute_partialUUID_isUnknown() throws {
+        let path = try #require(Route(url: URL(string: "https://flipcash.com/11111111-2222")!)?.path)
+        if case .unknown = path {} else {
+            Issue.record("A truncated uuid should parse as .unknown")
+        }
     }
 
     // MARK: - Vanity Handle URLs -

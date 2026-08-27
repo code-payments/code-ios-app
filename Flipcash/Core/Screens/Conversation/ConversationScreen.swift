@@ -16,9 +16,14 @@ import FlipcashUI
 private let logger = Logger(label: "flipcash.conversation")
 
 /// How a conversation is reached: an existing DM chat (only tip DMs are
-/// surfaced now — contact/phone DMs were retired with the Send tab).
+/// surfaced now — contact/phone DMs were retired with the Send tab), or a tip
+/// DM named by its counterpart before the chat exists server-side.
 nonisolated enum ConversationContext: Hashable {
     case existing(ConversationID)
+    /// A tip DM opened from the username lookup. The chat is created by the
+    /// first tip, so until then there is no record to reach it by — only the
+    /// counterpart, whose id derives the chat's own id locally.
+    case tipDM(counterpart: UserID)
 
     /// Resolves the counterpart's synced contact from the directory — the one
     /// rule the nav title, transcript profile card, and profile page share.
@@ -26,6 +31,9 @@ nonisolated enum ConversationContext: Hashable {
         switch self {
         case .existing(let conversationID):
             directory.first { $0.dmChatID == conversationID.data }
+        case .tipDM:
+            // A tip DM's counterpart is known by profile, never by address book.
+            nil
         }
     }
 }
@@ -75,15 +83,31 @@ struct ConversationScreen: View {
         switch context {
         case .existing(let conversationID):
             return conversationID
+        case .tipDM(let counterpart):
+            // The same derivation the server uses, so the id is known before
+            // the chat is — and matches the one the first tip creates.
+            return .tipDm(between: conversationController.selfUserID, and: counterpart)
         }
     }
 
-    /// The tip DM counterpart, when this conversation is a tip DM.
+    /// The counterpart this screen was opened for, when it was opened by
+    /// person rather than by chat.
+    private var counterpartUserID: UserID? {
+        switch context {
+        case .existing: nil
+        case .tipDM(let counterpart): counterpart
+        }
+    }
+
+    /// The tip DM counterpart, when this conversation is a tip DM. Falls back
+    /// to the cached profile before the first tip creates the chat.
     private var tipCounterpart: ConversationMember? {
-        guard let conversationID,
-              let conversation = conversationController.conversation(withID: conversationID),
-              conversation.type == .tipDm else { return nil }
-        return conversation.counterpart(excluding: conversationController.selfUserID)
+        if let conversationID,
+           let conversation = conversationController.conversation(withID: conversationID),
+           conversation.type == .tipDm {
+            return conversation.counterpart(excluding: conversationController.selfUserID)
+        }
+        return Self.cachedCounterpart(counterpartUserID, session: session)
     }
 
     /// Who Send Cash pays: the tip counterpart in a tip DM, the synced
@@ -95,17 +119,35 @@ struct ConversationScreen: View {
             return .contact(contact)
         }
         guard let conversationID else { return nil }
-        return SendTarget(
+        if let target = SendTarget(
             conversation: conversationController.conversation(withID: conversationID),
             dmChatID: conversationID.data,
             selfUserID: conversationController.selfUserID
-        )
+        ) {
+            return target
+        }
+        // No conversation record to read the counterpart from yet, so the
+        // cached profile is what the tip is addressed to.
+        guard let member = tipCounterpart, let userID = member.userID else { return nil }
+        return .tip(TipRecipient(
+            userID: userID,
+            displayName: member.displayName,
+            username: member.username,
+            origin: .chat
+        ))
     }
 
-    /// Whether the conversation resolves to a server-side chat id. A tip DM
-    /// always carries one once resolved.
+    /// Whether a chat exists to hold a transcript. An `existing` conversation
+    /// was reached by its chat id, so it does by construction; a tip DM opened
+    /// by counterpart does not until the first tip creates it server-side.
     private var chatExists: Bool {
-        conversationID != nil
+        guard let conversationID else { return false }
+        switch context {
+        case .existing:
+            return true
+        case .tipDM:
+            return conversationController.conversation(withID: conversationID) != nil
+        }
     }
 
     /// For a tip DM, all counterpart taps open the profile screen — even when
@@ -134,6 +176,11 @@ struct ConversationScreen: View {
     }
 
     private var title: String {
+        // Without a chat there is no conversation record to name, so the
+        // counterpart's cached profile is the only source for the title.
+        if !chatExists, let name = tipCounterpart?.displayName {
+            return name
+        }
         if let conversationID {
             return conversationController.displayName(forConversationID: conversationID)
         }
@@ -153,7 +200,9 @@ struct ConversationScreen: View {
         // no SwiftUI `.safeAreaInset` bar here.
         ChatScreenRepresentable(
             items: coordinator?.items ?? [],
-            onReachTop: { coordinator?.reachedTop() },
+            // Paging history for a chat the server hasn't created yet fetches
+            // against an id it doesn't know and error-reports.
+            onReachTop: { if chatExists { coordinator?.reachedTop() } },
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
@@ -365,17 +414,49 @@ struct ConversationScreen: View {
                 session: session,
                 // `tipAvatars` is captured directly so the coordinator retains
                 // one small store, not the whole session container.
-                profileCard: { [context, contactSyncController, conversationController, tipAvatars = sessionContainer.tipAvatars] in
+                profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, tipAvatars = sessionContainer.tipAvatars] in
                     Self.profileCard(
                         context: context,
                         conversationID: id,
                         directory: contactSyncController.resolvedContacts.onFlipcash,
                         controller: conversationController,
-                        tipAvatars: tipAvatars
+                        tipAvatars: tipAvatars,
+                        // Resolved inside the closure, not captured: the card
+                        // must pick up the conversation the first tip creates.
+                        fallbackCounterpart: Self.cachedCounterpart(counterpartUserID, session: session)
                     )
                 }
             )
         }
+    }
+
+    /// The card relationship for a tip DM. A tip DM has no address-book
+    /// relationship to fall back on, so a counterpart who hasn't claimed a
+    /// handle keeps the name-only card they had before handles existed.
+    static func tipDMCounterpart(_ member: ConversationMember?) -> ChatProfileCard.Counterpart {
+        guard let username = member?.username else { return .none }
+        return .handle(username)
+    }
+
+    /// The counterpart of a tip DM that has no chat yet, built from a fetched
+    /// profile. Gives the title, card, and Send Cash target the same member
+    /// shape a synced conversation would supply.
+    static func counterpart(userID: UserID, profile: Profile) -> ConversationMember {
+        ConversationMember(
+            userID: userID,
+            // A name-less account can still be tipped, and the chat has to be
+            // titled either way — the same fallback a conversation gets.
+            displayName: profile.displayName ?? ConversationController.fallbackCounterpartName,
+            profilePicture: profile.profilePicture,
+            username: profile.username
+        )
+    }
+
+    /// ``counterpart(userID:profile:)`` against the profile cache the username
+    /// lookup writes on its way here.
+    private static func cachedCounterpart(_ userID: UserID?, session: Session) -> ConversationMember? {
+        guard let userID, let profile = session.cachedUserProfile(for: userID) else { return nil }
+        return counterpart(userID: userID, profile: profile)
     }
 
     /// The transcript's profile card for the counterpart, resolved live from the directory the
@@ -387,7 +468,8 @@ struct ConversationScreen: View {
         conversationID: ConversationID,
         directory: [ResolvedContact],
         controller: ConversationController,
-        tipAvatars: TipAvatarStore
+        tipAvatars: TipAvatarStore,
+        fallbackCounterpart: ConversationMember? = nil
     ) -> ChatProfileCard {
         if let conversation = controller.conversation(withID: conversationID),
            conversation.type == .tipDm {
@@ -397,7 +479,17 @@ struct ConversationScreen: View {
                 avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
                 imageData: tipAvatars.data(for: counterpart?.userID),
                 blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
-                counterpart: .none
+                counterpart: Self.tipDMCounterpart(counterpart)
+            )
+        }
+        // No conversation record yet — the same card, from the cached profile.
+        if let counterpart = fallbackCounterpart {
+            return ChatProfileCard(
+                name: counterpart.displayName,
+                avatarID: counterpart.userID?.uuidString ?? conversationID.description,
+                imageData: tipAvatars.data(for: counterpart.userID),
+                blurhash: counterpart.profilePicture?.thumbnailBlurhash,
+                counterpart: Self.tipDMCounterpart(counterpart)
             )
         }
         if let contact = context.resolvedContact(in: directory) {
