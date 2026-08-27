@@ -76,32 +76,50 @@ struct ChatInsertionStateTests {
         return attributes
     }
 
+    /// Where `edge`, measured from the row's centre, lands once the starting transform is applied.
+    private func mappedEdge(_ edge: CGFloat, of attributes: ChatLayoutAttributes) -> CGFloat {
+        CGPoint(x: edge, y: 0).applying(attributes.transform).x
+    }
+
     @Test("An outgoing insert is anchored to the trailing edge, an incoming one to the leading edge")
     func insertionStateAnchorsToSendersEdge() {
-        // Scaling a 400pt row to 0.95 loses 20pt of width; half of that is the centre shift needed to
+        // Scaling a 400pt row to 0.95 loses 20pt of width; half of that is the translation needed to
         // hold one edge still.
-        let expectedShift: CGFloat = 10
+        let half: CGFloat = 200
 
         let outgoing = attributes()
-        let outgoingCentre = outgoing.center.x
         ChatMotion.applyInsertionState(to: outgoing, sender: .me)
         #expect(outgoing.alpha == 0)
         #expect(outgoing.transform.a == ChatMotion.insertionScale)
-        #expect(abs(outgoing.center.x - (outgoingCentre + expectedShift)) < 0.001)
+        #expect(abs(mappedEdge(half, of: outgoing) - half) < 0.001)
 
         let incoming = attributes()
-        let incomingCentre = incoming.center.x
         ChatMotion.applyInsertionState(to: incoming, sender: .other)
-        #expect(abs(incoming.center.x - (incomingCentre - expectedShift)) < 0.001)
+        #expect(abs(mappedEdge(-half, of: incoming) + half) < 0.001)
+    }
+
+    @Test("The anchor holds through the spring's overshoot, not just at the start")
+    func insertionAnchorHoldsPastUnity() {
+        let half: CGFloat = 200
+        let outgoing = attributes()
+        ChatMotion.applyInsertionState(to: outgoing, sender: .me)
+
+        // Both parts of the transform interpolate together, so the edge is fixed at every point on
+        // the line from the starting transform to identity — including past it, where a bouncy
+        // spring actually goes. `u` is that progress: 0 is the start, 1 is at rest, 1.05 is overshoot.
+        for u: CGFloat in [0.0, 0.5, 1.0, 1.05] {
+            let scale = ChatMotion.insertionScale + (1 - ChatMotion.insertionScale) * u
+            let tx = outgoing.transform.tx * (1 - u)
+            #expect(abs(half * scale + tx - half) < 0.001)
+        }
     }
 
     @Test("A row with no sender scales about its own centre")
     func insertionStateWithoutSenderDoesNotShift() {
         let attributes = attributes()
-        let centre = attributes.center.x
         ChatMotion.applyInsertionState(to: attributes, sender: nil)
         #expect(attributes.alpha == 0)
         #expect(attributes.transform.a == ChatMotion.insertionScale)
-        #expect(attributes.center.x == centre)
+        #expect(attributes.transform.tx == 0)
     }
 }

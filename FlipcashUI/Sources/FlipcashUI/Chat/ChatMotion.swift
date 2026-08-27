@@ -147,23 +147,32 @@ public nonisolated enum ChatMotion {
 
     // MARK: - Insertion geometry
 
-    /// Where an inserted row starts before it springs into place: transparent, scaled down by
-    /// `insertionScale`, and shifted so the shrink is anchored to the sender's own edge — the bubble
-    /// grows out of its side of the thread rather than out of thin air. A row with no sender (a date
-    /// separator, the profile card) scales about its centre.
+    /// Where an inserted row starts before it springs into place: transparent and scaled down by
+    /// `insertionScale` about the sender's own edge, so the bubble grows out of its side of the
+    /// thread rather than out of thin air. A row with no sender (a date separator, the profile card)
+    /// scales about its centre.
+    ///
+    /// The off-centre anchor rides in the transform rather than in `center`, because ChatLayout
+    /// overwrites the pending animation's `frame` — and with it `center` — when a self-sizing insert
+    /// re-measures mid-flight. `transform` is what survives that, so the anchor has to live there.
+    /// Assignment is absolute, so re-applying on a re-measure is safe.
     ///
     /// Takes the attributes rather than reaching for a collection view, so the geometry is testable
     /// without a layout pass.
     public static func applyInsertionState(to attributes: ChatLayoutAttributes, sender: ChatMessage.Sender?) {
-        // Read the width before the transform: setting `frame` on layout attributes resets `transform`.
-        let width = attributes.frame.width
         attributes.alpha = 0
-        attributes.transform = CGAffineTransform(scaleX: insertionScale, y: insertionScale)
-        guard let sender else { return }
+        let scale = CGAffineTransform(scaleX: insertionScale, y: insertionScale)
+        guard let sender else {
+            attributes.transform = scale
+            return
+        }
         // A row is full-width, so scaling about its centre pulls both edges in by half the lost
-        // width. Push the centre back out by that much and the sender's edge stays put.
-        let shift = (1 - insertionScale) * width / 2
-        attributes.center.x += sender == .me ? shift : -shift
+        // width. Translating back out by that much holds the sender's edge still — and holds it at
+        // every point of the spring, overshoot included, because both parts interpolate together.
+        let anchor = (1 - insertionScale) * attributes.frame.width / 2
+        attributes.transform = scale.concatenating(
+            CGAffineTransform(translationX: sender == .me ? anchor : -anchor, y: 0)
+        )
     }
 }
 #endif
