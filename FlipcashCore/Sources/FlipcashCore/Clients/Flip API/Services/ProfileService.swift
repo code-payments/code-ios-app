@@ -179,6 +179,35 @@ final class ProfileService: Sendable {
             throw ErrorUpdateTipCard.unknown
         }
     }
+
+    /// Sets the minimum fee another user must pay to initialize a DM chat with
+    /// the caller, replacing any fee already set.
+    func setMinDmChatInitFee(_ fee: FiatAmount, owner: KeyPair) async throws {
+        logger.info("Setting minimum DM chat init fee")
+
+        var request = Flipcash_Profile_V1_SetMinDmChatInitFeeRequest()
+        request.minDmChatInitFee = .with {
+            $0.currency     = fee.currency.rawValue
+            $0.nativeAmount = fee.doubleValue
+        }
+        request.auth = owner.authFor(message: request)
+
+        do {
+            let response = try await service.setMinDmChatInitFee(request, options: .unaryDefault)
+            let error = ErrorSetMinDmChatInitFee(rawValue: response.result.rawValue) ?? .unknown
+            guard error == .ok else {
+                logger.error("Failed to set minimum DM chat init fee", metadata: ["error": "\(error)"])
+                throw error
+            }
+            logger.info("Minimum DM chat init fee set")
+        } catch let error as ErrorSetMinDmChatInitFee {
+            throw error
+        } catch let error as RPCError {
+            throw ErrorSetMinDmChatInitFee.from(transportError: error)
+        } catch {
+            throw ErrorSetMinDmChatInitFee.unknown
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -220,6 +249,28 @@ extension ErrorUpdateTipCard: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .invalidColor: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+public enum ErrorSetMinDmChatInitFee: Int, Error {
+    case ok
+    case denied
+    /// e.g. unsupported currency, or amount outside the allowed range.
+    case invalidAmount
+    case unknown = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorSetMinDmChatInitFee: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .invalidAmount: .info
         case .unknown, .rejected: .error
         }
     }
