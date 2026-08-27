@@ -8,6 +8,8 @@
 #if canImport(UIKit)
 import UIKit
 import SwiftUI
+import ChatLayout
+import FlipcashCore
 
 /// A spring expressed the way the design tuned it: perceptual `duration` and `bounce`, the same two
 /// numbers SwiftUI's `.spring(duration:bounce:)` takes.
@@ -74,13 +76,15 @@ public nonisolated struct ChatSpring: Hashable, Sendable {
     }
 
     /// The Core Animation form, for properties `UIView` animations can't drive — a `CAShapeLayer`'s
-    /// `path`, in this codebase. The caller supplies `fromValue`/`toValue`.
-    public func layerAnimation(keyPath: String) -> CASpringAnimation {
+    /// `path`, in this codebase.
+    public func layerAnimation(keyPath: String, from: Any? = nil, to: Any? = nil) -> CASpringAnimation {
         let animation = CASpringAnimation(keyPath: keyPath)
         animation.mass = Self.mass
         animation.stiffness = stiffness
         animation.damping = damping
         animation.initialVelocity = 0
+        animation.fromValue = from
+        animation.toValue = to
         // Not `duration`: that is the perceptual figure, and cutting a `CAAnimation` off there
         // snaps the remaining travel. `settlingDuration` is how long the spring actually needs.
         animation.duration = animation.settlingDuration
@@ -140,5 +144,26 @@ public nonisolated enum ChatMotion {
     /// How long a sent message holds before its "Delivered" line appears. A floor, not a fixed
     /// delay: the line waits for server confirmation too, whichever is later.
     public static let deliveredDelay: TimeInterval = 0.70
+
+    // MARK: - Insertion geometry
+
+    /// Where an inserted row starts before it springs into place: transparent, scaled down by
+    /// `insertionScale`, and shifted so the shrink is anchored to the sender's own edge — the bubble
+    /// grows out of its side of the thread rather than out of thin air. A row with no sender (a date
+    /// separator, the profile card) scales about its centre.
+    ///
+    /// Takes the attributes rather than reaching for a collection view, so the geometry is testable
+    /// without a layout pass.
+    public static func applyInsertionState(to attributes: ChatLayoutAttributes, sender: ChatMessage.Sender?) {
+        // Read the width before the transform: setting `frame` on layout attributes resets `transform`.
+        let width = attributes.frame.width
+        attributes.alpha = 0
+        attributes.transform = CGAffineTransform(scaleX: insertionScale, y: insertionScale)
+        guard let sender else { return }
+        // A row is full-width, so scaling about its centre pulls both edges in by half the lost
+        // width. Push the centre back out by that much and the sender's edge stays put.
+        let shift = (1 - insertionScale) * width / 2
+        attributes.center.x += sender == .me ? shift : -shift
+    }
 }
 #endif
