@@ -24,7 +24,7 @@ struct YouTabRoutingTests {
         router.activeTabStack = .you
         router.push(.settingsMyAccount)
         #expect(router[.you] == AppRouter.navigationPath(.settingsMyAccount))
-        #expect(router[.settings].isEmpty) // never leaks onto the Settings sheet's stack
+        #expect(router[.balance].isEmpty) // never leaks onto another tab's stack
     }
 
     @Test("a self tipcard link brings the You tab forward at its root")
@@ -32,7 +32,7 @@ struct YouTabRoutingTests {
         let router = AppRouter()
         // Drilled into My Account behind a sheet — where a self link can land.
         router.setPath([.settingsMyAccount], on: .you)
-        router.present(.settings)
+        router.present(.give)
 
         router.showOwnTipCard()
 

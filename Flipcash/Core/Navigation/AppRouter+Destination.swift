@@ -92,7 +92,12 @@ extension AppRouter {
         case userProfile(UserID)
 
         /// The stack this destination naturally belongs in. Cross-stack
-        /// navigation uses this to know which sheet to present.
+        /// navigation uses this to know which sheet to present, or which tab
+        /// to bring forward when the stack is tab-hosted.
+        ///
+        /// The settings destinations own `.you`: the You tab renders the
+        /// settings list inline and pushes them onto its own stack — there is
+        /// no Settings sheet to present them in.
         var owningStack: Stack {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
@@ -103,7 +108,7 @@ extension AppRouter {
             case .settingsMyAccount, .changeDisplayName, .username, .settingsAdvancedFeatures,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
-                return .settings
+                return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup,
                  .tipConversation, .tipConversationWithKeyboard, .tipConversationForUser,
                  .userProfile:

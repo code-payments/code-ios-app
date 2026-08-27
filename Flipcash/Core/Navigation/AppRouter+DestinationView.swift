@@ -113,7 +113,7 @@ struct DestinationView: View {
         case .withdraw:
             // No preselected mint — the flow starts on the currency picker.
             WithdrawFlowRoot(
-                onComplete: { sessionContainer.appRouter.popToRoot(on: .settings) }
+                onComplete: { sessionContainer.appRouter.popToRoot() }
             )
 
         case .withdrawCurrency(let mint):

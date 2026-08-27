@@ -14,7 +14,6 @@ extension AppRouter {
     /// surfaces in.
     enum Stack: Hashable, CaseIterable, Sendable, CustomStringConvertible {
         case balance
-        case settings
         case give
         case buy
         case addMoney
@@ -34,7 +33,6 @@ extension AppRouter {
         var sheet: SheetPresentation? {
             switch self {
             case .balance:      nil
-            case .settings:     .settings
             case .give:         .give
             case .buy:          nil
             case .addMoney:     nil
@@ -56,7 +54,6 @@ extension AppRouter {
         var isTabHosted: Bool {
             switch self {
             case .balance:      true
-            case .settings:     false
             case .give:         false
             case .buy:          false
             case .addMoney:     false
@@ -70,7 +67,6 @@ extension AppRouter {
         var description: String {
             switch self {
             case .balance:      "balance"
-            case .settings:     "settings"
             case .give:         "give"
             case .buy:          "buy"
             case .addMoney:     "addMoney"

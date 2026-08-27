@@ -52,7 +52,7 @@ struct AddMoneyRoutingTests {
 
     @Test(
         "The options report a non-buy entry everywhere else",
-        arguments: [AppRouter.SheetPresentation.settings, .give, .tips]
+        arguments: [AppRouter.SheetPresentation.give, .tips, .downloadApp]
     )
     func isAddMoneyOverBuy_nonBuyEntry(root: AppRouter.SheetPresentation) {
         let router = AppRouter()

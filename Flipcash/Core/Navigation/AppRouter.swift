@@ -18,7 +18,7 @@ private let logger = Logger(label: "flipcash.router")
 ///
 /// Paths are stored as `NavigationPath` (type-erased) so a single stack
 /// can carry destinations of more than one Hashable type — for example,
-/// the Settings stack carries `Destination` cases at the top level and
+/// the Wallet stack carries `Destination` cases at the top level and
 /// `WithdrawNavigationPath` cases for the multi-step withdraw flow.
 /// This avoids nested `NavigationStack`s, which crash with
 /// `comparisonTypeMismatch` on push/pop/push cycles.
@@ -272,7 +272,7 @@ final class AppRouter {
     /// Semantics:
     /// - Already at this exact state (`presentedSheets == [sheet]`) → idempotent.
     /// - Same root with nested sheets above → pop the nested(s), keep root.
-    ///   `present(.settings)` while `[.settings, .buy(mint)]` is up → `[.settings]`.
+    ///   `present(.give)` while `[.give, .buy(mint)]` is up → `[.give]`.
     /// - Different root (with or without nested above) → dismiss everything,
     ///   present new root.
     ///

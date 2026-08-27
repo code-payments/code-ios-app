@@ -14,7 +14,6 @@ extension AppRouter {
     /// once — the bottom of the stack is the root sheet (overlays the tab bar)
     /// and any subsequent entries are nested sheets that visually stack on top.
     nonisolated enum SheetPresentation: Identifiable, Hashable, Sendable, CustomStringConvertible {
-        case settings
         case give
         case buy(PublicKey)
         /// Standalone Add Money flow (deposit USDF). Payload selects the
@@ -34,7 +33,6 @@ extension AppRouter {
         /// re-presentation starts at root rather than restoring the stale leaf.
         var stack: Stack {
             switch self {
-            case .settings:     .settings
             case .give:         .give
             case .buy:          .buy
             case .addMoney:     .addMoney
@@ -49,7 +47,6 @@ extension AppRouter {
         /// comparing the stringly-typed `description`.
         var caseKind: CaseKind {
             switch self {
-            case .settings:     .settings
             case .give:         .give
             case .buy:          .buy
             case .addMoney:     .addMoney
@@ -60,7 +57,6 @@ extension AppRouter {
         }
 
         enum CaseKind: Hashable, Sendable {
-            case settings
             case give
             case buy
             case addMoney
@@ -71,7 +67,6 @@ extension AppRouter {
 
         var description: String {
             switch self {
-            case .settings:     "settings"
             case .give:         "give"
             case .buy:          "buy"
             case .addMoney:     "addMoney"

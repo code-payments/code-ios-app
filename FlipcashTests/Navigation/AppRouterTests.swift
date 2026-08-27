@@ -175,10 +175,10 @@ struct AppRouterTests {
     @Test("pushAny accepts non-Destination Hashable types")
     func pushAny_acceptsHashable() {
         let router = AppRouter()
-        router.present(.settings)
+        router.present(.give)
         router.push(.withdraw)
         router.pushAny(WithdrawNavigationPath.enterAmount)
-        #expect(router[.settings].count == 2)
+        #expect(router[.give].count == 2)
     }
 
     // MARK: - Stack inference
@@ -189,7 +189,7 @@ struct AppRouterTests {
         router.activeTabStack = .balance
         router.push(.currencyInfo(.usdc))
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
-        #expect(router[.settings].isEmpty)
+        #expect(router[.you].isEmpty)
         #expect(router[.give].isEmpty)
     }
 
@@ -198,7 +198,7 @@ struct AppRouterTests {
         let router = AppRouter()
         router.push(.currencyInfo(.usdc))
         #expect(router[.balance].isEmpty)
-        #expect(router[.settings].isEmpty)
+        #expect(router[.you].isEmpty)
         #expect(router[.give].isEmpty)
     }
 
@@ -211,14 +211,14 @@ struct AppRouterTests {
         // give flow's "Add More Cash" path).
         let router = AppRouter()
 
-        router.present(.settings)
-        router.push(.withdraw)
-        #expect(router[.settings].count == 1)
+        router.present(.tips)
+        router.push(.tipcard)
+        #expect(router[.tips].count == 1)
 
         router.present(.give)
         router.push(.currencyInfoForDeposit(.usdc))
 
-        #expect(router[.settings].count == 1, "settings path preserved across swap")
+        #expect(router[.tips].count == 1, "tips path preserved across swap")
         #expect(router[.give].count == 1, "new push lands on the current sheet's stack")
         #expect(router[.balance].isEmpty)
     }
@@ -226,9 +226,9 @@ struct AppRouterTests {
     @Test("pushAny lands on the currently-presented sheet's stack")
     func pushAny_landsOnPresentedStack() {
         let router = AppRouter()
-        router.present(.settings)
+        router.present(.tips)
         router.pushAny(WithdrawNavigationPath.enterAmount)
-        #expect(router[.settings].count == 1)
+        #expect(router[.tips].count == 1)
         #expect(router[.balance].isEmpty)
         #expect(router[.give].isEmpty)
     }
@@ -238,17 +238,17 @@ struct AppRouterTests {
         let router = AppRouter()
         router.pushAny(WithdrawNavigationPath.enterAmount)
         #expect(router[.balance].isEmpty)
-        #expect(router[.settings].isEmpty)
+        #expect(router[.tips].isEmpty)
         #expect(router[.give].isEmpty)
     }
 
     @Test("pushAny(on:) lands on the named stack, not the topmost one")
     func pushAnyOnStack_landsOnNamedStack() {
         let router = AppRouter()
-        router.present(.settings)
+        router.present(.tips)
         router.pushAny(WithdrawNavigationPath.enterAmount, on: .balance)
         #expect(router[.balance].count == 1)
-        #expect(router[.settings].isEmpty)
+        #expect(router[.tips].isEmpty)
     }
 
     @Test("pushAny(on:) pushes with no sheet presented")
@@ -325,7 +325,7 @@ struct AppRouterTests {
         router.present(.give)
         router.push(.currencyInfoForDeposit(.usdc))
         router.dismissSheet()
-        router.present(.settings)
+        router.present(.tips)
 
         router.present(.give)
 
@@ -338,14 +338,14 @@ struct AppRouterTests {
         let router = AppRouter()
         router.present(.give)
         router.push(.currencyInfoForDeposit(.usdc))
-        router.setPath([.settingsMyAccount], on: .settings)
+        router.setPath([.tipcard], on: .tips)
 
-        router.present(.settings)
+        router.present(.tips)
         router.present(.give)
 
         #expect(router[.give] == AppRouter.navigationPath(.currencyInfoForDeposit(.usdc)),
                 "swap-back must restore the original path")
-        #expect(router[.settings] == AppRouter.navigationPath(.settingsMyAccount),
+        #expect(router[.tips] == AppRouter.navigationPath(.tipcard),
                 "the swapped-from path must survive")
     }
 
