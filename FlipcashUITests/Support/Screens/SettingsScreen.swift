@@ -44,6 +44,23 @@ struct SettingsUIScreen {
     /// beta-access easter egg.
     var versionFooter: XCUIElement { app.buttons["you-version-footer"] }
 
+    /// The toast the version footer raises, matched on the message it carries.
+    ///
+    /// Identifier and label are matched in one predicate because the toast
+    /// clears itself two seconds after it appears: finding the element first
+    /// and reading its label second races that timer.
+    func versionToast(_ message: String) -> XCUIElement {
+        app.staticTexts
+            .matching(
+                NSPredicate(
+                    format: "identifier == %@ AND label == %@",
+                    "you-version-toast",
+                    message
+                )
+            )
+            .firstMatch
+    }
+
     // MARK: - Actions
 
     /// Opens the You tab, which hosts the settings list.

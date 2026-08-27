@@ -427,6 +427,10 @@ struct YouScreen: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // On the button rather than the composed view: an identifier applied
+        // outside the overlay propagates onto the toast too, and an element
+        // carrying an identifier is no longer addressable by its label.
+        .accessibilityIdentifier("you-version-footer")
         // Overlaid rather than stacked: the countdown speaks on consecutive
         // taps, and a toast that took up space would walk the version string
         // out from under the finger.
@@ -438,10 +442,10 @@ struct YouScreen: View {
                         .offset(x: 0, y: 20)
                         .combined(with: .opacity.animation(.easeOutFastest))
                     )
+                    .accessibilityIdentifier("you-version-toast")
             }
         }
         .animation(.springFaster, value: versionUnlock.message)
-        .accessibilityIdentifier("you-version-footer")
     }
 
     // MARK: - Content -
