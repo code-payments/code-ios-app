@@ -9,9 +9,13 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// The My Account settings list (Figma node 9277:121893): who this account
-/// deals with. The account-level actions — Access Key, Log Out, Delete
-/// Account — live on Advanced.
+/// The My Account settings list (Figma node 9544:18478): who this account
+/// deals with, and the profile it presents. The account-level actions — Access
+/// Key, Log Out, Delete Account — live on Advanced.
+///
+/// The design also lists Minimum Tip and Require Biometrics. Neither is here:
+/// the minimum-tip editor is still to be built, and iOS has no biometrics
+/// setting to toggle.
 struct SettingsMyAccountScreen: View {
 
     @Environment(AppRouter.self) private var router
@@ -34,15 +38,20 @@ struct SettingsMyAccountScreen: View {
     @ViewBuilder
     private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsRow(asset: .profile, title: "Change Display Name", insets: insets) {
+            SettingsRow(asset: .profile, title: "Display Name", insets: insets) {
                 router.push(.changeDisplayName)
             }
+
+            SettingsRow(asset: .photo, title: "Profile Picture", insets: insets) {
+                router.push(.changeProfilePicture)
+            }
+            .accessibilityIdentifier("account-profile-picture-row")
 
             // No balance gate here: the gate exists to stop squatting at claim time. A user who
             // already holds a handle has cleared it, and re-gating a change would hold their
             // handle hostage to a balance that has since moved.
             if let username = session.profile?.username {
-                SettingsRow(asset: .profile, title: "Change Username", insets: insets) {
+                SettingsRow(asset: .profile, title: "Username", insets: insets) {
                     router.push(.username(username))
                 }
                 .accessibilityIdentifier("account-change-username-row")
