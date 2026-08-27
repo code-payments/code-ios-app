@@ -21,6 +21,12 @@ final class SendAmountViewModel {
         case failed
     }
 
+    enum Error: Swift.Error {
+        /// The send reached submission with nothing to spend from — no balance
+        /// resolved, or the resolved balance can't price the entered amount.
+        case noSpendableBalance
+    }
+
     var enteredAmount: String = ""
 
     var depositMint: PublicKey?
@@ -31,6 +37,9 @@ final class SendAmountViewModel {
     @ObservationIgnored let resolver: any RecipientResolving
     @ObservationIgnored let target: SendTarget
     @ObservationIgnored private let amountValidator = AmountValidator()
+
+    /// The mint this flow opened for, replayed by the re-resolve below.
+    @ObservationIgnored private let initialMint: PublicKey?
 
     private(set) var selectedBalance: ExchangedBalance?
 
@@ -85,11 +94,52 @@ final class SendAmountViewModel {
         self.sender          = sender ?? session
         self.resolver        = resolver ?? session
         self.target          = target
+        self.initialMint     = mint
         self.selectedBalance = resolved
 
-        if let resolved, ratesController.selectedTokenMint != resolved.stored.mint {
-            ratesController.selectToken(resolved.stored.mint)
+        if let resolved {
+            syncGlobalTokenSelection(to: resolved)
+        } else {
+            observeBalancesForInitialResolve()
         }
+    }
+
+    // MARK: - Balance resolution -
+
+    /// Re-runs the initial resolve when the balance list or display rate
+    /// changes, until it lands on a balance.
+    ///
+    /// A tip deep link builds this view model at the coldest point of a cold
+    /// launch — before balances have loaded and before the rate stream has
+    /// delivered anything — so the initial resolve can legitimately come up
+    /// empty. Without this the nil snapshot sticks for the life of the flow:
+    /// the token pill renders as a bare chevron and every submission fails the
+    /// `selectedBalance` guard in `submit`. Re-arms after each change since
+    /// `withObservationTracking` is one-shot, and stops once a balance lands or
+    /// the user picks one themselves.
+    private func observeBalancesForInitialResolve() {
+        withObservationTracking {
+            _ = session.balances
+            _ = ratesController.rateForBalanceCurrency()
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, selectedBalance == nil else { return }
+                guard let resolved = ratesController.resolveInitialBalance(
+                    mint: initialMint,
+                    session: session
+                ) else {
+                    observeBalancesForInitialResolve()
+                    return
+                }
+                selectedBalance = resolved
+                syncGlobalTokenSelection(to: resolved)
+            }
+        }
+    }
+
+    private func syncGlobalTokenSelection(to balance: ExchangedBalance) {
+        guard ratesController.selectedTokenMint != balance.stored.mint else { return }
+        ratesController.selectToken(balance.stored.mint)
     }
 
     // MARK: - Action -
@@ -138,7 +188,23 @@ final class SendAmountViewModel {
               let exchangedFiat = selectedBalance.enteredFiat(
                 for: entered,
                 rate: ratesController.rateForBalanceCurrency()
-              ) else { return .failed }
+              ) else {
+            // No RPC and no thrown error, so this is invisible unless reported:
+            // the swipe control just resets its knob and the user sees nothing.
+            ErrorReporting.captureError(
+                Error.noSpendableBalance,
+                reason: "No spendable balance at send submission",
+                metadata: [
+                    "target": targetLogID,
+                    "mint": selectedBalance?.stored.mint.base58 ?? "unresolved",
+                ]
+            )
+            session.dialogItem = .error(
+                title: "Balance Unavailable",
+                subtitle: "We couldn't load your balance. Please try again."
+            )
+            return .failed
+        }
 
         guard enforceTipMinimum(entered: entered) else { return .failed }
 
