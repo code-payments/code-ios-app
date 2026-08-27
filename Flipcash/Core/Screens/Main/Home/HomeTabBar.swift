@@ -17,6 +17,10 @@ struct HomeTabBar: View {
     /// Per-tab unread badge counts; a tab absent or mapped to 0 shows no badge.
     var badgeCounts: [HomeTab: Int] = [:]
 
+    /// The signed-in profile's picture, which the You tab wears in place of its
+    /// glyph. Nil keeps the glyph.
+    var profilePhoto: UIImage?
+
     private let tabs = HomeTab.allCases
 
     // Figma tab bar (node 8966:1557): 32pt icons in 50pt-tall items (9pt above
@@ -50,12 +54,7 @@ struct HomeTabBar: View {
                         Button {
                             selection = tab
                         } label: {
-                            Image(tab.iconName(isSelected: tab == selection))
-                                .renderingMode(.template)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: Self.iconSize, height: Self.iconSize)
-                                .foregroundStyle(Color.white)
+                            icon(for: tab)
                                 .opacity(selection == tab ? 1 : 0.5)
                                 .overlay(alignment: .topTrailing) {
                                     if let count = badgeCounts[tab], count > 0 {
@@ -86,6 +85,22 @@ struct HomeTabBar: View {
         .frame(height: Self.itemHeight)
         .padding(Self.capsulePadding)
         .capsuleGlassBackground()
+    }
+
+    /// The You tab draws the profile picture once there is one; every other tab,
+    /// and a profile without a picture, keeps the outline glyph.
+    @ViewBuilder
+    private func icon(for tab: HomeTab) -> some View {
+        if tab == .tipCard, let profilePhoto {
+            ProfileTabIcon(photo: profilePhoto)
+        } else {
+            Image(tab.iconName(isSelected: tab == selection))
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: Self.iconSize, height: Self.iconSize)
+                .foregroundStyle(Color.white)
+        }
     }
 }
 

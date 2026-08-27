@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import FlipcashCore
 import FlipcashUI
 
 /// The post-login root. Hosts the four tabs, launches on Wallet, and owns the
@@ -20,8 +21,13 @@ struct HomeTabView: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(Container.self) private var container
 
     @State private var selection: HomeTab = .initial
+
+    /// The You tab's icon, once the profile has a picture. Owned here rather
+    /// than by either bar, because both bars want the same download.
+    @State private var profilePhoto = TabBarProfilePhoto()
 
     init() {
         // Color the tab glyphs per state: selected white, the rest secondary.
@@ -96,6 +102,19 @@ struct HomeTabView: View {
                 tipCardPresentation.collapse()
             }
             .onDisappear { router.activeTabStack = nil }
+            // Keyed on the blob, so setting or replacing a picture reloads the
+            // icon and clearing one drops it back to the glyph.
+            .task(id: profilePicture?.thumbnailBlobID) {
+                await profilePhoto.load(
+                    profilePicture,
+                    using: container.flipClient,
+                    owner: sessionContainer.session.ownerKeyPair
+                )
+            }
+    }
+
+    private var profilePicture: ProfilePicture? {
+        sessionContainer.session.profile?.profilePicture
     }
 
     /// Brings the tab the router asked for forward and clears the request.
@@ -126,11 +145,7 @@ struct HomeTabView: View {
                     tabContent(for: tab)
                         .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
                 } label: {
-                    // Always the outline. The filled counterpart is handed to
-                    // UIKit below as the item's `selectedImage`, so the system
-                    // owns the swap — choosing here instead would only ever be
-                    // right once the selection had committed.
-                    Image(tab.iconName(isSelected: false))
+                    tabLabel(for: tab)
                         .accessibilityLabel(tab.accessibilityLabel)
                 }
                 // Unread-chat count on the Chat tab; a count of 0 hides the badge.
@@ -146,7 +161,22 @@ struct HomeTabView: View {
         // handing it the pair is what makes the icons fill under the finger
         // rather than when the drag commits — the binding does not change until
         // the finger lifts.
-        .background(TabBarSelectedIcons(tabs: HomeTab.allCases))
+        .background(TabBarSelectedIcons(tabs: HomeTab.allCases, profileImages: profilePhoto.itemImages))
+    }
+
+    /// The unselected icon for a tab. The filled counterpart is handed to UIKit
+    /// as the item's `selectedImage`, so the system owns the swap — choosing here
+    /// instead would only ever be right once the selection had committed.
+    ///
+    /// This has to agree with what the probe writes. SwiftUI rewrites the item's
+    /// image from this label whenever it rebuilds the bar, so a label that
+    /// disagreed would take turns with the probe and flicker between the two.
+    @ViewBuilder private func tabLabel(for tab: HomeTab) -> some View {
+        if tab == .tipCard, let photo = profilePhoto.itemImages?.normal {
+            Image(uiImage: photo).renderingMode(.original)
+        } else {
+            Image(tab.iconName(isSelected: false))
+        }
     }
 
     private static let pillBottomMargin: CGFloat = 8
@@ -165,7 +195,11 @@ struct HomeTabView: View {
                 .transition(.opacity)
 
             if !isTabBarHidden {
-                HomeTabBar(selection: $selection, badgeCounts: [.chat: chatBadgeCount])
+                HomeTabBar(
+                    selection: $selection,
+                    badgeCounts: [.chat: chatBadgeCount],
+                    profilePhoto: profilePhoto.photo
+                )
                     // Figma insets the pill ~42pt from each edge (318pt wide on the
                     // 402pt frame); a fixed margin keeps the floating look across
                     // device widths.
@@ -279,18 +313,27 @@ private struct TipCardTab: View {
 private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     let tabs: [HomeTab]
 
-    func makeUIViewController(context: Context) -> Probe { Probe(tabs: tabs) }
+    /// The You tab's photo, in place of its glyph. Passed by value so the
+    /// enclosing body observes it landing and this representable is updated.
+    let profileImages: TabBarProfilePhoto.ItemImages?
+
+    func makeUIViewController(context: Context) -> Probe {
+        Probe(tabs: tabs, profileImages: profileImages)
+    }
 
     func updateUIViewController(_ probe: Probe, context: Context) {
         probe.tabs = tabs
+        probe.profileImages = profileImages
         probe.apply()
     }
 
     final class Probe: UIViewController {
         var tabs: [HomeTab]
+        var profileImages: TabBarProfilePhoto.ItemImages?
 
-        init(tabs: [HomeTab]) {
+        init(tabs: [HomeTab], profileImages: TabBarProfilePhoto.ItemImages?) {
             self.tabs = tabs
+            self.profileImages = profileImages
             super.init(nibName: nil, bundle: nil)
         }
 
@@ -319,6 +362,14 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
             }
 
             for (item, tab) in zip(items, tabs) {
+                if tab == .tipCard, let profileImages {
+                    // Already rendered at the dimmed and full opacities the bar
+                    // would otherwise get by tinting a template glyph.
+                    item.image = profileImages.normal
+                    item.selectedImage = profileImages.selected
+                    continue
+                }
+
                 item.image = UIImage(named: tab.iconName(isSelected: false))?
                     .withRenderingMode(.alwaysTemplate)
                 item.selectedImage = UIImage(named: tab.iconName(isSelected: true))?
