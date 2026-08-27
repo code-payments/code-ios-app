@@ -117,9 +117,14 @@ final class ProfileCreationState {
 
         try await uploader.setProfilePicture(blobID: blobID)
         try await uploader.refreshProfile()
+    }
 
-        // The sheet root outlives this flow, so the bitmap would sit resident
-        // until the sheet closes.
+    /// Drops the selected bitmap once the screen showing it is done with it.
+    ///
+    /// Separate from the upload because the sheet root outlives this flow — the
+    /// bitmap would otherwise sit resident until the sheet closes — while the
+    /// photo screen still draws it through its success confirmation.
+    func releaseSelectedImage() {
         selectedImage = nil
     }
 

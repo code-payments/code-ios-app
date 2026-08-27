@@ -12,6 +12,16 @@ private let logger = Logger(label: "flipcash.profile-photo")
 
 struct ProfilePhotoScreen: View {
 
+    /// Where a saved photo leads.
+    enum Completion {
+        /// Profile setup: on to the tip card the profile was made for.
+        case tipcard
+        /// A lone edit: back to the screen that opened this one.
+        case back
+    }
+
+    var completion: Completion = .tipcard
+
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
@@ -21,22 +31,29 @@ struct ProfilePhotoScreen: View {
     @State private var isShowingFilePicker = false
     @State private var errorDialog: DialogItem?
 
-    private static let avatarSize: CGFloat = 150
+    /// Drives the submit button: spinner while uploading, then the checkmark the
+    /// rest of the app shows on a completed action.
+    @State private var buttonState: ButtonState = .normal
+
+    private static let avatarSize: CGFloat = 158
+    private static let plusSize: CGFloat = 64
 
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                Text("Upload Your Photo")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-                    .padding(.top, 20)
+                if completion == .tipcard {
+                    Text("Upload Your Photo")
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.textMain)
+                        .padding(.top, 20)
 
-                Text("This photo will be shown when receiving tips")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 8)
-                    .padding(.horizontal, 20)
+                    Text("This photo will be shown when receiving tips")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 8)
+                        .padding(.horizontal, 20)
+                }
 
                 Spacer()
 
@@ -44,7 +61,7 @@ struct ProfilePhotoScreen: View {
                     Button("Photo Library", systemImage: "photo.on.rectangle") { isShowingPhotoPicker = true }
                     Button("Choose File", systemImage: "folder") { isShowingFilePicker = true }
                 } label: {
-                    CircleImage(image: state.selectedImage, size: Self.avatarSize, plusSize: 40)
+                    CircleImage(image: state.selectedImage, size: Self.avatarSize, plusSize: Self.plusSize)
                 }
                 .menuIndicator(.hidden)
                 .disabled(state.isUploading)
@@ -52,29 +69,28 @@ struct ProfilePhotoScreen: View {
 
                 if let name = state.validatedDisplayName {
                     Text(name)
-                        .font(.appDisplaySmall)
+                        .font(.appDisplayCompact)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
-                        .padding(.top, 16)
+                        .padding(.top, 21)
                 }
 
                 Spacer()
 
                 Button(action: state.beginUpload) {
-                    if state.isUploading {
-                        ProgressView().progressViewStyle(.circular)
-                    } else {
-                        Text("Next")
-                    }
+                    ButtonStateLabel(completion == .tipcard ? "Next" : "Save", state: buttonState)
                 }
                 .buttonStyle(.filled)
-                .disabled(!state.canSubmitPhoto)
+                // The checkmark hold keeps the photo selected, so the button
+                // needs the state to stay shut against a second submission.
+                .disabled(!state.canSubmitPhoto || !buttonState.isNormal)
                 .accessibilityIdentifier("profile-photo-next-button")
                 .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .navigationTitle(completion == .tipcard ? "" : "Set Profile Picture")
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $errorDialog)
         .fullScreenCover(isPresented: $isShowingPhotoPicker) {
@@ -99,6 +115,7 @@ struct ProfilePhotoScreen: View {
     }
 
     private func upload() async {
+        buttonState = .loading
         do {
             try await state.uploadPhoto(
                 with: SessionProfilePictureUploader(
@@ -106,23 +123,43 @@ struct ProfilePhotoScreen: View {
                     flipClient: container.flipClient
                 )
             )
-            // Creation lands on the tipcard — the thing the profile was made
-            // for — with the conversation list beneath it as the Tips root.
-            router.popToRoot(on: .tips)
-            router.push(.tipcard)
+
+            buttonState = .success
+            // Same beat onboarding holds its checkmark for, so the confirmation
+            // is seen before the screen changes.
+            try? await Task.delay(milliseconds: 500)
+
+            // Released only now: dropping it any earlier empties the avatar back
+            // to its placeholder while the checkmark is still up.
+            state.releaseSelectedImage()
+
+            guard !Task.isCancelled else { return }
+
+            switch completion {
+            case .tipcard:
+                // Creation lands on the tipcard — the thing the profile was made
+                // for — with the conversation list beneath it as the Tips root.
+                router.popToRoot(on: .tips)
+                router.push(.tipcard)
+            case .back:
+                router.popTopmost()
+            }
 
         } catch let error as ErrorBlob {
+            buttonState = .normal
             guard !Task.isCancelled else { return }
             logger.info("Profile picture upload failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Profile picture upload failed")
             errorDialog = .profilePictureFailed(error)
 
         } catch let error as ImageEncoderError {
+            buttonState = .normal
             logger.error("Failed to encode the profile picture", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to encode the profile picture")
             errorDialog = .imageProcessingFailed
 
         } catch {
+            buttonState = .normal
             guard !Task.isCancelled else { return }
             logger.error("Failed to set profile picture", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to set profile picture")

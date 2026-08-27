@@ -80,4 +80,23 @@ struct YouTabRoutingTests {
         router.popTopmost()
         #expect(router[.you] == AppRouter.navigationPath(.settingsMyAccount))
     }
+
+    @Test("changing the profile picture belongs to the You tab, not the setup flow's stack")
+    func changeProfilePicture_ownsTheYouStack() {
+        #expect(AppRouter.Destination.changeProfilePicture.owningStack == .you)
+        // The setup flow's own photo step keeps its Tips stack.
+        #expect(AppRouter.Destination.profilePhoto.owningStack == .tips)
+    }
+
+    @Test("changing the profile picture pushes onto the You tab, and saving pops back")
+    func changeProfilePicture_pushesAndPopsOnYouStack() {
+        let router = AppRouter()
+        router.activeTabStack = .you
+        router.push(.changeProfilePicture)
+        #expect(router[.you] == AppRouter.navigationPath(.changeProfilePicture))
+
+        // What `ProfilePhotoScreen(completion: .back)` runs once the photo uploads.
+        router.popTopmost()
+        #expect(router[.you].isEmpty)
+    }
 }

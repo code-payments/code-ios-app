@@ -54,6 +54,10 @@ extension AppRouter {
         /// profile-setup flow starts on the same screen but carries on to the
         /// tip card; this one returns to the settings list.
         case changeDisplayName
+        /// The profile picture on its own, changed from the You tab's checklist.
+        /// The full profile-setup flow uses `.profilePhoto`, which carries on to
+        /// the tip card; this one returns to the screen that opened it.
+        case changeProfilePicture
         /// The public handle, claimed from the You page or changed from My
         /// Account. One destination for both: the screen seeds itself from the
         /// handle already on the profile, so there is nothing to distinguish.
@@ -105,7 +109,8 @@ extension AppRouter {
                  .transactionHistory, .activity, .give, .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
-            case .settingsMyAccount, .changeDisplayName, .username, .settingsAdvancedFeatures,
+            case .settingsMyAccount, .changeDisplayName, .changeProfilePicture, .username,
+                 .settingsAdvancedFeatures,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .you
@@ -138,6 +143,7 @@ extension AppRouter {
             case .usdcDepositAddress:           "usdcDepositAddress"
             case .settingsMyAccount:            "settingsMyAccount"
             case .changeDisplayName:            "changeDisplayName"
+            case .changeProfilePicture:         "changeProfilePicture"
             case .username:                     "username"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAdvancedBetaFeatures: "settingsAdvancedBetaFeatures"
@@ -183,7 +189,8 @@ extension AppRouter {
             case .activity,
                  .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
-                 .settingsMyAccount, .changeDisplayName, .settingsAdvancedFeatures,
+                 .settingsMyAccount, .changeDisplayName, .changeProfilePicture,
+                 .settingsAdvancedFeatures,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup:
