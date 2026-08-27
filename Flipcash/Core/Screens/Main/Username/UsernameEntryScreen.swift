@@ -78,13 +78,10 @@ struct UsernameEntryScreen: View {
                 Spacer()
 
                 Button(action: submit) {
-                    ButtonStateLabel("Next", state: buttonState)
+                    ButtonStateLabel(currentUsername == nil ? "Next" : "Save", state: buttonState)
                 }
                 .buttonStyle(.filled)
-                // Enabled for anything non-empty, unlike `ProfileNameScreen`'s
-                // validity-gated Next: the rejections are the point of the
-                // button here, so it has to be reachable while the input is bad.
-                .disabled(input.isEmpty || isSubmitting)
+                .disabled(!canSubmit || isSubmitting)
                 .accessibilityIdentifier("username-next-button")
                 .padding(.bottom, 20)
             }
@@ -106,6 +103,17 @@ struct UsernameEntryScreen: View {
     private var minimumBalance: FiatAmount? {
         guard let minimum = session.userFlags?.usernameMinBalance else { return nil }
         return .usd(minimum.decimalValue)
+    }
+
+    /// Enabled for anything non-empty that isn't the handle they already hold,
+    /// unlike `ProfileNameScreen`'s validity-gated button: the rejections are
+    /// the point of this one, so it has to be reachable while the input is bad.
+    private var canSubmit: Bool {
+        guard !input.isEmpty else { return false }
+        guard let current = currentUsername?.value else { return true }
+        // Compared through the validator so a change the validator normalizes
+        // away — a stray space, a different case — isn't treated as an edit.
+        return Self.validator.validate(input)?.value != current
     }
 
     private func submit() {

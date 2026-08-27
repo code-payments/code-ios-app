@@ -56,24 +56,24 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         settings.navigateToMyAccount(from: self)
         waitAndTap(settings.displayNameRow)
 
-        let next = app.buttons["profile-name-next-button"]
-        XCTAssertTrue(next.waitForExistence(timeout: 30), "Expected the name editor")
+        let save = app.buttons["profile-name-next-button"]
+        XCTAssertTrue(save.waitForExistence(timeout: 30), "Expected the name editor")
 
-        // The editor is seeded with the name already on the profile, so Next
-        // starts enabled — clear the field to see it disable.
+        // The editor is seeded with the name already on the profile, and Save
+        // takes an actual change — so it starts disabled on the seeded name.
         let field = app.textFields["Your Name"]
         XCTAssertTrue(field.waitForExistence(timeout: 10), "Expected the name field")
-        XCTAssertTrue(next.isEnabled, "Next must start enabled with the existing name in the field")
+        XCTAssertFalse(save.isEnabled, "Save must start disabled on the name already on the profile")
 
         field.tap()
         let seeded = (field.value as? String) ?? ""
         XCTAssertFalse(seeded.isEmpty, "Expected the editor to be seeded with the current name")
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: seeded.count))
-        XCTAssertFalse(next.isEnabled, "Next must disable while the name is empty")
+        XCTAssertFalse(save.isEnabled, "Save must stay disabled while the name is empty")
 
         field.typeText("Renamed \(Int.random(in: 1_000...9_999))")
-        XCTAssertTrue(next.isEnabled, "Next must re-enable once the name is valid")
-        next.tap()
+        XCTAssertTrue(save.isEnabled, "Save must enable once the name is valid and changed")
+        save.tap()
 
         // `ProfileNameScreen(completion: .back)` pops itself only once
         // `SetDisplayName` returns, so landing back on My Account is proof the

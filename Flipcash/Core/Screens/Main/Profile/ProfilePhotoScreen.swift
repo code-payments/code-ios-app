@@ -35,6 +35,11 @@ struct ProfilePhotoScreen: View {
     /// rest of the app shows on a completed action.
     @State private var buttonState: ButtonState = .normal
 
+    /// The picture already on the profile, so a lone edit opens on what it is
+    /// about to replace rather than on an empty circle. Drawn but never
+    /// submitted — Save stays shut until a new photo is picked.
+    @State private var currentPhoto: UIImage?
+
     private static let avatarSize: CGFloat = 158
     private static let plusSize: CGFloat = 64
 
@@ -61,7 +66,11 @@ struct ProfilePhotoScreen: View {
                     Button("Photo Library", systemImage: "photo.on.rectangle") { isShowingPhotoPicker = true }
                     Button("Choose File", systemImage: "folder") { isShowingFilePicker = true }
                 } label: {
-                    CircleImage(image: state.selectedImage, size: Self.avatarSize, plusSize: Self.plusSize)
+                    CircleImage(
+                        image: state.selectedImage ?? currentPhoto,
+                        size: Self.avatarSize,
+                        plusSize: Self.plusSize
+                    )
                 }
                 .menuIndicator(.hidden)
                 .disabled(state.isUploading)
@@ -112,6 +121,19 @@ struct ProfilePhotoScreen: View {
             guard state.hasPendingUpload else { return }
             await upload()
         }
+        // Keyed on the blob so a picture that changes underneath — including the
+        // one this screen just uploaded — is what the circle ends up drawing.
+        .task(id: profilePicture?.thumbnailBlobID) {
+            currentPhoto = await ProfilePictureLoader.thumbnail(
+                for: profilePicture,
+                using: container.flipClient,
+                owner: sessionContainer.session.ownerKeyPair
+            )
+        }
+    }
+
+    private var profilePicture: ProfilePicture? {
+        sessionContainer.session.profile?.profilePicture
     }
 
     private func upload() async {
@@ -129,6 +151,10 @@ struct ProfilePhotoScreen: View {
             // is seen before the screen changes.
             try? await Task.delay(milliseconds: 500)
 
+            // Held as the current picture first: releasing the selection alone
+            // would drop the circle back to whatever was downloaded before this
+            // upload, for as long as the pop takes.
+            currentPhoto = state.selectedImage
             // Released only now: dropping it any earlier empties the avatar back
             // to its placeholder while the checkmark is still up.
             state.releaseSelectedImage()
