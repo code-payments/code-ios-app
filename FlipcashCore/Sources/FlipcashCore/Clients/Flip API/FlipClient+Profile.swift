@@ -51,4 +51,10 @@ extension FlipClient {
     public func updateTipCard(_ customization: TipCardCustomization, owner: KeyPair) async throws {
         try await profileService.updateTipCard(color: customization.colorProto, owner: owner)
     }
+
+    /// Sets the minimum fee another user must pay to initialize a DM chat with
+    /// the caller, replacing any fee already set.
+    public func setMinDmChatInitFee(_ fee: FiatAmount, owner: KeyPair) async throws {
+        try await profileService.setMinDmChatInitFee(fee, owner: owner)
+    }
 }

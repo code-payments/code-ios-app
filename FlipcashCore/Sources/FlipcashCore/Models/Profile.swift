@@ -39,6 +39,11 @@ public struct Profile: Codable, Equatable, Sendable {
     /// Public — the server returns it for any user, not just the caller.
     public let username: Username?
 
+    /// The minimum fee another user must pay to initialize a DM chat with this
+    /// user. Public — returned for any user, not just the caller. `nil` when
+    /// the user hasn't set one, in which case the server default applies.
+    public let minDmChatInitFee: FiatAmount?
+
     public var isPhoneVerified: Bool {
         phone != nil
     }
@@ -56,7 +61,7 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil && phone?.e164 != previous?.phone?.e164
     }
 
-    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil) throws {
+    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil) throws {
 
         // Only parse phone if it's not empty
         var parsedPhone: Phone?
@@ -80,11 +85,12 @@ public struct Profile: Codable, Equatable, Sendable {
             joinedAt: joinedAt,
             tipCardCustomization: tipCardCustomization,
             userID: userID,
-            username: username
+            username: username,
+            minDmChatInitFee: minDmChatInitFee
         )
     }
 
-    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil) {
+    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil) {
         self.displayName = displayName
         self.phone = phone
         self.email = email
@@ -93,6 +99,7 @@ public struct Profile: Codable, Equatable, Sendable {
         self.tipCardCustomization = tipCardCustomization
         self.userID = userID
         self.username = username
+        self.minDmChatInitFee = minDmChatInitFee
     }
 }
 
@@ -126,7 +133,11 @@ extension Profile {
             joinedAt: proto.hasJoinTs ? proto.joinTs.date : nil,
             tipCardCustomization: proto.hasTipCardCustomization ? TipCardCustomization(proto.tipCardCustomization) : nil,
             userID: proto.hasUserID ? try? UUID(data: proto.userID.value) : nil,
-            username: proto.hasUsername ? Username(proto.username) : nil
+            username: proto.hasUsername ? Username(proto.username) : nil,
+            minDmChatInitFee: proto.hasMinDmChatInitFee ? FiatAmount(
+                value: Decimal(proto.minDmChatInitFee.nativeAmount),
+                currency: try CurrencyCode(currencyCode: proto.minDmChatInitFee.currency)
+            ) : nil
         )
     }
 }
