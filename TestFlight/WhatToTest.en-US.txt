@@ -10,6 +10,7 @@ New in this release:
 • Saving a name confirms with the same checkmark the rest of the app uses
 • Currencies with a zero balance stay out of the withdraw picker
 • Negative amounts put the minus ahead of the currency symbol
+• Open someone's tip card link from a cold start — the sheet shows a currency to tip with, and the swipe goes through
 
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
