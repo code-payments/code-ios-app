@@ -117,6 +117,65 @@ struct SendAmountViewModelTests {
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
+    @Test("A view model built before balances load resolves once they arrive")
+    func testInit_NoBalancesYet_ResolvesWhenBalancesArrive() async throws {
+        // A tip deep link builds the view model at the coldest point of a cold
+        // launch, before the balance list has loaded. The initial resolve comes
+        // up empty; without a re-resolve that nil sticks for the life of the
+        // flow — an empty token pill and a swipe that fails the `submit` guard.
+        let container = try SessionContainer.makeTest(holdings: [])
+        container.ratesController.configureTestRates(rates: [.oneToOne])
+        container.ratesController.selectedTokenMint = nil
+
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            target: .tip(TipRecipient(userID: UUID(), displayName: "Fred", origin: .tipcard)),
+            mint: nil
+        )
+        #expect(viewModel.selectedBalance == nil)
+
+        let mint = MintMetadata.makeLaunchpad(
+            address: .jeffy,
+            supplyFromBonding: 10_000 * 10_000_000_000
+        )
+        let now = Date.now
+        try container.database.insert(mints: [mint], date: now)
+        try container.database.transaction { db in
+            try db.insertBalance(quarks: 1_000_000_000_000, mint: mint.address, costBasis: 0, date: now)
+        }
+        NotificationCenter.default.post(name: .databaseDidChange, object: nil)
+
+        try await waitUntil(viewModel) { $0.selectedBalance?.stored.mint == .jeffy }
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
+    @Test("An explicit currency pick is not overwritten when balances later arrive")
+    func testInit_ExplicitPick_SurvivesLateBalanceArrival() async throws {
+        let container = try SessionContainer.makeTest(holdings: [])
+        container.ratesController.configureTestRates(rates: [.oneToOne])
+
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            target: .contact(Self.makeContact()),
+            mint: nil
+        )
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
+
+        let mint = MintMetadata.makeLaunchpad(
+            address: .jeffy,
+            supplyFromBonding: 10_000 * 10_000_000_000
+        )
+        let now = Date.now
+        try container.database.insert(mints: [mint], date: now)
+        try container.database.transaction { db in
+            try db.insertBalance(quarks: 1_000_000_000_000, mint: mint.address, costBasis: 0, date: now)
+        }
+        NotificationCenter.default.post(name: .databaseDidChange, object: nil)
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(viewModel.selectedBalance?.stored.mint == .usdf)
+    }
+
     // MARK: - canSend
 
     @Test("canSend is false when no amount is entered")
@@ -495,6 +554,30 @@ struct SendAmountViewModelTests {
         #expect(outcome == .failed)
         #expect(mock.sendCalls.isEmpty)  // the limit gate blocks before sending
         #expect(container.session.dialogItem?.title == "Transaction Limit Reached")
+    }
+
+    @Test("A submission with no resolved balance surfaces a dialog instead of failing silently")
+    func submit_noSelectedBalance_surfacesDialog() async throws {
+        // The swipe control swallows a `.failed` outcome and just resets its
+        // knob, so this branch has to report and dialog for itself.
+        let container = try SessionContainer.makeTest(holdings: [])
+        container.ratesController.configureTestRates(rates: [.oneToOne])
+        let mock = MockSession()
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            target: .tip(TipRecipient(userID: UUID(), displayName: "Fred", origin: .tipcard)),
+            mint: nil,
+            sender: mock,
+            resolver: mock
+        )
+        #expect(viewModel.selectedBalance == nil)
+
+        let outcome = await viewModel.submit(entered: 5)
+
+        #expect(outcome == .failed)
+        #expect(mock.sendCalls.isEmpty)
+        #expect(mock.resolveUserIDCalls.isEmpty)
+        #expect(container.session.dialogItem?.title == "Balance Unavailable")
     }
 
     // MARK: - Tip targets
