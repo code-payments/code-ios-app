@@ -11,15 +11,19 @@ import FlipcashCore
 
 /// The My Account settings list (Figma node 9544:18478): who this account
 /// deals with, and the profile it presents. The account-level actions — Access
-/// Key, Log Out, Delete Account — live on Advanced.
+/// Key, Switch Accounts, Log Out, Delete Account — live on Advanced.
 ///
 /// The design also lists Minimum Tip and Require Biometrics. Neither is here:
 /// the minimum-tip editor is still to be built, and iOS has no biometrics
 /// setting to toggle.
+///
+/// The row icons track Android's (`MyAccountMenuItems.kt`) through the nearest
+/// SF Symbol, so the two platforms read alike without importing Material into
+/// a system-symbol set. Profile Picture is the exception: `familiar_face_and_zone`
+/// has no SF equivalent, so it ships as an asset.
 struct SettingsMyAccountScreen: View {
 
     @Environment(AppRouter.self) private var router
-    @Environment(BetaFlags.self) private var betaFlags
     @Environment(Session.self) private var session
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
@@ -38,34 +42,27 @@ struct SettingsMyAccountScreen: View {
     @ViewBuilder
     private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsRow(asset: .profile, title: "Display Name", insets: insets) {
+            SettingsRow(systemImage: "person.text.rectangle", title: "Display Name", insets: insets) {
                 router.push(.changeDisplayName)
             }
-
-            SettingsRow(asset: .photo, title: "Profile Picture", insets: insets) {
-                router.push(.changeProfilePicture)
-            }
-            .accessibilityIdentifier("account-profile-picture-row")
 
             // No balance gate here: the gate exists to stop squatting at claim time. A user who
             // already holds a handle has cleared it, and re-gating a change would hold their
             // handle hostage to a balance that has since moved.
             if let username = session.profile?.username {
-                SettingsRow(asset: .profile, title: "Username", insets: insets) {
+                SettingsRow(systemImage: "at", title: "Username", insets: insets) {
                     router.push(.username(username))
                 }
                 .accessibilityIdentifier("account-change-username-row")
             }
 
+            SettingsRow(asset: .profilePicture, title: "Profile Picture", insets: insets) {
+                router.push(.changeProfilePicture)
+            }
+            .accessibilityIdentifier("account-profile-picture-row")
+
             SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
                 router.push(.blockedUsers)
-            }
-
-            if betaFlags.accessGranted {
-                SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: .beta, insets: insets) {
-                    router.push(.settingsAccountSelection)
-                }
-                .accessibilityIdentifier("account-switch-accounts-row")
             }
         }
         .font(.appDisplayXS)

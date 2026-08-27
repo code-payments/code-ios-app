@@ -25,6 +25,10 @@ import FlipcashUI
 /// add-your-name invitation in the card's place and drops the link and share
 /// affordances, but still renders — the settings rows are this account's only
 /// way to reach My Account, and with it Log Out.
+///
+/// The two settings rows carry Android's own drawables (`MenuItems.kt`) rather
+/// than SF Symbols: `person.text.rectangle` is already the Display Name row's
+/// glyph one screen down, so the nearest system symbol would read as a repeat.
 struct YouScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
@@ -389,7 +393,7 @@ struct YouScreen: View {
             SettingsRow(asset: .myAccount, title: "My Account", insets: rowInsets) {
                 router.push(.settingsMyAccount)
             }
-            SettingsRow(asset: .sliders, title: "Advanced", insets: rowInsets) {
+            SettingsRow(asset: .advanced, title: "Advanced", insets: rowInsets) {
                 router.push(.settingsAdvancedFeatures)
             }
         }
