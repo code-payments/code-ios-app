@@ -87,10 +87,13 @@ nonisolated extension Route {
         case token(PublicKey)
         case chat(ConversationID)
         case chatSendCash(ConversationID)
+        /// A tipcard link for a user who hasn't claimed a handle —
+        /// `flipcash.com/<userId>`. Also reached by the older `/tip/<userId>`
+        /// form, which stays parseable for links already shared.
         case tip(UserID)
-        /// A vanity tipcard link — `flipcash.com/<handle>`, no `/tip/`
-        /// segment and no `@`. The same destination as ``tip(_:)``, reached by
-        /// the handle its owner claimed rather than by their user id.
+        /// A vanity tipcard link — `flipcash.com/<handle>`, no `@`. The same
+        /// destination as ``tip(_:)``, reached by the handle its owner claimed
+        /// rather than by their user id.
         case username(Username)
         case give
         case balance
@@ -146,7 +149,9 @@ nonisolated extension Route {
                 }
                 return .chat(id)
             case "tip":
-                // The tipcard share URL: `/tip/{userId}`, lowercase UUID.
+                // The tipcard share URL as it used to be built: `/tip/{userId}`,
+                // lowercase UUID. New links put the id at the root instead
+                // (below); this stays for the ones already out there.
                 guard components.count > 1, let userID = UUID(uuidString: components[1]) else {
                     return nil
                 }
@@ -163,13 +168,23 @@ nonisolated extension Route {
             case "discover" where scheme == customScheme:
                 return .discover
             default:
-                // A single unmatched segment is a claimed handle. Lowercased
-                // first: handles are stored lowercase, and a link a messaging
-                // app auto-capitalized is still the same link. Whether the
-                // handle *can* be claimed — the reserved list — is the server's
-                // to say, so nothing is filtered out here beyond the routes
-                // above.
-                if components.count == 1, let username = Username(components[0].lowercased()) {
+                guard components.count == 1 else {
+                    return .unknown(url.lastPathComponent)
+                }
+                // A single unmatched segment is a tipcard: the user id when its
+                // owner has no handle, otherwise the handle itself. A uuid can
+                // never be mistaken for a handle — dashes aren't in the handle
+                // character set, and 36 characters overruns its length — so the
+                // two forms share the root without ambiguity.
+                if let userID = UUID(uuidString: components[0]) {
+                    return .tip(userID)
+                }
+                // Lowercased first: handles are stored lowercase, and a link a
+                // messaging app auto-capitalized is still the same link.
+                // Whether the handle *can* be claimed — the reserved list — is
+                // the server's to say, so nothing is filtered out here beyond
+                // the routes above.
+                if let username = Username(components[0].lowercased()) {
                     return .username(username)
                 }
                 return .unknown(url.lastPathComponent)

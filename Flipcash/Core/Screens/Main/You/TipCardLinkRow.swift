@@ -89,8 +89,9 @@ struct TipCardLinkRow: View {
     /// stub so a full-width one doesn't push the row's copy button off the edge.
     ///
     /// A claimed handle is never clipped here. It is at most 15 characters —
-    /// shorter than the `/tip/` segment it replaces — so it is handed to the
-    /// layout whole and elides only if it truly overruns the row.
+    /// well under the uuid that sits in the same place when there's no handle —
+    /// so it is handed to the layout whole and elides only if it truly overruns
+    /// the row.
     static func displayText(for url: URL) -> String {
         let stripped = url.absoluteString
             .replacingOccurrences(of: "https://", with: "")
