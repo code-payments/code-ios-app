@@ -26,7 +26,7 @@ struct BuyAmountScreen: View {
     var body: some View {
         BuyAmountScreenContent(
             mint: mint,
-            // A Get targets a token the user doesn't hold, so there's no balance
+            // A buy targets a token the user may not hold, so there's no balance
             // to name it — fall back to the synced mint metadata before the
             // generic placeholder, so the confirmation and processing screens
             // read "Buying <name>" rather than "this currency".
@@ -47,7 +47,7 @@ private struct BuyAmountScreenContent: View {
 
     @Environment(AppRouter.self) private var router
     /// True when this is the root of a presented sheet; false when pushed onto a
-    /// host stack (Convert/Get) where the system back arrow replaces Close.
+    /// host stack (Convert/Buy) where the system back arrow replaces Close.
     @Environment(\.presentedAsSheetRoot) private var presentedAsSheetRoot
 
     init(mint: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
@@ -109,7 +109,7 @@ private struct BuyAmountScreenContent: View {
             // fresh view identity per path value so init-seeded @State can't
             // survive a same-depth value swap (the DestinationView convention).
             BuyFlowDestinationView(path: path)
-                // The presented buy sheet dismisses itself; the pushed "Get" flow is
+                // The presented buy sheet dismisses itself; the pushed buy flow is
                 // pushed from a token's expanded card, so finishing pops back to
                 // the wallet and dismisses that card overlay.
                 .environment(\.dismissParentContainer, presentedAsSheetRoot
@@ -130,11 +130,11 @@ private struct BuyAmountScreenContent: View {
         .dialog(item: $viewModel.dialogItem)
     }
 
-    /// "Get with [currency ▾]" — the payment-source selector shown just above
+    /// "Buy with [currency ▾]" — the payment-source selector shown just above
     /// the keypad; opens the picker sheet.
     private var paymentSelector: some View {
         HStack(spacing: 12) {
-            Text("Get with")
+            Text("Buy with")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
 

@@ -2,8 +2,9 @@
 //  CurrencyInfoContentV2.swift
 //  Flipcash
 //
-//  The currency info layout: a hero bill card, inline Give / Convert /
-//  Withdraw (or Get) tiles, a per-token Recent preview, the reused market-cap
+//  The currency info layout: a hero bill card, inline Give / Buy More /
+//  Convert tiles (Give / Convert / Withdraw for Dollars, a lone Buy In for a
+//  currency that isn't held), a per-token Recent preview, the reused market-cap
 //  chart, the About block, and a created-at footer.
 //
 
@@ -50,9 +51,10 @@ struct CurrencyInfoContentV2: View {
     let onGive: () -> Void
     /// Convert — sells this (non-USDF) currency into a chosen destination.
     let onConvert: () -> Void
-    /// Get — routes to the buy flow for unowned tokens.
+    /// Buy — routes to the buy flow, whether or not the currency is held.
     let onBuy: () -> Void
-    /// Withdraw — the existing flow, pre-selected to this currency.
+    /// Withdraw — the existing flow, pre-selected to this currency. Only the
+    /// Dollars row carries the tile; anything else withdraws from Settings.
     let onWithdraw: () -> Void
     let onShowTransactionHistory: () -> Void
     /// Fires when the hero card's title scrolls out from under the toolbar, so
@@ -303,13 +305,19 @@ struct CurrencyInfoContentV2: View {
     @ViewBuilder private var actionTiles: some View {
         HStack(spacing: 12) {
             if isOwned {
-                // Convert works from any held currency — including Dollars,
-                // which converts via a reserves buy.
                 actionTile("Give", icon: .asset("IconBanknote"), action: onGive)
-                actionTile("Convert", icon: .system("arrow.up.arrow.down"), action: onConvert)
-                actionTile("Withdraw", icon: .system("arrow.up"), action: onWithdraw)
+                if isUSDF {
+                    // Dollars is what the other currencies are bought with, so
+                    // there is nothing to buy more of — it withdraws instead.
+                    // Its Convert goes out via a reserves buy.
+                    actionTile("Convert", icon: .asset("IconArrowBottomTop"), action: onConvert)
+                    actionTile("Withdraw", icon: .asset("IconArrowUp"), action: onWithdraw)
+                } else {
+                    actionTile("Buy More", icon: .asset("IconArrowDown"), action: onBuy)
+                    actionTile("Convert", icon: .asset("IconArrowBottomTop"), action: onConvert)
+                }
             } else {
-                actionTile("Get", icon: .system("arrow.down"), action: onBuy)
+                actionTile("Buy In", icon: .asset("IconArrowDown"), action: onBuy)
             }
         }
     }

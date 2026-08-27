@@ -13,6 +13,7 @@ struct BuyConfirmationScreen: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
     init(targetMint: PublicKey, targetName: String, payment: StoredBalance, paymentAmount: ExchangedFiat, pinnedState: VerifiedState) {
         self._viewModel = State(initialValue: BuyConfirmationViewModel(
@@ -82,7 +83,7 @@ struct BuyConfirmationScreen: View {
             }
             .padding(20)
         }
-        .navigationTitle("Get")
+        .navigationTitle(BuyFlowTitle.forCurrency(viewModel.targetMint, session: session, ratesController: ratesController))
         .toolbarTitleDisplayMode(.inline)
         // A submit is a live money movement — keep the user on this screen
         // until it resolves (the sheet's swipe-dismiss is already blocked at
