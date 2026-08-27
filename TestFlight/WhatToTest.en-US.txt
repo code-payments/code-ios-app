@@ -1,5 +1,16 @@
 What to test in this build
 
+New in this release:
+• Claim a username once your total Flipcash balance reaches $100, then open your tip card link and check people can find you by name
+• Start a chat with someone by entering their Flipcash username
+• Chat backfills messages you missed once your feed syncs
+• In-chat payments read as sends rather than tips
+• Discovery calls community holders members
+• The email AutoFill suggestion is back on the verification step
+• Saving a name confirms with the same checkmark the rest of the app uses
+• Currencies with a zero balance stay out of the withdraw picker
+• Negative amounts put the minus ahead of the currency symbol
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
