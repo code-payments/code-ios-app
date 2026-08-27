@@ -58,14 +58,11 @@ nonisolated struct EnterAmountCalculator {
         guard let amount = AmountValidator().validate(enteredAmount), amount > 0 else {
             return false
         }
-        // Use a currency-aware formatter to parse back the display value.
-        // The generic parsers in NumberFormatter.decimal(from:) can't parse
-        // currency symbols that don't match the device locale (e.g. ¥ on en_US).
-        let formatter = NumberFormatter.fiat(
-            currency: max.currency,
-            minimumFractionDigits: max.currency.maximumFractionDigits
-        )
-        let displayMax = formatter.number(from: max.formatted())?.decimalValue ?? 0
+        // Round to the currency's display precision the same way the formatter
+        // does, in Decimal. Formatting the max and parsing the string back went
+        // through a double — "$8.54" returned 8.539999999999999, rejecting an
+        // entry of exactly the displayed balance.
+        let displayMax = max.value.rounded(to: max.currency.maximumFractionDigits)
         return amount <= displayMax
     }
 
