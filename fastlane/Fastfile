@@ -522,17 +522,22 @@ platform :ios do
 
   # `notes:` inline, or `notes_file:` pointing at a file — the file form keeps
   # multi-line notes out of shell quoting. Returns nil when neither is set.
+  #
+  # Both sources are read as UTF-8 rather than in the caller's locale encoding:
+  # under a non-UTF-8 locale (e.g. `LC_ALL=C`) Ruby tags file contents and ARGV
+  # US-ASCII, and stripping notes that contain a `•` or `—` then raises
+  # Encoding::CompatibilityError.
   def resolve_beta_notes(options)
     text =
       if options[:notes_file]
         path = File.expand_path(options[:notes_file].to_s)
         UI.user_error!("notes_file '#{path}' not found") unless File.exist?(path)
-        File.read(path)
+        File.read(path, encoding: "UTF-8")
       else
-        options[:notes]
+        options[:notes].to_s.dup.force_encoding(Encoding::UTF_8)
       end
 
-    text = text.to_s.strip
+    text = text.strip
     text.empty? ? nil : text
   end
 
