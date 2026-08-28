@@ -28,8 +28,8 @@ public struct EnterAmountView: View {
     /// "Convert to [currency]" destination selector lives here.
     private let accessory: AnyView?
     /// Optional replacement for the default centered amount + subtitle block.
-    /// The Convert / Get flows pass a left-aligned `SwapAmountHeader`; when set,
-    /// the amount sits at the top rather than centered in the upper area.
+    /// The left-aligned flows pass an `EnterAmountHeader`; when set, the amount
+    /// sits at the top rather than centered in the upper area.
     private let header: AnyView?
 
     // MARK: - Calculator -
@@ -156,6 +156,9 @@ public struct EnterAmountView: View {
                                 .fixedSize()
                                 .foregroundStyle(.textError)
                                 .font(.appTextMedium)
+
+                        case .hidden:
+                            EmptyView()
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -213,17 +216,20 @@ extension EnterAmountView {
         case sell
         case convert
         case addMoney
+        /// Setting the minimum tip another user must pay to DM you. Not a
+        /// transaction, so no send limit applies.
+        case minimumTip
 
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .convert, .addMoney:
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
 
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .convert, .addMoney: return .number("0")
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip: return .number("0")
             }
         }
 
@@ -235,12 +241,13 @@ extension EnterAmountView {
             case .sell:     return "Next"
             case .convert:  return "Next"
             case .addMoney: return "Add Money"
+            case .minimumTip: return "Save"
             }
         }
 
         fileprivate var buttonStyle: CodeButton.Style {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .convert, .addMoney: return .filled
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip: return .filled
             }
         }
     }
@@ -255,6 +262,9 @@ extension EnterAmountView {
         /// Always rendered in `textError`. Use for soft-validation copy where
         /// Next stays enabled and the caller surfaces a dialog on tap.
         case error(String)
+        /// Nothing under the amount — for screens that pass a `header`, which
+        /// replaces this block outright.
+        case hidden
     }
 }
 

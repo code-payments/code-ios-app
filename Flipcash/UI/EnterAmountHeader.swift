@@ -1,22 +1,32 @@
 //
-//  SwapAmountHeader.swift
+//  EnterAmountHeader.swift
 //  Flipcash
 //
-//  The top half of the Convert / Get / Give amount screens: a left-aligned
-//  amount field over an "$X available" hint. Shared by all three flows (Convert
-//  swaps it in for its source amount, Get for the payment amount, Give for the
-//  amount to hand over) and dropped into `EnterAmountView` via its `header`
-//  slot, replacing the default centered amount + "Enter up to" subtitle.
+//  The top half of the left-aligned amount screens — Convert / Get / Give and
+//  Set Minimum Tip: a large amount field over a one-line hint. Dropped into
+//  `EnterAmountView` via its `header` slot, replacing the default centered
+//  amount + "Enter up to" subtitle.
 //
 
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct SwapAmountHeader: View {
+struct EnterAmountHeader: View {
+
+    /// The line under the amount.
+    enum Hint {
+        /// "$X available", reddening once the entry exceeds it — the spend
+        /// flows, where the balance is the ceiling.
+        case available(ExchangedFiat)
+        /// Fixed secondary copy, e.g. "$1.00 minimum". Never reddens: flows
+        /// that use it state their bound up front and report a breach through
+        /// a dialog on submit rather than by colouring the hint.
+        case caption(String)
+    }
+
     @Binding var enteredAmount: String
-    /// The spendable balance shown as "$X available" and used to flag overrun.
-    let available: ExchangedFiat
+    let hint: Hint
 
     @Environment(RatesController.self) private var ratesController
 
@@ -25,11 +35,19 @@ struct SwapAmountHeader: View {
     /// Mirrors `EnterAmountView`'s overrun colouring: the hint turns red once the
     /// entry exceeds what's available.
     private var isExceeding: Bool {
+        guard case .available(let available) = hint else { return false }
         guard let value = AmountValidator().validate(enteredAmount), value > 0 else { return false }
         return !EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
             max: available.nativeAmount
         )
+    }
+
+    private var hintText: String {
+        switch hint {
+        case .available(let available): "\(available.nativeAmount.formatted()) available"
+        case .caption(let text):        text
+        }
     }
 
     var body: some View {
@@ -50,7 +68,7 @@ struct SwapAmountHeader: View {
             )
             .foregroundStyle(enteredAmount.isEmpty ? Color.textTertiary : Color.textMain)
 
-            Text("\(available.nativeAmount.formatted()) available")
+            Text(hintText)
                 .font(.appTextMedium)
                 .foregroundStyle(isExceeding ? Color.textError : Color.textSecondary)
         }

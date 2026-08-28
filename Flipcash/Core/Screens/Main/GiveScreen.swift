@@ -92,9 +92,9 @@ private struct GiveScreenContent: View {
                     viewModel.canGive
                 },
                 action: nextAction,
-                header: AnyView(SwapAmountHeader(
+                header: AnyView(EnterAmountHeader(
                     enteredAmount: $viewModel.enteredAmount,
-                    available: maxLimit
+                    hint: .available(maxLimit)
                 ))
             )
             .foregroundStyle(.textMain)

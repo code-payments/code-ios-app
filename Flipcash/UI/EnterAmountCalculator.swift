@@ -23,7 +23,7 @@ nonisolated struct EnterAmountCalculator {
 
     var currency: CurrencyCode {
         switch mode {
-        case .currency, .buy, .sell, .convert, .withdraw, .addMoney:
+        case .currency, .buy, .sell, .convert, .withdraw, .addMoney, .minimumTip:
             selectedCurrency
         }
     }
@@ -48,6 +48,10 @@ nonisolated struct EnterAmountCalculator {
             return limit.maxPerDay
         case .sell, .convert, .withdraw:
             // No per-transaction limits for these flows — capped by balance.
+            return nil
+        case .minimumTip:
+            // Not a transaction — the only bound is the minimum, which the
+            // screen states itself.
             return nil
         }
     }

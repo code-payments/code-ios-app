@@ -62,6 +62,10 @@ extension AppRouter {
         /// Account. One destination for both: the screen seeds itself from the
         /// handle already on the profile, so there is nothing to distinguish.
         case username(Username?)
+        /// The minimum a tipper must pay to open a DM. `isSetupStep` is the
+        /// You tab's checklist, which labels the button "Next"; My Account is
+        /// a lone edit and labels it "Save".
+        case setMinimumTip(isSetupStep: Bool)
         case settingsAdvancedFeatures
         case settingsAdvancedBetaFeatures
         case settingsAppSettings
@@ -110,7 +114,7 @@ extension AppRouter {
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settingsMyAccount, .changeDisplayName, .changeProfilePicture, .username,
-                 .settingsAdvancedFeatures,
+                 .setMinimumTip, .settingsAdvancedFeatures,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .you
@@ -145,6 +149,7 @@ extension AppRouter {
             case .changeDisplayName:            "changeDisplayName"
             case .changeProfilePicture:         "changeProfilePicture"
             case .username:                     "username"
+            case .setMinimumTip:                "setMinimumTip"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAdvancedBetaFeatures: "settingsAdvancedBetaFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
@@ -186,6 +191,8 @@ extension AppRouter {
                 return userID.uuidString
             case .username(let username):
                 return username?.value
+            case .setMinimumTip(let isSetupStep):
+                return isSetupStep ? "setup" : "settings"
             case .activity,
                  .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,

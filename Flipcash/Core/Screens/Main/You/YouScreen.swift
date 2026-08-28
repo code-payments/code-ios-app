@@ -664,10 +664,7 @@ struct YouScreen: View {
         case .profilePicture:
             router.push(.changeProfilePicture)
         case .minimumTipAmount:
-            // Stubbed: setting the minimum tip is separate work. The row still
-            // renders and counts, and checks itself off if the profile already
-            // carries a fee.
-            break
+            router.push(.setMinimumTip(isSetupStep: true))
         }
     }
 
