@@ -651,7 +651,7 @@ struct WithdrawViewModelSummaryHelpersTests {
         switch viewModel.amountSubtitle {
         case .balanceWithLimit:
             break
-        case .singleTransactionLimit, .error:
+        case .singleTransactionLimit, .error, .hidden:
             Issue.record("Expected .balanceWithLimit subtitle for valid amount")
         }
     }
@@ -668,7 +668,7 @@ struct WithdrawViewModelSummaryHelpersTests {
         case .error(let copy):
             #expect(copy.contains("Minimum withdrawal"))
             #expect(copy.contains("0.51"))
-        case .balanceWithLimit, .singleTransactionLimit:
+        case .balanceWithLimit, .singleTransactionLimit, .hidden:
             Issue.record("Expected .error subtitle for amount below fee")
         }
     }

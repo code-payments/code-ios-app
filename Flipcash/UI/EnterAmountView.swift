@@ -78,6 +78,7 @@ public struct EnterAmountView: View {
         subtitle: Subtitle,
         actionEnabled: @escaping (String) -> Bool,
         currencySelectionAction: (() -> Void)? = nil,
+        header: AnyView? = nil,
         @ViewBuilder actionContent: () -> ActionContent
     ) {
         self.mode                    = mode
@@ -90,7 +91,7 @@ public struct EnterAmountView: View {
         self.actionOverride          = AnyView(actionContent())
         self.actionTitle             = nil
         self.accessory               = nil
-        self.header                  = nil
+        self.header                  = header
     }
     
     // MARK: - Computed -
