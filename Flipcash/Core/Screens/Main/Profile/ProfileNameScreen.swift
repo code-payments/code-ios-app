@@ -77,10 +77,10 @@ struct ProfileNameScreen: View {
                 }
 
                 Button(action: submit) {
-                    ButtonStateLabel("Next", state: buttonState)
+                    ButtonStateLabel(completion == .tipcard ? "Next" : "Save", state: buttonState)
                 }
                 .buttonStyle(.filled)
-                .disabled(state.validatedDisplayName == nil || isSubmitting)
+                .disabled(!canSubmit || isSubmitting)
                 .accessibilityIdentifier("profile-name-next-button")
                 .padding(.bottom, 20)
             }
@@ -93,6 +93,14 @@ struct ProfileNameScreen: View {
         // Leaving the screen abandons the submission: its only continuation is a
         // push onto a stack this screen no longer sits on.
         .onDisappear { submitTask?.cancel() }
+    }
+
+    /// The name has to be valid and different from the one on the profile:
+    /// re-sending the name already there spends a moderation round trip to
+    /// change nothing.
+    private var canSubmit: Bool {
+        guard let name = state.validatedDisplayName else { return false }
+        return name != sessionContainer.session.profile?.displayName
     }
 
     private func submit() {
