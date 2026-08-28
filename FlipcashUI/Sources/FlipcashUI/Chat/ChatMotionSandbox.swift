@@ -10,8 +10,8 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
-/// A real transcript driven by a scripted send, so the send moment can be watched and recorded
-/// without a server, an account, or a counterpart.
+/// A real transcript driven by a scripted exchange, so the send moment, the receipt, the typing
+/// dots and the reply can be watched and recorded without a server, an account, or a counterpart.
 ///
 /// The whole point is that it is the *shipping* controller: `ChatViewController` and its cells,
 /// updated the way `ConversationScreen` updates them. Anything seen here is what the app does. The
@@ -19,7 +19,7 @@ import FlipcashCore
 /// comparable — the same beats, at the same offsets, on both sides of a change.
 public final class ChatMotionSandboxViewController: UIViewController {
 
-    /// The scripted send, beat by beat. Each beat's delay is the wait *before* it runs.
+    /// The scripted exchange, beat by beat. Each beat's delay is the wait *before* it runs.
     private enum Beat {
         /// The row lands in the transcript with no receipt: insertion spring, scroll-to-bottom.
         case send
@@ -27,6 +27,11 @@ public final class ChatMotionSandboxViewController: UIViewController {
         case delivered
         /// Delivered gives way to Read: the in-place swap.
         case read
+        /// The counterpart starts typing: the dots bubble arrives off the leading edge.
+        case typing
+        /// The dots give way to the reply — one update, so the incoming bubble takes the tail the
+        /// dots were holding.
+        case reply
         /// Back to the resting transcript, un-animated, ready to run again.
         case reset
 
@@ -37,25 +42,28 @@ public final class ChatMotionSandboxViewController: UIViewController {
             // reachable from here. If that floor moves, move this with it.
             case .delivered: .milliseconds(700)
             case .read:      .seconds(1.4)
+            case .typing:    .seconds(0.9)
+            // Two full turns of the dot wave (`ChatTypingIndicatorCell.wavePeriod`) before the
+            // reply cuts it off, so the wave is legible rather than a flicker.
+            case .reply:     .seconds(2.6)
             case .reset:     .seconds(2)
-            }
-        }
-
-        var receipt: ChatReceipt? {
-            switch self {
-            case .send:      nil
-            case .delivered: .delivered
-            case .read:      .read(time: "3:42 PM")
-            case .reset:     nil
             }
         }
     }
 
-    private static let script: [Beat] = [.send, .delivered, .read, .reset]
+    private static let script: [Beat] = [.send, .delivered, .read, .typing, .reply, .reset]
 
     /// The resting transcript the script runs on top of. Ends on a `.me` run, so the scripted send
     /// is a continuation and its top corner flattens — which is what makes the corner morph visible.
-    private let base: [ChatItem] = ChatMessage.previewConversation(count: 8).map { .message($0) }
+    private let base: [ChatMessage] = ChatMessage.previewConversation(count: 8)
+
+    private static let readTime = "3:42 PM"
+
+    private static func sent(receipt: ChatReceipt?) -> ChatMessage {
+        ChatMessage(id: "motion-send", text: "Sent just now", sender: .me, receipt: receipt)
+    }
+
+    private static let reply = ChatMessage(id: "motion-reply", text: "Got it — see you at noon.", sender: .other)
 
     private let transcript = ChatViewController()
     private let runButton = UIButton(type: .system)
@@ -84,7 +92,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
         view.addSubview(transcript.view)
         transcript.didMove(toParent: self)
 
-        runButton.setTitle("Run send", for: .normal)
+        runButton.setTitle("Run exchange", for: .normal)
         runButton.titleLabel?.font = .default(size: 15, weight: .bold)
         runButton.addTarget(self, action: #selector(runTapped), for: .touchUpInside)
 
@@ -113,7 +121,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
             controls.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
 
-        transcript.update(items: base, animated: false)
+        transcript.update(items: items(at: .reset), animated: false)
     }
 
     public override func viewDidAppear(_ animated: Bool) {
@@ -131,11 +139,11 @@ public final class ChatMotionSandboxViewController: UIViewController {
 
     @objc private func runTapped() {
         // A second tap while a run is in flight stops it rather than racing a second script against
-        // the first — two overlapping sends would make the recording unreadable.
+        // the first — two overlapping exchanges would make the recording unreadable.
         guard run == nil else {
             run?.cancel()
             run = nil
-            transcript.update(items: base, animated: false)
+            transcript.update(items: items(at: .reset), animated: false)
             return
         }
         start()
@@ -151,25 +159,59 @@ public final class ChatMotionSandboxViewController: UIViewController {
         }
     }
 
-    /// Plays the script once. Every beat replaces the same row id, so the transcript sees an in-place
-    /// update — which is the condition the receipt animates on.
+    /// Plays the script once. Every beat hands over the whole transcript, so the controller sees a
+    /// plain diff against the last one — which is the condition the receipt and the corners
+    /// animate on.
     private func play() async {
         for beat in Self.script {
             try? await Task.sleep(for: beat.delay)
             guard !Task.isCancelled else { return }
             switch beat {
             case .reset:
-                transcript.update(items: base, animated: false)
-            case .send, .delivered, .read:
-                let sent = ChatMessage(
-                    id: "motion-send",
-                    text: "Sent just now",
-                    sender: .me,
-                    isContinuationFromPrevious: true,
-                    receipt: beat.receipt
-                )
-                transcript.update(items: base + [.message(sent)])
+                transcript.update(items: items(at: beat), animated: false)
+            case .send, .delivered, .read, .typing, .reply:
+                transcript.update(items: items(at: beat))
             }
+        }
+    }
+
+    /// The whole transcript as of `beat`.
+    private func items(at beat: Beat) -> [ChatItem] {
+        switch beat {
+        case .reset:     items(appending: [])
+        case .send:      items(appending: [Self.sent(receipt: nil)])
+        case .delivered: items(appending: [Self.sent(receipt: .delivered)])
+        case .read:      items(appending: [Self.sent(receipt: .read(time: Self.readTime))])
+        case .typing:    items(appending: [Self.sent(receipt: .read(time: Self.readTime))], typing: true)
+        case .reply:     items(appending: [Self.sent(receipt: .read(time: Self.readTime)), Self.reply])
+        }
+    }
+
+    /// `base` plus `tail`, regrouped, with the dots bubble on the end when the counterpart is
+    /// typing. The dots are appended after the grouping pass and never join a run, matching
+    /// `ConversationLoadCoordinator.map`.
+    private func items(appending tail: [ChatMessage], typing: Bool = false) -> [ChatItem] {
+        var items = Self.grouped(base + tail).map { ChatItem.message($0) }
+        if typing {
+            items.append(.typingIndicator)
+        }
+        return items
+    }
+
+    /// Recomputes the same-sender grouping flags across the whole list, the way `ChatItem.from`
+    /// does for the real transcript. Without it the row above an arrival keeps the flags it was
+    /// built with, so its inner corner never flattens and the morph has nothing to animate.
+    private static func grouped(_ messages: [ChatMessage]) -> [ChatMessage] {
+        messages.enumerated().map { index, message in
+            ChatMessage(
+                id: message.id,
+                content: message.content,
+                sender: message.sender,
+                isContinuationFromPrevious: index > 0 && messages[index - 1].sender == message.sender,
+                isContinuedByNext: index < messages.count - 1 && messages[index + 1].sender == message.sender,
+                receipt: message.receipt,
+                linkPreview: message.linkPreview
+            )
         }
     }
 }
