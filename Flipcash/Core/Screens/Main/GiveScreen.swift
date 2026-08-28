@@ -40,7 +40,6 @@ private struct GiveScreenContent: View {
 
     @State private var viewModel: GiveViewModel
 
-    @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingTokenSelection: Bool = false
 
     /// True when this screen was pushed (from a currency's Give tile) rather
@@ -93,15 +92,13 @@ private struct GiveScreenContent: View {
                     viewModel.canGive
                 },
                 action: nextAction,
-                currencySelectionAction: showCurrencySelection
+                header: AnyView(SwapAmountHeader(
+                    enteredAmount: $viewModel.enteredAmount,
+                    available: maxLimit
+                ))
             )
             .foregroundStyle(.textMain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            .padding(.top, -40)
-            .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(ratesController: ratesController)
-            }
+            .padding(20)
         }
         .ignoresSafeArea(.keyboard)
         .navigationTitle("")
@@ -142,10 +139,6 @@ private struct GiveScreenContent: View {
 
     private func nextAction() {
         viewModel.giveAction()
-    }
-
-    private func showCurrencySelection() {
-        isShowingCurrencySelection.toggle()
     }
 }
 
