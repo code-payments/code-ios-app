@@ -86,8 +86,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/flipcash2-client-protocol",
       "state" : {
-        "revision" : "73372b30748d8eb36c1a2f5a18ea9c8d1f7c6241",
-        "version" : "0.1.0"
+        "revision" : "9f6e3805672e955863dc91302bc60e27b7f03977",
+        "version" : "0.2.0"
       }
     },
     {
