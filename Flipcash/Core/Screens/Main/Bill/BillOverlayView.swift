@@ -27,6 +27,8 @@ struct BillOverlayView: View {
 
 private struct BillOverlayContent: View {
 
+    @Environment(AppRouter.self) private var router
+
     @Bindable private var session: Session
     private let sessionContainer: SessionContainer
 
@@ -68,7 +70,7 @@ private struct BillOverlayContent: View {
                     currencyName: valuation.mintMetadata?.name ?? "currency",
                     currencyImageURL: valuation.mintMetadata?.imageURL,
                     actionTitle: "Put in Wallet",
-                    dismissAction: dismissBill
+                    dismissAction: putInWallet
                 )
             }
             .interactiveDismissDisabled()
@@ -286,6 +288,16 @@ private struct BillOverlayContent: View {
                 .accessibilityLabel(secondaryAction.title ?? "Cancel")
             }
         }
+    }
+
+    /// Takes a grabbed deposit to the wallet: the bill comes down and the wallet
+    /// comes forward, where the balance is seen to rise.
+    private func putInWallet() {
+        // Released before the dismissal, which drops any deposit the user never
+        // asked to see.
+        session.walletDeposit.release()
+        session.dismissCashBill(style: .slide)
+        router.showWallet()
     }
 
     private func dismissBill() {

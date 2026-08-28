@@ -510,6 +510,29 @@ final class AppRouter {
         setPath([destination], on: targetStack)
     }
 
+    /// Surfaces the wallet at its root — where a grabbed deposit lands after
+    /// "Put in Wallet".
+    ///
+    /// Closes an expanded token card too: the wallet's own overlay is not a
+    /// pushed screen, so clearing the stack alone would leave it covering the
+    /// balance the deposit is about to move.
+    func showWallet() {
+        dismissExpandedCard()
+
+        // `requestedTabStack` covers the gap before `HomeTabView` selects the
+        // tab and publishes `activeTabStack` — until then the request is in
+        // flight, not yet arrived.
+        let alreadyThere = presentedSheets.isEmpty
+                        && activeTabStack == .balance
+                        && self[.balance].isEmpty
+        guard !alreadyThere, requestedTabStack != .balance else { return }
+
+        while !presentedSheets.isEmpty { dismissSheet() }
+        setPath([], on: .balance)
+        requestedTabStack = .balance
+        logger.info("Routed to wallet", metadata: ["stack": "\(Stack.balance)"])
+    }
+
     /// Surfaces the user's own tip card: the You tab at its root.
     ///
     /// Not expressible as `navigate(to:)` — the You tab's stack is entered by

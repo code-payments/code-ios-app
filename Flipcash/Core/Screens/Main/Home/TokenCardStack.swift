@@ -26,6 +26,9 @@ struct TokenCardStack: View {
     /// exactly and only the front card shows — the back cards hide completely
     /// behind it (no slivers), Apple Wallet style.
     static let defaultCollapsedReveal: CGFloat = 0
+    /// How far below its slot an arriving card starts. `nonisolated` because the
+    /// `visualEffect` closure that reads it is.
+    nonisolated static let arrivalRise: CGFloat = 40
     /// How long (in scroll px) the fully-collapsed deck holds before releasing.
     ///
     /// Zero: the deck collapses and then scrolls away like any other content.
@@ -65,6 +68,13 @@ struct TokenCardStack: View {
     /// Extra displacement for the opened card, used to pick it up exactly where a
     /// pull-to-close let go of it rather than at its open slot.
     var openExtraOffset: CGFloat = 0
+    /// A card arriving with a deposit: it rises into its slot rather than simply
+    /// being there. `nil` when nothing is arriving.
+    var arrivingMint: PublicKey? = nil
+    /// How far that arrival has run: 0 is off-stage, 1 is settled. A scalar for
+    /// the same reason `expansionProgress` is one — a change of branch does not
+    /// interpolate.
+    var arrivalProgress: CGFloat = 1
     /// Reports the tapped card along with its current on-screen top edge, so the
     /// caller can work out the lift.
     var onCardTap: (TokenCardData, CGFloat) -> Void = { _, _ in }
@@ -109,9 +119,18 @@ struct TokenCardStack: View {
                 // Resting fan, and the reorganisation when a card is opened, are
                 // both expressed here so they interpolate as one animation.
                 .opacity(item.mint == hiddenMint ? 0 : 1)
-                .visualEffect { [index, expandingIndex, containerHeight, expansionProgress, openTopInset, openExtraOffset] content, proxy in
+                .visualEffect { [index, expandingIndex, containerHeight, expansionProgress, openTopInset, openExtraOffset, arrivingMint, arrivalProgress, mint = item.mint] content, proxy in
                     let rect = proxy.frame(in: .scrollView)
                     let fan = offset(for: index, stackTop: rect.minY)
+
+                    // An arriving card rises into its slot from under the deck
+                    // and fades up. Ahead of the expansion branches: a card
+                    // still arriving cannot also be the one being opened.
+                    if mint == arrivingMint, arrivalProgress < 1 {
+                        return content
+                            .offset(y: fan + Self.arrivalRise * (1 - arrivalProgress))
+                            .opacity(Double(arrivalProgress))
+                    }
 
                     guard let expandingIndex, expansionProgress > 0 else {
                         return content.offset(y: fan).opacity(1)

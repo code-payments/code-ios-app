@@ -45,6 +45,10 @@ class Session {
     /// Post-transaction amount display, shown as a sheet.
     var valuation: BillValuation? = nil
 
+    /// A grabbed deposit on its way to the wallet, held from the moment the
+    /// received bill is shown until the wallet has played its arrival.
+    let walletDeposit = WalletDeposit()
+
     /// The currently visible balance-change toast, or `nil` when none is shown.
     /// Set by ``consumeToast()`` and cleared after a 3-second display window.
     var toast: Toast? = nil
@@ -146,6 +150,12 @@ class Session {
         }
     }
     
+    /// The balances the wallet shows a card for: every token it holds, and
+    /// Dollars only once they are worth showing.
+    static func walletCardBalances(from balances: [ExchangedBalance]) -> [ExchangedBalance] {
+        balances.filter { $0.stored.mint != .usdf || $0.exchangedFiat.hasDisplayableValue() }
+    }
+
     func balance(for mint: PublicKey) -> StoredBalance? {
         // Avoid the display-ordered sort in `balances` — this is called per
         // SwiftUI body re-eval from amount-entry computed props.
@@ -1181,6 +1191,10 @@ class Session {
     func showCashBill(_ billDescription: BillDescription) {
         // Only inbound bills enqueue a "+$" deposit toast; sent bills don't.
         if billDescription.received {
+            // Armed here rather than after the grab's balance refresh: that
+            // refresh is what the wallet needs the figures from *before*.
+            armWalletDeposit(mint: billDescription.exchangedFiat.mint)
+
             enqueue(toast: .init(
                 amount: billDescription.exchangedFiat.nativeAmount,
                 isDeposit: true
@@ -1424,12 +1438,27 @@ class Session {
         presentationState = .hidden(style)
         billState = .default()
         valuation = nil
+        // A bill that went away without the user asking for the wallet has
+        // nothing left to play there.
+        walletDeposit.discard()
 
         // Consume toast after bill state is cleared
         // so isShowingBill returns false
         consumeToast()
     }
-    
+
+    /// Records the wallet's current figures against an incoming deposit in `mint`.
+    private func armWalletDeposit(mint: PublicKey) {
+        let rate = ratesController.rateForBalanceCurrency()
+        let balances = balances(for: rate)
+
+        walletDeposit.arm(
+            mint: mint,
+            previousTotal: balances.map(\.exchangedFiat).total(rate: rate),
+            previousMints: Set(Self.walletCardBalances(from: balances).map(\.stored.mint))
+        )
+    }
+
     // MARK: - Cash Links -
     
     private func createCashLink(payload: CashCode.Payload, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) async throws -> GiftCardCluster {
