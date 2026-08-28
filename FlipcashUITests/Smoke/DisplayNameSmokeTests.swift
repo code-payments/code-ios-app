@@ -54,7 +54,7 @@ final class DisplayNameSmokeTests: BaseUITestCase {
 
         // MARK: Change the name from My Account.
         settings.navigateToMyAccount(from: self)
-        waitAndTap(settings.changeDisplayNameRow)
+        waitAndTap(settings.displayNameRow)
 
         let next = app.buttons["profile-name-next-button"]
         XCTAssertTrue(next.waitForExistence(timeout: 30), "Expected the name editor")
@@ -81,7 +81,7 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         // behind a dialog. It pops just the one screen, so this is My Account
         // rather than the You tab root.
         XCTAssertTrue(
-            settings.changeDisplayNameRow.waitForExistence(timeout: 60),
+            settings.displayNameRow.waitForExistence(timeout: 60),
             "Expected the name editor to pop back to My Account once the name saved. On screen: [\(visibleText())]"
         )
 

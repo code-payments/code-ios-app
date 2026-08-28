@@ -31,7 +31,7 @@ struct SettingsUIScreen {
     var applicationLogsRow: XCUIElement { app.buttons["Application Logs"] }
 
     /// The My Account row that opens the display-name editor.
-    var changeDisplayNameRow: XCUIElement { app.buttons["Change Display Name"] }
+    var displayNameRow: XCUIElement { app.buttons["Display Name"] }
 
     /// The My Account row that opens the Blocked list.
     var blockedRow: XCUIElement { app.buttons["Blocked"] }
