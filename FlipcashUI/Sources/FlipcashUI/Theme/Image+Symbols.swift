@@ -121,7 +121,6 @@ public enum Asset: String, Sendable {
     case emailSent
     case addCircle
     case successCircle
-    case sliders
     case phantom
     case solanaUSDC
     case downloadCircle
@@ -171,9 +170,16 @@ public enum Asset: String, Sendable {
     case logout
     case debug
     case switchAccounts
+    /// Material Symbols `familiar_face_and_zone`, so the Profile Picture row
+    /// carries the same glyph Android draws — SF Symbols has no equivalent.
+    case profilePicture
     case faq
     case delete
+    /// Android's `ic_people_id_card`, so the You tab's My Account row
+    /// carries the glyph Android draws there.
     case myAccount
+    /// Android's `ic_maintenance`, the companion to `myAccount` on the You tab.
+    case advanced
     case send
     case send2
     case people = "IconPeople"

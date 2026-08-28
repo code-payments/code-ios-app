@@ -6,7 +6,7 @@
 import XCTest
 
 /// Smoke test for the version footer's beta-access easter egg and the one row
-/// it reveals: You › My Account › Switch Accounts.
+/// it reveals: You › Advanced › Switch Accounts.
 ///
 /// The unlock is the only way into the account switcher, and it is silent for
 /// its first seven taps, so a regression in either half reads as "Switch
@@ -38,13 +38,13 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
             "Expected the tenth tap to say beta access is unlocked"
         )
 
-        settings.navigateToMyAccount(from: self)
+        settings.navigateToAdvancedFeatures(from: self)
         XCTAssertTrue(
             settings.switchAccountsRow.waitForExistence(timeout: 10),
-            "Expected Switch Accounts on My Account once beta access is unlocked"
+            "Expected Switch Accounts on Advanced once beta access is unlocked"
         )
 
-        settings.leaveMyAccount(from: self)
+        settings.leaveAdvancedFeatures(from: self)
 
         settings.tapVersionFooter(10, from: self)
         XCTAssertTrue(
@@ -52,10 +52,10 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
             "Expected ten more taps to lock beta access again"
         )
 
-        settings.navigateToMyAccount(from: self)
+        settings.navigateToAdvancedFeatures(from: self)
         XCTAssertTrue(
-            settings.blockedRow.waitForExistence(timeout: 10),
-            "Expected My Account to be on screen"
+            settings.accessKeyRow.waitForExistence(timeout: 10),
+            "Expected Advanced to be on screen"
         )
         XCTAssertFalse(
             settings.switchAccountsRow.exists,
@@ -70,9 +70,9 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
     /// itself says nothing until it is tapped, and a tap is the thing under
     /// test.
     private func lockBetaAccessIfUnlocked(_ settings: SettingsUIScreen) {
-        settings.navigateToMyAccount(from: self)
+        settings.navigateToAdvancedFeatures(from: self)
         let isUnlocked = settings.switchAccountsRow.waitForExistence(timeout: 5)
-        settings.leaveMyAccount(from: self)
+        settings.leaveAdvancedFeatures(from: self)
 
         guard isUnlocked else { return }
 

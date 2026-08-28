@@ -10,12 +10,16 @@ import FlipcashUI
 import FlipcashCore
 
 /// The Advanced settings list (Figma node 9279:121978): the account-level
-/// actions — Access Key, Log Out, Delete Account — alongside Beta Features and
-/// Application Logs. My Account keeps only the rows about *this* account's
-/// people (Blocked, Switch Accounts).
+/// actions — Access Key, Switch Accounts, Log Out, Delete Account — alongside
+/// Beta Features and Application Logs. My Account keeps the rows about the
+/// profile this account presents, and who it will deal with.
+///
+/// The row icons track Android's (`AdvancedFeatureMenuItems.kt`) through the
+/// nearest SF Symbol.
 struct SettingsAdvancedFeaturesScreen: View {
 
     @Environment(AppRouter.self) private var router
+    @Environment(BetaFlags.self) private var betaFlags
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     @Environment(ContactSyncController.self) private var contactSyncController
 
@@ -27,7 +31,7 @@ struct SettingsAdvancedFeaturesScreen: View {
         Background(color: .backgroundMain) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    SettingsRow(asset: .key, title: "Access Key", insets: insets) {
+                    SettingsRow(systemImage: "key.horizontal", title: "Access Key", insets: insets) {
                         dialogItem = .alert(
                             title: "View Your Access Key?",
                             subtitle: "Your Access Key will grant access to your Flipcash account. Keep it private and safe"
@@ -39,12 +43,21 @@ struct SettingsAdvancedFeaturesScreen: View {
                         }
                     }
 
-                    SettingsRow(asset: .debug, title: "Beta Features", insets: insets) {
+                    SettingsRow(systemImage: "flask", title: "Beta Features", insets: insets) {
                         router.push(.settingsAdvancedBetaFeatures)
                     }
 
                     SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
                         router.push(.settingsApplicationLogs)
+                    }
+
+                    // Sits with the other beta tool rather than on My Account: it is
+                    // a way out of this account, next to Log Out, not a detail of it.
+                    if betaFlags.accessGranted {
+                        SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: .beta, insets: insets) {
+                            router.push(.settingsAccountSelection)
+                        }
+                        .accessibilityIdentifier("account-switch-accounts-row")
                     }
 
                     SettingsRow(asset: .logout, title: "Log Out", insets: insets) {

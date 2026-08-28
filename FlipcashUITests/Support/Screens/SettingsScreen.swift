@@ -36,7 +36,7 @@ struct SettingsUIScreen {
     /// The My Account row that opens the Blocked list.
     var blockedRow: XCUIElement { app.buttons["Blocked"] }
 
-    /// The My Account row that opens the account switcher — drawn only once the
+    /// The Advanced row that opens the account switcher — drawn only once the
     /// version footer has unlocked beta access.
     var switchAccountsRow: XCUIElement { app.buttons["account-switch-accounts-row"] }
 
@@ -92,5 +92,10 @@ struct SettingsUIScreen {
     /// Navigates to Advanced Features sub-screen.
     func navigateToAdvancedFeatures(from testCase: BaseUITestCase) {
         testCase.scrollUpToAndTap(advancedFeaturesRow, in: scrollView)
+    }
+
+    /// Pops the Advanced screen back to the You tab.
+    func leaveAdvancedFeatures(from testCase: BaseUITestCase) {
+        testCase.waitAndTap(app.navigationBars["Advanced"].buttons.firstMatch)
     }
 }
