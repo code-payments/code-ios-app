@@ -104,6 +104,15 @@ struct ChatReceiptViewTests {
         #expect(view.currentStatusText == nil)
     }
 
+    @Test("The line snaps to where the column puts it instead of sliding in from the stack's origin")
+    func geometryDoesNotAnimate() {
+        let view = makeView()
+        // The reveal runs inside the transcript's batch-update animation block, which would otherwise
+        // spring the newly-unhidden line down from the stack's origin, across the bubble.
+        #expect(view.action(for: view.layer, forKey: "position") is NSNull)
+        #expect(view.action(for: view.layer, forKey: "bounds") is NSNull)
+    }
+
     @Test("Reset drops a swap in flight so a recycled cell starts clean")
     func resetDropsASwapInFlight() {
         let view = makeView()

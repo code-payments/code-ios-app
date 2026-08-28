@@ -59,6 +59,18 @@ final class ChatReceiptView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    /// The column places this view; nothing animates it there. An arranged subview that un-hides
+    /// inside the batch update's animation block otherwise springs in from the stack's origin, so the
+    /// line would slide down across the bubble on its way to the gap under it. Suppressing the
+    /// implicit geometry animation leaves the reveal as what it is meant to be: scale and opacity,
+    /// in place. `transform` and `opacity` fall through to `super`, so the faces still animate.
+    override func action(for layer: CALayer, forKey event: String) -> CAAction? {
+        if layer === self.layer, event == "position" || event == "bounds" {
+            return NSNull()
+        }
+        return super.action(for: layer, forKey: event)
+    }
+
     /// Clears both faces and cancels any swap in flight. Call from `prepareForReuse` — a recycled
     /// cell must not carry its previous row's line, or animate away from it.
     func reset() {
@@ -215,6 +227,15 @@ private final class ChatReceiptFace: UIView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    /// Same reason as `ChatReceiptView`: the face is pinned to the receipt's edges, so it inherits
+    /// that view's frame change and would travel with it.
+    override func action(for layer: CALayer, forKey event: String) -> CAAction? {
+        if layer === self.layer, event == "position" || event == "bounds" {
+            return NSNull()
+        }
+        return super.action(for: layer, forKey: event)
+    }
 
     func setReceipt(_ receipt: ChatReceipt?) {
         status.text = receipt?.status
