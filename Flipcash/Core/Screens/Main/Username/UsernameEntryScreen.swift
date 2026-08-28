@@ -29,7 +29,7 @@ struct UsernameEntryScreen: View {
     @FocusState private var isFocused: Bool
     @State private var input: String = ""
     @State private var submitTask: Task<Void, Never>?
-    @State private var errorDialog: DialogItem?
+    @State private var dialog: DialogItem?
 
     /// Drives the Next button: spinner while claiming, then the checkmark the
     /// rest of the app shows on a completed action.
@@ -89,7 +89,7 @@ struct UsernameEntryScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationBarTitleDisplayMode(.inline)
-        .dialog(item: $errorDialog)
+        .dialog(item: $dialog)
         .onAppear {
             input = currentUsername?.value ?? ""
             isFocused = true
@@ -120,12 +120,23 @@ struct UsernameEntryScreen: View {
         guard !isSubmitting else { return }
 
         if let failure = Self.validator.failure(for: input) {
-            errorDialog = .usernameValidation(failure)
+            dialog = .usernameValidation(failure)
             return
         }
 
         guard let username = Self.validator.validate(input) else { return }
 
+        // Only a replacement is confirmed. A first claim gives nothing up, and
+        // its button says Next because it is a step in setting the profile up.
+        if currentUsername != nil {
+            dialog = .confirmProfileChange(.username) { claim(username) }
+            return
+        }
+
+        claim(username)
+    }
+
+    private func claim(_ username: Username) {
         buttonState = .loading
         submitTask = Task {
             defer { submitTask = nil }
@@ -156,7 +167,7 @@ struct UsernameEntryScreen: View {
                 // duplicate that classification in a second place.
                 ErrorReporting.captureError(error, reason: "Failed to set username")
 
-                errorDialog = .usernameSubmission(error, minimum: minimumBalance) {
+                dialog = .usernameSubmission(error, minimum: minimumBalance) {
                     router.presentAddMoney(.general, source: .usernameShortfall)
                 }
 
@@ -165,7 +176,7 @@ struct UsernameEntryScreen: View {
                 guard !Task.isCancelled else { return }
                 logger.error("Failed to set username", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Failed to set username")
-                errorDialog = .usernameGenericFailure
+                dialog = .usernameGenericFailure
             }
         }
     }

@@ -28,7 +28,7 @@ struct ProfileNameScreen: View {
 
     @FocusState private var isNameFocused: Bool
     @State private var submitTask: Task<Void, Never>?
-    @State private var errorDialog: DialogItem?
+    @State private var dialog: DialogItem?
 
     /// Drives the Next button: spinner while saving, then the checkmark the
     /// rest of the app shows on a completed action.
@@ -88,7 +88,7 @@ struct ProfileNameScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationBarTitleDisplayMode(.inline)
-        .dialog(item: $errorDialog)
+        .dialog(item: $dialog)
         .onAppear { isNameFocused = true }
         // Leaving the screen abandons the submission: its only continuation is a
         // push onto a stack this screen no longer sits on.
@@ -106,9 +106,27 @@ struct ProfileNameScreen: View {
     private func submit() {
         guard let name = state.validatedDisplayName, !isSubmitting else { return }
 
+        // Only a replacement is confirmed. Setting a first name gives nothing
+        // up, and its button says Next because it is a step in setting the
+        // profile up.
+        guard hasPreviousName else {
+            save(name)
+            return
+        }
+
+        dialog = .confirmProfileChange(.displayName) { save(name) }
+    }
+
+    /// True when the profile already carries a name, so Save is replacing one
+    /// rather than setting the first.
+    private var hasPreviousName: Bool {
+        !(sessionContainer.session.profile?.displayName ?? "").isEmpty
+    }
+
+    private func save(_ name: String) {
         // Read before the RPC: `updateProfile()` below installs the new name, after
         // which every submission would look like a replacement.
-        let hadPreviousName = !(sessionContainer.session.profile?.displayName ?? "").isEmpty
+        let hadPreviousName = hasPreviousName
         let source: Analytics.DisplayNameSource = switch completion {
         case .tipcard: .tipCardSetup
         case .back:    .myAccount
@@ -149,7 +167,7 @@ struct ProfileNameScreen: View {
             } catch ErrorProfile.moderated(let category) {
                 buttonState = .normal
                 logger.info("Display name moderation denied", metadata: ["category": "\(category)"])
-                errorDialog = .error(
+                dialog = .error(
                     title: "This Name is Not Allowed",
                     subtitle: "Try a different name"
                 )
@@ -157,7 +175,7 @@ struct ProfileNameScreen: View {
             } catch ErrorProfile.invalidDisplayName {
                 buttonState = .normal
                 logger.info("Display name rejected as invalid")
-                errorDialog = .error(
+                dialog = .error(
                     title: "This Name Isn't Valid",
                     subtitle: "Try a different name"
                 )
@@ -167,7 +185,7 @@ struct ProfileNameScreen: View {
                 guard !Task.isCancelled else { return }
                 logger.error("Failed to set display name", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Failed to set display name")
-                errorDialog = .error(
+                dialog = .error(
                     title: "Couldn't Save Your Name",
                     subtitle: "Try again"
                 )

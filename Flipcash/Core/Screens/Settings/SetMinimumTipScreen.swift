@@ -100,6 +100,19 @@ struct SetMinimumTipScreen: View {
 
         let fee = FiatAmount(value: value, currency: currency)
 
+        // Only a replacement is confirmed. A first fee gives nothing up, and
+        // this screen is how the profile checklist sets one. Read off the
+        // profile rather than `existingFee`, which is scoped to the currency
+        // being entered — a fee set in another currency is still being replaced.
+        guard sessionContainer.session.profile?.minDmChatInitFee != nil else {
+            save(fee)
+            return
+        }
+
+        dialog = .confirmProfileChange(.minimumTip) { save(fee) }
+    }
+
+    private func save(_ fee: FiatAmount) {
         actionState = .loading
         submitTask = Task {
             defer { submitTask = nil }

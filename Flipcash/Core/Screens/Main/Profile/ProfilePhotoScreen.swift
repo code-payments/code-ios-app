@@ -29,7 +29,7 @@ struct ProfilePhotoScreen: View {
 
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
-    @State private var errorDialog: DialogItem?
+    @State private var dialog: DialogItem?
 
     /// Drives the submit button: spinner while uploading, then the checkmark the
     /// rest of the app shows on a completed action.
@@ -86,7 +86,7 @@ struct ProfilePhotoScreen: View {
 
                 Spacer()
 
-                Button(action: state.beginUpload) {
+                Button(action: submit) {
                     ButtonStateLabel(completion == .tipcard ? "Next" : "Save", state: buttonState)
                 }
                 .buttonStyle(.filled)
@@ -101,7 +101,7 @@ struct ProfilePhotoScreen: View {
         }
         .navigationTitle(completion == .tipcard ? "" : "Set Profile Picture")
         .navigationBarTitleDisplayMode(.inline)
-        .dialog(item: $errorDialog)
+        .dialog(item: $dialog)
         .fullScreenCover(isPresented: $isShowingPhotoPicker) {
             ImagePickerWithEditor(
                 onImagePicked: state.select,
@@ -134,6 +134,17 @@ struct ProfilePhotoScreen: View {
 
     private var profilePicture: ProfilePicture? {
         sessionContainer.session.profile?.profilePicture
+    }
+
+    private func submit() {
+        // Only a replacement is confirmed. A first picture gives nothing up,
+        // and this screen is how the profile checklist sets one.
+        guard profilePicture != nil else {
+            state.beginUpload()
+            return
+        }
+
+        dialog = .confirmProfileChange(.profilePicture) { state.beginUpload() }
     }
 
     private func upload() async {
@@ -176,20 +187,20 @@ struct ProfilePhotoScreen: View {
             guard !Task.isCancelled else { return }
             logger.info("Profile picture upload failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Profile picture upload failed")
-            errorDialog = .profilePictureFailed(error)
+            dialog = .profilePictureFailed(error)
 
         } catch let error as ImageEncoderError {
             buttonState = .normal
             logger.error("Failed to encode the profile picture", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to encode the profile picture")
-            errorDialog = .imageProcessingFailed
+            dialog = .imageProcessingFailed
 
         } catch {
             buttonState = .normal
             guard !Task.isCancelled else { return }
             logger.error("Failed to set profile picture", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to set profile picture")
-            errorDialog = .error(
+            dialog = .error(
                 title: "Couldn't Upload Your Photo",
                 subtitle: "Try again"
             )
@@ -219,7 +230,7 @@ struct ProfilePhotoScreen: View {
             }.value
 
             guard let image else {
-                errorDialog = .error(
+                dialog = .error(
                     title: "Couldn't Open That File",
                     subtitle: "Try a different image"
                 )
