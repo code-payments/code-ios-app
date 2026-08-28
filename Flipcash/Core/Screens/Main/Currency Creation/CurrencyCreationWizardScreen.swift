@@ -261,12 +261,7 @@ struct CurrencyCreationWizardScreen: View {
                     paymentMint: context.paymentMint
                 )
                 .environment(\.dismissParentContainer, {
-                    // Sheet dismiss unmounts the wizard, taking the
-                    // fullScreenCover with it as a single animation.
-                    // Nilling the cover binding here would stage a separate
-                    // cover-dismiss before the sheet animation; the @State
-                    // is freed automatically when the wizard unmounts.
-                    router.dismissSheet()
+                    Self.dismissCreationFlow(router: router)
                 })
             }
         }
@@ -280,6 +275,17 @@ struct CurrencyCreationWizardScreen: View {
             case .icon, .billCreation, .confirmation, .paymentSelection: focusedField = nil
             }
         }
+    }
+
+    /// Unwinds the whole creation flow once the launch cover is done with it —
+    /// both the finished handoff and the failure dismissal come through here.
+    ///
+    /// The flow is pushed onto the Wallet tab's stack, so it comes off by
+    /// popping that stack to its root. Naming the stack rather than using
+    /// `popToRoot()`'s topmost lookup keeps this working while the cover is up,
+    /// since the tab host clears `activeTabStack` when it disappears.
+    static func dismissCreationFlow(router: AppRouter) {
+        router.popToRoot(on: AppRouter.Destination.currencyCreationWizard.owningStack)
     }
 
     // MARK: - Navigation
