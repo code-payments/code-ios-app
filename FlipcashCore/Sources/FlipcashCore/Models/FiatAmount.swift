@@ -77,6 +77,23 @@ extension FiatAmount {
         precondition(currency == rate.currency, "rate.currency must match self.currency")
         return FiatAmount(value: value / rate.fx, currency: .usd)
     }
+
+    /// This amount restated in `currency`, routed through USD the way the rate
+    /// table is keyed, and rounded to the target's display precision. `nil` when
+    /// either leg of the conversion has no rate.
+    public func converted(to currency: CurrencyCode, rates: [CurrencyCode: Rate]) -> FiatAmount? {
+        if self.currency == currency {
+            return self
+        }
+        guard let ownRate = rates[self.currency] else { return nil }
+        let usd = convertingToUSD(rate: ownRate)
+        if currency == .usd {
+            return FiatAmount(value: usd.value.rounded(to: currency.maximumFractionDigits), currency: .usd)
+        }
+        guard let targetRate = rates[currency] else { return nil }
+        let converted = usd.converting(to: targetRate)
+        return FiatAmount(value: converted.value.rounded(to: currency.maximumFractionDigits), currency: currency)
+    }
 }
 
 // MARK: - Formatting -

@@ -33,10 +33,17 @@ final class SendAmountViewModel {
 
     @ObservationIgnored let session: Session
     @ObservationIgnored let ratesController: RatesController
+    @ObservationIgnored let conversationController: ConversationController
     @ObservationIgnored let sender: any DirectSending
     @ObservationIgnored let resolver: any RecipientResolving
     @ObservationIgnored let target: SendTarget
+    @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let amountValidator = AmountValidator()
+
+    /// The tip recipient's profile, which carries the fee they charge to open a
+    /// DM. Nil for a contact send, and until a fetch lands for a recipient the
+    /// cache didn't already hold.
+    private(set) var recipientProfile: Profile?
 
     /// The mint this flow opened for, replayed by the re-resolve below.
     @ObservationIgnored private let initialMint: PublicKey?
@@ -61,21 +68,47 @@ final class SendAmountViewModel {
         return enteredFiat.onChainAmount.quarks > 0
     }
 
-    /// True when this send pays a tip recipient rather than a contact. Drives
-    /// the swipe label and whether a minimum applies.
-    var isTipTarget: Bool {
-        if case .tip = target { true } else { false }
+    /// True when this send would be the payment that opens the tip DM — the one
+    /// the recipient's fee buys. Drives the swipe label and which floor applies.
+    /// False for a contact send and for a thread that already exists.
+    var opensTipDM: Bool {
+        guard case .tip(let recipient) = target else { return false }
+        // The same rule `ConversationScreen.chatExists` draws: a tip DM's id is
+        // derived locally, so the feed holding it is what says the chat is real.
+        return conversationController.conversation(
+            withID: .tipDm(between: session.userID, and: recipient.userID)
+        ) == nil
+    }
+
+    /// The floor this entry has to clear when the amount is priced in
+    /// `currency`, or nil when it has none.
+    ///
+    /// A fee the recipient sets buys the conversation, so it applies to exactly
+    /// one payment: the tip that opens the DM. Past that the tip card falls back
+    /// to the regional minimum every tip carries, and an in-chat send — a plain
+    /// send into an open thread — carries no floor at all.
+    func tipFloor(in currency: CurrencyCode) -> TipFloor? {
+        guard case .tip(let recipient) = target else { return nil }
+        let presets = session.userFlags?.tipPresets(for: currency)
+        guard opensTipDM else {
+            switch recipient.origin {
+            case .chat:    return nil
+            case .tipcard: return .systemMinimum(presets: presets)
+            }
+        }
+        return .toOpenDM(
+            recipientFee: recipientProfile?.minDmChatInitFee,
+            presets: presets,
+            in: currency,
+            rates: ratesController.cachedRates
+        )
     }
 
     /// The tip floor for the display currency, stated under the amount so a
-    /// rejection is the exception rather than the flow. Nil for a contact send,
-    /// and until the server's presets arrive.
+    /// rejection is the exception rather than the flow. Nil when this entry
+    /// carries no floor, and until the server's presets arrive.
     var tipMinimum: FiatAmount? {
-        guard isTipTarget,
-              let presets = session.userFlags?.tipPresets(for: ratesController.balanceCurrency) else {
-            return nil
-        }
-        return FiatAmount(value: presets.minimum, currency: presets.currency)
+        tipFloor(in: ratesController.balanceCurrency)?.displayed
     }
 
     /// The keypad buffer parsed to a positive amount, or nil.
@@ -108,16 +141,41 @@ final class SendAmountViewModel {
 
         self.session         = session
         self.ratesController = ratesController
+        self.conversationController = sessionContainer.conversationController
+        self.flipClient      = sessionContainer.flipClient
         self.sender          = sender ?? session
         self.resolver        = resolver ?? session
         self.target          = target
         self.initialMint     = mint
         self.selectedBalance = resolved
 
+        if case .tip(let recipient) = target {
+            self.recipientProfile = session.cachedUserProfile(for: recipient.userID)
+            if recipientProfile == nil {
+                loadRecipientProfile(recipient.userID)
+            }
+        }
+
         if let resolved {
             syncGlobalTokenSelection(to: resolved)
         } else {
             observeBalancesForInitialResolve()
+        }
+    }
+
+    /// Fills in the recipient's fee for the in-chat entry, whose counterpart
+    /// arrives from the conversation rather than a resolved tip card (which has
+    /// already cached one). Best effort: a miss leaves the entry on the regional
+    /// minimum, with the server still the authority on the swipe.
+    private func loadRecipientProfile(_ userID: UserID) {
+        Task { [weak self] in
+            guard let self else { return }
+            guard let profile = try? await flipClient.fetchProfile(
+                userID: userID,
+                owner: session.ownerKeyPair
+            ) else { return }
+            session.cacheUserProfile(profile, for: userID)
+            recipientProfile = profile
         }
     }
 
@@ -170,33 +228,32 @@ final class SendAmountViewModel {
         return await submit(entered: entered)
     }
 
-    /// Whether `entered` clears the server's tip minimum for a tip target,
-    /// surfacing the minimum dialog when it doesn't. Contact sends always
-    /// pass. The one gate both the swipe path and the custom-amount entry use.
-    func enforceTipMinimum(entered: Decimal) -> Bool {
-        switch target {
-        case .contact:
-            return true
-        case .tip:
-            guard let exchangedFiat = selectedBalance?.enteredFiat(
-                for: entered,
-                rate: ratesController.rateForBalanceCurrency()
-            ), let presets = session.userFlags?.tipPresets(for: exchangedFiat.nativeAmount.currency) else {
-                // No presets (or no balance yet) — the server remains the authority.
-                return true
-            }
-            guard presets.meetsMinimum(exchangedFiat) else {
-                let minimum = FiatAmount(value: presets.minimum, currency: presets.currency)
-                // Grey rather than red: the entry is under a stated floor, not a
-                // failure, and the floor is already on screen (node 9553:20236).
-                session.dialogItem = .info(
-                    title: "\(minimum.formatted()) Minimum Tip",
-                    subtitle: "Please enter a higher amount"
-                )
-                return false
-            }
-            return true
+    /// The floor `entered` falls short of, or nil when it clears — or when no
+    /// floor applies. The silent half of ``enforceTipMinimum(entered:)``, for
+    /// deciding which amounts to offer rather than judging one.
+    func unmetTipMinimum(entered: Decimal) -> TipFloor? {
+        guard let exchangedFiat = selectedBalance?.enteredFiat(
+            for: entered,
+            rate: ratesController.rateForBalanceCurrency()
+        ), let floor = tipFloor(in: exchangedFiat.nativeAmount.currency) else {
+            // No floor (or no balance yet) — the server remains the authority.
+            return nil
         }
+        return floor.isMet(by: exchangedFiat) ? nil : floor
+    }
+
+    /// Whether `entered` clears this entry's tip floor, surfacing the minimum
+    /// dialog when it doesn't. Contact sends always pass. The one gate both the
+    /// swipe path and the custom-amount entry use.
+    func enforceTipMinimum(entered: Decimal) -> Bool {
+        guard let floor = unmetTipMinimum(entered: entered) else { return true }
+        // Grey rather than red: the entry is under a stated floor, not a
+        // failure, and the floor is already on screen (node 9553:20236).
+        session.dialogItem = .info(
+            title: "\(floor.displayed.formatted()) Minimum Tip",
+            subtitle: "Please enter a higher amount"
+        )
+        return false
     }
 
     /// The full submission path for an already-validated amount in the display

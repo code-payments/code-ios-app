@@ -42,9 +42,9 @@ struct SendTipSheet: View {
             }
 
             HStack(spacing: 8) {
-                presetChip(.low)
-                presetChip(.medium)
-                presetChip(.high)
+                ForEach(tipFlow.offeredTiers, id: \.self) { tier in
+                    presetChip(tier)
+                }
                 customChip
             }
 
