@@ -17,9 +17,9 @@ struct HomeTabBar: View {
     /// Per-tab unread badge counts; a tab absent or mapped to 0 shows no badge.
     var badgeCounts: [HomeTab: Int] = [:]
 
-    /// The signed-in profile's picture, which the You tab wears in place of its
-    /// glyph. Nil keeps the glyph.
-    var profilePhoto: UIImage?
+    /// The circle the You tab wears in place of its glyph, once the profile
+    /// carries a picture. Nil keeps the glyph.
+    var profileSlot: ProfileTabSlot?
 
     private let tabs = HomeTab.allCases
 
@@ -91,8 +91,8 @@ struct HomeTabBar: View {
     /// and a profile without a picture, keeps the outline glyph.
     @ViewBuilder
     private func icon(for tab: HomeTab) -> some View {
-        if tab == .tipCard, let profilePhoto {
-            ProfileTabIcon(photo: profilePhoto)
+        if tab == .tipCard, let profileSlot {
+            ProfileTabIcon(photo: profileSlot.preview)
         } else {
             Image(tab.iconName(isSelected: tab == selection))
                 .renderingMode(.template)

@@ -7,12 +7,37 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
+/// What the You tab draws in its icon slot, for a profile that has a picture.
+///
+/// Nil-vs-case rather than a bare optional photo: "no picture at all" and "a
+/// picture that hasn't loaded" want different slots, and only the first of them
+/// should fall back to the outline glyph.
+enum ProfileTabSlot: Equatable {
+    /// The picture's thumbnail hasn't been read back yet, carrying its BlurHash
+    /// preview — nil for a picture stored before the hash was, which draws the
+    /// ring empty rather than falling back to the glyph.
+    case pending(UIImage?)
+    case photo(UIImage)
+
+    /// What `ProfileTabIcon` draws inside the ring.
+    var preview: UIImage? {
+        switch self {
+        case .pending(let blurred): blurred
+        case .photo(let picture):   picture
+        }
+    }
+}
+
 /// The You tab's icon once the profile carries a picture: the photo in a white
 /// ring, standing in the slot the outline glyph otherwise occupies (Figma node
 /// 9641:17115).
+///
+/// A nil photo draws the ring empty. That is the state a cold launch starts in:
+/// the profile says a picture exists well before its thumbnail is read back, and
+/// the ring holds the slot so the glyph never shows to someone who has one.
 struct ProfileTabIcon: View {
 
-    let photo: UIImage
+    let photo: UIImage?
 
     /// The slot every tab glyph is drawn into, so the photo sits on the same
     /// baseline as its neighbours.
@@ -22,15 +47,21 @@ struct ProfileTabIcon: View {
     private static let ringWidth: CGFloat = 2
 
     var body: some View {
-        Image(uiImage: photo)
-            .resizable()
-            .scaledToFill()
-            .frame(width: Self.circleSize, height: Self.circleSize)
-            .clipShape(Circle())
-            .overlay {
-                Circle().strokeBorder(Color.white, lineWidth: Self.ringWidth)
+        Group {
+            if let photo {
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.white.opacity(0.2)
             }
-            .frame(width: Self.slotSize, height: Self.slotSize)
+        }
+        .frame(width: Self.circleSize, height: Self.circleSize)
+        .clipShape(Circle())
+        .overlay {
+            Circle().strokeBorder(Color.white, lineWidth: Self.ringWidth)
+        }
+        .frame(width: Self.slotSize, height: Self.slotSize)
     }
 }
 
@@ -88,12 +119,30 @@ final class TabBarProfilePhoto {
         loadedBlobID = blobID
     }
 
+    /// The bar renditions of a slot that is still loading, so the iOS 26 bar
+    /// shows the BlurHash where the pill shows it too.
+    ///
+    /// Memoized on the preview because this is read from a view body: the decode
+    /// behind it is already cached, but the two `ImageRenderer` passes are not.
+    /// One entry is enough — a launch only ever waits on one picture.
+    static func pendingItemImages(preview: UIImage?) -> ItemImages? {
+        if memoizedPreview === preview, let memoizedPending { return memoizedPending }
+
+        let rendered = render(preview)
+        memoizedPreview = preview
+        memoizedPending = rendered
+        return rendered
+    }
+
+    private static var memoizedPreview: UIImage?
+    private static var memoizedPending: ItemImages?
+
     /// Draws the icon into the pair of images a `UITabBarItem` holds.
     ///
     /// The bar tints template glyphs per state, but a photo has to render as its
     /// own colours — so the unselected dimming is baked in here instead, at the
     /// half opacity the pill applies to every other icon.
-    static func render(_ photo: UIImage) -> ItemImages? {
+    static func render(_ photo: UIImage?) -> ItemImages? {
         guard let selected = image(of: ProfileTabIcon(photo: photo)),
               let normal = image(of: ProfileTabIcon(photo: photo).opacity(0.5))
         else { return nil }
