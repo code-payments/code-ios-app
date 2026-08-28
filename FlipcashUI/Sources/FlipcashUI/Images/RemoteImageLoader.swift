@@ -18,4 +18,12 @@ public enum RemoteImageLoader {
         let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
         return try await KingfisherManager.shared.retrieveImage(with: resource).image
     }
+
+    /// The image already cached under `cacheKey`, or nil when it isn't cached.
+    ///
+    /// Never touches the network, so a caller holding a durable key can draw a
+    /// previously-fetched image before it mints a signed URL to re-fetch it.
+    public static func cachedImage(cacheKey: String) async -> UIImage? {
+        try? await KingfisherManager.shared.cache.retrieveImage(forKey: cacheKey).image
+    }
 }

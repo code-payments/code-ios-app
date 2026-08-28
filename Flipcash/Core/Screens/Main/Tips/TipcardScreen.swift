@@ -103,24 +103,12 @@ struct TipcardScreen: View {
         // on the card, least of all baked into the export.
         avatar = nil
 
-        guard let blobID = profilePicture?.thumbnailBlobID else { return }
-
-        do {
-            // Download URLs expire, so one is minted per load and never stored.
-            guard let url = try await container.flipClient.blobDownloadURL(
-                blobID: blobID,
-                owner: sessionContainer.session.ownerKeyPair
-            ) else {
-                logger.info("Profile picture blob has no download URL", metadata: ["blobId": "\(blobID)"])
-                return
-            }
-
-            avatar = try await RemoteImageLoader.image(at: url, cacheKey: blobID.description)
-        } catch {
-            guard !Task.isCancelled else { return }
-            // The card still renders and shares without the photo.
-            logger.info("Failed to load profile picture for the tipcard", metadata: ["error": "\(error)"])
-        }
+        // The card still renders and shares without the photo.
+        avatar = await ProfilePictureLoader.thumbnail(
+            for: profilePicture,
+            using: container.flipClient,
+            owner: sessionContainer.session.ownerKeyPair
+        )
     }
 
     private func renderExportImage() {
