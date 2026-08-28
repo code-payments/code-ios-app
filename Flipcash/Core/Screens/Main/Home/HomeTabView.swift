@@ -117,6 +117,31 @@ struct HomeTabView: View {
         sessionContainer.session.profile?.profilePicture
     }
 
+    /// What the You tab wears right now, or nil for a profile with no picture.
+    ///
+    /// Derived in the body rather than waited on: the profile is hydrated from
+    /// the database before the first paint, so a cold launch knows a picture is
+    /// coming — and can decode its BlurHash — while the thumbnail is still being
+    /// read back. Keying only on the loaded photo would show the glyph until it
+    /// landed, which is the tip card's icon on somebody who has a picture.
+    private var profileSlot: ProfileTabSlot? {
+        if let photo = profilePhoto.photo { return .photo(photo) }
+        guard let picture = profilePicture, picture.thumbnailBlobID != nil else { return nil }
+        return .pending(BlurHashCache.shared.image(for: picture.thumbnailBlurhash))
+    }
+
+    /// `profileSlot` in the form the iOS 26 bar takes its item images in.
+    private var profileItemImages: TabBarProfilePhoto.ItemImages? {
+        guard let profileSlot else { return nil }
+
+        switch profileSlot {
+        case .photo:
+            return profilePhoto.itemImages
+        case .pending(let preview):
+            return TabBarProfilePhoto.pendingItemImages(preview: preview)
+        }
+    }
+
     /// Brings the tab the router asked for forward and clears the request.
     private func selectRequestedTab() {
         guard let requested = router.requestedTabStack,
@@ -161,7 +186,7 @@ struct HomeTabView: View {
         // handing it the pair is what makes the icons fill under the finger
         // rather than when the drag commits — the binding does not change until
         // the finger lifts.
-        .background(TabBarSelectedIcons(tabs: HomeTab.allCases, profileImages: profilePhoto.itemImages))
+        .background(TabBarSelectedIcons(tabs: HomeTab.allCases, profileImages: profileItemImages))
     }
 
     /// The unselected icon for a tab. The filled counterpart is handed to UIKit
@@ -172,7 +197,7 @@ struct HomeTabView: View {
     /// image from this label whenever it rebuilds the bar, so a label that
     /// disagreed would take turns with the probe and flicker between the two.
     @ViewBuilder private func tabLabel(for tab: HomeTab) -> some View {
-        if tab == .tipCard, let photo = profilePhoto.itemImages?.normal {
+        if tab == .tipCard, let photo = profileItemImages?.normal {
             Image(uiImage: photo).renderingMode(.original)
         } else {
             Image(tab.iconName(isSelected: false))
@@ -198,7 +223,7 @@ struct HomeTabView: View {
                 HomeTabBar(
                     selection: $selection,
                     badgeCounts: [.chat: chatBadgeCount],
-                    profilePhoto: profilePhoto.photo
+                    profileSlot: profileSlot
                 )
                     // Figma insets the pill ~42pt from each edge (318pt wide on the
                     // 402pt frame); a fixed margin keeps the floating look across
