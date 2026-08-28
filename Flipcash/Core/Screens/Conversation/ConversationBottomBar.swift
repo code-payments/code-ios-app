@@ -23,7 +23,7 @@ import FlipcashUI
 
 /// Single spring driving the whole bar: the button morph, the composer's
 /// appearance when the chat materializes, and the send-arrow pop.
-private let barMorphSpring = Animation.spring(duration: 0.35, bounce: 0.2)
+private let barMorphSpring = ChatMotion.swap.animation
 
 /// Metrics shared by the field and the button beside it so their heights can't
 /// desync. Deliberately not `Metrics.buttonHeight`/`buttonRadius` — beside the
@@ -96,7 +96,7 @@ struct ConversationComposer: View {
     @FocusState private var isFocused: Bool
 
     /// Send button scale-in/out as text appears/clears.
-    private static let sendButtonSpring = Animation.spring(duration: 0.17, bounce: 0.34)
+    private static let sendButtonSpring = ChatMotion.sendButton.animation
 
     var body: some View {
         let field = HStack(alignment: .bottom, spacing: 10) {

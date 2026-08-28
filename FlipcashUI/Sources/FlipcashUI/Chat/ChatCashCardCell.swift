@@ -142,7 +142,8 @@ public final class ChatCashCardCell: ChatColumnCell {
                 isFromSelf: message.sender == .me,
                 groupedAbove: message.isContinuationFromPrevious,
                 groupedBelow: message.isContinuedByNext
-            )
+            ),
+            identity: message.id
         )
         updateColumn(for: message)
 

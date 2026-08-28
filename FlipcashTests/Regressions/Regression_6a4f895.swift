@@ -21,7 +21,7 @@ import FlipcashCore
 @Suite("Regression: 6a4f895 – chat transcript reconfigure across cell classes", .bug("6a4f895be96556123e956f79"))
 struct Regression_6a4f895 {
 
-    nonisolated private static func text(_ id: String, _ body: String = "hello", link: Bool = false, receipt: String? = nil) -> ChatItem {
+    nonisolated private static func text(_ id: String, _ body: String = "hello", link: Bool = false, receipt: ChatReceipt? = nil) -> ChatItem {
         .message(ChatMessage(
             id: id,
             text: body,
@@ -60,7 +60,7 @@ struct Regression_6a4f895 {
         // the fix from over-broadening identity into whole-value equality, which would tear down
         // and re-insert rows on every receipt or grouping change.
         let before = [Self.text("m")]
-        let after = [Self.text("m", receipt: "Delivered")]
+        let after = [Self.text("m", receipt: .delivered)]
 
         let changeset = StagedChangeset(source: before, target: after)
 

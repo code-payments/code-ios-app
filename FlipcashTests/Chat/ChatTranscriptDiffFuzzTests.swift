@@ -58,7 +58,7 @@ struct ChatTranscriptDiffFuzzTests {
                     text: "text-\(id)",
                     sender: id.isMultiple(of: 2) ? .me : .other,
                     isContinuationFromPrevious: grouped,
-                    receipt: receipt ? "Read" : nil
+                    receipt: receipt ? .read(time: nil) : nil
                 ))
             case .link(let id):
                 .message(ChatMessage(

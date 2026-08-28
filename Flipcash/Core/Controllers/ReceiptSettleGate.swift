@@ -24,7 +24,12 @@ final class ReceiptSettleGate {
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private let delay: Duration
 
-    init(delay: Duration = .milliseconds(500)) {
+    /// How long a just-sent row's receipt is held back. A *floor*, not a timer: the mapping only
+    /// shows a receipt once the message is both confirmed sent and no longer held, so the reveal
+    /// lands at `max(this, server confirmation)`.
+    static let defaultDelay: Duration = .milliseconds(700)
+
+    init(delay: Duration = ReceiptSettleGate.defaultDelay) {
         self.delay = delay
     }
 

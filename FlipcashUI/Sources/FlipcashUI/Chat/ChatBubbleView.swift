@@ -64,7 +64,8 @@ public final class ChatBubbleView: UIView {
                 isFromSelf: message.sender == .me,
                 groupedAbove: message.isContinuationFromPrevious,
                 groupedBelow: message.isContinuedByNext
-            )
+            ),
+            identity: message.id
         )
     }
 }

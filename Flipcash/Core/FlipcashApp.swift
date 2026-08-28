@@ -20,26 +20,58 @@ struct FlipcashApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContainerScreen()
-                .injectingEnvironment(from: appDelegate.container)
-                .preferredColorScheme(.dark)
-                .tint(Color.textMain)
-                .onOpenURL { url in
-                    appDelegate.handleOpenURL(url: url)
-                }
-                .onContinueUserActivity(CSSearchableItemActionType) { activity in
-                    appDelegate.handleContinue(activity)
-                }
-                .onContinueUserActivity(AppUserActivity.openChat) { activity in
-                    appDelegate.handleContinue(activity)
-                }
-                .withDialogWindow(
-                    sessionAuthenticator: appDelegate.container.sessionAuthenticator
-                )
-                .onScenePhaseChange(appDelegate: appDelegate)
+            #if DEBUG
+            if MotionSandbox.isRequested {
+                MotionSandbox()
+            } else {
+                mainScene
+            }
+            #else
+            mainScene
+            #endif
         }
     }
+
+    private var mainScene: some View {
+        ContainerScreen()
+            .injectingEnvironment(from: appDelegate.container)
+            .preferredColorScheme(.dark)
+            .tint(Color.textMain)
+            .onOpenURL { url in
+                appDelegate.handleOpenURL(url: url)
+            }
+            .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                appDelegate.handleContinue(activity)
+            }
+            .onContinueUserActivity(AppUserActivity.openChat) { activity in
+                appDelegate.handleContinue(activity)
+            }
+            .withDialogWindow(
+                sessionAuthenticator: appDelegate.container.sessionAuthenticator
+            )
+            .onScenePhaseChange(appDelegate: appDelegate)
+    }
 }
+
+#if DEBUG
+/// The motion sandbox, standing in for the whole app when launched with `--motion-sandbox`.
+///
+/// A launch argument rather than a hidden menu entry because the point is a *repeatable recording*:
+/// one `xcrun simctl launch` line puts the device on the scripted send with nothing else on screen,
+/// so a before/after pair differs only by the code under test. DEBUG-only, so it can't ship.
+private struct MotionSandbox: UIViewControllerRepresentable {
+
+    static var isRequested: Bool {
+        ProcessInfo.processInfo.arguments.contains("--motion-sandbox")
+    }
+
+    func makeUIViewController(context: Context) -> ChatMotionSandboxViewController {
+        ChatMotionSandboxViewController(autoplay: true)
+    }
+
+    func updateUIViewController(_ controller: ChatMotionSandboxViewController, context: Context) {}
+}
+#endif
 
 // MARK: - DialogWindow Modifier -
 

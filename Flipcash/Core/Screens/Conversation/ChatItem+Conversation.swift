@@ -107,21 +107,21 @@ extension ChatItem {
             // The status line rides on the bubble itself (not a separate row, so a send is a clean
             // insert). All of its copy is produced here, in one layer; the cell only styles it
             // (resting vs. red + tappable) off `isFailed`.
-            let receipt: String?
+            let receipt: ChatReceipt?
             switch message.status {
             case .sent:
                 // "Delivered"/"Read" rides only the latest confirmed self message — preserved even when
                 // a later send is in flight or failed, and held back while the row is still settling in.
                 // `latestSentFromSelfID` is already a self+sent row, so matching it implies both.
                 receipt = message.stableID == latestSentFromSelfID && message.stableID != suppressReceiptFor
-                    ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
+                    ? Self.receipt(for: message.id, counterpartRead: counterpartRead)
                     : nil
             case .sending:
                 // No status line while in flight — the bubble sits there until it resolves to
                 // "Delivered" or the failed state.
                 receipt = nil
             case .failed:
-                receipt = "Not Delivered. Tap to retry"
+                receipt = .failed("Not Delivered. Tap to retry")
             }
 
             items.append(.message(ChatMessage(
@@ -131,7 +131,6 @@ extension ChatItem {
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow,
                 receipt: receipt,
-                isFailed: message.status == .failed,
                 linkPreview: linkPreview
             )))
         }
@@ -140,9 +139,9 @@ extension ChatItem {
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's
     /// read pointer reaches the message, else "Delivered".
-    nonisolated private static func receiptText(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> String {
-        guard let read = counterpartRead, read.pointer >= messageID else { return "Delivered" }
-        guard let date = read.date else { return "Read" }
-        return "Read \(date.formattedRelatively(useTimeForToday: true))"
+    nonisolated private static func receipt(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> ChatReceipt {
+        guard let read = counterpartRead, read.pointer >= messageID else { return .delivered }
+        guard let date = read.date else { return .read(time: nil) }
+        return .read(time: date.formattedRelatively(useTimeForToday: true))
     }
 }

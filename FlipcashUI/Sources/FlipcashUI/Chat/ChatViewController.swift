@@ -52,6 +52,10 @@ public final class ChatViewController: UICollectionViewController {
     /// Within this many points of the bottom counts as "at the bottom".
     private static let bottomThreshold: CGFloat = 50
 
+    /// Extra spacing where the sender flips, on top of the base inter-item spacing, so a change of
+    /// speaker reads as a break in the column rather than another row in the same run.
+    private static let senderFlipExtraSpacing: CGFloat = 6
+
     private let chatLayout = CollectionViewChatLayout()
     private var items: [ChatItem] = []
     /// Whether the user last left the transcript at the bottom. Updated only on user-driven
@@ -201,26 +205,31 @@ public final class ChatViewController: UICollectionViewController {
             return
         }
         isUpdating = true
-        collectionView.reload(
-            using: changeset,
-            // A change too large to animate falls back to a reload that keeps the bottom-anchored
-            // position rather than animating hundreds of rows.
-            interrupt: { $0.changeCount > 100 },
-            onInterruptedReload: { [weak self] in
-                guard let self else { return }
-                let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
-                collectionView.reloadData()
-                if let snapshot {
-                    chatLayout.restoreContentOffset(with: snapshot)
+        // `performBatchUpdates` inherits the enclosing animation's timing, which is the only way to
+        // give ChatLayout's insertion a spring: the layout delegate below supplies the *starting*
+        // state, this supplies the curve it travels on.
+        ChatMotion.insertion.animate { [self] in
+            collectionView.reload(
+                using: changeset,
+                // A change too large to animate falls back to a reload that keeps the bottom-anchored
+                // position rather than animating hundreds of rows.
+                interrupt: { $0.changeCount > 100 },
+                onInterruptedReload: { [weak self] in
+                    guard let self else { return }
+                    let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
+                    collectionView.reloadData()
+                    if let snapshot {
+                        chatLayout.restoreContentOffset(with: snapshot)
+                    }
+                },
+                completion: { [weak self] _ in
+                    self?.isUpdating = false
+                },
+                setData: { [weak self] data in
+                    self?.items = data
                 }
-            },
-            completion: { [weak self] _ in
-                self?.isUpdating = false
-            },
-            setData: { [weak self] data in
-                self?.items = data
-            }
-        )
+            )
+        }
     }
 
     // MARK: - Data source
@@ -345,12 +354,12 @@ public final class ChatViewController: UICollectionViewController {
             - collectionView.bounds.height
             + collectionView.adjustedContentInset.bottom
         guard target > collectionView.contentOffset.y else { return }
-        UIView.animate(withDuration: 0.25, animations: {
+        ChatMotion.scroll.animate {
             self.collectionView.setContentOffset(CGPoint(x: 0, y: target), animated: false)
-        }, completion: { _ in
+        } completion: { _ in
             // Lock to the exact bottom edge once the animation lands (the estimate may have moved).
             self.chatLayout.restoreContentOffset(with: snapshot)
-        })
+        }
     }
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -435,9 +444,53 @@ public final class ChatViewController: UICollectionViewController {
     }
 }
 
-/// The controller is the layout delegate so cells inherit ChatLayout's defaults — auto self-sizing
-/// and full-width alignment. No row needs a custom size, so nothing is overridden.
-extension ChatViewController: ChatLayoutDelegate {}
+/// The controller is the layout delegate: cells inherit ChatLayout's defaults for sizing and
+/// alignment, and the two hooks below carry the transcript's motion — how an inserted row starts,
+/// and the extra breathing room where the speaker changes.
+extension ChatViewController: ChatLayoutDelegate {
+
+    public func initialLayoutAttributesForInsertedItem(
+        _ chatLayout: CollectionViewChatLayout,
+        at indexPath: IndexPath,
+        modifying originalAttributes: ChatLayoutAttributes,
+        on state: InitialAttributesRequestType
+    ) {
+        switch state {
+        case .initial:
+            ChatMotion.applyInsertionState(to: originalAttributes, sender: sender(at: indexPath))
+        case .invalidation:
+            // Still the same arrival — ChatLayout only asks this for an inserted row, once
+            // self-sizing has resolved its real height. It overwrites the frame first, so the
+            // starting state has to be re-stated rather than assumed to have survived.
+            ChatMotion.applyInsertionState(to: originalAttributes, sender: sender(at: indexPath))
+        }
+    }
+
+    public func interItemSpacing(_ chatLayout: CollectionViewChatLayout, after indexPath: IndexPath) -> CGFloat? {
+        // Only a message→message pair with different senders widens. Any other pairing (into or out
+        // of a separator, the typing indicator, the profile card) takes the base spacing.
+        guard let current = sender(at: indexPath),
+              let next = sender(at: IndexPath(item: indexPath.item + 1, section: indexPath.section)),
+              current != next else { return nil }
+        return chatLayout.settings.interItemSpacing + Self.senderFlipExtraSpacing
+    }
+
+    /// Which side of the thread the row at `indexPath` belongs to, or nil for a row that belongs to
+    /// neither (a date separator, the profile card). The typing indicator counts as the counterpart:
+    /// it is an incoming bubble in everything but content, so it should arrive like one and should
+    /// not read as a change of speaker when it follows their message.
+    ///
+    /// Bounds-checked, because the layout can ask mid-batch-update, where an index path may outrun
+    /// `items`.
+    private func sender(at indexPath: IndexPath) -> ChatMessage.Sender? {
+        guard items.indices.contains(indexPath.item) else { return nil }
+        switch items[indexPath.item] {
+        case .message(let message): return message.sender
+        case .typingIndicator: return .other
+        case .dateSeparator, .profileCard: return nil
+        }
+    }
+}
 
 extension ChatViewController: UIGestureRecognizerDelegate {
     /// Lets the tap-to-dismiss recognizer fire alongside the collection view's own scroll and

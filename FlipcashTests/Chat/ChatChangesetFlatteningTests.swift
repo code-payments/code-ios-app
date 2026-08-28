@@ -23,7 +23,7 @@ struct ChatChangesetFlatteningTests {
         sender: ChatMessage.Sender = .me,
         continuedByNext: Bool = false,
         continuationFromPrevious: Bool = false,
-        receipt: String? = nil
+        receipt: ChatReceipt? = nil
     ) -> ChatItem {
         .message(ChatMessage(
             id: id,
@@ -39,10 +39,10 @@ struct ChatChangesetFlatteningTests {
     func updateAndInsert_mergesIntoOneBatch() throws {
         // A new own message migrates the receipt off the previous row and flips its grouping —
         // an update — while the new row is an insert. DifferenceKit stages these separately.
-        let before = [message("a", receipt: "Delivered")]
+        let before = [message("a", receipt: .delivered)]
         let after = [
             message("a", continuedByNext: true),
-            message("b", continuationFromPrevious: true, receipt: "Delivered"),
+            message("b", continuationFromPrevious: true, receipt: .delivered),
         ]
 
         let staged = StagedChangeset(source: before, target: after)

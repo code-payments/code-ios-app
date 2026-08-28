@@ -16,7 +16,7 @@ import FlipcashCore
 struct ChatBubbleViewCornerTests {
 
     private let base = BubbleBackgroundView.baseRadius      // 12
-    private let grouped = BubbleBackgroundView.groupedRadius // 6
+    private let grouped = BubbleBackgroundView.groupedRadius // 4
 
     @Test("A standalone bubble uses the base radius on all four corners")
     func standalone_allBase() {

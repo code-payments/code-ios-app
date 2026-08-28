@@ -9,13 +9,13 @@
 import UIKit
 import FlipcashCore
 
-/// Base for a chat row that stacks a content view above an optional `ChatReceiptLabel` in a vertical
+/// Base for a chat row that stacks a content view above an optional `ChatReceiptView` in a vertical
 /// column, hugging the leading or trailing edge by sender. A subclass builds its content view (a
 /// bubble or a card), hands it to `installColumn(content:)` from `init`, then calls `updateColumn(for:)`
 /// from its own `configure`. The receipt collapses out of the column when the message carries none.
 public class ChatColumnCell: UICollectionViewCell {
 
-    private let receipt = ChatReceiptLabel()
+    private let receipt = ChatReceiptView()
     private let column = UIStackView()
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
@@ -27,7 +27,7 @@ public class ChatColumnCell: UICollectionViewCell {
     /// Tap-to-retry recognizer, enabled only while this row is failed so non-failed bubbles don't
     /// consume taps (and a future single-tap affordance isn't pre-empted).
     private var retryTap: UITapGestureRecognizer?
-    /// The id of the message this cell currently renders. The receipt is cross-faded only when the
+    /// The id of the message this cell currently renders. The receipt animates only when the
     /// *same* row changes in place; a recycled cell reconfigured for a different id sets its line
     /// directly, so it never replays this cell's prior line (a reused failed cell flashing red).
     private var currentMessageID: String?
@@ -65,15 +65,14 @@ public class ChatColumnCell: UICollectionViewCell {
         currentMessageID = nil
         retryID = nil
         retryTap?.isEnabled = false
-        // Clear the line so a recycled cell never carries its prior row's text/color into the next use.
-        receipt.text = nil
-        receipt.isHidden = true
-        receipt.textColor = ChatReceiptLabel.defaultColor
+        // Clear the line so a recycled cell never carries its prior row's text into the next use,
+        // or animates away from it.
+        receipt.reset()
     }
 
-    /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The text
-    /// is supplied by the mapping (`message.receipt`); this only styles it — a failed row turns red and
-    /// becomes tappable to retry.
+    /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The line
+    /// itself comes from the mapping (`message.receipt`) and renders itself; the cell only decides
+    /// whether the update animates, and makes a failed row tappable to retry.
     func updateColumn(for message: ChatMessage) {
         // Cross-fade the receipt only when the *same* row changes in place (Delivered→Read, the settling
         // line revealing). A recycled or freshly dequeued cell renders a different row, so its line is set
@@ -83,9 +82,8 @@ public class ChatColumnCell: UICollectionViewCell {
         currentMessageID = message.id
         // A failed row is the only interactive/red one — every signal keys off that single condition.
         retryID = message.isFailed ? message.id : nil
-        receipt.textColor = message.isFailed ? ChatReceiptLabel.failedColor : ChatReceiptLabel.defaultColor
         retryTap?.isEnabled = message.isFailed
-        setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
+        receipt.setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
     }
@@ -93,23 +91,6 @@ public class ChatColumnCell: UICollectionViewCell {
     @objc private func retryTapped() {
         guard let retryID else { return }
         onRetry?(retryID)
-    }
-
-    private func setReceipt(_ text: String?, animated: Bool) {
-        guard receipt.text != text else { return }
-        // Cross-fade the line in (nil→text) and across the Delivered→Read swap; let it snap away when
-        // it clears so the row collapses in step with the batch update rather than after the fade. The
-        // visibility change is applied synchronously, outside the transition, so the cell's self-sized
-        // height never lags the cross-fade.
-        if animated, text != nil {
-            receipt.isHidden = false
-            UIView.transition(with: receipt, duration: 0.25, options: .transitionCrossDissolve) {
-                self.receipt.text = text
-            }
-        } else {
-            receipt.text = text
-            receipt.isHidden = text == nil
-        }
     }
 
     /// Exactly one horizontal edge is pinned, so the column hugs its sender's side and the opposite
