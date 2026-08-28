@@ -61,6 +61,23 @@ final class SendAmountViewModel {
         return enteredFiat.onChainAmount.quarks > 0
     }
 
+    /// True when this send pays a tip recipient rather than a contact. Drives
+    /// the swipe label and whether a minimum applies.
+    var isTipTarget: Bool {
+        if case .tip = target { true } else { false }
+    }
+
+    /// The tip floor for the display currency, stated under the amount so a
+    /// rejection is the exception rather than the flow. Nil for a contact send,
+    /// and until the server's presets arrive.
+    var tipMinimum: FiatAmount? {
+        guard isTipTarget,
+              let presets = session.userFlags?.tipPresets(for: ratesController.balanceCurrency) else {
+            return nil
+        }
+        return FiatAmount(value: presets.minimum, currency: presets.currency)
+    }
+
     /// The keypad buffer parsed to a positive amount, or nil.
     private var validatedEntered: Decimal? {
         guard let amount = amountValidator.validate(enteredAmount), amount > 0 else { return nil }
@@ -170,9 +187,11 @@ final class SendAmountViewModel {
             }
             guard presets.meetsMinimum(exchangedFiat) else {
                 let minimum = FiatAmount(value: presets.minimum, currency: presets.currency)
-                session.dialogItem = .error(
-                    title: "Tips Start at \(minimum.formatted())",
-                    subtitle: "Enter a larger amount to send this tip"
+                // Grey rather than red: the entry is under a stated floor, not a
+                // failure, and the floor is already on screen (node 9553:20236).
+                session.dialogItem = .info(
+                    title: "\(minimum.formatted()) Minimum Tip",
+                    subtitle: "Please enter a higher amount"
                 )
                 return false
             }

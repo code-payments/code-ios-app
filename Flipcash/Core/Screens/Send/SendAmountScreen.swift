@@ -32,7 +32,6 @@ private struct SendAmountScreenContent: View {
     @Environment(AppRouter.self) private var router
 
     @State private var viewModel: SendAmountViewModel
-    @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingTokenSelection: Bool = false
     @State private var didSucceed: Bool = false
 
@@ -63,6 +62,17 @@ private struct SendAmountScreenContent: View {
 
     // MARK: - Body -
 
+    /// The tip floor when one applies, otherwise what's left to spend. A tip
+    /// states its minimum up front and reports a breach through a dialog on
+    /// submit, so the hint never reddens on that path.
+    private var hint: EnterAmountHeader.Hint {
+        if let minimum = viewModel.tipMinimum {
+            .caption("\(minimum.formatted()) minimum")
+        } else {
+            .available(maxLimit)
+        }
+    }
+
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
@@ -70,9 +80,12 @@ private struct SendAmountScreenContent: View {
                 enteredAmount: $viewModel.enteredAmount,
                 subtitle: .balanceWithLimit(maxLimit),
                 actionEnabled: { _ in viewModel.canSend },
-                currencySelectionAction: { isShowingCurrencySelection.toggle() }
+                header: AnyView(EnterAmountHeader(
+                    enteredAmount: $viewModel.enteredAmount,
+                    hint: hint
+                ))
             ) {
-                SwipeControl(text: "Swipe to Send") {
+                SwipeControl(text: viewModel.isTipTarget ? "Swipe to Tip" : "Swipe to Send") {
                     switch await viewModel.sendAction() {
                     case .success:
                         didSucceed = true
@@ -85,12 +98,7 @@ private struct SendAmountScreenContent: View {
                 }
             }
             .foregroundStyle(.textMain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            .padding(.top, -40)
-            .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(ratesController: ratesController)
-            }
+            .padding(20)
         }
         .ignoresSafeArea(.keyboard)
         .navigationTitle("")

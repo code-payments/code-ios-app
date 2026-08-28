@@ -637,7 +637,7 @@ struct SendAmountViewModelTests {
 
         #expect(outcome == .failed)
         #expect(mock.sendCalls.isEmpty)
-        #expect(container.session.dialogItem?.title == "Tips Start at $1.00")
+        #expect(container.session.dialogItem?.title == "$1.00 Minimum Tip")
     }
 
     @Test("A tip at exactly the displayed minimum is allowed")
