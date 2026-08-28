@@ -24,9 +24,10 @@ struct TipcardView: View {
     /// oversized on the small card and undersized on the big one.
     static let nameFraction: CGFloat = 17.0 / 269.0
 
-    /// The subtitle's size as a fraction of the card's width, scaling with the
-    /// card on the same basis as the name.
-    static let subtitleFraction: CGFloat = 12.0 / 269.0
+    /// The gap between the name and the subtitle, as a fraction of the card's
+    /// width so it scales with the type. From node 9443:7991's 4 on the
+    /// 241.6-wide card.
+    static let subtitleGapFraction: CGFloat = 4.0 / 241.636
 
     /// Explicit because a rendered tree has no container to size against.
     let size: CGSize
@@ -91,10 +92,15 @@ struct TipcardView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .padding(.horizontal, size.width * 0.08)
-                    .font(.default(size: subtitleFontSize, weight: .medium))
+                    // Same size as the name — node 9443:7991 draws both at 15
+                    // on the 241.6-wide card. Medium rather than bold, at half
+                    // opacity, is what separates the handle from the name; a
+                    // second type size read as an afterthought next to Figma
+                    // and Android.
+                    .font(.default(size: nameFontSize, weight: .medium))
                     .foregroundStyle(Color.textMain)
-                    .opacity(0.6)
-                    .padding(.top, size.height * 0.015)
+                    .opacity(0.5)
+                    .padding(.top, size.width * Self.subtitleGapFraction)
             }
         }
         .frame(width: size.width, height: size.height)
@@ -114,10 +120,6 @@ struct TipcardView: View {
 
     private var nameFontSize: CGFloat {
         size.width * Self.nameFraction
-    }
-
-    private var subtitleFontSize: CGFloat {
-        size.width * Self.subtitleFraction
     }
 
     private var codeDimension: CGFloat {
