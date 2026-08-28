@@ -13,9 +13,8 @@ import FlipcashCore
 /// deals with, and the profile it presents. The account-level actions — Access
 /// Key, Switch Accounts, Log Out, Delete Account — live on Advanced.
 ///
-/// The design also lists Minimum Tip and Require Biometrics. Neither is here:
-/// the minimum-tip editor is still to be built, and iOS has no biometrics
-/// setting to toggle.
+/// The design also lists Require Biometrics, which isn't here: iOS has no
+/// biometrics setting to toggle.
 ///
 /// The row icons track Android's (`MyAccountMenuItems.kt`) through the nearest
 /// SF Symbol, so the two platforms read alike without importing Material into
@@ -60,6 +59,11 @@ struct SettingsMyAccountScreen: View {
                 router.push(.changeProfilePicture)
             }
             .accessibilityIdentifier("account-profile-picture-row")
+
+            SettingsRow(asset: .coins, title: "Minimum Tip", insets: insets) {
+                router.push(.setMinimumTip(isSetupStep: false))
+            }
+            .accessibilityIdentifier("account-minimum-tip-row")
 
             SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
                 router.push(.blockedUsers)

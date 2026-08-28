@@ -81,9 +81,9 @@ private struct BuyAmountScreenContent: View {
                 action: { viewModel.primaryAction(router: router) },
                 actionTitle: viewModel.actionTitle,
                 accessory: AnyView(paymentSelector),
-                header: AnyView(SwapAmountHeader(
+                header: AnyView(EnterAmountHeader(
                     enteredAmount: $viewModel.enteredAmount,
-                    available: viewModel.maxPossibleAmount
+                    hint: .available(viewModel.maxPossibleAmount)
                 ))
             )
             .foregroundStyle(.textMain)

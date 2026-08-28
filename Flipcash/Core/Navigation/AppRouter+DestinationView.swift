@@ -79,6 +79,9 @@ struct DestinationView: View {
         case .username(let username):
             UsernameEntryScreen(currentUsername: username)
 
+        case .setMinimumTip(let isSetupStep):
+            SetMinimumTipScreen(isSetupStep: isSetupStep)
+
         case .settingsAdvancedFeatures:
             SettingsAdvancedFeaturesScreen()
 

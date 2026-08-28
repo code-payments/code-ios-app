@@ -67,9 +67,9 @@ private struct ConvertAmountScreenContent: View {
                 actionEnabled: { _ in viewModel.canPerformAction },
                 action: { viewModel.showConfirmation(router: router) },
                 accessory: AnyView(destinationSelector),
-                header: AnyView(SwapAmountHeader(
+                header: AnyView(EnterAmountHeader(
                     enteredAmount: $viewModel.enteredAmount,
-                    available: viewModel.maxPossibleAmount
+                    hint: .available(viewModel.maxPossibleAmount)
                 ))
             )
             .foregroundStyle(.textMain)
