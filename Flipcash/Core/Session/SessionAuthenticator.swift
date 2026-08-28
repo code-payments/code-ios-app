@@ -493,6 +493,13 @@ final class SessionContainer {
     /// reference never changes.
     @ObservationIgnored private(set) lazy var tipFlow = TipFlow(sessionContainer: self)
 
+    /// The in-progress currency the creation wizard is editing. Session-scoped
+    /// rather than owned by the wizard's navigation destination, which is
+    /// destroyed by any pop — an edge swipe out of the wizard used to discard
+    /// the name, icon and description with it. `CurrencyCreationSummaryScreen`
+    /// resets it when a new creation starts.
+    let currencyCreation = CurrencyCreationState()
+
     init(
         session: Session,
         database: Database,

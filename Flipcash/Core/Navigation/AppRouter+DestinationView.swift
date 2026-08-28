@@ -44,7 +44,10 @@ struct DestinationView: View {
             CurrencyCreationSummaryScreen()
 
         case .currencyCreationWizard:
-            CurrencyCreationWizardScreen(state: CurrencyCreationState())
+            // Session-scoped, never built here: a draft constructed in this
+            // closure dies with the pop, so an edge swipe out of the wizard
+            // took the name, icon and description with it.
+            CurrencyCreationWizardScreen(state: sessionContainer.currencyCreation)
 
         case .transactionHistory(let mint):
             TransactionHistoryScreen(mint: mint)
