@@ -1008,8 +1008,7 @@ private struct PaymentSelectionStep: View {
                         exchangedBalance: row,
                         accessibilityIdentifier: isUSDF ? "launch-payment-row-usdf" : "launch-payment-row",
                         accessory: isPaying ? .loader : .chevron,
-                        amountStyle: .pill,
-                        usesSymbol: isUSDF
+                        amountStyle: .pill
                     ) {
                         viewModel.select(row, onConfirm: onConfirm)
                     }
