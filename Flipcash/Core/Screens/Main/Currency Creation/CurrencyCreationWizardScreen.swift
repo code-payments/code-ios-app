@@ -804,6 +804,7 @@ private struct IconStep: View {
             }
             .menuIndicator(.hidden)
             .disabled(isValidating)
+            .accessibilityIdentifier("currency-icon-picker")
 
             if !state.currencyName.isEmpty {
                 Text(state.currencyName)
@@ -970,6 +971,7 @@ private struct ConfirmationStep: View {
             }
             .buttonStyle(.filled)
             .disabled(isValidating)
+            .accessibilityIdentifier("launch-pay-button")
             .padding(.top, 20)
             .padding(.bottom, 20)
         }
