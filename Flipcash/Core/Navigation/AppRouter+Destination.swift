@@ -62,9 +62,9 @@ extension AppRouter {
         /// Account. One destination for both: the screen seeds itself from the
         /// handle already on the profile, so there is nothing to distinguish.
         case username(Username?)
-        /// The minimum a tipper must pay to open a DM. `isSetupStep` is the
-        /// You tab's checklist, which labels the button "Next"; My Account is
-        /// a lone edit and labels it "Save".
+        /// The minimum a tipper must pay to open a DM. `isSetupStep` marks the
+        /// You tab's checklist apart from a lone edit in My Account; it reaches
+        /// the payload only, since the screen is the same from either.
         case setMinimumTip(isSetupStep: Bool)
         case settingsAdvancedFeatures
         case settingsAdvancedBetaFeatures

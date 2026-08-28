@@ -28,8 +28,9 @@ struct SetMinimumTipScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(AppRouter.self) private var router
 
-    /// True when this is a step in the profile checklist, which labels the
-    /// button "Next"; a lone edit from My Account labels it "Save".
+    /// True when this is a step in the profile checklist rather than a lone
+    /// edit from My Account. Only the navigation payload distinguishes them —
+    /// the screen itself is identical either way.
     let isSetupStep: Bool
 
     @State private var enteredAmount: String = ""
@@ -60,7 +61,6 @@ struct SetMinimumTipScreen: View {
                 actionState: $actionState,
                 actionEnabled: { _ in canSubmit },
                 action: submit,
-                actionTitle: isSetupStep ? "Next" : nil,
                 header: AnyView(EnterAmountHeader(
                     enteredAmount: $enteredAmount,
                     hint: .caption("\(minimum.formatted()) minimum")
