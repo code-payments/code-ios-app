@@ -22,7 +22,6 @@ struct CurrencyCreationWizardScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(AppRouter.self) private var router
 
-    @State private var step: WizardStep = .name
     @State private var direction: Direction = .forward
     @State private var compressTask: Task<Void, Never>?
     @State private var validationTask: Task<Void, Never>?
@@ -106,21 +105,6 @@ struct CurrencyCreationWizardScreen: View {
         case description
     }
 
-    enum WizardStep: Int, CaseIterable {
-        case name = 0, icon, description, billCreation, confirmation, paymentSelection
-
-        var next: WizardStep? { WizardStep(rawValue: rawValue + 1) }
-        var previous: WizardStep? { WizardStep(rawValue: rawValue - 1) }
-
-        /// Whether this step joins the progress bar. The payment picker shows a
-        /// title instead, so it opts out — the bar's total derives from this, not
-        /// a hard-coded count.
-        var showsProgressBar: Bool { self != .paymentSelection }
-
-        /// Number of steps the progress bar counts.
-        static let progressStepCount = allCases.filter(\.showsProgressBar).count
-    }
-
     enum Direction {
         case forward, backward
 
@@ -139,7 +123,7 @@ struct CurrencyCreationWizardScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             ZStack {
-                switch step {
+                switch state.step {
                 case .name:
                     NameStep(
                         state: state,
@@ -208,7 +192,7 @@ struct CurrencyCreationWizardScreen: View {
         }
         .dialog(item: $errorDialog)
         // The picker step names itself; the creation steps show the progress bar.
-        .navigationTitle(step.showsProgressBar ? "" : "Select Payment Currency")
+        .navigationTitle(state.step.showsProgressBar ? "" : "Select Payment Currency")
         .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
@@ -219,15 +203,15 @@ struct CurrencyCreationWizardScreen: View {
                         .foregroundStyle(Color.textMain)
                 }
             }
-            if step.showsProgressBar {
+            if state.step.showsProgressBar {
                 ToolbarItem(placement: .principal) {
                     CreationProgressBar(
-                        current: step.rawValue + 1,
-                        total: WizardStep.progressStepCount
+                        current: state.step.rawValue + 1,
+                        total: CurrencyCreationState.Step.progressStepCount
                     )
                 }
             }
-            if step == .billCreation {
+            if state.step == .billCreation {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: advance) {
                         Text("Next")
@@ -271,9 +255,9 @@ struct CurrencyCreationWizardScreen: View {
             }
         }
         .onAppear {
-            if step == .name { focusedField = .name }
+            if state.step == .name { focusedField = .name }
         }
-        .onChange(of: step) { _, newStep in
+        .onChange(of: state.step) { _, newStep in
             switch newStep {
             case .name: focusedField = .name
             case .description: focusedField = .description
@@ -285,20 +269,20 @@ struct CurrencyCreationWizardScreen: View {
     // MARK: - Navigation
 
     private func advance() {
-        guard let next = step.next else { return }
+        guard let next = state.step.next else { return }
         // `direction` must be set outside `withAnimation` so the transition
         // modifier captures the new edge when SwiftUI evaluates the push.
         direction = .forward
         withAnimation(.easeInOut(duration: 0.3)) {
-            step = next
+            state.step = next
         }
     }
 
     private func goBack() {
-        if let previous = step.previous {
+        if let previous = state.step.previous {
             direction = .backward
             withAnimation(.easeInOut(duration: 0.3)) {
-                step = previous
+                state.step = previous
             }
         } else {
             dismiss()

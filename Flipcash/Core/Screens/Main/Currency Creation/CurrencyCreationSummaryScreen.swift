@@ -11,6 +11,14 @@ struct CurrencyCreationSummaryScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    /// The draft outlives the wizard, so it has to be cleared somewhere. This
+    /// screen is that boundary: it is pushed once per creation attempt, and
+    /// popping the wizard back to it doesn't unmount it — so this stays true
+    /// across the wizard's whole lifetime and flips back only on a fresh entry
+    /// from the Wallet.
+    @State private var hasStartedCreation = false
 
     private var purchaseAmount: ExchangedFiat {
         let quarks = session.userFlags?.newCurrencyPurchaseAmount.quarks ?? 0
@@ -66,6 +74,11 @@ struct CurrencyCreationSummaryScreen: View {
         }
         .toolbarTitleDisplayMode(.inline)
         .navigationTitle("Create Your Currency")
+        .onAppear {
+            guard !hasStartedCreation else { return }
+            hasStartedCreation = true
+            sessionContainer.currencyCreation.reset()
+        }
     }
 }
 

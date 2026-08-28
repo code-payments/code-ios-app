@@ -96,4 +96,65 @@ struct CurrencyCreationStateTests {
 
         #expect(state.descriptionAttestation == nil)
     }
+
+    // MARK: - Draft lifetime
+
+    // The draft is session-scoped so popping the wizard — an edge swipe, the
+    // toolbar chevron — no longer discards what the user entered. That makes
+    // `reset()` the only thing standing between one attempt and the next.
+
+    @Test("reset clears every field a previous attempt could have filled")
+    func reset_clearsFilledDraft() {
+        let state = CurrencyCreationState()
+        state.currencyName = "MyCoin"
+        state.currencyDescription = "A coin"
+        state.step = .confirmation
+        state.nameAttestation = ModerationAttestation(rawValue: Data([0x01]))
+        state.encodedIconData = Data([0x02])
+
+        state.reset()
+
+        #expect(state.currencyName == "")
+        #expect(state.currencyDescription == "")
+        #expect(state.step == .name)
+        #expect(state.nameAttestation == nil)
+        #expect(state.encodedIconData == nil)
+    }
+
+    /// The field setters clear their attestation on a *change*. A draft whose
+    /// text is already empty doesn't change, so reset has to clear the
+    /// attestations itself or a stale proof outlives the input it attests to.
+    @Test("reset clears attestations even when the fields are already empty")
+    func reset_clearsAttestationsWithoutFieldChanges() {
+        let state = CurrencyCreationState()
+        state.nameAttestation = ModerationAttestation(rawValue: Data([0x01]))
+        state.iconAttestation = ModerationAttestation(rawValue: Data([0x02]))
+        state.descriptionAttestation = ModerationAttestation(rawValue: Data([0x03]))
+
+        state.reset()
+
+        #expect(state.nameAttestation == nil)
+        #expect(state.iconAttestation == nil)
+        #expect(state.descriptionAttestation == nil)
+    }
+
+    // MARK: - Wizard steps
+
+    @Test("steps walk to the ends of the wizard and stop")
+    func step_boundaries() {
+        #expect(CurrencyCreationState.Step.name.previous == nil)
+        #expect(CurrencyCreationState.Step.paymentSelection.next == nil)
+        #expect(CurrencyCreationState.Step.name.next == .icon)
+        #expect(CurrencyCreationState.Step.icon.previous == .name)
+    }
+
+    /// The payment picker titles itself instead of joining the bar.
+    @Test("the progress bar counts every step but the payment picker")
+    func step_progressStepCount() {
+        #expect(
+            CurrencyCreationState.Step.progressStepCount
+                == CurrencyCreationState.Step.allCases.count - 1
+        )
+        #expect(!CurrencyCreationState.Step.paymentSelection.showsProgressBar)
+    }
 }
