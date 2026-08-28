@@ -62,9 +62,10 @@ private struct SendAmountScreenContent: View {
 
     // MARK: - Body -
 
-    /// The tip floor when one applies, otherwise what's left to spend. A tip
-    /// states its minimum up front and reports a breach through a dialog on
-    /// submit, so the hint never reddens on that path.
+    /// The tip floor when one applies, otherwise what's left to spend. Only the
+    /// payment that opens a tip DM carries a floor here — it states its minimum
+    /// up front and reports a breach through a dialog on submit, so the hint
+    /// never reddens on that path.
     private var hint: EnterAmountHeader.Hint {
         if let minimum = viewModel.tipMinimum {
             .caption("\(minimum.formatted()) minimum")
@@ -85,7 +86,7 @@ private struct SendAmountScreenContent: View {
                     hint: hint
                 ))
             ) {
-                SwipeControl(text: viewModel.isTipTarget ? "Swipe to Tip" : "Swipe to Send") {
+                SwipeControl(text: viewModel.opensTipDM ? "Swipe to Tip" : "Swipe to Send") {
                     switch await viewModel.sendAction() {
                     case .success:
                         didSucceed = true

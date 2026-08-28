@@ -78,9 +78,25 @@ final class TipFlow {
         }
     }
 
-    /// The fiat amount the current selection stands for.
+    /// The fiat amount the current selection stands for, or nil when it no
+    /// longer clears the tip floor — the recipient's fee resolves after the
+    /// sheet is up, so a selection made before it landed can fall under it.
     var selectedAmount: Decimal? {
-        amount(for: selection)
+        guard let amount = amount(for: selection),
+              submission?.unmetTipMinimum(entered: amount) == nil else {
+            return nil
+        }
+        return amount
+    }
+
+    /// The preset tiers on offer. A tier below the floor this tip has to clear
+    /// isn't offered: a chip never passes through the amount entry, so it would
+    /// only be rejected on the swipe.
+    var offeredTiers: [TipSelection] {
+        [.low, .medium, .high].filter { tier in
+            guard let amount = amount(for: tier) else { return true }
+            return submission?.unmetTipMinimum(entered: amount) == nil
+        }
     }
 
     // MARK: - Entry -
@@ -387,11 +403,15 @@ final class TipFlow {
     }
 
     /// Whether `balance` holds at least the tip minimum, so the picker can
-    /// disable tokens that can't fund even the smallest tip. No presets means
-    /// the server remains the authority — every token stays enabled.
+    /// disable tokens that can't fund even the smallest tip. No floor means the
+    /// server remains the authority — every token stays enabled.
     func meetsMinimum(_ balance: ExchangedBalance) -> Bool {
-        guard let presets else { return true }
-        return presets.meetsMinimum(balance.exchangedFiat)
+        guard let floor = submission?.tipFloor(
+            in: balance.exchangedFiat.nativeAmount.currency
+        ) else {
+            return true
+        }
+        return floor.isMet(by: balance.exchangedFiat)
     }
 
     // MARK: - Submission -

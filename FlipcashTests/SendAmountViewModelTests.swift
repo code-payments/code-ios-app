@@ -582,20 +582,6 @@ struct SendAmountViewModelTests {
 
     // MARK: - Tip targets
 
-    private static func makeTipViewModel(
-        container: SessionContainer,
-        recipientID: UserID,
-        mock: MockSession
-    ) -> SendAmountViewModel {
-        SendAmountViewModel(
-            sessionContainer: container,
-            target: .tip(TipRecipient(userID: recipientID, displayName: "Fred", origin: .tipcard)),
-            mint: .usdf,
-            sender: mock,
-            resolver: mock
-        )
-    }
-
     @Test("A tip send resolves by user id and attaches the derived tip-DM chat metadata")
     func sendAction_tipTarget_attachesTipDmMetadata() async throws {
         let container = try await Self.makeReadyToSendContainer()
@@ -603,7 +589,7 @@ struct SendAmountViewModelTests {
         let mock = MockSession()
         mock.resolveUserIDHandler = { _ in Self.recipient }
         mock.sendHandler = { _, _, _ in }
-        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, mock: mock)
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .tipcard, mock: mock)
         viewModel.enteredAmount = "5"
 
         let outcome = await viewModel.sendAction()
@@ -630,7 +616,7 @@ struct SendAmountViewModelTests {
         let mock = MockSession()
         mock.resolveUserIDHandler = { _ in Self.recipient }
         mock.sendHandler = { _, _, _ in }
-        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, mock: mock)
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .tipcard, mock: mock)
         viewModel.enteredAmount = "0\(AmountValidator.localizedDecimalSeparator)50"
 
         let outcome = await viewModel.sendAction()
@@ -650,7 +636,7 @@ struct SendAmountViewModelTests {
         let mock = MockSession()
         mock.resolveUserIDHandler = { _ in Self.recipient }
         mock.sendHandler = { _, _, _ in }
-        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, mock: mock)
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .tipcard, mock: mock)
         viewModel.enteredAmount = "1"
 
         let outcome = await viewModel.sendAction()
@@ -681,5 +667,186 @@ struct SendAmountViewModelTests {
 
         #expect(outcome == .success)
         #expect(mock.sendCalls.count == 1)
+    }
+
+    // MARK: - Tip floor
+
+    // The fee a recipient sets buys the *conversation*, so it applies to exactly
+    // one payment: the tip that opens the DM. Past that the tip card falls back
+    // to the regional minimum and the in-chat send carries no floor at all.
+
+    private static let presets = UserFlags.TipPresets(currency: .usd, minimum: 1, low: 5, medium: 10, high: 20)
+
+    /// Funded container with the regional presets seeded, so every floor test
+    /// starts with a system minimum for the recipient's fee to override.
+    static func makeFloorContainer() async throws -> SessionContainer {
+        let container = try await makeReadyToSendContainer()
+        container.session.userFlags = .fixture(tipPresets: [presets])
+        return container
+    }
+
+    /// Writes an existing tip DM into the feed the way a cold start does — the
+    /// controller's store is private, so it goes through the cache it hydrates from.
+    static func seedTipDM(in container: SessionContainer, with recipientID: UserID) async throws {
+        try container.database.upsertConversation(
+            Conversation(
+                id: .tipDm(between: container.session.userID, and: recipientID),
+                members: [
+                    ConversationMember(userID: container.session.userID, displayName: "Me"),
+                    ConversationMember(userID: recipientID, displayName: "Fred"),
+                ],
+                lastMessage: nil,
+                lastActivity: .now,
+                type: .tipDm
+            )
+        )
+        await container.conversationController.hydrateFromDatabase()
+    }
+
+    /// A tip recipient's cached profile, carrying the fee they charge to be
+    /// written to (none by default).
+    static func makeRecipientProfile(fee: FiatAmount? = nil) -> Profile {
+        Profile(
+            displayName: "Fred",
+            phone: Phone?.none,
+            email: nil,
+            minDmChatInitFee: fee
+        )
+    }
+
+    static func makeTipViewModel(
+        container: SessionContainer,
+        recipientID: UserID,
+        origin: TipOrigin,
+        mock: MockSession = MockSession()
+    ) -> SendAmountViewModel {
+        SendAmountViewModel(
+            sessionContainer: container,
+            target: .tip(TipRecipient(userID: recipientID, displayName: "Fred", origin: origin)),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+    }
+
+    @Test("The tip that opens a DM from chat has to clear the recipient's own fee")
+    func tipFloor_chatOpeningDM_isRecipientFee() async throws {
+        let container = try await Self.makeFloorContainer()
+        let recipientID = UUID()
+        container.session.cacheUserProfile(
+            Self.makeRecipientProfile(fee: .usd(5)),
+            for: recipientID
+        )
+
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .chat)
+
+        #expect(viewModel.opensTipDM)
+        #expect(viewModel.tipFloor(in: .usd) == .recipientFee(.usd(5)))
+        #expect(viewModel.tipMinimum == .usd(5))
+    }
+
+    @Test("A recipient who charges nothing still carries the regional minimum")
+    func tipFloor_chatOpeningDM_noFee_isPreset() async throws {
+        let container = try await Self.makeFloorContainer()
+        let recipientID = UUID()
+        container.session.cacheUserProfile(
+            Self.makeRecipientProfile(),
+            for: recipientID
+        )
+
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .chat)
+
+        #expect(viewModel.opensTipDM)
+        #expect(viewModel.tipFloor(in: .usd) == .preset(Self.presets))
+    }
+
+    @Test("Once the DM exists, an in-chat send carries no floor at all")
+    func tipFloor_chatExistingDM_hasNoFloor() async throws {
+        let container = try await Self.makeFloorContainer()
+        let recipientID = UUID()
+        try await Self.seedTipDM(in: container, with: recipientID)
+        container.session.cacheUserProfile(
+            Self.makeRecipientProfile(fee: .usd(5)),
+            for: recipientID
+        )
+
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = Self.makeTipViewModel(
+            container: container,
+            recipientID: recipientID,
+            origin: .chat,
+            mock: mock
+        )
+        viewModel.enteredAmount = "0\(AmountValidator.localizedDecimalSeparator)50"
+
+        #expect(!viewModel.opensTipDM)
+        #expect(viewModel.tipFloor(in: .usd) == nil)
+        #expect(viewModel.tipMinimum == nil)
+
+        // The fee bought the conversation; a later tip in the same thread is a
+        // plain send, so 50c goes through under both the $5 fee and the $1 preset.
+        let outcome = await viewModel.sendAction()
+        #expect(outcome == .success)
+        #expect(mock.sendCalls.count == 1)
+    }
+
+    @Test("Once the DM exists, the tip card falls back to the regional minimum")
+    func tipFloor_tipcardExistingDM_isSystemMinimum() async throws {
+        let container = try await Self.makeFloorContainer()
+        let recipientID = UUID()
+        try await Self.seedTipDM(in: container, with: recipientID)
+        container.session.cacheUserProfile(
+            Self.makeRecipientProfile(fee: .usd(5)),
+            for: recipientID
+        )
+
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .tipcard)
+
+        #expect(!viewModel.opensTipDM)
+        #expect(viewModel.tipFloor(in: .usd) == .preset(Self.presets))
+    }
+
+    @Test("A tip card tip that opens the DM is blocked below the recipient's fee")
+    func tipFloor_tipcardOpeningDM_blocksBelowFee() async throws {
+        let container = try await Self.makeFloorContainer()
+        let recipientID = UUID()
+        container.session.cacheUserProfile(
+            Self.makeRecipientProfile(fee: .usd(5)),
+            for: recipientID
+        )
+
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = Self.makeTipViewModel(
+            container: container,
+            recipientID: recipientID,
+            origin: .tipcard,
+            mock: mock
+        )
+        // Over the $1 regional minimum, under the $5 the recipient charges.
+        viewModel.enteredAmount = "2"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .failed)
+        #expect(mock.sendCalls.isEmpty)
+        #expect(container.session.dialogItem?.title == "$5.00 Minimum Tip")
+    }
+
+    @Test("A contact send has no tip floor and never says Swipe to Tip")
+    func tipFloor_contactTarget_isNil() async throws {
+        let container = try await Self.makeFloorContainer()
+
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            target: .contact(Self.makeContact()),
+            mint: .usdf
+        )
+
+        #expect(!viewModel.opensTipDM)
+        #expect(viewModel.tipFloor(in: .usd) == nil)
     }
 }
