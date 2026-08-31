@@ -92,7 +92,7 @@ struct HomeTabBar: View {
     @ViewBuilder
     private func icon(for tab: HomeTab) -> some View {
         if tab == .tipCard, let profileSlot {
-            ProfileTabIcon(photo: profileSlot.preview)
+            ProfileTabIcon(photo: profileSlot.preview, isSelected: tab == selection)
         } else {
             Image(tab.iconName(isSelected: tab == selection))
                 .renderingMode(.template)
