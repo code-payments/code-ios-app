@@ -22,6 +22,7 @@ enum DefaultsKey: String {
     case onrampUnverifiedEmail = "com.flipcash.onramp.unverifiedEmail"
 
     case betaFlags = "com.flipcash.betaFlags"
+    case appliedBetaFlagDefaults = "com.flipcash.betaFlags.appliedDefaults"
 
     case contactsConnected = "com.flipcash.contacts.connected"
 }

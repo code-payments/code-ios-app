@@ -28,6 +28,7 @@ struct BillOverlayView: View {
 private struct BillOverlayContent: View {
 
     @Environment(AppRouter.self) private var router
+    @Environment(BetaFlags.self) private var betaFlags
 
     @Bindable private var session: Session
     private let sessionContainer: SessionContainer
@@ -292,7 +293,17 @@ private struct BillOverlayContent: View {
 
     /// Takes a grabbed deposit to the wallet: the bill comes down and the wallet
     /// comes forward, where the balance is seen to rise.
+    ///
+    /// With ``BetaFlags/Option/walletDepositArrival`` off the bill is simply
+    /// dismissed where it stands. The single gate is here because everything
+    /// downstream hangs off the release: an unreleased deposit is discarded by
+    /// `dismissCashBill`, and the wallet only plays one it has been released.
     private func putInWallet() {
+        guard betaFlags.hasEnabled(.walletDepositArrival) else {
+            session.dismissCashBill(style: .slide)
+            return
+        }
+
         // Released before the dismissal, which drops any deposit the user never
         // asked to see.
         session.walletDeposit.release()
