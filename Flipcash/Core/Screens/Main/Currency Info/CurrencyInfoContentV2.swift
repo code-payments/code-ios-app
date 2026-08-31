@@ -183,7 +183,7 @@ struct CurrencyInfoContentV2: View {
         .scrollIndicators(.hidden)
         // Content fades out under the toolbar instead of meeting the system's
         // hard scroll-edge line.
-        .softScrollEdge()
+        .softScrollEdge(for: .top)
         .onScrollGeometryChange(for: Bool.self) { geometry in
             geometry.contentOffset.y + geometry.contentInsets.top > Self.titleHandoffOffset
         } action: { _, scrolledPast in

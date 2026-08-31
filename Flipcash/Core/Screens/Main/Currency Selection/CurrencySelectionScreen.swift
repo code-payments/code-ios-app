@@ -58,6 +58,7 @@ struct CurrencySelectionScreen: View {
                 }
                 .listStyle(.grouped)
                 .scrollContentBackground(.hidden)
+                .softScrollEdge(for: .top)
                 .overlay {
                     if viewModel.isSearching && viewModel.searchingCurrencies.isEmpty {
                         SearchResultsUnavailableView(searchText: viewModel.searchText)

@@ -70,6 +70,7 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
                         }
                     }
                 }
+                .softScrollEdge(for: .top)
             }
         }
         .navigationTitle("Beta Features")

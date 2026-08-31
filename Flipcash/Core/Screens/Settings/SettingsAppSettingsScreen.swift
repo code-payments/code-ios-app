@@ -31,6 +31,7 @@ struct SettingsAppSettingsScreen: View {
                 .font(.appDisplayXS)
                 .foregroundStyle(.textMain)
             }
+            .softScrollEdge(for: .top)
             .padding(.horizontal, 20)
         }
         .navigationTitle("App Settings")

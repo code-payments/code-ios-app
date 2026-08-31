@@ -56,6 +56,7 @@ struct AccountSelectionScreen: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .softScrollEdge(for: .top)
 
                 if let onEnterDifferentKey {
                     Button("Enter a Different Access Key", action: onEnterDifferentKey)

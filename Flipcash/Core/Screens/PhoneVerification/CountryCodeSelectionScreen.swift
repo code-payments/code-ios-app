@@ -55,6 +55,7 @@ struct CountryCodeSelectionScreen: View {
                             .padding(.leading, 20)
                         }
                     }
+                    .softScrollEdge(for: .top)
                 }
             }
             .navigationTitle("Select Region")

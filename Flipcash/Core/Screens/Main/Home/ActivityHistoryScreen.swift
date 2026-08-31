@@ -56,6 +56,7 @@ private struct ActivityHistoryContent: View {
                     }
                     .padding(.horizontal, 20)
                 }
+                .softScrollEdge(for: .top)
             }
         }
         .navigationTitle("Activity")

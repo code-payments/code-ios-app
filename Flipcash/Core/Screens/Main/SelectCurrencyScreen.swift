@@ -70,6 +70,7 @@ struct SelectCurrencyScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .softScrollEdge(for: .top)
                 }
             }
             .navigationTitle("Select Currency")

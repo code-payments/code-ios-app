@@ -58,6 +58,7 @@ struct WithdrawScreen: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .softScrollEdge(for: .top)
             }
         }
         .navigationTitle("Select Currency")

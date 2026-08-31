@@ -88,6 +88,7 @@ struct SettingsAdvancedFeaturesScreen: View {
                 .foregroundStyle(.textMain)
                 .padding(.horizontal, 20)
             }
+            .softScrollEdge(for: .top)
         }
         .navigationTitle("Advanced")
         .toolbarTitleDisplayMode(.inline)
