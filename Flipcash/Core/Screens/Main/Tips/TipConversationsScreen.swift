@@ -21,17 +21,20 @@ struct TipConversationsScreen: View {
                 NoChatsView()
             } else {
                 List {
-                    ForEach(conversations) { conversation in
+                    ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
                         TipConversationRow(conversation: conversation) {
                             router.push(.tipConversation(conversation.id))
                         }
+                        // Separators divide rows from each other; the first
+                        // row's leading one just draws a line under the bar.
+                        .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
                     }
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                // The list runs under the bar, so its top edge needs the soft
+                // The list runs under both bars, so each edge needs the soft
                 // fade rather than the system's default hard cut.
-                .softScrollEdge()
+                .softScrollEdge(for: [.top, .bottom])
             }
         }
         .navigationTitle("Chats")
