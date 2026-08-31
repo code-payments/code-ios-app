@@ -294,12 +294,15 @@ private struct BillOverlayContent: View {
     /// Takes a grabbed deposit to the wallet: the bill comes down and the wallet
     /// comes forward, where the balance is seen to rise.
     ///
-    /// With ``BetaFlags/Option/walletDepositArrival`` off the bill is simply
-    /// dismissed where it stands. The single gate is here because everything
-    /// downstream hangs off the release: an unreleased deposit is discarded by
-    /// `dismissCashBill`, and the wallet only plays one it has been released.
+    /// Only a scanned grab arms a deposit, so a claimed cash link takes the
+    /// plain dismissal here, as does any receive with
+    /// ``BetaFlags/Option/walletDepositArrival`` off. The single gate is here
+    /// because everything downstream hangs off the release: an unreleased
+    /// deposit is discarded by `dismissCashBill`, and the wallet only plays one
+    /// it has been released.
     private func putInWallet() {
-        guard betaFlags.hasEnabled(.walletDepositArrival) else {
+        guard betaFlags.hasEnabled(.walletDepositArrival),
+              session.walletDeposit.isArmed else {
             session.dismissCashBill(style: .slide)
             return
         }

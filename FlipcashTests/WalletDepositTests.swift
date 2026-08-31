@@ -54,6 +54,19 @@ struct WalletDepositTests {
         #expect(deposit.isReleased == false)
     }
 
+    @Test("nothing is armed until a scanned grab arms it")
+    func isArmed_onlyAfterArming() {
+        let deposit = WalletDeposit()
+        #expect(deposit.isArmed == false, "a cash link never arms one, so its receive takes the plain dismissal")
+
+        deposit.arm(mint: .usdf, previousTotal: Self.fiat(5), previousMints: [])
+        #expect(deposit.isArmed == true)
+
+        deposit.release()
+        deposit.consume()
+        #expect(deposit.isArmed == false)
+    }
+
     // MARK: - Release
 
     @Test("releasing hands the deposit to the wallet")
