@@ -7,10 +7,10 @@ import XCTest
 
 /// Page object for the Chat tab — the list of tip-DM conversations.
 ///
-/// The tab-bar UI embeds this list as a tab rather than presenting it as a
-/// sheet, so there is nothing to close, and `TipsScreen(isEmbedded: true)`
-/// renders the conversations unconditionally: the tip-card intro and its inline
-/// "Show My Tip Card" button are v1 only, and the tip card has its own tab.
+/// The tab hosts this list rather than presenting it as a sheet, so there is
+/// nothing to close, and `TipsScreen(isEmbedded: true)` renders the
+/// conversations unconditionally — the tip-card intro belongs to the sheet that
+/// asks for a profile, and the tip card has its own tab.
 @MainActor
 struct TipsUIScreen {
 
@@ -25,15 +25,15 @@ struct TipsUIScreen {
     /// The Chat tab on the tab bar.
     var tab: XCUIElement { app.buttons["Chat"] }
 
-    /// The tab's large flush title — its presence means the list has rendered,
-    /// whether or not the account has a conversation.
+    /// The tab's navigation-bar title — its presence means the list has
+    /// rendered, whether or not the account has a conversation.
     var title: XCUIElement { app.staticTexts["Chats"] }
 
     /// The empty state, shown until the first tip conversation exists.
     var emptyState: XCUIElement { app.staticTexts["No Chats Yet"] }
 
-    /// The tip-conversation rows. Every cell is a conversation — the v1 list's
-    /// leading "Show My Tip Card" row is gone, so none is skipped.
+    /// The tip-conversation rows. Every cell is a conversation — there is no
+    /// leading call-to-action row to skip.
     private var conversationCells: [XCUIElement] {
         app.cells.allElementsBoundByIndex
     }

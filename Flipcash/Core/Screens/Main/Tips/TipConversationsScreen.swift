@@ -7,65 +7,79 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The Tips sheet's root once a profile exists: the Show My Tipcard call to
-/// action over the list of tip conversations — tips sent and received.
+/// The Chats tab: the list of tip conversations — tips sent and received.
 struct TipConversationsScreen: View {
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(AppRouter.self) private var router
 
-    /// See ``TipsScreen/isEmbedded`` — v2 drops the inline tip-card button and
-    /// leads with the large "Chats" title.
-    var isEmbedded: Bool = false
-
     var body: some View {
         let conversations = conversationController.conversations(of: .tipDm)
 
         Background(color: .backgroundMain) {
-            VStack(alignment: .leading, spacing: 0) {
-                if isEmbedded {
-                    ChatsTabTitle()
-                }
-
-                // v1 keeps its list even when empty — the "Show My Tip Card"
-                // button lives in it, so there is no blank state to fill.
-                if isEmbedded, conversations.isEmpty {
-                    NoChatsView()
-                } else {
-                    List {
-                        // v1 only — v2 reaches the tip card from its own tab.
-                        if !isEmbedded {
-                            Button("Show My Tip Card") {
-                                router.push(.tipcard)
-                            }
-                            .buttonStyle(.filled)
-                            .accessibilityIdentifier("show-my-tipcard-button")
-                            .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+            if conversations.isEmpty {
+                NoChatsView()
+            } else {
+                List {
+                    ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
+                        TipConversationRow(conversation: conversation) {
+                            router.push(.tipConversation(conversation.id))
                         }
-
-                        ForEach(conversations) { conversation in
-                            TipConversationRow(conversation: conversation) {
-                                router.push(.tipConversation(conversation.id))
-                            }
-                        }
+                        // Separators divide rows from each other; the first
+                        // row's leading one just draws a line under the bar.
+                        .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                // The list runs under both bars, so each edge needs the soft
+                // fade rather than the system's default hard cut.
+                .softScrollEdge(for: [.top, .bottom])
             }
         }
-        .navigationTitle(isEmbedded ? "" : "Tips")
-        .toolbar(isEmbedded ? .hidden : .automatic, for: .navigationBar)
+        .navigationTitle("Chats")
         .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NewChatButton()
+            }
+        }
+    }
+}
+
+// MARK: - NewChatButton -
+
+/// The Chat tab's new-chat affordance, a bar item beside the "Chats" title.
+///
+/// The title used to be a large flush headline drawn in the content (Android
+/// parity — `screenTitleLarge`) with this button laid out next to it, which
+/// meant the tab hid its navigation bar. A scroll edge effect is drawn by the
+/// bar's background, so without a bar the list met the status bar on a hard
+/// line; the standard centred title puts the bar back and lets the list fade
+/// under it.
+private struct NewChatButton: View {
+
+    @Environment(AppRouter.self) private var router
+
+    var body: some View {
+        Button {
+            router.push(.usernameLookup)
+        } label: {
+            // Bar items get their glass from the system on iOS 26, so this
+            // carries no button style of its own.
+            Image.system(.plus)
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+        }
+        .accessibilityLabel("New chat")
+        .accessibilityIdentifier("new-chat-button")
     }
 }
 
 // MARK: - NoChatsView -
 
-/// The v2 Chats tab's empty state, shown until the first tip conversation
-/// exists — centred in the space between the "Chats" title and the tab bar, so
+/// The Chats tab's empty state, shown until the first tip conversation
+/// exists — centred in the space between the navigation bar and the tab bar, so
 /// it sits at the same height as the tippable-profile intro on this tab.
 private struct NoChatsView: View {
 
