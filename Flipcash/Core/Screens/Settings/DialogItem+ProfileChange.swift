@@ -35,11 +35,23 @@ extension DialogItem {
                 // the only one of the four the user may not be able to undo.
                 "Are you sure you want to permanently change your username? You might not be able to get your old username back"
             case .displayName:
-                "Are you sure you want to permanently change your display name?"
+                "This will change your display name"
             case .profilePicture:
-                "Are you sure you want to permanently change your profile picture?"
+                "This will change your profile photo"
             case .minimumTip:
-                "Are you sure you want to permanently change your minimum tip?"
+                "This will change your minimum tip"
+            }
+        }
+
+        /// Whether the change can cost the user something they can't take back.
+        /// Only the username can, so only it gets the red banner and the
+        /// destructive button; the rest confirm in the grey informational one.
+        var isIrreversible: Bool {
+            switch self {
+            case .username:
+                true
+            case .displayName, .profilePicture, .minimumTip:
+                false
             }
         }
     }
@@ -54,9 +66,19 @@ extension DialogItem {
         _ field: ProfileField,
         onConfirm: @escaping () -> Void
     ) -> DialogItem {
-        .alert(title: "Change \(field.title)?", subtitle: field.subtitle) {
-            DialogAction.destructive("Change \(field.title)", action: onConfirm)
-            DialogAction.cancel()
+        let title = "Change \(field.title)?"
+        let confirm = "Change \(field.title)"
+
+        if field.isIrreversible {
+            return .alert(title: title, subtitle: field.subtitle) {
+                DialogAction.destructive(confirm, action: onConfirm)
+                DialogAction.cancel()
+            }
+        } else {
+            return .info(title: title, subtitle: field.subtitle) {
+                DialogAction.standard(confirm, action: onConfirm)
+                DialogAction.cancel()
+            }
         }
     }
 }
