@@ -774,7 +774,8 @@ final class ConversationController {
 
     /// The feed row's last-message line: the typing indicator while the
     /// counterpart types, the message text, or the cash summary. `currencyName`
-    /// resolves a mint to its display name; nil drops the "of …" suffix.
+    /// resolves a mint to its display name; nil — or the reserve, whose formatted
+    /// amount already names itself — drops the "of …" suffix.
     func lastMessagePreview(for conversation: Conversation, currencyName: (PublicKey) -> String?) -> String? {
         if isCounterpartTyping(in: conversation.id) {
             return "Typing…"
@@ -786,7 +787,8 @@ final class ConversationController {
         case .cash(let amount):
             let verb = message.isFromSelf(selfUserID) ? "You sent" : "You received"
             let formatted = amount.nativeAmount.formatted()
-            guard let name = currencyName(amount.mint) else {
+            // The reserve would read "$1.00 of Dollars" — the amount alone already says it.
+            guard amount.mint != .usdf, let name = currencyName(amount.mint) else {
                 return "\(verb) \(formatted)"
             }
             return "\(verb) \(formatted) of \(name)"
