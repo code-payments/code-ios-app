@@ -6,7 +6,7 @@
 import Foundation
 
 /// A `FormatStyle` that formats numeric values as compact currency strings —
-/// the `FormatStyle` entry point onto ``FiatAmount/formattedAbbreviated(minimumFractionDigits:)``,
+/// the `FormatStyle` entry point onto ``FiatAmount/formattedAbbreviated(maxDigits:)``,
 /// for the `Double` figures (market caps, deltas) SwiftUI formats inline.
 ///
 /// Sub-unit precision is dropped before formatting: at this scale it is noise,
@@ -15,7 +15,7 @@ import Foundation
 /// Usage with SwiftUI `Text`:
 /// ```swift
 /// Text(1_029_331.15, format: .compactCurrency(code: .usd))
-/// // → "$1M"
+/// // → "$1.03M"
 ///
 /// Text(690_272.45, format: .compactCurrency(code: .usd))
 /// // → "$690K"
@@ -24,7 +24,7 @@ import Foundation
 /// // → "$100K"
 ///
 /// Text(-12_400, format: .compactCurrency(code: .usd))
-/// // → "-$12K"
+/// // → "-$12.4K"
 /// ```
 public struct CompactCurrencyFormatStyle: FormatStyle {
 
@@ -36,7 +36,7 @@ public struct CompactCurrencyFormatStyle: FormatStyle {
 
     public func format(_ value: Double) -> String {
         FiatAmount(value: Decimal(Int(value)), currency: currencyCode)
-            .formattedAbbreviated(minimumFractionDigits: 0)
+            .formattedAbbreviated()
     }
 }
 

@@ -110,57 +110,85 @@ extension FiatAmount {
             suffix: suffix,
         ).string(from: value as NSDecimalNumber)!
     }
+
+    /// Format for display, dropping the fraction when the amount is whole (`$11`,
+    /// not `$11.00`) and keeping it when it isn't (`$2.50`). This is how amounts
+    /// are shown in fixed-width controls, and the unabbreviated form the same
+    /// controls hand to VoiceOver.
+    ///
+    /// Paired with Android's `Fiat.FormattingRule.Truncated`.
+    public func formattedDroppingZeroFraction() -> String {
+        formatted(minimumFractionDigits: value == value.rounded(to: 0) ? 0 : nil)
+    }
 }
 
 // MARK: - Abbreviation -
 
 extension FiatAmount {
 
-    /// The scales an abbreviated figure steps through, smallest first.
-    private static let abbreviationSuffixes = ["K", "M", "B"]
+    /// The scales an abbreviated figure steps through, ascending; the largest one
+    /// the amount clears is the one it is printed in.
+    private static let abbreviationScales: [(scale: Decimal, suffix: String)] = [
+        (1_000, "K"),
+        (1_000_000, "M"),
+        (1_000_000_000, "B"),
+        (1_000_000_000_000, "T"),
+    ]
 
-    /// Format for a fixed-width slot where only three digits fit. Up to `$999`
-    /// this is plain ``formatted(minimumFractionDigits:suffix:)``; past it the
-    /// figure is scaled and suffixed — `$1.5K`, `$15K`, `$150K`, `$2.4M`, `$1B`.
-    /// The scaled figure keeps a decimal only while it is a single digit, so the
-    /// number never runs past three characters.
+    /// The amount formatted to fit a fixed-width control, capped at `maxDigits`
+    /// digits: anything under the first scale is formatted as usual, and larger
+    /// amounts are scaled to K/M/B/T with only as many decimals as the cap leaves
+    /// room for — trailing zeros dropped.
     ///
-    /// The scale is chosen from the value, not the currency, so a currency whose
-    /// natural amounts are large (¥, Rp) abbreviates on the same rule. Rounding
-    /// is half-up like every other displayed figure, so `$10.5M` reads `$11M`.
+    /// The cap is what keeps a localized amount inside its button: a $20 tip stays
+    /// `$20`, but the same tip in rupiah is 332,000, which shows as `332K` rather
+    /// than overflowing. The scale is chosen from the value, not the currency, so a
+    /// currency whose everyday amounts are large abbreviates on the same rule.
     ///
-    /// This is the one abbreviation rule; ``CompactCurrencyFormatStyle`` is the
-    /// `FormatStyle` entry point onto it.
-    public func formattedAbbreviated(minimumFractionDigits: Int? = nil) -> String {
-        guard abs(value) >= 1000 else {
-            return formatted(minimumFractionDigits: minimumFractionDigits)
+    /// Paired with Android's `Fiat.abbreviated(maxDigits:)` — the two produce the
+    /// same string for the same amount. ``CompactCurrencyFormatStyle`` is the
+    /// `FormatStyle` entry point onto this.
+    public func formattedAbbreviated(maxDigits: Int = 3) -> String {
+        guard value != 0 else { return formattedDroppingZeroFraction() }
+
+        // Round to `maxDigits` significant digits before picking the scale, so a
+        // value that carries into the next one (999,999 → 1M) is scaled by the one
+        // it lands in rather than printed as "1,000K".
+        let rounded = value.rounded(to: maxDigits - 1 - value.leadingExponent)
+
+        guard let step = Self.abbreviationScales.last(where: { abs(rounded) >= $0.scale }) else {
+            return formattedDroppingZeroFraction()
         }
 
-        var scaled = value / 1000
-        var scale = 0
-        while abs(scaled) >= 1000, scale < Self.abbreviationSuffixes.count - 1 {
-            scaled /= 1000
-            scale += 1
-        }
-
-        var fractionDigits = abs(scaled) < 10 ? 1 : 0
-        var rounded = scaled.rounded(to: fractionDigits)
-        // 999,999 scales to 999.999K, which rounds back into a fourth digit;
-        // carry it up a scale ("$1M") rather than print "$1,000K". Values past
-        // 999B have nowhere left to carry and stay in `B`.
-        if abs(rounded) >= 1000, scale < Self.abbreviationSuffixes.count - 1 {
-            scale += 1
-            fractionDigits = 1
-            rounded = (scaled / 1000).rounded(to: fractionDigits)
-        }
+        let scaled = rounded / step.scale
+        let wholeDigits = scaled.leadingExponent + 1
+        let fractionDigits = max(0, maxDigits - wholeDigits)
 
         return NumberFormatter.fiat(
             currency: currency,
             minimumFractionDigits: 0,
             maximumFractionDigits: fractionDigits,
             truncated: false,
-            suffix: Self.abbreviationSuffixes[scale],
-        ).string(from: rounded as NSDecimalNumber)!
+            suffix: step.suffix,
+        ).string(from: scaled as NSDecimalNumber)!
+    }
+}
+
+private extension Decimal {
+    /// The power of ten of the leading digit — `floor(log10(abs(self)))`. Zero has
+    /// no leading digit and answers `0`.
+    var leadingExponent: Int {
+        var magnitude = abs(self)
+        var exponent = 0
+        while magnitude >= 10 {
+            magnitude /= 10
+            exponent += 1
+        }
+        while magnitude > 0, magnitude < 1 {
+            magnitude *= 10
+            exponent -= 1
+        }
+        return exponent
     }
 }
 

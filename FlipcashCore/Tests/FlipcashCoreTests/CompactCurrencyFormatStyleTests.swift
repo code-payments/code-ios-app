@@ -15,11 +15,11 @@ struct CompactCurrencyFormatStyleTests {
     @Test("Millions are formatted with M suffix")
     func millions() {
         #expect(format.format(1_000_000) == "$1M")
-        #expect(format.format(1_029_331.15) == "$1M")
+        // Three digits, so the scaled figure keeps two decimals here and one at
+        // 10.5M — the cap decides, not the scale.
+        #expect(format.format(1_029_331.15) == "$1.03M")
         #expect(format.format(1_299_217.10) == "$1.3M")
-        // Half-up, like every other displayed figure — ICU's compact notation
-        // rounded this half-even to "$10M".
-        #expect(format.format(10_500_000) == "$11M")
+        #expect(format.format(10_500_000) == "$10.5M")
     }
 
     @Test("Thousands are formatted with K suffix")
@@ -32,7 +32,7 @@ struct CompactCurrencyFormatStyleTests {
     @Test("Small values use compact notation")
     func smallValues() {
         #expect(format.format(99_999) == "$100K")
-        #expect(format.format(1_234) == "$1.2K")
+        #expect(format.format(1_234) == "$1.23K")
         // Under a thousand the figure is shown whole — sub-unit precision is
         // dropped rather than rounded into the display.
         #expect(format.format(200.17) == "$200")
@@ -41,7 +41,7 @@ struct CompactCurrencyFormatStyleTests {
 
     @Test("Negative values put the sign before the currency symbol")
     func negativeValues() {
-        #expect(format.format(-12_400) == "-$12K")
+        #expect(format.format(-12_400) == "-$12.4K")
         #expect(format.format(-6_600) == "-$6.6K")
         #expect(format.format(-384) == "-$384")
         #expect(format.format(-1_299_217.10) == "-$1.3M")
@@ -61,6 +61,6 @@ struct CompactCurrencyFormatStyleTests {
     @Test("Works with Text format syntax")
     func formatStyleExtension() {
         let result = 1_029_331.15.formatted(.compactCurrency(code: .usd))
-        #expect(result == "$1M")
+        #expect(result == "$1.03M")
     }
 }
