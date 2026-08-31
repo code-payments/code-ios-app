@@ -606,6 +606,53 @@ struct SendAmountViewModelTests {
         #expect(origin == .tipcard)
     }
 
+    @Test("The tip that opens the DM reports as tipcard even when it's composed in a chat")
+    func sendAction_tipOpeningDMFromChat_reportsTipcard() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let recipientID = UUID()
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        // What the username lookup pushes: a tip DM screen for someone the feed
+        // holds no conversation for, so its Send Cash target says `.chat`.
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .chat, mock: mock)
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        let chat = try #require(mock.sendCalls.first?.chat)
+        guard case .tipDm(_, let origin) = chat else {
+            Issue.record("Expected tipDm metadata, got \(chat)")
+            return
+        }
+        // `CHAT` here is what the server rejects with "tip dm has not been
+        // initialized" — there is no thread yet for this payment to be sent from.
+        #expect(origin == .tipcard)
+    }
+
+    @Test("Once the DM exists, an in-chat send still reports as chat")
+    func sendAction_tipExistingDMFromChat_reportsChat() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let recipientID = UUID()
+        try await Self.seedTipDM(in: container, with: recipientID)
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .chat, mock: mock)
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        let chat = try #require(mock.sendCalls.first?.chat)
+        guard case .tipDm(_, let origin) = chat else {
+            Issue.record("Expected tipDm metadata, got \(chat)")
+            return
+        }
+        #expect(origin == .chat)
+    }
+
     @Test("A tip below the server minimum is blocked before submission")
     func sendAction_tipTarget_belowMinimumBlocks() async throws {
         let container = try await Self.makeReadyToSendContainer()
