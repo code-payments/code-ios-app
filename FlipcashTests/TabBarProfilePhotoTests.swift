@@ -3,6 +3,7 @@
 //  FlipcashTests
 //
 
+import SwiftUI
 import UIKit
 import Testing
 @testable import Flipcash
@@ -29,6 +30,18 @@ struct TabBarProfilePhotoTests {
         let images = try #require(TabBarProfilePhoto.render(Self.photo(side: 64)))
 
         #expect(images.normal.pngData() != images.selected.pngData())
+    }
+
+    /// The unselected tab wears its own thinner, half-opacity ring rather than
+    /// the selected ring dimmed, so the two differ at matched opacity too.
+    @Test("The unselected icon wears a different ring, not just less opacity")
+    func unselectedIconWearsItsOwnRing() throws {
+        let photo = Self.photo(side: 64)
+
+        let selected = try #require(Self.render(ProfileTabIcon(photo: photo, isSelected: true)))
+        let unselected = try #require(Self.render(ProfileTabIcon(photo: photo, isSelected: false)))
+
+        #expect(selected.pngData() != unselected.pngData())
     }
 
     /// A cold launch knows a picture exists before it has one to draw, and the
@@ -65,6 +78,10 @@ struct TabBarProfilePhotoTests {
         #expect(ProfileTabSlot.pending(preview).preview === preview)
         #expect(ProfileTabSlot.pending(nil).preview == nil)
         #expect(ProfileTabSlot.photo(preview).preview === preview)
+    }
+
+    private static func render(_ icon: ProfileTabIcon) -> UIImage? {
+        ImageRenderer(content: icon).uiImage
     }
 
     private static func photo(side: CGFloat) -> UIImage {

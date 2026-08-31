@@ -28,9 +28,14 @@ enum ProfileTabSlot: Equatable {
     }
 }
 
-/// The You tab's icon once the profile carries a picture: the photo in a white
-/// ring, standing in the slot the outline glyph otherwise occupies (Figma node
-/// 9641:17115).
+/// The You tab's icon once the profile carries a picture: the photo in a ring,
+/// standing in the slot the outline glyph otherwise occupies (Figma node
+/// 9713:664).
+///
+/// The ring is the selection: the active tab wears a 2pt solid white one, an
+/// inactive tab a 1pt half-opacity one. That is a state the glyph tabs don't
+/// have — they only ever dim — so it has to be drawn here rather than left to
+/// whichever bar is hosting the icon.
 ///
 /// A nil photo draws the ring empty. That is the state a cold launch starts in:
 /// the profile says a picture exists well before its thumbnail is read back, and
@@ -39,12 +44,26 @@ struct ProfileTabIcon: View {
 
     let photo: UIImage?
 
+    /// Whether the You tab is the active one, which picks the ring.
+    let isSelected: Bool
+
     /// The slot every tab glyph is drawn into, so the photo sits on the same
     /// baseline as its neighbours.
     static let slotSize: CGFloat = 32
 
     private static let circleSize: CGFloat = 28
-    private static let ringWidth: CGFloat = 2
+    private static let selectedRingWidth: CGFloat = 2
+    private static let unselectedRingWidth: CGFloat = 1
+
+    private var ringWidth: CGFloat {
+        isSelected ? Self.selectedRingWidth : Self.unselectedRingWidth
+    }
+
+    private var ringColor: Color {
+        // Half opacity on top of the half the whole icon is already drawn at,
+        // so the inactive ring lands at the quarter alpha Figma specifies.
+        isSelected ? .white : Color.white.opacity(0.5)
+    }
 
     var body: some View {
         Group {
@@ -59,7 +78,7 @@ struct ProfileTabIcon: View {
         .frame(width: Self.circleSize, height: Self.circleSize)
         .clipShape(Circle())
         .overlay {
-            Circle().strokeBorder(Color.white, lineWidth: Self.ringWidth)
+            Circle().strokeBorder(ringColor, lineWidth: ringWidth)
         }
         .frame(width: Self.slotSize, height: Self.slotSize)
     }
@@ -140,11 +159,12 @@ final class TabBarProfilePhoto {
     /// Draws the icon into the pair of images a `UITabBarItem` holds.
     ///
     /// The bar tints template glyphs per state, but a photo has to render as its
-    /// own colours — so the unselected dimming is baked in here instead, at the
-    /// half opacity the pill applies to every other icon.
+    /// own colours — so the unselected state is baked in here instead: the
+    /// thinner half-opacity ring, and the half opacity the pill applies to every
+    /// other icon.
     static func render(_ photo: UIImage?) -> ItemImages? {
-        guard let selected = image(of: ProfileTabIcon(photo: photo)),
-              let normal = image(of: ProfileTabIcon(photo: photo).opacity(0.5))
+        guard let selected = image(of: ProfileTabIcon(photo: photo, isSelected: true)),
+              let normal = image(of: ProfileTabIcon(photo: photo, isSelected: false).opacity(0.5))
         else { return nil }
 
         return ItemImages(normal: normal, selected: selected)
