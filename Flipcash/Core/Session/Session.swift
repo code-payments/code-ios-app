@@ -1124,6 +1124,13 @@ class Session {
 
                 let metadata = try await operation.start()
 
+                // Armed before the refresh below, which is what puts the
+                // deposit into the balances — the figures the wallet rewinds to
+                // are the ones showing right now. Scanned grabs only: a cash
+                // link claimed from outside the app has no wallet to bring
+                // forward, so it keeps the plain dismissal.
+                armWalletDeposit(mint: metadata.exchangedFiat.mint)
+
                 updatePostTransaction()
 
                 showCashBill(.init(
@@ -1191,10 +1198,6 @@ class Session {
     func showCashBill(_ billDescription: BillDescription) {
         // Only inbound bills enqueue a "+$" deposit toast; sent bills don't.
         if billDescription.received {
-            // Armed here rather than after the grab's balance refresh: that
-            // refresh is what the wallet needs the figures from *before*.
-            armWalletDeposit(mint: billDescription.exchangedFiat.mint)
-
             enqueue(toast: .init(
                 amount: billDescription.exchangedFiat.nativeAmount,
                 isDeposit: true

@@ -39,6 +39,11 @@ final class WalletDeposit {
     /// Whether the user has asked for the wallet, releasing it to play.
     private(set) var isReleased = false
 
+    /// Whether a deposit is waiting on the wallet at all. False for a receive
+    /// that was never armed — a cash link, which does not bring the wallet
+    /// forward.
+    var isArmed: Bool { landing != nil }
+
     /// The deposit the wallet has been released to play, or `nil` when nothing
     /// is waiting on it.
     var releasedLanding: Landing? { isReleased ? landing : nil }
