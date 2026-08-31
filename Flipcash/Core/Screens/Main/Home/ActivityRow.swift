@@ -12,9 +12,11 @@ import FlipcashCore
 /// Transaction history (Figma 8966:1910, ported from Android's `ActivityFeedRow`):
 /// a 40pt avatar, the title + relative time, and a signed amount. The avatar is
 /// the counterparty's profile photo for peer activity (tips/sends), the token
-/// image for token activity (deposits, buys), or a monogram fallback. A peer
-/// payment reads "Tipped <name>" or "Sent to <name>" once the counterparty
-/// resolves, and a swap reads "<From> → <To>" once both token names resolve.
+/// image for token activity (deposits, buys), or a monogram fallback. Because a
+/// peer avatar shows a face rather than a token, it carries the transacted token
+/// as a coin badge (Figma 9717:14215). A peer payment reads "Tipped <name>" or
+/// "Sent to <name>" once the counterparty resolves, and a swap reads
+/// "<From> → <To>" once both token names resolve.
 struct ActivityRow: View {
 
     let activity: Activity
@@ -33,6 +35,10 @@ struct ActivityRow: View {
     /// name and logo.
     @State private var swapFromMint: StoredMintMetadata?
     @State private var swapToMint: StoredMintMetadata?
+
+    /// The transacted token's metadata for a peer row's avatar badge, resolved
+    /// the same way when it isn't a held balance.
+    @State private var badgeMint: StoredMintMetadata?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -57,6 +63,8 @@ struct ActivityRow: View {
             await resolveCounterparty()
             if let swap = activity.swapMetadata {
                 await resolveSwapMints(swap)
+            } else if showsTokenBadge {
+                await resolveBadgeMint()
             }
         }
     }
@@ -155,7 +163,33 @@ struct ActivityRow: View {
             singleAvatar
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
+                .overlay(alignment: .bottomTrailing) {
+                    if showsTokenBadge {
+                        tokenBadge.offset(x: 4, y: 4)
+                    }
+                }
+                // Reserves the badge's overhang so it doesn't eat into the gap
+                // before the title.
+                .padding(.trailing, showsTokenBadge ? 4 : 0)
         }
+    }
+
+    /// Whether the avatar carries a token badge: only a peer row, whose avatar is
+    /// the counterparty rather than the token itself.
+    private var showsTokenBadge: Bool {
+        activity.swapMetadata == nil && activity.counterparty != nil
+    }
+
+    /// The token the payment moved in, as a coin badge over the counterparty's
+    /// avatar (Figma 9717:14140) — a peer row shows *who*, so this badge is the
+    /// only place the token reads.
+    @ViewBuilder private var tokenBadge: some View {
+        tokenCoin(
+            url: coinURL(for: activity.exchangedFiat.mint, fallback: badgeMint),
+            monogramID: activity.exchangedFiat.mint.base58,
+            size: 20
+        )
+        .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 2))
     }
 
     @ViewBuilder private var singleAvatar: some View {
@@ -224,6 +258,13 @@ struct ActivityRow: View {
     private func resolveSwapMints(_ swap: Activity.SwapMetadata) async {
         swapFromMint = await resolveMintMetadata(swap.fromMint)
         swapToMint   = await resolveMintMetadata(swap.toMint)
+    }
+
+    /// Resolves the badge's token beyond the held-balance cache, so a token you
+    /// no longer hold still shows its logo.
+    private func resolveBadgeMint() async {
+        guard session.balance(for: activity.exchangedFiat.mint) == nil else { return }
+        badgeMint = await resolveMintMetadata(activity.exchangedFiat.mint)
     }
 
     private func resolveMintMetadata(_ mint: PublicKey) async -> StoredMintMetadata? {
