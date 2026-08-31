@@ -80,6 +80,20 @@ final class SendAmountViewModel {
         ) == nil
     }
 
+    /// Where this send reports as coming from, which is not always the surface
+    /// that composed it.
+    ///
+    /// `CHAT` means "sent from a thread that already exists": the server rejects
+    /// it with `tip dm has not been initialized` when no DM is there yet. The
+    /// payment that opens the DM therefore always reports as `TIPCARD`, however
+    /// it was composed — a scanned card, or the chat the username lookup pushes
+    /// before the thread is real. Matches Android's rule, which reads the same
+    /// flag off a bottom bar still showing "Send a Tip".
+    private var effectiveTipOrigin: TipOrigin? {
+        guard case .tip(let recipient) = target else { return nil }
+        return opensTipDM ? .tipcard : recipient.origin
+    }
+
     /// The floor this entry has to clear when the amount is priced in
     /// `currency`, or nil when it has none.
     ///
@@ -341,7 +355,7 @@ final class SendAmountViewModel {
             // draws, from `ChatMetadata.TipDmPayment.Location`. Both the scanned
             // tipcard flow and the Send Cash action inside a tip thread submit
             // here, and the latter reports as a plain cash send.
-            let isTip = if case .tip(let recipient) = target { recipient.origin == .tipcard } else { false }
+            let isTip = effectiveTipOrigin == .tipcard
             let transferEvent: Analytics.TransferEvent = isTip ? .sentTip : .sentCash
 
             do {
@@ -380,7 +394,7 @@ final class SendAmountViewModel {
         case .tip(let recipient):
             return .tipDm(
                 chatID: .tipDm(between: session.userID, and: recipient.userID),
-                origin: recipient.origin
+                origin: effectiveTipOrigin ?? recipient.origin
             )
         }
     }
