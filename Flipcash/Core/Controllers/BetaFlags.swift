@@ -12,7 +12,8 @@ import SwiftUI
 ///
 /// Access is unlocked by tapping the app version 9 times, which reveals the
 /// "Beta Features" row. Each ``Option`` is persisted to `UserDefaults` via
-/// `@Defaults` and survives app relaunches.
+/// `@Defaults` and survives app relaunches. An option marked
+/// ``Option/isOnByDefault`` starts on, once, for a user who has never chosen.
 ///
 /// Read flags from anywhere with `BetaFlags.shared.hasEnabled(.vibrateOnScan)`.
 /// In SwiftUI views, inject via `@Environment(BetaFlags.self)`.
@@ -28,11 +29,18 @@ class BetaFlags {
     // every other flag with it.
     @ObservationIgnored @Defaults(.betaFlags) private var storedOptions: Set<String>?
     @ObservationIgnored @SecureString(.betaFlagsEnabled) private var storedAccessGranted: String?
+
+    // The options whose `isOnByDefault` has already been applied. Kept apart
+    // from `storedOptions` so that "never offered" and "turned off" stay
+    // distinguishable: without it a default-on flag would switch itself back on
+    // at every launch.
+    @ObservationIgnored @Defaults(.appliedBetaFlagDefaults) private var appliedDefaults: Set<String>?
     
     // MARK: - Init -
     
     private init() {
         readStoredOptions()
+        applyDefaults()
         readAccessGranted()
     }
     
@@ -97,6 +105,25 @@ class BetaFlags {
         }
     }
     
+    /// Turns on each default-on option the user has not been offered yet, and
+    /// records the offer.
+    ///
+    /// Runs per option rather than once overall, so a flag added in a later
+    /// release still starts on for a user who already has flags stored.
+    private func applyDefaults() {
+        var applied = appliedDefaults ?? []
+        let pending = Option.allCases.filter { $0.isOnByDefault && !applied.contains($0.rawValue) }
+        guard !pending.isEmpty else { return }
+
+        for option in pending {
+            options.insert(option)
+            applied.insert(option.rawValue)
+        }
+
+        appliedDefaults = applied
+        writeToCache()
+    }
+
     // MARK: - Cache -
     
     private func writeToCache() {
@@ -125,6 +152,7 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
+        case walletDepositArrival
 
         var id: String {
             localizedTitle
@@ -136,6 +164,8 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
+            case .walletDepositArrival:
+                return "Show deposits arriving in the wallet"
             }
         }
 
@@ -145,14 +175,27 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
+            case .walletDepositArrival:
+                return "If enabled, Put in Wallet opens the wallet and shows the balance rising and any new card arriving. If disabled, the bill is dismissed where it stands"
             }
         }
 
         /// Which Settings surface exposes this flag's toggle.
         var availability: Availability {
             switch self {
-            case .vibrateOnScan:   return .developer
-            case .enableCoinbase:  return .developer
+            case .vibrateOnScan:        return .developer
+            case .enableCoinbase:       return .developer
+            case .walletDepositArrival: return .developer
+            }
+        }
+
+        /// Whether the flag starts on for a user who has never chosen — a feature
+        /// that ships on but keeps its off switch while it settles.
+        var isOnByDefault: Bool {
+            switch self {
+            case .vibrateOnScan:        return false
+            case .enableCoinbase:       return false
+            case .walletDepositArrival: return true
             }
         }
     }

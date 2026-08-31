@@ -43,6 +43,12 @@ private struct WalletScreenContent: View {
     /// The unified recent-activity preview (newest first).
     @State private var recentActivities: [Activity]
 
+    /// The card the wallet is showing arrive with a deposit — it enters rather
+    /// than simply being there. `nil` when nothing is arriving.
+    @State private var arrivingMint: PublicKey?
+    /// How far that arrival has run: 0 is off-stage, 1 is settled.
+    @State private var arrivalProgress: CGFloat = 1
+
     /// The card being opened. The deck reorganises around it and the detail
     /// panel rises beneath it.
     @State private var expandingMint: PublicKey?
@@ -141,7 +147,14 @@ private struct WalletScreenContent: View {
         // empty-state flash.
         let seed = Self.snapshot(session: sessionContainer.session, rate: rate)
         _cards = State(initialValue: seed.cards)
-        _total = State(initialValue: seed.total)
+        // A released deposit can land before this view exists — the legacy tab
+        // path builds the wallet when the tab is selected, which is the moment
+        // "Put in Wallet" asks for. Seeded at the pre-deposit figures so the
+        // rise still has somewhere to start.
+        let landing = sessionContainer.session.walletDeposit.releasedLanding
+        _total = State(initialValue: landing?.previousTotal ?? seed.total)
+        _arrivingMint = State(initialValue: landing?.isNewToken == true ? landing?.mint : nil)
+        _arrivalProgress = State(initialValue: landing?.isNewToken == true ? 0 : 1)
         _appreciation = State(initialValue: seed.appreciation)
         _hasAddedMoney = State(initialValue: sessionContainer.session.hasEverAddedMoney())
         _hasTipped = State(initialValue: sessionContainer.session.hasEverTipped())
@@ -204,6 +217,10 @@ private struct WalletScreenContent: View {
             .onChange(of: router.requestedCardDismiss) { _, _ in
                 closeCard()
             }
+            // Keyed on the deposit itself, so an arrival plays whether the
+            // wallet was already alive behind the bill (iOS 26 keeps every tab
+            // mounted) or is built on arrival.
+            .task(id: session.walletDeposit.releasedLanding?.mint) { await playDeposit() }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { containerSize = $0 }
             .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeArea = $0 }
             // No top bar on the wallet root (per Figma) — the balance header
@@ -504,6 +521,8 @@ private struct WalletScreenContent: View {
                         hiddenMint: hiddenMint,
                         openTopInset: WalletCardGeometry.openCardTopInset,
                         openExtraOffset: releasedPullOffset,
+                        arrivingMint: arrivingMint,
+                        arrivalProgress: arrivalProgress,
                         onCardTap: openCard
                     )
                 }
@@ -651,9 +670,65 @@ private struct WalletScreenContent: View {
         }
     }
 
+    // MARK: - Deposit
+
+    /// Whether a released deposit is still on its way to being shown.
+    private var isLandingDeposit: Bool { session.walletDeposit.releasedLanding != nil }
+
+    /// Shows a grabbed deposit arriving: the wallet rewinds to the figures it
+    /// was last seen with, then runs the balance up and brings in a card for a
+    /// token it had none for.
+    private func playDeposit() async {
+        guard let landing = session.walletDeposit.releasedLanding else { return }
+        let isNewToken = landing.isNewToken
+
+        // The balances already carry the deposit, so this is a step backwards —
+        // taken in one un-animated frame, under the bill that is still covering
+        // the wallet.
+        var rewind = Transaction()
+        rewind.disablesAnimations = true
+        withTransaction(rewind) {
+            total = landing.previousTotal
+            arrivingMint = isNewToken ? landing.mint : nil
+            arrivalProgress = isNewToken ? 0 : 1
+        }
+
+        // The bill is sliding down and its sheet coming off as this starts;
+        // running the rise underneath them spends it where it cannot be seen.
+        try? await Task.delay(milliseconds: Self.depositRevealDelay)
+        guard !Task.isCancelled else { return }
+
+        let snapshot = Self.snapshot(session: session, rate: rate)
+        withAnimation(.smooth(duration: Self.depositArrivalDuration), completionCriteria: .removed) {
+            cards = snapshot.cards
+            total = snapshot.total
+            appreciation = snapshot.appreciation
+            arrivalProgress = 1
+        } completion: {
+            arrivingMint = nil
+            // Held until here rather than cleared up front: while a landing is
+            // pending it is also what holds `refresh()` off the figures the
+            // animation is moving.
+            session.walletDeposit.consume()
+            // Picks up anything that moved while the figures were held.
+            refresh()
+        }
+    }
+
+    /// How long the wallet waits for the bill and its sheet to clear before
+    /// playing the arrival.
+    private static let depositRevealDelay = 450
+    /// How long the arriving card takes to rise into its slot. The balance rolls
+    /// on `BalanceHeaderButton`'s own animation, not this one.
+    private static let depositArrivalDuration: TimeInterval = 0.9
+
     // MARK: - Data
 
     private func refresh() {
+        // A landing owns the figures until it has played them; refreshing here
+        // would put the wallet back to the post-deposit total it is rewound
+        // from, cutting to the answer the rise is on its way to.
+        guard !isLandingDeposit else { return }
         let snapshot = Self.snapshot(session: session, rate: rate)
         withAnimation(.default) {
             cards = snapshot.cards
@@ -692,7 +767,7 @@ private struct WalletScreenContent: View {
         rate: Rate
     ) -> (cards: [TokenCardData], total: ExchangedFiat, appreciation: (amount: FiatAmount, isPositive: Bool)) {
         let all = session.balances(for: rate)
-        let visible = all.filter { $0.stored.mint != .usdf || $0.exchangedFiat.hasDisplayableValue() }
+        let visible = Session.walletCardBalances(from: all)
 
         let cards = visible.map { balance -> TokenCardData in
             let (value, isPositive) = balance.stored.computeAppreciation(with: rate)
