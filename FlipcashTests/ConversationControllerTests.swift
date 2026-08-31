@@ -882,6 +882,41 @@ struct ConversationControllerTests {
         #expect(pointer == MessageID(value: 2))
     }
 
+    // MARK: - Last-message preview -
+
+    private func cashConversation(mint: PublicKey, from sender: UserID?) -> Conversation {
+        Conversation(
+            id: ConversationID.test(1),
+            members: [],
+            lastMessage: ConversationMessage(
+                id: MessageID(value: 1),
+                senderID: sender,
+                content: .cash(ExchangedFiat(
+                    onChainAmount: TokenAmount(quarks: 1_000_000, mint: mint),
+                    nativeAmount: FiatAmount(value: 1, currency: .usd),
+                    currencyRate: Rate(fx: 1, currency: .usd)
+                )),
+                date: Date(timeIntervalSince1970: 1),
+                unreadSeq: 1
+            ),
+            lastActivity: Date(timeIntervalSince1970: 1)
+        )
+    }
+
+    @Test("a reserve cash preview drops the currency name, which the amount already says")
+    func cashPreviewOmitsReserveName() {
+        let controller = makeController(MockConversations())
+        let preview = controller.lastMessagePreview(for: cashConversation(mint: .usdf, from: nil)) { _ in "Dollars" }
+        #expect(preview == "You received $1.00")
+    }
+
+    @Test("a community-currency cash preview names the currency")
+    func cashPreviewNamesCommunityCurrency() {
+        let controller = makeController(MockConversations())
+        let preview = controller.lastMessagePreview(for: cashConversation(mint: .jeffy, from: nil)) { _ in "Jeffy" }
+        #expect(preview == "You received $1.00 of Jeffy")
+    }
+
     // MARK: - DB-backed transcript (no in-memory hold) -
 
     @Test("streamed messages persist to the DB and are read as a bounded window, not held in memory")
