@@ -43,9 +43,7 @@ class WithdrawViewModel {
     /// summary verbatim — no rounding drift between the two screens.
     var displayFee: FiatAmount? {
         guard let enteredFiat, let fee = resolvedFee else { return nil }
-        let feeInEntry = fee.usd.converting(to: enteredFiat.currencyRate)
-        let rounded = feeInEntry.value.rounded(to: feeInEntry.currency.maximumFractionDigits)
-        return FiatAmount(value: rounded, currency: feeInEntry.currency)
+        return fee.usd.converting(to: enteredFiat.currencyRate).roundedToSmallestUnit()
     }
 
     /// Net in the user's currency, derived as `entered − displayFee` so the
