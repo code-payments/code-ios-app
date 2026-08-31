@@ -12,7 +12,7 @@ import FlipcashUI
 @Suite("Profile change confirmation dialog")
 struct ProfileChangeDialogTests {
 
-    @Test("Names the field in the title, the body and the confirming button", arguments: [
+    @Test("Names the field in the title and the confirming button", arguments: [
         (DialogItem.ProfileField.username, "Username"),
         (.displayName, "Display Name"),
         (.profilePicture, "Profile Picture"),
@@ -22,11 +22,21 @@ struct ProfileChangeDialogTests {
         let item = DialogItem.confirmProfileChange(field) {}
 
         #expect(item.title == "Change \(label)?")
-        #expect(item.subtitle?.contains("permanently change your \(label.lowercased())") == true)
         #expect(item.actions.first?.title == "Change \(label)")
     }
 
-    @Test("Confirms destructively over Cancel", arguments: [
+    @Test("States the change in the body", arguments: [
+        (DialogItem.ProfileField.displayName, "This will change your display name"),
+        (.profilePicture, "This will change your profile photo"),
+        (.minimumTip, "This will change your minimum tip"),
+    ])
+    func statesTheChange(field: DialogItem.ProfileField, body: String) {
+        let item = DialogItem.confirmProfileChange(field) {}
+
+        #expect(item.subtitle == body)
+    }
+
+    @Test("Confirms over Cancel", arguments: [
         DialogItem.ProfileField.username,
         .displayName,
         .profilePicture,
@@ -36,7 +46,6 @@ struct ProfileChangeDialogTests {
         let item = DialogItem.confirmProfileChange(field) {}
 
         #expect(item.actions.count == 2)
-        #expect(item.actions[0].kind == .destructive)
         #expect(item.actions[1].title == "Cancel")
     }
 
@@ -72,11 +81,27 @@ struct ProfileChangeDialogTests {
         }
     }
 
-    @Test("Red banner, but not an error worth reporting")
-    func styleIsUntrackedDestructive() {
-        let item = DialogItem.confirmProfileChange(.minimumTip) {}
+    /// The banner carries the warning, so only the irreversible change is red.
+    @Test("Red banner for the username, grey for the reversible three")
+    func usernameAloneIsDestructive() {
+        let username = DialogItem.confirmProfileChange(.username) {}
+        #expect(username.style == .destructive)
+        #expect(username.actions[0].kind == .destructive)
 
-        #expect(item.style == .destructive)
-        #expect(item.tracked == false)
+        for field in [DialogItem.ProfileField.displayName, .profilePicture, .minimumTip] {
+            let item = DialogItem.confirmProfileChange(field) {}
+            #expect(item.style == .standard)
+            #expect(item.actions[0].kind == .standard)
+        }
+    }
+
+    @Test("Not an error worth reporting", arguments: [
+        DialogItem.ProfileField.username,
+        .displayName,
+        .profilePicture,
+        .minimumTip,
+    ])
+    func untracked(field: DialogItem.ProfileField) {
+        #expect(DialogItem.confirmProfileChange(field) {}.tracked == false)
     }
 }
