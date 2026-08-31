@@ -98,13 +98,9 @@ final class CoinbaseDepositOperation {
         // Round the converted floor to the displayed denomination first — the
         // check must accept exactly the number the dialog shows; comparing raw
         // USD rejects the displayed minimum itself.
-        let minimum = FiatAmount(
-            value: FiatAmount.usd(Self.minimumPurchaseUSD)
-                .converting(to: amount.currencyRate)
-                .value
-                .rounded(to: amount.currencyRate.currency.maximumFractionDigits),
-            currency: amount.currencyRate.currency
-        )
+        let minimum = FiatAmount.usd(Self.minimumPurchaseUSD)
+            .converting(to: amount.currencyRate)
+            .roundedToSmallestUnit()
         guard amount.nativeAmount.value >= minimum.value else {
             logger.info("Coinbase deposit below minimum", metadata: [
                 "amount": "\(amount.nativeAmount.formatted())",

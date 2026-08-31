@@ -88,11 +88,10 @@ extension FiatAmount {
         guard let ownRate = rates[self.currency] else { return nil }
         let usd = convertingToUSD(rate: ownRate)
         if currency == .usd {
-            return FiatAmount(value: usd.value.rounded(to: currency.maximumFractionDigits), currency: .usd)
+            return usd.roundedToSmallestUnit()
         }
         guard let targetRate = rates[currency] else { return nil }
-        let converted = usd.converting(to: targetRate)
-        return FiatAmount(value: converted.value.rounded(to: currency.maximumFractionDigits), currency: currency)
+        return usd.converting(to: targetRate).roundedToSmallestUnit()
     }
 }
 
@@ -125,6 +124,19 @@ extension FiatAmount {
 
     /// Non-zero but too small to display (would format as the currency's zero).
     public var isApproximatelyZero: Bool { value > 0 && !hasDisplayableValue }
+
+    /// This value rounded to its currency's smallest displayable unit (e.g.
+    /// $9.90099 → $9.90, $9.906 → $9.91) — the figure a user is shown, and so
+    /// the figure any comparison against a displayed bound must use. Rounds
+    /// half-up, matching `NumberFormatter.fiat`. Use
+    /// ``flooredToSmallestUnit()`` instead for values that rounding up would
+    /// break, such as a spend ceiling derived from a balance.
+    public func roundedToSmallestUnit() -> FiatAmount {
+        FiatAmount(
+            value: value.rounded(to: currency.maximumFractionDigits),
+            currency: currency
+        )
+    }
 
     /// This value truncated down to its currency's smallest displayable unit
     /// (e.g. $9.90099 → $9.90). For values whose defining invariant rounding up

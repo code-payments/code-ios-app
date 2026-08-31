@@ -66,8 +66,7 @@ nonisolated struct EnterAmountCalculator {
         // does, in Decimal. Formatting the max and parsing the string back went
         // through a double — "$8.54" returned 8.539999999999999, rejecting an
         // entry of exactly the displayed balance.
-        let displayMax = max.value.rounded(to: max.currency.maximumFractionDigits)
-        return amount <= displayMax
+        return amount <= max.roundedToSmallestUnit().value
     }
 
     // MARK: - Methods

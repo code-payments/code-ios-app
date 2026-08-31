@@ -23,7 +23,7 @@ func canPayLaunchCost(_ balance: StoredBalance, launchCost: TokenAmount) -> Bool
     if balance.mint == .usdf {
         return balance.usdf.value >= launchCost.decimalValue
     }
-    return balance.usdf.value.rounded(to: CurrencyCode.usd.maximumFractionDigits) >= launchCost.decimalValue
+    return balance.usdf.roundedToSmallestUnit().value >= launchCost.decimalValue
 }
 
 /// True when no single balance can pay `launchCost` (purchase + fee), so the

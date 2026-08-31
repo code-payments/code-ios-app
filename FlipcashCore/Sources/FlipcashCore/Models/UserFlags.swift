@@ -110,11 +110,9 @@ extension UserFlags {
         /// mirroring the server's floor for currencies without presets.
         public func meetsMinimum(_ amount: ExchangedFiat) -> Bool {
             if amount.nativeAmount.currency == currency {
-                let entered = amount.nativeAmount.value.rounded(to: currency.maximumFractionDigits)
-                return entered >= minimum
+                return amount.nativeAmount.roundedToSmallestUnit().value >= minimum
             }
-            let usd = amount.usdfValue.value.rounded(to: CurrencyCode.usd.maximumFractionDigits)
-            return usd >= minimum
+            return amount.usdfValue.roundedToSmallestUnit().value >= minimum
         }
     }
 

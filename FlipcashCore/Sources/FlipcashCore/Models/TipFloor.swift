@@ -42,8 +42,7 @@ public enum TipFloor: Equatable, Sendable {
             // mismatch here means no rate reached it. Comparing across
             // currencies would trap; the server remains the authority instead.
             guard entered.nativeAmount.currency == fee.currency else { return true }
-            let value = entered.nativeAmount.value.rounded(to: fee.currency.maximumFractionDigits)
-            return value >= fee.value
+            return entered.nativeAmount.roundedToSmallestUnit() >= fee
         case .preset(let presets):
             return presets.meetsMinimum(entered)
         }

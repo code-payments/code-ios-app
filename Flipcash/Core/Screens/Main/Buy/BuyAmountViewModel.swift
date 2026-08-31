@@ -201,9 +201,8 @@ final class BuyAmountViewModel {
             // quarks past the spendable reserves; past it it stays uncapped so
             // the summary shows what was actually entered and the confirmation's
             // gate can surface the shortfall.
-            let displayedBalance = balance.usdf.converting(to: pin.rate).value
-                .rounded(to: entered.currency.maximumFractionDigits)
-            let isWithinDisplayedBalance = entered.value <= displayedBalance
+            let displayedBalance = balance.usdf.converting(to: pin.rate).roundedToSmallestUnit()
+            let isWithinDisplayedBalance = entered <= displayedBalance
             return ExchangedFiat.compute(
                 fromEntered: entered,
                 rate: pin.rate,

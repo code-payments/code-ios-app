@@ -112,10 +112,7 @@ nonisolated extension StoredBalance {
     /// The USD figure the wallet's token card renders for this balance: the
     /// stored value rounded to the cents a user actually sees.
     var displayedUSDF: FiatAmount {
-        FiatAmount(
-            value: usdf.value.rounded(to: CurrencyCode.usd.maximumFractionDigits),
-            currency: .usd
-        )
+        usdf.roundedToSmallestUnit()
     }
 
     /// Orders the wallet's token card stack: largest displayed value first,
