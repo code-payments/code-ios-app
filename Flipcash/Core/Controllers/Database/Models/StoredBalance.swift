@@ -104,3 +104,39 @@ extension StoredBalance {
 nonisolated extension StoredBalance {
     private static let bondingCurve = DiscreteBondingCurve()
 }
+
+// MARK: - Wallet Ordering -
+
+nonisolated extension StoredBalance {
+
+    /// The USD figure the wallet's token card renders for this balance: the
+    /// stored value rounded to the cents a user actually sees.
+    var displayedUSDF: FiatAmount {
+        FiatAmount(
+            value: usdf.value.rounded(to: CurrencyCode.usd.maximumFractionDigits),
+            currency: .usd
+        )
+    }
+
+    /// Orders the wallet's token card stack: largest displayed value first,
+    /// ties broken alphabetically by name. Mirrors Android's `BalanceOrder`.
+    ///
+    /// The comparison is at display precision because the exact values move
+    /// underneath it. A launchpad currency's USD worth is a bonding-curve
+    /// result landing on arbitrary sixth decimals that shifts on every price
+    /// refresh, so against reserves sitting at exactly 1.000000 each refresh
+    /// re-decided which was greater and the two cards traded places on screen —
+    /// the stack positions cards by index with no per-card position animation,
+    /// so the swap reads as a jump. The name settles cards showing the same
+    /// figure, and no refresh changes a name.
+    static func walletOrder(_ lhs: StoredBalance, _ rhs: StoredBalance) -> Bool {
+        let lhsDisplayed = lhs.displayedUSDF
+        let rhsDisplayed = rhs.displayedUSDF
+
+        if lhsDisplayed != rhsDisplayed {
+            return lhsDisplayed > rhsDisplayed
+        } else {
+            return lhs.name.lexicographicallyPrecedes(rhs.name)
+        }
+    }
+}
