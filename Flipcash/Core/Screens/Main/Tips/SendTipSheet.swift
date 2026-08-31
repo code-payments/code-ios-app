@@ -76,10 +76,13 @@ struct SendTipSheet: View {
 
     // MARK: - Chips -
 
+    /// Chips sit four to a row, so a preset is abbreviated past three digits
+    /// ("$1.5K") rather than shrunk to fit — presets run large in currencies
+    /// with small units.
     private func presetChip(_ tier: TipSelection) -> some View {
         let amount = tipFlow.amount(for: tier)
         return TipAmountChip(
-            title: amount.map { FiatAmount(value: $0, currency: displayCurrency).formatted(minimumFractionDigits: 0) } ?? "–",
+            title: amount.map { FiatAmount(value: $0, currency: displayCurrency).formattedAbbreviated(minimumFractionDigits: 0) } ?? "–",
             isSelected: tipFlow.selection == tier
         ) {
             tipFlow.selection = tier

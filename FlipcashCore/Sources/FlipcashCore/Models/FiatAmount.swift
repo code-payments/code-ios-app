@@ -112,6 +112,58 @@ extension FiatAmount {
     }
 }
 
+// MARK: - Abbreviation -
+
+extension FiatAmount {
+
+    /// The scales an abbreviated figure steps through, smallest first.
+    private static let abbreviationSuffixes = ["K", "M", "B"]
+
+    /// Format for a fixed-width slot where only three digits fit. Up to `$999`
+    /// this is plain ``formatted(minimumFractionDigits:suffix:)``; past it the
+    /// figure is scaled and suffixed — `$1.5K`, `$15K`, `$150K`, `$2.4M`, `$1B`.
+    /// The scaled figure keeps a decimal only while it is a single digit, so the
+    /// number never runs past three characters.
+    ///
+    /// The scale is chosen from the value, not the currency, so a currency whose
+    /// natural amounts are large (¥, Rp) abbreviates on the same rule. Rounding
+    /// is half-up like every other displayed figure, so `$10.5M` reads `$11M`.
+    ///
+    /// This is the one abbreviation rule; ``CompactCurrencyFormatStyle`` is the
+    /// `FormatStyle` entry point onto it.
+    public func formattedAbbreviated(minimumFractionDigits: Int? = nil) -> String {
+        guard abs(value) >= 1000 else {
+            return formatted(minimumFractionDigits: minimumFractionDigits)
+        }
+
+        var scaled = value / 1000
+        var scale = 0
+        while abs(scaled) >= 1000, scale < Self.abbreviationSuffixes.count - 1 {
+            scaled /= 1000
+            scale += 1
+        }
+
+        var fractionDigits = abs(scaled) < 10 ? 1 : 0
+        var rounded = scaled.rounded(to: fractionDigits)
+        // 999,999 scales to 999.999K, which rounds back into a fourth digit;
+        // carry it up a scale ("$1M") rather than print "$1,000K". Values past
+        // 999B have nowhere left to carry and stay in `B`.
+        if abs(rounded) >= 1000, scale < Self.abbreviationSuffixes.count - 1 {
+            scale += 1
+            fractionDigits = 1
+            rounded = (scaled / 1000).rounded(to: fractionDigits)
+        }
+
+        return NumberFormatter.fiat(
+            currency: currency,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: fractionDigits,
+            truncated: false,
+            suffix: Self.abbreviationSuffixes[scale],
+        ).string(from: rounded as NSDecimalNumber)!
+    }
+}
+
 // MARK: - Display Threshold -
 
 extension FiatAmount {

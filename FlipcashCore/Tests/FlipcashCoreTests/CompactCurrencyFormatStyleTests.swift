@@ -17,7 +17,9 @@ struct CompactCurrencyFormatStyleTests {
         #expect(format.format(1_000_000) == "$1M")
         #expect(format.format(1_029_331.15) == "$1M")
         #expect(format.format(1_299_217.10) == "$1.3M")
-        #expect(format.format(10_500_000) == "$10M")
+        // Half-up, like every other displayed figure — ICU's compact notation
+        // rounded this half-even to "$10M".
+        #expect(format.format(10_500_000) == "$11M")
     }
 
     @Test("Thousands are formatted with K suffix")
@@ -31,7 +33,10 @@ struct CompactCurrencyFormatStyleTests {
     func smallValues() {
         #expect(format.format(99_999) == "$100K")
         #expect(format.format(1_234) == "$1.2K")
+        // Under a thousand the figure is shown whole — sub-unit precision is
+        // dropped rather than rounded into the display.
         #expect(format.format(200.17) == "$200")
+        #expect(format.format(999.99) == "$999")
     }
 
     @Test("Negative values put the sign before the currency symbol")

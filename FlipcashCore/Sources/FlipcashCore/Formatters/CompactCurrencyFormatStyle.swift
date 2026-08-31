@@ -5,11 +5,12 @@
 
 import Foundation
 
-/// A `FormatStyle` that formats numeric values as compact currency strings.
+/// A `FormatStyle` that formats numeric values as compact currency strings —
+/// the `FormatStyle` entry point onto ``FiatAmount/formattedAbbreviated(minimumFractionDigits:)``,
+/// for the `Double` figures (market caps, deltas) SwiftUI formats inline.
 ///
-/// Uses the system's `.compactName` notation for large numbers and prepends
-/// the currency symbol from `CurrencyCode`. Values below 100,000 are formatted
-/// as whole numbers with grouping separators.
+/// Sub-unit precision is dropped before formatting: at this scale it is noise,
+/// and a market cap reads `$200`, not `$200.17`.
 ///
 /// Usage with SwiftUI `Text`:
 /// ```swift
@@ -34,20 +35,15 @@ public struct CompactCurrencyFormatStyle: FormatStyle {
     }
 
     public func format(_ value: Double) -> String {
-        let symbol = currencyCode.singleCharacterCurrencySymbols ?? ""
-        let whole = Int(value)
-        // The sign belongs outside the symbol ("-$12K"), so format the magnitude
-        // and prepend the minus ourselves rather than letting it land after the symbol.
-        let sign = whole < 0 ? "-" : ""
-        let compact = whole.magnitude.formatted(.number.notation(.compactName))
-        return "\(sign)\(symbol)\(compact)"
+        FiatAmount(value: Decimal(Int(value)), currency: currencyCode)
+            .formattedAbbreviated(minimumFractionDigits: 0)
     }
 }
 
 // MARK: - FormatStyle Extension -
 
 extension FormatStyle where Self == CompactCurrencyFormatStyle {
-    /// Formats a number as a compact currency string (e.g. `$1M`, `$100K`, `$99,999`).
+    /// Formats a number as a compact currency string (e.g. `$1M`, `$100K`, `$999`).
     public static func compactCurrency(code: CurrencyCode) -> CompactCurrencyFormatStyle {
         CompactCurrencyFormatStyle(code: code)
     }

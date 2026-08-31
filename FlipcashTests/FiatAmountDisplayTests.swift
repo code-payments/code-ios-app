@@ -152,3 +152,66 @@ struct FiatAmountFormattedTests {
         )
     }
 }
+
+@Suite("FiatAmount Abbreviated")
+struct FiatAmountAbbreviatedTests {
+
+    @Test(
+        "formattedAbbreviated(minimumFractionDigits:) keeps the figure to three digits",
+        arguments: [
+            // currency, value,                        minFrac, expected
+
+            // Under a thousand — plain formatting, untouched.
+            (CurrencyCode.usd, Decimal(1),                 Int?(0), "$1"),
+            (.usd,             Decimal(999),               Int?(0), "$999"),
+            (.usd,             Decimal(string: "2.50")!,   nil,     "$2.50"),
+            (.usd,             Decimal(999),               nil,     "$999.00"),
+
+            // Thousands — a decimal only while the figure is a single digit.
+            (.usd,             Decimal(1_000),             Int?(0), "$1K"),
+            (.usd,             Decimal(1_500),             Int?(0), "$1.5K"),
+            (.usd,             Decimal(1_550),             Int?(0), "$1.6K"),   // halfUp
+            (.usd,             Decimal(9_999),             Int?(0), "$10K"),
+            (.usd,             Decimal(15_000),            Int?(0), "$15K"),
+            (.usd,             Decimal(150_000),           Int?(0), "$150K"),
+            (.usd,             Decimal(999_499),           Int?(0), "$999K"),
+
+            // The rounding carry: 999.5K is a fourth digit, so it becomes $1M.
+            (.usd,             Decimal(999_500),           Int?(0), "$1M"),
+
+            // Millions and billions.
+            (.usd,             Decimal(2_400_000),         Int?(0), "$2.4M"),
+            (.usd,             Decimal(25_000_000),        Int?(0), "$25M"),
+            (.usd,             Decimal(1_000_000_000),     Int?(0), "$1B"),
+            (.usd,             Decimal(1_250_000_000),     Int?(0), "$1.3B"),
+
+            // Past the largest scale there is nowhere to carry, so it stays in B.
+            (.usd,             Decimal(1_000_000_000_000), Int?(0), "$1,000B"),
+
+            // A zero-decimal currency abbreviates on the value, not its precision.
+            (.jpy,             Decimal(1_500),             Int?(0), "¥1.5K"),
+            (.jpy,             Decimal(250_000),           Int?(0), "¥250K"),
+
+            // Small-unit currencies, where every everyday amount is four digits
+            // or more — the case the tip presets abbreviate for. ARS values are
+            // roughly the $1 / $25 / $1,000 tiers.
+            (.ars,             Decimal(1_400),             Int?(0), "$1.4K"),
+            (.ars,             Decimal(35_000),            Int?(0), "$35K"),
+            (.ars,             Decimal(1_400_000),         Int?(0), "$1.4M"),
+            (.cop,             Decimal(97_500),            Int?(0), "$98K"),
+            (.vnd,             Decimal(650_000),           Int?(0), "₫650K"),
+            // IDR has no single-character symbol, so it formats bare.
+            (.idr,             Decimal(400_000),           Int?(0), "400K"),
+
+            // Negatives keep the minus ahead of the symbol.
+            (.usd,             Decimal(-1_500),            Int?(0), "-$1.5K"),
+            (.usd,             Decimal(-2_400_000),        Int?(0), "-$2.4M"),
+        ] as [(CurrencyCode, Decimal, Int?, String)]
+    )
+    func formattedAbbreviated(currency: CurrencyCode, value: Decimal, minimumFractionDigits: Int?, expected: String) {
+        #expect(
+            FiatAmount(value: value, currency: currency)
+                .formattedAbbreviated(minimumFractionDigits: minimumFractionDigits) == expected
+        )
+    }
+}
