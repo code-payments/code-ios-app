@@ -12,18 +12,6 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Softens the top scroll edge on iOS 26+ so content fades under the toolbar
-/// rather than being clipped by the system's hard edge line.
-private struct SoftTopScrollEdge: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.scrollEdgeEffectStyle(.soft, for: .top)
-        } else {
-            content
-        }
-    }
-}
-
 /// Marks the hero card as the morph destination for the wallet's tapped card.
 /// Without a namespace (pushed hosting, deep links) the card renders plainly.
 private struct HeroCardMatch: ViewModifier {
@@ -195,7 +183,7 @@ struct CurrencyInfoContentV2: View {
         .scrollIndicators(.hidden)
         // Content fades out under the toolbar instead of meeting the system's
         // hard scroll-edge line.
-        .modifier(SoftTopScrollEdge())
+        .softScrollEdge()
         .onScrollGeometryChange(for: Bool.self) { geometry in
             geometry.contentOffset.y + geometry.contentInsets.top > Self.titleHandoffOffset
         } action: { _, scrolledPast in
