@@ -124,14 +124,10 @@ class Session {
             .total(rate: rate)
     }
     
+    /// Every held balance in wallet card-stack order — see
+    /// ``StoredBalance/walletOrder(_:_:)``.
     var balances: [StoredBalance] {
-        updateableBalances.value.sorted { lhs, rhs in
-            if lhs.usdf != rhs.usdf {
-                return lhs.usdf > rhs.usdf
-            } else {
-                return lhs.name.lexicographicallyPrecedes(rhs.name)
-            }
-        }
+        updateableBalances.value.sorted(by: StoredBalance.walletOrder)
     }
     
     func balances(for rate: Rate) -> [ExchangedBalance] {
