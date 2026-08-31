@@ -152,3 +152,68 @@ struct FiatAmountFormattedTests {
         )
     }
 }
+
+@Suite("FiatAmount Abbreviated")
+struct FiatAmountAbbreviatedTests {
+
+    @Test(
+        "formattedAbbreviated(maxDigits:) caps the figure at three digits",
+        arguments: [
+            // currency, value, expected
+
+            // Under the first scale — formatted as usual, fraction dropped when whole.
+            (CurrencyCode.usd, Decimal(5),                    "$5"),
+            (.usd,             Decimal(999),                  "$999"),
+            (.usd,             Decimal(string: "12.50")!,     "$12.50"),
+
+            // Thousands, with the cap deciding how many decimals survive.
+            (.usd,             Decimal(1_000),                "$1K"),
+            (.usd,             Decimal(1_500),                "$1.5K"),
+            (.usd,             Decimal(1_234),                "$1.23K"),
+            (.usd,             Decimal(12_345),               "$12.3K"),
+            (.usd,             Decimal(123_456),              "$123K"),
+
+            // Millions, billions and trillions get their own suffix.
+            (.usd,             Decimal(1_000_000),            "$1M"),
+            (.usd,             Decimal(2_500_000),            "$2.5M"),
+            (.usd,             Decimal(1_000_000_000),        "$1B"),
+            (.usd,             Decimal(1_000_000_000_000),    "$1T"),
+
+            // An amount that rounds into the next scale is printed in that scale.
+            (.usd,             Decimal(999_999),              "$1M"),
+
+            (.usd,             Decimal(0),                    "$0"),
+
+            // A zero-decimal currency abbreviates on the value, not its precision.
+            (.jpy,             Decimal(750),                  "¥750"),
+            (.jpy,             Decimal(3_000),                "¥3K"),
+
+            // Small-unit currencies, where every everyday amount is four digits or
+            // more — the case the tip presets abbreviate for. The ARS figures are
+            // the $5 / $10 / $20 tiers in pesos.
+            (.ars,             Decimal(7_500),                "$7.5K"),
+            (.ars,             Decimal(15_000),               "$15K"),
+            (.ars,             Decimal(30_000),               "$30K"),
+            (.ars,             Decimal(25_500),               "$25.5K"),
+            (.ars,             Decimal(123_456),              "$123K"),
+            (.cop,             Decimal(97_500),               "$97.5K"),
+            (.vnd,             Decimal(126_000),              "₫126K"),
+            (.vnd,             Decimal(1_315_000),            "₫1.32M"),
+            // IDR has no single-character symbol, so it formats bare.
+            (.idr,             Decimal(332_000),              "332K"),
+            (.idr,             Decimal(500),                  "500"),
+
+            // Negatives keep the minus ahead of the symbol.
+            (.usd,             Decimal(-1_500),               "-$1.5K"),
+            (.usd,             Decimal(-2_400_000),           "-$2.4M"),
+        ] as [(CurrencyCode, Decimal, String)]
+    )
+    func formattedAbbreviated(currency: CurrencyCode, value: Decimal, expected: String) {
+        #expect(FiatAmount(value: value, currency: currency).formattedAbbreviated() == expected)
+    }
+
+    @Test("A lower cap allows fewer digits")
+    func lowerCap() {
+        #expect(FiatAmount.usd(1_234).formattedAbbreviated(maxDigits: 2) == "$1.2K")
+    }
+}

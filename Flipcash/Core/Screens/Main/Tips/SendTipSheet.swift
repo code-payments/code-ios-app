@@ -76,10 +76,14 @@ struct SendTipSheet: View {
 
     // MARK: - Chips -
 
+    /// Chips sit four to a row, so an amount is abbreviated past three digits
+    /// ("$1.5K") rather than shrunk to fit — presets run large in currencies
+    /// with small units. VoiceOver still reads the amount in full.
     private func presetChip(_ tier: TipSelection) -> some View {
-        let amount = tipFlow.amount(for: tier)
+        let amount = tipFlow.amount(for: tier).map { FiatAmount(value: $0, currency: displayCurrency) }
         return TipAmountChip(
-            title: amount.map { FiatAmount(value: $0, currency: displayCurrency).formatted(minimumFractionDigits: 0) } ?? "–",
+            title: amount?.formattedAbbreviated() ?? "–",
+            accessibilityLabel: amount?.formattedDroppingZeroFraction(),
             isSelected: tipFlow.selection == tier
         ) {
             tipFlow.selection = tier
@@ -91,21 +95,15 @@ struct SendTipSheet: View {
     /// The fourth slot: "…" until a custom amount is set, then that amount.
     /// Tapping always opens the amount entry, so a set amount can be changed.
     private var customChip: some View {
-        TipAmountChip(
-            title: tipFlow.amount(for: .custom).map(customTitle) ?? "…",
+        let amount = tipFlow.amount(for: .custom).map { FiatAmount(value: $0, currency: displayCurrency) }
+        return TipAmountChip(
+            title: amount?.formattedAbbreviated() ?? "…",
+            accessibilityLabel: amount?.formattedDroppingZeroFraction() ?? "Enter a custom amount",
             isSelected: tipFlow.selection == .custom
         ) {
             localSheet = .customAmount
         }
         .accessibilityIdentifier("tip-custom-chip")
-    }
-
-    /// Formats a custom amount, dropping the fraction only when it's whole
-    /// (`$11`, not `$11.00`) while keeping real fractions intact (`$2.50`).
-    private func customTitle(_ amount: Decimal) -> String {
-        let isWhole = amount == amount.rounded(to: 0)
-        return FiatAmount(value: amount, currency: displayCurrency)
-            .formatted(minimumFractionDigits: isWhole ? 0 : nil)
     }
 
     // MARK: - Currency -
@@ -131,6 +129,8 @@ struct SendTipSheet: View {
 private struct TipAmountChip: View {
 
     let title: String
+    /// Read instead of the abbreviated title; defaults to the title itself.
+    var accessibilityLabel: String?
     let isSelected: Bool
     let action: () -> Void
 
@@ -147,6 +147,7 @@ private struct TipAmountChip: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel ?? title)
     }
 }
 
