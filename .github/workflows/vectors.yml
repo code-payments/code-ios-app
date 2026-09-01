@@ -1,0 +1,55 @@
+name: Cross-platform vector gate
+
+# Asserts this repo reproduces the canonical fixtures in the orchestrator's
+# `code/test-vectors/` — the same fixtures code-android-app asserts against. The
+# two apps compute keys, signatures, and on-chain amounts in parallel Swift and
+# Kotlin implementations; these vectors are what keeps the answers identical.
+#
+# Two packages because they cannot share a deployment target: CodeCurves is
+# plain C and builds for the host, while FlipcashCore declares only iOS and its
+# transitive deps (BigDecimal, grpc/nio) will not resolve for a macOS build.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: vectors-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vectors:
+    name: Vectors
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # FlipcashCore is swift-tools 6.1, which the image's default Xcode may
+      # predate. Take the newest installed rather than pinning a version that
+      # can drop out of the runner image.
+      - name: Select the newest installed Xcode
+        run: |
+          set -euo pipefail
+          XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$XCODE" ]; then
+            sudo xcode-select -s "$XCODE"
+          fi
+          xcodebuild -version
+
+      - name: Ed25519 vectors
+        working-directory: CrossPlatformVectors
+        run: swift test
+
+      - name: FlipcashCore vectors
+        working-directory: FlipcashCoreVectors
+        run: |
+          set -euo pipefail
+          # Simulator model names turn over with each runner image, so pick
+          # whatever iPhone is installed rather than naming one.
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
+          xcodebuild test -scheme FlipcashCoreVectors-Package \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -quiet

@@ -1,0 +1,49 @@
+{
+  "algorithm": "ed25519",
+  "spec": "RFC 8032 (SHA-512). seed=32-byte private seed; publicKey/signature are standard outputs.",
+  "note": "Cross-platform parity gate: both apps must reproduce publicKey and signature for each seed/message.",
+  "vectors": [
+    {
+      "name": "rfc8032-test1",
+      "seed": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+      "message": "",
+      "publicKey": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+      "signature": "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
+    },
+    {
+      "name": "rfc8032-test2",
+      "seed": "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6f8",
+      "message": "72",
+      "publicKey": "f7cbf1b83a8ff48bd6f88cdf132b1fee4a1ffc436741f1e068d2d9c29a9308ae",
+      "signature": "4b5737a671f7b7f4d50848fc87277460cd65142d5752c17a2b7b10390a8803c48a52f04f37ca575fe456e632bff18de8bc32a38dec5535a874a850d18b4fe300"
+    },
+    {
+      "name": "rfc8032-test3",
+      "seed": "c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7",
+      "message": "af82",
+      "publicKey": "fc51cd8e6218a1a38da47ed00230f0580816ed13ba3303ac5deb911548908025",
+      "signature": "6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a"
+    },
+    {
+      "name": "zero-seed-empty",
+      "seed": "0000000000000000000000000000000000000000000000000000000000000000",
+      "message": "",
+      "publicKey": "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29",
+      "signature": "8f895b3cafe2c9506039d0e2a66382568004674fe8d237785092e40d6aaf483e4fc60168705f31f101596138ce21aa357c0d32a064f423dc3ee4aa3abf53f803"
+    },
+    {
+      "name": "zero-seed-32b",
+      "seed": "0000000000000000000000000000000000000000000000000000000000000000",
+      "message": "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+      "publicKey": "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29",
+      "signature": "b715b42bcdf6a3755d83f500103441557410920c276efb3102752f36e301ccdec2e5015ebdd6595a1844518a69b85f156db8ed9792d85f483f5c779ae2b90b0f"
+    },
+    {
+      "name": "seed-ff-tx",
+      "seed": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "message": "0100000000000000dededededededededededededededededededededededededededededededededededededededededededededededededededededededededededededededede",
+      "publicKey": "76a1592044a6e4f511265bca73a604d90b0529d1df602be30a19a9257660d1f5",
+      "signature": "22cb95f107e77716d4084c004543abc3dfa7562fee71d3af63c844a357c75e0277a29d275f10a65c57c93c0b1d60a46cb1c49f045a2b82fbc03d113e1768c40a"
+    }
+  ]
+}

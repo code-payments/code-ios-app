@@ -1,0 +1,97 @@
+{
+  "algorithm": "discrete-bonding-curve",
+  "units": "currentSupply & tokens in whole tokens; spotPrice & value in USDC (18-dp fixed point on-chain)",
+  "note": "tokensToValue is exact integer arithmetic on the shared u128 tables; ground truth = Rust api/curve.rs.",
+  "vectors": [
+    {
+      "name": "supply=0 tokens=50",
+      "note": "within single step",
+      "currentSupply": 0,
+      "tokens": 50,
+      "spotPrice": "0.01",
+      "value": "0.5",
+      "valueScaled": "500000000000000000"
+    },
+    {
+      "name": "supply=0 tokens=100",
+      "note": "exact step boundary",
+      "currentSupply": 0,
+      "tokens": 100,
+      "spotPrice": "0.01",
+      "value": "1",
+      "valueScaled": "1000000000000000000"
+    },
+    {
+      "name": "supply=50 tokens=50",
+      "note": "start mid-step, end on boundary (zero end-partial)",
+      "currentSupply": 50,
+      "tokens": 50,
+      "spotPrice": "0.01",
+      "value": "0.5",
+      "valueScaled": "500000000000000000"
+    },
+    {
+      "name": "supply=50 tokens=150",
+      "note": "partial start + full step + boundary end",
+      "currentSupply": 50,
+      "tokens": 150,
+      "spotPrice": "0.01",
+      "value": "1.5000877213746469",
+      "valueScaled": "1500087721374646900"
+    },
+    {
+      "name": "supply=75 tokens=350",
+      "note": "multi-step with both partials (Rust test)",
+      "currentSupply": 75,
+      "tokens": 350,
+      "spotPrice": "0.01",
+      "value": "3.500614091946595975",
+      "valueScaled": "3500614091946595975"
+    },
+    {
+      "name": "supply=0 tokens=200",
+      "note": "two full steps (cumulative subtraction)",
+      "currentSupply": 0,
+      "tokens": 200,
+      "spotPrice": "0.01",
+      "value": "2.0000877213746469",
+      "valueScaled": "2000087721374646900"
+    },
+    {
+      "name": "supply=99 tokens=1",
+      "note": "cross a step boundary buying 1",
+      "currentSupply": 99,
+      "tokens": 1,
+      "spotPrice": "0.01",
+      "value": "0.01",
+      "valueScaled": "10000000000000000"
+    },
+    {
+      "name": "supply=100 tokens=1",
+      "note": "exactly at boundary, buy 1 (single step)",
+      "currentSupply": 100,
+      "tokens": 1,
+      "spotPrice": "0.010000877213746469",
+      "value": "0.010000877213746469",
+      "valueScaled": "10000877213746469"
+    },
+    {
+      "name": "supply=1000000 tokens=500",
+      "note": "high supply: cumulative entries exceed u64 (iOS slow path)",
+      "currentSupply": 1000000,
+      "tokens": 500,
+      "spotPrice": "0.024040991835086708",
+      "value": "12.0226050113995003",
+      "valueScaled": "12022605011399500300"
+    },
+    {
+      "name": "supply=20999900 tokens=100",
+      "note": "final step near max supply (21,000,000)",
+      "currentSupply": 20999900,
+      "tokens": 100,
+      "spotPrice": "999912.28630835324063318",
+      "value": "99991228.630835324063318",
+      "valueScaled": "99991228630835324063318000"
+    }
+  ]
+}

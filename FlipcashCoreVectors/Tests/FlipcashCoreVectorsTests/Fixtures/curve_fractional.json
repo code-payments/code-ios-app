@@ -1,0 +1,49 @@
+{
+  "algorithm": "discrete-bonding-curve-fractional",
+  "units": "currentSupply & tokens are fractional whole-token decimal strings; value in USDC",
+  "note": "Exact rational reference. Exercises the sell-path fractional arithmetic + rounding edges.",
+  "vectors": [
+    {
+      "name": "frac within-step",
+      "note": "fractional tokens inside step 0 (regressed Android)",
+      "currentSupply": "0",
+      "tokens": "12.5",
+      "value": "0.125"
+    },
+    {
+      "name": "frac boundary-cross",
+      "note": "fractional partial end after a full step",
+      "currentSupply": "0",
+      "tokens": "150.5",
+      "value": "1.5050442992941966845"
+    },
+    {
+      "name": "frac both ends",
+      "note": "fractional start AND end partial",
+      "currentSupply": "50.25",
+      "tokens": "100.5",
+      "value": "1.00504451859763330175"
+    },
+    {
+      "name": "sell-path multi-step",
+      "note": "value(0..new_supply): fractional, many steps",
+      "currentSupply": "0",
+      "tokens": "12345.6789012345",
+      "value": "124.122252404322416922567040156"
+    },
+    {
+      "name": "high-supply fractional",
+      "note": "fractional crossing a boundary at high price",
+      "currentSupply": "999950.123456789",
+      "tokens": "100.987654321",
+      "value": "2.427738197118423368616824456"
+    },
+    {
+      "name": "one-quark token",
+      "note": "1 token-quark (10^-10): within-step, sub-micro",
+      "currentSupply": "0",
+      "tokens": "0.0000000001",
+      "value": "0.000000000001"
+    }
+  ]
+}

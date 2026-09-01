@@ -1,0 +1,66 @@
+{
+  "algorithm": "bip39+slip10-ed25519",
+  "note": "BIP39 seed -> SLIP-0010 ed25519 (all indices force-hardened) -> ed25519 keypair. Apps must reproduce publicKey/address for each mnemonic+path.",
+  "vectors": [
+    {
+      "name": "abandon-x11-about m/44'/501'/0'/0'",
+      "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+      "passphrase": "",
+      "path": "m/44'/501'/0'/0'",
+      "seedBip39": "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4",
+      "derivedKey": "37df573b3ac4ad5b522e064e25b63ea16bcbe79d449e81a0268d1047948bb445",
+      "publicKey": "f036276246a75b9de3349ed42b15e232f6518fc20f5fcd4f1d64e81f9bd258f7",
+      "address": "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"
+    },
+    {
+      "name": "abandon-x11-about m/44'/501'/0'/0'/7665'/0",
+      "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+      "passphrase": "",
+      "path": "m/44'/501'/0'/0'/7665'/0",
+      "seedBip39": "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4",
+      "derivedKey": "1f317a98c39b1459a28fbc5d7e4ed9c9799dc69d194157ec7b9d645c4ed3a474",
+      "publicKey": "051d88bbb9c70cc1045090c3c01675620b060123f2d1f1700d8ef1f5dadcc5d8",
+      "address": "LyACZbC6QzPP3ixxyBjuCC1sKWuAi1bZU1xgTuFVpRD"
+    },
+    {
+      "name": "abandon-x11-about m/44'/501'/0'/0'/2335'/5",
+      "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+      "passphrase": "",
+      "path": "m/44'/501'/0'/0'/2335'/5",
+      "seedBip39": "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4",
+      "derivedKey": "4b83957e1b5ca6b16e9f39fdd38c88a6a96c38e61f9b4cecb7fda43e5e249764",
+      "publicKey": "7bc1de0ce3459814c74dae0529df060261d896dea23264e298eb90d1d236c123",
+      "address": "9L6c3GSoNLLXbXAoxCgHR1fkhbX96jNaLqmQnsRYUCo4"
+    },
+    {
+      "name": "legal-winner m/44'/501'/0'/0'",
+      "mnemonic": "legal winner thank year wave sausage worth useful legal winner thank yellow",
+      "passphrase": "",
+      "path": "m/44'/501'/0'/0'",
+      "seedBip39": "878386efb78845b3355bd15ea4d39ef97d179cb712b77d5c12b6be415fffeffe5f377ba02bf3f8544ab800b955e51fbff09828f682052a20faa6addbbddfb096",
+      "derivedKey": "6987bdb06aa8a243a3019f41489ffa8e609c953a885a748d1849a8df760aa479",
+      "publicKey": "999d46fb3d1256f7049c8ed09314d7268612e8a91b800e91934463848305c98c",
+      "address": "BLeUXTx9thHGT7VJUtF9vHEmfMDgW1nnKZ9UVer2CoLX"
+    },
+    {
+      "name": "legal-winner m/44'/501'/0'/0'/7665'/0",
+      "mnemonic": "legal winner thank year wave sausage worth useful legal winner thank yellow",
+      "passphrase": "",
+      "path": "m/44'/501'/0'/0'/7665'/0",
+      "seedBip39": "878386efb78845b3355bd15ea4d39ef97d179cb712b77d5c12b6be415fffeffe5f377ba02bf3f8544ab800b955e51fbff09828f682052a20faa6addbbddfb096",
+      "derivedKey": "82c2531aae3c058eb076618c696c3d496c3249b066dd528cb83adc4f4bbe8294",
+      "publicKey": "9ed602ebfe2399e961e3a08535a50fd4391fdefc0341b1c790e0c4947ccd16a0",
+      "address": "Bh2gxt6UiDWjWkmsfK9qp46kRrjTPgvXn7DhvaPTxUr3"
+    },
+    {
+      "name": "legal-winner m/44'/501'/0'/0'/2335'/5",
+      "mnemonic": "legal winner thank year wave sausage worth useful legal winner thank yellow",
+      "passphrase": "",
+      "path": "m/44'/501'/0'/0'/2335'/5",
+      "seedBip39": "878386efb78845b3355bd15ea4d39ef97d179cb712b77d5c12b6be415fffeffe5f377ba02bf3f8544ab800b955e51fbff09828f682052a20faa6addbbddfb096",
+      "derivedKey": "4eb3bb8632aa83691f51a4cff44021ff785df069432007bb023e858b6416f6ec",
+      "publicKey": "b5310f3190a4a39d5146f17072a767fb5c566593e4f2417d293d11fcd3b246f7",
+      "address": "DCJBY1iQroEzsNi2BMwu3zNmnB27rCV6iJHHJDAqTTmg"
+    }
+  ]
+}

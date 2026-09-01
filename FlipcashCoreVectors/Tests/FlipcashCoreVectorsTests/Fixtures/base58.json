@@ -1,0 +1,42 @@
+{
+  "algorithm": "base58",
+  "alphabet": "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz",
+  "note": "Bitcoin/Solana Base58. Both apps must encode(bytes)==base58 and decode(base58)==bytes.",
+  "vectors": [
+    {
+      "name": "empty",
+      "bytes": "",
+      "base58": ""
+    },
+    {
+      "name": "single-zero",
+      "bytes": "00",
+      "base58": "1"
+    },
+    {
+      "name": "zeros-32",
+      "bytes": "0000000000000000000000000000000000000000000000000000000000000000",
+      "base58": "11111111111111111111111111111111"
+    },
+    {
+      "name": "hello-world",
+      "bytes": "48656c6c6f20576f726c64",
+      "base58": "JxF12TrwUP45BMd"
+    },
+    {
+      "name": "leading-zeros",
+      "bytes": "0000287fb4cd",
+      "base58": "11233QC4"
+    },
+    {
+      "name": "pubkey-rfc8032-1",
+      "bytes": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+      "base58": "FVen3X669xLzsi6N2V91DoiyzHzg1uAgqiT8jZ9nS96Z"
+    },
+    {
+      "name": "pubkey-rfc8032-3",
+      "bytes": "fc51cd8e6218a1a38da47ed00230f0580816ed13ba3303ac5deb911548908025",
+      "base58": "Hyx62wPQGyvXCoihZq1BrbUjBRh2LuNxWiiqMkfAuSZr"
+    }
+  ]
+}
