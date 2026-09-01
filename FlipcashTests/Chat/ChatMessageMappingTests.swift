@@ -346,4 +346,19 @@ struct ChatMessageMappingTests {
         )
         #expect(messageRows(items).first?.actions == [.copy, .edit, .delete])
     }
+
+    @Test("The default policy shows a placeholder, so a deleted row keeps its place")
+    func defaultPolicyShowsPlaceholder() {
+        #expect(MessagePolicy.default.deletedPresentation == .placeholder)
+
+        let items = ChatItem.from(
+            [text(1, them, "hi", after: 0), deleted(2, them, deletedBy: them, after: 30)],
+            selfUserID: me,
+            deletedPresentation: MessagePolicy.default.deletedPresentation
+        )
+        let rows = messageRows(items)
+        #expect(rows.count == 2)
+        #expect(rows[1].content == .deleted("This message was deleted"))
+        #expect(rows[0].isContinuedByNext)
+    }
 }
