@@ -4,7 +4,7 @@
 
 **Goal:** Let a sender edit or delete their own chat message, with the transcript updating optimistically and reconciling against the server's `expected_event_sequence` answer.
 
-**Architecture:** Three new units, per the spec. `MessageCapabilities` is a pure resolver in `FlipcashCore` that answers "what may this person do to this message" from the message, the conversation, the viewer, and a `MessagePolicy`. `ComposerModel` (app layer, `@Observable`) owns the draft and whether the composer is writing a new message or editing an existing one. `ConversationController+MessageMutations` holds `edit`/`delete`, each mirroring the existing `deliver` shape: optimistic overlay in `ConversationStore`, RPC, persist the server's answer, drop the overlay. The database stores server truth only; the optimistic edit/delete lives as a `MutationEntry` overlay composed inside `ConversationStore.displayedMessages(for:over:)`, exactly as `PendingEntry` already does for optimistic sends.
+**Architecture:** Three new units, per the spec. `MessageCapability` is a pure enum in `FlipcashCore` that answers "what may this person do to this message" from the message, the conversation, the viewer, and a `MessagePolicy`. `ComposerModel` (app layer, `@Observable`) owns the draft and whether the composer is writing a new message or editing an existing one. `ConversationController+MessageMutations` holds `edit`/`delete`, each mirroring the existing `deliver` shape: optimistic overlay in `ConversationStore`, RPC, persist the server's answer, drop the overlay. The database stores server truth only; the optimistic edit/delete lives as a `MutationEntry` overlay composed inside `ConversationStore.displayedMessages(for:over:)`, exactly as `PendingEntry` already does for optimistic sends.
 
 **Tech Stack:** Swift 6.1, SwiftUI + UIKit (ChatLayout / DifferenceKit transcript), SQLite.swift, gRPC-Swift 2 via `FlipcashAPI` (re-exported `flipcash2-client-protocol`), Swift Testing.
 
@@ -16,9 +16,9 @@ This plan covers **edit and delete only**. Reply is a separate plan.
 
 Deviations from `docs/superpowers/specs/2026-09-01-chat-message-actions-design.md`, each deliberate:
 
-1. **One enum, not two.** The spec names both `MessageCapability` and `ChatMessageAction` with an identical case set. This plan defines a single `ChatMessageAction` used in both roles — as the capability set's element and as the menu row identity. Two enums that are always converted one-to-one is a mapping function with no reason to exist.
-2. **`MessageCapabilities.resolve(...)` is a namespaced static**, not a module-scope free function. `FlipcashCore` has no module-scope functions; a `public enum MessageCapabilities` namespace matches how the module is organised.
-3. **`.reply` is defined but never emitted.** The enum carries all four cases so the reply plan adds no enum churn, but `MessageCapabilities.resolve` does not return `.reply` in this scope. Shipping a Reply menu row that does nothing is worse than shipping no Reply row. The consequence is that cash and tip messages, whose only spec capability is `.reply`, offer no menu at all until the reply plan lands — which is today's behaviour, so nothing regresses.
+1. **One enum, not two.** The spec names both `MessageCapability` and `ChatMessageAction` with an identical case set. This plan keeps `MessageCapability` alone, used in both roles — as the capability set's element and as the menu row identity. Two enums that are always converted one-to-one is a mapping function with no reason to exist.
+2. **Resolution is a static on `MessageCapability`**, not a separate `MessageCapabilities` namespace or a module-scope free function. `FlipcashCore` has no module-scope functions, and a `MessageCapabilities` type sitting beside `MessageCapability` differs by one letter — the kind of pair that gets mis-typed and mis-read. `MessageCapability.resolve(for:in:as:policy:now:)` reads correctly at the call site and keeps the type and its rules in one file.
+3. **`.reply` is defined but never emitted.** The enum carries all four cases so the reply plan adds no enum churn, but `MessageCapability.resolve` does not return `.reply` in this scope. Shipping a Reply menu row that does nothing is worse than shipping no Reply row. The consequence is that cash and tip messages, whose only spec capability is `.reply`, offer no menu at all until the reply plan lands — which is today's behaviour, so nothing regresses.
 4. **`resolve` takes `Conversation?`, not `Conversation`.** The transcript can paint before the `Conversation` record is in hand. A non-optional parameter would force the mapper to emit an empty capability set in that window, which would flicker the menu away. The parameter is unused today; it is the seam the future group-permissions model plugs into.
 5. **`ComposerModel`, not `ComposerMode`.** It is an `@Observable` class that owns state, so it is named for the thing, not the enum inside it. Its `Mode` enum has `.new` and `.editing` only — `.replying` arrives with the reply plan.
 
@@ -32,15 +32,14 @@ Everything else follows the spec.
 
 | File | Responsibility |
 |---|---|
-| `FlipcashCore/Sources/FlipcashCore/Models/Chat/ChatMessageAction.swift` | The action/capability enum plus its display title and destructiveness. |
-| `FlipcashCore/Sources/FlipcashCore/Models/Chat/MessagePolicy.swift` | `MessagePolicy` and `DeletedMessagePresentation` — the tunables capability resolution and tombstone rendering read. |
-| `FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessageCapabilities.swift` | Pure resolver: message + conversation + viewer + policy → `Set<ChatMessageAction>`. |
+| `FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessageCapability.swift` | The capability enum, its display title and destructiveness, and the pure resolver: message + conversation + viewer + policy → `Set<MessageCapability>`. |
+| `FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessagePolicy.swift` | `MessagePolicy` and `DeletedMessagePresentation` — the tunables capability resolution and tombstone rendering read. |
 | `FlipcashCore/Sources/FlipcashCore/Models/Conversation/MutationEntry.swift` | The optimistic edit/delete overlay record. |
 | `Flipcash/Core/Controllers/ConversationController+MessageMutations.swift` | `edit` / `delete` and their reconciliation. |
 | `Flipcash/Core/Screens/Conversation/ComposerModel.swift` | Draft text plus composer mode (`.new` / `.editing`). |
-| `FlipcashCore/Tests/FlipcashCoreTests/MessageCapabilitiesTests.swift` | The capability table. |
+| `FlipcashCore/Tests/FlipcashCoreTests/MessageCapabilityTests.swift` | The capability table. |
 | `FlipcashCore/Tests/FlipcashCoreTests/ConversationStoreMutationTests.swift` | The overlay's apply/drop/stale behaviour. |
-| `FlipcashTests/Chat/ChatMessageActionMenuTests.swift` | The context menu built from a message's actions. |
+| `FlipcashTests/Chat/MessageCapabilityMenuTests.swift` | The context menu built from a message's actions. |
 | `FlipcashTests/Chat/ComposerModelTests.swift` | Composer mode transitions and draft stashing. |
 | `FlipcashTests/ConversationMutationTests.swift` | Controller-level edit/delete against `MockConversations`. |
 
@@ -522,14 +521,13 @@ git commit -m "feat(chat): persist message deletion detail and edit timestamps"
 ## Task 3: The capability model
 
 **Files:**
-- Create: `FlipcashCore/Sources/FlipcashCore/Models/Chat/ChatMessageAction.swift`
-- Create: `FlipcashCore/Sources/FlipcashCore/Models/Chat/MessagePolicy.swift`
-- Create: `FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessageCapabilities.swift`
-- Test: `FlipcashCore/Tests/FlipcashCoreTests/MessageCapabilitiesTests.swift`
+- Create: `FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessageCapability.swift`
+- Create: `FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessagePolicy.swift`
+- Test: `FlipcashCore/Tests/FlipcashCoreTests/MessageCapabilityTests.swift`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `FlipcashCore/Tests/FlipcashCoreTests/MessageCapabilitiesTests.swift`:
+Create `FlipcashCore/Tests/FlipcashCoreTests/MessageCapabilityTests.swift`:
 
 ```swift
 import Testing
@@ -537,7 +535,7 @@ import Foundation
 @testable import FlipcashCore
 
 @Suite("Message capabilities")
-struct MessageCapabilitiesTests {
+struct MessageCapabilityTests {
 
     private let me = UUID()
     private let them = UUID()
@@ -550,8 +548,8 @@ struct MessageCapabilitiesTests {
         )
     }
 
-    private func resolve(_ message: ConversationMessage, policy: MessagePolicy = .default) -> Set<ChatMessageAction> {
-        MessageCapabilities.resolve(for: message, in: nil, as: me, policy: policy, now: now)
+    private func resolve(_ message: ConversationMessage, policy: MessagePolicy = .default) -> Set<MessageCapability> {
+        MessageCapability.resolve(for: message, in: nil, as: me, policy: policy, now: now)
     }
 
     @Test("My own confirmed text can be copied, edited, and deleted")
@@ -614,50 +612,14 @@ If `ExchangedFiat` has no `mock(quarks:)` helper in the core test target, build 
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-./Scripts/test.sh FlipcashCoreTests/MessageCapabilitiesTests
+./Scripts/test.sh FlipcashCoreTests/MessageCapabilityTests
 ```
 
-Expected: compile failure — `cannot find 'MessageCapabilities' in scope`.
+Expected: compile failure — `cannot find 'MessageCapability' in scope`.
 
-- [ ] **Step 3: Write the three types**
+- [ ] **Step 3: Write the two files**
 
-`FlipcashCore/Sources/FlipcashCore/Models/Chat/ChatMessageAction.swift`:
-
-```swift
-import Foundation
-
-/// Something a person may do to a message. This is both the capability a policy grants and the row
-/// the transcript's context menu renders, because the two are always the same set.
-public enum ChatMessageAction: String, Hashable, Sendable, Codable, CaseIterable {
-    case copy
-    case reply
-    case edit
-    case delete
-}
-
-extension ChatMessageAction {
-
-    /// The menu row's label.
-    public var title: String {
-        switch self {
-        case .copy:   "Copy"
-        case .reply:  "Reply"
-        case .edit:   "Edit"
-        case .delete: "Delete"
-        }
-    }
-
-    /// Whether the menu should render this row in its destructive style.
-    public var isDestructive: Bool {
-        switch self {
-        case .copy, .reply, .edit: false
-        case .delete:              true
-        }
-    }
-}
-```
-
-`FlipcashCore/Sources/FlipcashCore/Models/Chat/MessagePolicy.swift`:
+`FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessagePolicy.swift`:
 
 ```swift
 import Foundation
@@ -690,16 +652,45 @@ public struct MessagePolicy: Hashable, Sendable {
 }
 ```
 
-`FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessageCapabilities.swift`:
+`FlipcashCore/Sources/FlipcashCore/Models/Conversation/MessageCapability.swift`:
 
 ```swift
 import Foundation
 
-/// Resolves what a person may do to a message. Pure — the same inputs always give the same answer,
-/// which is what lets the transcript mapper run off the main actor.
-public enum MessageCapabilities {
+/// Something a person may do to a message. This is both the capability a policy grants and the row
+/// the transcript's context menu renders, because the two are always the same set.
+public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable {
+    case copy
+    case reply
+    case edit
+    case delete
+}
 
-    /// The actions `selfUserID` may take on `message`.
+extension MessageCapability {
+
+    /// The menu row's label.
+    public var title: String {
+        switch self {
+        case .copy:   "Copy"
+        case .reply:  "Reply"
+        case .edit:   "Edit"
+        case .delete: "Delete"
+        }
+    }
+
+    /// Whether the menu should render this row in its destructive style.
+    public var isDestructive: Bool {
+        switch self {
+        case .copy, .reply, .edit: false
+        case .delete:              true
+        }
+    }
+}
+
+extension MessageCapability {
+
+    /// The capabilities `selfUserID` has over `message`. Pure — the same inputs always give the same
+    /// answer, which is what lets the transcript mapper run off the main actor.
     ///
     /// `conversation` is accepted but unread today: it is the seam a group-chat permissions model
     /// plugs into (an admin deleting another member's message, a read-only channel), and taking it
@@ -714,7 +705,7 @@ public enum MessageCapabilities {
         as selfUserID: UserID,
         policy: MessagePolicy,
         now: Date
-    ) -> Set<ChatMessageAction> {
+    ) -> Set<MessageCapability> {
         switch message.content {
         case .deleted:
             // Nothing is left to act on, and a tombstone must not be re-deleted.
@@ -737,7 +728,7 @@ public enum MessageCapabilities {
             return []
         }
 
-        var capabilities: Set<ChatMessageAction> = [.copy, .delete]
+        var capabilities: Set<MessageCapability> = [.copy, .delete]
         if let window = policy.editWindow {
             if now.timeIntervalSince(message.date) <= window {
                 capabilities.insert(.edit)
@@ -753,7 +744,7 @@ public enum MessageCapabilities {
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-./Scripts/test.sh FlipcashCoreTests/MessageCapabilitiesTests
+./Scripts/test.sh FlipcashCoreTests/MessageCapabilityTests
 ```
 
 Expected: PASS, 8 tests.
@@ -761,7 +752,7 @@ Expected: PASS, 8 tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add FlipcashCore/Sources/FlipcashCore/Models FlipcashCore/Tests/FlipcashCoreTests/MessageCapabilitiesTests.swift
+git add FlipcashCore/Sources/FlipcashCore/Models FlipcashCore/Tests/FlipcashCoreTests/MessageCapabilityTests.swift
 git commit -m "feat(chat): add the message capability model"
 ```
 
@@ -853,7 +844,7 @@ Add the stored properties after `linkPreview`:
     /// Whether to draw the muted "Edited" marker after the body.
     public let isEdited: Bool
     /// What the context menu offers for this row, already ordered. Empty means no menu.
-    public let actions: [ChatMessageAction]
+    public let actions: [MessageCapability]
 ```
 
 Extend both initialisers. The designated one:
@@ -868,7 +859,7 @@ Extend both initialisers. The designated one:
         receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil,
         isEdited: Bool = false,
-        actions: [ChatMessageAction] = []
+        actions: [MessageCapability] = []
     ) {
         self.id = id
         self.content = content
@@ -1092,7 +1083,7 @@ In `ChatItem+Conversation.swift`, change the signature and body of `from(_:selfU
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },
         deletedPresentation: DeletedMessagePresentation = .hidden,
-        capabilities: (ConversationMessage) -> Set<ChatMessageAction> = { _ in [] }
+        capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] }
     ) -> [ChatItem] {
         let messages: [ConversationMessage] = switch deletedPresentation {
         case .hidden:      messages.filter { !$0.isDeleted }
@@ -1164,7 +1155,7 @@ Add, next to `detectedLink(in:)`:
 ```swift
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
     /// must not shuffle its rows between renders of the same message.
-    private static func orderedActions(_ capabilities: Set<ChatMessageAction>) -> [ChatMessageAction] {
+    private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
         [.copy, .reply, .edit, .delete].filter(capabilities.contains)
     }
 ```
@@ -1238,7 +1229,7 @@ In `map(_:)`, pass the two new arguments to `ChatItem.from`:
 ```swift
             deletedPresentation: inputs.policy.deletedPresentation,
             capabilities: { message in
-                MessageCapabilities.resolve(
+                MessageCapability.resolve(
                     for: message,
                     in: inputs.conversation,
                     as: inputs.selfUserID,
@@ -2008,7 +1999,7 @@ In `ConversationController.swift`, next to the other observable state (near `mes
             case failure
         }
 
-        let action: ChatMessageAction
+        let action: MessageCapability
         let kind: Kind
 
         var id: String { "\(action.rawValue)-\(kind.rawValue)" }
@@ -2517,11 +2508,11 @@ git commit -m "feat(chat): give the composer an editing mode"
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatViewController.swift:503-528`
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatScreenViewController.swift:55-84`
 - Modify: `FlipcashUI/Sources/FlipcashUI/Theme/Image+Symbols.swift` (if Task 10 did not already add the cases)
-- Test: `FlipcashTests/Chat/ChatMessageActionMenuTests.swift`
+- Test: `FlipcashTests/Chat/MessageCapabilityMenuTests.swift`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `FlipcashTests/Chat/ChatMessageActionMenuTests.swift`:
+Create `FlipcashTests/Chat/MessageCapabilityMenuTests.swift`:
 
 ```swift
 import Testing
@@ -2531,7 +2522,7 @@ import FlipcashCore
 
 @MainActor
 @Suite("ChatViewController action menu")
-struct ChatMessageActionMenuTests {
+struct MessageCapabilityMenuTests {
 
     private func loadedController(_ items: [ChatItem]) -> ChatViewController {
         let controller = ChatViewController()
@@ -2589,7 +2580,7 @@ struct ChatMessageActionMenuTests {
         let controller = loadedController([
             .message(ChatMessage(id: "1", text: "copy me", sender: .me, actions: [.copy]))
         ])
-        var notified: [(String, ChatMessageAction)] = []
+        var notified: [(String, MessageCapability)] = []
         controller.onMessageAction = { notified.append(($0, $1)) }
 
         guard let provider = configuration(controller, at: 0)?.actionProvider,
@@ -2609,7 +2600,7 @@ struct ChatMessageActionMenuTests {
         let controller = loadedController([
             .message(ChatMessage(id: "row-7", text: "hi", sender: .me, actions: [.edit, .delete]))
         ])
-        var notified: [(String, ChatMessageAction)] = []
+        var notified: [(String, MessageCapability)] = []
         controller.onMessageAction = { notified.append(($0, $1)) }
 
         guard let provider = configuration(controller, at: 0)?.actionProvider,
@@ -2638,7 +2629,7 @@ struct ChatMessageActionMenuTests {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-./Scripts/test.sh FlipcashTests/ChatMessageActionMenuTests
+./Scripts/test.sh FlipcashTests/MessageCapabilityMenuTests
 ```
 
 Expected: compile failure — `value of type 'ChatViewController' has no member 'onMessageAction'`.
@@ -2650,7 +2641,7 @@ In `ChatViewController.swift`, add the callback next to the existing ones:
 ```swift
     /// Fired when a context-menu action other than Copy is chosen, with the row's id. Copy is handled
     /// here — it needs nothing the transcript does not already hold.
-    public var onMessageAction: ((String, ChatMessageAction) -> Void)?
+    public var onMessageAction: ((String, MessageCapability) -> Void)?
 ```
 
 Replace `contextMenuConfigurationForItemAt`:
@@ -2698,10 +2689,10 @@ Replace `contextMenuConfigurationForItemAt`:
 Add the symbol mapping at the bottom of the same file:
 
 ```swift
-private extension ChatMessageAction {
+private extension MessageCapability {
 
     /// The menu row's glyph. Lives here rather than on the action itself because `SystemSymbol` is
-    /// this module's symbol registry, and `ChatMessageAction` is a core model.
+    /// this module's symbol registry, and `MessageCapability` is a core model.
     var menuSymbol: SystemSymbol {
         switch self {
         case .copy:   .doc
@@ -2727,7 +2718,7 @@ Confirm `SystemSymbol` has `pencil` and `trash` (Task 10 may have added them); i
 In `ChatScreenViewController.swift`, next to the other pass-throughs:
 
 ```swift
-    public var onMessageAction: ((String, ChatMessageAction) -> Void)? {
+    public var onMessageAction: ((String, MessageCapability) -> Void)? {
         get { transcript.onMessageAction }
         set { transcript.onMessageAction = newValue }
     }
@@ -2736,7 +2727,7 @@ In `ChatScreenViewController.swift`, next to the other pass-throughs:
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-./Scripts/test.sh FlipcashTests/ChatMessageActionMenuTests FlipcashTests/ChatMessageCopyTests
+./Scripts/test.sh FlipcashTests/MessageCapabilityMenuTests FlipcashTests/ChatMessageCopyTests
 ```
 
 Expected: PASS for the new suite. `ChatMessageCopyTests` will now fail on its text-message cases, because those fixtures build messages with no `actions` — update each of them to pass `actions: [.copy]`, keeping the assertions unchanged. Its cash and date-separator cases still pass untouched. Re-run both suites until green.
@@ -2744,7 +2735,7 @@ Expected: PASS for the new suite. `ChatMessageCopyTests` will now fail on its te
 - [ ] **Step 6: Commit**
 
 ```bash
-git add FlipcashUI/Sources/FlipcashUI FlipcashTests/Chat/ChatMessageActionMenuTests.swift FlipcashTests/Chat/ChatMessageCopyTests.swift
+git add FlipcashUI/Sources/FlipcashUI FlipcashTests/Chat/MessageCapabilityMenuTests.swift FlipcashTests/Chat/ChatMessageCopyTests.swift
 git commit -m "feat(chat): build the transcript context menu from message actions"
 ```
 
@@ -2761,7 +2752,7 @@ git commit -m "feat(chat): build the transcript context menu from message action
 In `ChatScreenRepresentable.swift`, add the stored property beside the other callbacks:
 
 ```swift
-    let onMessageAction: (String, ChatMessageAction) -> Void
+    let onMessageAction: (String, MessageCapability) -> Void
 ```
 
 and assign it in both `makeUIViewController` and `updateUIViewController`, beside the existing assignments:
@@ -2782,7 +2773,7 @@ and add the handler to the view:
 
 ```swift
     /// Routes a context-menu choice. Copy never arrives here — the transcript handles it locally.
-    private func handleMessageAction(_ stableID: String, _ action: ChatMessageAction) {
+    private func handleMessageAction(_ stableID: String, _ action: MessageCapability) {
         guard let message = coordinator?.loader.messages.first(where: { $0.stableID == stableID }) else { return }
 
         switch action {
@@ -2921,7 +2912,7 @@ Expected: PASS.
 - [ ] **Step 4: Run the whole affected set**
 
 ```bash
-./Scripts/test.sh FlipcashCoreTests/MessageCapabilitiesTests FlipcashCoreTests/ConversationStoreMutationTests FlipcashCoreTests/ConversationStoreTests FlipcashCoreTests/ConversationMessageMetadataTests FlipcashTests/ChatMessageMappingTests FlipcashTests/ChatMessageActionMenuTests FlipcashTests/ChatMessageCopyTests FlipcashTests/ChatBubbleDeletedTests FlipcashTests/ComposerModelTests FlipcashTests/ConversationMutationTests
+./Scripts/test.sh FlipcashCoreTests/MessageCapabilityTests FlipcashCoreTests/ConversationStoreMutationTests FlipcashCoreTests/ConversationStoreTests FlipcashCoreTests/ConversationMessageMetadataTests FlipcashTests/ChatMessageMappingTests FlipcashTests/MessageCapabilityMenuTests FlipcashTests/ChatMessageCopyTests FlipcashTests/ChatBubbleDeletedTests FlipcashTests/ComposerModelTests FlipcashTests/ConversationMutationTests
 ```
 
 Expected: PASS for every suite.
@@ -2937,8 +2928,8 @@ git commit -m "test(chat): pin the default tombstone presentation end to end"
 
 ## What this plan does not do
 
-- **Reply.** No quote rendering, no swipe gesture, no tap-to-jump. `repliedToId` is added to the schema and `ChatMessageAction.reply` to the enum, both unused, so the reply plan does not force a second schema bump or an enum change.
+- **Reply.** No quote rendering, no swipe gesture, no tap-to-jump. `repliedToId` is added to the schema and `MessageCapability.reply` to the enum, both unused, so the reply plan does not force a second schema bump or an enum change.
 - **Reactions.** Out of scope per the spec, with the inline `.small` `UIMenu` slot still unclaimed.
 - **Delete for me.** Delete is for everyone only; the spec models the delete kinds as a list so a second kind can be added without reshaping the menu.
-- **A configured edit window.** `MessagePolicy.editWindow` exists and is honoured by `MessageCapabilities`, but the default is `nil`. Turning one on requires a re-map trigger, because it makes the resolved capability set time-dependent — see the note in Task 5.
-- **Group permissions.** `MessageCapabilities.resolve` takes the conversation and ignores it. That parameter is the seam.
+- **A configured edit window.** `MessagePolicy.editWindow` exists and is honoured by `MessageCapability.resolve`, but the default is `nil`. Turning one on requires a re-map trigger, because it makes the resolved capability set time-dependent — see the note in Task 5.
+- **Group permissions.** `MessageCapability.resolve` takes the conversation and ignores it. That parameter is the seam.
