@@ -52,17 +52,26 @@ extension ChatItem {
         gap: TimeInterval = 15 * 60,
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         suppressReceiptFor: String? = nil,
-        cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
+        cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },
+        deletedPresentation: DeletedMessagePresentation = .hidden,
+        capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] }
     ) -> [ChatItem] {
-        // Tombstoned (deleted) messages are retained in the store for gapless ordering but rendered
-        // nowhere. Drop them up front so they never skew a date separator, group an adjacent bubble to
-        // an invisible row, or steal the "Delivered"/"Read" receipt anchor below.
-        let messages = messages.filter { if case .deleted = $0.content { false } else { true } }
+        // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
+        // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
+        // bubble to an invisible row, or steal the "Delivered"/"Read" receipt anchor below.
+        let messages: [ConversationMessage] = switch deletedPresentation {
+        case .hidden:      messages.filter { !$0.isDeleted }
+        case .placeholder: messages
+        }
 
         // "Delivered"/"Read" rides the latest *confirmed* self message, so an in-flight or failed send
         // trailing it doesn't strip the receipt off the last delivered bubble. A sending row shows
         // nothing; a failed row shows its own "Not Delivered" line (each independently retryable).
-        let latestSentFromSelfID = messages.last { $0.isFromSelf(selfUserID) && $0.status == .sent }?.stableID
+        // A tombstone has nothing to acknowledge, so it must not take the receipt from the last row
+        // that does — it is skipped here even when it is the newest self message.
+        let latestSentFromSelfID = messages.last {
+            $0.isFromSelf(selfUserID) && $0.status == .sent && !$0.isDeleted
+        }?.stableID
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -100,8 +109,13 @@ extension ChatItem {
                     isTip: message.cashAction == .tipped
                 ))
                 linkPreview = nil
-            case .deleted:
-                continue // filtered out above; unreachable, kept for switch exhaustiveness
+            case .deleted(let deletion):
+                content = .deleted(
+                    deletion.deletedBy == selfUserID
+                        ? "You deleted this message"
+                        : "This message was deleted"
+                )
+                linkPreview = nil
             }
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean
@@ -131,10 +145,18 @@ extension ChatItem {
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow,
                 receipt: receipt,
-                linkPreview: linkPreview
+                linkPreview: linkPreview,
+                isEdited: message.lastEditedTs != nil && !message.isDeleted,
+                actions: orderedActions(capabilities(message))
             )))
         }
         return items
+    }
+
+    /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
+    /// must not shuffle its rows between renders of the same message.
+    nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
+        [.copy, .reply, .edit, .delete].filter(capabilities.contains)
     }
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's
