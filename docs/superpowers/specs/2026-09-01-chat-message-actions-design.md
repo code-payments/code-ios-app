@@ -64,10 +64,16 @@ people actually reach for. Its cost is a pan recognizer that has to coexist with
 transcript's scrolling and the existing long-press lift; see the hazard noted under
 Surfaces.
 
-**Tapping a quote scrolls only if the original is loaded.** Hunting for an unloaded
-message means driving `onReachTop` in an unbounded loop against `GetMessages`, which is a
-larger and riskier change than the rest of the feature. The quote stays tappable and
-no-ops when the target is not in the window.
+**Tapping a quote jumps to the original whenever it is in the local database.** The
+transcript's window is a bounded slice of the *local* database rather than of the network,
+and `loadOlderMessages` persists every page it fetches, so everything the user has
+scrolled past stays on device. The jump is therefore one anchor move, not a paging loop:
+`windowedMessages(for:startingAt:limit:)` with a `startID` reads every message from that id
+forward (`ConversationController.swift:841`), so pointing the loader's anchor at the quoted
+id brings it into the window with no loop and no network call. Only history that was never
+fetched would need `GetMessages` in an unbounded loop, and that stays out of scope: there
+the quote renders as unavailable and the tap does nothing. WhatsApp keeps the whole thread
+on device and so never meets that case at all.
 
 **Permissions are expressed as capabilities, not roles.** `Member` on the wire is
 `{ user_id, user_profile, pointers }` with no role field, and the server only ever answers
@@ -226,8 +232,12 @@ will not have one. It is a muted suffix inside the bubble instead.
 Entering edit mode must stash the in-progress `.new` draft and restore it on cancel,
 otherwise the user silently loses what they were typing.
 
-**Scroll to quote.** `scrollToMessage(id:)` on the view controller, a no-op when the id is
-not in `items`, with a brief highlight on arrival.
+**Scroll to quote.** `scrollToMessage(id:)` scrolls when the target is already rendered.
+When it is persisted but outside the window, `MessageLoader` moves its anchor to the quoted
+id first and the scroll follows the re-read. Anchoring far back reveals every row between
+the target and the newest message at once, so it must ride the animation-suppressed
+transaction `loadOlderMessages` already uses rather than playing an insertion per row. An
+id that is in neither place no-ops.
 
 ## Capability rules
 
@@ -251,8 +261,10 @@ Unit tests cover `MessageCapabilities` as a table over the rules above; the
 `ConversationStore` mutation overlay (applies, drops only on a strictly higher
 `eventSequence`, reverts on failure); `ChatItem.from` for quote mapping in all three quote
 states, both deleted presentations, and the edited marker; `ConversationMessage.init?(_:)`
-for the reply unwrap and both deletion shapes; and a database round trip over the new
-columns confirming the last-writer-wins comparison is unchanged.
+for the reply unwrap and both deletion shapes; a database round trip over the new columns
+confirming the last-writer-wins comparison is unchanged; and `MessageLoader` revealing a
+quoted id that sits in persisted history below the window, while leaving the anchor alone
+for an id the database does not hold.
 
 One regression deserves its own test. In placeholder mode tombstones stop being filtered
 out, so they begin participating in date separators and same-sender grouping. The receipt
