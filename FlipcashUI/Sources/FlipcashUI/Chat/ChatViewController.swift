@@ -46,6 +46,10 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the user taps the profile card header in a tip DM; nil disables the tap.
     public var onProfileTap: (() -> Void)?
 
+    /// Fired when a context-menu action other than Copy is chosen, with the row's id. Copy is handled
+    /// here — it needs nothing the transcript does not already hold.
+    public var onMessageAction: ((String, MessageCapability) -> Void)?
+
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
@@ -504,27 +508,12 @@ extension ChatViewController: UIGestureRecognizerDelegate {
 
 extension ChatViewController {
 
-    /// Long-pressing a text bubble offers a single "Copy" action that puts the message text on the
-    /// pasteboard — ChatLayout's canonical copy interaction, scoped to text messages. Cash cards and
-    /// date separators carry no copyable text and opt out.
+    /// Long-pressing a row offers exactly the actions the message carries, in the order the mapper
+    /// put them in. Rows with no actions — cash cards, tombstones, date separators — opt out.
     public override func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
         // Don't offer a menu mid-batch-update: the index path may not line up with the rendered cell.
         guard !isUpdating else { return nil }
-
-        let body: String
-        switch items[indexPath.item] {
-        case .message(let message):
-            switch message.content {
-            case .text(let text):
-                body = text
-            case .deleted:
-                return nil
-            case .cash:
-                return nil
-            }
-        case .dateSeparator, .typingIndicator, .profileCard:
-            return nil
-        }
+        guard let menu = contextMenu(forItemAt: indexPath) else { return nil }
 
         // Freeze the inset for the menu's lifetime so presenting it (which dismisses the keyboard)
         // doesn't shrink the adjusted inset and reflow the content out from under the lifted preview.
@@ -534,12 +523,35 @@ extension ChatViewController {
         // The section/item pair, encoded as an NSString, resolves the cell back in `preview(for:)`.
         // ChatLayout's note: a custom NSCopying identifier crashes, so a plain string is used.
         let identifier = "\(indexPath.section)|\(indexPath.item)" as NSString
-        return UIContextMenuConfiguration(identifier: identifier, previewProvider: nil) { _ in
-            let copy = UIAction(title: "Copy", image: UIImage(systemName: SystemSymbol.doc.rawValue)) { _ in
-                UIPasteboard.general.string = body
+        return UIContextMenuConfiguration(identifier: identifier, previewProvider: nil) { _ in menu }
+    }
+
+    /// The menu a row offers, or `nil` if it offers none. Built separately from the configuration so
+    /// that presenting a menu and deciding what is in one stay independently answerable.
+    func contextMenu(forItemAt indexPath: IndexPath) -> UIMenu? {
+        guard indexPath.item < items.count,
+              case .message(let message) = items[indexPath.item],
+              !message.actions.isEmpty else { return nil }
+
+        let body: String? = if case .text(let text) = message.content { text } else { nil }
+        let rowID = message.id
+        let handler = onMessageAction
+
+        let children = message.actions.map { action in
+            UIAction(
+                title: action.title,
+                image: UIImage(systemName: action.menuSymbol.rawValue),
+                attributes: action.isDestructive ? .destructive : []
+            ) { _ in
+                switch action {
+                case .copy:
+                    if let body { UIPasteboard.general.string = body }
+                case .reply, .edit, .delete:
+                    handler?(rowID, action)
+                }
             }
-            return UIMenu(title: "", children: [copy])
         }
+        return UIMenu(title: "", children: children)
     }
 
     public override func collectionView(_ collectionView: UICollectionView, previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
@@ -628,3 +640,17 @@ protocol BubbleCarrying {
     var liftPreviewMaskingPath: UIBezierPath? { get }
 }
 #endif
+
+private extension MessageCapability {
+
+    /// The menu row's glyph. Lives here rather than on the action itself because `SystemSymbol` is
+    /// this module's symbol registry, and `MessageCapability` is a core model.
+    var menuSymbol: SystemSymbol {
+        switch self {
+        case .copy:   .doc
+        case .reply:  .arrowLeft
+        case .edit:   .pencil
+        case .delete: .trash
+        }
+    }
+}

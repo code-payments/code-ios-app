@@ -88,6 +88,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onProfileTap = newValue }
     }
 
+    /// Forwards a chosen context-menu action, with the row's id, to whoever owns the screen.
+    public var onMessageAction: ((String, MessageCapability) -> Void)? {
+        get { transcript.onMessageAction }
+        set { transcript.onMessageAction = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)
