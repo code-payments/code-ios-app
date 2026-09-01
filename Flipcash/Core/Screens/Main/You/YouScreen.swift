@@ -139,12 +139,11 @@ struct YouScreen: View {
                     .padding(.bottom, bottomContentInset)
                 }
                 .scrollDisabled(isExpanded)
-                // The tab bar is below, so the bottom edge can use the system effect.
-                .softScrollEdge(for: .bottom)
-                // The top cannot: `scrollEdgeEffectStyle` is drawn by a bar's
-                // background and this tab has no navigation bar at all, so what
-                // scrolls up into the status bar has to be faded by hand. Same
-                // treatment as `WalletScreen`, the app's other bar-less tab.
+                // The app-wide soft edge effect is drawn from a bar's own
+                // background, and this tab has no navigation bar at all, so it
+                // covers the bottom (tab bar) but not the top — what scrolls up
+                // into the status bar has to be faded by hand. Same treatment as
+                // `WalletScreen`, the app's other bar-less tab.
                 .overlay(alignment: .top) {
                     LinearGradient(
                         colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],

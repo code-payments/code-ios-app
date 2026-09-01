@@ -54,7 +54,6 @@ struct DepositCurrencyListScreen: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .softScrollEdge(for: .top)
         }
         .navigationTitle("Select Currency")
         .toolbarTitleDisplayMode(.inline)

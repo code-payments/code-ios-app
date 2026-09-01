@@ -55,7 +55,6 @@ struct TransactionHistoryScreen: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .softScrollEdge(for: .top)
             .navigationTitle("Activity")
         }
         .dialog(item: $dialogItem)

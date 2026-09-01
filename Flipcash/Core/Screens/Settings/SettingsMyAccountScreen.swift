@@ -32,7 +32,6 @@ struct SettingsMyAccountScreen: View {
             ScrollView(showsIndicators: false) {
                 list()
             }
-            .softScrollEdge(for: .top)
             .padding(.horizontal, 20)
         }
         .navigationTitle("My Account")

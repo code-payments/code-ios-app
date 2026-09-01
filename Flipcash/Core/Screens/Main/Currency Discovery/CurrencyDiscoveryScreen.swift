@@ -24,7 +24,6 @@ struct CurrencyDiscoveryScreen: View {
             }
         }
         .background(Color.backgroundMain)
-        .softScrollEdge(for: .top)
         .navigationTitle("Discover Currencies")
         .toolbarTitleDisplayMode(.inline)
     }

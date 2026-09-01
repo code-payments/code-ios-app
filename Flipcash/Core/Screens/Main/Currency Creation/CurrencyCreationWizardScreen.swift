@@ -867,7 +867,6 @@ private struct DescriptionStep: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .scrollIndicators(.hidden)
-            .softScrollEdge(for: .top)
 
             Text("\(characterLimit - state.currencyDescription.count) characters")
                 .font(.appTextSmall)
@@ -1014,7 +1013,6 @@ private struct PaymentSelectionStep: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .softScrollEdge(for: .top)
         .dialog(item: $viewModel.dialogItem)
     }
 }

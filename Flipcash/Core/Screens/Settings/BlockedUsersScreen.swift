@@ -43,7 +43,6 @@ struct BlockedUsersScreen: View {
                         .font(.appDisplayXS)
                         .padding(.horizontal, 20)
                     }
-                    .softScrollEdge(for: .top)
                 }
             }
         }
