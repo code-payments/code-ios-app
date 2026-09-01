@@ -51,10 +51,11 @@ struct TransactionHistoryScreen: View {
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparatorTint(.rowSeparator)
+                .listSectionSeparator(.hidden, edges: .top)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .navigationTitle("Transaction History")
+            .navigationTitle("Activity")
         }
         .dialog(item: $dialogItem)
         .task(id: mint) {

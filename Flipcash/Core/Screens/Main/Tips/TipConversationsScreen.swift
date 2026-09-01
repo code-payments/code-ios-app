@@ -32,9 +32,6 @@ struct TipConversationsScreen: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                // The list runs under both bars, so each edge needs the soft
-                // fade rather than the system's default hard cut.
-                .softScrollEdge(for: [.top, .bottom])
             }
         }
         .navigationTitle("Chats")

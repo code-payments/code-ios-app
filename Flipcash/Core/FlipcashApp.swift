@@ -34,6 +34,12 @@ struct FlipcashApp: App {
 
     private var mainScene: some View {
         ContainerScreen()
+            // Applied once for the whole app: the style reaches every scrollable
+            // view below it, pushed destinations and sheet content included, so
+            // no screen has to opt in. The effect is drawn by a bar's own
+            // background, so naming both edges costs nothing where there is no
+            // bar to draw from.
+            .softScrollEdge(for: [.top, .bottom])
             .injectingEnvironment(from: appDelegate.container)
             .preferredColorScheme(.dark)
             .tint(Color.textMain)

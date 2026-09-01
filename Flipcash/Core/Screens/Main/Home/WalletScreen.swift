@@ -553,9 +553,10 @@ private struct WalletScreenContent: View {
         // that tail: a swipe found a disabled scroll view and fell through to
         // the card underneath as a tap.
         .scrollDisabled(pageIsBuilt)
-        // Fades what scrolls up into the status bar. `scrollEdgeEffectStyle` is
-        // drawn by a navigation bar's background and the wallet hides its bar,
-        // so the effect never renders here — the fade has to be drawn.
+        // The app-wide soft edge effect is drawn from a bar's own background,
+        // and the wallet hides its navigation bar, so it covers the bottom
+        // (tab bar) but not the top — what scrolls up into the status bar has
+        // to be faded by hand.
         .overlay(alignment: .top) {
             LinearGradient(
                 colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],

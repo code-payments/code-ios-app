@@ -51,6 +51,9 @@ struct YouScreen: View {
     /// The balance gate, raised when the card is tapped below the minimum.
     @State private var usernameDialog: DialogItem?
 
+    /// The top safe-area inset, which sizes the hand-drawn top fade.
+    @State private var safeAreaTop: CGFloat = 0
+
     /// The card's slot in the page's layout, in global space — where the card
     /// sits before it travels to the middle of the screen.
     @State private var cardSlotFrame: CGRect = .zero
@@ -95,6 +98,9 @@ struct YouScreen: View {
     /// The gap the page keeps between the version footer and the tab bar.
     private static let tabBarGap: CGFloat = 24
 
+    /// How far below the safe area the top fade runs out. Matches `WalletScreen`.
+    private static let topFadeLength: CGFloat = 20
+
     /// Bottom inset for the scrolling content. Mirrors `WalletScreen`: the iOS 26
     /// tab bar sits in the safe area, so the gap is the whole inset there; the
     /// legacy pill floats over the content and has to be cleared on top of it,
@@ -133,6 +139,22 @@ struct YouScreen: View {
                     .padding(.bottom, bottomContentInset)
                 }
                 .scrollDisabled(isExpanded)
+                // The app-wide soft edge effect is drawn from a bar's own
+                // background, and this tab has no navigation bar at all, so it
+                // covers the bottom (tab bar) but not the top — what scrolls up
+                // into the status bar has to be faded by hand. Same treatment as
+                // `WalletScreen`, the app's other bar-less tab.
+                .overlay(alignment: .top) {
+                    LinearGradient(
+                        colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: safeAreaTop + Self.topFadeLength)
+                    .ignoresSafeArea(edges: .top)
+                    .allowsHitTesting(false)
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { safeAreaTop = $0 }
 
                 if isExpanded {
                     closeButton

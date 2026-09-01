@@ -7,12 +7,15 @@ import SwiftUI
 
 extension View {
 
-    /// Softens a scroll view's edge effect on iOS 26+, so content fades out
-    /// under the bar instead of meeting the system's default hard edge line.
+    /// Softens scroll edge effects on iOS 26+, so content fades out under a bar
+    /// instead of meeting the system's default hard edge line.
     ///
-    /// No-op below iOS 26, where the effect doesn't exist. The effect is drawn
-    /// by the bar's background, so it renders only where a bar is visible —
-    /// a screen that hides its navigation bar has to draw its own fade.
+    /// Applies to every scrollable view below it, so the app applies it once at
+    /// the root (`FlipcashApp`) rather than per screen. No-op below iOS 26,
+    /// where the effect doesn't exist. The effect is drawn by the bar's own
+    /// background, so it renders only where a bar is visible — a screen that
+    /// hides its navigation bar has to draw its own fade, and a UIKit scroll
+    /// view has to set `topEdgeEffect`/`bottomEdgeEffect` itself.
     public func softScrollEdge(for edges: Edge.Set = .top) -> some View {
         modifier(SoftScrollEdge(edges: edges))
     }
