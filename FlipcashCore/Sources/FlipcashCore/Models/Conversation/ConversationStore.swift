@@ -19,6 +19,8 @@ public struct ConversationStore: Sendable {
     /// after (its `anchor`) and a monotonic send `sequence`, so the transcript orders it relative to
     /// confirmed rows without comparing client and server wall-clock times.
     private var pendingByConversation: [ConversationID: [PendingEntry]] = [:]
+    /// Optimistic edits and deletes, keyed by message so reissuing one replaces it.
+    private var mutationsByConversation: [ConversationID: [MessageID: MutationEntry]] = [:]
     /// Monotonic counter stamped on each optimistic send, breaking ties among rows that share an anchor
     /// and keeping send order stable across out-of-order reconciles.
     private var pendingSequence: UInt64 = 0
@@ -68,6 +70,7 @@ public struct ConversationStore: Sendable {
     /// to clock skew), a failed send keeps its place as newer messages arrive, and out-of-order
     /// reconciles never reshuffle.
     public func displayedMessages(for conversationID: ConversationID, over confirmed: [ConversationMessage]) -> [ConversationMessage] {
+        let confirmed = overlaid(confirmed, in: conversationID)
         guard let pending = pendingByConversation[conversationID], !pending.isEmpty else { return confirmed }
 
         // An anchor of 0 means the send predates any loaded history — it is the newest thing the user
@@ -107,6 +110,44 @@ public struct ConversationStore: Sendable {
     /// question, answered by the controller.)
     public func hasPendingMessages(for conversationID: ConversationID) -> Bool {
         !(pendingByConversation[conversationID]?.isEmpty ?? true)
+    }
+
+    /// Records an optimistic edit or delete. One per message — reissuing replaces the previous entry.
+    public mutating func applyMutation(_ entry: MutationEntry, in conversationID: ConversationID) {
+        mutationsByConversation[conversationID, default: [:]][entry.messageID] = entry
+    }
+
+    /// Removes the overlay, whether because the server confirmed it, overrode it, or refused it.
+    public mutating func dropMutation(for messageID: MessageID, in conversationID: ConversationID) {
+        mutationsByConversation[conversationID]?.removeValue(forKey: messageID)
+        if mutationsByConversation[conversationID]?.isEmpty == true {
+            mutationsByConversation.removeValue(forKey: conversationID)
+        }
+    }
+
+    /// Replaces each stored message that has a live mutation with its optimistic form. A mutation
+    /// whose message has already advanced past `expectedSequence` no longer applies: the server's
+    /// answer has landed, and whatever it says wins.
+    private func overlaid(_ confirmed: [ConversationMessage], in conversationID: ConversationID) -> [ConversationMessage] {
+        guard let mutations = mutationsByConversation[conversationID], !mutations.isEmpty else { return confirmed }
+
+        return confirmed.map { message in
+            guard let entry = mutations[message.id], message.eventSequence <= entry.expectedSequence else {
+                return message
+            }
+            switch entry.kind {
+            case .edited(let text):
+                // The stamp only drives the "Edited" marker, so the message's own date stands in for
+                // the server's — using a live clock here would make the store's output time-dependent.
+                return message.replacingContent(.text(text), lastEditedTs: message.lastEditedTs ?? message.date)
+            case .deleted:
+                // Delete is only ever offered on your own message, so its sender is its deleter.
+                return message.replacingContent(
+                    .deleted(.init(deletedBy: message.senderID, deletedAt: message.date)),
+                    lastEditedTs: message.lastEditedTs
+                )
+            }
+        }
     }
 
     /// Add an optimistic message the server hasn't confirmed yet, anchored to the caller-supplied
