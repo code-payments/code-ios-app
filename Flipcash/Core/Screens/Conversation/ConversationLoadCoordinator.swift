@@ -72,8 +72,8 @@ final class ConversationLoadCoordinator {
     }
 
     private func currentInputs() -> Inputs {
-        let read = controller.conversation(withID: conversationID)?
-            .counterpartReadReceipt(excluding: controller.selfUserID)
+        let conversation = controller.conversation(withID: conversationID)
+        let read = conversation?.counterpartReadReceipt(excluding: controller.selfUserID)
         let window = loader.messages
         var branding: [PublicKey: Inputs.Branding] = [:]
         for message in window {
@@ -92,7 +92,9 @@ final class ConversationLoadCoordinator {
             // The card heads only a short transcript — long or paged histories drop it; the
             // nav title opens the same contact card.
             profileCard: loader.isEntireHistory(windowCount: window.count) ? profileCard() : nil,
-            branding: branding
+            branding: branding,
+            conversation: conversation,
+            policy: .default
         )
     }
 
@@ -105,6 +107,20 @@ final class ConversationLoadCoordinator {
             cashBranding: { fiat in
                 guard let branding = inputs.branding[fiat.mint] else { return ("Cash", nil) }
                 return (branding.token, branding.iconURL)
+            },
+            deletedPresentation: inputs.policy.deletedPresentation,
+            // `now: message.date` is deliberate: the default policy has no edit window, so `now` is
+            // unread, and passing the message's own date keeps `map` a pure function of `Inputs`.
+            // Introducing an edit window makes this a real clock and costs `map` its purity — that
+            // change needs a re-map trigger, not just a different argument here.
+            capabilities: { message in
+                MessageCapability.resolve(
+                    for: message,
+                    in: inputs.conversation,
+                    as: inputs.selfUserID,
+                    policy: inputs.policy,
+                    now: message.date
+                )
             }
         )
         if inputs.isTyping {
@@ -128,6 +144,8 @@ final class ConversationLoadCoordinator {
         var isTyping: Bool
         var profileCard: ChatProfileCard?
         var branding: [PublicKey: Branding]
+        var conversation: Conversation?
+        var policy: MessagePolicy
 
         struct Branding: Equatable, Sendable {
             var token: String
