@@ -34,6 +34,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onContactAction: () -> Void
     /// Fired when the user taps the profile card in a tip DM; nil disables the card tap.
     let onProfileTap: (() -> Void)?
+    /// Fired when a context-menu action is chosen on a row, with the row's stable id. Copy never
+    /// arrives here — the transcript puts the text on the pasteboard itself.
+    let onMessageAction: (String, MessageCapability) -> Void
     let showsSendCash: Bool
     let chatExists: Bool
     let conversationID: ConversationID?
@@ -60,6 +63,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
+        screen.onMessageAction = onMessageAction
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
@@ -77,6 +81,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
+        screen.onMessageAction = onMessageAction
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
         // (skipping any trailing receipt) that is from me. Received messages and prepended history
