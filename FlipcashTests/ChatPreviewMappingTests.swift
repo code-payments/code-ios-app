@@ -57,7 +57,7 @@ struct ChatPreviewMappingTests {
 
     @Test("a deleted message is dropped before the limit slice, so the preview keeps the newest visible messages")
     func deletedMessageFilteredFromPreview() {
-        let deleted = ConversationMessage(id: MessageID(value: 3), senderID: otherID, content: .deleted, date: Date(timeIntervalSince1970: 3), unreadSeq: 0)
+        let deleted = ConversationMessage(id: MessageID(value: 3), senderID: otherID, content: .deleted(.init(deletedBy: nil, deletedAt: Date(timeIntervalSince1970: 3))), date: Date(timeIntervalSince1970: 3), unreadSeq: 0)
         let items = ChatItem.preview(from: [
             textMessage(id: 1, senderID: otherID, text: "one"),
             textMessage(id: 2, senderID: otherID, text: "two"),

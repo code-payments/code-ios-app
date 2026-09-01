@@ -345,3 +345,75 @@ struct ConversationModelMappingTests {
         #expect(MessageID(value: 1).pagingToken == Data([0, 0, 0, 0, 0, 0, 0, 1]))
     }
 }
+
+@Suite("ConversationMessage deletion and edit metadata")
+struct ConversationMessageMetadataTests {
+
+    private let deleter = UUID()
+
+    @Test("A tombstone carries who deleted it and when")
+    func tombstoneCarriesDeletionDetail() throws {
+        let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.eventSequence = 3
+            $0.content = [.with {
+                $0.deleted = .with {
+                    $0.deletedTs = .init(date: deletedAt)
+                    $0.deletedBy = .with { $0.value = deleter.data }
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        guard case .deleted(let deletion) = message.content else {
+            Issue.record("expected a deleted message")
+            return
+        }
+        #expect(deletion.deletedBy == deleter)
+        #expect(deletion.deletedAt == deletedAt)
+    }
+
+    @Test("An edited message keeps the server's edit timestamp")
+    func editedMessageKeepsTimestamp() throws {
+        let editedAt = Date(timeIntervalSince1970: 1_700_000_500)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 10 }
+            $0.eventSequence = 4
+            $0.lastEditedTs = .init(date: editedAt)
+            $0.content = [.with { $0.text = .with { $0.text = "fixed" } }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.lastEditedTs == editedAt)
+        #expect(message.content == .text("fixed"))
+    }
+
+    @Test("A never-edited message has no edit timestamp")
+    func unEditedMessageHasNoTimestamp() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 11 }
+            $0.eventSequence = 1
+            $0.content = [.with { $0.text = .with { $0.text = "hi" } }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.lastEditedTs == nil)
+    }
+
+    @Test("replacingContent preserves identity and ordering")
+    func replacingContentPreservesIdentity() {
+        let original = ConversationMessage(
+            id: MessageID(value: 12), senderID: deleter, content: .text("before"),
+            date: Date(timeIntervalSince1970: 100), unreadSeq: 4, eventSequence: 7
+        )
+        let edited = original.replacingContent(.text("after"), lastEditedTs: Date(timeIntervalSince1970: 200))
+
+        #expect(edited.content == .text("after"))
+        #expect(edited.id == original.id)
+        #expect(edited.eventSequence == 7)
+        #expect(edited.unreadSeq == 4)
+        #expect(edited.date == original.date)
+        #expect(edited.lastEditedTs == Date(timeIntervalSince1970: 200))
+    }
+}

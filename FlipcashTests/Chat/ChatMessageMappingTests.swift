@@ -55,7 +55,7 @@ struct ChatMessageMappingTests {
     }
 
     private func deleted(_ id: UInt64, _ sender: UUID, after offset: TimeInterval) -> ConversationMessage {
-        ConversationMessage(id: MessageID(value: id), senderID: sender, content: .deleted, date: base.addingTimeInterval(offset), unreadSeq: id, eventSequence: id)
+        ConversationMessage(id: MessageID(value: id), senderID: sender, content: .deleted(.init(deletedBy: sender, deletedAt: base.addingTimeInterval(offset))), date: base.addingTimeInterval(offset), unreadSeq: id, eventSequence: id)
     }
 
     @Test("a deleted tombstone is dropped: no stray separator, no grouping to an invisible row, receipt intact")

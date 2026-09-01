@@ -462,7 +462,8 @@ nonisolated extension Database {
                 currencyRate: Rate(fx: fx, currency: currency)
             ))
         case 2:
-            content = .deleted
+            // The cache carries no deletion detail yet, so the message's own date stands in.
+            content = .deleted(.init(deletedBy: nil, deletedAt: Date(timeIntervalSinceReferenceDate: row[m.date])))
         default:
             return nil
         }
