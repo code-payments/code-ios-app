@@ -67,6 +67,12 @@ public enum SystemSymbol: String {
     case chevronRight = "chevron.right"
     
     case xmark = "xmark.app.fill"
+    /// The bare glyph, for dismiss affordances that sit inline with text and
+    /// would be overpowered by the filled app-square `xmark`.
+    case close = "xmark"
+
+    case pencil = "pencil"
+    case trash = "trash"
     
     case speakerSlash = "speaker.slash.fill"
     

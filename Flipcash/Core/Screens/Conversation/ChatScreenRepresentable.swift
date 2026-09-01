@@ -41,6 +41,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onSendCash: () -> Void
     let conversationController: ConversationController
     let barModel: ConversationBarModel
+    let composer: ComposerModel
     /// Raise the keyboard when the screen first appears (post-tip open). The UIKit screen focuses
     /// the composer field in `viewDidAppear` — a hosted SwiftUI `@FocusState` never presents the
     /// keyboard across the hosting boundary.
@@ -108,6 +109,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 symbol: symbol,
                 onSendCash: onSendCash,
                 model: barModel,
+                composer: composer,
                 isTipDm: isTipDm
             )
             .environment(conversationController)

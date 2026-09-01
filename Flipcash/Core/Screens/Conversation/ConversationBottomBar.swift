@@ -9,16 +9,11 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Shared state for the unified bottom bar: the message draft plus the
-/// focus-driven `isComposing` flag that drives the Send Cash morph and the
-/// screen's interactive-dismiss gate.
+/// Shared state for the unified bottom bar: the focus-driven `isComposing` flag that drives the
+/// Send Cash morph and the screen's interactive-dismiss gate. The draft itself lives in
+/// `ComposerModel`, which also knows whether it is a new message or an edit.
 @MainActor @Observable final class ConversationBarModel {
     var isComposing = false
-    var draft = ""
-
-    var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
 }
 
 /// Single spring driving the whole bar: the button morph, the composer's
@@ -46,6 +41,7 @@ struct ConversationBottomBar: View {
     let symbol: String
     let onSendCash: () -> Void
     let model: ConversationBarModel
+    let composer: ComposerModel
     /// Tip chats always show the compact symbol-only send button; ordinary
     /// chats expand to "Send €" at rest and collapse only while composing.
     var isTipDm: Bool = false
@@ -66,7 +62,7 @@ struct ConversationBottomBar: View {
                 )
             }
             if chatExists {
-                ConversationComposer(conversationID: conversationID, model: model)
+                ConversationComposer(conversationID: conversationID, model: model, composer: composer)
                     .transition(.opacity)
             }
         }
@@ -91,6 +87,7 @@ struct ConversationComposer: View {
 
     let conversationID: ConversationID?
     @Bindable var model: ConversationBarModel
+    @Bindable var composer: ComposerModel
 
     @Environment(ConversationController.self) private var conversationController
     @FocusState private var isFocused: Bool
@@ -100,7 +97,7 @@ struct ConversationComposer: View {
 
     var body: some View {
         let field = HStack(alignment: .bottom, spacing: 10) {
-            TextField("Message", text: $model.draft, axis: .vertical)
+            TextField("Message", text: $composer.draft, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
                 .tint(.white)
@@ -109,8 +106,8 @@ struct ConversationComposer: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: BarMetrics.fieldMinHeight)
 
-            if model.canSend {
-                Button(action: send) {
+            if composer.canSubmit {
+                Button(action: submit) {
                     Image(systemName: "arrow.up")
                         .font(.default(size: 16, weight: .bold))
                         .foregroundStyle(Color.textAction)
@@ -118,23 +115,29 @@ struct ConversationComposer: View {
                         .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Send")
+                .accessibilityLabel(composer.mode == .new ? "Send" : "Save")
                 .accessibilityIdentifier("send-message-button")
                 // Pop from 60% + fade, so the opacity ramp actually reads
                 // (scaling from 0 hides the fade behind a tiny speck).
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
-        .animation(Self.sendButtonSpring, value: model.canSend)
+        .animation(Self.sendButtonSpring, value: composer.canSubmit)
         .padding(.leading, 14)
         .padding(.trailing, 8)
         .padding(.vertical, BarMetrics.fieldVerticalPadding)
 
-        return field
-            // Glass *behind* the field, not wrapping it: wrapping an editable
-            // TextField in `glassEffect` reparents its text view into the glass
-            // platter and breaks the text-selection grabbers.
-            .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+        return VStack(alignment: .leading, spacing: 8) {
+            if case .editing = composer.mode {
+                EditingBanner { composer.endEditing() }
+            }
+            field
+                // Glass *behind* the field, not wrapping it: wrapping an editable
+                // TextField in `glassEffect` reparents its text view into the glass
+                // platter and breaks the text-selection grabbers.
+                .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+        }
+        .animation(barMorphSpring, value: composer.mode)
         // Focus is the single source of `isComposing` — the button morph and the
         // screen's interactive-dismiss gate both key off it. Losing focus
         // (keyboard swiped down) ends composing.
@@ -144,22 +147,57 @@ struct ConversationComposer: View {
                 conversationController.stopSelfTyping(in: conversationID)
             }
         }
-        .onChange(of: model.draft) { _, text in
+        .onChange(of: composer.draft) { _, text in
             guard let conversationID else { return }
             conversationController.draftDidChange(text, in: conversationID)
         }
     }
 
-    private func send() {
-        guard let conversationID else { return }
-        let text = model.draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        model.draft = ""
-        isFocused = true
-        // Fire-and-forget: the message inserts optimistically and resolves on its own, so the composer
-        // stays ready immediately — the user can keep sending (especially offline) without waiting for
-        // each round-trip. Clearing the draft up front makes a double-tap a no-op (empty text).
-        Task { await conversationController.send(text, to: conversationID) }
+    private func submit() {
+        guard let conversationID, let text = composer.submission else { return }
+
+        // Fire-and-forget in both branches: the change applies optimistically and resolves on its own,
+        // so the composer stays ready immediately. Emptying the field up front makes a double-tap a
+        // no-op, because there is then nothing to submit.
+        switch composer.mode {
+        case .new:
+            composer.clear()
+            isFocused = true
+            Task { await conversationController.send(text, to: conversationID) }
+        case .editing(let messageID, _):
+            composer.endEditing()
+            isFocused = true
+            Task { await conversationController.edit(messageID: messageID, in: conversationID, to: text) }
+        }
+    }
+}
+
+/// The strip above the field while an edit is in progress, naming what the field is doing and
+/// offering a way out of it.
+private struct EditingBanner: View {
+
+    let onCancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: SystemSymbol.pencil.rawValue)
+                .font(.default(size: 13, weight: .medium))
+                .foregroundStyle(Color.textSecondary)
+            Text("Editing message")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+            Spacer(minLength: 0)
+            Button(action: onCancel) {
+                Image(systemName: SystemSymbol.close.rawValue)
+                    .font(.default(size: 13, weight: .medium))
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Cancel editing")
+            .accessibilityIdentifier("cancel-edit-button")
+        }
+        .padding(.horizontal, 14)
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
     }
 }
 

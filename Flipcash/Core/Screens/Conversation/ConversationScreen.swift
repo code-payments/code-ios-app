@@ -63,6 +63,7 @@ struct ConversationScreen: View {
 
     @State private var didInitialRead = false
     @State private var barModel = ConversationBarModel()
+    @State private var composer = ComposerModel()
     @State private var navBarWidth: CGFloat = 0
     @State private var presentedCard: ContactCard?
     @State private var coordinator: ConversationLoadCoordinator?
@@ -215,6 +216,7 @@ struct ConversationScreen: View {
             onSendCash: sendCash,
             conversationController: conversationController,
             barModel: barModel,
+            composer: composer,
             focusOnAppear: openKeyboard,
             isTipDm: tipCounterpart != nil
         )
