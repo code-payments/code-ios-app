@@ -1,0 +1,91 @@
+//
+//  MessageCapability.swift
+//  FlipcashCore
+//
+//  Copyright © 2026 Code Inc. All rights reserved.
+//
+
+import Foundation
+
+/// Something a person may do to a message. This is both the capability a policy grants and the row
+/// the transcript's context menu renders, because the two are always the same set.
+public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable {
+    case copy
+    case reply
+    case edit
+    case delete
+}
+
+extension MessageCapability {
+
+    /// The menu row's label.
+    public var title: String {
+        switch self {
+        case .copy:   "Copy"
+        case .reply:  "Reply"
+        case .edit:   "Edit"
+        case .delete: "Delete"
+        }
+    }
+
+    /// Whether the menu should render this row in its destructive style.
+    public var isDestructive: Bool {
+        switch self {
+        case .copy, .reply, .edit: false
+        case .delete:              true
+        }
+    }
+}
+
+extension MessageCapability {
+
+    /// The capabilities `selfUserID` has over `message`. Pure — the same inputs always give the same
+    /// answer, which is what lets the transcript mapper run off the main actor.
+    ///
+    /// `conversation` is accepted but unread today: it is the seam a group-chat permissions model
+    /// plugs into (an admin deleting another member's message, a read-only channel), and taking it
+    /// now means adding that model does not change every call site. It is optional because the
+    /// transcript can paint before the conversation record is loaded, and a message's own
+    /// capabilities do not depend on it in a direct message.
+    ///
+    /// `now` is a parameter rather than `Date.now` so the result stays a function of its inputs.
+    public static func resolve(
+        for message: ConversationMessage,
+        in conversation: Conversation?,
+        as selfUserID: UserID,
+        policy: MessagePolicy,
+        now: Date
+    ) -> Set<MessageCapability> {
+        switch message.content {
+        case .deleted:
+            // Nothing is left to act on, and a tombstone must not be re-deleted.
+            return []
+        case .cash:
+            // Reply is a cash message's only capability, and reply is not built yet.
+            return []
+        case .text:
+            break
+        }
+
+        guard message.isFromSelf(selfUserID) else {
+            return [.copy]
+        }
+
+        // An unconfirmed message has no `eventSequence` to send as `expected_event_sequence`, so no
+        // mutation request can be built for it. Copy is withheld too, so the menu does not appear
+        // and then grow rows the instant the send confirms.
+        guard message.eventSequence > 0 else {
+            return []
+        }
+
+        var capabilities: Set<MessageCapability> = [.copy, .delete]
+        if let window = policy.editWindow {
+            if now.timeIntervalSince(message.date) <= window {
+                capabilities.insert(.edit)
+            }
+        } else {
+            capabilities.insert(.edit)
+        }
+        return capabilities
+    }
+}
