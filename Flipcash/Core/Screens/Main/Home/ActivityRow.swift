@@ -22,6 +22,7 @@ struct ActivityRow: View {
     let activity: Activity
 
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(RatesController.self) private var ratesController
     private var session: Session { sessionContainer.session }
 
     /// The counterparty's resolved display name (cached profile / contact).
@@ -72,7 +73,14 @@ struct ActivityRow: View {
     // MARK: - Amount
 
     /// A swap shows the converted (From) fiat amount over its fee; every other
-    /// row shows the single signed amount.
+    /// row leads with the amount in the viewer's own currency and, only when the
+    /// payment was denominated in someone else's, shows what actually moved —
+    /// flagged — underneath. A tip of 7,500 pesos reads "-$5.00" to a viewer in
+    /// dollars, with "-$7,500.00" under an Argentine flag below it.
+    ///
+    /// Converted here rather than where the feed is mapped so that a currency
+    /// changed on a screen stacked over the list reaches these rows: reading
+    /// ``RatesController`` in the body is what subscribes them to it.
     @ViewBuilder private var amount: some View {
         if let swap = activity.swapMetadata {
             VStack(alignment: .trailing, spacing: 2) {
@@ -86,10 +94,27 @@ struct ActivityRow: View {
                     .lineLimit(1)
             }
         } else {
-            Text(signedAmount)
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
+            let amounts = activity.exchangedFiat.forViewer(
+                preferredRate: ratesController.rateForBalanceCurrency(),
+                rates: ratesController.cachedRates
+            )
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(amounts.viewer.formatted(signPrefix: signPrefix))
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+
+                if let transferred = amounts.transferred {
+                    HStack(spacing: 4) {
+                        Flag(style: transferred.currency.flagStyle, size: .small)
+                        Text(transferred.formatted(signPrefix: signPrefix))
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
         }
     }
 
@@ -276,17 +301,18 @@ struct ActivityRow: View {
 
     // MARK: - Amount
 
-    private var signedAmount: String {
-        let formatted = activity.exchangedFiat.nativeAmount.formatted()
+    /// The sign both amount lines carry, so a debit reads as one whichever line
+    /// you look at, or `nil` for a row that renders unsigned.
+    private var signPrefix: String? {
         switch activity.kind {
         case .received, .deposited, .bought, .distributed, .sold:
-            return "+\(formatted)"
+            return "+"
         case .gave, .withdrew, .cashLink, .paid:
-            return "-\(formatted)"
+            return "-"
         case .swapped, .unknown:
             // A swap's net effect on the wallet isn't inherently in or out, so it
             // renders unsigned until the swap notification is modelled richly.
-            return formatted
+            return nil
         }
     }
 
