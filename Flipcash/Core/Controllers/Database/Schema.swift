@@ -273,6 +273,15 @@ nonisolated struct ConversationMessageTable: Sendable {
     // Stable client identity of an optimistic send, carried onto the server row it reconciles to so a
     // row keeps one identity across sending → sent and survives a DB round-trip.
     let clientMessageID = Expression <UUID?>        ("clientMessageID")
+    // Reserved for the reply feature: written as nil and ignored on read. The column exists now
+    // because the schema version can only be bumped once per rebuild, and adding it later would
+    // cost users a second full resync.
+    let repliedToId    = Expression <UInt64?>       ("repliedToId")
+    // When the sender last edited this message; nil if never edited.
+    let lastEditedTs   = Expression <Double?>       ("lastEditedTs")
+    // Tombstone detail. Both nil for a message that has not been deleted.
+    let deletedBy      = Expression <UUID?>         ("deletedBy")
+    let deletedAt      = Expression <Double?>       ("deletedAt")
 }
 
 
@@ -522,6 +531,10 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.unreadSeq)
                 t.column(conversationMessageTable.eventSequence)
                 t.column(conversationMessageTable.clientMessageID)
+                t.column(conversationMessageTable.repliedToId)
+                t.column(conversationMessageTable.lastEditedTs)
+                t.column(conversationMessageTable.deletedBy)
+                t.column(conversationMessageTable.deletedAt)
                 t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
             })
         }

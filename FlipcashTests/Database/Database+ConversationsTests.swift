@@ -704,4 +704,66 @@ struct DatabaseConversationsTests {
         let crossed = try database.messages(conversationID: id, after: nil, through: MessageID(value: 2))
         #expect(crossed.map(\.id.value) == [1, 2])
     }
+
+    // MARK: - Deletion detail and edit stamps
+
+    @Test("A tombstone round-trips its deleter and timestamp")
+    func tombstoneRoundTrips() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        let conversationID = ConversationID(data: Data(repeating: 7, count: 32))
+        let deleter = UUID()
+        let deletedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let message = ConversationMessage(
+            id: MessageID(value: 4), senderID: deleter,
+            content: .deleted(.init(deletedBy: deleter, deletedAt: deletedAt)),
+            date: Date(timeIntervalSince1970: 1_699_999_000), unreadSeq: 1, eventSequence: 5
+        )
+
+        try database.upsertConversationMessages([message], conversationID: conversationID)
+
+        let stored = try #require(try database.message(id: MessageID(value: 4), conversationID: conversationID))
+        guard case .deleted(let deletion) = stored.content else {
+            Issue.record("expected a deleted message")
+            return
+        }
+        #expect(deletion.deletedBy == deleter)
+        #expect(deletion.deletedAt == deletedAt)
+    }
+
+    @Test("An edit timestamp round-trips, and its absence stays absent")
+    func editTimestampRoundTrips() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        let conversationID = ConversationID(data: Data(repeating: 8, count: 32))
+        let editedAt = Date(timeIntervalSince1970: 1_700_000_500)
+        let edited = ConversationMessage(
+            id: MessageID(value: 1), senderID: UUID(), content: .text("after"),
+            date: Date(timeIntervalSince1970: 1_700_000_000), unreadSeq: 1,
+            eventSequence: 2, lastEditedTs: editedAt
+        )
+        let untouched = ConversationMessage(
+            id: MessageID(value: 2), senderID: UUID(), content: .text("hi"),
+            date: Date(timeIntervalSince1970: 1_700_000_100), unreadSeq: 2, eventSequence: 1
+        )
+
+        try database.upsertConversationMessages([edited, untouched], conversationID: conversationID)
+
+        let storedEdited = try #require(try database.message(id: MessageID(value: 1), conversationID: conversationID))
+        let storedUntouched = try #require(try database.message(id: MessageID(value: 2), conversationID: conversationID))
+        #expect(storedEdited.lastEditedTs == editedAt)
+        #expect(storedUntouched.lastEditedTs == nil)
+    }
+
+    @Test("Looking up a message that isn't stored returns nil")
+    func missingMessageReturnsNil() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        let conversationID = ConversationID(data: Data(repeating: 9, count: 32))
+        #expect(try database.message(id: MessageID(value: 99), conversationID: conversationID) == nil)
+    }
+
 }
