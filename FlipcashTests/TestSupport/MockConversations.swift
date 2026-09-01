@@ -16,6 +16,19 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     /// A scripted `GetDelta` batch: one `onBatch` call with these messages + checkpoint.
     struct DeltaBatch: Sendable { let messages: [ConversationMessage]; let checkpoint: UInt64? }
 
+    struct Edited: Sendable, Equatable {
+        let conversationID: ConversationID
+        let messageID: MessageID
+        let text: String
+        let expectedEventSequence: UInt64
+    }
+
+    struct Deleted: Sendable, Equatable {
+        let conversationID: ConversationID
+        let messageID: MessageID
+        let expectedEventSequence: UInt64
+    }
+
     private let lock = NSLock()
 
     private var _feed: [Conversation] = []
@@ -27,6 +40,12 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     private var _sendError: Error?
     private var _sentClientIDs: [UUID] = []
     private var _sent: [Sent] = []
+    private var _edited: [Edited] = []
+    private var _deleted: [Deleted] = []
+    private var _editResult: MessageMutation?
+    private var _editError: (any Error)?
+    private var _deleteResult: MessageMutation?
+    private var _deleteError: (any Error)?
     private var _markedRead: [MessageID] = []
     private var _typingCalls: [TypingCall] = []
     private var _typingCallsBegun = 0
@@ -72,6 +91,28 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     /// The client message ids `sendMessage` was called with, in order.
     var sentClientIDs: [UUID] { lock.withLock { _sentClientIDs } }
     var sent: [Sent] { lock.withLock { _sent } }
+    /// The edits `editMessage` was called with, in order.
+    var edited: [Edited] { lock.withLock { _edited } }
+    /// The deletes `deleteMessage` was called with, in order.
+    var deleted: [Deleted] { lock.withLock { _deleted } }
+    var editResult: MessageMutation? {
+        get { lock.withLock { _editResult } }
+        set { lock.withLock { _editResult = newValue } }
+    }
+    /// When set, `editMessage` throws this instead of returning a mutation.
+    var editError: (any Error)? {
+        get { lock.withLock { _editError } }
+        set { lock.withLock { _editError = newValue } }
+    }
+    var deleteResult: MessageMutation? {
+        get { lock.withLock { _deleteResult } }
+        set { lock.withLock { _deleteResult = newValue } }
+    }
+    /// When set, `deleteMessage` throws this instead of returning a mutation.
+    var deleteError: (any Error)? {
+        get { lock.withLock { _deleteError } }
+        set { lock.withLock { _deleteError = newValue } }
+    }
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
     var typingCalls: [TypingCall] { lock.withLock { _typingCalls } }
     /// Number of `notifyIsTyping` calls entered, counted before any artificial delay —
@@ -152,6 +193,24 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
             id: MessageID(value: 1), senderID: nil, content: .text(text),
             date: Date(timeIntervalSince1970: 0), unreadSeq: 0
         )
+    }
+
+    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, expectedEventSequence: UInt64) async throws -> MessageMutation {
+        lock.withLock {
+            _edited.append(Edited(conversationID: conversationID, messageID: messageID, text: text, expectedEventSequence: expectedEventSequence))
+        }
+        if let editError { throw editError }
+        guard let editResult else { throw ErrorEditMessage.unknown }
+        return editResult
+    }
+
+    func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation {
+        lock.withLock {
+            _deleted.append(Deleted(conversationID: conversationID, messageID: messageID, expectedEventSequence: expectedEventSequence))
+        }
+        if let deleteError { throw deleteError }
+        guard let deleteResult else { throw ErrorDeleteMessage.unknown }
+        return deleteResult
     }
 
     func getDelta(

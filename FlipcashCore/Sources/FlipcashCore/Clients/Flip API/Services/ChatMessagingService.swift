@@ -11,6 +11,18 @@ import GRPCCore
 
 private let logger = Logger(label: "flipcash.chat-messaging-service")
 
+/// The outcome of an edit or delete: the message state the server now holds, and whether that state
+/// came back as a conflict — meaning another client's change won and this one did not apply.
+public struct MessageMutation: Sendable, Equatable {
+    public let message: ConversationMessage
+    public let isConflict: Bool
+
+    public init(message: ConversationMessage, isConflict: Bool) {
+        self.message = message
+        self.isConflict = isConflict
+    }
+}
+
 /// Wraps the Core `messaging.v1` service (chat messages). Named distinctly from
 /// the Payments-domain `MessagingService`, which handles bill rendezvous.
 final class ChatMessagingService: Sendable {
@@ -138,6 +150,88 @@ final class ChatMessagingService: Sendable {
         }
     }
 
+    func editMessage(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        messageID: MessageID,
+        text: String,
+        expectedEventSequence: UInt64,
+        completion: @Sendable @escaping (Result<MessageMutation, ErrorEditMessage>) -> Void
+    ) {
+        let request = Flipcash_Messaging_V1_EditMessageRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.content = [.with { $0.text = .with { $0.text = text } }]
+            $0.expectedEventSequence = expectedEventSequence
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.editMessage(request, options: .unaryDefault)
+                let error = ErrorEditMessage(rawValue: response.result.rawValue) ?? .unknown
+                switch error {
+                case .ok, .conflict:
+                    guard response.hasMessage, let message = ConversationMessage(response.message) else {
+                        logger.error("Edit message response carried no message")
+                        await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                        return
+                    }
+                    await MainActor.run {
+                        completion(.success(MessageMutation(message: message, isConflict: error == .conflict)))
+                    }
+                case .denied, .messageNotFound, .cannotEdit, .unknown, .transportFailure, .cancelled, .rejected:
+                    logger.error("Failed to edit message")
+                    await MainActor.run { completion(.failure(error)) }
+                }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    func deleteMessage(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        messageID: MessageID,
+        expectedEventSequence: UInt64,
+        completion: @Sendable @escaping (Result<MessageMutation, ErrorDeleteMessage>) -> Void
+    ) {
+        let request = Flipcash_Messaging_V1_DeleteMessageRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.expectedEventSequence = expectedEventSequence
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.deleteMessage(request, options: .unaryDefault)
+                let error = ErrorDeleteMessage(rawValue: response.result.rawValue) ?? .unknown
+                switch error {
+                case .ok, .conflict:
+                    guard response.hasMessage, let message = ConversationMessage(response.message) else {
+                        logger.error("Delete message response carried no message")
+                        await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                        return
+                    }
+                    await MainActor.run {
+                        completion(.success(MessageMutation(message: message, isConflict: error == .conflict)))
+                    }
+                case .denied, .messageNotFound, .cannotDelete, .unknown, .transportFailure, .cancelled, .rejected:
+                    logger.error("Failed to delete message")
+                    await MainActor.run { completion(.failure(error)) }
+                }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
     func advancePointer(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, completion: @Sendable @escaping (Result<Void, ErrorAdvancePointer>) -> Void) {
         let request = Flipcash_Messaging_V1_AdvancePointerRequest.with {
             $0.chatID = conversationID.proto
@@ -211,6 +305,30 @@ public enum ErrorSendMessage: Int, Error {
     case rejected = -4
 }
 
+public enum ErrorEditMessage: Int, Error {
+    case ok
+    case denied
+    case messageNotFound
+    case cannotEdit
+    case conflict
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorDeleteMessage: Int, Error {
+    case ok
+    case denied
+    case messageNotFound
+    case cannotDelete
+    case conflict
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
 public enum ErrorAdvancePointer: Int, Error {
     case ok
     case denied
@@ -259,6 +377,30 @@ extension ErrorSendMessage: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorEditMessage: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        // `conflict` is the concurrency guard doing its job, and the rest are expected
+        // membership/business outcomes — none is a client defect.
+        case .denied, .messageNotFound, .cannotEdit, .conflict: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorDeleteMessage: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .messageNotFound, .cannotDelete, .conflict: .info
         case .unknown, .rejected: .error
         }
     }
