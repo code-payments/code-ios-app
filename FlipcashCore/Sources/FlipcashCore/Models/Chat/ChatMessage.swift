@@ -23,6 +23,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     public enum Content: Hashable, Sendable, Codable {
         case text(String)
         case cash(ChatCashContent)
+        /// A deleted message's placeholder copy, already resolved for the viewer — "You deleted this
+        /// message" or "This message was deleted". The mapper decides which; the view just draws it.
+        case deleted(String)
     }
 
     public let id: String
@@ -43,6 +46,10 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// The web link this text row contains, or nil when it carries none — marks the row to render as
     /// tappable text. Derived from the text at map time (not stored/sent) — cash rows never carry one.
     public let linkPreview: LinkPreview?
+    /// Whether to draw the muted "Edited" marker after the body.
+    public let isEdited: Bool
+    /// What the context menu offers for this row, already ordered. Empty means no menu.
+    public let actions: [MessageCapability]
 
     public init(
         id: String,
@@ -51,7 +58,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
         receipt: ChatReceipt? = nil,
-        linkPreview: LinkPreview? = nil
+        linkPreview: LinkPreview? = nil,
+        isEdited: Bool = false,
+        actions: [MessageCapability] = []
     ) {
         self.id = id
         self.content = content
@@ -60,6 +69,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.isContinuedByNext = isContinuedByNext
         self.receipt = receipt
         self.linkPreview = linkPreview
+        self.isEdited = isEdited
+        self.actions = actions
     }
 
     /// Convenience for text rows.
@@ -70,7 +81,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
         receipt: ChatReceipt? = nil,
-        linkPreview: LinkPreview? = nil
+        linkPreview: LinkPreview? = nil,
+        isEdited: Bool = false,
+        actions: [MessageCapability] = []
     ) {
         self.init(
             id: id,
@@ -79,7 +92,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             isContinuationFromPrevious: isContinuationFromPrevious,
             isContinuedByNext: isContinuedByNext,
             receipt: receipt,
-            linkPreview: linkPreview
+            linkPreview: linkPreview,
+            isEdited: isEdited,
+            actions: actions
         )
     }
 }

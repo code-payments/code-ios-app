@@ -78,6 +78,8 @@ private struct NotificationMessageRow: View {
             switch message.content {
             case .text(let text):
                 NotificationTextBubble(text: text, isFromSelf: message.sender == .me)
+            case .deleted(let placeholder):
+                NotificationTextBubble(text: placeholder, isFromSelf: message.sender == .me)
             case .cash(let cash):
                 NotificationCashCard(cash: cash, isFromSelf: message.sender == .me)
             }
