@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import CodeCurves
 
 public typealias KeyDescriptor = (key: Data, chain: Data)
 

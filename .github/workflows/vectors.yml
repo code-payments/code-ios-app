@@ -5,9 +5,10 @@ name: Cross-platform vector gate
 # two apps compute keys, signatures, and on-chain amounts in parallel Swift and
 # Kotlin implementations; these vectors are what keeps the answers identical.
 #
-# Two packages because they cannot share a deployment target: CodeCurves is
-# plain C and builds for the host, while FlipcashCore declares only iOS and its
-# transitive deps (BigDecimal, grpc/nio) will not resolve for a macOS build.
+# Two packages because they cannot share a deployment target: FlipcashCore's
+# transitive deps (BigDecimal, grpc/nio) pull a macOS floor that CrossPlatformVectors
+# does not want. Both run on a simulator — the ed25519 under test moved from a
+# host-buildable C package to the shared Kotlin XCFramework, which ships iOS only.
 
 on:
   pull_request:
@@ -39,17 +40,25 @@ jobs:
           fi
           xcodebuild -version
 
+      # Simulator model names turn over with each runner image, so pick whatever
+      # iPhone is installed rather than naming one.
+      - name: Pick a simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
       - name: Ed25519 vectors
         working-directory: CrossPlatformVectors
-        run: swift test
+        run: |
+          xcodebuild test -scheme CrossPlatformVectors-Package \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -quiet
 
       - name: FlipcashCore vectors
         working-directory: FlipcashCoreVectors
         run: |
-          set -euo pipefail
-          # Simulator model names turn over with each runner image, so pick
-          # whatever iPhone is installed rather than naming one.
-          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
           xcodebuild test -scheme FlipcashCoreVectors-Package \
-            -destination "platform=iOS Simulator,id=$UDID" \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -quiet

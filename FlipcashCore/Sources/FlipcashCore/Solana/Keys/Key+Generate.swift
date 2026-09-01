@@ -7,36 +7,46 @@
 //
 
 import Foundation
-import CodeCurves
+import Security
 
 extension Seed16 {
     
     public static func generate() -> Seed16? {
-        var bytes = [Byte].zeroed(with: Seed16.length)
-        let result = bytes.withUnsafeMutableBufferPointer {
-            ed25519_create_seed_16($0.baseAddress)
-        }
-        
-        guard result == 0 else {
+        guard let bytes = Data.randomSeed(count: Seed16.length) else {
             return nil
         }
         
-        return try? Seed16(bytes)
+        return try? Seed16([Byte](bytes))
     }
 }
 
 extension Seed32 {
     
     public static func generate() -> Seed32? {
-        var bytes = [Byte].zeroed(with: Seed32.length)
-        let result = bytes.withUnsafeMutableBufferPointer {
-            ed25519_create_seed_32($0.baseAddress)
-        }
-        
-        guard result == 0 else {
+        guard let bytes = Data.randomSeed(count: Seed32.length) else {
             return nil
         }
         
-        return try? Seed32(bytes)
+        return try? Seed32([Byte](bytes))
+    }
+}
+
+// MARK: - Entropy -
+
+extension Data {
+    
+    /// Cryptographically secure random bytes, previously the vendored C library's
+    /// `ed25519_create_seed`. The shared Kotlin module excludes `seed.c` on purpose --
+    /// it takes a caller-supplied seed rather than reaching for platform entropy.
+    /// Returns `nil` on failure, matching what the C entry point reported through its
+    /// status code.
+    static func randomSeed(count: Int) -> Data? {
+        var bytes = [Byte](repeating: 0, count: count)
+        
+        guard SecRandomCopyBytes(kSecRandomDefault, count, &bytes) == errSecSuccess else {
+            return nil
+        }
+        
+        return Data(bytes)
     }
 }
