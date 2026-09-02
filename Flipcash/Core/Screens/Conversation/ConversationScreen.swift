@@ -218,6 +218,7 @@ struct ConversationScreen: View {
             conversationController: conversationController,
             barModel: barModel,
             composer: composer,
+            editingStableID: composer.editingStableID,
             focusOnAppear: openKeyboard,
             isTipDm: tipCounterpart != nil
         )

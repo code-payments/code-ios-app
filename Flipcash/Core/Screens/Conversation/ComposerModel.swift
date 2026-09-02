@@ -46,6 +46,15 @@ final class ComposerModel {
 
     var canSubmit: Bool { submission != nil }
 
+    /// The transcript row an edit is open on, if any. The chat screen keys its edit backdrop off
+    /// this, so reading it is what ties the backdrop's lifetime to the composer's mode.
+    var editingStableID: String? {
+        switch mode {
+        case .new:                          nil
+        case .editing(_, let stableID):     stableID
+        }
+    }
+
     /// Whether the field is editing an existing message rather than writing a new one. The bar
     /// swaps its leading control and its confirm glyph on this.
     var isEditing: Bool {

@@ -46,8 +46,10 @@ public final class ChatScreenViewController: UIViewController {
     /// it back when that menu goes. Cleared by `dismissKeyboard()` so an action handing off to a sheet
     /// isn't fought by the restore.
     private var composerHeldKeyboardUnderMenu = false
-    /// The blur shown behind a context menu.
-    private let backdrop = ContextMenuBackdrop()
+    /// The blur shown behind a context menu, and held past it for an edit.
+    private let backdrop = MessageBackdrop()
+    /// The row floated above a held blur, while an edit is open on it.
+    private var editedStableID: String?
     /// Whether a measured bar height has landed yet — the first one is applied without animation.
     private var didMeasureBar = false
 
@@ -96,6 +98,10 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onProfileTap = newValue }
     }
 
+    /// Called when the blur behind an open edit is tapped — WhatsApp's way out of an edit, beside
+    /// the composer's own cancel button. The owner ends the edit, which brings the blur down.
+    public var onCancelEdit: (() -> Void)?
+
     /// Forwards a chosen context-menu action, with the row's id, to whoever owns the screen.
     public var onMessageAction: ((String, MessageCapability) -> Void)? {
         get { transcript.onMessageAction }
@@ -132,6 +138,8 @@ public final class ChatScreenViewController: UIViewController {
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom)
         lowerComposerOnResignActive()
         handOffComposerFocusAroundContextMenu()
+        backdrop.onTap = { [weak self] in self?.onCancelEdit?() }
+        transcript.onScroll = { [weak self] in self?.refreshEditSpotlight() }
     }
 
     /// Blurs the screen behind a context menu, takes the keyboard down for its lifetime, and puts
@@ -158,6 +166,43 @@ public final class ChatScreenViewController: UIViewController {
             guard composerHeldKeyboardUnderMenu else { return }
             composerHeldKeyboardUnderMenu = false
             _ = bar.firstTextInputResponder?.becomeFirstResponder()
+        }
+    }
+
+    /// Holds the context menu's blur into the edit it just opened, and floats the edited message
+    /// above it — the message being edited ends up the one sharp thing above the composer, which is
+    /// how WhatsApp presents an edit.
+    ///
+    /// Called from the menu action itself, which runs before the menu starts to dismiss, so the
+    /// blur is claimed before the dismissal would have faded it: holding the one blur is what keeps
+    /// the transcript from flashing back to legible between the menu and the edit. The floated copy
+    /// waits for the menu to finish, because until then UIKit is still holding the row's own bubble
+    /// as the lifted preview and the cell underneath is hidden.
+    public func beginEditSpotlight(for stableID: String) {
+        editedStableID = stableID
+        backdrop.present(over: contextMenuBackdropHost, animator: nil)
+        backdrop.hold(under: bar)
+        transcript.afterContextMenu { [weak self] in self?.refreshEditSpotlight() }
+    }
+
+    /// Takes the blur down once the edit is over, however it ended.
+    public func endEditSpotlight() {
+        guard editedStableID != nil else { return }
+        editedStableID = nil
+        backdrop.release()
+    }
+
+    /// Puts the edited message's copy where its row now sits — floating it the first time, and
+    /// re-framing it on every reflow after that, since the copy lives outside the transcript and
+    /// doesn't follow the cell on its own. A row scrolled out of the transcript leaves the copy at
+    /// its last frame rather than dropping it, so the message stays on screen for the whole edit.
+    private func refreshEditSpotlight() {
+        guard let editedStableID,
+              let frame = transcript.bubbleFrame(forStableID: editedStableID, in: view) else { return }
+        if backdrop.hasSpotlight {
+            backdrop.moveSpotlight(to: frame)
+        } else if let bubble = transcript.bubbleSnapshot(forStableID: editedStableID) {
+            backdrop.setSpotlight(bubble, at: frame)
         }
     }
 
@@ -298,6 +343,7 @@ public final class ChatScreenViewController: UIViewController {
         // has to stay opaque for; it holds until just above the title and clears over the tail.
         topFadeHeightConstraint.constant = view.safeAreaInsets.top + Self.topFadeTail
         topFade.opaqueLength = max(view.safeAreaInsets.top - 12, 0)
+        refreshEditSpotlight()
         // Reserve only the bar's own height. On-device the system already grows the collection
         // view's adjusted content inset by the keyboard when it's up, so adding the keyboard here
         // too (via the bar's risen position) double-counts it and overscrolls by a whole keyboard.

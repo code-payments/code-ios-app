@@ -28,6 +28,9 @@ public final class ChatViewController: UICollectionViewController {
     /// repeatedly (not latched) — the owner's loader is expected to be idempotent, which is
     /// what keeps paging from ever getting stuck on a page.
     public var onReachTop: (() -> Void)?
+    /// Fired whenever the transcript's content moves, so an overlay pinned to a row — the edit
+    /// spotlight — can follow it.
+    public var onScroll: (() -> Void)?
 
     /// Called when the user taps a failed outgoing row to retry; the argument is the message's stable id.
     public var onRetry: ((String) -> Void)?
@@ -107,10 +110,10 @@ public final class ChatViewController: UICollectionViewController {
     /// for the menu itself.
     private var didLowerKeyboardForMenu = false
 
-    /// Work handed over by a menu action to run once the menu has finished dismissing. A
+    /// Work handed over by a menu action to run, in order, once the menu has finished dismissing. A
     /// `becomeFirstResponder` issued from a `UIAction` is rejected while the menu still owns the
     /// screen, so choosing Edit parks the keyboard-raise here instead.
-    private var pendingAfterContextMenu: (() -> Void)?
+    private var pendingAfterContextMenu: [() -> Void] = []
 
     public init() {
         super.init(collectionViewLayout: chatLayout)
@@ -387,6 +390,7 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        onScroll?()
         // Track "at the bottom" only from real user scrolling, so an inset change (keyboard) or
         // content settling doesn't flip it.
         if scrollView.isDragging || scrollView.isDecelerating {
@@ -626,10 +630,9 @@ extension ChatViewController {
                 deferredItems = nil
                 update(items: pending)
             }
-            if let work = pendingAfterContextMenu {
-                pendingAfterContextMenu = nil
-                work()
-            }
+            let held = pendingAfterContextMenu
+            pendingAfterContextMenu = []
+            for work in held { work() }
         }
         if let animator {
             animator.addCompletion(resume)
@@ -642,7 +645,33 @@ extension ChatViewController {
     /// current one finishes dismissing.
     public func afterContextMenu(_ work: @escaping () -> Void) {
         guard isShowingContextMenu else { return work() }
-        pendingAfterContextMenu = work
+        // Appended, not assigned: one menu action can queue several pieces of follow-up work — an
+        // edit raises the keyboard *and* pins its spotlight — and an assignment would drop all but
+        // the last.
+        pendingAfterContextMenu.append(work)
+    }
+
+    /// A detached copy of the bubble carried by the row with `stableID`, or `nil` when that row is
+    /// not on screen. The screen floats this above the backdrop blur so the message being edited
+    /// stays sharp while the transcript behind it goes soft — a copy rather than a hole cut in the
+    /// blur, because a `UIVisualEffectView` does not reliably honour a layer mask.
+    func bubbleSnapshot(forStableID stableID: String) -> UIView? {
+        guard let cell = bubbleCell(forStableID: stableID) else { return nil }
+        return cell.liftPreviewView.snapshotView(afterScreenUpdates: true)
+    }
+
+    /// Where that row's bubble currently sits, in `space`'s coordinates, or `nil` when it is not on
+    /// screen. The floated copy is re-framed from this as the keyboard and the bar reflow the
+    /// transcript underneath it.
+    func bubbleFrame(forStableID stableID: String, in space: UICoordinateSpace) -> CGRect? {
+        guard let cell = bubbleCell(forStableID: stableID) else { return nil }
+        let bubble = cell.liftPreviewView
+        return space.convert(bubble.bounds, from: bubble)
+    }
+
+    private func bubbleCell(forStableID stableID: String) -> BubbleCarrying? {
+        guard let item = items.firstIndex(where: { $0.id == stableID }) else { return nil }
+        return collectionView.cellForItem(at: IndexPath(item: item, section: 0)) as? BubbleCarrying
     }
 
     /// Builds the lift preview from the bubble alone, clipped to its shape. Without it UIKit lifts the
