@@ -63,7 +63,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
-        screen.onMessageAction = onMessageAction
+        screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
@@ -81,7 +81,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
-        screen.onMessageAction = onMessageAction
+        screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
         // (skipping any trailing receipt) that is from me. Received messages and prepended history
@@ -95,6 +95,24 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             screen.scrollToBottom(animated: true)
         }
         context.coordinator.lastMessageID = newLastMessageID
+    }
+
+    /// Wraps the action handler so the keyboard follows the action. The menu dismissed the keyboard
+    /// to present itself and the composer can't drive it back on its own — a hosted SwiftUI
+    /// `@FocusState` doesn't make the field first responder — so only the screen can raise it for an
+    /// edit, or hold it down for a delete, whose confirmation sheet it would otherwise cover.
+    private func keyboardFollowing(
+        _ handler: @escaping (String, MessageCapability) -> Void,
+        screen: ChatScreenViewController
+    ) -> (String, MessageCapability) -> Void {
+        { [weak screen] stableID, action in
+            handler(stableID, action)
+            switch action {
+            case .edit:         screen?.focusComposer()
+            case .delete:       screen?.dismissKeyboard()
+            case .copy, .reply: break
+            }
+        }
     }
 
     private func lastMessage(of items: [ChatItem]) -> ChatItem? {

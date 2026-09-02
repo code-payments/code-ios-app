@@ -91,6 +91,25 @@ public final class ChatViewController: UICollectionViewController {
     /// A transcript pushed while the menu was up, applied once it closes (so an arriving message can't
     /// reflow the content mid-preview). Mirrors ChatLayout deferring updates while `.showingPreview`.
     private var deferredItems: [ChatItem]?
+    /// A bottom inset requested while the menu had the inset frozen, applied once it closes. The bar
+    /// can grow from a menu action — choosing Edit opens the editing banner — and that request lands
+    /// during the freeze, so without holding it the transcript keeps the shorter bar's inset and the
+    /// banner covers the newest rows.
+    private var pendingBottomInset: CGFloat?
+
+    /// Called as a context menu is presented and again once it has finished dismissing. UIKit hides
+    /// the keyboard for the menu's lifetime but leaves the composer first responder, so the screen
+    /// uses these to make that an ordinary dismissal and to put the keyboard back afterwards.
+    var onContextMenuWillPresent: (() -> Void)?
+    var onContextMenuDidDismiss: (() -> Void)?
+    /// Guards the lowering to once per menu — the display callback can fire for the lift and again
+    /// for the menu itself.
+    private var didLowerKeyboardForMenu = false
+
+    /// Work handed over by a menu action to run once the menu has finished dismissing. A
+    /// `becomeFirstResponder` issued from a `UIAction` is rejected while the menu still owns the
+    /// screen, so choosing Edit parks the keyboard-raise here instead.
+    private var pendingAfterContextMenu: (() -> Void)?
 
     public init() {
         super.init(collectionViewLayout: chatLayout)
@@ -390,8 +409,11 @@ public final class ChatViewController: UICollectionViewController {
     /// ChatLayout's own snapshot, so at-bottom stays at-bottom (content lifts above the bar) and
     /// scrolled-up stays put — no hand-computed offset.
     public func setBottomInset(_ inset: CGFloat) {
-        // The inset is frozen while a context menu is up; don't touch it (it's restored on close).
-        guard !isShowingContextMenu else { return }
+        // The inset is frozen while a context menu is up; hold the request for the close instead.
+        guard !isShowingContextMenu else {
+            pendingBottomInset = inset
+            return
+        }
         // Never change the inset mid-batch-update: ChatLayout can't account for an inset change
         // during `performBatchUpdates`, which is what made an append (a send) overshoot. The next
         // layout pass after the update re-applies it.
@@ -409,18 +431,21 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Take over the inset at its current (keyboard-up) value so the keyboard leaving under the menu
     /// can't shrink the adjusted inset — the keyboard's space stays reserved and the content holds its
-    /// exact position. Switching `contentInsetAdjustmentBehavior` flashes a transient inset that
-    /// ChatLayout would re-anchor to, so the bottom-edge snapshot is restored across the switch (the
-    /// same primitive `setBottomInset` uses) to pin the content where it was.
+    /// exact position.
     private func freezeInset() {
         guard savedInsetBehavior == nil else { return }
         let frozen = collectionView.adjustedContentInset
         savedInsetBehavior = collectionView.contentInsetAdjustmentBehavior
         savedContentInset = collectionView.contentInset
         savedScrollIndicatorInsets = collectionView.verticalScrollIndicatorInsets
-        collectionView.contentInsetAdjustmentBehavior = .never
+        // Order matters: copy the inset in *before* taking the behavior over. Switching to `.never`
+        // first would drop the keyboard's contribution for one pass, shrinking the scrollable range
+        // under a transcript that sits at its bottom — UIKit clamps the offset there and then, and
+        // re-growing the inset does not put it back. Raising `contentInset` first only ever grows
+        // the adjusted inset, so nothing clamps on the way through.
         collectionView.contentInset = frozen
         collectionView.verticalScrollIndicatorInsets = frozen
+        collectionView.contentInsetAdjustmentBehavior = .never
         // No `restoreContentOffset` re-anchor here: forcing ChatLayout's layout
         // pass during the context-menu inset/keyboard transition aborts on
         // iOS 26 (a UICollectionView bounds-change "fading" assertion), whether
@@ -429,9 +454,9 @@ public final class ChatViewController: UICollectionViewController {
         // its position without a forced re-anchor.
     }
 
-    /// Hand the inset back to the system; with the keyboard sliding back in, it re-grows the adjusted
-    /// inset to its pre-menu value. The bottom-edge snapshot is restored across the switch so the
-    /// content lands exactly where it was, rather than wherever the transient inset re-anchored it.
+    /// Hand the inset back to the system, which re-derives the adjusted inset from wherever the
+    /// keyboard is by then: back up behind the menu, in which case nothing moves, or gone, in which
+    /// case the transcript settles into the space it vacated.
     private func restoreInset() {
         guard let behavior = savedInsetBehavior else { return }
         collectionView.contentInsetAdjustmentBehavior = behavior
@@ -515,6 +540,7 @@ extension ChatViewController {
         guard !isUpdating else { return nil }
         guard let menu = contextMenu(forItemAt: indexPath) else { return nil }
 
+
         // Freeze the inset for the menu's lifetime so presenting it (which dismisses the keyboard)
         // doesn't shrink the adjusted inset and reflow the content out from under the lifted preview.
         isShowingContextMenu = true
@@ -562,19 +588,46 @@ extension ChatViewController {
         preview(for: configuration)
     }
 
+    /// The menu is coming on screen — take the keyboard down now, so it leaves as the menu arrives
+    /// rather than the instant the long press registers. The inset was frozen when the menu was
+    /// configured, so its space stays reserved and the transcript holds position while it goes.
+    /// Deliberately not inside the animator's block: the composer bar rides the keyboard's own
+    /// notifications, and folding the resign into the menu's animation leaves the bar stranded at
+    /// its keyboard-up position.
+    public override func collectionView(_ collectionView: UICollectionView, willDisplayContextMenu configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionAnimating?) {
+        guard !didLowerKeyboardForMenu else { return }
+        didLowerKeyboardForMenu = true
+        onContextMenuWillPresent?()
+    }
+
     /// The menu is closing — hand the inset back to the system (the keyboard slides back, restoring the
     /// content to exactly where it was), then apply any update that was pushed while it was up. A `nil`
     /// animator (no transition) runs immediately so the freeze can never get stuck on.
     public override func collectionView(_ collectionView: UICollectionView, willEndContextMenuInteraction configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionAnimating?) {
+        // Ask for the keyboard back as the dismissal starts, not in its completion: waiting for the
+        // menu to finish leaves a beat of empty composer before the keyboard moves. The inset is
+        // still frozen at its keyboard-up value while it rises, so nothing reflows, and by the time
+        // the completion hands the inset back the keyboard is where the system expects it.
+        didLowerKeyboardForMenu = false
+        onContextMenuDidDismiss?()
+
         let resume: () -> Void = { [weak self] in
             guard let self else { return }
             // Restore the inset while the flag is still set, so the behavior switch's inset change is
             // suppressed (no stray scroll); then drop the flag and apply any held update.
             restoreInset()
             isShowingContextMenu = false
+            if let inset = pendingBottomInset {
+                pendingBottomInset = nil
+                setBottomInset(inset)
+            }
             if let pending = deferredItems {
                 deferredItems = nil
                 update(items: pending)
+            }
+            if let work = pendingAfterContextMenu {
+                pendingAfterContextMenu = nil
+                work()
             }
         }
         if let animator {
@@ -582,6 +635,13 @@ extension ChatViewController {
         } else {
             resume()
         }
+    }
+
+    /// Run `work` once no context menu is on screen — immediately if none is up, otherwise after the
+    /// current one finishes dismissing.
+    public func afterContextMenu(_ work: @escaping () -> Void) {
+        guard isShowingContextMenu else { return work() }
+        pendingAfterContextMenu = work
     }
 
     /// Builds the lift preview from the bubble alone, clipped to its shape. Without it UIKit lifts the

@@ -42,6 +42,12 @@ public final class ChatScreenViewController: UIViewController {
     /// real `becomeFirstResponder` does.
     public var focusesComposerOnAppear = false
     private var didFocusComposer = false
+    /// Whether the composer held the keyboard when the current context menu opened, and so should get
+    /// it back when that menu goes. Cleared by `dismissKeyboard()` so an action handing off to a sheet
+    /// isn't fought by the restore.
+    private var composerHeldKeyboardUnderMenu = false
+    /// Whether a measured bar height has landed yet — the first one is applied without animation.
+    private var didMeasureBar = false
 
     /// - Parameters:
     ///   - bar: pinned to the bottom of the view; rides the keyboard.
@@ -123,6 +129,29 @@ public final class ChatScreenViewController: UIViewController {
         barHeightConstraint = constraints.height
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom)
         lowerComposerOnResignActive()
+        handOffComposerFocusAroundContextMenu()
+    }
+
+    /// Takes the keyboard down for a context menu and gives it back once the menu has gone.
+    ///
+    /// UIKit hides the keyboard for a context menu's whole lifetime but leaves the field first
+    /// responder, so the composer is left with a blinking caret, no keyboard, and no way to type
+    /// into it. Resigning as the menu comes on screen makes that an ordinary dismissal — the keyboard
+    /// animates away alongside the menu rather than at the long-press threshold, and the composer
+    /// looks as unfocused as it now is — and re-taking the responder as the menu starts to go
+    /// restores what the long press interrupted, whether the menu closed on an action or on a tap
+    /// outside.
+    private func handOffComposerFocusAroundContextMenu() {
+        transcript.onContextMenuWillPresent = { [weak self] in
+            guard let self, let responder = bar.firstTextInputResponder else { return }
+            composerHeldKeyboardUnderMenu = responder.isFirstResponder
+            _ = responder.resignFirstResponder()
+        }
+        transcript.onContextMenuDidDismiss = { [weak self] in
+            guard let self, composerHeldKeyboardUnderMenu else { return }
+            composerHeldKeyboardUnderMenu = false
+            _ = bar.firstTextInputResponder?.becomeFirstResponder()
+        }
     }
 
     /// Adds a hosted bar pinned to the view's width and bottom; returns the height constraint
@@ -196,13 +225,44 @@ public final class ChatScreenViewController: UIViewController {
         // (app foregrounding) doesn't force the keyboard back up.
         guard focusesComposerOnAppear, !didFocusComposer else { return }
         didFocusComposer = true
-        bar.firstTextInputResponder?.becomeFirstResponder()
+        focusComposer()
+    }
+
+    /// Raise the keyboard for the bar's field. A hosted SwiftUI `@FocusState` set programmatically
+    /// moves the caret into the field but never makes it first responder across the hosting
+    /// boundary, so the keyboard never arrives and the field takes no input — only this does. Waits
+    /// out any open context menu, which owns the screen and would refuse the responder change.
+    public func focusComposer() {
+        transcript.afterContextMenu { [weak self] in
+            self?.bar.firstTextInputResponder?.becomeFirstResponder()
+        }
+    }
+
+    /// Keep the keyboard down, for a menu action that hands off to a sheet. The menu already lowered
+    /// it, so the work here is cancelling the restore that would otherwise put the keyboard back on
+    /// top of whatever the action presented; the resigns cover the callers that had no menu open.
+    public func dismissKeyboard() {
+        composerHeldKeyboardUnderMenu = false
+        _ = bar.firstTextInputResponder?.resignFirstResponder()
+        transcript.afterContextMenu { [weak self] in
+            _ = self?.bar.firstTextInputResponder?.resignFirstResponder()
+        }
     }
 
     /// Set the bar's height to its measured SwiftUI content height.
     public func setBarHeight(_ height: CGFloat) {
         guard barHeightConstraint != nil, barHeightConstraint.constant != height else { return }
+        // First measurement (or off-screen): apply it flat, so the push doesn't animate the bar in.
+        let isFirst = !didMeasureBar
+        didMeasureBar = true
         barHeightConstraint.constant = height
+        guard !isFirst, view.window != nil else { return }
+        // Lay out inside the animation so the transcript's inset change — `viewDidLayoutSubviews`
+        // feeds the new bar height to `setBottomInset` — rides the same curve and the content
+        // scrolls up with the bar, instead of snapping on whatever layout pass happens to run next.
+        UIView.animate(springDuration: ChatMotion.swap.duration, bounce: ChatMotion.swap.bounce) {
+            self.view.layoutIfNeeded()
+        }
     }
 
     // MARK: - Data passthrough
