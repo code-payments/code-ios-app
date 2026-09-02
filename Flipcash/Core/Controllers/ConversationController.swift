@@ -100,18 +100,18 @@ final class ConversationController {
     /// it's excluded from observation.
     @ObservationIgnored var visibleConversationID: ConversationID?
 
-    private var store = ConversationStore()
+    var store = ConversationStore()
 
     /// The current blocklist (wired to `BlocklistController`), used to reconcile
     /// which conversations are hidden from the feed.
     @ObservationIgnored var blockedUserIDs: () -> Set<UserID> = { [] }
 
     @ObservationIgnored private let fetching: any ConversationFetching
-    @ObservationIgnored private let messaging: any ConversationMessaging
+    @ObservationIgnored let messaging: any ConversationMessaging
     @ObservationIgnored private let streaming: any ConversationEventStreaming
     @ObservationIgnored private let contactNaming: any DMContactNaming
-    @ObservationIgnored private let database: Database
-    @ObservationIgnored private let owner: KeyPair
+    @ObservationIgnored let database: Database
+    @ObservationIgnored let owner: KeyPair
     @ObservationIgnored private var startTask: Task<Void, Never>?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var connectionStateTask: Task<Void, Never>?
@@ -695,7 +695,7 @@ final class ConversationController {
 
     /// Recompute the feed row's preview from the newest persisted *visible* message (the store no longer
     /// holds the confirmed transcript to derive it from).
-    private func refreshFeedPreview(for conversationID: ConversationID) {
+    func refreshFeedPreview(for conversationID: ConversationID) {
         let visible = (try? database.latestMessage(conversationID: conversationID)) ?? nil
         // A newest row that is itself invisible (a tombstone) is the one case the preview must regress —
         // the never-regress guard would otherwise keep showing the deleted content.
@@ -709,7 +709,7 @@ final class ConversationController {
 
     /// Persists the store's current version of a conversation. No-ops for
     /// conversations the store doesn't know yet.
-    private func persistConversation(_ conversationID: ConversationID) {
+    func persistConversation(_ conversationID: ConversationID) {
         guard let conversation = store.conversations.first(where: { $0.id == conversationID }) else { return }
         persistConversation(conversation)
     }
@@ -719,7 +719,7 @@ final class ConversationController {
     }
 
     @discardableResult
-    private func persist(operation: String, _ write: () throws -> Void) -> Bool {
+    func persist(operation: String, _ write: () throws -> Void) -> Bool {
         do {
             try write()
             // A successful confirmed-message write invalidates the DB-backed transcript window; bump the
@@ -741,7 +741,7 @@ final class ConversationController {
     /// Persist operations that write confirmed messages — the ones that must bump `messageRevision`.
     private static let messageWriteOperations: Set<String> = [
         "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
-        "send-message", "reset-resync",
+        "send-message", "reset-resync", "edit-message", "delete-message",
     ]
 
     // MARK: - Names
@@ -830,6 +830,31 @@ final class ConversationController {
     /// transcript from the DB, not the store — knows to re-read its window. Pending-overlay changes
     /// re-fire through the store directly.
     private(set) var messageRevision = 0
+
+    /// Forces the transcript to re-read its window. `persist(operation:)` does this for database
+    /// writes; an overlay change writes nothing, so it has to say so explicitly.
+    func bumpMessageRevision() {
+        messageRevision &+= 1
+    }
+
+    /// Set when a mutation needs to be reported to the person who made it. The screen presents it
+    /// and clears it. `nil` means there is nothing to report.
+    var mutationAlert: MutationAlert?
+
+    /// A mutation the user has to be told about, because the transcript alone will not explain it.
+    struct MutationAlert: Equatable, Identifiable {
+        enum Kind: String, Equatable {
+            /// Another client's change won; the transcript now shows that change, not this one.
+            case conflict
+            /// The request never applied; the transcript has reverted.
+            case failure
+        }
+
+        let action: MessageCapability
+        let kind: Kind
+
+        var id: String { "\(action.rawValue)-\(kind.rawValue)" }
+    }
 
     /// The transcript's bounded window with the in-memory optimistic overlay applied: every confirmed
     /// message from `startID` to the newest when anchored, else the newest `limit`. The DB is the source

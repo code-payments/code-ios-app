@@ -61,6 +61,40 @@ extension FlipClient {
         }
     }
 
+    public func editMessage(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        messageID: MessageID,
+        text: String,
+        expectedEventSequence: UInt64
+    ) async throws -> MessageMutation {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.editMessage(
+                owner: owner,
+                conversationID: conversationID,
+                messageID: messageID,
+                text: text,
+                expectedEventSequence: expectedEventSequence
+            ) { c.resume(with: $0) }
+        }
+    }
+
+    public func deleteMessage(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        messageID: MessageID,
+        expectedEventSequence: UInt64
+    ) async throws -> MessageMutation {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.deleteMessage(
+                owner: owner,
+                conversationID: conversationID,
+                messageID: messageID,
+                expectedEventSequence: expectedEventSequence
+            ) { c.resume(with: $0) }
+        }
+    }
+
     public func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws {
         try await withCheckedThrowingContinuation { c in
             chatMessagingService.advancePointer(owner: owner, conversationID: conversationID, messageID: messageID) { c.resume(with: $0) }
