@@ -73,6 +73,8 @@ public enum SystemSymbol: String {
 
     case pencil = "pencil"
     case trash = "trash"
+    /// The bare glyph, for a confirm affordance that carries its own backing shape.
+    case checkmark = "checkmark"
     
     case speakerSlash = "speaker.slash.fill"
     

@@ -46,6 +46,15 @@ final class ComposerModel {
 
     var canSubmit: Bool { submission != nil }
 
+    /// Whether the field is editing an existing message rather than writing a new one. The bar
+    /// swaps its leading control and its confirm glyph on this.
+    var isEditing: Bool {
+        switch mode {
+        case .new:     false
+        case .editing: true
+        }
+    }
+
     /// Switches the field to editing an existing message, stashing whatever was being written.
     func beginEditing(messageID: MessageID, stableID: String, currentText: String) {
         if case .new = mode {
