@@ -35,6 +35,10 @@ extension ChatItem {
             switch message.content {
             case .text:
                 message.linkPreview != nil ? ChatLinkMessageCell.reuseIdentifier : ChatMessageCell.reuseIdentifier
+            case .deleted:
+                // Deliberately the same cell class as plain text: a message becoming a tombstone
+                // then diffs as an in-place reconfigure rather than a delete-and-insert.
+                ChatMessageCell.reuseIdentifier
             case .cash:
                 ChatCashCardCell.reuseIdentifier
             }

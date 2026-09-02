@@ -517,6 +517,8 @@ extension ChatViewController {
             switch message.content {
             case .text(let text):
                 body = text
+            case .deleted:
+                return nil
             case .cash:
                 return nil
             }

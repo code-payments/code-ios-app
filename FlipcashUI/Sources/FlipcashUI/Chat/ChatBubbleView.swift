@@ -17,6 +17,7 @@ public final class ChatBubbleView: UIView {
 
     private let background = BubbleBackgroundView()
     private let label = UILabel()
+    private let editedLabel = EditedMarker.makeLabel()
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -31,10 +32,10 @@ public final class ChatBubbleView: UIView {
         addSubview(background)
 
         label.numberOfLines = 0
-        label.font = .default(size: 16, weight: .medium)
-        label.textColor = .white
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
+
+        addSubview(editedLabel)
 
         NSLayoutConstraint.activate([
             background.topAnchor.constraint(equalTo: topAnchor),
@@ -46,6 +47,11 @@ public final class ChatBubbleView: UIView {
             label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+
+            // Bottom-trailing corner: the body's reservation run keeps the space clear, so the
+            // marker lands on the last line where it fits and on the wrapped line where it doesn't.
+            editedLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -EditedMarker.trailingInset),
+            editedLabel.bottomAnchor.constraint(equalTo: label.bottomAnchor),
         ])
     }
 
@@ -54,10 +60,9 @@ public final class ChatBubbleView: UIView {
     var maskingPath: UIBezierPath { background.maskingPath }
 
     public func configure(with message: ChatMessage) {
-        switch message.content {
-        case .text(let text): label.text = text
-        case .cash: label.text = nil // cash rows use a dedicated cell, not this bubble
-        }
+        label.attributedText = Self.displayText(for: message)
+        editedLabel.isHidden = !Self.showsEditedMarker(for: message)
+
         background.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
             radii: BubbleBackgroundView.radii(
@@ -67,6 +72,51 @@ public final class ChatBubbleView: UIView {
             ),
             identity: message.id
         )
+    }
+
+    /// Whether the bubble draws the "Edited" marker: a revised message that still has a body to
+    /// revise, so a tombstone or a cash row never carries one.
+    public static func showsEditedMarker(for message: ChatMessage) -> Bool {
+        switch message.content {
+        case .text:    message.isEdited
+        case .deleted: false
+        case .cash:    false
+        }
+    }
+
+    /// The bubble's rendered text: the body, a muted italic placeholder for a tombstone, and the
+    /// "Edited" marker's reservation where the sender has revised the message — the marker itself is
+    /// a separate label pinned to the bubble's corner. `nil` for cash rows, which use a dedicated
+    /// cell rather than this bubble.
+    public static func displayText(for message: ChatMessage) -> NSAttributedString? {
+        let body: String
+        let isPlaceholder: Bool
+        switch message.content {
+        case .text(let text):
+            body = text
+            isPlaceholder = false
+        case .deleted(let placeholder):
+            body = placeholder
+            isPlaceholder = true
+        case .cash:
+            return nil
+        }
+
+        let bodyFont: UIFont = isPlaceholder
+            ? .italicSystemFont(ofSize: 16)
+            : .default(size: 16, weight: .medium)
+        let bodyColor: UIColor = isPlaceholder ? UIColor.white.withAlphaComponent(0.55) : .white
+
+        let result = NSMutableAttributedString(
+            string: body,
+            attributes: [.font: bodyFont, .foregroundColor: bodyColor]
+        )
+
+        if Self.showsEditedMarker(for: message) {
+            result.append(EditedMarker.reservation)
+        }
+
+        return result
     }
 }
 

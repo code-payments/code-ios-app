@@ -54,8 +54,8 @@ struct ChatMessageMappingTests {
         messageRows(items).map(\.isFailed)
     }
 
-    private func deleted(_ id: UInt64, _ sender: UUID, after offset: TimeInterval) -> ConversationMessage {
-        ConversationMessage(id: MessageID(value: id), senderID: sender, content: .deleted(.init(deletedBy: sender, deletedAt: base.addingTimeInterval(offset))), date: base.addingTimeInterval(offset), unreadSeq: id, eventSequence: id)
+    private func deleted(_ id: UInt64, _ sender: UUID, deletedBy: UUID? = nil, after offset: TimeInterval) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: id), senderID: sender, content: .deleted(.init(deletedBy: deletedBy ?? sender, deletedAt: base.addingTimeInterval(offset))), date: base.addingTimeInterval(offset), unreadSeq: id, eventSequence: id)
     }
 
     @Test("a deleted tombstone is dropped: no stray separator, no grouping to an invisible row, receipt intact")
@@ -290,5 +290,60 @@ struct ChatMessageMappingTests {
             selfUserID: me
         ))
         #expect(rows.first?.linkPreview == nil)
+    }
+
+    @Test("In placeholder mode my own deletion reads as mine")
+    func placeholderNamesTheDeleter() {
+        let items = ChatItem.from(
+            [deleted(1, me, deletedBy: me, after: 0)],
+            selfUserID: me,
+            deletedPresentation: .placeholder
+        )
+        #expect(messageRows(items).first?.content == .deleted("You deleted this message"))
+    }
+
+    @Test("In placeholder mode someone else's deletion reads impersonally")
+    func placeholderIsImpersonalForOthers() {
+        let items = ChatItem.from(
+            [deleted(1, them, deletedBy: them, after: 0)],
+            selfUserID: me,
+            deletedPresentation: .placeholder
+        )
+        #expect(messageRows(items).first?.content == .deleted("This message was deleted"))
+    }
+
+    @Test("A tombstone never anchors the delivery receipt, even when it is my newest row")
+    func tombstoneDoesNotAnchorReceipt() {
+        let items = ChatItem.from(
+            [text(1, me, "hello", after: 0), deleted(2, me, deletedBy: me, after: 60)],
+            selfUserID: me,
+            deletedPresentation: .placeholder
+        )
+        let rows = messageRows(items)
+        #expect(rows.count == 2)
+        #expect(rows[0].receipt?.displayText == "Delivered")
+        #expect(rows[1].receipt == nil)
+    }
+
+    @Test("An edited message is flagged for the edited marker")
+    func editedMessageIsFlagged() {
+        let plain = text(1, me, "after", after: 0)
+        let edited = ConversationMessage(
+            id: plain.id, senderID: plain.senderID, content: plain.content,
+            date: plain.date, unreadSeq: plain.unreadSeq, eventSequence: 2,
+            lastEditedTs: base.addingTimeInterval(30)
+        )
+        let items = ChatItem.from([edited], selfUserID: me)
+        #expect(messageRows(items).first?.isEdited == true)
+    }
+
+    @Test("Actions come back in menu order, never in set order")
+    func actionsAreOrdered() {
+        let items = ChatItem.from(
+            [text(1, me, "hi", after: 0)],
+            selfUserID: me,
+            capabilities: { _ in [.delete, .edit, .copy] }
+        )
+        #expect(messageRows(items).first?.actions == [.copy, .edit, .delete])
     }
 }

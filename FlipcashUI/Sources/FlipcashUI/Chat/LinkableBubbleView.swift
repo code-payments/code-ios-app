@@ -16,6 +16,7 @@ public final class LinkableBubbleView: UIView {
 
     private let background = BubbleBackgroundView()
     private let textView = LinkTextView()
+    private let editedLabel = EditedMarker.makeLabel()
 
     /// Called when the user taps a detected link.
     var onOpenURL: ((URL) -> Void)?
@@ -48,6 +49,8 @@ public final class LinkableBubbleView: UIView {
         textView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(textView)
 
+        addSubview(editedLabel)
+
         NSLayoutConstraint.activate([
             background.topAnchor.constraint(equalTo: topAnchor),
             background.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -58,6 +61,10 @@ public final class LinkableBubbleView: UIView {
             textView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
             textView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             textView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+
+            // Same bottom-trailing corner as the plain bubble, off the same reservation run.
+            editedLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -EditedMarker.trailingInset),
+            editedLabel.bottomAnchor.constraint(equalTo: textView.bottomAnchor),
         ])
     }
 
@@ -69,10 +76,12 @@ public final class LinkableBubbleView: UIView {
     }
 
     public func configure(with message: ChatMessage) {
-        switch message.content {
-        case .text(let text): textView.text = text
-        case .cash: textView.text = nil
-        }
+        // Shares the plain bubble's text builder so a link message gets the same body styling, the
+        // same tombstone copy, and the same "Edited" reservation. Data detection still runs — the
+        // text view is non-editable, so it detects over `attributedText` as it did over `text`.
+        textView.attributedText = ChatBubbleView.displayText(for: message)
+        editedLabel.isHidden = !ChatBubbleView.showsEditedMarker(for: message)
+
         background.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
             radii: BubbleBackgroundView.radii(
