@@ -854,6 +854,27 @@ final class ConversationController {
         let kind: Kind
 
         var id: String { "\(action.rawValue)-\(kind.rawValue)" }
+
+        var title: String {
+            switch kind {
+            case .conflict: "Message Changed"
+            case .failure:
+                switch action {
+                case .edit:         "Couldn't Edit Message"
+                case .delete:       "Couldn't Delete Message"
+                case .copy, .reply: "Something Went Wrong"
+                }
+            }
+        }
+
+        var subtitle: String {
+            switch kind {
+            case .conflict:
+                "This message changed somewhere else, so your change wasn't applied. The chat now shows the latest version."
+            case .failure:
+                "Check your connection and try again."
+            }
+        }
     }
 
     /// The transcript's bounded window with the in-memory optimistic overlay applied: every confirmed

@@ -9,16 +9,11 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Shared state for the unified bottom bar: the message draft plus the
-/// focus-driven `isComposing` flag that drives the Send Cash morph and the
-/// screen's interactive-dismiss gate.
+/// Shared state for the unified bottom bar: the focus-driven `isComposing` flag that drives the
+/// Send Cash morph and the screen's interactive-dismiss gate. The draft itself lives in
+/// `ComposerModel`, which also knows whether it is a new message or an edit.
 @MainActor @Observable final class ConversationBarModel {
     var isComposing = false
-    var draft = ""
-
-    var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
 }
 
 /// Single spring driving the whole bar: the button morph, the composer's
@@ -46,13 +41,21 @@ struct ConversationBottomBar: View {
     let symbol: String
     let onSendCash: () -> Void
     let model: ConversationBarModel
+    let composer: ComposerModel
     /// Tip chats always show the compact symbol-only send button; ordinary
     /// chats expand to "Send €" at rest and collapse only while composing.
     var isTipDm: Bool = false
 
     var body: some View {
-        let content = HStack(alignment: .bottom, spacing: 10) {
-            if showsSendCash {
+        // Top-aligned: the field is the side that grows (a multiline draft) and it grows upward off
+        // a pinned bar bottom, so anchoring the control beside it to the field's top edge keeps the
+        // two reading as one row instead of leaving the button stranded low.
+        let content = HStack(alignment: .top, spacing: 10) {
+            // An edit takes over the bar: the leading control becomes the way out of it and Send
+            // Cash steps aside until it resolves, the way WhatsApp hides its accessory controls.
+            if composer.isEditing {
+                CancelEditButton { composer.endEditing() }
+            } else if showsSendCash {
                 SendCashMorphButton(
                     symbol: symbol,
                     composing: model.isComposing,
@@ -66,7 +69,7 @@ struct ConversationBottomBar: View {
                 )
             }
             if chatExists {
-                ConversationComposer(conversationID: conversationID, model: model)
+                ConversationComposer(conversationID: conversationID, model: model, composer: composer)
                     .transition(.opacity)
             }
         }
@@ -74,6 +77,7 @@ struct ConversationBottomBar: View {
         .padding(.top, 8)
         .padding(.bottom, 8)
         .animation(barMorphSpring, value: chatExists)
+        .animation(barMorphSpring, value: composer.isEditing)
 
         // No shared GlassEffectContainer: the composer's glass is a background
         // layer behind an editable text field, and a container composites its
@@ -85,12 +89,13 @@ struct ConversationBottomBar: View {
     }
 }
 
-/// The glass type box: a multiline field with a send button that appears once
-/// there's text. Swiping the chat down lowers the keyboard and the box.
+/// The glass type box: a multiline field with a confirm button — an arrow that appears once there's
+/// text, a checkmark for the length of an edit. Swiping the chat down lowers the keyboard and the box.
 struct ConversationComposer: View {
 
     let conversationID: ConversationID?
     @Bindable var model: ConversationBarModel
+    @Bindable var composer: ComposerModel
 
     @Environment(ConversationController.self) private var conversationController
     @FocusState private var isFocused: Bool
@@ -100,7 +105,7 @@ struct ConversationComposer: View {
 
     var body: some View {
         let field = HStack(alignment: .bottom, spacing: 10) {
-            TextField("Message", text: $model.draft, axis: .vertical)
+            TextField("Message", text: $composer.draft, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
                 .tint(.white)
@@ -109,32 +114,35 @@ struct ConversationComposer: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: BarMetrics.fieldMinHeight)
 
-            if model.canSend {
-                Button(action: send) {
-                    Image(systemName: "arrow.up")
+            if showsSubmit {
+                Button(action: submit) {
+                    Image(systemName: submitSymbol)
                         .font(.default(size: 16, weight: .bold))
                         .foregroundStyle(Color.textAction)
                         .frame(width: 34, height: 34)
                         .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
+                        // Arrow and checkmark are the same button in two jobs, so the glyph swaps in
+                        // place rather than the button popping out and a new one popping back.
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Send")
+                .accessibilityLabel(composer.isEditing ? "Save" : "Send")
                 .accessibilityIdentifier("send-message-button")
                 // Pop from 60% + fade, so the opacity ramp actually reads
                 // (scaling from 0 hides the fade behind a tiny speck).
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
-        .animation(Self.sendButtonSpring, value: model.canSend)
+        .animation(Self.sendButtonSpring, value: showsSubmit)
+
+        return field
         .padding(.leading, 14)
         .padding(.trailing, 8)
         .padding(.vertical, BarMetrics.fieldVerticalPadding)
-
-        return field
-            // Glass *behind* the field, not wrapping it: wrapping an editable
-            // TextField in `glassEffect` reparents its text view into the glass
-            // platter and breaks the text-selection grabbers.
-            .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+        // Glass *behind* the field, not wrapping it: wrapping an editable
+        // TextField in `glassEffect` reparents its text view into the glass
+        // platter and breaks the text-selection grabbers.
+        .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
         // Focus is the single source of `isComposing` — the button morph and the
         // screen's interactive-dismiss gate both key off it. Losing focus
         // (keyboard swiped down) ends composing.
@@ -144,22 +152,67 @@ struct ConversationComposer: View {
                 conversationController.stopSelfTyping(in: conversationID)
             }
         }
-        .onChange(of: model.draft) { _, text in
+        .onChange(of: composer.draft) { _, text in
             guard let conversationID else { return }
             conversationController.draftDidChange(text, in: conversationID)
         }
     }
 
-    private func send() {
+    /// The confirm button is up for the whole of an edit, as it is in WhatsApp, and only once
+    /// there's text to send otherwise.
+    private var showsSubmit: Bool { composer.isEditing || composer.canSubmit }
+
+    private var submitSymbol: String {
+        composer.isEditing ? SystemSymbol.checkmark.rawValue : SystemSymbol.arrowUp.rawValue
+    }
+
+    private func submit() {
         guard let conversationID else { return }
-        let text = model.draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        model.draft = ""
-        isFocused = true
-        // Fire-and-forget: the message inserts optimistically and resolves on its own, so the composer
-        // stays ready immediately — the user can keep sending (especially offline) without waiting for
-        // each round-trip. Clearing the draft up front makes a double-tap a no-op (empty text).
-        Task { await conversationController.send(text, to: conversationID) }
+
+        // Fire-and-forget in both branches: the change applies optimistically and resolves on its own,
+        // so the composer stays ready immediately. Emptying the field up front makes a double-tap a
+        // no-op, because there is then nothing to submit.
+        switch composer.mode {
+        case .new:
+            guard let text = composer.submission else { return }
+            composer.clear()
+            isFocused = true
+            Task { await conversationController.send(text, to: conversationID) }
+        case .editing(let messageID, _):
+            // Confirming an edit that changed nothing leaves edit mode rather than round-tripping
+            // the same text — the button is always there to be pressed.
+            let text = composer.submission
+            composer.endEditing()
+            isFocused = true
+            guard let text else { return }
+            Task { await conversationController.edit(messageID: messageID, in: conversationID, to: text) }
+        }
+    }
+}
+
+/// The way out of an edit: the bar's leading control while the field holds an existing message,
+/// standing where Send Cash stands the rest of the time. Field-sized and glass, so the swap reads
+/// as the same control changing job rather than a foreign button arriving.
+private struct CancelEditButton: View {
+
+    let onCancel: () -> Void
+
+    var body: some View {
+        Button(action: onCancel) {
+            Image(systemName: SystemSymbol.close.rawValue)
+                .font(.default(size: 17, weight: .semibold))
+                .foregroundStyle(Color.textMain)
+                .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
+                // The glyph is the only drawn content, so without a shape the taps that land on the
+                // glass around it miss the button — the platter lights up (it is `.interactive`) and
+                // the edit stays open. The shape makes the whole pill the target.
+                .contentShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+        }
+        .buttonStyle(.plain)
+        .glassBackground(cornerRadius: BarMetrics.cornerRadius)
+        .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+        .accessibilityLabel("Cancel editing")
+        .accessibilityIdentifier("cancel-edit-button")
     }
 }
 

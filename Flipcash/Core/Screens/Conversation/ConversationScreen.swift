@@ -63,6 +63,7 @@ struct ConversationScreen: View {
 
     @State private var didInitialRead = false
     @State private var barModel = ConversationBarModel()
+    @State private var composer = ComposerModel()
     @State private var navBarWidth: CGFloat = 0
     @State private var presentedCard: ContactCard?
     @State private var coordinator: ConversationLoadCoordinator?
@@ -208,6 +209,7 @@ struct ConversationScreen: View {
             onOpenURL: openLink,
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
+            onMessageAction: handleMessageAction,
             showsSendCash: sendTarget != nil,
             chatExists: chatExists,
             conversationID: conversationID,
@@ -215,6 +217,8 @@ struct ConversationScreen: View {
             onSendCash: sendCash,
             conversationController: conversationController,
             barModel: barModel,
+            composer: composer,
+            editingStableID: composer.editingStableID,
             focusOnAppear: openKeyboard,
             isTipDm: tipCounterpart != nil
         )
@@ -265,6 +269,11 @@ struct ConversationScreen: View {
         // While composing, a downward swipe should lower the keyboard — not
         // tear down the whole Send sheet.
         .interactiveDismissDisabled(barModel.isComposing)
+        // The transcript explains an applied edit or delete on its own; a conflict or a failure is
+        // only visible as "nothing happened", so it is reported here.
+        .onChange(of: conversationController.mutationAlert) { _, alert in
+            presentMutationAlert(alert)
+        }
         // Keyed on existence, not just the ID: a matched contact's chat ID is
         // pre-assigned, and fetching messages for a chat the server hasn't
         // created yet error-reports. Fires when the chat materializes.
@@ -358,6 +367,48 @@ struct ConversationScreen: View {
     /// Contacts" sheet seeded with their number.
     private func openContactCard() {
         presentedCard = ContactCard.make(contact: contact, addablePhone: addableContactPhone)
+    }
+
+    private func presentMutationAlert(_ alert: ConversationController.MutationAlert?) {
+        guard let alert else { return }
+        session.dialogItem = DialogItem.alert(title: alert.title, subtitle: alert.subtitle) {
+            DialogAction.okay(kind: .destructive) {
+                conversationController.mutationAlert = nil
+            }
+        }
+    }
+
+    /// Routes a context-menu choice. Copy never arrives here — the transcript handles it locally.
+    private func handleMessageAction(_ stableID: String, _ action: MessageCapability) {
+        guard let message = coordinator?.loader.messages.first(where: { $0.stableID == stableID }) else { return }
+
+        switch action {
+        case .copy:
+            break
+        case .reply:
+            break // Reply is a separate scope; the menu does not offer it yet.
+        case .edit:
+            guard case .text(let text) = message.content else { return }
+            composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
+        case .delete:
+            confirmDelete(message.id)
+        }
+    }
+
+    private func confirmDelete(_ messageID: MessageID) {
+        guard let conversationID else { return }
+
+        // WhatsApp's sheet offers "Delete for everyone" beside "Delete for me"; we have no
+        // delete-for-me, so the one action we do have names its scope and stands alone.
+        session.dialogItem = DialogItem.alert(
+            title: "Delete message?",
+            subtitle: "This can't be undone"
+        ) {
+            DialogAction.destructive("Delete For Everyone") {
+                Task { await conversationController.delete(messageID: messageID, in: conversationID) }
+            }
+            DialogAction.cancel()
+        }
     }
 
     private func sendCash() {

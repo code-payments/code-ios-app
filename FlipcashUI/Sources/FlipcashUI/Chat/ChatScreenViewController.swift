@@ -42,6 +42,16 @@ public final class ChatScreenViewController: UIViewController {
     /// real `becomeFirstResponder` does.
     public var focusesComposerOnAppear = false
     private var didFocusComposer = false
+    /// Whether the composer held the keyboard when the current context menu opened, and so should get
+    /// it back when that menu goes. Cleared by `dismissKeyboard()` so an action handing off to a sheet
+    /// isn't fought by the restore.
+    private var composerHeldKeyboardUnderMenu = false
+    /// The blur shown behind a context menu, and held past it for an edit.
+    private let backdrop = MessageBackdrop()
+    /// The row floated above a held blur, while an edit is open on it.
+    private var editedStableID: String?
+    /// Whether a measured bar height has landed yet — the first one is applied without animation.
+    private var didMeasureBar = false
 
     /// - Parameters:
     ///   - bar: pinned to the bottom of the view; rides the keyboard.
@@ -88,6 +98,16 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onProfileTap = newValue }
     }
 
+    /// Called when the blur behind an open edit is tapped — WhatsApp's way out of an edit, beside
+    /// the composer's own cancel button. The owner ends the edit, which brings the blur down.
+    public var onCancelEdit: (() -> Void)?
+
+    /// Forwards a chosen context-menu action, with the row's id, to whoever owns the screen.
+    public var onMessageAction: ((String, MessageCapability) -> Void)? {
+        get { transcript.onMessageAction }
+        set { transcript.onMessageAction = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)
@@ -117,6 +137,85 @@ public final class ChatScreenViewController: UIViewController {
         barHeightConstraint = constraints.height
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom)
         lowerComposerOnResignActive()
+        handOffComposerFocusAroundContextMenu()
+        backdrop.onTap = { [weak self] in self?.onCancelEdit?() }
+        transcript.onScroll = { [weak self] in self?.refreshEditSpotlight() }
+    }
+
+    /// Blurs the screen behind a context menu, takes the keyboard down for its lifetime, and puts
+    /// both back once the menu has gone.
+    ///
+    /// UIKit hides the keyboard for a context menu's whole lifetime but leaves the field first
+    /// responder, so the composer is left with a blinking caret, no keyboard, and no way to type
+    /// into it. Resigning as the menu comes on screen makes that an ordinary dismissal — the keyboard
+    /// animates away alongside the menu rather than at the long-press threshold, and the composer
+    /// looks as unfocused as it now is — and re-taking the responder as the menu starts to go
+    /// restores what the long press interrupted, whether the menu closed on an action or on a tap
+    /// outside.
+    private func handOffComposerFocusAroundContextMenu() {
+        transcript.onContextMenuWillPresent = { [weak self] animator in
+            guard let self else { return }
+            backdrop.present(over: contextMenuBackdropHost, animator: animator)
+            guard let responder = bar.firstTextInputResponder else { return }
+            composerHeldKeyboardUnderMenu = responder.isFirstResponder
+            _ = responder.resignFirstResponder()
+        }
+        transcript.onContextMenuDidDismiss = { [weak self] animator in
+            guard let self else { return }
+            backdrop.dismiss(animator: animator)
+            guard composerHeldKeyboardUnderMenu else { return }
+            composerHeldKeyboardUnderMenu = false
+            _ = bar.firstTextInputResponder?.becomeFirstResponder()
+        }
+    }
+
+    /// Holds the context menu's blur into the edit it just opened, and floats the edited message
+    /// above it — the message being edited ends up the one sharp thing above the composer, which is
+    /// how WhatsApp presents an edit.
+    ///
+    /// Called from the menu action itself, which runs before the menu starts to dismiss, so the
+    /// blur is claimed before the dismissal would have faded it: holding the one blur is what keeps
+    /// the transcript from flashing back to legible between the menu and the edit. The floated copy
+    /// waits for the menu to finish, because until then UIKit is still holding the row's own bubble
+    /// as the lifted preview and the cell underneath is hidden.
+    public func beginEditSpotlight(for stableID: String) {
+        editedStableID = stableID
+        backdrop.present(over: contextMenuBackdropHost, animator: nil)
+        backdrop.hold(under: bar)
+        transcript.afterContextMenu { [weak self] in self?.refreshEditSpotlight() }
+    }
+
+    /// Takes the blur down once the edit is over, however it ended.
+    public func endEditSpotlight() {
+        guard editedStableID != nil else { return }
+        editedStableID = nil
+        backdrop.release()
+    }
+
+    /// Puts the edited message's copy where its row now sits — floating it the first time, and
+    /// re-framing it on every reflow after that, since the copy lives outside the transcript and
+    /// doesn't follow the cell on its own. A row scrolled out of the transcript leaves the copy at
+    /// its last frame rather than dropping it, so the message stays on screen for the whole edit.
+    private func refreshEditSpotlight() {
+        guard let editedStableID,
+              let frame = transcript.bubbleFrame(forStableID: editedStableID, in: view) else { return }
+        if backdrop.hasSpotlight {
+            backdrop.moveSpotlight(to: frame)
+        } else if let bubble = transcript.bubbleSnapshot(forStableID: editedStableID) {
+            backdrop.setSpotlight(bubble, at: frame)
+        }
+    }
+
+    /// The view the context-menu blur covers: the navigation stack when this screen is inside one,
+    /// so the navigation bar goes soft with the transcript and the composer, and this screen's own
+    /// view otherwise.
+    private var contextMenuBackdropHost: UIView {
+        var ancestor = parent
+        while let current = ancestor {
+            if let navigation = current as? UINavigationController { return navigation.view }
+            ancestor = current.parent
+        }
+        return view
     }
 
     /// Adds a hosted bar pinned to the view's width and bottom; returns the height constraint
@@ -190,13 +289,44 @@ public final class ChatScreenViewController: UIViewController {
         // (app foregrounding) doesn't force the keyboard back up.
         guard focusesComposerOnAppear, !didFocusComposer else { return }
         didFocusComposer = true
-        bar.firstTextInputResponder?.becomeFirstResponder()
+        focusComposer()
+    }
+
+    /// Raise the keyboard for the bar's field. A hosted SwiftUI `@FocusState` set programmatically
+    /// moves the caret into the field but never makes it first responder across the hosting
+    /// boundary, so the keyboard never arrives and the field takes no input — only this does. Waits
+    /// out any open context menu, which owns the screen and would refuse the responder change.
+    public func focusComposer() {
+        transcript.afterContextMenu { [weak self] in
+            self?.bar.firstTextInputResponder?.becomeFirstResponder()
+        }
+    }
+
+    /// Keep the keyboard down, for a menu action that hands off to a sheet. The menu already lowered
+    /// it, so the work here is cancelling the restore that would otherwise put the keyboard back on
+    /// top of whatever the action presented; the resigns cover the callers that had no menu open.
+    public func dismissKeyboard() {
+        composerHeldKeyboardUnderMenu = false
+        _ = bar.firstTextInputResponder?.resignFirstResponder()
+        transcript.afterContextMenu { [weak self] in
+            _ = self?.bar.firstTextInputResponder?.resignFirstResponder()
+        }
     }
 
     /// Set the bar's height to its measured SwiftUI content height.
     public func setBarHeight(_ height: CGFloat) {
         guard barHeightConstraint != nil, barHeightConstraint.constant != height else { return }
+        // First measurement (or off-screen): apply it flat, so the push doesn't animate the bar in.
+        let isFirst = !didMeasureBar
+        didMeasureBar = true
         barHeightConstraint.constant = height
+        guard !isFirst, view.window != nil else { return }
+        // Lay out inside the animation so the transcript's inset change — `viewDidLayoutSubviews`
+        // feeds the new bar height to `setBottomInset` — rides the same curve and the content
+        // scrolls up with the bar, instead of snapping on whatever layout pass happens to run next.
+        UIView.animate(springDuration: ChatMotion.swap.duration, bounce: ChatMotion.swap.bounce) {
+            self.view.layoutIfNeeded()
+        }
     }
 
     // MARK: - Data passthrough
@@ -213,6 +343,7 @@ public final class ChatScreenViewController: UIViewController {
         // has to stay opaque for; it holds until just above the title and clears over the tail.
         topFadeHeightConstraint.constant = view.safeAreaInsets.top + Self.topFadeTail
         topFade.opaqueLength = max(view.safeAreaInsets.top - 12, 0)
+        refreshEditSpotlight()
         // Reserve only the bar's own height. On-device the system already grows the collection
         // view's adjusted content inset by the keyboard when it's up, so adding the keyboard here
         // too (via the bar's risen position) double-counts it and overscrolls by a whole keyboard.

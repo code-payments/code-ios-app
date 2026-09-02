@@ -1,0 +1,16 @@
+# Signs the device into the UI-test account through the app's own login deeplink —
+# the same path FlipcashUITests uses (FlipcashUITests/Support/BaseUITestCase.swift).
+# The access key never lives in this file; pass it in at run time:
+#
+#   maestro test .maestro/login.yaml -e ACCESS_KEY="$(...)"
+#
+# Run this first when another flow needs a signed-in app.
+appId: com.flipcash.app.ios
+---
+- launchApp
+- openLink: "flipcash://login#e=${ACCESS_KEY}"
+
+# Login pulls the account down from the server, so give it room.
+- extendedWaitUntil:
+    visible: "Wallet"
+    timeout: 60000

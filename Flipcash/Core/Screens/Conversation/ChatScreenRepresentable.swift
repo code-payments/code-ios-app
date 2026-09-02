@@ -34,6 +34,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onContactAction: () -> Void
     /// Fired when the user taps the profile card in a tip DM; nil disables the card tap.
     let onProfileTap: (() -> Void)?
+    /// Fired when a context-menu action is chosen on a row, with the row's stable id. Copy never
+    /// arrives here — the transcript puts the text on the pasteboard itself.
+    let onMessageAction: (String, MessageCapability) -> Void
     let showsSendCash: Bool
     let chatExists: Bool
     let conversationID: ConversationID?
@@ -41,6 +44,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onSendCash: () -> Void
     let conversationController: ConversationController
     let barModel: ConversationBarModel
+    let composer: ComposerModel
+    /// The row an edit is open on, or nil. Passed in rather than read off `composer` inside the
+    /// representable so that the owning view's body depends on it — which is what gets
+    /// `updateUIViewController` called, and the edit backdrop taken down, when the edit ends.
+    let editingStableID: String?
     /// Raise the keyboard when the screen first appears (post-tip open). The UIKit screen focuses
     /// the composer field in `viewDidAppear` — a hosted SwiftUI `@FocusState` never presents the
     /// keyboard across the hosting boundary.
@@ -59,6 +67,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
+        screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
+        screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
@@ -76,6 +86,14 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
+        screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
+        screen.onCancelEdit = { [composer] in composer.endEditing() }
+        // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
+        // has to claim the menu's blur before the dismissal fades it; it comes down here, whichever
+        // way the edit ended — cancelled, saved, or abandoned by a tap outside.
+        if editingStableID == nil {
+            screen.endEditSpotlight()
+        }
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
         // (skipping any trailing receipt) that is from me. Received messages and prepended history
@@ -89,6 +107,28 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             screen.scrollToBottom(animated: true)
         }
         context.coordinator.lastMessageID = newLastMessageID
+    }
+
+    /// Wraps the action handler so the screen follows the action. The menu dismissed the keyboard
+    /// to present itself and the composer can't drive it back on its own — a hosted SwiftUI
+    /// `@FocusState` doesn't make the field first responder — so only the screen can raise it for an
+    /// edit, or hold it down for a delete, whose confirmation sheet it would otherwise cover. Edit
+    /// also claims the menu's blur here, while the menu is still up, so the two states share one
+    /// backdrop instead of fading one out and another in.
+    private func keyboardFollowing(
+        _ handler: @escaping (String, MessageCapability) -> Void,
+        screen: ChatScreenViewController
+    ) -> (String, MessageCapability) -> Void {
+        { [weak screen] stableID, action in
+            handler(stableID, action)
+            switch action {
+            case .edit:
+                screen?.beginEditSpotlight(for: stableID)
+                screen?.focusComposer()
+            case .delete:       screen?.dismissKeyboard()
+            case .copy, .reply: break
+            }
+        }
     }
 
     private func lastMessage(of items: [ChatItem]) -> ChatItem? {
@@ -108,6 +148,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 symbol: symbol,
                 onSendCash: onSendCash,
                 model: barModel,
+                composer: composer,
                 isTipDm: isTipDm
             )
             .environment(conversationController)

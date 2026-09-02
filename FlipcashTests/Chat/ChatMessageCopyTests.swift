@@ -41,7 +41,7 @@ struct ChatMessageCopyTests {
     @Test("A text message offers a context menu")
     func textMessage_offersMenu() {
         let controller = loadedController([
-            .message(ChatMessage(id: "a", text: "Hello there", sender: .other)),
+            .message(ChatMessage(id: "a", text: "Hello there", sender: .other, actions: [.copy])),
         ])
         #expect(configuration(controller, at: 0) != nil)
     }
@@ -49,8 +49,8 @@ struct ChatMessageCopyTests {
     @Test("The configuration identifier encodes the section and item, so the preview can resolve the cell")
     func configuration_identifierEncodesIndexPath() {
         let controller = loadedController([
-            .message(ChatMessage(id: "a", text: "first", sender: .me)),
-            .message(ChatMessage(id: "b", text: "second", sender: .other)),
+            .message(ChatMessage(id: "a", text: "first", sender: .me, actions: [.copy])),
+            .message(ChatMessage(id: "b", text: "second", sender: .other, actions: [.copy])),
         ])
         #expect(configuration(controller, at: 1)?.identifier as? String == "0|1")
     }
@@ -74,14 +74,14 @@ struct ChatMessageCopyTests {
 
     @Test("A message arriving while the menu is open is held, not applied")
     func openMenu_defersPushedUpdate() {
-        let controller = loadedController([.message(ChatMessage(id: "a", text: "Hello", sender: .me))])
+        let controller = loadedController([.message(ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy]))])
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 1)
 
         // Open the menu, then a new message is pushed while it's up.
         #expect(configuration(controller, at: 0) != nil)
         controller.update(items: [
-            .message(ChatMessage(id: "a", text: "Hello", sender: .me)),
-            .message(ChatMessage(id: "b", text: "Just arrived", sender: .other)),
+            .message(ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy])),
+            .message(ChatMessage(id: "b", text: "Just arrived", sender: .other, actions: [.copy])),
         ])
 
         // Held — the transcript doesn't reflow out from under the lifted preview.
@@ -90,11 +90,11 @@ struct ChatMessageCopyTests {
 
     @Test("Closing the menu applies the update that arrived while it was open")
     func closingMenu_appliesDeferredUpdate() {
-        let controller = loadedController([.message(ChatMessage(id: "a", text: "Hello", sender: .me))])
+        let controller = loadedController([.message(ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy]))])
         #expect(configuration(controller, at: 0) != nil)
         controller.update(items: [
-            .message(ChatMessage(id: "a", text: "Hello", sender: .me)),
-            .message(ChatMessage(id: "b", text: "Just arrived", sender: .other)),
+            .message(ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy])),
+            .message(ChatMessage(id: "b", text: "Just arrived", sender: .other, actions: [.copy])),
         ])
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 1) // held
 
