@@ -46,6 +46,8 @@ public final class ChatScreenViewController: UIViewController {
     /// it back when that menu goes. Cleared by `dismissKeyboard()` so an action handing off to a sheet
     /// isn't fought by the restore.
     private var composerHeldKeyboardUnderMenu = false
+    /// The blur shown behind a context menu.
+    private let backdrop = ContextMenuBackdrop()
     /// Whether a measured bar height has landed yet — the first one is applied without animation.
     private var didMeasureBar = false
 
@@ -132,7 +134,8 @@ public final class ChatScreenViewController: UIViewController {
         handOffComposerFocusAroundContextMenu()
     }
 
-    /// Takes the keyboard down for a context menu and gives it back once the menu has gone.
+    /// Blurs the screen behind a context menu, takes the keyboard down for its lifetime, and puts
+    /// both back once the menu has gone.
     ///
     /// UIKit hides the keyboard for a context menu's whole lifetime but leaves the field first
     /// responder, so the composer is left with a blinking caret, no keyboard, and no way to type
@@ -142,16 +145,32 @@ public final class ChatScreenViewController: UIViewController {
     /// restores what the long press interrupted, whether the menu closed on an action or on a tap
     /// outside.
     private func handOffComposerFocusAroundContextMenu() {
-        transcript.onContextMenuWillPresent = { [weak self] in
-            guard let self, let responder = bar.firstTextInputResponder else { return }
+        transcript.onContextMenuWillPresent = { [weak self] animator in
+            guard let self else { return }
+            backdrop.present(over: contextMenuBackdropHost, animator: animator)
+            guard let responder = bar.firstTextInputResponder else { return }
             composerHeldKeyboardUnderMenu = responder.isFirstResponder
             _ = responder.resignFirstResponder()
         }
-        transcript.onContextMenuDidDismiss = { [weak self] in
-            guard let self, composerHeldKeyboardUnderMenu else { return }
+        transcript.onContextMenuDidDismiss = { [weak self] animator in
+            guard let self else { return }
+            backdrop.dismiss(animator: animator)
+            guard composerHeldKeyboardUnderMenu else { return }
             composerHeldKeyboardUnderMenu = false
             _ = bar.firstTextInputResponder?.becomeFirstResponder()
         }
+    }
+
+    /// The view the context-menu blur covers: the navigation stack when this screen is inside one,
+    /// so the navigation bar goes soft with the transcript and the composer, and this screen's own
+    /// view otherwise.
+    private var contextMenuBackdropHost: UIView {
+        var ancestor = parent
+        while let current = ancestor {
+            if let navigation = current as? UINavigationController { return navigation.view }
+            ancestor = current.parent
+        }
+        return view
     }
 
     /// Adds a hosted bar pinned to the view's width and bottom; returns the height constraint

@@ -97,11 +97,12 @@ public final class ChatViewController: UICollectionViewController {
     /// banner covers the newest rows.
     private var pendingBottomInset: CGFloat?
 
-    /// Called as a context menu is presented and again once it has finished dismissing. UIKit hides
+    /// Called as a context menu is presented and again as it starts to dismiss, each carrying the
+    /// transition's animator so the screen can fade its own backdrop alongside the menu. UIKit hides
     /// the keyboard for the menu's lifetime but leaves the composer first responder, so the screen
-    /// uses these to make that an ordinary dismissal and to put the keyboard back afterwards.
-    var onContextMenuWillPresent: (() -> Void)?
-    var onContextMenuDidDismiss: (() -> Void)?
+    /// also uses these to make that an ordinary dismissal and to put the keyboard back afterwards.
+    var onContextMenuWillPresent: ((UIContextMenuInteractionAnimating?) -> Void)?
+    var onContextMenuDidDismiss: ((UIContextMenuInteractionAnimating?) -> Void)?
     /// Guards the lowering to once per menu — the display callback can fire for the lift and again
     /// for the menu itself.
     private var didLowerKeyboardForMenu = false
@@ -597,7 +598,7 @@ extension ChatViewController {
     public override func collectionView(_ collectionView: UICollectionView, willDisplayContextMenu configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionAnimating?) {
         guard !didLowerKeyboardForMenu else { return }
         didLowerKeyboardForMenu = true
-        onContextMenuWillPresent?()
+        onContextMenuWillPresent?(animator)
     }
 
     /// The menu is closing — hand the inset back to the system (the keyboard slides back, restoring the
@@ -609,7 +610,7 @@ extension ChatViewController {
         // still frozen at its keyboard-up value while it rises, so nothing reflows, and by the time
         // the completion hands the inset back the keyboard is where the system expects it.
         didLowerKeyboardForMenu = false
-        onContextMenuDidDismiss?()
+        onContextMenuDidDismiss?(animator)
 
         let resume: () -> Void = { [weak self] in
             guard let self else { return }
