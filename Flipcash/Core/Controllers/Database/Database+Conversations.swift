@@ -133,6 +133,17 @@ nonisolated extension Database {
         return try reader.scalar(m.table.filter(m.conversationId == conversationID.data && m.id == id.value).count) > 0
     }
 
+    /// The stored copy of one message, or `nil` if it is not in the local database. Mutations read
+    /// through this rather than the display window, because `expected_event_sequence` must come
+    /// from server truth, never from an optimistic overlay.
+    func message(id: MessageID, conversationID: ConversationID) throws -> ConversationMessage? {
+        let m = ConversationMessageTable()
+        let query = m.table.filter(m.conversationId == conversationID.data && m.id == id.value).limit(1)
+
+        guard let row = try reader.pluck(query) else { return nil }
+        return conversationMessage(from: row)
+    }
+
     /// All cached messages for a conversation, oldest first.
     func getConversationMessages(conversationID: ConversationID) throws -> [ConversationMessage] {
         let m = ConversationMessageTable()
@@ -367,6 +378,8 @@ nonisolated extension Database {
         var nativeAmount: String?
         var currency: CurrencyCode?
         var mint: PublicKey?
+        var deletedBy: UUID?
+        var deletedAt: Double?
 
         switch message.content {
         case .text(let value):
@@ -378,8 +391,10 @@ nonisolated extension Database {
             nativeAmount = amount.nativeAmount.value.description
             currency = amount.nativeAmount.currency
             mint = amount.mint
-        case .deleted:
+        case .deleted(let deletion):
             kind = 2
+            deletedBy = deletion.deletedBy
+            deletedAt = deletion.deletedAt.timeIntervalSinceReferenceDate
         }
 
         let cashAction: Int? = switch message.cashAction {
@@ -404,7 +419,12 @@ nonisolated extension Database {
                 m.date           <- message.date.timeIntervalSinceReferenceDate,
                 m.unreadSeq      <- message.unreadSeq,
                 m.eventSequence  <- message.eventSequence,
-                m.clientMessageID <- message.clientMessageID
+                m.clientMessageID <- message.clientMessageID,
+                // The reply plan fills this in; the column exists now so the schema bumps once.
+                m.repliedToId    <- nil,
+                m.lastEditedTs   <- message.lastEditedTs?.timeIntervalSinceReferenceDate,
+                m.deletedBy      <- deletedBy,
+                m.deletedAt      <- deletedAt
             )
         )
     }
@@ -437,6 +457,8 @@ nonisolated extension Database {
         default: nil
         }
 
+        let date = Date(timeIntervalSinceReferenceDate: row[m.date])
+
         let content: ConversationMessage.Content
         switch row[m.kind] {
         case 0:
@@ -462,7 +484,13 @@ nonisolated extension Database {
                 currencyRate: Rate(fx: fx, currency: currency)
             ))
         case 2:
-            content = .deleted
+            content = .deleted(
+                ConversationMessage.Deletion(
+                    deletedBy: row[m.deletedBy],
+                    // A row written before the deletion columns existed falls back to its own date.
+                    deletedAt: row[m.deletedAt].map(Date.init(timeIntervalSinceReferenceDate:)) ?? date
+                )
+            )
         default:
             return nil
         }
@@ -472,9 +500,10 @@ nonisolated extension Database {
             senderID: row[m.senderId],
             content: content,
             cashAction: cashAction,
-            date: Date(timeIntervalSinceReferenceDate: row[m.date]),
+            date: date,
             unreadSeq: row[m.unreadSeq],
             eventSequence: row[m.eventSequence],
+            lastEditedTs: row[m.lastEditedTs].map(Date.init(timeIntervalSinceReferenceDate:)),
             clientMessageID: row[m.clientMessageID]
         )
     }

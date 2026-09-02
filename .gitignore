@@ -53,3 +53,6 @@ Package.resolved
 .claude/worktrees
 # Maestro flow screenshots
 .maestro/screenshots/
+
+# Brainstorming visual companion sessions
+.superpowers/

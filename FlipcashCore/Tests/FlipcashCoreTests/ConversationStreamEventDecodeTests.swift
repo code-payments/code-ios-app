@@ -225,7 +225,7 @@ struct ConversationStreamEventDecodeTests {
         guard case .sent(let sent) = events[0].mutations.first else { Issue.record("expected .sent"); return }
         #expect(sent.content == .text("hi"))
         guard case .deleted(let tombstone) = events[1].mutations.first else { Issue.record("expected .deleted"); return }
-        #expect(tombstone.content == .deleted)
+        #expect(tombstone.isDeleted)
         #expect(tombstone.id.value == 3)
     }
 

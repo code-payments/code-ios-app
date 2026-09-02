@@ -27,15 +27,27 @@ public enum CashAction: Sendable, Hashable {
 /// A single message within a conversation.
 public struct ConversationMessage: Identifiable, Hashable, Sendable {
 
+    /// Who removed a message and when — the tombstone's payload. `deletedBy` is `nil` when the
+    /// server does not attribute the deletion (a moderation removal, for instance).
+    public struct Deletion: Hashable, Sendable {
+        public let deletedBy: UserID?
+        public let deletedAt: Date
+
+        public init(deletedBy: UserID?, deletedAt: Date) {
+            self.deletedBy = deletedBy
+            self.deletedAt = deletedAt
+        }
+    }
+
     /// The message payload. Cash messages are created server-side when a
     /// payment intent carries chat metadata — clients never send them directly.
-    /// `deleted` is a tombstone: the server (a moderation removal, or another
-    /// client's delete) replaced the content, so the row is retained for gapless
-    /// ordering but rendered nowhere.
+    /// `deleted` is a tombstone: the sender, another client, or a moderation
+    /// removal replaced the content, so the row is retained for gapless ordering
+    /// and rendered per the conversation's `DeletedMessagePresentation`.
     public enum Content: Hashable, Sendable {
         case text(String)
         case cash(ExchangedFiat)
-        case deleted
+        case deleted(Deletion)
     }
 
     public let id: MessageID
@@ -51,6 +63,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// newer one. Zero for optimistic sends and legacy cache rows that predate
     /// the event log — a real server copy (always `>= 1`) out-versions them.
     public let eventSequence: UInt64
+    /// When the sender last edited this message, or `nil` if it has never been edited.
+    public let lastEditedTs: Date?
     /// Delivery state. `.sent` for every server/cache message; `.sending`/`.failed` only for an
     /// in-flight optimistic message.
     public var status: SendStatus
@@ -68,6 +82,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         date: Date,
         unreadSeq: UInt64,
         eventSequence: UInt64 = 0,
+        lastEditedTs: Date? = nil,
         status: SendStatus = .sent,
         clientMessageID: UUID? = nil
     ) {
@@ -78,6 +93,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.date = date
         self.unreadSeq = unreadSeq
         self.eventSequence = eventSequence
+        self.lastEditedTs = lastEditedTs
         self.status = status
         self.clientMessageID = clientMessageID
     }
@@ -89,6 +105,29 @@ extension ConversationMessage {
     /// re-inserts. Falls back to the server id.
     public var stableID: String {
         clientMessageID?.uuidString ?? "\(id.value)"
+    }
+
+    /// Whether this message has been replaced by a tombstone.
+    public var isDeleted: Bool {
+        if case .deleted = content { true } else { false }
+    }
+
+    /// A copy carrying different content. Identity, ordering, and delivery status are preserved —
+    /// this exists for the optimistic mutation overlay, which changes what a message says and
+    /// nothing else about where it sits.
+    public func replacingContent(_ content: Content, lastEditedTs: Date?) -> ConversationMessage {
+        ConversationMessage(
+            id: id,
+            senderID: senderID,
+            content: content,
+            cashAction: cashAction,
+            date: date,
+            unreadSeq: unreadSeq,
+            eventSequence: eventSequence,
+            lastEditedTs: lastEditedTs,
+            status: status,
+            clientMessageID: clientMessageID
+        )
     }
 }
 
@@ -117,8 +156,13 @@ extension ConversationMessage {
             self.content = .cash(amount)
             // Unrecognized verbs fall back to `.sent`, per the proto contract.
             self.cashAction = cashContent.verb == .tipped ? .tipped : .sent
-        case .deleted:
-            self.content = .deleted
+        case .deleted(let deletedContent):
+            self.content = .deleted(
+                Deletion(
+                    deletedBy: deletedContent.hasDeletedBy ? try? UUID(data: deletedContent.deletedBy.value) : nil,
+                    deletedAt: deletedContent.hasDeletedTs ? deletedContent.deletedTs.date : proto.ts.date
+                )
+            )
             self.cashAction = nil
         case .reply, .media, .system, .none:
             return nil
@@ -129,6 +173,7 @@ extension ConversationMessage {
         self.date = proto.hasTs ? proto.ts.date : .now
         self.unreadSeq = proto.unreadSeq
         self.eventSequence = proto.eventSequence
+        self.lastEditedTs = proto.hasLastEditedTs ? proto.lastEditedTs.date : nil
         self.status = .sent
         self.clientMessageID = nil
     }
