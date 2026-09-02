@@ -398,12 +398,12 @@ struct ConversationScreen: View {
         guard let conversationID else { return }
 
         // WhatsApp's sheet offers "Delete for everyone" beside "Delete for me"; we have no
-        // delete-for-me, so the one action we do have keeps its label and stands alone.
+        // delete-for-me, so the one action we do have names its scope and stands alone.
         session.dialogItem = DialogItem.alert(
             title: "Delete message?",
-            subtitle: "This can't be undone."
+            subtitle: "This can't be undone"
         ) {
-            DialogAction.destructive("Delete for everyone") {
+            DialogAction.destructive("Delete For Everyone") {
                 Task { await conversationController.delete(messageID: messageID, in: conversationID) }
             }
             DialogAction.cancel()
