@@ -225,12 +225,20 @@ placeholder as a muted italic variant with no link detection and no tap.
 
 The "Edited" marker cannot ride the receipt line, because the receipt attaches only to the
 latest confirmed self message (`ChatItem+Conversation.swift:65`) and most edited messages
-will not have one. It is a muted suffix inside the bubble instead.
+will not have one. It takes WhatsApp's position by itself: a muted label pinned to the
+bubble's bottom-trailing corner, on the last line of the body where there is room and on a
+line of its own where there isn't. The body reserves that space with a clear-drawn copy of
+the marker's own glyphs, so the gap is exactly the label's width and the reservation wraps
+on its own rather than dragging the last word with it. `LinkableBubbleView` renders it from
+the same builder, so an edited link message is marked too.
 
-**Composer.** `ComposerMode` drives a dismissible banner above the field. Entering
-`.editing` pre-fills the field with the current text and turns send into a confirm.
-Entering edit mode must stash the in-progress `.new` draft and restore it on cancel,
-otherwise the user silently loses what they were typing.
+**Composer.** `ComposerMode` takes over the whole bar, following WhatsApp: entering `.editing`
+pre-fills the field with the current text, swaps Send Cash for a cancel control, and turns the send
+arrow into a checkmark that stays up for the length of the edit. There is no banner and no
+"Editing message" label — the pre-filled field and the swapped controls carry the state. Confirming
+an edit that changed nothing leaves edit mode without a request. Entering edit mode must stash the
+in-progress `.new` draft and restore it on cancel, otherwise the user silently loses what they were
+typing.
 
 **Scroll to quote.** `scrollToMessage(id:)` scrolls when the target is already rendered.
 When it is persisted but outside the window, `MessageLoader` moves its anchor to the quoted
