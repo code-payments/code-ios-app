@@ -181,7 +181,7 @@ public final class ChatScreenViewController: UIViewController {
     public func beginEditSpotlight(for stableID: String) {
         editedStableID = stableID
         backdrop.present(over: contextMenuBackdropHost, animator: nil)
-        backdrop.hold(under: bar)
+        backdrop.hold(clearing: bar, under: hostNavigationController?.navigationBar)
         transcript.afterContextMenu { [weak self] in self?.refreshEditSpotlight() }
     }
 
@@ -197,8 +197,13 @@ public final class ChatScreenViewController: UIViewController {
     /// doesn't follow the cell on its own. A row scrolled out of the transcript leaves the copy at
     /// its last frame rather than dropping it, so the message stays on screen for the whole edit.
     private func refreshEditSpotlight() {
+        // Measured in the backdrop's own host, which is the navigation stack rather than this
+        // screen whenever there is one to be in.
         guard let editedStableID,
-              let frame = transcript.bubbleFrame(forStableID: editedStableID, in: view) else { return }
+              let frame = transcript.bubbleFrame(
+                forStableID: editedStableID,
+                in: contextMenuBackdropHost
+              ) else { return }
         if backdrop.hasSpotlight {
             backdrop.moveSpotlight(to: frame)
         } else if let bubble = transcript.bubbleSnapshot(forStableID: editedStableID) {
@@ -206,16 +211,21 @@ public final class ChatScreenViewController: UIViewController {
         }
     }
 
-    /// The view the context-menu blur covers: the navigation stack when this screen is inside one,
-    /// so the navigation bar goes soft with the transcript and the composer, and this screen's own
-    /// view otherwise.
-    private var contextMenuBackdropHost: UIView {
+    /// The navigation stack this screen is inside, if any — the SwiftUI hosting controllers this
+    /// screen is wrapped in sit between the two, so it is reached by walking the parent chain.
+    private var hostNavigationController: UINavigationController? {
         var ancestor = parent
         while let current = ancestor {
-            if let navigation = current as? UINavigationController { return navigation.view }
+            if let navigation = current as? UINavigationController { return navigation }
             ancestor = current.parent
         }
-        return view
+        return nil
+    }
+
+    /// The view the blur covers: the navigation stack when this screen is inside one, so the
+    /// navigation bar goes soft with the transcript, and this screen's own view otherwise.
+    private var contextMenuBackdropHost: UIView {
+        hostNavigationController?.view ?? view
     }
 
     /// Adds a hosted bar pinned to the view's width and bottom; returns the height constraint
@@ -343,6 +353,7 @@ public final class ChatScreenViewController: UIViewController {
         // has to stay opaque for; it holds until just above the title and clears over the tail.
         topFadeHeightConstraint.constant = view.safeAreaInsets.top + Self.topFadeTail
         topFade.opaqueLength = max(view.safeAreaInsets.top - 12, 0)
+        backdrop.layoutHeld()
         refreshEditSpotlight()
         // Reserve only the bar's own height. On-device the system already grows the collection
         // view's adjusted content inset by the keyboard when it's up, so adding the keyboard here
