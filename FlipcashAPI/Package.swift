@@ -34,7 +34,7 @@ let contractDependencies: [Package.Dependency] = protoLocalRoot.map { root in
         .package(path: "\(root)/flipcash2-client-protocol"),
     ]
 } ?? [
-    .package(url: "https://github.com/code-payments/ocp-client-protocol", exact: "0.2.0"),
+    .package(url: "https://github.com/code-payments/ocp-client-protocol", exact: "0.3.0"),
     .package(url: "https://github.com/code-payments/flipcash2-client-protocol", exact: "0.4.0"),
 ]
 

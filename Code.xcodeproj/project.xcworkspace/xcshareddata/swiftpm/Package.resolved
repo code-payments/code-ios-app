@@ -212,8 +212,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/ocp-client-protocol",
       "state" : {
-        "revision" : "b08adb951fcaaa463da21a4dfaa775577254d052",
-        "version" : "0.2.0"
+        "revision" : "7c37ecc098d682ccf7ac95e5bd48ef770dbc7962",
+        "version" : "0.3.0"
       }
     },
     {
