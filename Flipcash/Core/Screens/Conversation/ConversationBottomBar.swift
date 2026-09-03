@@ -47,10 +47,12 @@ struct ConversationBottomBar: View {
     var isTipDm: Bool = false
 
     var body: some View {
-        // Top-aligned: the field is the side that grows (a multiline draft) and it grows upward off
-        // a pinned bar bottom, so anchoring the control beside it to the field's top edge keeps the
-        // two reading as one row instead of leaving the button stranded low.
-        let content = HStack(alignment: .top, spacing: 10) {
+        // Bottom-aligned, against the bar's own pinned bottom: the field is the side that grows, and
+        // top-aligning the control beside it made the control travel with every line the draft
+        // gained or lost. Nothing animates that travel — the bar's springs key on `chatExists` and
+        // `isEditing`, neither of which moves during a send — so it snapped while the bar's height
+        // sprang underneath it.
+        let content = HStack(alignment: .bottom, spacing: 10) {
             // An edit takes over the bar: the leading control becomes the way out of it and Send
             // Cash steps aside until it resolves, the way WhatsApp hides its accessory controls.
             if composer.isEditing {
