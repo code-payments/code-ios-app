@@ -78,14 +78,53 @@ extension MessageCapability {
             return []
         }
 
-        var capabilities: Set<MessageCapability> = [.copy, .delete]
-        if let window = policy.editWindow {
-            if now.timeIntervalSince(message.date) <= window {
-                capabilities.insert(.edit)
-            }
-        } else {
+        var capabilities: Set<MessageCapability> = [.copy]
+        if isWithin(policy.editWindow, of: message, at: now) {
             capabilities.insert(.edit)
         }
+        if isWithin(policy.deleteWindow, of: message, at: now) {
+            capabilities.insert(.delete)
+        }
         return capabilities
+    }
+
+    /// Whether `message` is still inside `window` at `now`. A `nil` window never lapses.
+    ///
+    /// The comparison is `<=`, so a message at exactly the window's length is still actionable.
+    /// Android's `MessageCapability.kt` uses `<=` at the same boundary; the two must agree.
+    private static func isWithin(_ window: TimeInterval?, of message: ConversationMessage, at now: Date) -> Bool {
+        guard let window else { return true }
+        return now.timeIntervalSince(message.date) <= window
+    }
+
+    /// The earliest instant after `now` at which some message in `messages` loses a capability, or
+    /// `nil` when none of them will ever change again.
+    ///
+    /// Eligibility runs through ``resolve(for:in:as:policy:now:)`` rather than re-deriving it, so a
+    /// message that has no windowed capability to lose — someone else's, a tombstone, an
+    /// unconfirmed send — contributes no deadline and the two stay in step by construction.
+    public static func nextExpiry(
+        among messages: [ConversationMessage],
+        in conversation: Conversation?,
+        as selfUserID: UserID,
+        policy: MessagePolicy,
+        now: Date
+    ) -> Date? {
+        var earliest: Date?
+        for message in messages {
+            let capabilities = resolve(for: message, in: conversation, as: selfUserID, policy: policy, now: now)
+            for capability in capabilities {
+                guard let window = policy.window(for: capability) else { continue }
+                let expiry = message.date.addingTimeInterval(window)
+                // `>=`, not `>`: the window boundary is inclusive, so a deadline landing exactly on
+                // `now` is one the capability is still granted at. Dropping it would leave the row
+                // actionable with no timer armed to take it away. The caller wakes a beat after the
+                // deadline rather than on it, so keeping this instant cannot re-arm on itself.
+                guard expiry >= now else { continue }
+                if let current = earliest, current <= expiry { continue }
+                earliest = expiry
+            }
+        }
+        return earliest
     }
 }
