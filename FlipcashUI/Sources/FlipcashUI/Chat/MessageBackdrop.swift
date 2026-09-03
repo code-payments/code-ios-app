@@ -28,6 +28,11 @@ final class MessageBackdrop {
     /// Matches the fade UIKit uses for its own dimming when no animator is supplied.
     private static let fallbackDuration: TimeInterval = 0.2
 
+    /// Stands in for the dimming UIKit lays over the screen while a context menu is up, which goes
+    /// with the menu. Without it a held blur reads about twice as light as the one the menu had —
+    /// measured on the same patch of empty transcript, rgb 23 under the menu against 44 after it.
+    private static let heldDimAlpha: CGFloat = 0.48
+
     /// Called when the held blur is tapped — the way out of an edit, as tapping outside the message
     /// is in WhatsApp. Never fires while a context menu owns the screen: the menu's own container
     /// sits above the blur and takes those taps.
@@ -39,6 +44,9 @@ final class MessageBackdrop {
     private let effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
     private var effectView: UIVisualEffectView?
     private var spotlight: UIView?
+    /// Replaces the menu's dimming once the menu is gone. Lives inside the blur, so it is clipped
+    /// and framed with it and sits under the floated copy.
+    private var dim: UIView?
     /// Holds the floated copy and clips it to the blur, so a copy of a row that has scrolled past
     /// either edge can't draw over the composer or the navigation bar.
     private var spotlightClip: UIView?
@@ -83,6 +91,17 @@ final class MessageBackdrop {
         }
         // The frame is driven by the bar from here on, so the host can no longer resize it.
         blur.autoresizingMask = []
+
+        // Fade the stand-in dim in now, while the menu is still up: its own dimming fades out with
+        // the dismissal, so the two cross and the screen never brightens between the states.
+        let dim = UIView(frame: blur.bounds)
+        dim.backgroundColor = .black
+        dim.alpha = 0
+        dim.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        dim.isUserInteractionEnabled = false
+        blur.contentView.addSubview(dim)
+        self.dim = dim
+        UIView.animate(withDuration: Self.fallbackDuration) { dim.alpha = Self.heldDimAlpha }
 
         let clip = UIView()
         clip.clipsToBounds = true
@@ -159,9 +178,12 @@ final class MessageBackdrop {
         spotlight = nil
         let clip = spotlightClip
         spotlightClip = nil
+        let dim = self.dim
+        self.dim = nil
         UIView.animate(withDuration: Self.fallbackDuration) {
             blur.effect = nil
             bubble?.alpha = 0
+            dim?.alpha = 0
         } completion: { _ in
             blur.removeFromSuperview()
             clip?.removeFromSuperview()
