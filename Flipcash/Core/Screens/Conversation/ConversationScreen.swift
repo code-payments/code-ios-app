@@ -418,7 +418,7 @@ struct ConversationScreen: View {
         // WhatsApp's sheet offers "Delete for everyone" beside "Delete for me"; we have no
         // delete-for-me, so the one action we do have names its scope and stands alone.
         session.dialogItem = DialogItem.alert(
-            title: "Delete message?",
+            title: "Delete Message?",
             subtitle: "This can't be undone"
         ) {
             DialogAction.destructive("Delete For Everyone") {
