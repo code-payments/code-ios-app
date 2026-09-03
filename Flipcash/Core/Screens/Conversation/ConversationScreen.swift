@@ -230,7 +230,22 @@ struct ConversationScreen: View {
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
+        // An edit blurs the whole screen behind the message being edited, navigation bar included,
+        // so the back button is the only thing up there worth keeping legible — and it backs out of
+        // the edit rather than out of the chat.
+        .navigationBarBackButtonHidden(composer.isEditing)
         .toolbar {
+            if composer.isEditing {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        composer.endEditing()
+                    } label: {
+                        Image(systemName: "chevron.backward")
+                            .foregroundStyle(Color.textMain)
+                    }
+                    .accessibilityLabel("Stop editing")
+                }
+            }
             ToolbarItem(placement: .principal) {
                 ConversationTitleItem(
                     title: title,
@@ -242,6 +257,9 @@ struct ConversationScreen: View {
                     onTap: titleTapAction,
                     opensProfile: profileTapAction != nil
                 )
+                .opacity(composer.isEditing ? 0 : 1)
+                .allowsHitTesting(!composer.isEditing)
+                .animation(.easeInOut(duration: 0.2), value: composer.isEditing)
             }
         }
         // Fetch the tip counterpart's avatar for the title and profile card.

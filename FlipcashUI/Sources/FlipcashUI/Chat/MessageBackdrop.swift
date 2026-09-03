@@ -18,8 +18,10 @@ import UIKit
 ///
 /// Choosing Edit holds the same blur past the menu rather than fading it and raising a second one,
 /// which is what keeps the transcript from flashing back to legible between the two states. Held,
-/// the blur moves below the composer bar so the field stays sharp and usable, carries a detached
-/// copy of the edited bubble above itself, and takes the taps that land outside it.
+/// it stays over the same host, so an edit is as soft as the menu was rather than sparing the
+/// navigation bar; it slides under that bar, so the back button stays legible above it; it stops at
+/// the top of the composer, the one piece of chrome an edit needs sharp; and it carries a detached
+/// copy of the edited bubble above itself and takes the taps that land outside it.
 @MainActor
 final class MessageBackdrop {
 
@@ -37,6 +39,8 @@ final class MessageBackdrop {
     private let effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
     private var effectView: UIVisualEffectView?
     private var spotlight: UIView?
+    /// The composer bar a held blur stops short of, re-measured on every layout pass.
+    private weak var clearance: UIView?
 
     /// Fades the blur in over `host`, riding `animator` so it lands with the menu. Presenting twice
     /// is a no-op: the display callback fires once for the lift and again for the menu.
@@ -60,19 +64,35 @@ final class MessageBackdrop {
         }
     }
 
-    /// Keeps the blur up after the menu that raised it goes, moving it under `bar` so the composer
-    /// stays sharp, and starts taking taps. The message itself is floated separately, by
-    /// `setSpotlight`, once the menu has finished putting its lifted preview back.
-    func hold(under bar: UIView) {
-        guard let blur = effectView, let host = bar.superview else { return }
+    /// Keeps the blur up after the menu that raised it goes, and starts taking taps. It stays over
+    /// the host the menu blurred, so nothing sharpens on the way into an edit, and only its z-order
+    /// and its bottom edge change: under `navigationBar`, so the back button stays legible and
+    /// tappable, and stopping at the top of `bar`, so the composer does too. The message itself is
+    /// floated separately, by `setSpotlight`, once the menu has finished putting its lifted preview
+    /// back.
+    func hold(clearing bar: UIView, under navigationBar: UIView?) {
+        guard let blur = effectView, let host = blur.superview else { return }
         isHeld = true
+        clearance = bar
 
-        blur.frame = host.bounds
-        host.insertSubview(blur, belowSubview: bar)
+        if let navigationBar, navigationBar.superview === host {
+            host.insertSubview(blur, belowSubview: navigationBar)
+        }
+        // The frame is driven by the bar from here on, so the host can no longer resize it.
+        blur.autoresizingMask = []
+        layoutHeld()
 
         blur.isUserInteractionEnabled = true
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap))
         blur.addGestureRecognizer(tap)
+    }
+
+    /// Re-measures a held blur against the composer bar, which rises and falls with the keyboard.
+    /// A no-op when nothing is held, so a layout pass outside an edit is harmless.
+    func layoutHeld() {
+        guard isHeld, let blur = effectView, let host = blur.superview, let bar = clearance else { return }
+        let barTop = bar.convert(bar.bounds, to: host).minY
+        blur.frame = CGRect(x: 0, y: 0, width: host.bounds.width, height: max(barTop, 0))
     }
 
     /// Floats `bubble` — a detached copy of the edited message — above a held blur, at `frame` in
@@ -121,6 +141,7 @@ final class MessageBackdrop {
         guard isHeld, let blur = effectView else { return }
         isHeld = false
         effectView = nil
+        clearance = nil
 
         let bubble = spotlight
         spotlight = nil
