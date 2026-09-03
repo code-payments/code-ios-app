@@ -230,8 +230,10 @@ struct ConversationScreen: View {
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
-        // The edit blur slides under the navigation bar, so the bar stays sharp through an edit —
-        // only the back button changes, to back out of the edit rather than out of the chat.
+        // The edit blur slides under the navigation bar, so the bar stays sharp through an edit.
+        // What it holds changes: the counterpart's name and avatar go, since the edit is about one
+        // message rather than the person, and the back button backs out of the edit rather than the
+        // chat — leaving the chevron alone in the bar.
         .navigationBarBackButtonHidden(composer.isEditing)
         .toolbar {
             if composer.isEditing {
@@ -244,19 +246,19 @@ struct ConversationScreen: View {
                     }
                     .accessibilityLabel("Stop editing")
                 }
-            }
-            ToolbarItem(placement: .principal) {
-                ConversationTitleItem(
-                    title: title,
-                    contact: contact,
-                    conversationID: conversationID,
-                    imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
-                    blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
-                    width: max(navBarWidth - Self.titleSideInset * 2, 0),
-                    showsAvatar: !composer.isEditing,
-                    onTap: titleTapAction,
-                    opensProfile: profileTapAction != nil
-                )
+            } else {
+                ToolbarItem(placement: .principal) {
+                    ConversationTitleItem(
+                        title: title,
+                        contact: contact,
+                        conversationID: conversationID,
+                        imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
+                        blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
+                        width: max(navBarWidth - Self.titleSideInset * 2, 0),
+                        onTap: titleTapAction,
+                        opensProfile: profileTapAction != nil
+                    )
+                }
             }
         }
         // Fetch the tip counterpart's avatar for the title and profile card.
@@ -590,7 +592,6 @@ private struct ConversationTitleItem: View {
     let imageData: Data?
     let blurhash: String?
     let width: CGFloat
-    let showsAvatar: Bool
     let onTap: (() -> Void)?
     let opensProfile: Bool
 
@@ -601,8 +602,7 @@ private struct ConversationTitleItem: View {
             conversationID: conversationID,
             imageData: imageData,
             blurhash: blurhash,
-            width: width,
-            showsAvatar: showsAvatar
+            width: width
         )
         if let onTap {
             let hint = opensProfile ? "Opens profile" : (contact != nil ? "Opens contact card" : "Adds to Contacts")
@@ -624,21 +624,17 @@ private struct ConversationTitleLabel: View {
     let imageData: Data?
     let blurhash: String?
     let width: CGFloat
-    /// Dropped during an edit, which leaves the name alone beside the back button.
-    let showsAvatar: Bool
 
     var body: some View {
         HStack(spacing: 12) {
-            if showsAvatar {
-                ContactAvatarView(
-                    id: contact?.contactId ?? conversationID?.description ?? title,
-                    displayName: title,
-                    imageData: imageData,
-                    blurhash: blurhash,
-                    size: 44
-                )
-                .accessibilityHidden(true)
-            }
+            ContactAvatarView(
+                id: contact?.contactId ?? conversationID?.description ?? title,
+                displayName: title,
+                imageData: imageData,
+                blurhash: blurhash,
+                size: 44
+            )
+            .accessibilityHidden(true)
             Text(title)
                 .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
