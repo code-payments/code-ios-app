@@ -657,7 +657,13 @@ extension ChatViewController {
     /// blur, because a `UIVisualEffectView` does not reliably honour a layer mask.
     func bubbleSnapshot(forStableID stableID: String) -> UIView? {
         guard let cell = bubbleCell(forStableID: stableID) else { return nil }
-        return cell.liftPreviewView.snapshotView(afterScreenUpdates: true)
+        let bubble = cell.liftPreviewView
+        // UIKit hides the row's own bubble for as long as its lifted preview is on screen and
+        // unhides it as the dismissal lands. Snapshotting in that window returns a view that is
+        // blank rather than nil, which would float an empty copy and never be retried — so report
+        // "not yet" and let the caller ask again.
+        guard !bubble.isHidden, bubble.alpha > 0, !bubble.bounds.isEmpty else { return nil }
+        return bubble.snapshotView(afterScreenUpdates: true)
     }
 
     /// Where that row's bubble currently sits, in `space`'s coordinates, or `nil` when it is not on
