@@ -20,12 +20,12 @@ let package = Package(
         .iOS(.v15),
     ],
     dependencies: [
-        .package(path: "/Users/bmc/dev/bmcreations/code/code-android-app/kmp/shared-core/spm"),
+        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.4.0")),
     ],
     targets: [
         .testTarget(
             name: "CrossPlatformVectorsTests",
-            dependencies: [.product(name: "SharedCoreKit", package: "spm")],
+            dependencies: [.product(name: "SharedCoreKit", package: "flipcash-shared-core-spm")],
             resources: [.copy("Fixtures")]
         ),
     ]

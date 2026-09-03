@@ -19,7 +19,7 @@ let package = Package(
         .package(url: "https://github.com/ekazaev/ChatLayout", from: "2.4.2"),
         .package(url: "https://github.com/ra1028/DifferenceKit", from: "1.3.0"),
         .package(url: "https://github.com/onevcat/Kingfisher", from: "8.3.0"),
-        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.3.1")),
+        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.4.0")),
     ],
     targets: [
         .target(
