@@ -13,12 +13,20 @@ import FlipcashCore
 /// column, hugging the leading or trailing edge by sender. A subclass builds its content view (a
 /// bubble or a card), hands it to `installColumn(content:)` from `init`, then calls `updateColumn(for:)`
 /// from its own `configure`. The receipt collapses out of the column when the message carries none.
+///
+/// The column spans the full row and the stack's `alignment` does the hugging, rather than the column
+/// hugging its content with one floating edge. A floating edge made the column's width the receipt's
+/// for short messages, so clearing the receipt moved the column sideways by the difference and only
+/// left the bubble still because the bubble's offset inside the stack moved the other way by exactly
+/// as much. That cancellation holds on final values; mid-animation it is three separate layer
+/// animations, and any one of them off the others' curve slides the bubble sideways.
 public class ChatColumnCell: UICollectionViewCell {
 
     private let receipt = ChatReceiptView()
     private let column = UIStackView()
-    private var leadingConstraint: NSLayoutConstraint!
-    private var trailingConstraint: NSLayoutConstraint!
+    /// The subclass's content view, kept so the retry recognizer can restrict itself to the visible
+    /// row — the column spans the full width, so its own bounds are not the hit area.
+    private var content: UIView?
 
     /// Fired when the user taps a failed row to retry; the argument is the message's stable id.
     var onRetry: ((String) -> Void)?
@@ -32,10 +40,11 @@ public class ChatColumnCell: UICollectionViewCell {
     /// directly, so it never replays this cell's prior line (a reused failed cell flashing red).
     private var currentMessageID: String?
 
-    /// Stacks `content` above the receipt and pins the column into the contentView, pinning top and
-    /// bottom so the cell self-sizes to the content plus the receipt line. Call once, from the
-    /// subclass's `init`, after the content view exists.
+    /// Stacks `content` above the receipt and pins the column to all four edges of the contentView,
+    /// so the cell self-sizes to the content plus the receipt line. Call once, from the subclass's
+    /// `init`, after the content view exists.
     func installColumn(content: UIView) {
+        self.content = content
         column.axis = .vertical
         column.spacing = 4
         column.addArrangedSubview(content)
@@ -45,19 +54,35 @@ public class ChatColumnCell: UICollectionViewCell {
 
         // The whole bubble + status line is the retry target (a generous hit area vs. the thin receipt
         // line). The recognizer is enabled only for a failed row (see updateColumn), so non-failed
-        // bubbles don't consume taps and keep their long-press copy menu.
+        // bubbles don't consume taps and keep their long-press copy menu. It sits on the column rather
+        // than the content view because a failed link row disables its bubble's interaction to stop
+        // URL taps, which would otherwise take the retry with it.
         let tap = UITapGestureRecognizer(target: self, action: #selector(retryTapped))
         tap.isEnabled = false
+        tap.delegate = self
         column.addGestureRecognizer(tap)
         retryTap = tap
 
-        leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
-        trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
-
         NSLayoutConstraint.activate([
+            column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
             column.topAnchor.constraint(equalTo: contentView.topAnchor),
             column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
+    }
+
+    /// Self-sizes on height alone, at the width the layout asked for. The column spans the row, so
+    /// the default implementation's compressed horizontal fit measures the cell at its content width
+    /// instead — a width the layout then discards, having already forced the row to full width.
+    public override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
+        let width = layoutAttributes.frame.width
+        let height = contentView.systemLayoutSizeFitting(
+            CGSize(width: width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        layoutAttributes.frame.size = CGSize(width: width, height: height)
+        return layoutAttributes
     }
 
     public override func prepareForReuse() {
@@ -85,21 +110,21 @@ public class ChatColumnCell: UICollectionViewCell {
         retryTap?.isEnabled = message.isFailed
         receipt.setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
         column.alignment = message.sender == .me ? .trailing : .leading
-        applyAlignment(isFromSelf: message.sender == .me)
     }
 
     @objc private func retryTapped() {
         guard let retryID else { return }
         onRetry?(retryID)
     }
+}
 
-    /// Exactly one horizontal edge is pinned, so the column hugs its sender's side and the opposite
-    /// edge floats. Both edges are deactivated before the wanted one is activated: a recycled cell
-    /// still carries its prior encapsulated layout width, so momentarily pinning both edges
-    /// over-constrains it and trips Auto Layout's unsatisfiable-constraints check.
-    private func applyAlignment(isFromSelf: Bool) {
-        NSLayoutConstraint.deactivate([leadingConstraint, trailingConstraint])
-        (isFromSelf ? trailingConstraint : leadingConstraint).isActive = true
+extension ChatColumnCell: UIGestureRecognizerDelegate {
+
+    /// Keeps retry to the row the user can see. The column spans the full width so its frame doesn't
+    /// move when the receipt collapses, which leaves the empty half of the row inside its bounds.
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        let point = touch.location(in: column)
+        return (content.map { $0.frame.contains(point) } ?? false) || (!receipt.isHidden && receipt.frame.contains(point))
     }
 }
 #endif
