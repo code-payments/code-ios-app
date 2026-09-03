@@ -105,12 +105,14 @@ public nonisolated enum ChatMotion {
     public static let insertion = ChatSpring(duration: 0.23, bounce: 0.27)
     /// The list settling at the bottom after content is appended.
     public static let scroll = ChatSpring(duration: 0.30, bounce: 0.12)
-    /// The scroll that accompanies the keyboard.
+    /// The transcript following the bottom chrome — the keyboard, or the bar resizing around a
+    /// multiline draft.
     ///
-    /// Nothing calls this today. The transcript inherits the system keyboard curve directly (see
-    /// `ChatViewController.scrollViewDidChangeAdjustedContentInset`), which is the same intent this
-    /// spring's zero bounce encodes — any overshoot would fight the keyboard. It stays defined so
-    /// the vocabulary is complete and the spec's eight springs are all covered by the physics test.
+    /// The keyboard case inherits the system curve directly (see
+    /// `ChatViewController.scrollViewDidChangeAdjustedContentInset`) rather than this spring, which
+    /// is the same intent the zero bounce encodes: any overshoot would fight the keyboard. The bar
+    /// case has no curve to inherit, so `ChatScreenViewController.setBarHeight` uses this one — and
+    /// wants the same stillness, since a send runs it alongside `insertion` and `scroll`.
     public static let keyboardScroll = ChatSpring(duration: 0.30, bounce: 0)
     /// The "Delivered" line appearing under a sent bubble. Slow and gentle: it arrives after the
     /// message has landed and shouldn't compete with it.

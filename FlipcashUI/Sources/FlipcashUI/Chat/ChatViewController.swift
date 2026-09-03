@@ -97,10 +97,11 @@ public final class ChatViewController: UICollectionViewController {
     /// A transcript pushed while the menu was up, applied once it closes (so an arriving message can't
     /// reflow the content mid-preview). Mirrors ChatLayout deferring updates while `.showingPreview`.
     private var deferredItems: [ChatItem]?
-    /// A bottom inset requested while the menu had the inset frozen, applied once it closes. The bar
-    /// can grow from a menu action — choosing Edit opens the editing banner — and that request lands
-    /// during the freeze, so without holding it the transcript keeps the shorter bar's inset and the
-    /// banner covers the newest rows.
+    /// A bottom inset requested while the inset was not the caller's to change — the menu had it
+    /// frozen, or a batch update was in flight — applied as soon as it is. The bar can grow from a
+    /// menu action (choosing Edit opens the editing banner) and can shrink from a send (a multiline
+    /// draft collapsing), and both land inside one of those windows; without holding the request the
+    /// transcript keeps the old bar's inset until some later layout pass corrects it.
     private var pendingBottomInset: CGFloat?
 
     /// Called as a context menu is presented and again as it starts to dismiss, each carrying the
@@ -253,7 +254,12 @@ public final class ChatViewController: UICollectionViewController {
                     }
                 },
                 completion: { [weak self] _ in
-                    self?.isUpdating = false
+                    guard let self else { return }
+                    isUpdating = false
+                    if let inset = pendingBottomInset {
+                        pendingBottomInset = nil
+                        setBottomInset(inset)
+                    }
                 },
                 setData: { [weak self] data in
                     self?.items = data
@@ -423,10 +429,17 @@ public final class ChatViewController: UICollectionViewController {
             return
         }
         // Never change the inset mid-batch-update: ChatLayout can't account for an inset change
-        // during `performBatchUpdates`, which is what made an append (a send) overshoot. The next
-        // layout pass after the update re-applies it.
+        // during `performBatchUpdates`, which is what made an append (a send) overshoot. Hold it for
+        // the update's completion rather than waiting for whatever layout pass happens to run next —
+        // a send that also collapses a multiline field lands the bar's new height inside the update,
+        // and dropping the request there left the bar animating to a height the transcript only
+        // matched a pass later, as a snap.
+        guard !isUpdating else {
+            pendingBottomInset = inset
+            return
+        }
         let target = inset + Self.bottomContentPadding
-        guard isViewLoaded, !isUpdating, abs(collectionView.contentInset.bottom - target) > 0.5 else { return }
+        guard isViewLoaded, abs(collectionView.contentInset.bottom - target) > 0.5 else { return }
         let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
         isAdjustingBottomInset = true // suppress the delegate re-entry from the inset write below
         collectionView.contentInset.bottom = target

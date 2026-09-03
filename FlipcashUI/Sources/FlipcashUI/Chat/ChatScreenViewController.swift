@@ -380,7 +380,14 @@ public final class ChatScreenViewController: UIViewController {
         // Lay out inside the animation so the transcript's inset change — `viewDidLayoutSubviews`
         // feeds the new bar height to `setBottomInset` — rides the same curve and the content
         // scrolls up with the bar, instead of snapping on whatever layout pass happens to run next.
-        UIView.animate(springDuration: ChatMotion.swap.duration, bounce: ChatMotion.swap.bounce) {
+        //
+        // The transcript's own spring, not the bar's: a height change moves the content, and a send
+        // collapses a multiline field at the same moment the insertion and the settle-to-bottom are
+        // running. `swap` is the bounciest spring in the vocabulary bar one, and three curves
+        // overshooting the same pixels by different amounts is what read as the bar and the
+        // transcript coming apart. Zero bounce keeps this one out of the other two's way.
+        let spring = ChatMotion.keyboardScroll
+        UIView.animate(springDuration: spring.duration, bounce: spring.bounce) {
             self.view.layoutIfNeeded()
         }
     }
