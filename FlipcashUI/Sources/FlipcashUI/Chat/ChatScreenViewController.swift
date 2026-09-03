@@ -50,6 +50,13 @@ public final class ChatScreenViewController: UIViewController {
     private let backdrop = MessageBackdrop()
     /// The row floated above a held blur, while an edit is open on it.
     private var editedStableID: String?
+    /// Deferred attempts left at floating the edited message's copy. The menu's dismissal
+    /// completion lands while UIKit is still putting the row's own bubble back, so the first
+    /// attempt usually has nothing to copy; retrying over the next few runloop turns catches it
+    /// without waiting on a layout pass or a scroll that may never come.
+    private var spotlightAttemptsRemaining = 0
+    /// How many of those attempts a single edit gets.
+    private static let spotlightAttempts = 8
     /// Whether a measured bar height has landed yet — the first one is applied without animation.
     private var didMeasureBar = false
 
@@ -182,13 +189,17 @@ public final class ChatScreenViewController: UIViewController {
         editedStableID = stableID
         backdrop.present(over: contextMenuBackdropHost, animator: nil)
         backdrop.hold(clearing: bar, under: hostNavigationController?.navigationBar)
-        transcript.afterContextMenu { [weak self] in self?.refreshEditSpotlight() }
+        transcript.afterContextMenu { [weak self] in
+            self?.spotlightAttemptsRemaining = Self.spotlightAttempts
+            self?.refreshEditSpotlight()
+        }
     }
 
     /// Takes the blur down once the edit is over, however it ended.
     public func endEditSpotlight() {
         guard editedStableID != nil else { return }
         editedStableID = nil
+        spotlightAttemptsRemaining = 0
         backdrop.release()
     }
 
@@ -197,18 +208,19 @@ public final class ChatScreenViewController: UIViewController {
     /// doesn't follow the cell on its own. A row scrolled out of the transcript leaves the copy at
     /// its last frame rather than dropping it, so the message stays on screen for the whole edit.
     private func refreshEditSpotlight() {
+        guard let editedStableID else { return }
         // Measured in the backdrop's own host, which is the navigation stack rather than this
         // screen whenever there is one to be in.
-        guard let editedStableID,
-              let frame = transcript.bubbleFrame(
-                forStableID: editedStableID,
-                in: contextMenuBackdropHost
-              ) else { return }
-        if backdrop.hasSpotlight {
-            backdrop.moveSpotlight(to: frame)
-        } else if let bubble = transcript.bubbleSnapshot(forStableID: editedStableID) {
-            backdrop.setSpotlight(bubble, at: frame)
+        if let frame = transcript.bubbleFrame(forStableID: editedStableID, in: contextMenuBackdropHost) {
+            if backdrop.hasSpotlight {
+                backdrop.moveSpotlight(to: frame)
+            } else if let bubble = transcript.bubbleSnapshot(forStableID: editedStableID) {
+                backdrop.setSpotlight(bubble, at: frame)
+            }
         }
+        guard !backdrop.hasSpotlight, spotlightAttemptsRemaining > 0 else { return }
+        spotlightAttemptsRemaining -= 1
+        Task { @MainActor [weak self] in self?.refreshEditSpotlight() }
     }
 
     /// The navigation stack this screen is inside, if any — the SwiftUI hosting controllers this
