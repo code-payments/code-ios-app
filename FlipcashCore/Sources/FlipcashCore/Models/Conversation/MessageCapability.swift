@@ -116,7 +116,11 @@ extension MessageCapability {
             for capability in capabilities {
                 guard let window = policy.window(for: capability) else { continue }
                 let expiry = message.date.addingTimeInterval(window)
-                guard expiry > now else { continue }
+                // `>=`, not `>`: the window boundary is inclusive, so a deadline landing exactly on
+                // `now` is one the capability is still granted at. Dropping it would leave the row
+                // actionable with no timer armed to take it away. The caller wakes a beat after the
+                // deadline rather than on it, so keeping this instant cannot re-arm on itself.
+                guard expiry >= now else { continue }
                 if let current = earliest, current <= expiry { continue }
                 earliest = expiry
             }

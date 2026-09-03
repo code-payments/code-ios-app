@@ -181,6 +181,20 @@ struct MessageCapabilityTests {
         #expect(expiry == older.date.addingTimeInterval(900))
     }
 
+    @Test("A deadline landing exactly on now is still scheduled — the capability is granted at that instant")
+    func deadlineExactlyAtNowIsScheduled() {
+        // `resolve` grants edit at exactly the window's length, so the deadline that takes it away
+        // has to survive `nextExpiry` too; dropping it would leave Edit on the row with no timer to
+        // remove it. The delete deadline is still far ahead, so only the inclusive edit boundary can
+        // produce this answer.
+        let policy = windows(edit: 900, delete: 172_800)
+        let message = text("hi", from: me, sentAgo: 900)
+        #expect(resolve(message, policy: policy).contains(.edit))
+        #expect(MessageCapability.nextExpiry(
+            among: [message], in: nil, as: me, policy: policy, now: now
+        ) == now)
+    }
+
     @Test("A message whose windows have all lapsed schedules nothing")
     func fullyLapsedMessageSchedulesNothing() {
         let policy = windows(edit: 900, delete: 172_800)
