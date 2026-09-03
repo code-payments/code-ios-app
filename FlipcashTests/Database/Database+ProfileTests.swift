@@ -29,7 +29,9 @@ struct DatabaseProfileTests {
         tipPresets: [
             UserFlags.TipPresets(currency: .usd, minimum: 1, low: 5, medium: 10, high: 20),
             UserFlags.TipPresets(currency: .cad, minimum: 2, low: 5, medium: 10, high: 25),
-        ]
+        ],
+        messageEditWindow: 900,
+        messageDeleteWindow: 300
     )
 
     /// Restricted account: no onramp providers, unset timeout, zero fees.
@@ -48,7 +50,9 @@ struct DatabaseProfileTests {
         enablePhoneNumberSend: false,
         requireCoinbaseEmailVerification: false,
         preferredOnrampUsdcLiquidityPool: .unknown,
-        tipPresets: []
+        tipPresets: [],
+        messageEditWindow: nil,
+        messageDeleteWindow: nil
     )
 
     // MARK: - Empty (fresh install) -
