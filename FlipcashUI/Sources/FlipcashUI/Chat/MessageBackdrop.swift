@@ -17,11 +17,11 @@ import UIKit
 /// the menu itself in a container above the window's root, so the platter and the lift stay sharp.
 ///
 /// Choosing Edit holds the same blur past the menu rather than fading it and raising a second one,
-/// which is what keeps the transcript from flashing back to legible between the two states. Held,
-/// it stays over the same host, so an edit is as soft as the menu was rather than sparing the
-/// navigation bar; it slides under that bar, so the back button stays legible above it; it stops at
-/// the top of the composer, the one piece of chrome an edit needs sharp; and it carries a detached
-/// copy of the edited bubble above itself and takes the taps that land outside it.
+/// which is what keeps the transcript from flashing back to legible between the two states. Held, it
+/// slides down the hierarchy to just under the composer, so the transcript stays soft to the bottom
+/// of the screen while the composer and the navigation bar — the two pieces of chrome an edit needs
+/// sharp — draw over it; and it carries a detached copy of the edited bubble above itself and takes
+/// the taps that land outside it.
 @MainActor
 final class MessageBackdrop {
 
@@ -29,9 +29,18 @@ final class MessageBackdrop {
     private static let fallbackDuration: TimeInterval = 0.2
 
     /// Stands in for the dimming UIKit lays over the screen while a context menu is up, which goes
-    /// with the menu. Without it a held blur reads about twice as light as the one the menu had —
-    /// measured on the same patch of empty transcript, rgb 23 under the menu against 44 after it.
-    private static let heldDimAlpha: CGFloat = 0.48
+    /// with the menu — measured on the same patch of empty transcript, rgb 23 under the menu against
+    /// 44 after it. Set well below the value that matches the menu exactly: matching it left an edit
+    /// as dark as the menu, which is heavier than Android's frosting of the same screen, and the
+    /// menu's own dimming isn't ours to lighten to meet it.
+    private static let heldDimAlpha: CGFloat = 0.2
+
+    /// How much of the material's blur is used. A `UIBlurEffect` has no radius to set — every style
+    /// is the same radius under a different tint — so the effect is applied through an animator that
+    /// is paused part-way, which is the only handle on its strength. At full strength the transcript
+    /// smears into flat colour; Android frosts the same screen at a 25dp radius and reads far softer,
+    /// and this is matched to that.
+    private static let blurFraction: CGFloat = 0.4
 
     /// Called when the held blur is tapped — the way out of an edit, as tapping outside the message
     /// is in WhatsApp. Never fires while a context menu owns the screen: the menu's own container
@@ -43,14 +52,18 @@ final class MessageBackdrop {
 
     private let effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
     private var effectView: UIVisualEffectView?
+    /// Holds the blur at `blurFraction`. Never played out — it is a dial, not an animation — but it
+    /// has to be kept alive and stopped by hand, since a property animator left active when it
+    /// deallocates traps.
+    private var blurStrength: UIViewPropertyAnimator?
     private var spotlight: UIView?
     /// Replaces the menu's dimming once the menu is gone. Lives inside the blur, so it is clipped
     /// and framed with it and sits under the floated copy.
     private var dim: UIView?
-    /// Holds the floated copy and clips it to the blur, so a copy of a row that has scrolled past
-    /// either edge can't draw over the composer or the navigation bar.
+    /// Holds the floated copy and clips it to the composer bar, so a copy of a row that has scrolled
+    /// past either edge can't draw over the composer or the navigation bar.
     private var spotlightClip: UIView?
-    /// The composer bar a held blur stops short of, re-measured on every layout pass.
+    /// The composer bar the floated copy stops short of, re-measured on every layout pass.
     private weak var clearance: UIView?
 
     /// Fades the blur in over `host`, riding `animator` so it lands with the menu. Presenting twice
@@ -64,10 +77,18 @@ final class MessageBackdrop {
         blur.isUserInteractionEnabled = false
         blur.frame = host.bounds
         blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        blur.alpha = 0
         host.addSubview(blur)
         effectView = blur
 
-        let fadeIn = { blur.effect = self.effect }
+        // Applied part-way and left there, so the material never reaches full strength. Its duration
+        // is never played out; the fade is the view's own alpha, which is also what a partly-applied
+        // effect leaves available to animate.
+        let strength = UIViewPropertyAnimator(duration: 1, curve: .linear) { blur.effect = self.effect }
+        strength.fractionComplete = Self.blurFraction
+        blurStrength = strength
+
+        let fadeIn = { blur.alpha = 1 }
         if let animator {
             animator.addAnimations(fadeIn)
         } else {
@@ -75,21 +96,23 @@ final class MessageBackdrop {
         }
     }
 
-    /// Keeps the blur up after the menu that raised it goes, and starts taking taps. It stays over
-    /// the host the menu blurred, so nothing sharpens on the way into an edit, and only its z-order
-    /// and its bottom edge change: under `navigationBar`, so the back button stays legible and
-    /// tappable, and stopping at the top of `bar`, so the composer does too. The message itself is
-    /// floated separately, by `setSpotlight`, once the menu has finished putting its lifted preview
-    /// back.
+    /// Keeps the blur up after the menu that raised it goes, and starts taking taps. Nothing
+    /// sharpens on the way into an edit: only the blur's z-order changes, dropping just below `bar`
+    /// in the bar's own superview. That leaves it above the transcript, so the transcript stays
+    /// soft; below the composer, so the composer's own chrome stays sharp; and below the navigation
+    /// bar, since the screen it moves into already sits under it — the back button stays legible and
+    /// tappable. Sitting behind the composer rather than stopping at its top edge is what lets it run
+    /// to the bottom of the screen: the bar's background is a gradient that clears at its own top and
+    /// its controls are glass, so a blur that stopped short would show a band of sharp transcript
+    /// through them. The message itself is floated separately, by `setSpotlight`, once the menu has
+    /// finished putting its lifted preview back.
     func hold(clearing bar: UIView, under navigationBar: UIView?) {
-        guard let blur = effectView, let host = blur.superview else { return }
+        guard let blur = effectView, let host = blur.superview, let barHost = bar.superview else { return }
         isHeld = true
         clearance = bar
 
-        if let navigationBar, navigationBar.superview === host {
-            host.insertSubview(blur, belowSubview: navigationBar)
-        }
-        // The frame is driven by the bar from here on, so the host can no longer resize it.
+        barHost.insertSubview(blur, belowSubview: bar)
+        // The frame is driven by the layout pass from here on, so the host can no longer resize it.
         blur.autoresizingMask = []
 
         // Fade the stand-in dim in now, while the menu is still up: its own dimming fades out with
@@ -106,7 +129,13 @@ final class MessageBackdrop {
         let clip = UIView()
         clip.clipsToBounds = true
         clip.isUserInteractionEnabled = false
-        host.insertSubview(clip, aboveSubview: blur)
+        // Stays in the host the menu blurred, above the whole screen the blur has moved into, so the
+        // floated copy is the one thing over the composer — but still under the navigation bar.
+        if let navigationBar, navigationBar.superview === host {
+            host.insertSubview(clip, belowSubview: navigationBar)
+        } else {
+            host.addSubview(clip)
+        }
         spotlightClip = clip
 
         layoutHeld()
@@ -116,26 +145,31 @@ final class MessageBackdrop {
         blur.addGestureRecognizer(tap)
     }
 
-    /// Re-measures a held blur against the composer bar, which rises and falls with the keyboard.
-    /// A no-op when nothing is held, so a layout pass outside an edit is harmless.
+    /// Re-measures a held blur, and the clip the floated copy lives in, which stops at the composer
+    /// bar as it rises and falls with the keyboard. A no-op when nothing is held, so a layout pass
+    /// outside an edit is harmless.
     func layoutHeld() {
-        guard isHeld, let blur = effectView, let host = blur.superview, let bar = clearance else { return }
-        let barTop = bar.convert(bar.bounds, to: host).minY
-        blur.frame = CGRect(x: 0, y: 0, width: host.bounds.width, height: max(barTop, 0))
-        spotlightClip?.frame = blur.frame
+        guard isHeld, let blur = effectView, let bar = clearance else { return }
+        if let blurHost = blur.superview {
+            blur.frame = blurHost.bounds
+        }
+        if let clip = spotlightClip, let clipHost = clip.superview {
+            let barTop = bar.convert(bar.bounds, to: clipHost).minY
+            clip.frame = CGRect(x: 0, y: 0, width: clipHost.bounds.width, height: max(barTop, 0))
+        }
     }
 
-    /// Floats `bubble` — a detached copy of the edited message — above a held blur, at `frame` in
-    /// the blur's own coordinates.
+    /// Floats `bubble` — a detached copy of the edited message — above a held blur, at `frame` in the
+    /// coordinates of the host the blur was presented over.
     ///
     /// A copy rather than a hole cut in the blur: a `UIVisualEffectView` renders its backdrop
     /// through a private layer that ignores `layer.mask`, and the real bubble can't be raised out of
     /// the collection view that owns it. It goes in the clip rather than straight into the host, so
-    /// it stops where the blur does instead of covering the composer.
+    /// it stops at the composer instead of covering it.
     func setSpotlight(_ bubble: UIView, at frame: CGRect) {
         guard isHeld, let clip = spotlightClip else { return }
         spotlight?.removeFromSuperview()
-        bubble.frame = frame
+        bubble.frame = clampedToClip(frame)
         bubble.isUserInteractionEnabled = false
         clip.addSubview(bubble)
         spotlight = bubble
@@ -147,7 +181,23 @@ final class MessageBackdrop {
     /// Moves the floated copy as the keyboard and the bar reflow the transcript underneath it. A
     /// no-op when nothing is floating, so a layout pass before the copy exists is harmless.
     func moveSpotlight(to frame: CGRect) {
-        spotlight?.frame = frame
+        spotlight?.frame = clampedToClip(frame)
+    }
+
+    /// Keeps a spotlight frame's bottom edge inside the clip instead of letting `clipsToBounds` cut
+    /// the whole copy away. The clip's own bottom edge tracks the composer bar live, and the bar
+    /// moves on its own animation as the keyboard returns after an edit is chosen — a beat where the
+    /// transcript is still settling into its post-edit scroll position can put the copy's last known
+    /// frame below the clip's already-shrunk bottom edge, which reads as the message disappearing
+    /// rather than merely trailing the reflow. Clamping keeps it in view, hugging the composer, until
+    /// the next reflow reports its true position.
+    private func clampedToClip(_ frame: CGRect) -> CGRect {
+        guard let clipHeight = spotlightClip?.bounds.height else { return frame }
+        let maxY = clipHeight - frame.height
+        guard maxY >= 0 else { return frame }
+        var result = frame
+        result.origin.y = min(frame.origin.y, maxY)
+        return result
     }
 
     /// Fades the blur out with the menu and takes it off screen once it has gone. A held blur
@@ -155,15 +205,19 @@ final class MessageBackdrop {
     func dismiss(animator: UIContextMenuInteractionAnimating?) {
         guard !isHeld, let blur = effectView else { return }
         effectView = nil
+        let strength = blurStrength
+        blurStrength = nil
 
-        let fadeOut = { blur.effect = nil }
+        let fadeOut = { blur.alpha = 0 }
+        let takeDown = {
+            strength?.stopAnimation(true)
+            blur.removeFromSuperview()
+        }
         if let animator {
             animator.addAnimations(fadeOut)
-            animator.addCompletion { blur.removeFromSuperview() }
+            animator.addCompletion(takeDown)
         } else {
-            UIView.animate(withDuration: Self.fallbackDuration, animations: fadeOut) { _ in
-                blur.removeFromSuperview()
-            }
+            UIView.animate(withDuration: Self.fallbackDuration, animations: fadeOut) { _ in takeDown() }
         }
     }
 
@@ -180,11 +234,14 @@ final class MessageBackdrop {
         spotlightClip = nil
         let dim = self.dim
         self.dim = nil
+        let strength = blurStrength
+        blurStrength = nil
         UIView.animate(withDuration: Self.fallbackDuration) {
-            blur.effect = nil
+            blur.alpha = 0
             bubble?.alpha = 0
             dim?.alpha = 0
         } completion: { _ in
+            strength?.stopAnimation(true)
             blur.removeFromSuperview()
             clip?.removeFromSuperview()
         }
