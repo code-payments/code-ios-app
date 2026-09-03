@@ -39,6 +39,9 @@ final class MessageBackdrop {
     private let effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
     private var effectView: UIVisualEffectView?
     private var spotlight: UIView?
+    /// Holds the floated copy and clips it to the blur, so a copy of a row that has scrolled past
+    /// either edge can't draw over the composer or the navigation bar.
+    private var spotlightClip: UIView?
     /// The composer bar a held blur stops short of, re-measured on every layout pass.
     private weak var clearance: UIView?
 
@@ -80,6 +83,13 @@ final class MessageBackdrop {
         }
         // The frame is driven by the bar from here on, so the host can no longer resize it.
         blur.autoresizingMask = []
+
+        let clip = UIView()
+        clip.clipsToBounds = true
+        clip.isUserInteractionEnabled = false
+        host.insertSubview(clip, aboveSubview: blur)
+        spotlightClip = clip
+
         layoutHeld()
 
         blur.isUserInteractionEnabled = true
@@ -93,6 +103,7 @@ final class MessageBackdrop {
         guard isHeld, let blur = effectView, let host = blur.superview, let bar = clearance else { return }
         let barTop = bar.convert(bar.bounds, to: host).minY
         blur.frame = CGRect(x: 0, y: 0, width: host.bounds.width, height: max(barTop, 0))
+        spotlightClip?.frame = blur.frame
     }
 
     /// Floats `bubble` — a detached copy of the edited message — above a held blur, at `frame` in
@@ -100,13 +111,14 @@ final class MessageBackdrop {
     ///
     /// A copy rather than a hole cut in the blur: a `UIVisualEffectView` renders its backdrop
     /// through a private layer that ignores `layer.mask`, and the real bubble can't be raised out of
-    /// the collection view that owns it.
+    /// the collection view that owns it. It goes in the clip rather than straight into the host, so
+    /// it stops where the blur does instead of covering the composer.
     func setSpotlight(_ bubble: UIView, at frame: CGRect) {
-        guard let blur = effectView, isHeld, let host = blur.superview else { return }
+        guard isHeld, let clip = spotlightClip else { return }
         spotlight?.removeFromSuperview()
         bubble.frame = frame
         bubble.isUserInteractionEnabled = false
-        host.insertSubview(bubble, aboveSubview: blur)
+        clip.addSubview(bubble)
         spotlight = bubble
     }
 
@@ -145,12 +157,14 @@ final class MessageBackdrop {
 
         let bubble = spotlight
         spotlight = nil
+        let clip = spotlightClip
+        spotlightClip = nil
         UIView.animate(withDuration: Self.fallbackDuration) {
             blur.effect = nil
             bubble?.alpha = 0
         } completion: { _ in
             blur.removeFromSuperview()
-            bubble?.removeFromSuperview()
+            clip?.removeFromSuperview()
         }
     }
 
