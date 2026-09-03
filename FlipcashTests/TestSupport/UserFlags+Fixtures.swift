@@ -28,7 +28,9 @@ extension UserFlags {
             enablePhoneNumberSend: false,
             requireCoinbaseEmailVerification: requireCoinbaseEmailVerification,
             preferredOnrampUsdcLiquidityPool: .unknown,
-            tipPresets: tipPresets
+            tipPresets: tipPresets,
+            messageEditWindow: nil,
+            messageDeleteWindow: nil
         )
     }
 }
