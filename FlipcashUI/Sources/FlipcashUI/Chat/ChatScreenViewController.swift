@@ -65,6 +65,9 @@ public final class ChatScreenViewController: UIViewController {
     private static let spotlightRetryInterval: Duration = .milliseconds(16)
     /// Whether a measured bar height has landed yet — the first one is applied without animation.
     private var didMeasureBar = false
+    /// The pop gestures switched off for the length of an edit, kept so only those are switched back
+    /// on and one that was already off stays off.
+    private var suspendedPopGestures: [UIGestureRecognizer] = []
 
     /// - Parameters:
     ///   - bar: pinned to the bottom of the view; rides the keyboard.
@@ -195,6 +198,7 @@ public final class ChatScreenViewController: UIViewController {
         editedStableID = stableID
         backdrop.present(over: contextMenuBackdropHost, animator: nil)
         backdrop.hold(clearing: bar, under: hostNavigationController?.navigationBar)
+        setPopGesturesSuspended(true)
         transcript.afterContextMenu { [weak self] in
             self?.spotlightAttemptsRemaining = Self.spotlightAttempts
             self?.refreshEditSpotlight()
@@ -206,7 +210,37 @@ public final class ChatScreenViewController: UIViewController {
         guard editedStableID != nil else { return }
         editedStableID = nil
         spotlightAttemptsRemaining = 0
+        setPopGesturesSuspended(false)
         backdrop.release()
+    }
+
+    /// Ends an edit the screen is leaving in — a backstop for any way off this screen that isn't the
+    /// edit's own. The blur and the floated copy are hosted by the navigation stack rather than by
+    /// this screen, so they outlive a pop that leaves an edit open: they stay on whatever screen the
+    /// pop lands on, taking its taps, with nothing left to dismiss them.
+    public override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        endEditSpotlight()
+    }
+
+    /// Suspends swipe-to-go-back for the length of an edit, and puts back exactly what it suspended.
+    ///
+    /// An edit owns the whole screen — the blur takes every tap outside the message, and the composer
+    /// is the only way out — so leaving the pop gesture live let a swipe carry the screen away from
+    /// underneath it. A sheet-hosted stack carries a second pop recognizer alongside
+    /// `interactivePopGestureRecognizer`, and it is the untouched twin that pops (see
+    /// `EdgeOnlySwipeBack`), so every pop pan on the navigation view is suspended.
+    private func setPopGesturesSuspended(_ suspended: Bool) {
+        guard suspended else {
+            suspendedPopGestures.forEach { $0.isEnabled = true }
+            suspendedPopGestures = []
+            return
+        }
+        guard suspendedPopGestures.isEmpty, let navigation = hostNavigationController else { return }
+        let pops = (navigation.view.gestureRecognizers ?? [])
+            .filter { $0 is UIPanGestureRecognizer && $0.isEnabled }
+        pops.forEach { $0.isEnabled = false }
+        suspendedPopGestures = pops
     }
 
     /// Puts the edited message's copy where its row now sits — floating it the first time, and
