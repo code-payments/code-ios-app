@@ -230,9 +230,10 @@ struct ConversationScreen: View {
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
-        // An edit blurs the whole screen behind the message being edited, navigation bar included,
-        // so the back button is the only thing up there worth keeping legible — and it backs out of
-        // the edit rather than out of the chat.
+        // The edit blur slides under the navigation bar, so the bar stays sharp through an edit.
+        // What it holds changes: the counterpart's name and avatar go, since the edit is about one
+        // message rather than the person, and the back button backs out of the edit rather than the
+        // chat — leaving the chevron alone in the bar.
         .navigationBarBackButtonHidden(composer.isEditing)
         .toolbar {
             if composer.isEditing {
@@ -245,21 +246,19 @@ struct ConversationScreen: View {
                     }
                     .accessibilityLabel("Stop editing")
                 }
-            }
-            ToolbarItem(placement: .principal) {
-                ConversationTitleItem(
-                    title: title,
-                    contact: contact,
-                    conversationID: conversationID,
-                    imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
-                    blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
-                    width: max(navBarWidth - Self.titleSideInset * 2, 0),
-                    onTap: titleTapAction,
-                    opensProfile: profileTapAction != nil
-                )
-                .opacity(composer.isEditing ? 0 : 1)
-                .allowsHitTesting(!composer.isEditing)
-                .animation(.easeInOut(duration: 0.2), value: composer.isEditing)
+            } else {
+                ToolbarItem(placement: .principal) {
+                    ConversationTitleItem(
+                        title: title,
+                        contact: contact,
+                        conversationID: conversationID,
+                        imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
+                        blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
+                        width: max(navBarWidth - Self.titleSideInset * 2, 0),
+                        onTap: titleTapAction,
+                        opensProfile: profileTapAction != nil
+                    )
+                }
             }
         }
         // Fetch the tip counterpart's avatar for the title and profile card.
