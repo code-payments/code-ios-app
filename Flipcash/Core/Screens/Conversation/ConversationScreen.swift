@@ -253,6 +253,7 @@ struct ConversationScreen: View {
                     imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
                     blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
                     width: max(navBarWidth - Self.titleSideInset * 2, 0),
+                    showsAvatar: !composer.isEditing,
                     onTap: titleTapAction,
                     opensProfile: profileTapAction != nil
                 )
@@ -589,6 +590,7 @@ private struct ConversationTitleItem: View {
     let imageData: Data?
     let blurhash: String?
     let width: CGFloat
+    let showsAvatar: Bool
     let onTap: (() -> Void)?
     let opensProfile: Bool
 
@@ -599,7 +601,8 @@ private struct ConversationTitleItem: View {
             conversationID: conversationID,
             imageData: imageData,
             blurhash: blurhash,
-            width: width
+            width: width,
+            showsAvatar: showsAvatar
         )
         if let onTap {
             let hint = opensProfile ? "Opens profile" : (contact != nil ? "Opens contact card" : "Adds to Contacts")
@@ -621,17 +624,21 @@ private struct ConversationTitleLabel: View {
     let imageData: Data?
     let blurhash: String?
     let width: CGFloat
+    /// Dropped during an edit, which leaves the name alone beside the back button.
+    let showsAvatar: Bool
 
     var body: some View {
         HStack(spacing: 12) {
-            ContactAvatarView(
-                id: contact?.contactId ?? conversationID?.description ?? title,
-                displayName: title,
-                imageData: imageData,
-                blurhash: blurhash,
-                size: 44
-            )
-            .accessibilityHidden(true)
+            if showsAvatar {
+                ContactAvatarView(
+                    id: contact?.contactId ?? conversationID?.description ?? title,
+                    displayName: title,
+                    imageData: imageData,
+                    blurhash: blurhash,
+                    size: 44
+                )
+                .accessibilityHidden(true)
+            }
             Text(title)
                 .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
