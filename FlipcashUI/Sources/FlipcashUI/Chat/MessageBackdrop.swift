@@ -29,9 +29,18 @@ final class MessageBackdrop {
     private static let fallbackDuration: TimeInterval = 0.2
 
     /// Stands in for the dimming UIKit lays over the screen while a context menu is up, which goes
-    /// with the menu. Without it a held blur reads about twice as light as the one the menu had —
-    /// measured on the same patch of empty transcript, rgb 23 under the menu against 44 after it.
-    private static let heldDimAlpha: CGFloat = 0.48
+    /// with the menu — measured on the same patch of empty transcript, rgb 23 under the menu against
+    /// 44 after it. Set well below the value that matches the menu exactly: matching it left an edit
+    /// as dark as the menu, which is heavier than Android's frosting of the same screen, and the
+    /// menu's own dimming isn't ours to lighten to meet it.
+    private static let heldDimAlpha: CGFloat = 0.2
+
+    /// How much of the material's blur is used. A `UIBlurEffect` has no radius to set — every style
+    /// is the same radius under a different tint — so the effect is applied through an animator that
+    /// is paused part-way, which is the only handle on its strength. At full strength the transcript
+    /// smears into flat colour; Android frosts the same screen at a 25dp radius and reads far softer,
+    /// and this is matched to that.
+    private static let blurFraction: CGFloat = 0.4
 
     /// Called when the held blur is tapped — the way out of an edit, as tapping outside the message
     /// is in WhatsApp. Never fires while a context menu owns the screen: the menu's own container
@@ -43,6 +52,10 @@ final class MessageBackdrop {
 
     private let effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
     private var effectView: UIVisualEffectView?
+    /// Holds the blur at `blurFraction`. Never played out — it is a dial, not an animation — but it
+    /// has to be kept alive and stopped by hand, since a property animator left active when it
+    /// deallocates traps.
+    private var blurStrength: UIViewPropertyAnimator?
     private var spotlight: UIView?
     /// Replaces the menu's dimming once the menu is gone. Lives inside the blur, so it is clipped
     /// and framed with it and sits under the floated copy.
@@ -64,10 +77,18 @@ final class MessageBackdrop {
         blur.isUserInteractionEnabled = false
         blur.frame = host.bounds
         blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        blur.alpha = 0
         host.addSubview(blur)
         effectView = blur
 
-        let fadeIn = { blur.effect = self.effect }
+        // Applied part-way and left there, so the material never reaches full strength. Its duration
+        // is never played out; the fade is the view's own alpha, which is also what a partly-applied
+        // effect leaves available to animate.
+        let strength = UIViewPropertyAnimator(duration: 1, curve: .linear) { blur.effect = self.effect }
+        strength.fractionComplete = Self.blurFraction
+        blurStrength = strength
+
+        let fadeIn = { blur.alpha = 1 }
         if let animator {
             animator.addAnimations(fadeIn)
         } else {
@@ -184,15 +205,19 @@ final class MessageBackdrop {
     func dismiss(animator: UIContextMenuInteractionAnimating?) {
         guard !isHeld, let blur = effectView else { return }
         effectView = nil
+        let strength = blurStrength
+        blurStrength = nil
 
-        let fadeOut = { blur.effect = nil }
+        let fadeOut = { blur.alpha = 0 }
+        let takeDown = {
+            strength?.stopAnimation(true)
+            blur.removeFromSuperview()
+        }
         if let animator {
             animator.addAnimations(fadeOut)
-            animator.addCompletion { blur.removeFromSuperview() }
+            animator.addCompletion(takeDown)
         } else {
-            UIView.animate(withDuration: Self.fallbackDuration, animations: fadeOut) { _ in
-                blur.removeFromSuperview()
-            }
+            UIView.animate(withDuration: Self.fallbackDuration, animations: fadeOut) { _ in takeDown() }
         }
     }
 
@@ -209,11 +234,14 @@ final class MessageBackdrop {
         spotlightClip = nil
         let dim = self.dim
         self.dim = nil
+        let strength = blurStrength
+        blurStrength = nil
         UIView.animate(withDuration: Self.fallbackDuration) {
-            blur.effect = nil
+            blur.alpha = 0
             bubble?.alpha = 0
             dim?.alpha = 0
         } completion: { _ in
+            strength?.stopAnimation(true)
             blur.removeFromSuperview()
             clip?.removeFromSuperview()
         }
