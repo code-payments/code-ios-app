@@ -69,7 +69,19 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         let seeded = (field.value as? String) ?? ""
         XCTAssertFalse(seeded.isEmpty, "Expected the editor to be seeded with the current name")
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: seeded.count))
-        XCTAssertFalse(save.isEnabled, "Save must stay disabled while the name is empty")
+
+        // Wait for the disabled state rather than sampling it: the emptied field
+        // reaches the button on SwiftUI's next render, which under load lands
+        // after the typing settles. The field is already empty by then — the
+        // instantaneous read just catches the state the button is leaving.
+        let saveDisabled = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isEnabled == false"),
+            object: save
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [saveDisabled], timeout: 5), .completed,
+            "Save must stay disabled while the name is empty. Field: [\((field.value as? String) ?? "")]"
+        )
 
         field.typeText("Renamed \(Int.random(in: 1_000...9_999))")
         XCTAssertTrue(save.isEnabled, "Save must enable once the name is valid and changed")
