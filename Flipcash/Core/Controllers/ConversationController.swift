@@ -79,7 +79,10 @@ final class ConversationController {
         do {
             let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
             store.apply(.metadataRefresh(conversation))
-            persistConversation(conversationID)
+            // The server copy, not the store's: the store drops a tombstone preview, and the
+            // database wants the row so the repair below can tell the newest message was deleted.
+            persistConversation(conversation)
+            refreshFeedPreview(for: conversationID)
             return conversation
         } catch {
             logger.error("Failed to hydrate conversation on demand", metadata: [
@@ -465,7 +468,8 @@ final class ConversationController {
             do {
                 let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
                 store.apply(.metadataRefresh(conversation))
-                persistConversation(conversationID)
+                persistConversation(conversation)
+                refreshFeedPreview(for: conversationID)
             } catch {
                 logger.error("Failed to hydrate conversation referenced by the event stream", metadata: [
                     "conversationID": "\(conversationID)",
@@ -504,6 +508,13 @@ final class ConversationController {
             store.setFeed(conversations, type: type)
             reconcileHidden()
             persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
+            // The store refuses a tombstone as a preview, so a chat whose newest message is deleted
+            // seats blank here. Fill it from the newest visible message already cached — the feed
+            // reloads on every launch and foreground, so without this the row stays blank until the
+            // transcript is opened.
+            for conversation in conversations where conversation.lastMessage?.isDeleted == true {
+                refreshFeedPreview(for: conversation.id)
+            }
             return conversations
         } catch {
             logger.error("Failed to load conversation feed", metadata: [

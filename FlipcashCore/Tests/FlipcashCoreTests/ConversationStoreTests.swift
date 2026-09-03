@@ -33,6 +33,14 @@ struct ConversationStoreTests {
         ConversationMessage(id: MessageID(value: id), senderID: nil, content: .text(text), date: Date(timeIntervalSince1970: at), unreadSeq: 0, eventSequence: eventSequence)
     }
 
+    private func tombstone(_ id: UInt64, at: TimeInterval = 0, eventSequence: UInt64 = 0) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: id), senderID: nil,
+            content: .deleted(.init(deletedBy: nil, deletedAt: Date(timeIntervalSince1970: at))),
+            date: Date(timeIntervalSince1970: at), unreadSeq: 0, eventSequence: eventSequence
+        )
+    }
+
     private func pending(_ clientID: UUID, _ text: String, sender: UserID? = nil, at: TimeInterval = 0, status: SendStatus = .sending) -> ConversationMessage {
         ConversationMessage(id: MessageID(value: .max), senderID: sender, content: .text(text), date: Date(timeIntervalSince1970: at), unreadSeq: 0, status: status, clientMessageID: clientID)
     }
@@ -107,6 +115,58 @@ struct ConversationStoreTests {
         store.setFeedPreview(message(2, "older"), in: conversationID(1))         // older → ignored
         #expect(store.conversations.first?.lastMessage?.id.value == 5)
         store.setFeedPreview(message(9, "newer"), in: conversationID(1))         // newer → wins
+        #expect(store.conversations.first?.lastMessage?.id.value == 9)
+    }
+
+    // MARK: - Deleted-message previews
+
+    @Test("A metadata refresh whose newest message was deleted keeps the visible preview the row shows")
+    func metadataRefreshDoesNotBlankTheRowWithATombstone() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.setFeedPreview(message(9, "still here"), in: conversationID(1))
+
+        // The server reports the newest message whatever its state, so a delete arrives as a
+        // tombstone at a *higher* id than the visible message the row falls back to.
+        store.apply(.metadataRefresh(Conversation(
+            id: conversationID(1), members: [], lastMessage: tombstone(10),
+            lastActivity: Date(timeIntervalSince1970: 100)
+        )))
+
+        #expect(store.conversations.first?.lastMessage?.id.value == 9)
+    }
+
+    @Test("A feed load previewing a tombstone seats no preview, so no unread splat sits beside a blank row")
+    func feedLoadDropsATombstonePreview() {
+        let me = UUID()
+        var store = ConversationStore()
+        // Nothing cached to fall back to: the only message in the chat was deleted.
+        store.setFeed([Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 1))],
+            lastMessage: tombstone(10),
+            lastActivity: Date(timeIntervalSince1970: 100)
+        )])
+
+        #expect(store.conversations.first?.lastMessage == nil)
+        #expect(store.conversations.first?.hasUnread(for: me) == false)
+    }
+
+    @Test("A tombstone for the previewed message drops it rather than leaving deleted content on the row")
+    func deletingThePreviewedMessageClearsIt() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.setFeedPreview(message(10, "about to go"), in: conversationID(1))
+
+        store.apply(.metadataRefresh(Conversation(
+            id: conversationID(1), members: [], lastMessage: tombstone(10),
+            lastActivity: Date(timeIntervalSince1970: 100)
+        )))
+        #expect(store.conversations.first?.lastMessage == nil)
+
+        // The database repair then supplies the message before it — reachable now that the guard has
+        // no newer preview to compare against.
+        store.setFeedPreview(message(9, "still here"), in: conversationID(1))
         #expect(store.conversations.first?.lastMessage?.id.value == 9)
     }
 
