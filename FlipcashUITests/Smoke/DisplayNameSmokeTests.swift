@@ -75,6 +75,19 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         XCTAssertTrue(save.isEnabled, "Save must enable once the name is valid and changed")
         save.tap()
 
+        // Replacing a name that is already set is confirmed first; only the
+        // first name set during onboarding saves straight through. The editor
+        // stays up behind the dialog until it is answered.
+        let confirmDialog = app.otherElements["Change Display Name?"]
+        XCTAssertTrue(
+            confirmDialog.waitForExistence(timeout: 30),
+            "Expected the rename confirmation dialog. On screen: [\(visibleText())]"
+        )
+        waitUntilHittableAndTap(
+            confirmDialog.buttons["Change Display Name"],
+            "Expected the dialog's Change Display Name action to be tappable"
+        )
+
         // `ProfileNameScreen(completion: .back)` pops itself only once
         // `SetDisplayName` returns, so landing back on My Account is proof the
         // new name was accepted and moderated — a rejection keeps the editor up
