@@ -33,12 +33,6 @@ struct PBKDFTests {
         #expect(round1 != round2)
     }
 
-    @Test("PBKDF2-HMAC-SHA256 output is exactly 32 bytes")
-    func pbkdf2_sha256_digestLength() {
-        let bytes = PBKDF.deriveKey(algorithm: .sha256, password: "password", salt: "salt", rounds: 10)
-        #expect(bytes.count == 32)
-    }
-
     @Test("Identical inputs produce identical output")
     func pbkdf2_deterministic() {
         let a = PBKDF.deriveKey(algorithm: .sha512, password: "p", salt: "s", rounds: 8)

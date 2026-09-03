@@ -7,28 +7,25 @@
 //
 
 import Foundation
-import CommonCrypto
+import SharedCoreKit
 
+/// SHA-256, computed by the shared Kotlin implementation.
+///
+/// The shared side offers no streaming handle, and holding one across the framework
+/// boundary would copy a byte array per update, so this buffers and hashes once at
+/// `digestBytes()`. Every payload hashed here is small -- PDA seeds, conversation ids,
+/// phone numbers -- so the buffer costs nothing worth optimising.
 public struct SHA256: HashType {
-    
-    private var context = CC_SHA256_CTX()
-    
-    public init() {
-        CC_SHA256_Init(&context)
-    }
-    
+
+    private var buffer = Data()
+
+    public init() {}
+
     public mutating func update(_ data: Data) {
-        data.withUnsafeBytes {
-            _ = CC_SHA256_Update(&context, $0.baseAddress, CC_LONG($0.count))
-        }
+        buffer.append(data)
     }
-    
+
     public func digestBytes() -> [Byte] {
-        var mutableContext = context
-        var bytes = [Byte](repeating: 0,  count: Int(CC_SHA256_DIGEST_LENGTH))
-        
-        CC_SHA256_Final(&bytes, &mutableContext)
-        
-        return bytes
+        [Byte](SharedHash.sha256(buffer))
     }
 }

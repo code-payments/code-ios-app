@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeCurves
+import SharedCoreKit
 
 public struct KeyPair: Equatable, Codable, Hashable, Sendable {
     
@@ -56,24 +56,11 @@ public struct KeyPair: Equatable, Codable, Hashable, Sendable {
     }
     
     public init(seed: Seed32) {
-        var publicBytes  = [Byte].zeroed(with: PublicKey.length)
-        var privateBytes = [Byte].zeroed(with: PrivateKey.length)
-        
-        privateBytes.withUnsafeMutableBufferPointer { `private` in
-            publicBytes.withUnsafeMutableBufferPointer { `public` in
-                seed.bytes.withUnsafeBufferPointer { seed in
-                    ed25519_create_keypair(
-                        `public`.baseAddress,
-                        `private`.baseAddress,
-                        seed.baseAddress
-                    )
-                }
-            }
-        }
+        let pair = SharedEd25519.keyPair(seed: Data(seed.bytes))
         
         self.seed       = seed
-        self.publicKey  = try! PublicKey(publicBytes)
-        self.privateKey = try! PrivateKey(privateBytes)
+        self.publicKey  = try! PublicKey([Byte](pair.publicKey))
+        self.privateKey = try! PrivateKey([Byte](pair.privateKey))
     }
     
     // MARK: - Signing -
@@ -83,25 +70,15 @@ public struct KeyPair: Equatable, Codable, Hashable, Sendable {
     }
     
     public func sign(_ bytes: [Byte]) -> Signature {
-        var signData = [Byte].zeroed(with: Signature.length)
+        let signature = SharedEd25519.sign(
+            message: Data(bytes),
+            keyPair: SharedEd25519.KeyPair(
+                publicKey: Data(publicKey.bytes),
+                privateKey: Data(privateKey.bytes)
+            )
+        )
         
-        signData.withUnsafeMutableBufferPointer { signature in
-            privateKey.bytes.withUnsafeBufferPointer { `private` in
-                publicKey.bytes.withUnsafeBufferPointer { `public` in
-                    bytes.withUnsafeBufferPointer { msg in
-                        ed25519_sign(
-                            signature.baseAddress,
-                            msg.baseAddress,
-                            bytes.count,
-                            `public`.baseAddress,
-                            `private`.baseAddress
-                        )
-                    }
-                }
-            }
-        }
-        
-        return try! Signature(signData)
+        return try! Signature([Byte](signature))
     }
     
     public func verify(signature: Signature, data: Data) -> Bool {
@@ -118,9 +95,7 @@ public struct KeyPair: Equatable, Codable, Hashable, Sendable {
 extension PublicKey {
     
     public func isOnCurve() -> Bool {
-        bytes.withUnsafeBufferPointer {
-            ed25519_on_curve($0.baseAddress) == 1
-        }
+        SharedEd25519.isOnCurve(publicKey: Data(bytes))
     }
     
     public func verify(signature: Signature, data: Data) -> Bool {
@@ -128,17 +103,10 @@ extension PublicKey {
     }
     
     public func verify(signature: Signature, bytes: [Byte]) -> Bool {
-        signature.bytes.withUnsafeBufferPointer { signature in
-            bytes.withUnsafeBufferPointer { message in
-                self.bytes.withUnsafeBufferPointer { `public` in
-                    ed25519_verify(
-                        signature.baseAddress,
-                        message.baseAddress,
-                        message.count,
-                        `public`.baseAddress
-                    ) == 1
-                }
-            }
-        }
+        SharedEd25519.verify(
+            signature: Data(signature.bytes),
+            message: Data(bytes),
+            publicKey: Data(self.bytes)
+        )
     }
 }

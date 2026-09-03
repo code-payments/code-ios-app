@@ -21,14 +21,13 @@ let package = Package(
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.4.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
-        .package(path: "../CodeCurves"),
         .package(path: "../FlipcashAPI"),
+        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.4.0")),
     ],
     targets: [
         .target(
             name: "FlipcashCore",
             dependencies: [
-                .product(name: "CodeCurves", package: "CodeCurves"),
                 .product(name: "BigDecimal", package: "BigDecimal"),
                 .product(name: "PhoneNumberKit", package: "PhoneNumberKit"),
                 .product(name: "Logging", package: "swift-log"),
@@ -36,6 +35,7 @@ let package = Package(
                 .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "FlipcashAPI", package: "FlipcashAPI"),
+                .product(name: "SharedCoreKit", package: "flipcash-shared-core-spm"),
             ],
             resources: [
                 .copy("Resources/discrete_pricing_table.bin"),

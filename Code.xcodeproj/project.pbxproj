@@ -95,7 +95,6 @@
 		9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipcashTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipcashUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A592D762B17AF5500735BB0 /* base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = base.xcconfig; sourceTree = "<group>"; };
-		9AA197072CE51ABB00FE1703 /* CodeCurves */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = CodeCurves; sourceTree = "<group>"; };
 		9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashAPI; sourceTree = "<group>"; };
 		9AD5E64B25F2BF3E007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
 		A361ABDE10578BE8E8859E31 /* NotificationContent.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NotificationContent.entitlements; sourceTree = "<group>"; };
@@ -275,7 +274,6 @@
 		9AED116C258BE3AF0088D902 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				9AA197072CE51ABB00FE1703 /* CodeCurves */,
 				9A43F0102D9C357900CE8817 /* FlipcashCore */,
 				9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */,
 				9A0C7F8E2DA0379A0018C7CB /* FlipcashUI */,
@@ -1768,7 +1766,7 @@
 			repositoryURL = "https://github.com/code-payments/flipcash-shared-core-spm";
 			requirement = {
 				kind = upToNextMinorVersion;
-				minimumVersion = 0.3.1;
+				minimumVersion = 0.4.0;
 			};
 		};
 		9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */ = {

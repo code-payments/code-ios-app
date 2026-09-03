@@ -1,9 +1,11 @@
 import XCTest
-import CodeCurves   // vendored ed25519 C (ed25519_create_keypair / ed25519_sign / ed25519_verify)
+import SharedCoreKit   // shared Kotlin ed25519, over the same vendored orlp C the Android app compiles
 
-/// GATE: this repo's ed25519 must reproduce the canonical cross-platform fixtures exactly.
-/// The Android repo runs the identical fixtures against its ed25519 — matching outputs on both
-/// sides is what guarantees the apps agree. RFC 8032 anchors mean "matches fixture" == "correct".
+/// GATE: the ed25519 this app signs with must reproduce the canonical cross-platform fixtures
+/// exactly. Both apps now call one implementation, so this asserts the packaged XCFramework
+/// behaves as expected when consumed from Swift — the Kotlin-side `Ed25519VectorTest` runs the
+/// same fixtures but never crosses that boundary. RFC 8032 anchors mean "matches fixture" ==
+/// "correct".
 final class Ed25519VectorTests: XCTestCase {
 
     struct Vector: Decodable {
@@ -25,18 +27,22 @@ final class Ed25519VectorTests: XCTestCase {
             let seed = [UInt8](hex: v.seed)
             let message = [UInt8](hex: v.message)
 
-            var pub = [UInt8](repeating: 0, count: 32)
-            var priv = [UInt8](repeating: 0, count: 64)
-            ed25519_create_keypair(&pub, &priv, seed)
+            let keyPair = SharedEd25519.keyPair(seed: Data(seed))
+            let signature = SharedEd25519.sign(message: Data(message), keyPair: keyPair)
 
-            var sig = [UInt8](repeating: 0, count: 64)
-            ed25519_sign(&sig, message, message.count, pub, priv)
+            XCTAssertEqual([UInt8](keyPair.publicKey).hexString, v.publicKey,
+                           "public key mismatch for \(v.name)")
+            XCTAssertEqual([UInt8](signature).hexString, v.signature,
+                           "signature mismatch for \(v.name)")
 
-            XCTAssertEqual(pub.hexString, v.publicKey, "public key mismatch for \(v.name)")
-            XCTAssertEqual(sig.hexString, v.signature, "signature mismatch for \(v.name)")
-
-            let ok = ed25519_verify(sig, message, message.count, pub)
-            XCTAssertEqual(ok, 1, "verify failed for \(v.name)")
+            XCTAssertTrue(
+                SharedEd25519.verify(
+                    signature: signature,
+                    message: Data(message),
+                    publicKey: keyPair.publicKey
+                ),
+                "verify failed for \(v.name)"
+            )
         }
     }
 }
