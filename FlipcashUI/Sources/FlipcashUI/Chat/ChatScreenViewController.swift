@@ -52,11 +52,17 @@ public final class ChatScreenViewController: UIViewController {
     private var editedStableID: String?
     /// Deferred attempts left at floating the edited message's copy. The menu's dismissal
     /// completion lands while UIKit is still putting the row's own bubble back, so the first
-    /// attempt usually has nothing to copy; retrying over the next few runloop turns catches it
-    /// without waiting on a layout pass or a scroll that may never come.
+    /// attempt usually has nothing to copy. Back-to-back runloop turns clear that in a simulator's
+    /// single hop, but a loaded device — screen recording is the case that surfaced this — can hold
+    /// the row hidden for the better part of a second, long enough to empty a same-tick retry
+    /// budget before the row ever unhides; spacing attempts by a frame each covers that without
+    /// waiting on a layout pass or a scroll that may never come.
     private var spotlightAttemptsRemaining = 0
-    /// How many of those attempts a single edit gets.
-    private static let spotlightAttempts = 8
+    /// How many of those attempts a single edit gets, each a frame apart — enough to ride out a
+    /// loaded device's slower dismissal without leaving the retry silently short on a fast one.
+    private static let spotlightAttempts = 60
+    /// The spacing between attempts: one display refresh.
+    private static let spotlightRetryInterval: Duration = .milliseconds(16)
     /// Whether a measured bar height has landed yet — the first one is applied without animation.
     private var didMeasureBar = false
 
@@ -220,7 +226,10 @@ public final class ChatScreenViewController: UIViewController {
         }
         guard !backdrop.hasSpotlight, spotlightAttemptsRemaining > 0 else { return }
         spotlightAttemptsRemaining -= 1
-        Task { @MainActor [weak self] in self?.refreshEditSpotlight() }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.spotlightRetryInterval)
+            self?.refreshEditSpotlight()
+        }
     }
 
     /// The navigation stack this screen is inside, if any — the SwiftUI hosting controllers this
