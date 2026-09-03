@@ -148,7 +148,7 @@ final class MessageBackdrop {
     func setSpotlight(_ bubble: UIView, at frame: CGRect) {
         guard isHeld, let clip = spotlightClip else { return }
         spotlight?.removeFromSuperview()
-        bubble.frame = frame
+        bubble.frame = clampedToClip(frame)
         bubble.isUserInteractionEnabled = false
         clip.addSubview(bubble)
         spotlight = bubble
@@ -160,7 +160,23 @@ final class MessageBackdrop {
     /// Moves the floated copy as the keyboard and the bar reflow the transcript underneath it. A
     /// no-op when nothing is floating, so a layout pass before the copy exists is harmless.
     func moveSpotlight(to frame: CGRect) {
-        spotlight?.frame = frame
+        spotlight?.frame = clampedToClip(frame)
+    }
+
+    /// Keeps a spotlight frame's bottom edge inside the clip instead of letting `clipsToBounds` cut
+    /// the whole copy away. The clip's own bottom edge tracks the composer bar live, and the bar
+    /// moves on its own animation as the keyboard returns after an edit is chosen — a beat where the
+    /// transcript is still settling into its post-edit scroll position can put the copy's last known
+    /// frame below the clip's already-shrunk bottom edge, which reads as the message disappearing
+    /// rather than merely trailing the reflow. Clamping keeps it in view, hugging the composer, until
+    /// the next reflow reports its true position.
+    private func clampedToClip(_ frame: CGRect) -> CGRect {
+        guard let clipHeight = spotlightClip?.bounds.height else { return frame }
+        let maxY = clipHeight - frame.height
+        guard maxY >= 0 else { return frame }
+        var result = frame
+        result.origin.y = min(frame.origin.y, maxY)
+        return result
     }
 
     /// Fades the blur out with the menu and takes it off screen once it has gone. A held blur
