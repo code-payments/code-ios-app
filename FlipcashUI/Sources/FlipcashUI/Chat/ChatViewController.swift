@@ -87,6 +87,9 @@ public final class ChatViewController: UICollectionViewController {
     /// value (see `freezeInset`): the keyboard's space stays reserved, so nothing moves — and the
     /// keyboard sliding back on dismiss restores everything to exactly where it was, matching iMessage.
     private var isShowingContextMenu = false
+    /// The bubble a context menu has raised, held so the lift's elevation comes off the same view when
+    /// the menu goes. Weak: the cell it belongs to can be recycled out from under the menu.
+    private weak var liftedBubble: UIView?
     /// The inset state captured when the menu opened, restored when it closes.
     private var savedInsetBehavior: UIScrollView.ContentInsetAdjustmentBehavior?
     private var savedContentInset: UIEdgeInsets?
@@ -622,6 +625,10 @@ extension ChatViewController {
             // suppressed (no stray scroll); then drop the flag and apply any held update.
             restoreInset()
             isShowingContextMenu = false
+            if let liftedBubble {
+                BubbleBackgroundView.lower(liftedBubble)
+                self.liftedBubble = nil
+            }
             if let inset = pendingBottomInset {
                 pendingBottomInset = nil
                 setBottomInset(inset)
@@ -663,7 +670,12 @@ extension ChatViewController {
         // blank rather than nil, which would float an empty copy and never be retried — so report
         // "not yet" and let the caller ask again.
         guard !bubble.isHidden, bubble.alpha > 0, !bubble.bounds.isEmpty else { return nil }
-        return bubble.snapshotView(afterScreenUpdates: true)
+        guard let copy = bubble.snapshotView(afterScreenUpdates: true) else { return nil }
+        // The snapshot renders the bubble's bounds, so the lift's shadow — drawn outside them — isn't
+        // in it. Re-applied here, at the same values the menu used, so the message doesn't drop back
+        // onto the transcript's plane the moment the menu that raised it goes.
+        BubbleBackgroundView.raise(copy, shape: cell.liftPreviewMaskingPath)
+        return copy
     }
 
     /// Where that row's bubble currently sits, in `space`'s coordinates, or `nil` when it is not on
@@ -694,6 +706,11 @@ extension ChatViewController {
         let parameters = UIPreviewParameters()
         parameters.visiblePath = cell.liftPreviewMaskingPath
         parameters.backgroundColor = .clear
+        // The lift's elevation, put on the bubble itself because the preview won't carry one: a clear
+        // background casts nothing, `shadowPath` or not. Taken off again in `willEndContextMenu`'s
+        // completion — this is a live cell subview, not a copy.
+        liftedBubble = cell.liftPreviewView
+        BubbleBackgroundView.raise(cell.liftPreviewView, shape: cell.liftPreviewMaskingPath)
         return UITargetedPreview(view: cell.liftPreviewView, parameters: parameters)
     }
 }
