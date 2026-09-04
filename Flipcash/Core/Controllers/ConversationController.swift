@@ -907,6 +907,15 @@ final class ConversationController {
         windowedMessages(for: conversationID, startingAt: nil, limit: limit)
     }
 
+    /// The locally-stored copy of one message, regardless of whether it is inside the rendered
+    /// window. Reply quotes read through this: a reply can point at a message far above the
+    /// window, and resolving it must not page the server. Observes `messageRevision`, so a quote
+    /// that resolves once history lands re-maps like any other change.
+    func persistedMessage(_ messageID: MessageID, in conversationID: ConversationID) -> ConversationMessage? {
+        _ = messageRevision   // observe: re-read when a confirmed DB write lands
+        return (try? database.message(id: messageID, conversationID: conversationID)) ?? nil
+    }
+
     /// The oldest confirmed id inside the newest-`limit` window — the anchor a first page-back grows
     /// from; nil when nothing is persisted.
     func oldestWindowedMessageID(for conversationID: ConversationID, limit: Int) -> UInt64? {

@@ -54,7 +54,9 @@ extension ChatItem {
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },
         deletedPresentation: DeletedMessagePresentation = .hidden,
-        capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] }
+        capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] },
+        counterpartName: String = "",
+        quotedMessage: (MessageID) -> ConversationMessage? = { _ in nil }
     ) -> [ChatItem] {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
         // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
@@ -138,6 +140,16 @@ extension ChatItem {
                 receipt = .failed("Not Delivered. Tap to retry")
             }
 
+            // Resolved here rather than in the view so all three states — found, never fetched,
+            // deleted — are decided by one pure function and testable without a database.
+            let quote = message.repliedTo.map { repliedTo in
+                Self.quote(
+                    resolving: quotedMessage(repliedTo),
+                    selfUserID: selfUserID,
+                    counterpartName: counterpartName
+                )
+            }
+
             items.append(.message(ChatMessage(
                 id: message.stableID,
                 content: content,
@@ -147,10 +159,54 @@ extension ChatItem {
                 receipt: receipt,
                 linkPreview: linkPreview,
                 isEdited: message.lastEditedTs != nil && !message.isDeleted,
-                actions: orderedActions(capabilities(message))
+                actions: orderedActions(capabilities(message)),
+                quote: quote
             )))
         }
         return items
+    }
+
+    /// The quoted original, for each of the three states it can be in. A message the local database
+    /// has never seen and a tombstone both render as unavailable and both refuse the jump — the
+    /// first because there is no row to land on, the second because `.hidden` filters the tombstone
+    /// out of the transcript entirely.
+    nonisolated private static func quote(
+        resolving original: ConversationMessage?,
+        selfUserID: UserID,
+        counterpartName: String
+    ) -> ChatQuote {
+        guard let original else {
+            return ChatQuote(
+                stableID: nil,
+                authorName: "",
+                snippet: ChatQuote.unavailableSnippet,
+                kind: .unavailable
+            )
+        }
+        let authorName = original.isFromSelf(selfUserID) ? "You" : counterpartName
+        switch original.content {
+        case .text(let text):
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: ChatQuote.snippet(forText: text),
+                kind: .text
+            )
+        case .cash(let fiat):
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: fiat.nativeAmount.formatted(),
+                kind: .cash
+            )
+        case .deleted:
+            return ChatQuote(
+                stableID: nil,
+                authorName: authorName,
+                snippet: ChatQuote.deletedSnippet,
+                kind: .unavailable
+            )
+        }
     }
 
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
