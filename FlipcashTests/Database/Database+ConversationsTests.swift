@@ -766,4 +766,24 @@ struct DatabaseConversationsTests {
         #expect(try database.message(id: MessageID(value: 99), conversationID: conversationID) == nil)
     }
 
+    @Test("A reply round-trips its replied-to id through the database")
+    func replyMessage_roundTripsRepliedTo() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let conversationID = ConversationID.test(1)
+        let original = ConversationMessage(
+            id: MessageID(value: 1), senderID: nil, content: .text("original"),
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 0
+        )
+        let reply = ConversationMessage(
+            id: MessageID(value: 2), senderID: nil, content: .text("replying"),
+            date: Date(timeIntervalSince1970: 1), unreadSeq: 1,
+            repliedTo: MessageID(value: 1)
+        )
+        try database.upsertConversationMessages([original, reply], conversationID: conversationID)
+
+        let stored = try database.getConversationMessages(conversationID: conversationID)
+        #expect(stored.first { $0.id == MessageID(value: 1) }?.repliedTo == nil)
+        #expect(stored.first { $0.id == MessageID(value: 2) }?.repliedTo == MessageID(value: 1))
+    }
 }
