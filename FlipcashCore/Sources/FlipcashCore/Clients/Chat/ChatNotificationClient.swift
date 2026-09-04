@@ -109,6 +109,9 @@ public final class ChatNotificationClient: Sendable {
                 owner: owner,
                 conversationID: conversationID,
                 text: text,
+                // A notification quick-reply is a plain message: the extension has no transcript
+                // to quote from.
+                repliedTo: nil,
                 clientMessageID: clientMessageID
             ) { continuation.resume(with: $0) }
         }
