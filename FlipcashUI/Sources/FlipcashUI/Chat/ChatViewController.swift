@@ -79,6 +79,10 @@ public final class ChatViewController: UICollectionViewController {
     /// A row asked for before it was in `items` — the loader's window has to move first. The next
     /// update carrying it performs the scroll.
     private var pendingScrollTargetID: String?
+
+    /// Drag a row towards the leading edge to reply to it. Owns its own recognizer and state — see
+    /// `ChatSwipeToReply` for why it is exclusive with every other gesture here.
+    private let swipeToReply = ChatSwipeToReply()
     /// Breathing room kept below the last item, above the bar, so a trailing receipt doesn't sit
     /// flush against the bar.
     private static let bottomContentPadding: CGFloat = 12
@@ -172,6 +176,25 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
         collectionView.register(ChatProfileCardCell.self, forCellWithReuseIdentifier: ChatProfileCardCell.reuseIdentifier)
+
+        swipeToReply.isBlocked = { [weak self] in
+            guard let self else { return true }
+            return self.isShowingContextMenu || self.isUpdating
+        }
+        swipeToReply.rowForSwipe = { [weak self] point in
+            guard let self,
+                  let indexPath = self.collectionView.indexPathForItem(at: point),
+                  let cell = self.collectionView.cellForItem(at: indexPath),
+                  case .message(let message) = self.items[indexPath.item],
+                  message.actions.contains(.reply)
+            else { return nil }
+            return (cell, message.id)
+        }
+        swipeToReply.onTrigger = { [weak self] stableID in
+            self?.onMessageAction?(stableID, .reply)
+        }
+        collectionView.addGestureRecognizer(swipeToReply.recognizer)
+
         collectionView.reloadData()
     }
 
@@ -235,6 +258,10 @@ public final class ChatViewController: UICollectionViewController {
         if wasEmpty || newItems.isEmpty || !animated {
             if !animated { needsInitialScroll = true }
             items = newItems
+            // Toggling `isEnabled` cancels the gesture, which settles the row — a recycled cell must
+            // never inherit a translation from the row that was dragged before it.
+            swipeToReply.recognizer.isEnabled = false
+            swipeToReply.recognizer.isEnabled = true
             collectionView.reloadData()
             performInitialScrollIfNeeded()
             performPendingScrollIfLanded()
@@ -589,8 +616,15 @@ extension ChatViewController: ChatLayoutDelegate {
 extension ChatViewController: UIGestureRecognizerDelegate {
     /// Lets the tap-to-dismiss recognizer fire alongside the collection view's own scroll and
     /// selection recognizers, so lowering the keyboard never pre-empts a cell tap.
+    ///
+    /// Swipe-to-reply is the exception: it translates a cell, so running it beside the scroll would
+    /// drag a row sideways mid-scroll, and running it beside the long-press would slide the row out
+    /// from under its own lift preview. It is exclusive in both directions.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        true
+        if gestureRecognizer === swipeToReply.recognizer || otherGestureRecognizer === swipeToReply.recognizer {
+            return false
+        }
+        return true
     }
 }
 

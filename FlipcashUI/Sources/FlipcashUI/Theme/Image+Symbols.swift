@@ -54,6 +54,7 @@ public enum SystemSymbol: String {
     case arrowDown = "arrow.down"
     case arrowRight = "arrow.right"
     case arrowLeft = "arrow.left"
+    case replyArrow = "arrowshape.turn.up.left.fill"
     
     case info = "info.circle"
     case doc = "doc.on.doc"
