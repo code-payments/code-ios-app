@@ -16,11 +16,21 @@ import FlipcashCore
 @Observable
 final class ComposerModel {
 
+    /// What a reply is composed against — enough to render the strip and to address the send,
+    /// so the composer never reaches back into the transcript for it.
+    struct ReplyTarget: Equatable {
+        let messageID: MessageID
+        let stableID: String
+        let authorName: String
+        let snippet: String
+    }
+
     enum Mode: Equatable {
         case new
         /// `stableID` is the transcript row's identity, kept alongside the message id so the screen
         /// can highlight the row being edited without re-deriving it.
         case editing(messageID: MessageID, stableID: String)
+        case replying(to: ReplyTarget)
     }
 
     private(set) var mode: Mode = .new
@@ -37,7 +47,7 @@ final class ComposerModel {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         switch mode {
-        case .new:
+        case .new, .replying:
             return trimmed
         case .editing:
             return trimmed == originalText ? nil : trimmed
@@ -50,8 +60,16 @@ final class ComposerModel {
     /// this, so reading it is what ties the backdrop's lifetime to the composer's mode.
     var editingStableID: String? {
         switch mode {
-        case .new:                          nil
+        case .new, .replying:               nil
         case .editing(_, let stableID):     stableID
+        }
+    }
+
+    /// The message this composer is replying to, or `nil` when it is not replying.
+    var replyTarget: ReplyTarget? {
+        switch mode {
+        case .new, .editing:            nil
+        case .replying(let target):     target
         }
     }
 
@@ -59,8 +77,8 @@ final class ComposerModel {
     /// swaps its leading control and its confirm glyph on this.
     var isEditing: Bool {
         switch mode {
-        case .new:     false
-        case .editing: true
+        case .new, .replying:   false
+        case .editing:          true
         }
     }
 
@@ -81,6 +99,19 @@ final class ComposerModel {
         originalText = ""
         draft = stashedDraft
         stashedDraft = ""
+    }
+
+    /// Aims the composer at a message. Unlike an edit, the draft is left alone — a reply adds to
+    /// what you were already typing rather than replacing it.
+    func beginReplying(to target: ReplyTarget) {
+        if isEditing { endEditing() }
+        mode = .replying(to: target)
+    }
+
+    /// Dismisses the reply, keeping the draft — the strip's ⊗ takes back the target, not the text.
+    func endReplying() {
+        guard case .replying = mode else { return }
+        mode = .new
     }
 
     /// Empties the field after a successful send.
