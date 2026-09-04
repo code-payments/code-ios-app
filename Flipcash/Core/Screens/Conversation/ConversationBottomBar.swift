@@ -29,9 +29,6 @@ private enum BarMetrics {
     static let cornerRadius: CGFloat = 14
     /// The height of every bar control: a single-line field plus its padding.
     static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
-    /// Corner radius of the reply surface. Larger than the controls' own radius, so the panel reads
-    /// as the thing holding them rather than another control the same shape.
-    static let surfaceRadius: CGFloat = 20
 }
 
 /// The unified bottom bar: Send Cash (morphing) beside the message field.
@@ -248,14 +245,51 @@ private struct ReplySurfaceBackground: ViewModifier {
     func body(content: Content) -> some View {
         content.background {
             UnevenRoundedRectangle(
-                topLeadingRadius: BarMetrics.surfaceRadius,
-                topTrailingRadius: BarMetrics.surfaceRadius,
+                topLeadingRadius: ReplySurface.cornerRadius,
+                topTrailingRadius: ReplySurface.cornerRadius,
                 style: .continuous
             )
-            .fill(Color.backgroundSecondary)
+            .fill(ReplySurface.fill)
             .opacity(isReplying ? 1 : 0)
-            .ignoresSafeArea(edges: .bottom)
         }
+    }
+}
+
+/// What the reply surface is made of. Named here because the surface is painted in two places: the
+/// bar draws the panel, and the screen behind it draws the strip below — see `ReplySurfaceFloor`.
+enum ReplySurface {
+
+    /// Opaque, and a step the eye can actually see. `backgroundSecondary` is the app's
+    /// elevated-surface token, but it sits about 5% above the chat background — close enough to
+    /// what the translucent strip composited to that switching to it changed nothing on screen.
+    /// This is the same idea one step further, pre-composited so the transcript can't show through.
+    static let fill = Color(red: 0x2E / 255, green: 0x2E / 255, blue: 0x2F / 255)
+    /// Larger than the controls' own radius, so the panel reads as the thing holding them rather
+    /// than another control of the same shape.
+    static let cornerRadius: CGFloat = 20
+}
+
+/// The reply surface's continuation under the bar, painted by the screen.
+///
+/// The bar is a hosted view held off the bottom safe area, so its panel stops at the home indicator
+/// and leaves a hard edge with the app background below it. The screen owns that strip; filling it
+/// with the surface's own colour is what makes the panel read as running off the bottom of the
+/// display instead of floating above it.
+///
+/// It paints the whole screen, not just the strip, and is placed behind the transcript — which is
+/// opaque — so only the strip below the transcript's own bottom edge is ever visible. Sizing it to
+/// the inset instead does not work: `ignoresSafeArea` grows the region offered to a *flexible*
+/// view, and a view already fixed to a height keeps that height and stays inside the safe area.
+struct ReplySurfaceFloor: View {
+
+    let isReplying: Bool
+
+    var body: some View {
+        ReplySurface.fill
+            .ignoresSafeArea(.container, edges: .bottom)
+            .opacity(isReplying ? 1 : 0)
+            .allowsHitTesting(false)
+            .animation(barMorphSpring, value: isReplying)
     }
 }
 

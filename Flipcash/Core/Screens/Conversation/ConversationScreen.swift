@@ -228,6 +228,12 @@ struct ConversationScreen: View {
         // what lets the iOS 26 toolbar scroll-edge effect materialize. The collection view keeps a
         // top content inset (it adjusts for the safe area) so messages stay readable below the bar.
         .ignoresSafeArea(.container, edges: .top)
+        // The bar's panel stops where the hosted view does, at the bottom safe area. This carries
+        // it the rest of the way down, so a reply in progress reads as one surface running off the
+        // bottom of the display rather than a card with an edge above the home indicator.
+        .background {
+            ReplySurfaceFloor(isReplying: composer.replyTarget != nil)
+        }
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
