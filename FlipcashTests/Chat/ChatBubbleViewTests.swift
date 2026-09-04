@@ -54,25 +54,29 @@ struct ChatBubbleViewCornerTests {
 @Suite("ChatMessageCell alignment")
 struct ChatMessageCellAlignmentTests {
 
-    private func laidOutCell(sender: ChatMessage.Sender) -> (cell: ChatMessageCell, bubble: UIView) {
+    /// Returns the bubble's frame *in the content view's* coordinate space. `contentView.subviews[0]`
+    /// is the column stack view, which spans the whole row by design and hugs the sender's edge
+    /// through its `alignment` — so measuring that against the content view's edges asserts nothing.
+    private func laidOutCell(sender: ChatMessage.Sender) -> (cell: ChatMessageCell, bubble: CGRect) {
         let cell = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 80))
         cell.configure(with: ChatMessage(id: "1", text: "hi", sender: sender), maxWidth: 250)
         cell.layoutIfNeeded()
-        return (cell, cell.contentView.subviews[0])
+        let bubble = cell.bubbleView
+        return (cell, bubble.convert(bubble.bounds, to: cell.contentView))
     }
 
     @Test("A self message hugs the trailing edge")
     func selfMessage_hugsTrailing() {
         let (cell, bubble) = laidOutCell(sender: .me)
-        #expect(abs(bubble.frame.maxX - (cell.contentView.bounds.width - 12)) < 0.5)
-        #expect(bubble.frame.minX > 12) // does not span the full width
+        #expect(abs(bubble.maxX - (cell.contentView.bounds.width - 12)) < 0.5)
+        #expect(bubble.minX > 12) // does not span the full width
     }
 
     @Test("An other message hugs the leading edge")
     func otherMessage_hugsLeading() {
         let (cell, bubble) = laidOutCell(sender: .other)
-        #expect(abs(bubble.frame.minX - 12) < 0.5)
-        #expect(bubble.frame.maxX < cell.contentView.bounds.width - 12)
+        #expect(abs(bubble.minX - 12) < 0.5)
+        #expect(bubble.maxX < cell.contentView.bounds.width - 12)
     }
 }
 

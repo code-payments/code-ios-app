@@ -37,6 +37,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when a context-menu action is chosen on a row, with the row's stable id. Copy never
     /// arrives here — the transcript puts the text on the pasteboard itself.
     let onMessageAction: (String, MessageCapability) -> Void
+    /// Brings the quoted original into the loader's window; the scroll follows here.
+    let onQuoteTap: (String) -> Void
     let showsSendCash: Bool
     let chatExists: Bool
     let conversationID: ConversationID?
@@ -68,6 +70,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
+        screen.onQuoteTap = { [weak screen] stableID in
+            onQuoteTap(stableID)
+            // The reveal may have to move the loader's anchor first, so the scroll records a
+            // pending target when the row is not in the window yet.
+            screen?.scrollToMessage(id: stableID)
+        }
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.update(items: items)
         context.coordinator.barHost = barHost
@@ -87,6 +95,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
+        screen.onQuoteTap = { [weak screen] stableID in
+            onQuoteTap(stableID)
+            // The reveal may have to move the loader's anchor first, so the scroll records a
+            // pending target when the row is not in the window yet.
+            screen?.scrollToMessage(id: stableID)
+        }
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
         // has to claim the menu's blur before the dismissal fades it; it comes down here, whichever
@@ -125,8 +139,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             case .edit:
                 screen?.beginEditSpotlight(for: stableID)
                 screen?.focusComposer()
-            case .delete:       screen?.dismissKeyboard()
-            case .copy, .reply: break
+            case .reply:
+                screen?.focusComposer()
+            case .delete:   screen?.dismissKeyboard()
+            case .copy:     break
             }
         }
     }

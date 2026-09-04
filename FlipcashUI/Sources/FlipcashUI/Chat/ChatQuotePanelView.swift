@@ -84,6 +84,7 @@ final class ChatQuotePanelView: UIView {
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
         isAccessibilityElement = true
         accessibilityTraits = .button
+        accessibilityIdentifier = "chat-quote-panel"
     }
 
     func configure(with quote: ChatQuote) {
