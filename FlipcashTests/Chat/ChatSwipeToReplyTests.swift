@@ -101,8 +101,65 @@ struct ChatSwipeToReplyTests {
         let center = ChatSwipeToReply.affordanceCenter(inRowOfHeight: 48)
         // At full travel the row carries it back over the leading edge, clear of the bubble that
         // has moved out of the way by the same distance.
-        let travelled = center.x + ChatSwipeToReply.maxTranslation
+        let travelled = ChatSwipeToReply.affordanceCenter(
+            inRowOfHeight: 48, offset: ChatSwipeToReply.maxTranslation
+        ).x
         #expect(travelled > 0)
         #expect(travelled < ChatSwipeToReply.maxTranslation)
+    }
+
+    @Test("The arrow moves with the row, offset for offset")
+    func arrow_tracksTheDrag() {
+        let rest = ChatSwipeToReply.affordanceCenter(inRowOfHeight: 48).x
+        let dragged = ChatSwipeToReply.affordanceCenter(inRowOfHeight: 48, offset: 30).x
+        #expect(dragged - rest == 30)
+    }
+}
+
+@Suite("Swipe offset on a row")
+@MainActor
+struct ChatColumnCellSwipeOffsetTests {
+
+    private func laidOutCell() -> ChatMessageCell {
+        let cell = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 60))
+        cell.configure(with: ChatMessage(id: "1", text: "hi", sender: .me), maxWidth: 250)
+        cell.layoutIfNeeded()
+        return cell
+    }
+
+    private func bubbleX(_ cell: ChatMessageCell) -> CGFloat {
+        cell.bubbleView.convert(cell.bubbleView.bounds, to: cell).minX
+    }
+
+    @Test("A swipe offset moves the row's content sideways")
+    func offset_movesTheContent() {
+        let cell = laidOutCell()
+        let before = bubbleX(cell)
+        cell.swipeOffset = 40
+        #expect(bubbleX(cell) - before == 40)
+    }
+
+    @Test("A swipe offset survives a layout pass")
+    func offset_survivesLayout() {
+        // The regression this guards: the offset used to live on `contentView.transform`, which
+        // `UICollectionViewCell.layoutSubviews` cancels by reassigning `contentView.frame` — so the
+        // row read as motionless however far the finger travelled.
+        let cell = laidOutCell()
+        let before = bubbleX(cell)
+        cell.swipeOffset = 40
+        cell.setNeedsLayout()
+        cell.layoutIfNeeded()
+        #expect(bubbleX(cell) - before == 40)
+    }
+
+    @Test("Reuse clears the offset")
+    func reuse_clearsTheOffset() {
+        let cell = laidOutCell()
+        let before = bubbleX(cell)
+        cell.swipeOffset = 40
+        cell.prepareForReuse()
+        cell.layoutIfNeeded()
+        #expect(cell.swipeOffset == 0)
+        #expect(bubbleX(cell) == before)
     }
 }

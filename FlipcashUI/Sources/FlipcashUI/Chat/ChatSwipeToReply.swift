@@ -34,13 +34,13 @@ final class ChatSwipeToReply: NSObject {
 
     /// The row under a point, if it can be replied to. The transcript answers this; the gesture
     /// does not know what a message is.
-    var rowForSwipe: ((CGPoint) -> (cell: UICollectionViewCell, stableID: String)?)?
+    var rowForSwipe: ((CGPoint) -> (cell: ChatColumnCell, stableID: String)?)?
     /// Whether the transcript is busy — mid-update, or showing a context menu.
     var isBlocked: (() -> Bool)?
     /// Called once, when the drag crosses the threshold.
     var onTrigger: ((String) -> Void)?
 
-    private var draggedCell: UICollectionViewCell?
+    private var draggedCell: ChatColumnCell?
     private var draggedStableID: String?
     /// Latched once per drag, so the threshold's haptic fires on the way past and not on every
     /// frame beyond it. It gates the feedback only — the reply fires from `.ended`.
@@ -102,12 +102,16 @@ final class ChatSwipeToReply: NSObject {
         offset > triggerThreshold
     }
 
-    /// Where the affordance sits in the row's own coordinates, before the row's own translation is
-    /// applied on top. It starts off the leading edge and rides the row into the gap the drag opens,
-    /// which is why it needs no knowledge of which edge the bubble hugs: at rest it is out of frame
-    /// for either sender, and at full travel it lands in space the bubble has just left.
-    nonisolated static func affordanceCenter(inRowOfHeight height: CGFloat) -> CGPoint {
-        CGPoint(x: affordanceInset + affordanceDiameter / 2 - maxTranslation, y: height / 2)
+    /// Where the affordance sits in the row's own coordinates at a given drag offset. It starts off
+    /// the leading edge and rides the row by the same offset the row moves, which is why it needs no
+    /// knowledge of which edge the bubble hugs: at rest it is out of frame for either sender, and at
+    /// full travel it lands in space the bubble has just left.
+    ///
+    /// The offset is carried here rather than in a transform because the affordance's transform is
+    /// spent on the scale, and it is parented to the content view rather than to the column the row's
+    /// own translation moves.
+    nonisolated static func affordanceCenter(inRowOfHeight height: CGFloat, offset: CGFloat = 0) -> CGPoint {
+        CGPoint(x: affordanceInset + affordanceDiameter / 2 - maxTranslation + offset, y: height / 2)
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
@@ -149,28 +153,31 @@ final class ChatSwipeToReply: NSObject {
         haptics.prepare()
 
         affordance.alpha = 0
-        affordance.transform = .identity
+        affordance.transform = CGAffineTransform(scaleX: 0.6, y: 0.6)
         affordance.center = Self.affordanceCenter(inRowOfHeight: row.cell.bounds.height)
         row.cell.contentView.addSubview(affordance)
     }
 
     private func apply(offset: CGFloat) {
         guard let draggedCell else { return }
-        draggedCell.contentView.transform = CGAffineTransform(translationX: offset, y: 0)
-        // The arrow grows in over the run-up to the trigger, so the gesture announces itself before
-        // it fires rather than after.
+        draggedCell.swipeOffset = offset
+        // The arrow rides the row by the same offset, and grows in over the run-up to the trigger, so
+        // the gesture announces itself before it fires rather than after.
         let progress = min(1, offset / Self.triggerThreshold)
+        affordance.center = Self.affordanceCenter(inRowOfHeight: draggedCell.bounds.height, offset: offset)
         affordance.alpha = progress
         affordance.transform = CGAffineTransform(scaleX: 0.6 + 0.4 * progress, y: 0.6 + 0.4 * progress)
     }
 
     private func settle() {
         let cell = draggedCell
+        let restingCenter = Self.affordanceCenter(inRowOfHeight: cell?.bounds.height ?? 0)
         draggedCell = nil
         draggedStableID = nil
         hasPassedThreshold = false
         ChatMotion.swap.animate {
-            cell?.contentView.transform = .identity
+            cell?.swipeOffset = 0
+            self.affordance.center = restingCenter
             self.affordance.alpha = 0
             self.affordance.transform = CGAffineTransform(scaleX: 0.6, y: 0.6)
         } completion: { _ in

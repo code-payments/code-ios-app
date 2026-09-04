@@ -184,7 +184,7 @@ public final class ChatViewController: UICollectionViewController {
         swipeToReply.rowForSwipe = { [weak self] point in
             guard let self,
                   let indexPath = self.collectionView.indexPathForItem(at: point),
-                  let cell = self.collectionView.cellForItem(at: indexPath),
+                  let cell = self.collectionView.cellForItem(at: indexPath) as? ChatColumnCell,
                   case .message(let message) = self.items[indexPath.item],
                   message.actions.contains(.reply)
             else { return nil }
