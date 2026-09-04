@@ -420,8 +420,7 @@ nonisolated extension Database {
                 m.unreadSeq      <- message.unreadSeq,
                 m.eventSequence  <- message.eventSequence,
                 m.clientMessageID <- message.clientMessageID,
-                // The reply plan fills this in; the column exists now so the schema bumps once.
-                m.repliedToId    <- nil,
+                m.repliedToId    <- message.repliedTo?.value,
                 m.lastEditedTs   <- message.lastEditedTs?.timeIntervalSinceReferenceDate,
                 m.deletedBy      <- deletedBy,
                 m.deletedAt      <- deletedAt
@@ -504,6 +503,7 @@ nonisolated extension Database {
             unreadSeq: row[m.unreadSeq],
             eventSequence: row[m.eventSequence],
             lastEditedTs: row[m.lastEditedTs].map(Date.init(timeIntervalSinceReferenceDate:)),
+            repliedTo: row[m.repliedToId].map(MessageID.init(value:)),
             clientMessageID: row[m.clientMessageID]
         )
     }

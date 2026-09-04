@@ -65,6 +65,12 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public let eventSequence: UInt64
     /// When the sender last edited this message, or `nil` if it has never been edited.
     public let lastEditedTs: Date?
+    /// The message this one replies to, or `nil` when it replies to nothing. A reply is a
+    /// decoration on a text message rather than a content kind of its own: the wire nests the
+    /// body inside `ReplyContent`, and the initializer below unwraps it so every `case .text`
+    /// path — link detection, the transcript mapper, the bubble, edit — sees the shape it
+    /// always saw.
+    public let repliedTo: MessageID?
     /// Delivery state. `.sent` for every server/cache message; `.sending`/`.failed` only for an
     /// in-flight optimistic message.
     public var status: SendStatus
@@ -83,6 +89,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         unreadSeq: UInt64,
         eventSequence: UInt64 = 0,
         lastEditedTs: Date? = nil,
+        repliedTo: MessageID? = nil,
         status: SendStatus = .sent,
         clientMessageID: UUID? = nil
     ) {
@@ -94,6 +101,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.unreadSeq = unreadSeq
         self.eventSequence = eventSequence
         self.lastEditedTs = lastEditedTs
+        self.repliedTo = repliedTo
         self.status = status
         self.clientMessageID = clientMessageID
     }
@@ -125,6 +133,7 @@ extension ConversationMessage {
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
             lastEditedTs: lastEditedTs,
+            repliedTo: repliedTo,
             status: status,
             clientMessageID: clientMessageID
         )
@@ -145,10 +154,12 @@ extension ConversationMessage {
     /// it converges the same way across the stream, `GetMessages`, and `GetDelta`
     /// and can't leave the pre-delete content on screen.
     public init?(_ proto: Flipcash_Messaging_V1_Message) {
+        let repliedTo: MessageID?
         switch proto.content.first?.type {
         case .text(let textContent):
             self.content = .text(textContent.text)
             self.cashAction = nil
+            repliedTo = nil
         case .cash(let cashContent):
             guard let amount = try? ExchangedFiat(cashContent.amount) else {
                 return nil
@@ -156,6 +167,7 @@ extension ConversationMessage {
             self.content = .cash(amount)
             // Unrecognized verbs fall back to `.sent`, per the proto contract.
             self.cashAction = cashContent.verb == .tipped ? .tipped : .sent
+            repliedTo = nil
         case .deleted(let deletedContent):
             self.content = .deleted(
                 Deletion(
@@ -164,7 +176,20 @@ extension ConversationMessage {
                 )
             )
             self.cashAction = nil
-        case .reply, .media, .system, .none:
+            repliedTo = nil
+        case .reply(let replyContent):
+            // The wire nests the body one level down; unwrap it so the message is a text message
+            // that happens to point at another, not a second shape every `case .text` must learn.
+            // `content` is repeated on the wire but carries exactly one entry in practice — a
+            // reply with nothing inside has no body to draw, so it is dropped like any other
+            // content the client cannot represent.
+            guard case .text(let textContent)? = replyContent.content.first?.type else {
+                return nil
+            }
+            self.content = .text(textContent.text)
+            self.cashAction = nil
+            repliedTo = replyContent.hasRepliedMessageID ? MessageID(replyContent.repliedMessageID) : nil
+        case .media, .system, .none:
             return nil
         }
 
@@ -174,6 +199,7 @@ extension ConversationMessage {
         self.unreadSeq = proto.unreadSeq
         self.eventSequence = proto.eventSequence
         self.lastEditedTs = proto.hasLastEditedTs ? proto.lastEditedTs.date : nil
+        self.repliedTo = repliedTo
         self.status = .sent
         self.clientMessageID = nil
     }

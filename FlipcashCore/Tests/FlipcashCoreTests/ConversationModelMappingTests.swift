@@ -417,3 +417,67 @@ struct ConversationMessageMetadataTests {
         #expect(edited.lastEditedTs == Date(timeIntervalSince1970: 200))
     }
 }
+
+@Suite("Reply proto mapping")
+struct ConversationMessageReplyMappingTests {
+
+    private func replyProto(repliedTo: UInt64, text: String) -> Flipcash_Messaging_V1_Message {
+        .with {
+            $0.messageID = .with { $0.value = 42 }
+            $0.content = [
+                .with { content in
+                    content.reply = .with { reply in
+                        reply.repliedMessageID = .with { $0.value = repliedTo }
+                        reply.content = [.with { inner in inner.text = .with { $0.text = text } }]
+                    }
+                }
+            ]
+        }
+    }
+
+    @Test("A reply proto maps to a text message carrying the replied-to id")
+    func replyProto_unwrapsToText() throws {
+        let message = try #require(ConversationMessage(replyProto(repliedTo: 7, text: "on my way")))
+        #expect(message.content == .text("on my way"))
+        #expect(message.repliedTo == MessageID(value: 7))
+    }
+
+    @Test("A plain text proto carries no replied-to id")
+    func textProto_hasNoRepliedTo() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 43 }
+            $0.content = [.with { $0.text = .with { $0.text = "hi" } }]
+        }
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.repliedTo == nil)
+    }
+
+    @Test("A reply whose inner content is empty is dropped rather than rendered blank")
+    func replyProto_withoutInnerContent_isDropped() {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 44 }
+            $0.content = [
+                .with { content in
+                    content.reply = .with { reply in
+                        reply.repliedMessageID = .with { $0.value = 7 }
+                    }
+                }
+            ]
+        }
+        #expect(ConversationMessage(proto) == nil)
+    }
+
+    @Test("replacingContent preserves the replied-to id")
+    func replacingContent_preservesRepliedTo() {
+        let message = ConversationMessage(
+            id: MessageID(value: 1),
+            senderID: nil,
+            content: .text("first"),
+            date: Date(timeIntervalSince1970: 0),
+            unreadSeq: 0,
+            repliedTo: MessageID(value: 9)
+        )
+        let edited = message.replacingContent(.text("second"), lastEditedTs: Date(timeIntervalSince1970: 1))
+        #expect(edited.repliedTo == MessageID(value: 9))
+    }
+}
