@@ -34,6 +34,12 @@ struct ComposerReplyStrip: View {
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            // Combined here rather than on the row, so the quote reads as one element while the
+            // dismiss button stays a button of its own — a row-level combine folds the button into
+            // the label and leaves nothing to press.
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Replying to \(target.authorName): \(target.snippet)")
+            .accessibilityIdentifier("composer-reply-quote")
 
             Button(action: onDismiss) {
                 Image(systemName: SystemSymbol.close.rawValue)
@@ -44,13 +50,14 @@ struct ComposerReplyStrip: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Cancel reply")
+            .accessibilityIdentifier("cancel-reply-button")
         }
         .padding(.leading, 12)
         .padding(.trailing, 8)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.06))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Replying to \(target.authorName): \(target.snippet)")
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("composer-reply-strip")
     }
 }
