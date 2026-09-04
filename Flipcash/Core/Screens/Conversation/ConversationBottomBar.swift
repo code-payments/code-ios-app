@@ -29,6 +29,9 @@ private enum BarMetrics {
     static let cornerRadius: CGFloat = 14
     /// The height of every bar control: a single-line field plus its padding.
     static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
+    /// Corner radius of the reply surface. Larger than the controls' own radius, so the panel reads
+    /// as the thing holding them rather than another control the same shape.
+    static let surfaceRadius: CGFloat = 20
 }
 
 /// The unified bottom bar: Send Cash (morphing) beside the message field.
@@ -95,6 +98,7 @@ struct ConversationBottomBar: View {
             }
             content
         }
+        .modifier(ReplySurfaceBackground(isReplying: composer.replyTarget != nil))
         .animation(barMorphSpring, value: composer.replyTarget)
         .modifier(BarGradientBackground())
     }
@@ -229,6 +233,29 @@ private struct CancelEditButton: View {
         .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
         .accessibilityLabel("Cancel editing")
         .accessibilityIdentifier("cancel-edit-button")
+    }
+}
+
+/// The panel the quote and the controls share while a reply is being written. Opaque rather than a
+/// tint over the background, so the whole bar lifts off the transcript as one surface — the quote is
+/// the top of it and the Send Cash button and field sit on it, instead of the quote reading as a
+/// separate strip above an unchanged bar. It runs past the safe area to the screen bottom for the
+/// same reason the gradient does: a surface that stops at the home indicator reads as a floating card.
+private struct ReplySurfaceBackground: ViewModifier {
+
+    let isReplying: Bool
+
+    func body(content: Content) -> some View {
+        content.background {
+            UnevenRoundedRectangle(
+                topLeadingRadius: BarMetrics.surfaceRadius,
+                topTrailingRadius: BarMetrics.surfaceRadius,
+                style: .continuous
+            )
+            .fill(Color.backgroundSecondary)
+            .opacity(isReplying ? 1 : 0)
+            .ignoresSafeArea(edges: .bottom)
+        }
     }
 }
 
