@@ -180,6 +180,11 @@ struct ConversationComposer: View {
             composer.clear()
             isFocused = true
             Task { await conversationController.send(text, to: conversationID) }
+        case .replying:
+            guard let text = composer.submission else { return }
+            composer.clear()
+            isFocused = true
+            Task { await conversationController.send(text, to: conversationID) }
         case .editing(let messageID, _):
             // Confirming an edit that changed nothing leaves edit mode rather than round-tripping
             // the same text — the button is always there to be pressed.
