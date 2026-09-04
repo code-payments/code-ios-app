@@ -51,6 +51,9 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Fired when a context-menu action other than Copy is chosen, with the row's id. Copy is handled
     /// here — it needs nothing the transcript does not already hold.
+    /// Called with a quoted message's stable id when its panel is tapped.
+    public var onQuoteTap: ((String) -> Void)?
+
     public var onMessageAction: ((String, MessageCapability) -> Void)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
@@ -311,9 +314,11 @@ public final class ChatViewController: UICollectionViewController {
                 cell.configure(with: message, maxWidth: maxWidth)
                 cell.onRetry = { [weak self] id in self?.onRetry?(id) }
                 cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+                cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
             case let cell as ChatMessageCell:
                 cell.configure(with: message, maxWidth: maxWidth)
                 cell.onRetry = { [weak self] id in self?.onRetry?(id) }
+                cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
             case let cell as ChatCashCardCell:
                 cell.configure(with: message)
             default:

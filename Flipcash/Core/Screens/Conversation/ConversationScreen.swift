@@ -210,6 +210,7 @@ struct ConversationScreen: View {
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
             onMessageAction: handleMessageAction,
+            onQuoteTap: jumpToQuote,
             showsSendCash: sendTarget != nil,
             chatExists: chatExists,
             conversationID: conversationID,
@@ -403,13 +404,44 @@ struct ConversationScreen: View {
         case .copy:
             break
         case .reply:
-            break // Reply is a separate scope; the menu does not offer it yet.
+            composer.beginReplying(to: ComposerModel.ReplyTarget(
+                messageID: message.id,
+                stableID: stableID,
+                authorName: message.isFromSelf(conversationController.selfUserID)
+                    ? "You"
+                    : (coordinator?.counterpartName ?? ""),
+                snippet: Self.replySnippet(for: message)
+            ))
         case .edit:
             guard case .text(let text) = message.content else { return }
             composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
         case .delete:
             confirmDelete(message.id)
         }
+    }
+
+    /// The composer strip's preview of the message being answered — the same three-way split the
+    /// transcript's quote panel uses, so the strip and the sent bubble read alike.
+    ///
+    /// A tombstone cannot reach here: `MessageCapability.resolve` grants a deleted message nothing,
+    /// so its row has no menu. The branch keeps the switch exhaustive.
+    private static func replySnippet(for message: ConversationMessage) -> String {
+        switch message.content {
+        case .text(let text):   ChatQuote.snippet(forText: text)
+        case .cash(let fiat):   fiat.nativeAmount.formatted()
+        case .deleted:          ChatQuote.deletedSnippet
+        }
+    }
+
+    /// Brings the quoted original into the window when the local database has it. Returns without
+    /// effect otherwise — history that was never fetched is out of scope, and the panel that
+    /// points at it is already non-tappable.
+    ///
+    /// A pending row's stable id is a UUID string, so the conversion fails and the jump is a no-op —
+    /// correct, since an unconfirmed message is by definition at the bottom of the window already.
+    private func jumpToQuote(_ stableID: String) {
+        guard let value = UInt64(stableID) else { return }
+        _ = coordinator?.loader.reveal(MessageID(value: value))
     }
 
     private func confirmDelete(_ messageID: MessageID) {

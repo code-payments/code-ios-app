@@ -118,6 +118,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onMessageAction = newValue }
     }
 
+    /// Forwards a tap on a reply's quote panel, with the quoted row's id.
+    public var onQuoteTap: ((String) -> Void)? {
+        get { transcript.onQuoteTap }
+        set { transcript.onQuoteTap = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)
