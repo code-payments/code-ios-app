@@ -188,7 +188,7 @@ public final class ChatViewController: UICollectionViewController {
                   case .message(let message) = self.items[indexPath.item],
                   message.actions.contains(.reply)
             else { return nil }
-            return (cell, message.id)
+            return (cell, message.id, message.sender == .me)
         }
         swipeToReply.onTrigger = { [weak self] stableID in
             self?.onMessageAction?(stableID, .reply)

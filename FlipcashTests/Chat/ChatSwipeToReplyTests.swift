@@ -69,4 +69,46 @@ struct ChatSwipeToReplyTests {
     func shortOfThreshold_doesNotTrigger() {
         #expect(ChatSwipeToReply.triggers(offset: -ChatSwipeToReply.triggerThreshold + 1) == false)
     }
+
+    @Test("A drag starting on the leading edge is left to back-navigation")
+    func leadingEdgeDrag_defersToBack() {
+        #expect(ChatSwipeToReply.defersToBackGesture(startX: 0))
+        #expect(ChatSwipeToReply.defersToBackGesture(startX: ChatSwipeToReply.backGestureInset - 1))
+    }
+
+    @Test("A drag starting anywhere else on the row is a reply swipe")
+    func restOfRow_doesNotDeferToBack() {
+        #expect(ChatSwipeToReply.defersToBackGesture(startX: ChatSwipeToReply.backGestureInset) == false)
+        // The empty space beside a bubble is as swipeable as the bubble itself.
+        #expect(ChatSwipeToReply.defersToBackGesture(startX: 120) == false)
+        #expect(ChatSwipeToReply.defersToBackGesture(startX: 380) == false)
+    }
+
+    @Test("The edge left to back-navigation is a strip, not a third of the row")
+    func backGestureInset_staysNarrow() {
+        #expect(ChatSwipeToReply.backGestureInset < 40)
+    }
+
+    @Test("A self message's arrow hangs in the empty leading space")
+    func selfMessage_arrowLeads() {
+        let center = ChatSwipeToReply.affordanceCenter(inRowOfWidth: 390, height: 48, isFromSelf: true)
+        #expect(center.x < 390 / 2)
+        #expect(center.y == 24)
+    }
+
+    @Test("An incoming message's arrow hangs in the empty trailing space")
+    func otherMessage_arrowTrails() {
+        let center = ChatSwipeToReply.affordanceCenter(inRowOfWidth: 390, height: 48, isFromSelf: false)
+        #expect(center.x > 390 / 2)
+    }
+
+    @Test("The arrow sits clear of both row edges")
+    func arrow_clearsTheEdges() {
+        let width: CGFloat = 390
+        for isFromSelf in [true, false] {
+            let center = ChatSwipeToReply.affordanceCenter(inRowOfWidth: width, height: 48, isFromSelf: isFromSelf)
+            #expect(center.x > 0)
+            #expect(center.x < width)
+        }
+    }
 }
