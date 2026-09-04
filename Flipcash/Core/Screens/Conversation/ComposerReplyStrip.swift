@@ -9,9 +9,10 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The quoted original above the composer while a reply is being written. Sits inside the bottom
-/// bar's background rather than on top of it, so the bar reads as one surface that grew, and
-/// dismissing it takes back the target without touching the draft.
+/// The quoted original above the composer while a reply is being written. It paints no background of
+/// its own: the bar draws one opaque surface behind the quote and the controls together, so the two
+/// read as one panel rather than a strip parked above a bar. Dismissing it takes back the target
+/// without touching the draft.
 struct ComposerReplyStrip: View {
 
     let target: ComposerModel.ReplyTarget
@@ -56,7 +57,6 @@ struct ComposerReplyStrip: View {
         .padding(.trailing, 8)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.06))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("composer-reply-strip")
     }

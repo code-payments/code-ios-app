@@ -20,6 +20,14 @@ import FlipcashUI
 /// appearance when the chat materializes, and the send-arrow pop.
 private let barMorphSpring = ChatMotion.swap.animation
 
+/// The curve the bar grows and shrinks on around the reply strip, and the one the surface changes
+/// colour on. The slab itself is permanent, so nothing mounts or unmounts over the transcript.
+///
+/// Separate from `barMorphSpring` because `swap` overshoots, and the transcript's bottom inset
+/// tracks this height every frame — a bar that overshoots drags the messages past their resting
+/// place and back.
+private let replySpring = ChatMotion.replySurface.animation
+
 /// Metrics shared by the field and the button beside it so their heights can't
 /// desync. Deliberately not `Metrics.buttonHeight`/`buttonRadius` — beside the
 /// field the controls are field-sized, not standard-button-sized.
@@ -60,7 +68,13 @@ struct ConversationBottomBar: View {
             } else if showsSendCash {
                 SendCashMorphButton(
                     symbol: symbol,
-                    composing: model.isComposing,
+                    // Minimized by a reply as well as by focus. Starting a reply from the context
+                    // menu raises the keyboard, and focus — and so `isComposing` — arrives a
+                    // transaction later than the reply target, on its own bouncy spring: the button
+                    // collapsed after the bar had already grown, jolting the field beside it.
+                    // Reading the target directly puts the morph in the reply's own transaction, so
+                    // the two move together and the later focus change finds nothing left to do.
+                    composing: model.isComposing || composer.replyTarget != nil,
                     standalone: !chatExists,
                     // A tip chat sits minimized beside its composer, but before
                     // the first tip there is no composer to sit beside: the
@@ -87,16 +101,147 @@ struct ConversationBottomBar: View {
         // The Send Cash button and the field are separate pills 10pt apart, so
         // they don't need to sample each other.
         return VStack(spacing: 0) {
-            if let target = composer.replyTarget {
-                ComposerReplyStrip(target: target) {
-                    withAnimation(barMorphSpring) { composer.endReplying() }
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            // No `withAnimation` at the dismiss site either: the `.animation(_, value:)` below
+            // already drives this state in both directions, and wrapping the dismissal in a second
+            // transaction gave the exit a curve the entry never had.
+            ComposerReplyReveal(target: composer.replyTarget) { composer.endReplying() }
             content
         }
-        .animation(barMorphSpring, value: composer.replyTarget)
-        .modifier(BarGradientBackground())
+        // Inside the animation modifier, not outside it: the surface is sized by the stack above,
+        // so both its geometry and the strip's height resolve on the one curve.
+        .modifier(BarSurfaceBackground(isReplying: composer.replyTarget != nil))
+        .animation(replySpring, value: composer.replyTarget)
+    }
+}
+
+/// The reply strip's arrival and departure: the quote the bar's top edge uncovers on the way in and
+/// closes back over on the way out.
+///
+/// The travel itself is not here. The bar is hosted in a box that clips it, and that box's edge is
+/// what moves — see `ChatScreenViewController`'s `barClip`. This view only decides *what* height the
+/// bar has to be for the strip to fit, and it takes that height in one step: the strip is laid out
+/// at full size the moment it mounts, behind the clip's edge, and stays there until the edge has
+/// closed over it again. Two animators over one edge is what put the composer row 24pt off its mark.
+///
+/// Height-driven and clipped rather than a transition, because any transition that moves or fades
+/// the quote on its own detaches it from the edge above it: `.move(edge: .bottom).combined(with:
+/// .opacity)` slid the quote down behind the field and dissolved it there while the edge travelled
+/// separately. Clipping welds them — the quote holds still against the field below it while the
+/// edge uncovers it.
+private struct ComposerReplyReveal: View {
+
+    let target: ComposerModel.ReplyTarget?
+    let onDismiss: () -> Void
+
+    /// The strip's own height. Measured rather than declared: a snippet that wraps to a second line
+    /// makes the sheet taller, and the clip has to know by how much.
+    @State private var naturalHeight: CGFloat = 0
+    /// Whether the strip is standing at its full height, 0 or 1 — never anything between.
+    ///
+    /// Kept as a factor of `naturalHeight` rather than a height switched on `target` because the
+    /// strip has to mount before it can be measured: on a first reply it comes up at zero height,
+    /// reports what it wants, and only then takes it. The bar's host reads that second step as the
+    /// opening, so nothing depends on the two landing in one transaction.
+    @State private var progress: CGFloat = 0
+    /// The last target seen, kept after the target clears. A strip that unmounts on the way out has
+    /// nothing to draw while it collapses, and the sheet slides back under the field empty.
+    @State private var retained: ComposerModel.ReplyTarget?
+    /// The quote's own opacity, which only ever moves on the way out.
+    ///
+    /// Asymmetric on purpose. Coming in, the edge uncovering the quote is the whole effect and a
+    /// fade would soften it; going out, a quote that stays fully opaque until the clip eats it reads
+    /// as the text being sliced off, so it dissolves as the sheet closes. `replySurface` has no
+    /// bounce, which is what makes it safe to drive opacity: a spring that overshoots clamps at 0
+    /// and 1 and flickers.
+    @State private var contentOpacity: CGFloat = 1
+
+    /// How much height the strip is asking the bar for. Zero until it has been measured, and held at
+    /// full height right through the exit — the clip closes over the quote, so there has to be a
+    /// quote there to close over.
+    private var revealHeight: CGFloat { naturalHeight * progress }
+
+    var body: some View {
+        Group {
+            if let retained {
+                ComposerReplyStrip(target: retained, onDismiss: onDismiss)
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { measured in
+                        measure(measured)
+                    }
+            }
+        }
+        // The strip keeps its own height whatever the frame below proposes, so the frame can clip it
+        // instead of squashing it.
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(height: revealHeight, alignment: .top)
+        .clipped()
+        // Deliberately unanimated, and inside the bar's own `.animation(replySpring,
+        // value: replyTarget)` so it wins: this height is the bar's *requirement*, not the motion.
+        // The clip around the bar travels it, on that same spring, in UIKit.
+        .animation(nil, value: revealHeight)
+        .opacity(contentOpacity)
+        // `clipped()` is a drawing bound, not a hit-testing or accessibility one, so the collapsed
+        // copy stays pressable and findable until the task below unmounts it.
+        .allowsHitTesting(target != nil)
+        // Drop the retained copy once it has finished sliding back under the field. It has to
+        // outlive the target — there is nothing to draw during the collapse otherwise — but only by
+        // the length of the collapse: left mounted, it leaves a zero-height quote in the
+        // accessibility tree that VoiceOver still reads and the UI tests still find. Hiding it
+        // instead of unmounting it does not work; the strip's own `children: .contain` container
+        // survives an ancestor's `accessibilityHidden`.
+        //
+        // `.task(id:)` cancels on the next change, so replying again mid-collapse keeps its strip.
+        .task(id: target) {
+            guard target == nil, retained != nil else { return }
+            try? await Task.sleep(for: .seconds(ChatMotion.replySurface.duration))
+            retained = nil
+            // Only now does the bar stop needing the strip's height. Giving it back any earlier
+            // would shrink the bar out from under a clip that is still closing, and show a band of
+            // the screen behind it above the composer.
+            progress = 0
+            // Back to opaque with nothing mounted, so the next reply starts from a clean state
+            // rather than fading in from wherever the last exit left it.
+            contentOpacity = 1
+        }
+        .onChange(of: target) { _, newValue in
+            guard let newValue else {
+                close()
+                return
+            }
+            retained = newValue
+            // Open from here only when a previous reply already measured the strip. On the first one
+            // the height is still unknown, and `measure(_:)` opens as soon as it arrives.
+            if naturalHeight > 0 { open() }
+        }
+        .onAppear {
+            retained = target
+            // Already replying when the bar appears — there is no arrival to animate.
+            progress = target == nil ? 0 : 1
+            contentOpacity = 1
+        }
+    }
+
+    /// Take the strip's measured height, and open the sheet if it was waiting on this measurement.
+    ///
+    /// A height that changes while the sheet is open is a real change — a one-line snippet replaced
+    /// by a two-line one — so it moves the top edge on the same curve rather than stepping it.
+    private func measure(_ measured: CGFloat) {
+        guard naturalHeight != measured else { return }
+        let wasUnmeasured = naturalHeight == 0
+        naturalHeight = measured
+        if wasUnmeasured, target != nil { open() }
+    }
+
+    private func open() {
+        progress = 1
+        // Only ever a correction: a reply started while the last one was still fading out. A fresh
+        // reply already has this at 1, so nothing animates.
+        withAnimation(ChatMotion.replySurface.animation) { contentOpacity = 1 }
+    }
+
+    /// The quote dissolves; its height stays. The clip is what closes over it, and it needs
+    /// something to close over — `progress` goes back to zero once that has finished.
+    private func close() {
+        withAnimation(ChatMotion.replySurface.animation) { contentOpacity = 0 }
     }
 }
 
@@ -124,6 +269,11 @@ struct ConversationComposer: View {
                 .focused($isFocused)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: BarMetrics.fieldMinHeight)
+                // Queried by the UI tests. The placeholder is not usable as a handle: it is gone the
+                // moment there is a draft, so a test that types and then reads the field back finds
+                // nothing. A multiline `TextField(axis:)` also surfaces as a text view wearing a
+                // text-field automation type, so the query has to be identifier-based, not type-based.
+                .accessibilityIdentifier("composer-message-field")
 
             if showsSubmit {
                 Button(action: submit) {
@@ -232,23 +382,114 @@ private struct CancelEditButton: View {
     }
 }
 
-/// Bottom-edge fade so transcript content scrolling under the bar dissolves into
-/// the background.
-private struct BarGradientBackground: ViewModifier {
+/// The bar's own surface: one square-edged, full-bleed slab under the quote and the controls,
+/// running past the safe area to the bottom of the display.
+///
+/// Permanent *geometry*, and that is the point. The reply surface used to be a rounded panel that
+/// appeared behind the bar and left again, and no amount of curve-matching stopped it reading as a
+/// second object crossfading over the messages — because it *was* one. Nothing here mounts or
+/// unmounts: the slab is always drawn, always full width, always pinned to the bottom. A reply
+/// changes two things about it — how tall it is, and what it is painted with — and both resolve on
+/// the one spring, so what moves is the bar itself rather than something arriving over the messages.
+private struct BarSurfaceBackground: ViewModifier {
+
+    /// How far the surface paints below the bar's own bottom edge.
+    ///
+    /// The keyboard's top corners are rounded, and what shows through them is whatever sits behind
+    /// the keyboard — which left a hard-edged notch of chat background at each bottom corner of the
+    /// bar, about 24×25pt on an iPhone 16 Pro. Painting past the bar's edge fills them. Everywhere
+    /// else this is hidden by the keyboard, or by the home-indicator area when the keyboard is down,
+    /// so overshooting the radius costs nothing.
+    private static let keyboardCornerBleed: CGFloat = 32
+
+    let isReplying: Bool
+
     func body(content: Content) -> some View {
-        content.background {
-            LinearGradient(
-                gradient: Gradient(colors: [Color.backgroundMain, Color.backgroundMain, .clear]),
-                startPoint: .bottom,
-                endPoint: .top
-            )
-            // Scope the bleed to the bottom edge only. The bar is a measured,
-            // keyboard-guide-pinned hosted view; an all-edges ignore makes the
-            // bar read as extending to the screen bottom, which collapses the
-            // scroll-content inset by the home-indicator height and drops the
-            // newest message under the bar.
+        // Top-aligned so the negative padding hangs the extra height below the bar rather than
+        // splitting it, which would paint over the transcript.
+        content.background(alignment: .top) {
+            ZStack(alignment: .top) {
+                BarSurface.restingFade
+                // Crossfaded over the fade on identical geometry — same width, same edges, same
+                // bottom — so what changes is the paint, not the cast: there is no second object
+                // to read as arriving over the messages.
+                BarSurface.replyFill
+                    .opacity(isReplying ? 1 : 0)
+            }
+            // Absorbed by the fade's opaque tail, so the dissolve at the top edge keeps its height
+            // whatever the bleed is.
+            .padding(.bottom, -Self.keyboardCornerBleed)
+            // Scope the safe-area bleed to the bottom edge only. The bar is a measured,
+            // keyboard-guide-pinned hosted view; an all-edges ignore makes the bar read as
+            // extending to the screen bottom, which collapses the scroll-content inset by the
+            // home-indicator height and drops the newest message under the bar.
             .ignoresSafeArea(edges: .bottom)
         }
+    }
+}
+
+/// What the bar's surface is made of, which depends on whether a reply is being written.
+///
+/// At rest the slab is not a slab at its top edge: it ramps from the chat background up to nothing
+/// over ``fadeHeight``, so a message scrolling under the bar dissolves into it rather than meeting a
+/// hard line. That dissolve is the composer's resting look and it stays — opaque at rest, the bar
+/// reads as a toolbar bolted across the transcript. Replying paints over it with the
+/// elevated-surface token, which is what draws the top edge and sets the quote apart from the
+/// messages above it.
+///
+/// The reply fill is painted in two places — the bar draws it, and the screen paints the same colour
+/// below the bar so it reaches the bottom of the display. See `BarSurfaceFloor`.
+enum BarSurface {
+
+    /// How far the resting surface takes to ramp from nothing to the chat background — half the
+    /// resting bar, which is where the proportional gradient this replaces put the boundary.
+    ///
+    /// Fixed rather than a fraction of the bar, because a fraction ties the dissolve to the draft: a
+    /// four-line message doubled the fade and softened the transcript twice as far up the screen,
+    /// for no reason a reader can see.
+    static let fadeHeight: CGFloat = 33
+
+    /// The composer at rest: clear at the top edge, chat background below it. The flexible tail is
+    /// what lets the slab bleed past the safe area without stretching the ramp.
+    static var restingFade: some View {
+        VStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .backgroundMain], startPoint: .top, endPoint: .bottom)
+                .frame(height: fadeHeight)
+            Color.backgroundMain
+        }
+    }
+
+    /// The surface a reply lifts the bar to.
+    static let replyFill = Color.backgroundSecondary
+
+    static func fill(isReplying: Bool) -> Color {
+        isReplying ? replyFill : .backgroundMain
+    }
+}
+
+/// The bar surface's continuation below the bar, painted by the screen.
+///
+/// The bar is a hosted view held off the bottom safe area, so its own background stops at the home
+/// indicator. The screen owns the rest; filling it with the same colour is what makes the bar read as
+/// running off the bottom of the display instead of floating above it.
+///
+/// It paints the whole screen, not just the strip, and is placed behind the transcript — which is
+/// opaque — so only the region below the transcript's own bottom edge is ever visible. Sizing it to
+/// the inset instead does not work: `ignoresSafeArea` grows the region offered to a *flexible* view,
+/// and a view already fixed to a height keeps that height and stays inside the safe area.
+///
+/// It carries its own animation because it is a sibling of the bar, not a child: the bar's spring
+/// covers the bar's subtree only, and a floor that snapped to the new colour while the bar eased into
+/// it would put a visible seam across the bottom of the screen.
+struct BarSurfaceFloor: View {
+
+    let isReplying: Bool
+
+    var body: some View {
+        BarSurface.fill(isReplying: isReplying)
+            .ignoresSafeArea(.container, edges: .bottom)
+            .allowsHitTesting(false)
+            .animation(ChatMotion.replySurface.animation, value: isReplying)
     }
 }
 
