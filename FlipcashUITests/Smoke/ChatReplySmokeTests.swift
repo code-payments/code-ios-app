@@ -44,7 +44,7 @@ final class ChatReplySmokeTests: BaseUITestCase {
         conversation.beginReply(to: original, from: self)
     }
 
-    /// Swiping a row towards the leading edge is the same entry as the menu's Reply, without the
+    /// Swiping a row towards the trailing edge is the same entry as the menu's Reply, without the
     /// menu — the gesture's own coexistence with scrolling and the long-press lift is what makes
     /// this worth driving on a real transcript.
     func testSwipingARow_opensTheReplyStrip() throws {

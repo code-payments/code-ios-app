@@ -8,7 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 
-/// Drag a row towards the leading edge to reply to it.
+/// Drag a row towards the trailing edge to reply to it.
 ///
 /// Owns the whole gesture — the recognizer, the row being dragged, its offset, and whether the
 /// trigger has already fired — because those four move together and splitting them across the
@@ -22,19 +22,19 @@ final class ChatSwipeToReply: NSObject {
     nonisolated static let maxTranslation: CGFloat = 64
     /// Offset at which the reply fires on release.
     nonisolated static let triggerThreshold: CGFloat = 48
-    /// Width of the leading strip left to the system's interactive-pop gesture. A swipe is a
-    /// whole-row gesture everywhere else, but a drag that starts inside this strip belongs to
-    /// back-navigation, and claiming it means the row moves instead of the screen.
+    /// Width of the leading strip left to the system's interactive-pop gesture. The reply swipe runs
+    /// in the same direction as back-navigation, so the two would otherwise fight over every drag
+    /// that starts at the screen edge — and the row would win, leaving no way back.
     nonisolated static let backGestureInset: CGFloat = 24
-    /// How far the affordance sits from the row edge it hangs off.
+    /// Where the affordance comes to rest at full travel, measured from the row's leading edge.
     nonisolated private static let affordanceInset: CGFloat = 20
     nonisolated private static let affordanceDiameter: CGFloat = 32
 
     let recognizer = UIPanGestureRecognizer()
 
-    /// The row under a point, if it can be replied to, and which side its bubble hugs. The
-    /// transcript answers this; the gesture does not know what a message is.
-    var rowForSwipe: ((CGPoint) -> (cell: UICollectionViewCell, stableID: String, isFromSelf: Bool)?)?
+    /// The row under a point, if it can be replied to. The transcript answers this; the gesture
+    /// does not know what a message is.
+    var rowForSwipe: ((CGPoint) -> (cell: UICollectionViewCell, stableID: String)?)?
     /// Whether the transcript is busy — mid-update, or showing a context menu.
     var isBlocked: (() -> Bool)?
     /// Called once, when the drag crosses the threshold.
@@ -68,11 +68,11 @@ final class ChatSwipeToReply: NSObject {
     /// Whether a drag with this velocity is a reply swipe rather than a scroll.
     ///
     /// Horizontal dominance is the whole rule: a diagonal drag belongs to the scroll view, which
-    /// would otherwise lose it to a recognizer that only ever moves sideways. Only leading-ward
-    /// drags qualify — the trailing direction is left free for anything that wants it later.
+    /// would otherwise lose it to a recognizer that only ever moves sideways. Only trailing-ward
+    /// drags qualify — the leading direction is left free for anything that wants it later.
     nonisolated static func shouldBegin(velocity: CGPoint, isBlocked: Bool) -> Bool {
         guard !isBlocked else { return false }
-        guard velocity.x < 0 else { return false }
+        guard velocity.x > 0 else { return false }
         return abs(velocity.x) > abs(velocity.y)
     }
 
@@ -85,29 +85,26 @@ final class ChatSwipeToReply: NSObject {
 
     /// How far the row actually moves for a raw translation: clamped, with resistance past the max.
     nonisolated static func offset(forTranslation translation: CGFloat) -> CGFloat {
-        guard translation < 0 else { return 0 }
-        let distance = -translation
-        guard distance > maxTranslation else { return translation }
+        guard translation > 0 else { return 0 }
+        guard translation > maxTranslation else { return translation }
         // Rubber band: past the max the row keeps following the finger, but with diminishing
         // returns that approach one more `maxTranslation` of travel and never exceed it — so a hard
         // swipe still feels connected without running the row off under the bubble beside it.
-        let overshoot = distance - maxTranslation
-        return -(maxTranslation + maxTranslation * overshoot / (overshoot + maxTranslation))
+        let overshoot = translation - maxTranslation
+        return maxTranslation + maxTranslation * overshoot / (overshoot + maxTranslation)
     }
 
     /// Whether releasing at this offset fires the reply.
     nonisolated static func triggers(offset: CGFloat) -> Bool {
-        offset < -triggerThreshold
+        offset > triggerThreshold
     }
 
-    /// Where the affordance hangs, in the row's own coordinates. It goes on the side the bubble
-    /// does *not* occupy — a self message hugs the trailing edge, so its arrow belongs in the empty
-    /// leading space, and anchoring both to the trailing edge draws the arrow over the bubble.
-    nonisolated static func affordanceCenter(inRowOfWidth width: CGFloat, height: CGFloat, isFromSelf: Bool) -> CGPoint {
-        let x = isFromSelf
-            ? affordanceInset + affordanceDiameter / 2
-            : width - affordanceInset - affordanceDiameter / 2
-        return CGPoint(x: x, y: height / 2)
+    /// Where the affordance sits in the row's own coordinates, before the row's own translation is
+    /// applied on top. It starts off the leading edge and rides the row into the gap the drag opens,
+    /// which is why it needs no knowledge of which edge the bubble hugs: at rest it is out of frame
+    /// for either sender, and at full travel it lands in space the bubble has just left.
+    nonisolated static func affordanceCenter(inRowOfHeight height: CGFloat) -> CGPoint {
+        CGPoint(x: affordanceInset + affordanceDiameter / 2 - maxTranslation, y: height / 2)
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
@@ -143,11 +140,7 @@ final class ChatSwipeToReply: NSObject {
 
         affordance.alpha = 0
         affordance.transform = .identity
-        affordance.center = Self.affordanceCenter(
-            inRowOfWidth: row.cell.bounds.width,
-            height: row.cell.bounds.height,
-            isFromSelf: row.isFromSelf
-        )
+        affordance.center = Self.affordanceCenter(inRowOfHeight: row.cell.bounds.height)
         row.cell.contentView.addSubview(affordance)
     }
 
@@ -156,7 +149,7 @@ final class ChatSwipeToReply: NSObject {
         draggedCell.contentView.transform = CGAffineTransform(translationX: offset, y: 0)
         // The arrow grows in over the run-up to the trigger, so the gesture announces itself before
         // it fires rather than after.
-        let progress = min(1, -offset / Self.triggerThreshold)
+        let progress = min(1, offset / Self.triggerThreshold)
         affordance.alpha = progress
         affordance.transform = CGAffineTransform(scaleX: 0.6 + 0.4 * progress, y: 0.6 + 0.4 * progress)
     }

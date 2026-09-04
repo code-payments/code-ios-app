@@ -87,7 +87,7 @@ struct ConversationUIScreen {
         assertReplyStripQuotes(text)
     }
 
-    /// Swipes `text`'s bubble towards the leading edge, the gesture shortcut for Reply.
+    /// Swipes `text`'s bubble towards the trailing edge, the gesture shortcut for Reply.
     func swipeToReply(on text: String, from testCase: BaseUITestCase) {
         let bubble = messageBubble(text)
         XCTAssertTrue(
@@ -95,7 +95,7 @@ struct ConversationUIScreen {
             "Expected '\(text)' in the transcript before swiping it"
         )
         testCase.waitForStableFrame(bubble)
-        bubble.swipeLeft()
+        bubble.swipeRight()
     }
 
     /// Aims the composer at `original` through the menu, then sends `reply` as an answer to it.

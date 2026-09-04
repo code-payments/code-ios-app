@@ -188,7 +188,7 @@ public final class ChatViewController: UICollectionViewController {
                   case .message(let message) = self.items[indexPath.item],
                   message.actions.contains(.reply)
             else { return nil }
-            return (cell, message.id, message.sender == .me)
+            return (cell, message.id)
         }
         swipeToReply.onTrigger = { [weak self] stableID in
             self?.onMessageAction?(stableID, .reply)
@@ -852,7 +852,7 @@ private extension MessageCapability {
     var menuSymbol: SystemSymbol {
         switch self {
         case .copy:   .doc
-        case .reply:  .arrowLeft
+        case .reply:  .replyArrow
         case .edit:   .pencil
         case .delete: .trash
         }
