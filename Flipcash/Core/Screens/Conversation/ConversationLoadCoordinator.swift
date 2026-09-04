@@ -69,6 +69,10 @@ final class ConversationLoadCoordinator {
     /// The reader reached the top — reveal older history.
     func reachedTop() { loader.loadOlder() }
 
+    /// The counterpart's display name as the last mapping resolved it. The composer's reply strip
+    /// reads this so the strip and the sent bubble's quote name the same person the same way.
+    var counterpartName: String { lastInputs?.counterpartName ?? "" }
+
     // Tracks exactly the inputs `map` reads; on the next change to any of them it re-maps off the
     // main thread and re-arms. An unchanged input set short-circuits before spawning any work.
     private func observeInputs() {
@@ -129,6 +133,19 @@ final class ConversationLoadCoordinator {
                 branding[fiat.mint] = .init(token: balance.name, iconURL: balance.imageURL)
             }
         }
+        let counterpartName = conversation?.counterpart(excluding: controller.selfUserID)?.displayName ?? ""
+        // The window first — a reply to a nearby message resolves with no database read at all —
+        // then the table, for a reply pointing above the window. Nothing pages the server: a quote
+        // whose original was never fetched renders as unavailable, by design.
+        var quotedMessages: [UInt64: ConversationMessage] = [:]
+        for message in window {
+            guard let repliedTo = message.repliedTo, quotedMessages[repliedTo.value] == nil else { continue }
+            if let inWindow = window.first(where: { $0.id == repliedTo }) {
+                quotedMessages[repliedTo.value] = inWindow
+            } else if let persisted = controller.persistedMessage(repliedTo, in: conversationID) {
+                quotedMessages[repliedTo.value] = persisted
+            }
+        }
         return Inputs(
             messages: window,
             selfUserID: controller.selfUserID,
@@ -141,6 +158,8 @@ final class ConversationLoadCoordinator {
             profileCard: loader.isEntireHistory(windowCount: window.count) ? profileCard() : nil,
             branding: branding,
             conversation: conversation,
+            counterpartName: counterpartName,
+            quotedMessages: quotedMessages,
             // Read live, so the windows take effect on the same re-map that lands the flags fetch.
             policy: MessagePolicy(userFlags: session.userFlags),
             now: capabilityClock
@@ -171,7 +190,9 @@ final class ConversationLoadCoordinator {
                     policy: inputs.policy,
                     now: inputs.now
                 )
-            }
+            },
+            counterpartName: inputs.counterpartName,
+            quotedMessage: { inputs.quotedMessages[$0.value] }
         )
         if inputs.isTyping {
             items.append(.typingIndicator)
@@ -195,6 +216,11 @@ final class ConversationLoadCoordinator {
         var profileCard: ChatProfileCard?
         var branding: [PublicKey: Branding]
         var conversation: Conversation?
+        /// The counterpart's display name, for a quote whose original they wrote.
+        var counterpartName: String
+        /// Every message quoted by a reply in the window, pre-resolved so `map` stays pure. Keyed
+        /// by raw id because `MessageID` is the natural key and the dictionary must be `Equatable`.
+        var quotedMessages: [UInt64: ConversationMessage]
         var policy: MessagePolicy
         /// The clock capabilities resolve against; advanced only at a window's expiry.
         var now: Date
