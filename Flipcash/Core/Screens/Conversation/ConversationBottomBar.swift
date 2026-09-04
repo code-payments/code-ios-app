@@ -86,8 +86,17 @@ struct ConversationBottomBar: View {
         // glass above sibling content — drawing the glass over the typed text.
         // The Send Cash button and the field are separate pills 10pt apart, so
         // they don't need to sample each other.
-        return content
-            .modifier(BarGradientBackground())
+        return VStack(spacing: 0) {
+            if let target = composer.replyTarget {
+                ComposerReplyStrip(target: target) {
+                    withAnimation(barMorphSpring) { composer.endReplying() }
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            content
+        }
+        .animation(barMorphSpring, value: composer.replyTarget)
+        .modifier(BarGradientBackground())
     }
 }
 
