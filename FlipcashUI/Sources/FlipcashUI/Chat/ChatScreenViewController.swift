@@ -397,6 +397,9 @@ public final class ChatScreenViewController: UIViewController {
     public func update(items: [ChatItem]) { transcript.update(items: items) }
     public func scrollToBottom(animated: Bool = true) { transcript.scrollToBottom(animated: animated) }
 
+    /// Brings a row into view, deferring until the update that contains it lands.
+    public func scrollToMessage(id: String) { transcript.scrollToMessage(id: id) }
+
     // MARK: - Bar inset
 
     public override func viewDidLayoutSubviews() {

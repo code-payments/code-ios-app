@@ -154,6 +154,13 @@ public final class ChatCashCardCell: ChatColumnCell {
     }
 }
 
+extension ChatCashCardCell: BubbleCarrying {
+    /// The card, not the cell: the cell spans the full row, so lifting it would raise a
+    /// full-width rectangle out of the transcript.
+    var liftPreviewView: UIView { card }
+    var liftPreviewMaskingPath: UIBezierPath? { card.maskingPath }
+}
+
 #Preview("Cash cards") {
     let layout = UICollectionViewFlowLayout()
     layout.estimatedItemSize = UICollectionViewFlowLayout.automaticSize

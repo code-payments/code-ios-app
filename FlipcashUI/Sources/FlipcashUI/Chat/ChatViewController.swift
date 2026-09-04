@@ -72,6 +72,10 @@ public final class ChatViewController: UICollectionViewController {
     /// True until the first non-empty content has been scrolled to the bottom. The open is
     /// deferred to `viewDidLayoutSubviews` so it runs once the collection view has real bounds.
     private var needsInitialScroll = false
+
+    /// A row asked for before it was in `items` — the loader's window has to move first. The next
+    /// update carrying it performs the scroll.
+    private var pendingScrollTargetID: String?
     /// Breathing room kept below the last item, above the bar, so a trailing receipt doesn't sit
     /// flush against the bar.
     private static let bottomContentPadding: CGFloat = 12
@@ -200,6 +204,9 @@ public final class ChatViewController: UICollectionViewController {
     /// `keepContentOffsetAtBottomOnBatchUpdates` keeps a new arrival pinned to the bottom (and a
     /// prepended older page anchored in place) with no hand-rolled scrolling.
     public func update(items newItems: [ChatItem], animated: Bool = true) {
+        // A window that jumped hundreds of rows must not animate: it would draw a scroll through
+        // content the user never asked to see.
+        let animated = animated && pendingScrollTargetID == nil
         // While a context menu is lifted, hold pushed updates: reloading the transcript now (e.g. an
         // arriving message) would reflow the content out from under the lifted preview. The latest
         // push is applied when the menu closes. Mirrors ChatLayout deferring updates during a preview.
@@ -227,6 +234,7 @@ public final class ChatViewController: UICollectionViewController {
             items = newItems
             collectionView.reloadData()
             performInitialScrollIfNeeded()
+            performPendingScrollIfLanded()
             return
         }
 
@@ -260,6 +268,7 @@ public final class ChatViewController: UICollectionViewController {
                         pendingBottomInset = nil
                         setBottomInset(inset)
                     }
+                    performPendingScrollIfLanded()
                 },
                 setData: { [weak self] data in
                     self?.items = data
@@ -366,6 +375,36 @@ public final class ChatViewController: UICollectionViewController {
         guard needsInitialScroll, !items.isEmpty, collectionView.bounds.height > 0 else { return }
         needsInitialScroll = false
         scrollToBottom(animated: false)
+    }
+
+    /// Scrolls the given row into view, or waits for the update that brings it in.
+    public func scrollToMessage(id: String) {
+        guard items.contains(where: { $0.differenceIdentifier.hasSuffix(":\(id)") }) else {
+            pendingScrollTargetID = id
+            return
+        }
+        scrollToRow(id: id, animated: true)
+    }
+
+    /// Performs a deferred jump once the update that brought the row in has been applied.
+    private func performPendingScrollIfLanded() {
+        guard let target = pendingScrollTargetID,
+              items.contains(where: { $0.differenceIdentifier.hasSuffix(":\(target)") }) else { return }
+        pendingScrollTargetID = nil
+        scrollToRow(id: target, animated: false)
+    }
+
+    /// Centers a row that is already in `items`.
+    private func scrollToRow(id: String, animated: Bool) {
+        guard let index = items.firstIndex(where: { $0.differenceIdentifier.hasSuffix(":\(id)") }) else { return }
+        let indexPath = IndexPath(item: index, section: 0)
+        guard animated else {
+            collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            return
+        }
+        ChatMotion.scroll.animate {
+            self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+        }
     }
 
     /// Scroll to the newest message by re-anchoring the layout to the last item's bottom edge.
