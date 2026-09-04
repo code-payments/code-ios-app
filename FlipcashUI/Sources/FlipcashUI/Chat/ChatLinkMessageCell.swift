@@ -24,6 +24,14 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         didSet { bubble.onOpenURL = onOpenURL }
     }
 
+    var bubbleView: LinkableBubbleView { bubble }
+
+    /// Forwarded from the bubble's quote panel: the stable id of the row to jump to.
+    var onQuoteTap: ((String) -> Void)? {
+        get { bubbleView.onQuoteTap }
+        set { bubbleView.onQuoteTap = newValue }
+    }
+
     /// The view + shape the context-menu lift clips to.
     var liftPreviewView: UIView { bubble }
     var liftPreviewMaskingPath: UIBezierPath? { bubble.maskingPath }

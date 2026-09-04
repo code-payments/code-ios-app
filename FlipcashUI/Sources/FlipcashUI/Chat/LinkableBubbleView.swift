@@ -21,6 +21,21 @@ public final class LinkableBubbleView: UIView {
     /// Called when the user taps a detected link.
     var onOpenURL: ((URL) -> Void)?
 
+    private(set) var quotePanel = ChatQuotePanelView()
+
+    /// Forwarded from the panel: the stable id of the message to jump to.
+    var onQuoteTap: ((String) -> Void)? {
+        get { quotePanel.onTap }
+        set { quotePanel.onTap = newValue }
+    }
+
+    /// Body pinned to the bubble's top, for a message with no quote.
+    private var textTopToBubble: NSLayoutConstraint!
+    /// Body pinned below the quote panel, for a reply.
+    private var textTopToQuote: NSLayoutConstraint!
+    /// Collapses the panel when there is no quote, so a hidden view consumes no height.
+    private var quoteZeroHeight: NSLayoutConstraint!
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
         setUp()
@@ -51,13 +66,27 @@ public final class LinkableBubbleView: UIView {
 
         addSubview(editedLabel)
 
+        quotePanel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(quotePanel)
+
+        textTopToBubble = textView.topAnchor.constraint(equalTo: topAnchor, constant: 9)
+        textTopToQuote = textView.topAnchor.constraint(
+            equalTo: quotePanel.bottomAnchor,
+            constant: ChatQuotePanelView.bottomSpacing
+        )
+        quoteZeroHeight = quotePanel.heightAnchor.constraint(equalToConstant: 0)
+
         NSLayoutConstraint.activate([
             background.topAnchor.constraint(equalTo: topAnchor),
             background.bottomAnchor.constraint(equalTo: bottomAnchor),
             background.leadingAnchor.constraint(equalTo: leadingAnchor),
             background.trailingAnchor.constraint(equalTo: trailingAnchor),
 
-            textView.topAnchor.constraint(equalTo: topAnchor, constant: 9),
+            quotePanel.topAnchor.constraint(equalTo: topAnchor, constant: 9),
+            quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatQuotePanelView.horizontalInset),
+            quotePanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ChatQuotePanelView.horizontalInset),
+            textTopToBubble,
+            quoteZeroHeight,
             textView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
             textView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             textView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
@@ -73,6 +102,7 @@ public final class LinkableBubbleView: UIView {
 
     func prepareForReuse() {
         textView.resignFirstResponder()
+        quotePanel.onTap = nil
     }
 
     public func configure(with message: ChatMessage) {
@@ -81,6 +111,21 @@ public final class LinkableBubbleView: UIView {
         // text view is non-editable, so it detects over `attributedText` as it did over `text`.
         textView.attributedText = ChatBubbleView.displayText(for: message)
         editedLabel.isHidden = !ChatBubbleView.showsEditedMarker(for: message)
+
+        // Deactivate before activating: with both top constraints live the layout is
+        // unsatisfiable, and UIKit resolves that by breaking one at random.
+        if let quote = message.quote {
+            quotePanel.isHidden = false
+            quotePanel.configure(with: quote)
+            quoteZeroHeight.isActive = false
+            textTopToBubble.isActive = false
+            textTopToQuote.isActive = true
+        } else {
+            quotePanel.isHidden = true
+            textTopToQuote.isActive = false
+            textTopToBubble.isActive = true
+            quoteZeroHeight.isActive = true
+        }
 
         background.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),

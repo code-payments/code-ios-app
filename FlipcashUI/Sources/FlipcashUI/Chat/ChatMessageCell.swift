@@ -25,6 +25,12 @@ public final class ChatMessageCell: ChatColumnCell {
     /// to the bubble shape.
     var bubbleView: ChatBubbleView { bubble }
 
+    /// Forwarded from the bubble's quote panel: the stable id of the row to jump to.
+    var onQuoteTap: ((String) -> Void)? {
+        get { bubbleView.onQuoteTap }
+        set { bubbleView.onQuoteTap = newValue }
+    }
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
         installColumn(content: bubble)
