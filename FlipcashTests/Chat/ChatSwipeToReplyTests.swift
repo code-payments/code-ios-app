@@ -60,7 +60,7 @@ struct ChatSwipeToReplyTests {
         #expect(offset < 120)
     }
 
-    @Test("Crossing the threshold triggers the reply")
+    @Test("Releasing past the threshold triggers the reply")
     func pastThreshold_triggers() {
         #expect(ChatSwipeToReply.triggers(offset: ChatSwipeToReply.triggerThreshold + 1))
     }

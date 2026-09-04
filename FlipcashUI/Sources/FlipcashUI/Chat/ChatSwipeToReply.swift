@@ -42,7 +42,9 @@ final class ChatSwipeToReply: NSObject {
 
     private var draggedCell: UICollectionViewCell?
     private var draggedStableID: String?
-    private var hasTriggered = false
+    /// Latched once per drag, so the threshold's haptic fires on the way past and not on every
+    /// frame beyond it. It gates the feedback only — the reply fires from `.ended`.
+    private var hasPassedThreshold = false
     private let affordance = UIView()
     private let affordanceIcon = UIImageView()
     private let haptics = UIImpactFeedbackGenerator(style: .light)
@@ -94,7 +96,8 @@ final class ChatSwipeToReply: NSObject {
         return maxTranslation + maxTranslation * overshoot / (overshoot + maxTranslation)
     }
 
-    /// Whether releasing at this offset fires the reply.
+    /// Whether releasing at this offset fires the reply. Consulted only from `.ended` — crossing
+    /// the threshold mid-drag arms the gesture, it does not send.
     nonisolated static func triggers(offset: CGFloat) -> Bool {
         offset > triggerThreshold
     }
@@ -114,12 +117,19 @@ final class ChatSwipeToReply: NSObject {
         case .changed:
             let offset = Self.offset(forTranslation: gesture.translation(in: gesture.view).x)
             apply(offset: offset)
-            if !hasTriggered, Self.triggers(offset: offset) {
-                hasTriggered = true
+            // The haptic at the threshold only announces that a release from here will reply. The
+            // reply itself waits for the finger to lift, so a drag that passes the threshold and
+            // comes back sends nothing.
+            if !hasPassedThreshold, Self.triggers(offset: offset) {
+                hasPassedThreshold = true
                 haptics.impactOccurred()
-                if let draggedStableID { onTrigger?(draggedStableID) }
             }
-        case .ended, .cancelled, .failed:
+        case .ended:
+            let offset = Self.offset(forTranslation: gesture.translation(in: gesture.view).x)
+            let stableID = draggedStableID
+            settle()
+            if Self.triggers(offset: offset), let stableID { onTrigger?(stableID) }
+        case .cancelled, .failed:
             settle()
         case .possible, .recognized:
             break
@@ -135,7 +145,7 @@ final class ChatSwipeToReply: NSObject {
         }
         draggedCell = row.cell
         draggedStableID = row.stableID
-        hasTriggered = false
+        hasPassedThreshold = false
         haptics.prepare()
 
         affordance.alpha = 0
@@ -158,13 +168,15 @@ final class ChatSwipeToReply: NSObject {
         let cell = draggedCell
         draggedCell = nil
         draggedStableID = nil
-        hasTriggered = false
+        hasPassedThreshold = false
         ChatMotion.swap.animate {
             cell?.contentView.transform = .identity
             self.affordance.alpha = 0
             self.affordance.transform = CGAffineTransform(scaleX: 0.6, y: 0.6)
         } completion: { _ in
-            self.affordance.removeFromSuperview()
+            // Only when no newer drag has claimed it: the arrow is one shared view, so an unguarded
+            // removal here tears it out of the row a second swipe has already started on.
+            if self.draggedCell == nil { self.affordance.removeFromSuperview() }
         }
     }
 }

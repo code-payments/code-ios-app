@@ -87,6 +87,9 @@ public class ChatColumnCell: UICollectionViewCell {
 
     public override func prepareForReuse() {
         super.prepareForReuse()
+        // A row recycled mid-swipe (or while the swipe's settle animation is still running) would
+        // otherwise be dequeued still translated sideways, and draw its new message offset.
+        contentView.transform = .identity
         currentMessageID = nil
         retryID = nil
         retryTap?.isEnabled = false
