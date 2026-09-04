@@ -163,3 +163,45 @@ struct ChatColumnCellSwipeOffsetTests {
         #expect(bubbleX(cell) == before)
     }
 }
+
+@Suite("Swipe offset in the live transcript")
+@MainActor
+struct ChatTranscriptSwipeOffsetTests {
+
+    /// The cell-level test proves the offset survives `UICollectionViewCell.layoutSubviews`. This one
+    /// proves it survives the layout that actually runs under it: ChatLayout re-measures self-sizing
+    /// rows and writes cell frames, which is what cancelled the previous `contentView.transform`.
+    @Test("The offset survives the transcript's own layout pass")
+    func offset_survivesChatLayout() {
+        let controller = ChatViewController()
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
+        window.rootViewController = controller
+        window.isHidden = false
+        controller.view.layoutIfNeeded()
+
+        controller.update(
+            items: (1...8).map { index in
+                .message(ChatMessage(
+                    id: "\(index)",
+                    text: "message \(index)",
+                    sender: index.isMultiple(of: 2) ? .me : .other
+                ))
+            },
+            animated: false
+        )
+        controller.view.layoutIfNeeded()
+
+        guard let cell = controller.collectionView.visibleCells.compactMap({ $0 as? ChatMessageCell }).first else {
+            Issue.record("no bubble row on screen")
+            return
+        }
+        let bubble = cell.bubbleView
+        let before = bubble.convert(bubble.bounds, to: window).minX
+
+        cell.swipeOffset = 40
+        controller.collectionView.setNeedsLayout()
+        controller.collectionView.layoutIfNeeded()
+
+        #expect(abs(bubble.convert(bubble.bounds, to: window).minX - before - 40) < 0.5)
+    }
+}
