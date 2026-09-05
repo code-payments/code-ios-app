@@ -15,8 +15,11 @@ public struct ChatQuote: Hashable, Sendable, Codable {
     /// What the original was, which selects the panel's presentation.
     public enum Kind: Hashable, Sendable, Codable {
         case text
-        /// A payment. The snippet is the formatted amount.
-        case cash
+        /// A payment. The snippet is the formatted amount; the branding is the same pair the cash
+        /// card itself draws, so a quote of a payment is recognisable as that payment rather than
+        /// as a bare number — `token` is the mint's name ("Cash" for USDF) and `flagImageName` is
+        /// the currency's asset name, `nil` when the currency has no flag.
+        case cash(token: String, flagImageName: String?)
         /// The original is not in the local database, or it has been deleted. The panel renders
         /// the placeholder copy and the row is not tappable.
         case unavailable
@@ -29,12 +32,17 @@ public struct ChatQuote: Hashable, Sendable, Codable {
     public let authorName: String
     public let snippet: String
     public let kind: Kind
+    /// The author's user id, carried only so the panel can draw them in their own colour — see
+    /// `ComplementaryPalette`. `nil` for an original whose author is unknown, which is the same
+    /// case that leaves ``authorName`` empty.
+    public let authorID: UserID?
 
-    public init(stableID: String?, authorName: String, snippet: String, kind: Kind) {
+    public init(stableID: String?, authorName: String, snippet: String, kind: Kind, authorID: UserID? = nil) {
         self.stableID = stableID
         self.authorName = authorName
         self.snippet = snippet
         self.kind = kind
+        self.authorID = authorID
     }
 
     /// Whether tapping the panel goes anywhere.

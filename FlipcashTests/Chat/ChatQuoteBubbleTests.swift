@@ -65,6 +65,24 @@ struct ChatQuoteBubbleTests {
         #expect(tapped == "7")
     }
 
+    @Test("A quoted payment reads out its amount and the mint's name")
+    func cashQuote_speaksTheToken() {
+        let cash = ChatQuote(
+            stableID: "7",
+            authorName: "Ada",
+            snippet: "$5.00",
+            kind: .cash(token: "Launch It", flagImageName: "us")
+        )
+        let panel = laidOutCell(quote: cash).bubbleView.quotePanel
+        #expect(panel.accessibilityLabel == "Replying to Ada: $5.00 Launch It")
+    }
+
+    @Test("A quoted sentence reads out only what was said")
+    func textQuote_speaksTheSnippet() {
+        let panel = laidOutCell(quote: quote).bubbleView.quotePanel
+        #expect(panel.accessibilityLabel == "Replying to Ada: dinner at 7?")
+    }
+
     @Test("An unavailable quote is not tappable")
     func unavailableQuote_doesNotJump() {
         var tapped: String?

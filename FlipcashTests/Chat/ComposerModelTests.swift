@@ -81,6 +81,7 @@ struct ComposerModelTests {
             messageID: MessageID(value: 7),
             stableID: "7",
             authorName: "Ada",
+            authorID: UUID(uuidString: "8B3D4E1A-0000-4000-8000-000000000007"),
             snippet: "dinner at 7?"
         )
     }
