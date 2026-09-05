@@ -13,7 +13,7 @@ import PackageDescription
 let package = Package(
     name: "FlipcashCoreVectors",
     platforms: [
-        .macOS("14.0"), // FlipcashCore's transitive deps (BigDecimal 13.3, grpc/nio) need >= 13.3
+        .macOS("15.0"), // FlipcashCore's transitive deps (BigDecimal 13.3, grpc/nio) need >= 13.3
         .iOS("18.0"),
     ],
     dependencies: [

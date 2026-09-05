@@ -11,16 +11,17 @@ import PackageDescription
 //
 // iOS only, and run on a simulator rather than `swift test` on the host: the implementation under
 // test is no longer a host-buildable C package but the shared Kotlin reached through
-// `SharedCoreKit`, whose XCFramework ships iOS slices only. That is the point of the gate now —
-// it exercises the framework exactly as FlipcashCore consumes it, which the Kotlin-side
-// `Ed25519VectorTest` on the same fixtures does not.
+// `SharedCoreKit`. Exercising the framework exactly as FlipcashCore consumes it on iOS is the
+// point of the gate — the Kotlin-side `Ed25519VectorTest` on the same fixtures does not do that.
+// (The XCFramework also ships a macOS slice now, used by `FlipcashCoreVectors`; this target stays
+// iOS-only by design, not for lack of one.)
 let package = Package(
     name: "CrossPlatformVectors",
     platforms: [
         .iOS(.v15),
     ],
     dependencies: [
-        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.4.0")),
+        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.5.0")),
     ],
     targets: [
         .testTarget(
