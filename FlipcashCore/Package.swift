@@ -23,7 +23,7 @@ let package = Package(
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(path: "../FlipcashAPI"),
-        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.4.0")),
+        .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.5.0")),
     ],
     targets: [
         .target(

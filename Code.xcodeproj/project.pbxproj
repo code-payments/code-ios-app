@@ -1766,7 +1766,7 @@
 			repositoryURL = "https://github.com/code-payments/flipcash-shared-core-spm";
 			requirement = {
 				kind = upToNextMinorVersion;
-				minimumVersion = 0.4.0;
+				minimumVersion = 0.5.0;
 			};
 		};
 		9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */ = {
