@@ -85,7 +85,13 @@ final class ComposerModel {
 
     /// Empties the field after a successful send.
     func clear() {
-        mode = .new
+        // Only when it actually changes. `@Observable` fires on assignment without comparing, and
+        // the chat screen's body reads `isEditing` and `editingStableID` — both derived from this —
+        // so writing `.new` over `.new` on every send rebuilt the whole screen and re-ran
+        // `updateUIViewController` at the frame the insertion animation started.
+        if mode != .new {
+            mode = .new
+        }
         originalText = ""
         stashedDraft = ""
         draft = ""

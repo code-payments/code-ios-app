@@ -707,7 +707,9 @@ struct SessionOfflineCacheTests {
             enablePhoneNumberSend: false,
             requireCoinbaseEmailVerification: false,
             preferredOnrampUsdcLiquidityPool: .unknown,
-            tipPresets: []
+            tipPresets: [],
+            messageEditWindow: nil,
+            messageDeleteWindow: nil
         )
     }
 

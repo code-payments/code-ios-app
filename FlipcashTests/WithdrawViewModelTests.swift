@@ -332,7 +332,9 @@ struct WithdrawViewModelTests {
                 enablePhoneNumberSend: false,
                 requireCoinbaseEmailVerification: false,
                 preferredOnrampUsdcLiquidityPool: .unknown,
-                tipPresets: []
+                tipPresets: [],
+                messageEditWindow: nil,
+                messageDeleteWindow: nil
             )
         }
         let stored = try #require(container.session.balance(for: mint))

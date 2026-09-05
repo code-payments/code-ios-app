@@ -46,6 +46,14 @@ public struct UserFlags: Codable, Sendable {
     /// Server-defined tip amounts per fiat currency, in major units.
     public let tipPresets: [TipPresets]
 
+    /// Duration after message creation when a message can be edited, or `nil` when the
+    /// server did not send a window.
+    public let messageEditWindow: TimeInterval?
+
+    /// Duration after message creation when a message can be deleted, or `nil` when the
+    /// server did not send a window.
+    public let messageDeleteWindow: TimeInterval?
+
     /// Returns the tip presets for a currency, falling back to the USD row —
     /// mirroring the server's minimum-enforcement fallback — or `nil` when the
     /// server provided no presets at all.
@@ -147,7 +155,9 @@ extension UserFlags {
             enablePhoneNumberSend: proto.enablePhoneNumberSend,
             requireCoinbaseEmailVerification: proto.requireCoinbaseEmailVerification,
             preferredOnrampUsdcLiquidityPool: UsdcLiquidityPool(proto.preferredOnRampUsdcLiquidityPool),
-            tipPresets: proto.tipPresets.compactMap { TipPresets($0) }
+            tipPresets: proto.tipPresets.compactMap { TipPresets($0) },
+            messageEditWindow: proto.hasMessageEditWindow ? TimeInterval(proto.messageEditWindow.seconds) : nil,
+            messageDeleteWindow: proto.hasMessageDeleteWindow ? TimeInterval(proto.messageDeleteWindow.seconds) : nil
         )
     }
 }

@@ -731,6 +731,31 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [3, 4])
     }
 
+    @Test("a feed reporting a deleted newest message previews the message before it, not a blank row")
+    func feedLoadFallsBackPastATombstone() async throws {
+        let mock = MockConversations()
+        let visible = ConversationMessage(id: MessageID(value: 9), senderID: nil, content: .text("hi"), date: Date(timeIntervalSince1970: 90), unreadSeq: 9, eventSequence: 9)
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: visible, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [visible]
+        let controller = makeController(mock)
+        await controller.loadFeed()
+
+        // The counterpart's newest message is deleted while the chat is closed, so the client never
+        // sees the event — the delete reaches it only as feed metadata, whose `lastMessage` is the
+        // tombstone. Seating that verbatim leaves the row blank until the transcript is opened.
+        let tombstone = ConversationMessage(
+            id: MessageID(value: 10), senderID: nil,
+            content: .deleted(.init(deletedBy: nil, deletedAt: Date(timeIntervalSince1970: 100))),
+            date: Date(timeIntervalSince1970: 100), unreadSeq: 10, eventSequence: 10
+        )
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: tombstone, lastActivity: Date(timeIntervalSince1970: 100))]
+        await controller.loadFeed()
+
+        let conversation = try #require(controller.conversation(withID: .test(1)))
+        #expect(conversation.lastMessage?.id.value == 9)
+        #expect(controller.lastMessagePreview(for: conversation) { _ in nil } == "hi")
+    }
+
     @Test("a second feed load leaves an already-cached transcript alone")
     func loadFeedSkipsCachedConversation() async {
         let mock = MockConversations()

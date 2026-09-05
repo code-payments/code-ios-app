@@ -44,7 +44,9 @@ public struct ConversationStore: Sendable {
 
     /// Replace the feed from a paged load, sorted most-recent-activity first.
     public mutating func setFeed(_ conversations: [Conversation]) {
-        self.conversations = conversations.sorted { $0.lastActivity > $1.lastActivity }
+        self.conversations = conversations
+            .map { seated($0) }
+            .sorted { $0.lastActivity > $1.lastActivity }
     }
 
     /// Replace one type's conversations from that type's paged feed load,
@@ -380,12 +382,31 @@ public struct ConversationStore: Sendable {
     }
 
     private mutating func upsert(_ conversation: Conversation) {
+        let conversation = seated(conversation)
         if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
             conversations[index] = conversation
         } else {
             conversations.append(conversation)
         }
         sort()
+    }
+
+    /// `conversation` with a feed preview the row can actually draw: the newest message that still
+    /// has content. Server metadata reports the newest message whatever its state, so a delete
+    /// arrives here as a tombstone — which renders as a blank row with an unread splat beside it.
+    /// It falls back to the visible preview the row already carries, and to nothing when there is
+    /// none; ``setFeedPreview(_:in:force:)`` then fills it from the database.
+    ///
+    /// The fallback is skipped when the tombstone replaces the very message the row was previewing,
+    /// which would leave deleted content on screen.
+    private func seated(_ conversation: Conversation) -> Conversation {
+        guard let tombstone = conversation.lastMessage, tombstone.isDeleted else { return conversation }
+        var conversation = conversation
+        let current = conversations.first { $0.id == conversation.id }?.lastMessage
+        conversation.lastMessage = current.flatMap { current in
+            !current.isDeleted && current.id != tombstone.id ? current : nil
+        }
+        return conversation
     }
 
     private mutating func sort() {
