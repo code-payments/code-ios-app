@@ -228,11 +228,11 @@ struct ConversationScreen: View {
         // what lets the iOS 26 toolbar scroll-edge effect materialize. The collection view keeps a
         // top content inset (it adjusts for the safe area) so messages stay readable below the bar.
         .ignoresSafeArea(.container, edges: .top)
-        // The bar's panel stops where the hosted view does, at the bottom safe area. This carries
-        // it the rest of the way down, so a reply in progress reads as one surface running off the
-        // bottom of the display rather than a card with an edge above the home indicator.
+        // The bar's surface stops where the hosted view does, at the bottom safe area. This carries
+        // it the rest of the way down, so the bar reads as running off the bottom of the display
+        // rather than as a card with an edge above the home indicator.
         .background {
-            ReplySurfaceFloor(isReplying: composer.replyTarget != nil)
+            BarSurfaceFloor(isReplying: composer.replyTarget != nil)
         }
         .background(Color.backgroundMain)
         .navigationTitle("")
@@ -410,13 +410,16 @@ struct ConversationScreen: View {
         case .copy:
             break
         case .reply:
+            let preview = Self.replyPreview(for: message) { session.balance(for: $0.mint)?.name ?? "Cash" }
             composer.beginReplying(to: ComposerModel.ReplyTarget(
                 messageID: message.id,
                 stableID: stableID,
                 authorName: message.isFromSelf(conversationController.selfUserID)
                     ? "You"
                     : (coordinator?.counterpartName ?? ""),
-                snippet: Self.replySnippet(for: message)
+                authorID: message.senderID,
+                snippet: preview.snippet,
+                kind: preview.kind
             ))
         case .edit:
             guard case .text(let text) = message.content else { return }
@@ -431,11 +434,20 @@ struct ConversationScreen: View {
     ///
     /// A tombstone cannot reach here: `MessageCapability.resolve` grants a deleted message nothing,
     /// so its row has no menu. The branch keeps the switch exhaustive.
-    private static func replySnippet(for message: ConversationMessage) -> String {
+    private static func replyPreview(
+        for message: ConversationMessage,
+        token: (ExchangedFiat) -> String
+    ) -> (snippet: String, kind: ChatQuote.Kind) {
         switch message.content {
-        case .text(let text):   ChatQuote.snippet(forText: text)
-        case .cash(let fiat):   fiat.nativeAmount.formatted()
-        case .deleted:          ChatQuote.deletedSnippet
+        case .text(let text):
+            (ChatQuote.snippet(forText: text), .text)
+        case .cash(let fiat):
+            (
+                fiat.nativeAmount.formatted(),
+                .cash(token: token(fiat), flagImageName: ChatItem.flagImageName(for: fiat))
+            )
+        case .deleted:
+            (ChatQuote.deletedSnippet, .unavailable)
         }
     }
 

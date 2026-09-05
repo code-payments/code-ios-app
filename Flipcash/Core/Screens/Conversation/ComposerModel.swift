@@ -22,7 +22,13 @@ final class ComposerModel {
         let messageID: MessageID
         let stableID: String
         let authorName: String
+        /// The author's user id, carried only so the strip can draw them in their own colour — see
+        /// `ComplementaryPalette`.
+        let authorID: UserID?
         let snippet: String
+        /// What the original was, so the strip can draw a payment the way the transcript's quote
+        /// panel does — flag and token beside the amount, rather than the amount alone.
+        var kind: ChatQuote.Kind = .text
     }
 
     enum Mode: Equatable {

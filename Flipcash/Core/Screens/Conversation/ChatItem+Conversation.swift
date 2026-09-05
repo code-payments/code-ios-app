@@ -100,13 +100,11 @@ extension ChatItem {
                 content = .text(text)
                 linkPreview = detectedLink(in: text)
             case .cash(let fiat):
-                let currency = fiat.nativeAmount.currency
-                let flagName = currency.region?.rawValue ?? currency.rawValue.uppercased()
                 let branding = cashBranding(fiat)
                 content = .cash(ChatCashContent(
                     amount: fiat.nativeAmount.formatted(),
                     token: branding.token,
-                    flagImageName: flagName,
+                    flagImageName: flagImageName(for: fiat),
                     iconURL: branding.iconURL,
                     isTip: message.cashAction == .tipped
                 ))
@@ -146,7 +144,8 @@ extension ChatItem {
                 Self.quote(
                     resolving: quotedMessage(repliedTo),
                     selfUserID: selfUserID,
-                    counterpartName: counterpartName
+                    counterpartName: counterpartName,
+                    cashBranding: cashBranding
                 )
             }
 
@@ -173,7 +172,8 @@ extension ChatItem {
     nonisolated private static func quote(
         resolving original: ConversationMessage?,
         selfUserID: UserID,
-        counterpartName: String
+        counterpartName: String,
+        cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?)
     ) -> ChatQuote {
         guard let original else {
             return ChatQuote(
@@ -190,23 +190,37 @@ extension ChatItem {
                 stableID: original.stableID,
                 authorName: authorName,
                 snippet: ChatQuote.snippet(forText: text),
-                kind: .text
+                kind: .text,
+                authorID: original.senderID
             )
         case .cash(let fiat):
+            // Same branding the card carries, so the quote of a payment reads as that payment. The
+            // launchpad icon is deliberately left out: it is a remote fetch, and the flag already
+            // keys the currency at this size.
             return ChatQuote(
                 stableID: original.stableID,
                 authorName: authorName,
                 snippet: fiat.nativeAmount.formatted(),
-                kind: .cash
+                kind: .cash(token: cashBranding(fiat).token, flagImageName: flagImageName(for: fiat)),
+                authorID: original.senderID
             )
         case .deleted:
             return ChatQuote(
                 stableID: nil,
                 authorName: authorName,
                 snippet: ChatQuote.deletedSnippet,
-                kind: .unavailable
+                kind: .unavailable,
+                authorID: original.senderID
             )
         }
+    }
+
+    /// The currency's flag asset: a region flag where the currency has one, else the ticker, which
+    /// is how the crypto flags are named. One derivation for the card and the quote so a payment
+    /// keys the same way wherever it is drawn.
+    nonisolated static func flagImageName(for fiat: ExchangedFiat) -> String {
+        let currency = fiat.nativeAmount.currency
+        return currency.region?.rawValue ?? currency.rawValue.uppercased()
     }
 
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu

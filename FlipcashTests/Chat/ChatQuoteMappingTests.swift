@@ -38,12 +38,14 @@ struct ChatQuoteMappingTests {
 
     private func quotes(
         _ messages: [ConversationMessage],
-        resolving pool: [ConversationMessage] = []
+        resolving pool: [ConversationMessage] = [],
+        cashBranding: @escaping (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
     ) -> [ChatQuote?] {
         let byID = Dictionary(uniqueKeysWithValues: (messages + pool).map { ($0.id, $0) })
         return ChatItem.from(
             messages,
             selfUserID: me,
+            cashBranding: cashBranding,
             counterpartName: "Ada",
             quotedMessage: { byID[$0] }
         ).compactMap { item in
@@ -102,14 +104,24 @@ struct ChatQuoteMappingTests {
         )
     }
 
-    @Test("A reply to a payment quotes the formatted amount")
+    @Test("A reply to a payment quotes the amount with the currency's flag and the mint's name")
     func replyToCashMessage_quotesAmount() throws {
         let fiat = fiat(5)
         let original = message(id: 1, from: them, content: .cash(fiat))
         let reply = message(id: 2, from: me, content: .text("thanks!"), repliedTo: 1, offset: 5)
         let quote = try #require(quotes([original, reply]).last ?? nil)
-        #expect(quote.kind == .cash)
+        #expect(quote.kind == .cash(token: "Cash", flagImageName: "us"))
         #expect(quote.snippet == fiat.nativeAmount.formatted())
+    }
+
+    @Test("A quoted payment carries the mint's own branding, not the USDF default")
+    func replyToBondedCashMessage_quotesTheMintsName() throws {
+        let original = message(id: 1, from: them, content: .cash(fiat(1.99)))
+        let reply = message(id: 2, from: me, content: .text("nice"), repliedTo: 1, offset: 5)
+        let quote = try #require(
+            quotes([original, reply], cashBranding: { _ in ("Launch It", nil) }).last ?? nil
+        )
+        #expect(quote.kind == .cash(token: "Launch It", flagImageName: "us"))
     }
 
     @Test("A message that is not a reply carries no quote")
