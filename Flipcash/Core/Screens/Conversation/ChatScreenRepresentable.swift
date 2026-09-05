@@ -61,6 +61,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
         barHost.view.backgroundColor = .clear
+        // The bar's content is pinned to the bottom of this view and overhangs the top while the
+        // height constraint catches up, so the overhang has to be allowed to draw.
+        barHost.view.clipsToBounds = false
         let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
         screen.focusesComposerOnAppear = focusOnAppear
         screen.onReachTop = onReachTop
@@ -168,7 +171,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 isTipDm: isTipDm
             )
             .environment(conversationController)
-            .modifier(MeasuredBarHeight { coordinator.screen?.setBarHeight($0) })
+            .modifier(
+                MeasuredBarHeight(isReplying: composer.replyTarget != nil) { height, isReplying in
+                    coordinator.screen?.setBarHeight(height, replying: isReplying)
+                }
+            )
         )
     }
 
@@ -186,11 +193,34 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 /// multiline height — the hosting controller's intrinsic size mis-measures and lets the composer
 /// overflow under the keyboard.
 private struct MeasuredBarHeight: ViewModifier {
-    let report: (CGFloat) -> Void
+    /// Whether a reply is open, reported alongside the height. The bar's clip decides what to do
+    /// with a height from the two together, so this has to arrive from the same layout pass rather
+    /// than be read separately afterwards.
+    let isReplying: Bool
+    let report: (CGFloat, Bool) -> Void
+
+    /// The last height reported, so the reply can be reported without one. A reply that closes does
+    /// not change the bar's height — the strip stays mounted underneath while it fades — and the
+    /// clip still has to be told to close over it.
+    @State private var measured: CGFloat = 0
 
     func body(content: Content) -> some View {
         content
             .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: report)
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+                measured = height
+                report(height, isReplying)
+            }
+            .onChange(of: isReplying) { _, replying in
+                guard measured > 0 else { return }
+                report(measured, replying)
+            }
+            // Sit on the host's bottom edge rather than in the middle of it. The two heights are
+            // never equal mid-change: SwiftUI ramps the content's own height on its spring while the
+            // constraint above chases it on another, and centring turns every point of that gap into
+            // half a point of vertical travel for the whole bar. Bottom-aligned, the gap goes
+            // somewhere nobody looks — the bar grows and shrinks from the top, which is the edge the
+            // reply strip arrives at.
+            .frame(maxHeight: .infinity, alignment: .bottom)
     }
 }

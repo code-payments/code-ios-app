@@ -19,7 +19,10 @@ struct ConversationUIScreen {
     // MARK: - Elements
 
     var sendCashButton: XCUIElement { app.buttons["send-cash-button"] }
-    var messageField: XCUIElement { app.textFields["Message"] }
+    /// The composer's text field, found by identifier rather than by placeholder — the placeholder
+    /// disappears as soon as there is a draft, and a multiline `TextField(axis:)` reports a text-view
+    /// base type, so neither `textFields["Message"]` nor a type-scoped query survives typing.
+    var messageField: XCUIElement { app.descendants(matching: .any)["composer-message-field"].firstMatch }
 
     /// The composer's send arrow. A dedicated identifier avoids the same-labelled
     /// back button and ScanBottomBar "Send".
@@ -35,7 +38,11 @@ struct ConversationUIScreen {
     var replyStrip: XCUIElement { app.otherElements["composer-reply-strip"] }
 
     /// The strip's quote text, combined into one element so VoiceOver reads it as a citation.
-    var replyStripQuote: XCUIElement { app.otherElements["composer-reply-quote"] }
+    ///
+    /// Queried without a type because `.accessibilityElement(children: .combine)` decides the
+    /// element's type from what it folded up — a name over a snippet surfaces as static text, not as
+    /// the container `otherElements` would match.
+    var replyStripQuote: XCUIElement { app.descendants(matching: .any)["composer-reply-quote"].firstMatch }
 
     /// The strip's dismiss control — takes back the target, not the draft.
     var cancelReplyButton: XCUIElement { app.buttons["cancel-reply-button"] }
