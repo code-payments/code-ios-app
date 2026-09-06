@@ -19,7 +19,7 @@ import SharedCoreKit
 ///
 /// The table-driven pricing math is computed by the shared Kotlin engine
 /// (`:libs:currency-math:discrete-curve`, exported through `SharedCoreKit`'s
-/// `SharedDiscreteCurve`) so both platforms agree exactly -- this type only
+/// `SharedBondingCurve`) so both platforms agree exactly -- this type only
 /// loads the resource tables and converts to/from `BigDecimal` at the boundary.
 public struct DiscreteBondingCurve: Sendable {
 
@@ -53,7 +53,7 @@ public struct DiscreteBondingCurve: Sendable {
     // MARK: - Table Loading
 
     /// Loads the pricing/cumulative tables into the shared Kotlin engine, once per process.
-    /// `SharedDiscreteCurve.initialize` itself no-ops on a second call, so re-triggering this
+    /// `SharedBondingCurve.initialize` itself no-ops on a second call, so re-triggering this
     /// from another `DiscreteBondingCurve` instance is harmless.
     private static let tablesLoaded: Void = {
         guard
@@ -64,7 +64,7 @@ public struct DiscreteBondingCurve: Sendable {
         else {
             fatalError("Missing discrete curve table resources")
         }
-        SharedDiscreteCurve.initialize(pricingTableBytes: pricingData, cumulativeTableBytes: cumulativeData)
+        SharedBondingCurve.initialize(pricingTableBytes: pricingData, cumulativeTableBytes: cumulativeData)
     }()
 
     // MARK: - Core Methods
@@ -78,7 +78,7 @@ public struct DiscreteBondingCurve: Sendable {
     /// - Returns: Price per token in USDC, or nil if supply exceeds max
     public func spotPrice(at supply: Int) -> BigDecimal? {
         _ = Self.tablesLoaded
-        guard let result = SharedDiscreteCurve.spotPriceAtSupply(supply: Int32(supply)) else {
+        guard let result = SharedBondingCurve.spotPriceAtSupply(supply: Int32(supply)) else {
             return nil
         }
         return BigDecimal(result)
@@ -107,7 +107,7 @@ public struct DiscreteBondingCurve: Sendable {
     /// - Returns: Total cost in USDC, or nil if purchase would exceed max supply
     public func tokensToValue(currentSupply: BigDecimal, tokens: BigDecimal) -> BigDecimal? {
         _ = Self.tablesLoaded
-        guard let result = SharedDiscreteCurve.tokensToValue(
+        guard let result = SharedBondingCurve.tokensToValue(
             currentSupply: currentSupply.asString(.plain),
             tokens: tokens.asString(.plain)
         ) else {
@@ -127,7 +127,7 @@ public struct DiscreteBondingCurve: Sendable {
     /// - Returns: Number of tokens that can be purchased, or nil if at max supply
     public func valueToTokens(currentSupply: Int, value: BigDecimal) -> BigDecimal? {
         _ = Self.tablesLoaded
-        guard let result = SharedDiscreteCurve.valueToTokens(
+        guard let result = SharedBondingCurve.valueToTokens(
             currentSupply: Int32(currentSupply),
             value: value.asString(.plain)
         ) else {
@@ -145,7 +145,7 @@ public struct DiscreteBondingCurve: Sendable {
     /// - Returns: Supply as BigDecimal with fractional tokens
     private func preciseSupplyFromValue(_ value: BigDecimal) -> BigDecimal {
         _ = Self.tablesLoaded
-        return BigDecimal(SharedDiscreteCurve.preciseSupplyFromValue(value: value.asString(.plain)))
+        return BigDecimal(SharedBondingCurve.preciseSupplyFromValue(value: value.asString(.plain)))
     }
 
     /// Calculate supply from TVL using the cumulative table.
@@ -162,7 +162,7 @@ public struct DiscreteBondingCurve: Sendable {
     /// - Returns: Current supply in whole tokens at the step boundary
     public func supplyFromTVL(_ tvlQuarks: Int) -> Int? {
         _ = Self.tablesLoaded
-        return Int(SharedDiscreteCurve.supplyFromTVL(tvlQuarks: Int64(tvlQuarks)))
+        return Int(SharedBondingCurve.supplyFromTVL(tvlQuarks: Int64(tvlQuarks)))
     }
 
     /// Low-level primitive backing the high-level `tokensForValueExchange(fiat:fiatRate:supplyQuarks:)`
@@ -175,7 +175,7 @@ public struct DiscreteBondingCurve: Sendable {
     ///   (value <= 0, value > currentValue, or the resulting tokens are <= 0)
     func tokensForValueExchange(currentValue: BigDecimal, value: BigDecimal) -> (tokens: BigDecimal, fx: BigDecimal)? {
         _ = Self.tablesLoaded
-        guard let result = SharedDiscreteCurve.tokensForValueExchange(
+        guard let result = SharedBondingCurve.tokensForValueExchange(
             currentValue: currentValue.asString(.plain),
             value: value.asString(.plain)
         ) else {
