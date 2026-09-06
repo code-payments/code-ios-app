@@ -17,6 +17,21 @@ extension View {
         }
     }
 
+    /// The app's standard glass surface in a capsule: Liquid Glass on iOS 26, an
+    /// ultra-thin material below.
+    ///
+    /// Wraps rather than backgrounds, which is safe for a capsule of static
+    /// content. Don't reach for it around an editable text field — see
+    /// ``glassFieldBackground(cornerRadius:)`` for why.
+    @ViewBuilder
+    public func glassCapsuleBackground() -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.regular, in: .capsule)
+        } else {
+            background(.ultraThinMaterial, in: .capsule)
+        }
+    }
+
     /// The glass surface as a background layer *behind* the content, rather than
     /// wrapping it. Use for a surface that hosts its own touch-tracking control
     /// (a text field): applying `glassEffect` to the control reparents its text
