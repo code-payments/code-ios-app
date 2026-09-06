@@ -23,14 +23,16 @@ struct ComposerReplyStrip: View {
 
     /// The container the quote is drawn in.
     ///
-    /// Both keep the bar's slab flat, so neither draws a line against the keyboard; they differ in
-    /// whether the quote reads as part of the bar or as something floating over it.
+    /// Both keep the bar's slab flat, so neither draws a line against the keyboard, and both take
+    /// `BarMetrics.cornerRadius` — the field's and the Send Cash button's — so the quote is the same
+    /// shape as everything else on the bar. What differs is the material, and so what the quote
+    /// reads as: part of the bar, or something floating over it.
     enum Style {
         /// An opaque panel on the bar's own surface, one step up from it. The conservative reading
         /// of WhatsApp: a reply makes the bar taller and puts a card in the space it gained.
         case panel
-        /// A Liquid Glass capsule floating clear of the bar, sampling the transcript behind it.
-        /// Falls back to an ultra-thin material below iOS 26.
+        /// Liquid Glass floating clear of the bar, sampling the transcript behind it. Falls back to
+        /// an ultra-thin material below iOS 26.
         case glass
     }
 
@@ -59,7 +61,12 @@ struct ComposerReplyStrip: View {
         let name = ComplementaryPalette.color(.middle, for: target.authorID)
 
         HStack(alignment: .center, spacing: 9) {
-            authorRule(rule)
+            // Unpadded and unclipped here: a `Rectangle` is flexible vertically, so in this stack it
+            // takes the quote's whole height, and with no leading padding on the row it starts at
+            // the quote's edge. ``QuoteGround`` rounds off the two corners it passes.
+            Rectangle()
+                .fill(rule)
+                .frame(width: Self.ruleWidth)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(target.authorName)
@@ -91,7 +98,7 @@ struct ComposerReplyStrip: View {
             .accessibilityLabel("Cancel reply")
             .accessibilityIdentifier("cancel-reply-button")
         }
-        .padding(.trailing, style == .glass ? 12 : 8)
+        .padding(.trailing, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .modifier(QuoteGround(style: style))
         .padding(.horizontal, Self.inset)
@@ -100,28 +107,6 @@ struct ComposerReplyStrip: View {
         .padding(.vertical, 8)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("composer-reply-strip")
-    }
-
-    /// The author's colour down the leading edge of the quote.
-    ///
-    /// A `Rectangle` is flexible vertically, so in the row it takes the quote's whole height. The
-    /// panel clips it to the corner radius, which is what keeps it flush; the capsule cannot clip a
-    /// square rule against a curve without it reading as a chip out of the glass, so there it is a
-    /// rounded rule held inside the curve.
-    @ViewBuilder
-    private func authorRule(_ color: Color) -> some View {
-        switch style {
-        case .panel:
-            Rectangle()
-                .fill(color)
-                .frame(width: Self.ruleWidth)
-        case .glass:
-            Capsule()
-                .fill(color)
-                .frame(width: Self.ruleWidth)
-                .padding(.vertical, 8)
-                .padding(.leading, 12)
-        }
     }
 
 
@@ -169,25 +154,28 @@ struct ComposerReplyStrip: View {
     }
 }
 
-/// What the quote sits on, and the clip that goes with it.
+/// What the quote sits on. One radius — the bar's — and two materials.
 ///
-/// The panel has to clip its content as well as fill behind it: the author's rule runs flush to the
-/// leading edge, and unclipped it squares off the two corners it passes. The capsule must *not*
-/// clip — `glassEffect` draws its specular edge and shadow outside its own bounds, and a clip
-/// shaves them off, leaving a flat grey pill. The rule is inset for the capsule for the same reason.
+/// The clip goes on the content and the ground goes behind it, rather than one clip over both. Both
+/// halves need that. The author's rule runs flush to the leading edge and squares off the two
+/// corners it passes unless something rounds it, and `glassEffect` draws its specular edge outside
+/// its own bounds and loses it to a clip — so the rule is clipped, the ground is not, and the rule
+/// can sit on the edge in either style.
 private struct QuoteGround: ViewModifier {
 
     let style: ComposerReplyStrip.Style
 
+    private static let shape = RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
+
     @ViewBuilder
     func body(content: Content) -> some View {
+        let quote = content.clipShape(Self.shape)
         switch style {
         case .panel:
-            content
-                .background(Color.backgroundSecondary)
-                .clipShape(.rect(cornerRadius: BarMetrics.cornerRadius))
+            quote.background(Color.backgroundSecondary, in: Self.shape)
         case .glass:
-            content.glassCapsuleBackground()
+            // The background form, not the wrapping one: the glass has to stay outside the clip.
+            quote.glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
         }
     }
 }
