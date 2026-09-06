@@ -51,6 +51,9 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Fired when a context-menu action other than Copy is chosen, with the row's id. Copy is handled
     /// here — it needs nothing the transcript does not already hold.
+    /// Called with a quoted message's stable id when its panel is tapped.
+    public var onQuoteTap: ((String) -> Void)?
+
     public var onMessageAction: ((String, MessageCapability) -> Void)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
@@ -72,6 +75,14 @@ public final class ChatViewController: UICollectionViewController {
     /// True until the first non-empty content has been scrolled to the bottom. The open is
     /// deferred to `viewDidLayoutSubviews` so it runs once the collection view has real bounds.
     private var needsInitialScroll = false
+
+    /// A row asked for before it was in `items` — the loader's window has to move first. The next
+    /// update carrying it performs the scroll.
+    private var pendingScrollTargetID: String?
+
+    /// Drag a row towards the leading edge to reply to it. Owns its own recognizer and state — see
+    /// `ChatSwipeToReply` for why it is exclusive with every other gesture here.
+    private let swipeToReply = ChatSwipeToReply()
     /// Breathing room kept below the last item, above the bar, so a trailing receipt doesn't sit
     /// flush against the bar.
     private static let bottomContentPadding: CGFloat = 12
@@ -165,6 +176,25 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
         collectionView.register(ChatProfileCardCell.self, forCellWithReuseIdentifier: ChatProfileCardCell.reuseIdentifier)
+
+        swipeToReply.isBlocked = { [weak self] in
+            guard let self else { return true }
+            return self.isShowingContextMenu || self.isUpdating
+        }
+        swipeToReply.rowForSwipe = { [weak self] point in
+            guard let self,
+                  let indexPath = self.collectionView.indexPathForItem(at: point),
+                  let cell = self.collectionView.cellForItem(at: indexPath) as? ChatColumnCell,
+                  case .message(let message) = self.items[indexPath.item],
+                  message.actions.contains(.reply)
+            else { return nil }
+            return (cell, message.id)
+        }
+        swipeToReply.onTrigger = { [weak self] stableID in
+            self?.onMessageAction?(stableID, .reply)
+        }
+        collectionView.addGestureRecognizer(swipeToReply.recognizer)
+
         collectionView.reloadData()
     }
 
@@ -200,6 +230,9 @@ public final class ChatViewController: UICollectionViewController {
     /// `keepContentOffsetAtBottomOnBatchUpdates` keeps a new arrival pinned to the bottom (and a
     /// prepended older page anchored in place) with no hand-rolled scrolling.
     public func update(items newItems: [ChatItem], animated: Bool = true) {
+        // A window that jumped hundreds of rows must not animate: it would draw a scroll through
+        // content the user never asked to see.
+        let animated = animated && pendingScrollTargetID == nil
         // While a context menu is lifted, hold pushed updates: reloading the transcript now (e.g. an
         // arriving message) would reflow the content out from under the lifted preview. The latest
         // push is applied when the menu closes. Mirrors ChatLayout deferring updates during a preview.
@@ -225,8 +258,13 @@ public final class ChatViewController: UICollectionViewController {
         if wasEmpty || newItems.isEmpty || !animated {
             if !animated { needsInitialScroll = true }
             items = newItems
+            // Toggling `isEnabled` cancels the gesture, which settles the row — a recycled cell must
+            // never inherit a translation from the row that was dragged before it.
+            swipeToReply.recognizer.isEnabled = false
+            swipeToReply.recognizer.isEnabled = true
             collectionView.reloadData()
             performInitialScrollIfNeeded()
+            performPendingScrollIfLanded()
             return
         }
 
@@ -260,6 +298,7 @@ public final class ChatViewController: UICollectionViewController {
                         pendingBottomInset = nil
                         setBottomInset(inset)
                     }
+                    performPendingScrollIfLanded()
                 },
                 setData: { [weak self] data in
                     self?.items = data
@@ -302,9 +341,11 @@ public final class ChatViewController: UICollectionViewController {
                 cell.configure(with: message, maxWidth: maxWidth)
                 cell.onRetry = { [weak self] id in self?.onRetry?(id) }
                 cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+                cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
             case let cell as ChatMessageCell:
                 cell.configure(with: message, maxWidth: maxWidth)
                 cell.onRetry = { [weak self] id in self?.onRetry?(id) }
+                cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
             case let cell as ChatCashCardCell:
                 cell.configure(with: message)
             default:
@@ -366,6 +407,36 @@ public final class ChatViewController: UICollectionViewController {
         guard needsInitialScroll, !items.isEmpty, collectionView.bounds.height > 0 else { return }
         needsInitialScroll = false
         scrollToBottom(animated: false)
+    }
+
+    /// Scrolls the given row into view, or waits for the update that brings it in.
+    public func scrollToMessage(id: String) {
+        guard items.contains(where: { $0.differenceIdentifier.hasSuffix(":\(id)") }) else {
+            pendingScrollTargetID = id
+            return
+        }
+        scrollToRow(id: id, animated: true)
+    }
+
+    /// Performs a deferred jump once the update that brought the row in has been applied.
+    private func performPendingScrollIfLanded() {
+        guard let target = pendingScrollTargetID,
+              items.contains(where: { $0.differenceIdentifier.hasSuffix(":\(target)") }) else { return }
+        pendingScrollTargetID = nil
+        scrollToRow(id: target, animated: false)
+    }
+
+    /// Centers a row that is already in `items`.
+    private func scrollToRow(id: String, animated: Bool) {
+        guard let index = items.firstIndex(where: { $0.differenceIdentifier.hasSuffix(":\(id)") }) else { return }
+        let indexPath = IndexPath(item: index, section: 0)
+        guard animated else {
+            collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            return
+        }
+        ChatMotion.scroll.animate {
+            self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+        }
     }
 
     /// Scroll to the newest message by re-anchoring the layout to the last item's bottom edge.
@@ -545,8 +616,15 @@ extension ChatViewController: ChatLayoutDelegate {
 extension ChatViewController: UIGestureRecognizerDelegate {
     /// Lets the tap-to-dismiss recognizer fire alongside the collection view's own scroll and
     /// selection recognizers, so lowering the keyboard never pre-empts a cell tap.
+    ///
+    /// Swipe-to-reply is the exception: it translates a cell, so running it beside the scroll would
+    /// drag a row sideways mid-scroll, and running it beside the long-press would slide the row out
+    /// from under its own lift preview. It is exclusive in both directions.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        true
+        if gestureRecognizer === swipeToReply.recognizer || otherGestureRecognizer === swipeToReply.recognizer {
+            return false
+        }
+        return true
     }
 }
 
@@ -774,7 +852,7 @@ private extension MessageCapability {
     var menuSymbol: SystemSymbol {
         switch self {
         case .copy:   .doc
-        case .reply:  .arrowLeft
+        case .reply:  .replyArrow
         case .edit:   .pencil
         case .delete: .trash
         }

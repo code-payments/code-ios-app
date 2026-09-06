@@ -71,6 +71,18 @@ public class ChatColumnCell: UICollectionViewCell {
         ])
     }
 
+    /// How far the row's content is dragged towards the trailing edge by the reply swipe.
+    ///
+    /// It moves the column, not the content view. `UICollectionViewCell.layoutSubviews` assigns
+    /// `contentView.frame` on every pass, which cancels a transform there — and between ChatLayout's
+    /// invalidations and the subview the swipe parents to the row, that pass runs often enough during
+    /// a drag that the row never visibly moves. Auto Layout positions the column through `center` and
+    /// `bounds`, which a transform composes with rather than fights.
+    var swipeOffset: CGFloat {
+        get { column.transform.tx }
+        set { column.transform = newValue == 0 ? .identity : CGAffineTransform(translationX: newValue, y: 0) }
+    }
+
     /// Self-sizes on height alone, at the width the layout asked for. The column spans the row, so
     /// the default implementation's compressed horizontal fit measures the cell at its content width
     /// instead — a width the layout then discards, having already forced the row to full width.
@@ -87,6 +99,9 @@ public class ChatColumnCell: UICollectionViewCell {
 
     public override func prepareForReuse() {
         super.prepareForReuse()
+        // A row recycled mid-swipe (or while the swipe's settle animation is still running) would
+        // otherwise be dequeued still translated sideways, and draw its new message offset.
+        swipeOffset = 0
         currentMessageID = nil
         retryID = nil
         retryTap?.isEnabled = false

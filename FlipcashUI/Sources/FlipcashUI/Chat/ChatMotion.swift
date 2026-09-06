@@ -111,9 +111,16 @@ public nonisolated enum ChatMotion {
     /// The keyboard case inherits the system curve directly (see
     /// `ChatViewController.scrollViewDidChangeAdjustedContentInset`) rather than this spring, which
     /// is the same intent the zero bounce encodes: any overshoot would fight the keyboard. The bar
-    /// case has no curve to inherit, so `ChatScreenViewController.setBarHeight` uses this one — and
-    /// wants the same stillness, since a send runs it alongside `insertion` and `scroll`.
+    /// case wants the same stillness, since a send runs it alongside `insertion` and `scroll`.
     public static let keyboardScroll = ChatSpring(duration: 0.30, bounce: 0)
+    /// The bar growing and shrinking around the reply strip.
+    ///
+    /// The one spring in this file taken from a reference rather than the prototype: WhatsApp's
+    /// reply surface, measured frame by frame off a 60fps capture — 13 frames out, 14 back,
+    /// monotonic, no overshoot in either direction. Bounce is zero for the same reason
+    /// `keyboardScroll`'s is: the transcript's bottom inset tracks this height every frame, and a bar
+    /// that overshoots drags the messages past their resting place and back.
+    public static let replySurface = ChatSpring(duration: 0.22, bounce: 0)
     /// The "Delivered" line appearing under a sent bubble. Slow and gentle: it arrives after the
     /// message has landed and shouldn't compete with it.
     public static let delivered = ChatSpring(duration: 0.40, bounce: 0.12)

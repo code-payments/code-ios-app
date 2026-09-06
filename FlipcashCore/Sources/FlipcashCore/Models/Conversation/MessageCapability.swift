@@ -61,14 +61,16 @@ extension MessageCapability {
             // Nothing is left to act on, and a tombstone must not be re-deleted.
             return []
         case .cash:
-            // Reply is a cash message's only capability, and reply is not built yet.
-            return []
+            // Reply is a cash message's only capability: there is no text to copy, the server
+            // authored it so there is nothing to edit, and delete is deliberately withheld from
+            // a payment record.
+            return [.reply]
         case .text:
             break
         }
 
         guard message.isFromSelf(selfUserID) else {
-            return [.copy]
+            return [.copy, .reply]
         }
 
         // An unconfirmed message has no `eventSequence` to send as `expected_event_sequence`, so no
@@ -78,7 +80,7 @@ extension MessageCapability {
             return []
         }
 
-        var capabilities: Set<MessageCapability> = [.copy]
+        var capabilities: Set<MessageCapability> = [.copy, .reply]
         if isWithin(policy.editWindow, of: message, at: now) {
             capabilities.insert(.edit)
         }

@@ -124,10 +124,21 @@ final class ChatMessagingService: Sendable {
         }
     }
 
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
         let request = Flipcash_Messaging_V1_SendMessageRequest.with {
             $0.chatID = conversationID.proto
-            $0.content = [.with { $0.text = .with { $0.text = text } }]
+            // A reply wraps the same text one level deeper on the wire. The domain model keeps it
+            // flat — see `ConversationMessage.init?(_:)`, which unwraps it back.
+            if let repliedTo {
+                $0.content = [.with {
+                    $0.reply = .with {
+                        $0.repliedMessageID = repliedTo.proto
+                        $0.content = [.with { $0.text = .with { $0.text = text } }]
+                    }
+                }]
+            } else {
+                $0.content = [.with { $0.text = .with { $0.text = text } }]
+            }
             $0.clientMessageID = .with { $0.value = clientMessageID.data }
             $0.auth = owner.authFor(message: $0)
         }

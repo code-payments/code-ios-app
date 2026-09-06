@@ -24,10 +24,25 @@ public final class ChatScreenViewController: UIViewController {
     private let transcript = ChatViewController()
     private let bar: UIView
     private let barController: UIViewController?
+    /// The box the bar is seen through: the bar sits at its *bottom* edge and is clipped by it.
+    ///
+    /// The reply strip is the reason there are two views rather than one. The bar's own height has
+    /// to be its content's height exactly, and that height jumps the moment the strip mounts; the
+    /// visible box has to travel to the same number over the strip's spring. Those are different
+    /// numbers at the same instant, and a single view cannot hold both — animating one view's height
+    /// leaves its hosted SwiftUI content laid out for the destination while the layer is still on the
+    /// way there, and the content is drawn off its mark by the whole difference. Measured on a 60fps
+    /// capture, that put the composer row 24pt — half the strip's 48 — from where it belongs. Pinned
+    /// to the bottom of a box that clips it, the bar's frame can jump to the strip's full height
+    /// while the box uncovers it, and the composer row does not move at all.
+    private let barClip = UIView()
     /// The bar's height is driven by its *measured* SwiftUI height, so the frame matches its
     /// content exactly — a hosting controller's intrinsic size mis-measures multiline growth and
-    /// lets the composer overflow below its frame, under the keyboard.
+    /// lets the composer overflow below its frame, under the keyboard. Always applied unanimated.
     private var barHeightConstraint: NSLayoutConstraint!
+    /// The clip's height — what the screen and the transcript actually see as the bar. Equal to the
+    /// bar's own height except while the reply strip is arriving or leaving.
+    private var barClipHeightConstraint: NSLayoutConstraint!
     /// Keeps the bar above the keyboard. Not `view.keyboardLayoutGuide`: see `KeyboardFloor`.
     private var keyboardFloor: KeyboardFloor!
     /// Fades the transcript into the navigation bar. See `TranscriptTopFade`.
@@ -59,6 +74,13 @@ public final class ChatScreenViewController: UIViewController {
     private static let spotlightAttempts = 8
     /// Whether a measured bar height has landed yet — the first one is applied without animation.
     private var didMeasureBar = false
+
+    /// Whether the last measured bar height included the reply strip.
+    private var barShowsReply = false
+    /// What the strip added to the bar when it opened, so the clip knows what to close back over.
+    /// The bar itself still reports the taller height on the way out — the strip stays mounted under
+    /// the clip while it fades — so the closed height cannot be read off the measurement.
+    private var replyStripHeight: CGFloat = 0
     /// The pop gestures switched off for the length of an edit, kept so only those are switched back
     /// on and one that was already off stays off.
     private var suspendedPopGestures: [UIGestureRecognizer] = []
@@ -118,6 +140,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onMessageAction = newValue }
     }
 
+    /// Forwards a tap on a reply's quote panel, with the quoted row's id.
+    public var onQuoteTap: ((String) -> Void)? {
+        get { transcript.onQuoteTap }
+        set { transcript.onQuoteTap = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)
@@ -145,6 +173,7 @@ public final class ChatScreenViewController: UIViewController {
 
         let constraints = addBar(bar, controller: barController)
         barHeightConstraint = constraints.height
+        barClipHeightConstraint = constraints.clipHeight
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom)
         lowerComposerOnResignActive()
         handOffComposerFocusAroundContextMenu()
@@ -191,7 +220,7 @@ public final class ChatScreenViewController: UIViewController {
     public func beginEditSpotlight(for stableID: String) {
         editedStableID = stableID
         backdrop.present(over: contextMenuBackdropHost, animator: nil)
-        backdrop.hold(clearing: bar, under: hostNavigationController?.navigationBar)
+        backdrop.hold(clearing: barClip, under: hostNavigationController?.navigationBar)
         setPopGesturesSuspended(true)
         transcript.afterContextMenu { [weak self] in
             self?.spotlightAttemptsRemaining = Self.spotlightAttempts
@@ -274,27 +303,37 @@ public final class ChatScreenViewController: UIViewController {
         hostNavigationController?.view ?? view
     }
 
-    /// Adds a hosted bar pinned to the view's width and bottom; returns the height constraint
-    /// (driven later by the bar's measured SwiftUI content height) and the bottom constraint
-    /// (driven by the keyboard).
+    /// Adds a hosted bar sitting on the bottom edge of a clip box that spans the view's width;
+    /// returns the bar's own height constraint and the clip's (both driven later by the bar's
+    /// measured SwiftUI content height) and the clip's bottom constraint (driven by the keyboard).
     private func addBar(
         _ bar: UIView,
         controller: UIViewController?
-    ) -> (height: NSLayoutConstraint, bottom: NSLayoutConstraint) {
+    ) -> (height: NSLayoutConstraint, clipHeight: NSLayoutConstraint, bottom: NSLayoutConstraint) {
         if let controller { addChild(controller) }
+        barClip.translatesAutoresizingMaskIntoConstraints = false
+        barClip.clipsToBounds = true
+        view.addSubview(barClip)
         bar.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(bar)
+        barClip.addSubview(bar)
         controller?.didMove(toParent: self)
 
         let heightConstraint = bar.heightAnchor.constraint(equalToConstant: 80)
-        let bottomConstraint = bar.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        let clipHeightConstraint = barClip.heightAnchor.constraint(equalToConstant: 80)
+        let bottomConstraint = barClip.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         NSLayoutConstraint.activate([
-            bar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            bar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            barClip.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            barClip.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             bottomConstraint,
+            clipHeightConstraint,
+            bar.leadingAnchor.constraint(equalTo: barClip.leadingAnchor),
+            bar.trailingAnchor.constraint(equalTo: barClip.trailingAnchor),
+            // Bottom, not top: the bar grows upward out of the clip, so the composer row keeps its
+            // place on the keyboard while the strip above it is uncovered.
+            bar.bottomAnchor.constraint(equalTo: barClip.bottomAnchor),
             heightConstraint,
         ])
-        return (heightConstraint, bottomConstraint)
+        return (heightConstraint, clipHeightConstraint, bottomConstraint)
     }
 
     /// Drops the composer's focus as the app leaves the foreground.
@@ -369,33 +408,76 @@ public final class ChatScreenViewController: UIViewController {
         }
     }
 
-    /// Set the bar's height to its measured SwiftUI content height.
-    public func setBarHeight(_ height: CGFloat) {
-        guard barHeightConstraint != nil, barHeightConstraint.constant != height else { return }
-        // First measurement (or off-screen): apply it flat, so the push doesn't animate the bar in.
+    /// Set the bar's height to its measured SwiftUI content height. `replying` says whether a reply
+    /// is open, which decides what the clip around the bar does with that height.
+    ///
+    /// The bar always takes the height flat. It is pinned to the bottom of the clip, so its own
+    /// frame can change by the strip's whole height without moving anything that is on screen.
+    public func setBarHeight(_ height: CGFloat, replying: Bool) {
+        // Read before the early exits: a reply closing has to move the clip even though the measured
+        // height does not change — the strip stays mounted under the clip while it fades.
+        let opensReply = replying && !barShowsReply
+        let closesReply = !replying && barShowsReply
+        barShowsReply = replying
+        guard barHeightConstraint != nil else { return }
+
+        // A reply's own height is not known when it opens. On a first reply the strip mounts at zero
+        // height, reports what it wants, and takes it a pass later; re-replying while the last one is
+        // still fading keeps the strip it already has and never reports again. So the opening is
+        // whichever pass actually makes the bar taller after the target changed, not the target
+        // change itself — and once that height is known, later ones are ordinary bar growth.
+        if opensReply { replyStripHeight = 0 }
+        let previousClip = barClipHeightConstraint.constant
+        let clipHeight: CGFloat
+        let travels: Bool
+        if replying {
+            clipHeight = height
+            travels = replyStripHeight == 0 && clipHeight != previousClip
+            if travels { replyStripHeight = clipHeight - previousClip }
+        } else {
+            // Closing, the strip is still in the measurement and has to come back off it.
+            clipHeight = closesReply ? height - replyStripHeight : height
+            travels = closesReply
+            if !closesReply { replyStripHeight = 0 }
+        }
+
         let isFirst = !didMeasureBar
         didMeasureBar = true
+        guard !isFirst, view.window != nil, travels else {
+            guard barHeightConstraint.constant != height || barClipHeightConstraint.constant != clipHeight else { return }
+            barHeightConstraint.constant = height
+            barClipHeightConstraint.constant = clipHeight
+            // Every other height — a draft wrapping to a second line, the send arrow appearing — is
+            // one the content has *already* laid itself out at by the time the number arrives. Clip
+            // and bar match it in the same frame; the transcript's inset comes with them, since
+            // `viewDidLayoutSubviews` reads the clip's frame during this pass.
+            UIView.performWithoutAnimation {
+                self.view.layoutIfNeeded()
+            }
+            return
+        }
+
+        // Two passes, deliberately. The bar takes its new height first, with the clip still at the
+        // old one, so the strip is laid out at full size behind the clip's edge and the composer row
+        // is already standing where it will stay.
         barHeightConstraint.constant = height
-        guard !isFirst, view.window != nil else { return }
-        // Lay out inside the animation so the transcript's inset change — `viewDidLayoutSubviews`
-        // feeds the new bar height to `setBottomInset` — rides the same curve and the content
-        // scrolls up with the bar, instead of snapping on whatever layout pass happens to run next.
-        //
-        // The transcript's own spring, not the bar's: a height change moves the content, and a send
-        // collapses a multiline field at the same moment the insertion and the settle-to-bottom are
-        // running. `swap` is the bounciest spring in the vocabulary bar one, and three curves
-        // overshooting the same pixels by different amounts is what read as the bar and the
-        // transcript coming apart. Zero bounce keeps this one out of the other two's way.
-        let spring = ChatMotion.keyboardScroll
-        UIView.animate(springDuration: spring.duration, bounce: spring.bounce) {
+        UIView.performWithoutAnimation {
+            self.view.layoutIfNeeded()
+        }
+        // Then the clip's edge travels, and that edge is the whole animation: it uncovers the strip
+        // on the way in and closes back over it on the way out. The transcript's inset is read inside
+        // this pass too, so the bubbles are pushed by the edge rather than teleporting ahead of it.
+        barClipHeightConstraint.constant = clipHeight
+        ChatMotion.replySurface.animate {
             self.view.layoutIfNeeded()
         }
     }
 
-    // MARK: - Data passthrough
-
     public func update(items: [ChatItem]) { transcript.update(items: items) }
     public func scrollToBottom(animated: Bool = true) { transcript.scrollToBottom(animated: animated) }
+
+    /// Brings a row into view, deferring until the update that contains it lands.
+    public func scrollToMessage(id: String) { transcript.scrollToMessage(id: id) }
 
     // MARK: - Bar inset
 
@@ -411,7 +493,7 @@ public final class ChatScreenViewController: UIViewController {
         // Reserve only the bar's own height. On-device the system already grows the collection
         // view's adjusted content inset by the keyboard when it's up, so adding the keyboard here
         // too (via the bar's risen position) double-counts it and overscrolls by a whole keyboard.
-        transcript.setBottomInset(bar.frame.height)
+        transcript.setBottomInset(barClip.frame.height)
     }
 }
 

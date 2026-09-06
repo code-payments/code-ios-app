@@ -907,6 +907,15 @@ final class ConversationController {
         windowedMessages(for: conversationID, startingAt: nil, limit: limit)
     }
 
+    /// The locally-stored copy of one message, regardless of whether it is inside the rendered
+    /// window. Reply quotes read through this: a reply can point at a message far above the
+    /// window, and resolving it must not page the server. Observes `messageRevision`, so a quote
+    /// that resolves once history lands re-maps like any other change.
+    func persistedMessage(_ messageID: MessageID, in conversationID: ConversationID) -> ConversationMessage? {
+        _ = messageRevision   // observe: re-read when a confirmed DB write lands
+        return (try? database.message(id: messageID, conversationID: conversationID)) ?? nil
+    }
+
     /// The oldest confirmed id inside the newest-`limit` window — the anchor a first page-back grows
     /// from; nil when nothing is persisted.
     func oldestWindowedMessageID(for conversationID: ConversationID, limit: Int) -> UInt64? {
@@ -1027,7 +1036,7 @@ final class ConversationController {
     /// server: on success it reconciles to the confirmed message, on failure it stays in the
     /// transcript as `.failed` (never silently dropped).
     @discardableResult
-    func send(_ text: String, to conversationID: ConversationID) async -> Bool {
+    func send(_ text: String, to conversationID: ConversationID, repliedTo: MessageID? = nil) async -> Bool {
         let clientMessageID = UUID()
         let pending = ConversationMessage(
             id: .unassigned,
@@ -1035,13 +1044,14 @@ final class ConversationController {
             content: .text(text),
             date: .now,
             unreadSeq: 0,
+            repliedTo: repliedTo,
             status: .sending,
             clientMessageID: clientMessageID
         )
         let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
         store.insertPending(pending, anchoredTo: anchor, into: conversationID)
         receiptSettle.hold(clientMessageID.uuidString)
-        return await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
+        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
     }
 
     /// Re-send a failed optimistic message, reusing its client id so the server (idempotent on it)
@@ -1052,15 +1062,21 @@ final class ConversationController {
               pending.status == .failed,
               case .text(let text) = pending.content else { return }
         store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
-        _ = await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
+        _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
     }
 
-    private func deliver(clientMessageID: UUID, text: String, to conversationID: ConversationID) async -> Bool {
+    private func deliver(clientMessageID: UUID, text: String, repliedTo: MessageID?, to conversationID: ConversationID) async -> Bool {
         // Captured before the send so success and failure report the same
         // conversation kind; an unresolved conversation reports as Unknown.
         let chatType = conversation(withID: conversationID)?.type
         do {
-            let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text, clientMessageID: clientMessageID)
+            let message = try await messaging.sendMessage(
+                owner: owner,
+                conversationID: conversationID,
+                text: text,
+                repliedTo: repliedTo,
+                clientMessageID: clientMessageID
+            )
             // Persist the row carrying its client id (the server echoes none) so the DB keeps the send's
             // identity across a round-trip. The pending row is dropped only once the confirmed copy is
             // durably readable — a failed write leaves the send visible (the stream echo or a catch-up

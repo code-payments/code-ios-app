@@ -54,7 +54,9 @@ extension ChatItem {
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },
         deletedPresentation: DeletedMessagePresentation = .hidden,
-        capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] }
+        capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] },
+        counterpartName: String = "",
+        quotedMessage: (MessageID) -> ConversationMessage? = { _ in nil }
     ) -> [ChatItem] {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
         // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
@@ -98,13 +100,11 @@ extension ChatItem {
                 content = .text(text)
                 linkPreview = detectedLink(in: text)
             case .cash(let fiat):
-                let currency = fiat.nativeAmount.currency
-                let flagName = currency.region?.rawValue ?? currency.rawValue.uppercased()
                 let branding = cashBranding(fiat)
                 content = .cash(ChatCashContent(
                     amount: fiat.nativeAmount.formatted(),
                     token: branding.token,
-                    flagImageName: flagName,
+                    flagImageName: flagImageName(for: fiat),
                     iconURL: branding.iconURL,
                     isTip: message.cashAction == .tipped
                 ))
@@ -138,6 +138,17 @@ extension ChatItem {
                 receipt = .failed("Not Delivered. Tap to retry")
             }
 
+            // Resolved here rather than in the view so all three states — found, never fetched,
+            // deleted — are decided by one pure function and testable without a database.
+            let quote = message.repliedTo.map { repliedTo in
+                Self.quote(
+                    resolving: quotedMessage(repliedTo),
+                    selfUserID: selfUserID,
+                    counterpartName: counterpartName,
+                    cashBranding: cashBranding
+                )
+            }
+
             items.append(.message(ChatMessage(
                 id: message.stableID,
                 content: content,
@@ -147,10 +158,69 @@ extension ChatItem {
                 receipt: receipt,
                 linkPreview: linkPreview,
                 isEdited: message.lastEditedTs != nil && !message.isDeleted,
-                actions: orderedActions(capabilities(message))
+                actions: orderedActions(capabilities(message)),
+                quote: quote
             )))
         }
         return items
+    }
+
+    /// The quoted original, for each of the three states it can be in. A message the local database
+    /// has never seen and a tombstone both render as unavailable and both refuse the jump — the
+    /// first because there is no row to land on, the second because `.hidden` filters the tombstone
+    /// out of the transcript entirely.
+    nonisolated private static func quote(
+        resolving original: ConversationMessage?,
+        selfUserID: UserID,
+        counterpartName: String,
+        cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?)
+    ) -> ChatQuote {
+        guard let original else {
+            return ChatQuote(
+                stableID: nil,
+                authorName: "",
+                snippet: ChatQuote.unavailableSnippet,
+                kind: .unavailable
+            )
+        }
+        let authorName = original.isFromSelf(selfUserID) ? "You" : counterpartName
+        switch original.content {
+        case .text(let text):
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: ChatQuote.snippet(forText: text),
+                kind: .text,
+                authorID: original.senderID
+            )
+        case .cash(let fiat):
+            // Same branding the card carries, so the quote of a payment reads as that payment. The
+            // launchpad icon is deliberately left out: it is a remote fetch, and the flag already
+            // keys the currency at this size.
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: fiat.nativeAmount.formatted(),
+                kind: .cash(token: cashBranding(fiat).token, flagImageName: flagImageName(for: fiat)),
+                authorID: original.senderID
+            )
+        case .deleted:
+            return ChatQuote(
+                stableID: nil,
+                authorName: authorName,
+                snippet: ChatQuote.deletedSnippet,
+                kind: .unavailable,
+                authorID: original.senderID
+            )
+        }
+    }
+
+    /// The currency's flag asset: a region flag where the currency has one, else the ticker, which
+    /// is how the crypto flags are named. One derivation for the card and the quote so a payment
+    /// keys the same way wherever it is drawn.
+    nonisolated static func flagImageName(for fiat: ExchangedFiat) -> String {
+        let currency = fiat.nativeAmount.currency
+        return currency.region?.rawValue ?? currency.rawValue.uppercased()
     }
 
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu

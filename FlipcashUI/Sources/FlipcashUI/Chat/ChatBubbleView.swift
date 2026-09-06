@@ -18,6 +18,20 @@ public final class ChatBubbleView: UIView {
     private let background = BubbleBackgroundView()
     private let label = UILabel()
     private let editedLabel = EditedMarker.makeLabel()
+    private(set) var quotePanel = ChatQuotePanelView()
+
+    /// Forwarded from the panel: the stable id of the message to jump to.
+    var onQuoteTap: ((String) -> Void)? {
+        get { quotePanel.onTap }
+        set { quotePanel.onTap = newValue }
+    }
+
+    /// Body pinned to the bubble's top, for a message with no quote.
+    private var labelTopToBubble: NSLayoutConstraint!
+    /// Body pinned below the quote panel, for a reply.
+    private var labelTopToQuote: NSLayoutConstraint!
+    /// Collapses the panel when there is no quote, so a hidden view consumes no height.
+    private var quoteZeroHeight: NSLayoutConstraint!
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -37,13 +51,27 @@ public final class ChatBubbleView: UIView {
 
         addSubview(editedLabel)
 
+        quotePanel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(quotePanel)
+
+        labelTopToBubble = label.topAnchor.constraint(equalTo: topAnchor, constant: 9)
+        labelTopToQuote = label.topAnchor.constraint(
+            equalTo: quotePanel.bottomAnchor,
+            constant: ChatQuotePanelView.bottomSpacing
+        )
+        quoteZeroHeight = quotePanel.heightAnchor.constraint(equalToConstant: 0)
+
         NSLayoutConstraint.activate([
             background.topAnchor.constraint(equalTo: topAnchor),
             background.bottomAnchor.constraint(equalTo: bottomAnchor),
             background.leadingAnchor.constraint(equalTo: leadingAnchor),
             background.trailingAnchor.constraint(equalTo: trailingAnchor),
 
-            label.topAnchor.constraint(equalTo: topAnchor, constant: 9),
+            quotePanel.topAnchor.constraint(equalTo: topAnchor, constant: 9),
+            quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatQuotePanelView.horizontalInset),
+            quotePanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ChatQuotePanelView.horizontalInset),
+            labelTopToBubble,
+            quoteZeroHeight,
             label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
@@ -62,6 +90,21 @@ public final class ChatBubbleView: UIView {
     public func configure(with message: ChatMessage) {
         label.attributedText = Self.displayText(for: message)
         editedLabel.isHidden = !Self.showsEditedMarker(for: message)
+
+        // Deactivate before activating: with both top constraints live the layout is
+        // unsatisfiable, and UIKit resolves that by breaking one at random.
+        if let quote = message.quote {
+            quotePanel.isHidden = false
+            quotePanel.configure(with: quote)
+            quoteZeroHeight.isActive = false
+            labelTopToBubble.isActive = false
+            labelTopToQuote.isActive = true
+        } else {
+            quotePanel.isHidden = true
+            labelTopToQuote.isActive = false
+            labelTopToBubble.isActive = true
+            quoteZeroHeight.isActive = true
+        }
 
         background.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),

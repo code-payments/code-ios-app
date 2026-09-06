@@ -210,6 +210,7 @@ struct ConversationScreen: View {
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
             onMessageAction: handleMessageAction,
+            onQuoteTap: jumpToQuote,
             showsSendCash: sendTarget != nil,
             chatExists: chatExists,
             conversationID: conversationID,
@@ -227,6 +228,12 @@ struct ConversationScreen: View {
         // what lets the iOS 26 toolbar scroll-edge effect materialize. The collection view keeps a
         // top content inset (it adjusts for the safe area) so messages stay readable below the bar.
         .ignoresSafeArea(.container, edges: .top)
+        // The bar's surface stops where the hosted view does, at the bottom safe area. This carries
+        // it the rest of the way down, so the bar reads as running off the bottom of the display
+        // rather than as a card with an edge above the home indicator.
+        .background {
+            BarSurfaceFloor(isReplying: composer.replyTarget != nil)
+        }
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
@@ -403,13 +410,56 @@ struct ConversationScreen: View {
         case .copy:
             break
         case .reply:
-            break // Reply is a separate scope; the menu does not offer it yet.
+            let preview = Self.replyPreview(for: message) { session.balance(for: $0.mint)?.name ?? "Cash" }
+            composer.beginReplying(to: ComposerModel.ReplyTarget(
+                messageID: message.id,
+                stableID: stableID,
+                authorName: message.isFromSelf(conversationController.selfUserID)
+                    ? "You"
+                    : (coordinator?.counterpartName ?? ""),
+                authorID: message.senderID,
+                snippet: preview.snippet,
+                kind: preview.kind
+            ))
         case .edit:
             guard case .text(let text) = message.content else { return }
             composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
         case .delete:
             confirmDelete(message.id)
         }
+    }
+
+    /// The composer strip's preview of the message being answered — the same three-way split the
+    /// transcript's quote panel uses, so the strip and the sent bubble read alike.
+    ///
+    /// A tombstone cannot reach here: `MessageCapability.resolve` grants a deleted message nothing,
+    /// so its row has no menu. The branch keeps the switch exhaustive.
+    private static func replyPreview(
+        for message: ConversationMessage,
+        token: (ExchangedFiat) -> String
+    ) -> (snippet: String, kind: ChatQuote.Kind) {
+        switch message.content {
+        case .text(let text):
+            (ChatQuote.snippet(forText: text), .text)
+        case .cash(let fiat):
+            (
+                fiat.nativeAmount.formatted(),
+                .cash(token: token(fiat), flagImageName: ChatItem.flagImageName(for: fiat))
+            )
+        case .deleted:
+            (ChatQuote.deletedSnippet, .unavailable)
+        }
+    }
+
+    /// Brings the quoted original into the window when the local database has it. Returns without
+    /// effect otherwise — history that was never fetched is out of scope, and the panel that
+    /// points at it is already non-tappable.
+    ///
+    /// A pending row's stable id is a UUID string, so the conversion fails and the jump is a no-op —
+    /// correct, since an unconfirmed message is by definition at the bottom of the window already.
+    private func jumpToQuote(_ stableID: String) {
+        guard let value = UInt64(stableID) else { return }
+        _ = coordinator?.loader.reveal(MessageID(value: value))
     }
 
     private func confirmDelete(_ messageID: MessageID) {

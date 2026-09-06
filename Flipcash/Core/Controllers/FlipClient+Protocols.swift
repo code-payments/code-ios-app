@@ -81,7 +81,7 @@ protocol ConversationMessaging: AnyObject, Sendable {
         afterSequence: UInt64,
         onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
     ) async throws -> UInt64
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID) async throws -> ConversationMessage
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage
     /// Replaces a message's text. `expectedEventSequence` is the optimistic-concurrency guard: the
     /// server applies the edit only if the message still carries that sequence, and reports a
     /// conflict with the winning state otherwise.

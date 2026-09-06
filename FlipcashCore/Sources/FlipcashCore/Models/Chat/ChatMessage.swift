@@ -50,6 +50,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     public let isEdited: Bool
     /// What the context menu offers for this row, already ordered. Empty means no menu.
     public let actions: [MessageCapability]
+    /// The original this row replies to, already resolved for display, or `nil` when the row is
+    /// not a reply.
+    public let quote: ChatQuote?
 
     public init(
         id: String,
@@ -60,7 +63,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil,
         isEdited: Bool = false,
-        actions: [MessageCapability] = []
+        actions: [MessageCapability] = [],
+        quote: ChatQuote? = nil
     ) {
         self.id = id
         self.content = content
@@ -71,6 +75,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.linkPreview = linkPreview
         self.isEdited = isEdited
         self.actions = actions
+        self.quote = quote
     }
 
     /// Convenience for text rows.
@@ -83,7 +88,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil,
         isEdited: Bool = false,
-        actions: [MessageCapability] = []
+        actions: [MessageCapability] = [],
+        quote: ChatQuote? = nil
     ) {
         self.init(
             id: id,
@@ -94,7 +100,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             receipt: receipt,
             linkPreview: linkPreview,
             isEdited: isEdited,
-            actions: actions
+            actions: actions,
+            quote: quote
         )
     }
 }

@@ -11,7 +11,11 @@ import FlipcashCore
 /// every call; the test sets scripted responses before driving the controller.
 final class MockConversations: ConversationFetching, ConversationMessaging, ConversationEventStreaming, @unchecked Sendable {
 
-    struct Sent: Sendable { let conversationID: ConversationID; let text: String }
+    struct Sent: Sendable {
+        let conversationID: ConversationID
+        let text: String
+        let repliedTo: MessageID?
+    }
     struct TypingCall: Sendable { let conversationID: ConversationID; let state: TypingState }
     /// A scripted `GetDelta` batch: one `onBatch` call with these messages + checkpoint.
     struct DeltaBatch: Sendable { let messages: [ConversationMessage]; let checkpoint: UInt64? }
@@ -183,15 +187,15 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
         return olderMessages
     }
 
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID) async throws -> ConversationMessage {
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
         lock.withLock {
-            _sent.append(Sent(conversationID: conversationID, text: text))
+            _sent.append(Sent(conversationID: conversationID, text: text, repliedTo: repliedTo))
             _sentClientIDs.append(clientMessageID)
         }
         if let error = sendError { throw error }
         return sendResult ?? ConversationMessage(
             id: MessageID(value: 1), senderID: nil, content: .text(text),
-            date: Date(timeIntervalSince1970: 0), unreadSeq: 0
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 0, repliedTo: repliedTo
         )
     }
 

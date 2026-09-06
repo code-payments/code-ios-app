@@ -44,6 +44,19 @@ final class MessageLoader {
         startID == nil && windowCount < Self.initialWindow
     }
 
+    /// Brings `messageID` into the rendered window, returning whether it is now there.
+    ///
+    /// One anchor move, not a paging loop: an anchored window reads every message from `startID`
+    /// forward, so pointing the anchor at the target is enough. Nothing is fetched — a message the
+    /// local database has never seen returns `false` and the caller leaves the transcript alone.
+    @discardableResult
+    func reveal(_ messageID: MessageID) -> Bool {
+        if messages.contains(where: { $0.id == messageID }) { return true }
+        guard controller.persistedMessage(messageID, in: conversationID) != nil else { return false }
+        startID = messageID.value
+        return true
+    }
+
     /// Reveals an older step: moves the anchor back over already-persisted history, or pages the next
     /// older batch from the server (which persists it) once the local history is exhausted.
     func loadOlder() {
