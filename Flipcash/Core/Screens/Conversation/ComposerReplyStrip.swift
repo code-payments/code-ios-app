@@ -85,14 +85,19 @@ struct ComposerReplyStrip: View {
             .accessibilityLabel("Replying to \(target.authorName): \(spokenSnippet)")
             .accessibilityIdentifier("composer-reply-quote")
 
-            // WhatsApp's: a large, thin ✕ rather than a small bold one, sized to sit against two
-            // lines of quote without crowding them, in a hit target wider than the glyph.
+            // A disc rather than a bare ✕, because the ground behind it is glass sampling the
+            // transcript: a hairline glyph's contrast changed with whatever message scrolled past.
+            // The fill gives it its own ground and takes that variable out.
             Button(action: onDismiss) {
-                Image(systemName: SystemSymbol.close.rawValue)
-                    // `.system`, not the app face: the stroke weight is the point of the match, and
-                    // an SF Symbol only takes a weight axis from a system font.
-                    .font(.system(size: 18, weight: .light))
-                    .foregroundStyle(Color.textSecondary)
+                Image(systemName: SystemSymbol.closeCircle.rawValue)
+                    // `.system`, not the app face: an SF Symbol only takes its optical axes from a
+                    // system font.
+                    .font(.system(size: 22))
+                    // Palette, not monochrome. A monochrome fill knocks the ✕ out as a hole, which
+                    // over glass fills with the transcript — the thing the disc is here to stop.
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(Color.textMain, Color.textSecondary.opacity(0.35))
+                    // Wider than the disc: the glyph is small enough to miss on its own.
                     .frame(width: 34, height: 34)
                     .contentShape(.rect)
             }

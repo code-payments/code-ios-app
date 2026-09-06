@@ -71,6 +71,9 @@ public enum SystemSymbol: String {
     /// The bare glyph, for dismiss affordances that sit inline with text and
     /// would be overpowered by the filled app-square `xmark`.
     case close = "xmark"
+    /// The dismiss disc, for a control on a glass surface: the fill gives the glyph its
+    /// own ground rather than leaving it to read against whatever the glass samples.
+    case closeCircle = "xmark.circle.fill"
 
     case pencil = "pencil"
     case trash = "trash"
