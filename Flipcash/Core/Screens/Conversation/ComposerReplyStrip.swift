@@ -48,8 +48,9 @@ struct ComposerReplyStrip: View {
 
     private static let ruleWidth: CGFloat = 4
 
-    /// How far the quote's ground is held off the bar's own edges, matching the composer row's
-    /// horizontal padding below it so the two stack up on one margin.
+    /// The margin around the quote's ground, on every side: matching the composer row's horizontal
+    /// padding below it, so the two stack up on one margin and the quote is inset by the same amount
+    /// from the bar's edges as it is from the controls.
     private static let inset: CGFloat = 12
 
     /// Sized to the cap height of the amount beside it, so the flag reads as a mark on the line
@@ -74,7 +75,7 @@ struct ComposerReplyStrip: View {
                     .foregroundStyle(name)
                 quoteLine
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, BarMetrics.fieldVerticalPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
             // Combined here rather than on the row, so the quote reads as one element while the
             // dismiss button stays a button of its own — a row-level combine folds the button into
@@ -99,12 +100,18 @@ struct ComposerReplyStrip: View {
             .accessibilityIdentifier("cancel-reply-button")
         }
         .padding(.trailing, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // The Send Cash button's height, so a one-line quote is the same size box as the controls
+        // below it. Only a minimum: a snippet that wraps to a second line has to grow, and the two
+        // fonts stacked here land a point under the controls on their own, which is close enough to
+        // read as a mistake rather than as a different size.
+        .frame(maxWidth: .infinity, minHeight: BarMetrics.contentHeight, alignment: .leading)
         .modifier(QuoteGround(style: style))
         .padding(.horizontal, Self.inset)
-        // Clear of the composer row below and of the bar's top edge above, so the ground reads as a
-        // thing on the bar rather than as the bar's own top.
-        .padding(.vertical, 8)
+        // One margin all the way round: the quote sits ``inset`` from the bar's top edge and the same
+        // distance off the controls below. The bar already pads its own row, so only the remainder is
+        // added here — padding both by ``inset`` would leave the gap underneath twice the one above.
+        .padding(.top, Self.inset)
+        .padding(.bottom, Self.inset - BarMetrics.contentPadding)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("composer-reply-strip")
     }

@@ -181,7 +181,7 @@ extension BetaFlags {
             case .walletDepositArrival:
                 return "If enabled, Put in Wallet opens the wallet and shows the balance rising and any new card arriving. If disabled, the bill is dismissed where it stands"
             case .glassReplyQuote:
-                return "If enabled, the quote above the composer is a floating Liquid Glass capsule. If disabled, it is an inset panel on the bar's own surface"
+                return "If enabled, the quote above the composer is Liquid Glass floating clear of the bar. If disabled, it is an opaque panel on the bar's own surface"
             }
         }
 

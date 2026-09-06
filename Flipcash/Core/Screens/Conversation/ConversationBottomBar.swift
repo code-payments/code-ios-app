@@ -35,8 +35,11 @@ enum BarMetrics {
     static let fieldMinHeight: CGFloat = 34
     static let fieldVerticalPadding: CGFloat = 8
     static let cornerRadius: CGFloat = 14
-    /// The height of every bar control: a single-line field plus its padding.
+    /// The height of every bar control: a single-line field plus its padding, and the height the
+    /// Send Cash button morphs at while there is a composer beside it.
     static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
+    /// The bar's own margin around its controls, above and below.
+    static let contentPadding: CGFloat = 8
 }
 
 /// The unified bottom bar: Send Cash (morphing) beside the message field.
@@ -90,8 +93,8 @@ struct ConversationBottomBar: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
+        .padding(.top, BarMetrics.contentPadding)
+        .padding(.bottom, BarMetrics.contentPadding)
         .animation(barMorphSpring, value: chatExists)
         .animation(barMorphSpring, value: composer.isEditing)
 
