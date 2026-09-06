@@ -10,7 +10,7 @@ import UIKit
 import FlipcashCore
 
 /// The quoted original drawn inside a reply's bubble, above the body: a leading rule, the author,
-/// and one or two lines of the original. Tapping it asks to jump to that message — but only when
+/// and up to two lines of the original. Tapping it asks to jump to that message — but only when
 /// there is a row to jump to, which `ChatQuote.isJumpable` decides.
 final class ChatQuotePanelView: UIView {
 
@@ -73,10 +73,9 @@ final class ChatQuotePanelView: UIView {
 
         snippetLabel.font = .default(size: 12, weight: .medium)
         snippetLabel.textColor = Self.snippetColor
-        // One line in the bubble, per the spec: the panel is a citation, not a second message, and
-        // a two-line panel over a one-line reply reads as the wrong thing being the point. The
-        // composer's strip allows two, because there the quote *is* the subject.
-        snippetLabel.numberOfLines = 1
+        // Two, matching the composer's strip: one line truncated most quoted sentences mid-clause,
+        // which left the reply pointing at something the reader still had to go and open.
+        snippetLabel.numberOfLines = 2
         snippetLabel.lineBreakMode = .byTruncatingTail
 
         flagView.contentMode = .scaleAspectFill
