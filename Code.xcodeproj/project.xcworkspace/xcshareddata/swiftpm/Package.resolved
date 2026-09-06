@@ -1,5 +1,5 @@
 {
-  "originHash" : "bcc0261f97a6d99100c2b9dbc00698c4b2a1da20d91c5862ec899298980b12af",
+  "originHash" : "bfbaca6df065c0441a76cea8f5de36ddcc5deb1584f25cf135fc57d082acd454",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/flipcash-shared-core-spm",
       "state" : {
-        "revision" : "5d46c1c9980aed632ed939b017946c0b799649ef",
-        "version" : "0.4.1"
+        "revision" : "c83a57e7b90c169d7aa9f50e1c3358ee76f98bb8",
+        "version" : "0.5.1"
       }
     },
     {
