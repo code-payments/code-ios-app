@@ -202,7 +202,7 @@ extension BetaFlags {
             case .vibrateOnScan:        return false
             case .enableCoinbase:       return false
             case .walletDepositArrival: return true
-            case .glassReplyQuote:      return false
+            case .glassReplyQuote:      return true
             }
         }
     }

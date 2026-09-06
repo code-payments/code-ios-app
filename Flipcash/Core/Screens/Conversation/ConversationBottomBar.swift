@@ -108,11 +108,12 @@ struct ConversationBottomBar: View {
             // already drives this state in both directions, and wrapping the dismissal in a second
             // transaction gave the exit a curve the entry never had.
             ComposerReplyReveal(target: composer.replyTarget) { composer.endReplying() }
-            content
+            // On the composer row alone, not on the stack. The surface's job is to dissolve the
+            // transcript into the input; anchoring it to the stack moved the dissolve up to the reply
+            // strip's top edge, so a reply slid the fade 50pt up the screen and put an opaque slab
+            // behind the quote. The quote is meant to sit over the transcript, not over the slab.
+            content.modifier(BarSurfaceBackground())
         }
-        // Inside the animation modifier, not outside it: the surface is sized by the stack above,
-        // so both its geometry and the strip's height resolve on the one curve.
-        .modifier(BarSurfaceBackground())
         .animation(replySpring, value: composer.replyTarget)
     }
 }

@@ -28,8 +28,9 @@ struct ComposerReplyStrip: View {
     /// shape as everything else on the bar. What differs is the material, and so what the quote
     /// reads as: part of the bar, or something floating over it.
     enum Style {
-        /// An opaque panel on the bar's own surface, one step up from it. The conservative reading
-        /// of WhatsApp: a reply makes the bar taller and puts a card in the space it gained.
+        /// An opaque card over the transcript, one step up from the chat background. The
+        /// conservative reading of WhatsApp, minus its slab: the bar's surface stops at the composer
+        /// row, so the card is what the reply adds.
         case panel
         /// Liquid Glass floating clear of the bar, sampling the transcript behind it. Falls back to
         /// an ultra-thin material below iOS 26.
@@ -46,7 +47,14 @@ struct ComposerReplyStrip: View {
         BetaFlags.shared.hasEnabled(.glassReplyQuote) ? .glass : .panel
     }
 
-    private static let ruleWidth: CGFloat = 4
+    /// Wider than the 4pt a blockquote rule usually takes, because the quote's corner radius is the
+    /// bar's 14: the leading edge is straight for only `contentHeight - 14 * 2` of its run, and the
+    /// corners taper the rest away. Thickness can't lengthen that straight core — it only gives the
+    /// tapered ends enough mass to read as caps rather than as a clipping accident.
+    private static let ruleWidth: CGFloat = 6
+
+    /// The gap after the rule, and between the quote and the button that dismisses it.
+    private static let gutter: CGFloat = 9
 
     /// The margin around the quote's ground, on every side: matching the composer row's horizontal
     /// padding below it, so the two stack up on one margin and the quote is inset by the same amount
@@ -61,14 +69,7 @@ struct ComposerReplyStrip: View {
         let rule = ComplementaryPalette.color(.start, for: target.authorID)
         let name = ComplementaryPalette.color(.middle, for: target.authorID)
 
-        HStack(alignment: .center, spacing: 9) {
-            // Unpadded and unclipped here: a `Rectangle` is flexible vertically, so in this stack it
-            // takes the quote's whole height, and with no leading padding on the row it starts at
-            // the quote's edge. ``QuoteGround`` rounds off the two corners it passes.
-            Rectangle()
-                .fill(rule)
-                .frame(width: Self.ruleWidth)
-
+        HStack(alignment: .center, spacing: Self.gutter) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(target.authorName)
                     .font(.appTextHeading)
@@ -99,12 +100,22 @@ struct ComposerReplyStrip: View {
             .accessibilityLabel("Cancel reply")
             .accessibilityIdentifier("cancel-reply-button")
         }
+        // Where the rule and its gutter used to stand in the row.
+        .padding(.leading, Self.ruleWidth + Self.gutter)
         .padding(.trailing, 8)
         // The Send Cash button's height, so a one-line quote is the same size box as the controls
         // below it. Only a minimum: a snippet that wraps to a second line has to grow, and the two
         // fonts stacked here land a point under the controls on their own, which is close enough to
         // read as a mistake rather than as a different size.
         .frame(maxWidth: .infinity, minHeight: BarMetrics.contentHeight, alignment: .leading)
+        // Overlaid on the pinned frame rather than standing in the row, so it spans the quote's real
+        // height. As a row member it took the row's natural height instead, which the frame above then
+        // centred inside `contentHeight` — leaving the rule a fraction short at both ends.
+        // ``QuoteGround`` rounds off the two corners it passes.
+        .overlay(alignment: .leading) {
+            QuoteRule(color: rule, style: style)
+                .frame(width: Self.ruleWidth)
+        }
         .modifier(QuoteGround(style: style))
         .padding(.horizontal, Self.inset)
         // One margin all the way round: the quote sits ``inset`` from the bar's top edge and the same
@@ -157,6 +168,26 @@ struct ComposerReplyStrip: View {
         switch target.kind {
         case .cash(let token, _):  "\(target.snippet) \(token)"
         case .text, .unavailable:  target.snippet
+        }
+    }
+}
+
+/// The author's colour down the quote's leading edge, in the same material as the ground behind it:
+/// a solid fill on the opaque card, tinted Liquid Glass on the glass. A solid bar over glass reads as
+/// a sticker stuck to the surface rather than as part of it.
+private struct QuoteRule: View {
+
+    let color: Color
+    let style: ComposerReplyStrip.Style
+
+    @ViewBuilder
+    var body: some View {
+        switch style {
+        case .panel:
+            Rectangle().fill(color)
+        case .glass:
+            // Square-cornered: ``QuoteGround``'s clip rounds the two corners this rule passes.
+            Color.clear.glassBackground(cornerRadius: 0, tint: color)
         }
     }
 }
