@@ -8,6 +8,7 @@
 import Foundation
 // @preconcurrency: BigDecimal.Rounding not Sendable upstream.
 @preconcurrency import BigDecimal
+import SharedCoreKit
 
 /// A discrete step-based bonding curve implementation that uses pre-computed
 /// lookup tables for deterministic pricing across all clients.
@@ -15,6 +16,11 @@ import Foundation
 /// The curve divides the token supply into steps of 100 tokens each.
 /// Within each step, the price is constant (taken from the pricing table).
 /// This ensures exact consistency with the Solana program implementation.
+///
+/// The table-driven pricing math is computed by the shared Kotlin engine
+/// (`:libs:currency-math:discrete-curve`, exported through `SharedCoreKit`'s
+/// `SharedBondingCurve`) so both platforms agree exactly -- this type only
+/// loads the resource tables and converts to/from `BigDecimal` at the boundary.
 public struct DiscreteBondingCurve: Sendable {
 
     // MARK: - Constants
@@ -44,6 +50,23 @@ public struct DiscreteBondingCurve: Sendable {
 
     public init() {}
 
+    // MARK: - Table Loading
+
+    /// Loads the pricing/cumulative tables into the shared Kotlin engine, once per process.
+    /// `SharedBondingCurve.initialize` itself no-ops on a second call, so re-triggering this
+    /// from another `DiscreteBondingCurve` instance is harmless.
+    private static let tablesLoaded: Void = {
+        guard
+            let pricingURL = Bundle.module.url(forResource: "discrete_pricing_table", withExtension: "bin"),
+            let cumulativeURL = Bundle.module.url(forResource: "discrete_cumulative_table", withExtension: "bin"),
+            let pricingData = try? Data(contentsOf: pricingURL),
+            let cumulativeData = try? Data(contentsOf: cumulativeURL)
+        else {
+            fatalError("Missing discrete curve table resources")
+        }
+        SharedBondingCurve.initialize(pricingTableBytes: pricingData, cumulativeTableBytes: cumulativeData)
+    }()
+
     // MARK: - Core Methods
 
     /// Returns the spot price at a given supply level.
@@ -54,14 +77,11 @@ public struct DiscreteBondingCurve: Sendable {
     /// - Parameter supply: Current token supply (in whole tokens, not quarks)
     /// - Returns: Price per token in USDC, or nil if supply exceeds max
     public func spotPrice(at supply: Int) -> BigDecimal? {
-        guard supply >= 0, supply <= Self.maxSupply else { return nil }
-
-        let stepIndex = supply / Self.stepSize
-        guard stepIndex < DiscreteCurveTables.pricingTable.count else {
+        _ = Self.tablesLoaded
+        guard let result = SharedBondingCurve.spotPriceAtSupply(supply: Int32(supply)) else {
             return nil
         }
-
-        return Self.fromScaledU128(DiscreteCurveTables.pricingTable[stepIndex])
+        return BigDecimal(result)
     }
 
     /// Calculates the total cost to buy a number of tokens starting at a given supply.
@@ -73,8 +93,7 @@ public struct DiscreteBondingCurve: Sendable {
     ///   - tokens: Number of tokens to buy (in whole tokens)
     /// - Returns: Total cost in USDC, or nil if purchase would exceed max supply
     public func tokensToValue(currentSupply: Int, tokens: Int) -> BigDecimal? {
-        guard tokens >= 0, currentSupply >= 0 else { return nil }
-        return tokensToValue(currentSupply: BigDecimal(currentSupply), tokens: BigDecimal(tokens))
+        tokensToValue(currentSupply: BigDecimal(currentSupply), tokens: BigDecimal(tokens))
     }
 
     /// Calculates the total cost to buy a number of tokens starting at a given supply.
@@ -87,52 +106,14 @@ public struct DiscreteBondingCurve: Sendable {
     ///   - tokens: Number of tokens to buy as BigDecimal (can have fractional tokens)
     /// - Returns: Total cost in USDC, or nil if purchase would exceed max supply
     public func tokensToValue(currentSupply: BigDecimal, tokens: BigDecimal) -> BigDecimal? {
-        guard tokens.signum >= 0 else { return nil }
-        guard tokens.isPositive else { return .zero }
-
-        let stepSizeBD = BigDecimal(Self.stepSize)
-        let endSupply = currentSupply.add(tokens, Self.rounding)
-        let startStep = currentSupply.divide(stepSizeBD, Self.rounding).truncatedInt()
-        let endStep = endSupply.divide(stepSizeBD, Self.rounding).truncatedInt()
-
-        guard endStep < DiscreteCurveTables.pricingTable.count else {
+        _ = Self.tablesLoaded
+        guard let result = SharedBondingCurve.tokensToValue(
+            currentSupply: currentSupply.asString(.plain),
+            tokens: tokens.asString(.plain)
+        ) else {
             return nil
         }
-
-        // Calculate partial tokens in start step (from currentSupply to next step boundary)
-        let startStepBoundary = BigDecimal(startStep + 1).multiply(stepSizeBD, Self.rounding)
-        let tokensInStartStep: BigDecimal
-        if startStepBoundary > endSupply {
-            // All tokens are within the same step
-            tokensInStartStep = tokens
-        } else {
-            tokensInStartStep = startStepBoundary.subtract(currentSupply, Self.rounding)
-        }
-
-        // Cost for partial start step
-        let startPrice = Self.fromScaledU128(DiscreteCurveTables.pricingTable[startStep])
-        let startCost = tokensInStartStep.multiply(startPrice, Self.rounding)
-
-        // If start and end are in the same step, we're done
-        if startStep == endStep {
-            return startCost
-        }
-
-        // Cost for complete steps between start_step+1 and end_step-1 (inclusive)
-        // Use cumulative table: cumulative[end_step] - cumulative[start_step + 1]
-        let cumulativeStart = Self.fromScaledU128(DiscreteCurveTables.cumulativeTable[startStep + 1])
-        let cumulativeEnd = Self.fromScaledU128(DiscreteCurveTables.cumulativeTable[endStep])
-        let middleCost = cumulativeEnd.subtract(cumulativeStart, Self.rounding)
-
-        // Calculate partial tokens in end step (from end step boundary to end_supply)
-        let endStepBoundary = BigDecimal(endStep).multiply(stepSizeBD, Self.rounding)
-        let tokensInEndStep = endSupply.subtract(endStepBoundary, Self.rounding)
-
-        // Cost for partial end step
-        let endPrice = Self.fromScaledU128(DiscreteCurveTables.pricingTable[endStep])
-        let endCost = tokensInEndStep.multiply(endPrice, Self.rounding)
-
-        return startCost.add(middleCost, Self.rounding).add(endCost, Self.rounding)
+        return BigDecimal(result)
     }
 
     /// Calculates the number of tokens that can be purchased for a given value.
@@ -145,288 +126,62 @@ public struct DiscreteBondingCurve: Sendable {
     ///   - value: Amount of USDC to spend
     /// - Returns: Number of tokens that can be purchased, or nil if at max supply
     public func valueToTokens(currentSupply: Int, value: BigDecimal) -> BigDecimal? {
-        guard value.signum >= 0, currentSupply >= 0 else { return nil }
-        guard value.isPositive else { return .zero }
-
-        let startStep = currentSupply / Self.stepSize
-        guard startStep < DiscreteCurveTables.pricingTable.count - 1 else {
+        _ = Self.tablesLoaded
+        guard let result = SharedBondingCurve.valueToTokens(
+            currentSupply: Int32(currentSupply),
+            value: value.asString(.plain)
+        ) else {
             return nil
         }
+        return BigDecimal(result)
+    }
 
-        // Calculate cost to complete the current partial step
-        let startStepBoundary = (startStep + 1) * Self.stepSize
-        let tokensToCompleteStartStep = startStepBoundary - currentSupply
-        let startPrice = Self.fromScaledU128(DiscreteCurveTables.pricingTable[startStep])
-        let costToCompleteStartStep = BigDecimal(tokensToCompleteStartStep).multiply(startPrice, Self.rounding)
+    /// Calculate precise supply from a given value with interpolation within steps.
+    ///
+    /// Unlike `supplyFromTVL` which returns step boundaries, this method
+    /// interpolates within the step to give a more accurate supply value.
+    ///
+    /// - Parameter value: Total value in USDC (not quarks)
+    /// - Returns: Supply as BigDecimal with fractional tokens
+    private func preciseSupplyFromValue(_ value: BigDecimal) -> BigDecimal {
+        _ = Self.tablesLoaded
+        return BigDecimal(SharedBondingCurve.preciseSupplyFromValue(value: value.asString(.plain)))
+    }
 
-        // If we can't even complete the start step, just divide by price
-        if value < costToCompleteStartStep {
-            return value.divide(startPrice, Self.rounding)
-        }
+    /// Calculate supply from TVL using the cumulative table.
+    ///
+    /// Uses binary search on the cumulative table to find which step contains
+    /// the given TVL. Returns the supply at the **start** of that step (the step
+    /// boundary), not an interpolated value within the step.
+    ///
+    /// For example, if TVL corresponds to somewhere between step 5 and step 6,
+    /// this returns `500` (step 5 boundary), not an interpolated value like `550`.
+    /// This matches the Rust implementation's step-based lookup behavior.
+    ///
+    /// - Parameter tvlQuarks: Total value locked in USDC quarks (6 decimals)
+    /// - Returns: Current supply in whole tokens at the step boundary
+    public func supplyFromTVL(_ tvlQuarks: Int) -> Int? {
+        _ = Self.tablesLoaded
+        return Int(SharedBondingCurve.supplyFromTVL(tvlQuarks: Int64(tvlQuarks)))
+    }
 
-        // We can at least complete the start step
-        let remainingAfterStart = value.subtract(costToCompleteStartStep, Self.rounding)
-
-        // Calculate the cumulative value at start_step + 1 (where we'll be after completing start step)
-        let baseCumulative = Self.fromScaledU128(DiscreteCurveTables.cumulativeTable[startStep + 1])
-
-        // Target cumulative = base_cumulative + remaining_value
-        let targetCumulative = baseCumulative.add(remainingAfterStart, Self.rounding)
-        let targetCumulativeScaled = Self.toScaledU128(targetCumulative)
-
-        // Binary search for the step where cumulative value exceeds or equals target
-        var low = startStep + 1
-        var high = DiscreteCurveTables.cumulativeTable.count - 1
-
-        while low < high {
-            let mid = (low + high + 1) / 2
-            let midCumulative = DiscreteCurveTables.cumulativeTable[mid]
-
-            if midCumulative <= targetCumulativeScaled {
-                low = mid
-            } else {
-                high = mid - 1
-            }
-        }
-
-        // low is now the last step where cumulative <= target
-        let endStep = low
-
-        guard endStep < DiscreteCurveTables.pricingTable.count else {
+    /// Low-level primitive backing the high-level `tokensForValueExchange(fiat:fiatRate:supplyQuarks:)`
+    /// below -- mirrors Android's `BondingCurve.tokensForValueExchange(currentValue, value)`.
+    ///
+    /// - Parameters:
+    ///   - currentValue: Current TVL in USDC
+    ///   - value: USDC value to exchange out of the current TVL
+    /// - Returns: The tokens removed and the effective fx rate, or nil if the exchange is invalid
+    ///   (value <= 0, value > currentValue, or the resulting tokens are <= 0)
+    func tokensForValueExchange(currentValue: BigDecimal, value: BigDecimal) -> (tokens: BigDecimal, fx: BigDecimal)? {
+        _ = Self.tablesLoaded
+        guard let result = SharedBondingCurve.tokensForValueExchange(
+            currentValue: currentValue.asString(.plain),
+            value: value.asString(.plain)
+        ) else {
             return nil
         }
-
-        // Calculate tokens from complete steps
-        let endStepSupply = endStep * Self.stepSize
-        let tokensFromCompleteSteps = endStepSupply - startStepBoundary
-
-        // Calculate remaining value after complete steps
-        let cumulativeAtEndStep = Self.fromScaledU128(DiscreteCurveTables.cumulativeTable[endStep])
-        let valueUsedForCompleteSteps = cumulativeAtEndStep.subtract(baseCumulative, Self.rounding)
-        let remainingValue = remainingAfterStart.subtract(valueUsedForCompleteSteps, Self.rounding)
-
-        // Buy partial tokens in end step with remaining value
-        let endPrice = Self.fromScaledU128(DiscreteCurveTables.pricingTable[endStep])
-        let tokensInEndStep = remainingValue.divide(endPrice, Self.rounding)
-
-        // Total tokens
-        let total = BigDecimal(tokensToCompleteStartStep)
-            .add(BigDecimal(tokensFromCompleteSteps), Self.rounding)
-            .add(tokensInEndStep, Self.rounding)
-
-        return total
-    }
-
-    // MARK: - Utility Methods
-
-    /// Converts a scaled u128 value (18 decimals) to a BigDecimal
-    private static func fromScaledU128(_ value: UInt128) -> BigDecimal {
-        // Scale factor: 10^18
-        let scaleFactor = BigDecimal("1000000000000000000")
-
-        if value.high == 0 {
-            // Simple case: fits in UInt64 - use String to avoid DPD encoding issue
-            return BigDecimal(String(value.low)).divide(scaleFactor, rounding)
-        }
-
-        // value = high * 2^64 + low
-        // Use string-based calculation for exactness
-        // Note: BigDecimal(UInt64) interprets as DPD encoding, so use String instead
-        let twoToThe64 = BigDecimal("18446744073709551616") // 2^64
-        let highPart = BigDecimal(String(value.high)).multiply(twoToThe64, rounding)
-        let combined = highPart.add(BigDecimal(String(value.low)), rounding)
-        return combined.divide(scaleFactor, rounding)
-    }
-
-    /// Converts a BigDecimal to a scaled u128 value (18 decimals)
-    private static func toScaledU128(_ value: BigDecimal) -> UInt128 {
-        // Handle negative or zero values
-        guard value.isPositive else {
-            return UInt128(0)
-        }
-
-        let scaleFactor = BigDecimal.ten.pow(tablePrecision, rounding)
-        let scaled = value.multiply(scaleFactor, rounding)
-
-        // Get the integer part using string manipulation
-        // Note: Rounding(.towardZero, 0) truncates significant digits incorrectly
-        // because precision 0 means "0 significant digits", not "0 decimal places"
-        var str = scaled.asString(.plain)
-
-        // Remove any decimal part
-        if let dotIndex = str.firstIndex(of: ".") {
-            str = String(str[..<dotIndex])
-        }
-
-        // Handle empty or negative results
-        guard !str.isEmpty, !str.hasPrefix("-") else {
-            return UInt128(0)
-        }
-
-        // Use the string-based UInt128 initializer which handles large numbers correctly
-        if let result = UInt128(string: str) {
-            return result
-        }
-
-        assertionFailure("Failed to parse UInt128 from string: \(str)")
-        return UInt128(0)
-    }
-}
-
-// MARK: - UInt128
-
-/// A simple 128-bit unsigned integer for storing table values
-public struct UInt128: Sendable, Equatable, Comparable {
-    public let high: UInt64
-    public let low: UInt64
-
-    public init(high: UInt64, low: UInt64) {
-        self.high = high
-        self.low = low
-    }
-
-    /// Initialize from a single UInt64 (fits in low bits)
-    public init(_ value: UInt64) {
-        self.high = 0
-        self.low = value
-    }
-
-    /// Initialize from a decimal string representation
-    /// Uses string-based arithmetic to avoid precision issues
-    public init?(string: String) {
-        // Remove any leading zeros
-        var str = string
-        while str.hasPrefix("0") && str.count > 1 {
-            str.removeFirst()
-        }
-
-        // If it fits in UInt64, use that directly
-        if let u64 = UInt64(str) {
-            self.high = 0
-            self.low = u64
-            return
-        }
-
-        // For larger numbers, we need to divide by 2^64 using digit array arithmetic
-        // Parse as array of digits and use long division by 2^64
-        let digits = str.compactMap { $0.wholeNumberValue }
-        guard digits.count == str.count else { return nil }
-
-        // Divide the digit array by 2^64
-        let (highDigits, lowValue) = Self.divideByPow264(digits: digits)
-
-        // Convert high digits back to UInt64
-        var highValue: UInt64 = 0
-        for digit in highDigits {
-            highValue = highValue * 10 + UInt64(digit)
-        }
-
-        self.high = highValue
-        self.low = lowValue
-    }
-
-    /// Divides a decimal number (represented as digits) by 2^64
-    /// Returns (quotient digits, remainder as UInt64)
-    private static func divideByPow264(digits: [Int]) -> ([Int], UInt64) {
-        // 2^64 = 18446744073709551616
-        let divisorDigits: [Int] = [1, 8, 4, 4, 6, 7, 4, 4, 0, 7, 3, 7, 0, 9, 5, 5, 1, 6, 1, 6]
-
-        // If digits represent a number smaller than divisor, quotient is 0
-        if digits.count < divisorDigits.count ||
-           (digits.count == divisorDigits.count && compareDigits(digits, divisorDigits) < 0) {
-            // Convert digits to UInt64
-            var value: UInt64 = 0
-            for d in digits {
-                value = value * 10 + UInt64(d)
-            }
-            return ([], value)
-        }
-
-        // Perform long division
-        var quotientDigits: [Int] = []
-        var current: [Int] = []
-
-        for digit in digits {
-            current.append(digit)
-
-            // Remove leading zeros from current
-            while current.count > 1 && current.first == 0 {
-                current.removeFirst()
-            }
-
-            // How many times does divisor fit in current?
-            var count = 0
-            while compareDigits(current, divisorDigits) >= 0 {
-                current = subtractDigits(current, divisorDigits)
-                count += 1
-            }
-
-            quotientDigits.append(count)
-        }
-
-        // Remove leading zeros from quotient
-        while quotientDigits.count > 1 && quotientDigits.first == 0 {
-            quotientDigits.removeFirst()
-        }
-
-        // Convert remainder (current) to UInt64
-        var remainder: UInt64 = 0
-        for d in current {
-            remainder = remainder * 10 + UInt64(d)
-        }
-
-        return (quotientDigits, remainder)
-    }
-
-    /// Compare two digit arrays (returns -1, 0, or 1)
-    private static func compareDigits(_ a: [Int], _ b: [Int]) -> Int {
-        if a.count != b.count {
-            return a.count < b.count ? -1 : 1
-        }
-        for (da, db) in zip(a, b) {
-            if da != db {
-                return da < db ? -1 : 1
-            }
-        }
-        return 0
-    }
-
-    /// Subtract b from a (assumes a >= b)
-    private static func subtractDigits(_ a: [Int], _ b: [Int]) -> [Int] {
-        var result = a
-        var borrow = 0
-
-        // Pad b to match length of a
-        let paddedB = Array(repeating: 0, count: a.count - b.count) + b
-
-        for i in (0..<result.count).reversed() {
-            var diff = result[i] - paddedB[i] - borrow
-            if diff < 0 {
-                diff += 10
-                borrow = 1
-            } else {
-                borrow = 0
-            }
-            result[i] = diff
-        }
-
-        // Remove leading zeros
-        while result.count > 1 && result.first == 0 {
-            result.removeFirst()
-        }
-
-        return result
-    }
-
-    public static func < (lhs: UInt128, rhs: UInt128) -> Bool {
-        if lhs.high != rhs.high {
-            return lhs.high < rhs.high
-        }
-        return lhs.low < rhs.low
-    }
-
-    public static func <= (lhs: UInt128, rhs: UInt128) -> Bool {
-        lhs < rhs || lhs == rhs
+        return (BigDecimal(result.tokens), BigDecimal(result.fx))
     }
 }
 
@@ -565,19 +320,8 @@ extension DiscreteBondingCurve {
             return nil
         }
 
-        // New TVL after subtracting the exchange value
-        let newTVL = currentTVL.subtract(usdcValue, Self.rounding)
-
-        // Get precise supply at current TVL
-        let currentSupplyPrecise = preciseSupplyFromValue(currentTVL)
-
-        // Get precise supply at new (lower) TVL
-        let newSupplyPrecise = preciseSupplyFromValue(newTVL)
-
-        // Tokens = difference in supply
-        let tokens = currentSupplyPrecise.subtract(newSupplyPrecise, Self.rounding)
-
-        guard tokens.isPositive else {
+        // Tokens = difference in supply between currentTVL and currentTVL - usdcValue
+        guard let (tokens, _) = tokensForValueExchange(currentValue: currentTVL, value: usdcValue) else {
             return nil
         }
 
@@ -585,98 +329,6 @@ extension DiscreteBondingCurve {
         let fx = fiat.divide(tokens, Self.rounding)
 
         return Valuation(tokens: tokens, fx: fx)
-    }
-
-    /// Calculate precise supply from a given value with interpolation within steps.
-    ///
-    /// Unlike `supplyFromTVL` which returns step boundaries, this method
-    /// interpolates within the step to give a more accurate supply value.
-    ///
-    /// - Parameter value: Total value in USDC (not quarks)
-    /// - Returns: Supply as BigDecimal with fractional tokens
-    private func preciseSupplyFromValue(_ value: BigDecimal) -> BigDecimal {
-        guard value.isPositive else {
-            return .zero
-        }
-
-        // Scale value to table precision (18 decimals)
-        let valueScaled = Self.toScaledU128(value)
-
-        // Binary search in cumulative table to find the step
-        var low = 0
-        var high = DiscreteCurveTables.cumulativeTable.count - 1
-
-        while low < high {
-            let mid = (low + high + 1) / 2
-            if DiscreteCurveTables.cumulativeTable[mid] <= valueScaled {
-                low = mid
-            } else {
-                high = mid - 1
-            }
-        }
-
-        let stepIndex = low
-        let stepSupply = stepIndex * Self.stepSize
-
-        // Get cumulative value at this step boundary
-        let cumulativeAtStep = Self.fromScaledU128(DiscreteCurveTables.cumulativeTable[stepIndex])
-
-        // Calculate remaining value within this step
-        let remainingValue = value.subtract(cumulativeAtStep, Self.rounding)
-
-        guard remainingValue.isPositive else {
-            return BigDecimal(stepSupply)
-        }
-
-        // Get price at this step to interpolate
-        let priceAtStep = Self.fromScaledU128(DiscreteCurveTables.pricingTable[stepIndex])
-
-        guard priceAtStep.isPositive else {
-            return BigDecimal(stepSupply)
-        }
-
-        // Calculate fractional tokens within the step
-        let fractionalTokens = remainingValue.divide(priceAtStep, Self.rounding)
-
-        // Cap at step size (100)
-        let stepSizeDecimal = BigDecimal(Self.stepSize)
-        let cappedFractional = fractionalTokens < stepSizeDecimal
-            ? fractionalTokens
-            : stepSizeDecimal
-
-        return BigDecimal(stepSupply).add(cappedFractional, Self.rounding)
-    }
-
-    /// Calculate supply from TVL using the cumulative table.
-    ///
-    /// Uses binary search on the cumulative table to find which step contains
-    /// the given TVL. Returns the supply at the **start** of that step (the step
-    /// boundary), not an interpolated value within the step.
-    ///
-    /// For example, if TVL corresponds to somewhere between step 5 and step 6,
-    /// this returns `500` (step 5 boundary), not an interpolated value like `550`.
-    /// This matches the Rust implementation's step-based lookup behavior.
-    ///
-    /// - Parameter tvlQuarks: Total value locked in USDC quarks (6 decimals)
-    /// - Returns: Current supply in whole tokens at the step boundary, or nil if invalid
-    public func supplyFromTVL(_ tvlQuarks: Int) -> Int? {
-        let tvl = BigDecimal(tvlQuarks).divide(BigDecimal(1_000_000), Self.rounding)
-        let tvlScaled = Self.toScaledU128(tvl)
-
-        // Binary search in cumulative table
-        var low = 0
-        var high = DiscreteCurveTables.cumulativeTable.count - 1
-
-        while low < high {
-            let mid = (low + high + 1) / 2
-            if DiscreteCurveTables.cumulativeTable[mid] <= tvlScaled {
-                low = mid
-            } else {
-                high = mid - 1
-            }
-        }
-
-        return low * Self.stepSize
     }
 }
 
@@ -691,57 +343,5 @@ private extension BigDecimal {
             return upper
         }
         return self
-    }
-
-    /// Truncates to integer value (toward zero), returning 0 if conversion fails
-    func truncatedInt() -> Int {
-        Int(asString(.plain).split(separator: ".").first ?? "") ?? 0
-    }
-}
-
-// MARK: - Lookup Tables
-
-/// Pre-computed lookup tables for the discrete bonding curve.
-///
-/// Tables are loaded from binary resource files at runtime to avoid
-/// Swift compiler memory issues with large array literals.
-public enum DiscreteCurveTables {
-
-    /// Spot price at each 100-token step (210,001 entries)
-    /// Values are scaled by 10^18
-    public static let pricingTable: [UInt128] = loadTable(named: "discrete_pricing_table")
-
-    /// Cumulative cost from supply 0 to each step (210,001 entries)
-    /// Values are scaled by 10^18
-    public static let cumulativeTable: [UInt128] = loadTable(named: "discrete_cumulative_table")
-
-    /// Load a lookup table from a binary resource file
-    private static func loadTable(named name: String) -> [UInt128] {
-        guard let url = Bundle.module.url(forResource: name, withExtension: "bin") else {
-            fatalError("Missing resource: \(name).bin")
-        }
-
-        guard let data = try? Data(contentsOf: url) else {
-            fatalError("Failed to load resource: \(name).bin")
-        }
-
-        // Each entry is 16 bytes: low UInt64 (8 bytes) + high UInt64 (8 bytes)
-        // Little-endian format
-        let entrySize = 16
-        let count = data.count / entrySize
-
-        var result = [UInt128]()
-        result.reserveCapacity(count)
-
-        data.withUnsafeBytes { buffer in
-            let ptr = buffer.bindMemory(to: UInt64.self)
-            for i in 0..<count {
-                let low = ptr[i * 2]
-                let high = ptr[i * 2 + 1]
-                result.append(UInt128(high: high, low: low))
-            }
-        }
-
-        return result
     }
 }
