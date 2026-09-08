@@ -95,6 +95,18 @@ extension ButtonStyle where Self == FilledButtonStyle {
         )
     }
 
+    /// A full-width filled button at 5% action color opacity — the same tint the
+    /// row and card surfaces carry, for an action that reads as one of them.
+    public static var filled05: FilledButtonStyle {
+        .init(
+            textColor: .textMain,
+            textDisabledColor: .textMain.opacity(0.2),
+            overlayColor: .action.opacity(0.05),
+            overlayDisabledColor: .action.opacity(0.05),
+            isCompact: false
+        )
+    }
+
     /// A full-width filled button at 20% action color opacity (compact variant).
     public static var filled20Compact: FilledButtonStyle {
         .init(

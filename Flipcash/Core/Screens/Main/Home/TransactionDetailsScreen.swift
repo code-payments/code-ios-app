@@ -71,8 +71,7 @@ struct TransactionDetailsScreen: View {
                             // here.
                             router.push(.tipConversationForUser(userID))
                         }
-                        .buttonStyle(.filled)
-                        .padding(.top, 4)
+                        .buttonStyle(.filled05)
                     }
                 }
                 .padding(.horizontal, 20)
