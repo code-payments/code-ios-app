@@ -816,11 +816,16 @@ final class ConversationController {
     }
 
     /// Seed values for the profile screen while the live profile loads: the
-    /// counterpart's current name and avatar blurhash from the open conversation.
+    /// counterpart's current name, handle, and avatar blurhash from the open
+    /// conversation.
     func counterpartSeed(forUserID userID: UserID) -> CounterpartSeed {
         let member = conversations.flatMap(\.members).first { $0.userID == userID }
-        let name = member.flatMap { $0.displayName.isEmpty ? nil : $0.displayName } ?? Self.fallbackCounterpartName
-        return CounterpartSeed(displayName: name, imageData: nil, blurhash: member?.profilePicture?.thumbnailBlurhash)
+        return CounterpartSeed(
+            name: member.flatMap { $0.displayName.isEmpty ? nil : $0.displayName },
+            username: member?.username,
+            imageData: nil,
+            blurhash: member?.profilePicture?.thumbnailBlurhash
+        )
     }
 
     private func contactName(for conversationID: ConversationID) -> String? {
@@ -1158,7 +1163,12 @@ final class ConversationController {
 
 /// Seed data for the profile screen before the live profile fetch returns.
 struct CounterpartSeed: Sendable {
-    let displayName: String
+
+    /// The counterpart's own name, or `nil` for an account that hasn't set
+    /// one — the profile screen titles those by handle instead.
+    let name: String?
+
+    let username: Username?
     let imageData: Data?
     let blurhash: String?
 }
