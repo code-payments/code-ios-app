@@ -55,6 +55,10 @@ struct DestinationView: View {
         case .activity:
             ActivityHistoryScreen()
 
+        case .transactionDetails(let activity):
+            TransactionDetailsScreen(activity: activity)
+                .id(activity.id)
+
         case .give(let mint):
             // `.id(mint)` for the same reason as `.currencyInfo` above —
             // a deeplink replacing `.give(A)` with `.give(B)` must build a

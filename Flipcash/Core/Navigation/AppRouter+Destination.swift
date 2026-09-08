@@ -28,6 +28,11 @@ extension AppRouter {
         /// The unified, cross-token activity history — the "dive in" from the
         /// Wallet's Recent section. `transactionHistory` is the per-token slice.
         case activity
+        /// One activity entry, opened by tapping its row anywhere the row is
+        /// drawn. Carries the whole ``Activity`` rather than an id: the row
+        /// already holds it, and the feed's local store has no by-id lookup to
+        /// re-read it from.
+        case transactionDetails(Activity)
         case give(PublicKey)
         /// Pushes the buy flow (`BuyAmountScreen`) onto the current stack instead
         /// of presenting it as a sheet — the currency-info "Get" tile.
@@ -110,7 +115,8 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .activity, .give, .buyCurrency, .convertCurrency,
+                 .transactionHistory, .activity, .transactionDetails, .give,
+                 .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settingsMyAccount, .changeDisplayName, .changeProfilePicture, .username,
@@ -139,6 +145,7 @@ extension AppRouter {
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
             case .activity:                     "activity"
+            case .transactionDetails:           "transactionDetails"
             case .give:                         "give"
             case .buyCurrency:                  "buyCurrency"
             case .convertCurrency:              "convertCurrency"
@@ -183,6 +190,8 @@ extension AppRouter {
                 return mint.base58
             case .withdrawCurrency(let mint):
                 return mint?.base58
+            case .transactionDetails(let activity):
+                return activity.id.base58
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID):
                 return conversationID.description

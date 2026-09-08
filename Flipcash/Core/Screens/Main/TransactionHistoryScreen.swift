@@ -9,12 +9,12 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// One token's activity, newest first. Tapping a row opens
+/// ``TransactionDetailsScreen``, which is also where a pending cash link is
+/// cancelled.
 struct TransactionHistoryScreen: View {
 
-    @Environment(Session.self) private var session
     @Environment(HistoryController.self) private var historyController
-
-    @State private var dialogItem: DialogItem?
 
     private let mint: PublicKey
 
@@ -33,14 +33,9 @@ struct TransactionHistoryScreen: View {
                     switch historyController.loadingState {
                     case .loaded(let activities):
                         ForEach(activities) { activity in
-                            Button {
-                                rowAction(activity: activity)
-                            } label: {
-                                ActivityRow(activity: activity)
-                                    .padding(.horizontal, 20)
-                            }
-                            .buttonStyle(.plain)
-                            .listRowBackground(Color.clear)
+                            ActivityRow(activity: activity)
+                                .padding(.horizontal, 20)
+                                .listRowBackground(Color.clear)
                         }
                     case .loading:
                         ProgressView()
@@ -57,48 +52,8 @@ struct TransactionHistoryScreen: View {
             .scrollContentBackground(.hidden)
             .navigationTitle("Activity")
         }
-        .dialog(item: $dialogItem)
         .task(id: mint) {
             await historyController.setActiveMint(mint)
-        }
-    }
-
-    // MARK: - Action -
-
-    private func rowAction(activity: Activity) {
-        if let cashLinkMetadata = activity.cancellableCashLinkMetadata {
-            cancelCashLinkAction(
-                activity: activity,
-                metadata: cashLinkMetadata
-            )
-        }
-    }
-
-    private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
-        dialogItem = .alert(
-            title: "Cancel \(activity.exchangedFiat.nativeAmount.formatted()) Transfer?",
-            subtitle: "The money will be returned to your wallet."
-        ) {
-            .destructive("Cancel Transfer") {
-                cancelCashLink(metadata: metadata)
-            };
-            .cancel()
-        }
-    }
-
-    private func cancelCashLink(metadata: Activity.CashLinkMetadata) {
-        Task {
-            do {
-                try await session.cancelCashLink(giftCardVault: metadata.vault)
-            } catch {
-                ErrorReporting.captureError(error, reason: "Failed to cancel cash link", metadata: [
-                    "vault": metadata.vault.base58,
-                ], userFacing: true)
-                dialogItem = .error(
-                    title: "Failed to Cancel Transfer",
-                    subtitle: "Something went wrong. Please try again later"
-                )
-            }
         }
     }
 }
