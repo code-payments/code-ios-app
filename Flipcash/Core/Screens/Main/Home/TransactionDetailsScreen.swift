@@ -62,7 +62,14 @@ struct TransactionDetailsScreen: View {
 
                     if let userID = activity.counterparty?.userID, details.canViewInChat {
                         Button("View in Chat") {
-                            router.navigate(to: .tipConversationForUser(userID))
+                            // Pushed onto the stack this screen is already on,
+                            // not routed to the Chat tab: a cross-stack jump
+                            // swaps the tab out from under the transition, so
+                            // the bar and the conversation list both show
+                            // before the chat lands. Pushed, the chat arrives
+                            // from the entry it belongs to and back returns
+                            // here.
+                            router.push(.tipConversationForUser(userID))
                         }
                         .buttonStyle(.filled)
                         .padding(.top, 4)
