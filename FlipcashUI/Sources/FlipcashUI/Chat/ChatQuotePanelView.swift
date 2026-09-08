@@ -108,20 +108,31 @@ final class ChatQuotePanelView: UIView {
         detailRow.addArrangedSubview(detailSpacer)
         addSubview(detailRow)
 
-        NSLayoutConstraint.activate([
+        // The rule, the two gutters around the text and the detail row's spacing add up to a width
+        // the panel demands even when it holds nothing, and a bubble with no quote would pay for it:
+        // the host pins the panel to both of the bubble's sides, so the panel's floor becomes the
+        // bubble's. They sit a step under required so the host's collapse can break them and take
+        // the floor to zero — see ``ChatQuotePanelView`` in `ChatBubbleView.setUp()`.
+        let horizontal = [
+            rule.widthAnchor.constraint(equalToConstant: Self.ruleWidth),
+            authorLabel.leadingAnchor.constraint(equalTo: rule.trailingAnchor, constant: 8),
+            authorLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            detailRow.leadingAnchor.constraint(equalTo: authorLabel.leadingAnchor),
+            detailRow.trailingAnchor.constraint(equalTo: authorLabel.trailingAnchor),
+        ]
+        for constraint in horizontal {
+            constraint.priority = .required - 1
+        }
+
+        NSLayoutConstraint.activate(horizontal + [
             // Flush against the cell's leading edge and the full height of it, so the cell reads as
             // a quote rather than a card with a line drawn near it. The corner radius clips it.
             rule.leadingAnchor.constraint(equalTo: leadingAnchor),
             rule.topAnchor.constraint(equalTo: topAnchor),
             rule.bottomAnchor.constraint(equalTo: bottomAnchor),
-            rule.widthAnchor.constraint(equalToConstant: Self.ruleWidth),
 
-            authorLabel.leadingAnchor.constraint(equalTo: rule.trailingAnchor, constant: 8),
-            authorLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             authorLabel.topAnchor.constraint(equalTo: topAnchor, constant: 6),
 
-            detailRow.leadingAnchor.constraint(equalTo: authorLabel.leadingAnchor),
-            detailRow.trailingAnchor.constraint(equalTo: authorLabel.trailingAnchor),
             detailRow.topAnchor.constraint(equalTo: authorLabel.bottomAnchor, constant: 1),
             detailRow.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
 

@@ -10,6 +10,9 @@ import UIKit
 import FlipcashCore
 @testable import FlipcashUI
 
+/// `ChatBubbleView`'s horizontal padding, 12 on each side of the body.
+private let bodyPadding: CGFloat = 24
+
 @Suite("Reply bubble quote panel")
 @MainActor
 struct ChatQuoteBubbleTests {
@@ -17,6 +20,15 @@ struct ChatQuoteBubbleTests {
     private static let maxWidth: CGFloat = 250
 
     private let quote = ChatQuote(stableID: "7", authorName: "Ada", snippet: "dinner at 7?", kind: .text)
+
+    /// A quote wide enough to push the bubble to `maxWidth`, so a bubble that keeps any of it after
+    /// reuse is off by a margin no rounding can explain.
+    private static let wideQuote = ChatQuote(
+        stableID: "7",
+        authorName: "Ada",
+        snippet: String(repeating: "wide ", count: 8),
+        kind: .text
+    )
 
     private func laidOutCell(quote: ChatQuote?) -> ChatMessageCell {
         let cell = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 80))
@@ -64,15 +76,9 @@ struct ChatQuoteBubbleTests {
 
     @Test("Reusing a bubble drops the quote's width with it")
     func reuse_dropsTheQuotesWidth() {
-        let wide = ChatQuote(
-            stableID: "7",
-            authorName: "Ada",
-            snippet: String(repeating: "wide ", count: 8),
-            kind: .text
-        )
         let plain = ChatMessage(id: "2", content: .text("hi"), sender: .me)
 
-        let recycled = laidOutCell(quote: wide)
+        let recycled = laidOutCell(quote: Self.wideQuote)
         recycled.configure(with: plain, maxWidth: Self.maxWidth)
         layOut(recycled)
 
@@ -81,6 +87,18 @@ struct ChatQuoteBubbleTests {
         layOut(fresh)
 
         #expect(abs(recycled.bubbleView.frame.width - fresh.bubbleView.frame.width) < 0.5)
+    }
+
+    @Test("A recycled bubble is only as wide as the text it now holds")
+    func reuse_hugsItsOwnText() {
+        let plain = ChatMessage(id: "2", content: .text("hi"), sender: .me)
+
+        let recycled = laidOutCell(quote: Self.wideQuote)
+        recycled.configure(with: plain, maxWidth: Self.maxWidth)
+        layOut(recycled)
+
+        let body = ChatBubbleView.displayText(for: plain)?.size().width ?? 0
+        #expect(abs(recycled.bubbleView.frame.width - (body + bodyPadding)) < 1)
     }
 
     @Test("The panel reports the row it jumps to")
@@ -188,6 +206,18 @@ struct ChatQuoteBubbleGeometryTests {
         let quoted = laidOutCell(sender: .me, quote: shortQuote)
         // The height changes; the trailing edge must not.
         #expect(abs(plain.bubbleFrame.maxX - quoted.bubbleFrame.maxX) < 0.5)
+    }
+
+    @Test("A bubble with no quote is only as wide as its text")
+    func noQuote_hugsItsText() {
+        for text in [".", "hi", "Hello there"] {
+            let message = ChatMessage(id: "1", content: .text(text), sender: .me)
+            let bubble = ChatBubbleView()
+            bubble.configure(with: message)
+            let fitted = bubble.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize).width
+            let body = ChatBubbleView.displayText(for: message)?.size().width ?? 0
+            #expect(abs(fitted - (body + bodyPadding)) < 1, "\(text)")
+        }
     }
 
     @Test("A quote wider than the body widens the bubble to hold it")
