@@ -11,7 +11,7 @@ import FlipcashCore
 /// activity (tips/sends), the token image for token activity (deposits, buys),
 /// two overlapping coins for a conversion, or a monogram fallback. A peer avatar
 /// shows a face rather than a token, so it carries the transacted token as a coin
-/// badge (Figma 8966:1910, 9717:14215).
+/// badge (Figma 8966:1910, 9717:14215) unless the caller turns it off.
 ///
 /// Shared by the activity row and the transaction details header at different
 /// sizes, so the details screen opens on exactly the avatar that was tapped. Every
@@ -21,6 +21,11 @@ struct ActivityAvatar: View {
     let activity: Activity
     let resolution: ActivityResolution
     var size: CGFloat = 40
+
+    /// Whether a peer avatar carries its token badge. The details header names the
+    /// token in full under the amount, so it turns the badge off rather than
+    /// saying the same thing twice at two sizes.
+    var showsTokenBadge: Bool = true
 
     @Environment(SessionContainer.self) private var sessionContainer
     private var session: Session { sessionContainer.session }
@@ -41,25 +46,31 @@ struct ActivityAvatar: View {
                 .frame(width: size, height: size)
                 .clipShape(Circle())
                 .overlay(alignment: .bottomTrailing) {
-                    if Self.showsTokenBadge(for: activity) {
+                    if drawsTokenBadge {
                         tokenBadge.offset(x: badgeOverhang, y: badgeOverhang)
                     }
                 }
                 // Reserves the badge's overhang so it doesn't eat into the gap
                 // before whatever sits beside the avatar.
-                .padding(.trailing, Self.showsTokenBadge(for: activity) ? badgeOverhang : 0)
+                .padding(.trailing, drawsTokenBadge ? badgeOverhang : 0)
         }
     }
 
-    /// Whether the avatar carries a token badge: only a peer activity, whose
-    /// avatar is the counterparty rather than the token itself.
+    /// Whether this avatar draws a badge: one the activity calls for, that the
+    /// caller hasn't turned off.
+    private var drawsTokenBadge: Bool {
+        showsTokenBadge && Self.showsTokenBadge(for: activity)
+    }
+
+    /// Whether the activity's avatar calls for a token badge: only a peer
+    /// activity, whose avatar is the counterparty rather than the token itself.
     static func showsTokenBadge(for activity: Activity) -> Bool {
         activity.swapMetadata == nil && activity.counterparty != nil
     }
 
     /// The token the payment moved in, as a coin badge over the counterparty's
-    /// avatar (Figma 9717:14140) — a peer activity shows *who*, so this badge is
-    /// the only place the token reads.
+    /// avatar (Figma 9717:14140) — a peer row shows *who*, so in a row this badge
+    /// is the only place the token reads.
     @ViewBuilder private var tokenBadge: some View {
         tokenCoin(
             url: resolution.imageURL(for: activity.exchangedFiat.mint, fallback: resolution.entryMint, session: session),

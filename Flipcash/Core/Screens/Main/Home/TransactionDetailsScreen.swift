@@ -43,6 +43,10 @@ struct TransactionDetailsScreen: View {
     /// gives the header.
     private static let avatarSize: CGFloat = 80
 
+    /// The gap between the cards, per Figma node 9708:118142 — tighter than the
+    /// gap that separates the header from them.
+    private static let cardSpacing: CGFloat = 8
+
     private var details: TransactionDetails {
         TransactionDetails(
             activity: activity,
@@ -57,21 +61,27 @@ struct TransactionDetailsScreen: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 16) {
                     header
-                    receiptCard
-                    idCard
 
-                    if let userID = activity.counterparty?.userID, details.canViewInChat {
-                        Button("View in Chat") {
-                            // Pushed onto the stack this screen is already on,
-                            // not routed to the Chat tab: a cross-stack jump
-                            // swaps the tab out from under the transition, so
-                            // the bar and the conversation list both show
-                            // before the chat lands. Pushed, the chat arrives
-                            // from the entry it belongs to and back returns
-                            // here.
-                            router.push(.tipConversationForUser(userID))
+                    // The cards are one block, at the tighter gap Figma sets
+                    // between them; the header sits apart from that block, so
+                    // its gap is the outer stack's rather than this one's.
+                    VStack(spacing: Self.cardSpacing) {
+                        receiptCard
+                        idCard
+
+                        if let userID = activity.counterparty?.userID, details.canViewInChat {
+                            Button("View in Chat") {
+                                // Pushed onto the stack this screen is already
+                                // on, not routed to the Chat tab: a cross-stack
+                                // jump swaps the tab out from under the
+                                // transition, so the bar and the conversation
+                                // list both show before the chat lands. Pushed,
+                                // the chat arrives from the entry it belongs to
+                                // and back returns here.
+                                router.push(.tipConversationForUser(userID))
+                            }
+                            .buttonStyle(.filled05)
                         }
-                        .buttonStyle(.filled05)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -103,7 +113,15 @@ struct TransactionDetailsScreen: View {
     private var header: some View {
         VStack(spacing: 24) {
             VStack(spacing: 16) {
-                ActivityAvatar(activity: activity, resolution: resolution, size: Self.avatarSize)
+                // No token badge here, unlike the row: the line under the
+                // amount already names the token, and Figma draws the header
+                // avatar plain.
+                ActivityAvatar(
+                    activity: activity,
+                    resolution: resolution,
+                    size: Self.avatarSize,
+                    showsTokenBadge: false
+                )
 
                 Text(details.title)
                     .font(.appTextLarge)
