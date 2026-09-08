@@ -265,7 +265,7 @@ struct ConversationComposer: View {
 
     var body: some View {
         let field = HStack(alignment: .bottom, spacing: 10) {
-            TextField("Message", text: $composer.draft, axis: .vertical)
+            TextField(fieldPrompt, text: $composer.draft, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
                 .tint(.white)
@@ -320,6 +320,15 @@ struct ConversationComposer: View {
         .onChange(of: composer.draft) { _, text in
             guard let conversationID else { return }
             conversationController.draftDidChange(text, in: conversationID)
+        }
+    }
+
+    /// The hint names what the field will send. An edit arrives with the existing text already in
+    /// the field, so its hint is never on screen and stays the new-message one.
+    private var fieldPrompt: String {
+        switch composer.mode {
+        case .new, .editing:    "Message"
+        case .replying:         "Reply"
         }
     }
 
