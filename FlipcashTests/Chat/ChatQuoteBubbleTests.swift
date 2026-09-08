@@ -10,6 +10,9 @@ import UIKit
 import FlipcashCore
 @testable import FlipcashUI
 
+/// `ChatBubbleView`'s horizontal padding, 12 on each side of the body.
+private let bodyPadding: CGFloat = 24
+
 @Suite("Reply bubble quote panel")
 @MainActor
 struct ChatQuoteBubbleTests {
@@ -18,12 +21,28 @@ struct ChatQuoteBubbleTests {
 
     private let quote = ChatQuote(stableID: "7", authorName: "Ada", snippet: "dinner at 7?", kind: .text)
 
+    /// A quote wide enough to push the bubble to `maxWidth`, so a bubble that keeps any of it after
+    /// reuse is off by a margin no rounding can explain.
+    private static let wideQuote = ChatQuote(
+        stableID: "7",
+        authorName: "Ada",
+        snippet: String(repeating: "wide ", count: 8),
+        kind: .text
+    )
+
     private func laidOutCell(quote: ChatQuote?) -> ChatMessageCell {
         let cell = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 80))
         cell.configure(
             with: ChatMessage(id: "1", content: .text("works"), sender: .me, quote: quote),
             maxWidth: Self.maxWidth
         )
+        layOut(cell)
+        return cell
+    }
+
+    /// Sizes the cell to the height its content asks for and lays it out, so the bubble's frame is
+    /// the one the transcript would draw.
+    private func layOut(_ cell: ChatMessageCell) {
         let fitted = cell.contentView.systemLayoutSizeFitting(
             CGSize(width: 320, height: 0),
             withHorizontalFittingPriority: .required,
@@ -31,7 +50,6 @@ struct ChatQuoteBubbleTests {
         )
         cell.frame = CGRect(x: 0, y: 0, width: 320, height: fitted.height)
         cell.layoutIfNeeded()
-        return cell
     }
 
     @Test("A quote makes the bubble taller")
@@ -54,6 +72,33 @@ struct ChatQuoteBubbleTests {
         cell.configure(with: ChatMessage(id: "2", content: .text("hi"), sender: .me), maxWidth: Self.maxWidth)
         cell.layoutIfNeeded()
         #expect(cell.bubbleView.quotePanel.isHidden)
+    }
+
+    @Test("Reusing a bubble drops the quote's width with it")
+    func reuse_dropsTheQuotesWidth() {
+        let plain = ChatMessage(id: "2", content: .text("hi"), sender: .me)
+
+        let recycled = laidOutCell(quote: Self.wideQuote)
+        recycled.configure(with: plain, maxWidth: Self.maxWidth)
+        layOut(recycled)
+
+        let fresh = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 80))
+        fresh.configure(with: plain, maxWidth: Self.maxWidth)
+        layOut(fresh)
+
+        #expect(abs(recycled.bubbleView.frame.width - fresh.bubbleView.frame.width) < 0.5)
+    }
+
+    @Test("A recycled bubble is only as wide as the text it now holds")
+    func reuse_hugsItsOwnText() {
+        let plain = ChatMessage(id: "2", content: .text("hi"), sender: .me)
+
+        let recycled = laidOutCell(quote: Self.wideQuote)
+        recycled.configure(with: plain, maxWidth: Self.maxWidth)
+        layOut(recycled)
+
+        let body = ChatBubbleView.displayText(for: plain)?.size().width ?? 0
+        #expect(abs(recycled.bubbleView.frame.width - (body + bodyPadding)) < 1)
     }
 
     @Test("The panel reports the row it jumps to")
@@ -161,6 +206,18 @@ struct ChatQuoteBubbleGeometryTests {
         let quoted = laidOutCell(sender: .me, quote: shortQuote)
         // The height changes; the trailing edge must not.
         #expect(abs(plain.bubbleFrame.maxX - quoted.bubbleFrame.maxX) < 0.5)
+    }
+
+    @Test("A bubble with no quote is only as wide as its text")
+    func noQuote_hugsItsText() {
+        for text in [".", "hi", "Hello there"] {
+            let message = ChatMessage(id: "1", content: .text(text), sender: .me)
+            let bubble = ChatBubbleView()
+            bubble.configure(with: message)
+            let fitted = bubble.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize).width
+            let body = ChatBubbleView.displayText(for: message)?.size().width ?? 0
+            #expect(abs(fitted - (body + bodyPadding)) < 1, "\(text)")
+        }
     }
 
     @Test("A quote wider than the body widens the bubble to hold it")

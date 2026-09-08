@@ -33,11 +33,20 @@ final class ChatQuotePanelView: UIView {
     /// the amount stretching and pushing the token to the far side of the panel.
     private let detailSpacer = UIView()
 
-    /// The panel's own inset from the bubble's edges — the body's leading inset, so the quote's
-    /// rule and the text below it share one margin.
-    static let horizontalInset: CGFloat = 12
-    /// Gap between the panel and the body beneath it.
-    static let bottomSpacing: CGFloat = 6
+    /// The gap between the panel and the bubble's edges, the same on the top, leading and trailing
+    /// sides — the bubble's own vertical margin. One gap rather than three, so ``cornerRadius``
+    /// has a single number to be concentric with.
+    static let surroundInset: CGFloat = 9
+    /// Gap between the panel and the body beneath it: the surround again, so the quote sits on one
+    /// rhythm — equal space over it, under it, and below the body.
+    static let bottomSpacing: CGFloat = surroundInset
+
+    /// Concentric with the bubble: an inner corner whose arc is the outer one less the gap between
+    /// them keeps that gap constant all the way round the turn. Matching the bubble's radius
+    /// outright bulges the panel's corner into the space; a tighter one pinches it.
+    private static let cornerRadius = BubbleBackgroundView.baseRadius - surroundInset
+
+    private static let ruleWidth: CGFloat = 3
 
     /// Sized to the cap height of the amount beside it, so the flag reads as a mark on the line
     /// rather than as a second element the line has to make room for.
@@ -59,7 +68,7 @@ final class ChatQuotePanelView: UIView {
     private static let cellTint: CGFloat = 0.14
 
     private func setUp() {
-        layer.cornerRadius = 8
+        layer.cornerRadius = Self.cornerRadius
         layer.cornerCurve = .continuous
         clipsToBounds = true
 
@@ -99,20 +108,31 @@ final class ChatQuotePanelView: UIView {
         detailRow.addArrangedSubview(detailSpacer)
         addSubview(detailRow)
 
-        NSLayoutConstraint.activate([
+        // The rule, the two gutters around the text and the detail row's spacing add up to a width
+        // the panel demands even when it holds nothing, and a bubble with no quote would pay for it:
+        // the host pins the panel to both of the bubble's sides, so the panel's floor becomes the
+        // bubble's. They sit a step under required so the host's collapse can break them and take
+        // the floor to zero — see ``ChatQuotePanelView`` in `ChatBubbleView.setUp()`.
+        let horizontal = [
+            rule.widthAnchor.constraint(equalToConstant: Self.ruleWidth),
+            authorLabel.leadingAnchor.constraint(equalTo: rule.trailingAnchor, constant: 8),
+            authorLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            detailRow.leadingAnchor.constraint(equalTo: authorLabel.leadingAnchor),
+            detailRow.trailingAnchor.constraint(equalTo: authorLabel.trailingAnchor),
+        ]
+        for constraint in horizontal {
+            constraint.priority = .required - 1
+        }
+
+        NSLayoutConstraint.activate(horizontal + [
             // Flush against the cell's leading edge and the full height of it, so the cell reads as
             // a quote rather than a card with a line drawn near it. The corner radius clips it.
             rule.leadingAnchor.constraint(equalTo: leadingAnchor),
             rule.topAnchor.constraint(equalTo: topAnchor),
             rule.bottomAnchor.constraint(equalTo: bottomAnchor),
-            rule.widthAnchor.constraint(equalToConstant: 3),
 
-            authorLabel.leadingAnchor.constraint(equalTo: rule.trailingAnchor, constant: 8),
-            authorLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             authorLabel.topAnchor.constraint(equalTo: topAnchor, constant: 6),
 
-            detailRow.leadingAnchor.constraint(equalTo: authorLabel.leadingAnchor),
-            detailRow.trailingAnchor.constraint(equalTo: authorLabel.trailingAnchor),
             detailRow.topAnchor.constraint(equalTo: authorLabel.bottomAnchor, constant: 1),
             detailRow.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
 
@@ -163,6 +183,22 @@ final class ChatQuotePanelView: UIView {
         accessibilityLabel = quote.authorName.isEmpty
             ? spoken
             : "Replying to \(quote.authorName): \(spoken)"
+    }
+
+    /// Empties the panel for a message that has no quote. Hiding it is not enough: `isHidden` only
+    /// skips drawing, and the panel is still pinned to both of the bubble's sides, so a recycled
+    /// cell's stale author name and snippet go on demanding their width and the bubble stays as
+    /// wide as the reply it used to hold.
+    func clear() {
+        targetStableID = nil
+        authorLabel.text = nil
+        snippetLabel.text = nil
+        tokenLabel.text = nil
+        flagView.image = nil
+        flagView.isHidden = true
+        tokenLabel.isHidden = true
+        isUserInteractionEnabled = false
+        accessibilityLabel = nil
     }
 
     @objc private func handleTap() {
