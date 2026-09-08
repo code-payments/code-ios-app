@@ -159,6 +159,8 @@ extension ChatCashCardCell: BubbleCarrying {
     /// full-width rectangle out of the transcript.
     var liftPreviewView: UIView { card }
     var liftPreviewMaskingPath: UIBezierPath? { card.maskingPath }
+
+    func flashAttention(startedAt start: CFTimeInterval) { card.flashAttention(startedAt: start) }
 }
 
 #Preview("Cash cards") {

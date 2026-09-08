@@ -113,6 +113,12 @@ public final class LinkableBubbleView: UIView {
     /// The bubble's shape, for clipping the context-menu lift preview.
     var maskingPath: UIBezierPath { background.maskingPath }
 
+    /// Flashes the bubble's ground to point the eye at this message after a jump.
+    func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
+
+    /// Whether this bubble is currently flashing.
+    var isFlashingAttention: Bool { background.isFlashingAttention }
+
     func prepareForReuse() {
         textView.resignFirstResponder()
         quotePanel.onTap = nil

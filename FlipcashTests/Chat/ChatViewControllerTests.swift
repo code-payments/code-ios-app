@@ -160,6 +160,63 @@ struct ChatViewControllerTests {
         #expect(linkCell is ChatLinkMessageCell)
         #expect(plainCell is ChatMessageCell)
     }
+
+    @Test("Jumping to a message flashes it, and only it")
+    func scrollToMessage_flashesTarget() async {
+        let controller = ChatViewController()
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.update(items: (0..<40).map { item($0, $0.isMultiple(of: 2) ? .me : .other) })
+        for _ in 0..<6 {
+            controller.view.layoutIfNeeded()
+            try? await Task.sleep(for: .milliseconds(40))
+        }
+
+        // Lands synchronously: the jump materializes the row it scrolls to rather than waiting for
+        // the next layout pass.
+        controller.scrollToMessage(id: "msg-30")
+
+        let flashing = controller.collectionView.visibleCells
+            .compactMap { $0 as? ChatMessageCell }
+            .filter(\.bubbleView.isFlashingAttention)
+        #expect(flashing.count == 1, "exactly one row should be flashing, not \(flashing.count)")
+    }
+
+    @Test("A row asked for before it is loaded flashes once the page carrying it arrives")
+    func scrollToMessage_pendingTarget_flashesOnArrival() {
+        let controller = ChatViewController()
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.update(items: (20..<40).map { item($0) })
+        controller.view.layoutIfNeeded()
+
+        controller.scrollToMessage(id: "msg-5")
+        #expect(controller.collectionView.visibleCells.compactMap { $0 as? ChatMessageCell }
+            .allSatisfy { !$0.bubbleView.isFlashingAttention })
+
+        // The older page lands. Like the in-window jump above this is synchronous — the update
+        // carrying the row performs the waiting jump before it returns — so the flash is asserted at
+        // the same point, before ChatLayout starts settling the reloaded rows off their estimates.
+        controller.update(items: (0..<40).map { item($0) })
+
+        let flashing = controller.collectionView.visibleCells
+            .compactMap { $0 as? ChatMessageCell }
+            .filter(\.bubbleView.isFlashingAttention)
+        #expect(flashing.count == 1, "the arrived row should be the one flashing, not \(flashing.count) rows")
+    }
+
+    @Test("A recycled bubble drops a flash meant for the row it was showing")
+    func flash_clearedWhenBubbleTakesAnotherRow() {
+        let bubble = ChatBubbleView()
+        bubble.configure(with: ChatMessage(id: "a", text: "first", sender: .me))
+        bubble.flashAttention()
+        #expect(bubble.isFlashingAttention)
+
+        bubble.configure(with: ChatMessage(id: "b", text: "second", sender: .me))
+        #expect(!bubble.isFlashingAttention)
+    }
 }
 
 @MainActor
