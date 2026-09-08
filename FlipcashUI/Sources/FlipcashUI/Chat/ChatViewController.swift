@@ -62,9 +62,24 @@ public final class ChatViewController: UICollectionViewController {
     /// Within this many points of the bottom counts as "at the bottom".
     private static let bottomThreshold: CGFloat = 50
 
-    /// Extra spacing where the sender flips, on top of the base inter-item spacing, so a change of
-    /// speaker reads as a break in the column rather than another row in the same run.
-    private static let senderFlipExtraSpacing: CGFloat = 6
+    /// The gap the transcript leaves between two rows, in three tiers. The same three Android
+    /// picks from in `bottomSpacingFor`, at the same values, so a thread reads at one density on
+    /// both platforms.
+    ///
+    /// ``normal`` is the layout's base spacing: any pairing `interItemSpacing(_:after:)` does not
+    /// answer for takes it.
+    private enum RowGap {
+        /// Two messages from one sender inside the grouping window. Their facing corners are
+        /// already flattened, so the run needs only enough air to keep the bubbles apart.
+        static let tight: CGFloat = 5
+        /// Two messages from one sender that the grouping window has broken apart, and either side
+        /// of a date separator. The corners are round again, and the gap says what they no longer
+        /// do — that these are separate moments.
+        static let normal: CGFloat = 10
+        /// A change of speaker, which reads as a break in the column rather than another row in
+        /// the same run.
+        static let wide: CGFloat = 15
+    }
 
     private let chatLayout = CollectionViewChatLayout()
     private var items: [ChatItem] = []
@@ -133,7 +148,7 @@ public final class ChatViewController: UICollectionViewController {
     public init() {
         super.init(collectionViewLayout: chatLayout)
         chatLayout.delegate = self
-        chatLayout.settings.interItemSpacing = 8
+        chatLayout.settings.interItemSpacing = RowGap.normal
         // ChatLayout owns the bottom anchoring: stay pinned to the newest message across batch
         // updates (so an append at the bottom follows and a prepend preserves position). Content
         // shorter than the viewport top-aligns — the profile card sits under the nav bar with
@@ -588,12 +603,35 @@ extension ChatViewController: ChatLayoutDelegate {
     }
 
     public func interItemSpacing(_ chatLayout: CollectionViewChatLayout, after indexPath: IndexPath) -> CGFloat? {
-        // Only a message→message pair with different senders widens. Any other pairing (into or out
-        // of a separator, the typing indicator, the profile card) takes the base spacing.
-        guard let current = sender(at: indexPath),
-              let next = sender(at: IndexPath(item: indexPath.item + 1, section: indexPath.section)),
-              current != next else { return nil }
-        return chatLayout.settings.interItemSpacing + Self.senderFlipExtraSpacing
+        let below = IndexPath(item: indexPath.item + 1, section: indexPath.section)
+
+        // Checked before the senders, as Android does: a separator is the heading for the run under
+        // it, so it takes the same air on both sides whatever it happens to separate.
+        guard !isDateSeparator(at: indexPath), !isDateSeparator(at: below) else { return nil }
+
+        // A pairing with no sender on one side is the profile card, which is not a bubble and keeps
+        // the base spacing.
+        guard let current = sender(at: indexPath), let next = sender(at: below) else { return nil }
+        guard current == next else { return RowGap.wide }
+
+        // Same sender: tight only while they are one run. The typing indicator never joins one, so
+        // the dots arriving after the counterpart's own message read as a new turn.
+        return message(at: indexPath)?.isContinuedByNext == true ? RowGap.tight : nil
+    }
+
+    /// The message at `indexPath`, or nil for a row that is not one. Bounds-checked for the same
+    /// reason ``sender(at:)`` is.
+    private func message(at indexPath: IndexPath) -> ChatMessage? {
+        guard items.indices.contains(indexPath.item),
+              case .message(let message) = items[indexPath.item] else { return nil }
+        return message
+    }
+
+    /// Whether the row at `indexPath` is a day header. Bounds-checked; out of range is not one.
+    private func isDateSeparator(at indexPath: IndexPath) -> Bool {
+        guard items.indices.contains(indexPath.item),
+              case .dateSeparator = items[indexPath.item] else { return false }
+        return true
     }
 
     /// Which side of the thread the row at `indexPath` belongs to, or nil for a row that belongs to
