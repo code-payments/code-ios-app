@@ -67,9 +67,9 @@ public final class ChatBubbleView: UIView {
             background.leadingAnchor.constraint(equalTo: leadingAnchor),
             background.trailingAnchor.constraint(equalTo: trailingAnchor),
 
-            quotePanel.topAnchor.constraint(equalTo: topAnchor, constant: 9),
-            quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatQuotePanelView.horizontalInset),
-            quotePanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ChatQuotePanelView.horizontalInset),
+            quotePanel.topAnchor.constraint(equalTo: topAnchor, constant: ChatQuotePanelView.surroundInset),
+            quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatQuotePanelView.surroundInset),
+            quotePanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ChatQuotePanelView.surroundInset),
             labelTopToBubble,
             quoteZeroHeight,
             label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
