@@ -174,6 +174,22 @@ final class ChatQuotePanelView: UIView {
             : "Replying to \(quote.authorName): \(spoken)"
     }
 
+    /// Empties the panel for a message that has no quote. Hiding it is not enough: `isHidden` only
+    /// skips drawing, and the panel is still pinned to both of the bubble's sides, so a recycled
+    /// cell's stale author name and snippet go on demanding their width and the bubble stays as
+    /// wide as the reply it used to hold.
+    func clear() {
+        targetStableID = nil
+        authorLabel.text = nil
+        snippetLabel.text = nil
+        tokenLabel.text = nil
+        flagView.image = nil
+        flagView.isHidden = true
+        tokenLabel.isHidden = true
+        isUserInteractionEnabled = false
+        accessibilityLabel = nil
+    }
+
     @objc private func handleTap() {
         guard let targetStableID else { return }
         onTap?(targetStableID)

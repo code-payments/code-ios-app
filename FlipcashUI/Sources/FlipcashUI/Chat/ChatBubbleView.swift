@@ -101,6 +101,7 @@ public final class ChatBubbleView: UIView {
             labelTopToQuote.isActive = true
         } else {
             quotePanel.isHidden = true
+            quotePanel.clear()
             labelTopToQuote.isActive = false
             labelTopToBubble.isActive = true
             quoteZeroHeight.isActive = true

@@ -24,6 +24,13 @@ struct ChatQuoteBubbleTests {
             with: ChatMessage(id: "1", content: .text("works"), sender: .me, quote: quote),
             maxWidth: Self.maxWidth
         )
+        layOut(cell)
+        return cell
+    }
+
+    /// Sizes the cell to the height its content asks for and lays it out, so the bubble's frame is
+    /// the one the transcript would draw.
+    private func layOut(_ cell: ChatMessageCell) {
         let fitted = cell.contentView.systemLayoutSizeFitting(
             CGSize(width: 320, height: 0),
             withHorizontalFittingPriority: .required,
@@ -31,7 +38,6 @@ struct ChatQuoteBubbleTests {
         )
         cell.frame = CGRect(x: 0, y: 0, width: 320, height: fitted.height)
         cell.layoutIfNeeded()
-        return cell
     }
 
     @Test("A quote makes the bubble taller")
@@ -54,6 +60,27 @@ struct ChatQuoteBubbleTests {
         cell.configure(with: ChatMessage(id: "2", content: .text("hi"), sender: .me), maxWidth: Self.maxWidth)
         cell.layoutIfNeeded()
         #expect(cell.bubbleView.quotePanel.isHidden)
+    }
+
+    @Test("Reusing a bubble drops the quote's width with it")
+    func reuse_dropsTheQuotesWidth() {
+        let wide = ChatQuote(
+            stableID: "7",
+            authorName: "Ada",
+            snippet: String(repeating: "wide ", count: 8),
+            kind: .text
+        )
+        let plain = ChatMessage(id: "2", content: .text("hi"), sender: .me)
+
+        let recycled = laidOutCell(quote: wide)
+        recycled.configure(with: plain, maxWidth: Self.maxWidth)
+        layOut(recycled)
+
+        let fresh = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 80))
+        fresh.configure(with: plain, maxWidth: Self.maxWidth)
+        layOut(fresh)
+
+        #expect(abs(recycled.bubbleView.frame.width - fresh.bubbleView.frame.width) < 0.5)
     }
 
     @Test("The panel reports the row it jumps to")

@@ -122,6 +122,7 @@ public final class LinkableBubbleView: UIView {
             textTopToQuote.isActive = true
         } else {
             quotePanel.isHidden = true
+            quotePanel.clear()
             textTopToQuote.isActive = false
             textTopToBubble.isActive = true
             quoteZeroHeight.isActive = true
