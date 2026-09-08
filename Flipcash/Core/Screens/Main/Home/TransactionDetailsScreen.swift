@@ -113,7 +113,15 @@ struct TransactionDetailsScreen: View {
     private var header: some View {
         VStack(spacing: 24) {
             VStack(spacing: 16) {
-                ActivityAvatar(activity: activity, resolution: resolution, size: Self.avatarSize)
+                // No token badge here, unlike the row: the line under the
+                // amount already names the token, and Figma draws the header
+                // avatar plain.
+                ActivityAvatar(
+                    activity: activity,
+                    resolution: resolution,
+                    size: Self.avatarSize,
+                    showsTokenBadge: false
+                )
 
                 Text(details.title)
                     .font(.appTextLarge)
