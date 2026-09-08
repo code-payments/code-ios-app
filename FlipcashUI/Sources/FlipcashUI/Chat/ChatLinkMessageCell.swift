@@ -36,6 +36,8 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     var liftPreviewView: UIView { bubble }
     var liftPreviewMaskingPath: UIBezierPath? { bubble.maskingPath }
 
+    func flashAttention(startedAt start: CFTimeInterval) { bubble.flashAttention(startedAt: start) }
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
         installColumn(content: bubble)

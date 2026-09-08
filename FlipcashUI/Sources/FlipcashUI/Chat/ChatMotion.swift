@@ -150,6 +150,15 @@ public nonisolated enum ChatMotion {
 
     // MARK: - Timing
 
+    /// The attention flash a jumped-to message plays when a reply quote is tapped, in three parts:
+    /// it lights quickly, holds long enough to be found by eye after the scroll settles, then fades
+    /// slowly so the transcript is left as it was rather than switched back.
+    public static let attentionRise: TimeInterval = 0.15
+    public static let attentionHold: TimeInterval = 0.45
+    public static let attentionFade: TimeInterval = 0.40
+    /// The whole flash, end to end.
+    public static var attentionDuration: TimeInterval { attentionRise + attentionHold + attentionFade }
+
     /// How long a sent message holds before its "Delivered" line appears. A floor, not a fixed
     /// delay: the line waits for server confirmation too, whichever is later.
     public static let deliveredDelay: TimeInterval = 0.70

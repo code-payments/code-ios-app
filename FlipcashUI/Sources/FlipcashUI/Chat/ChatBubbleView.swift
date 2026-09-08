@@ -100,6 +100,12 @@ public final class ChatBubbleView: UIView {
     /// The background is pinned to every edge, so its bounds match the bubble's.
     var maskingPath: UIBezierPath { background.maskingPath }
 
+    /// Flashes the bubble's ground to point the eye at this message after a jump.
+    func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
+
+    /// Whether this bubble is currently flashing.
+    var isFlashingAttention: Bool { background.isFlashingAttention }
+
     public func configure(with message: ChatMessage) {
         label.attributedText = Self.displayText(for: message)
         editedLabel.isHidden = !Self.showsEditedMarker(for: message)
