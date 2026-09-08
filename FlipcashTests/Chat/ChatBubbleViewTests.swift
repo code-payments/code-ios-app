@@ -139,14 +139,14 @@ struct ChatBubbleDeletedTests {
         return cell.bubbleView
     }
 
-    private func marker(in bubble: ChatBubbleView) -> UILabel? {
+    private func editedMarker(in bubble: ChatBubbleView) -> UILabel? {
         bubble.subviews.compactMap { $0 as? UILabel }.first { $0.text == EditedMarker.text }
     }
 
     @Test("The marker sits in the bubble's bottom-trailing corner")
     func markerSitsInTheCorner() throws {
         let bubble = laidOutBubble(text: "hello", isEdited: true)
-        let marker = try #require(marker(in: bubble))
+        let marker = try #require(editedMarker(in: bubble))
 
         #expect(!marker.isHidden)
         #expect(abs(marker.frame.maxX - (bubble.bounds.width - EditedMarker.trailingInset)) < 0.5)
@@ -174,7 +174,7 @@ struct ChatBubbleDeletedTests {
 
         let plain = laidOutBubble(text: body, isEdited: false)
         let edited = laidOutBubble(text: body, isEdited: true)
-        let marker = try #require(marker(in: edited))
+        let marker = try #require(editedMarker(in: edited))
 
         #expect(abs(plain.bounds.height - oneLine) < 0.5)   // the body itself still fits one line
         #expect(edited.bounds.height > plain.bounds.height) // the marker took a line of its own
