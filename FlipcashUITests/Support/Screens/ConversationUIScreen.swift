@@ -30,6 +30,10 @@ struct ConversationUIScreen {
 
     var deliveredReceipt: XCUIElement { app.staticTexts["Delivered"] }
 
+    /// What the field currently shows. An empty `TextField` reports its placeholder here, so an
+    /// empty composer reads as "Message" (or "Reply" mid-reply), never as "".
+    var draftValue: String { messageField.value as? String ?? "" }
+
     func messageBubble(_ text: String) -> XCUIElement { app.staticTexts[text] }
 
     // MARK: - Reply elements
@@ -68,6 +72,18 @@ struct ConversationUIScreen {
         testCase.waitUntilHittableAndTap(messageField)
         messageField.typeText(text)
         testCase.waitAndTap(composerSendButton)
+    }
+
+    /// Types `text` and sends it without waiting on the send button first.
+    ///
+    /// `sendMessage` waits for the button to exist before tapping, which parks a beat between the
+    /// last keystroke and the send. That beat is exactly the window where a clear can be lost, so a
+    /// test hunting for it has to resolve the button up front and tap as soon as typing returns.
+    func sendWithoutSettling(_ text: String, from testCase: BaseUITestCase) {
+        testCase.waitUntilHittableAndTap(messageField)
+        let send = composerSendButton
+        messageField.typeText(text)
+        send.tap()
     }
 
     // MARK: - Reply actions
@@ -148,6 +164,29 @@ struct ConversationUIScreen {
             replyStripQuote.label.contains(text),
             "Expected the strip to cite '\(text)', got '\(replyStripQuote.label)'"
         )
+    }
+
+    /// Asserts the composer no longer holds `text`.
+    ///
+    /// Polls rather than reading once, so a clear that merely arrives late still passes and only a
+    /// clear that never arrives fails. An empty SwiftUI `TextField` reports its placeholder as its
+    /// value, so "empty" is "no longer contains what was sent" rather than an empty string.
+    ///
+    /// The send button's state is what makes a failure diagnosable: it is drawn from the same
+    /// binding the field is, so a field still showing `text` with the button already gone means the
+    /// binding emptied and the update never reached the text view. With the button still up,
+    /// nothing was sent at all.
+    func assertComposerCleared(of text: String, timeout: TimeInterval = 5) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if !draftValue.contains(text) { return }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+
+        let diagnosis = composerSendButton.exists
+            ? "the send button is still up, so the send never fired"
+            : "the send button is gone, so the draft emptied and the field never caught up"
+        XCTFail("Expected the composer to be empty after sending '\(text)', still shows '\(draftValue)' — \(diagnosis)")
     }
 
     /// Asserts no reply is open on the composer.

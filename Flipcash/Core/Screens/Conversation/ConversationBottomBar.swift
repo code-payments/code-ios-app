@@ -279,26 +279,33 @@ struct ConversationComposer: View {
                 // text-field automation type, so the query has to be identifier-based, not type-based.
                 .accessibilityIdentifier("composer-message-field")
 
-            if showsSubmit {
-                Button(action: submit) {
-                    Image(systemName: submitSymbol)
-                        .font(.default(size: 16, weight: .bold))
-                        .foregroundStyle(Color.textAction)
-                        .frame(width: 34, height: 34)
-                        .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
-                        // Arrow and checkmark are the same button in two jobs, so the glyph swaps in
-                        // place rather than the button popping out and a new one popping back.
-                        .contentTransition(.symbolEffect(.replace))
+            // The spring is scoped to the button, not to the row. On the row it took the field
+            // into the transaction as well, and `showsSubmit` falls on the same update that empties
+            // the draft — so the field's text update ran as an animated one against its text view,
+            // where it can be coalesced away. That leaves the sent text on screen with the binding
+            // already empty, and an unchanged binding never pushes it again.
+            Group {
+                if showsSubmit {
+                    Button(action: submit) {
+                        Image(systemName: submitSymbol)
+                            .font(.default(size: 16, weight: .bold))
+                            .foregroundStyle(Color.textAction)
+                            .frame(width: 34, height: 34)
+                            .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
+                            // Arrow and checkmark are the same button in two jobs, so the glyph swaps in
+                            // place rather than the button popping out and a new one popping back.
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(composer.isEditing ? "Save" : "Send")
+                    .accessibilityIdentifier("send-message-button")
+                    // Pop from 60% + fade, so the opacity ramp actually reads
+                    // (scaling from 0 hides the fade behind a tiny speck).
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(composer.isEditing ? "Save" : "Send")
-                .accessibilityIdentifier("send-message-button")
-                // Pop from 60% + fade, so the opacity ramp actually reads
-                // (scaling from 0 hides the fade behind a tiny speck).
-                .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
+            .animation(Self.sendButtonSpring, value: showsSubmit)
         }
-        .animation(Self.sendButtonSpring, value: showsSubmit)
 
         return field
         .padding(.leading, 14)
