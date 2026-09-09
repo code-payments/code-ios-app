@@ -557,6 +557,10 @@ struct SendCashMorphButton: View {
             .frame(minWidth: BarMetrics.contentHeight)
             .frame(maxWidth: standalone && !minimized ? .infinity : nil)
             .frame(height: height)
+            // The label is the only drawn content and the fill is a background on the button, not
+            // on the label, so with `.plain` only the text was the target: alone in the bar the
+            // pill spans the width but "Send a Tip" answered a tap on its centre and nothing else.
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         }
         .buttonStyle(.plain)
         // White fill above the glass base: fading it out is the white → glass
