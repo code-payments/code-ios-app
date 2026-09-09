@@ -51,7 +51,7 @@ A single test:
 
 **Files:** none
 
-- [ ] **Step 1: Create the fix branch from the current HEAD**
+- [x] **Step 1: Create the fix branch from the current HEAD**
 
 The worktree sits on `claude/flipcash-ios-error-triage-7e50ad` at `8042ff9d`, which is `main`. The user's rules forbid `claude/`-prefixed branch names for the work itself.
 
@@ -61,7 +61,7 @@ git checkout -b fix/database-per-owner
 
 Expected: `Switched to a new branch 'fix/database-per-owner'`
 
-- [ ] **Step 2: Confirm the tree is clean apart from the two plan files**
+- [x] **Step 2: Confirm the tree is clean apart from the two plan files**
 
 ```bash
 git status --short
@@ -74,7 +74,7 @@ Expected:
 ?? .claude/plans/2026-09-09-bugsnag-6a4fde3.md
 ```
 
-- [ ] **Step 3: Commit the triage brief and this plan**
+- [x] **Step 3: Commit the triage brief and this plan**
 
 ```bash
 git add .claude/plans/2026-09-09-bugsnag-6a4fde3.md .claude/plans/2026-09-09-bugsnag-6a4fde3-plan.md
@@ -92,7 +92,7 @@ Why it discriminates: on unfixed code the transaction is `BEGIN DEFERRED`. The `
 **Files:**
 - Create: `FlipcashTests/Regressions/Regression_6a4fde33e96556123eb1f0ec.swift`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```swift
 //
@@ -148,7 +148,7 @@ struct Regression_6a4fde3 {
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail at the crash layer**
+- [x] **Step 2: Run it and watch it fail at the crash layer**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/Regression_6a4fde3/replaceFeed_rivalWriterHoldsLock_waitsThenCommits
@@ -156,7 +156,7 @@ struct Regression_6a4fde3 {
 
 Expected: `** TEST FAILED **`. The failure for `replaceFeed_rivalWriterHoldsLock_waitsThenCommits` must be a thrown error whose text contains `database is locked` and `(code: 5)`, the production signature. SQLite.swift includes the failing statement in the description when it has one, so the local text will read `database is locked (DELETE FROM "conversations" ...) (code: 5)` where production showed only `database is locked (code: 5)`; the shared part is what matters. If the test instead fails on the `#expect`, or passes, stop: the reproduction is not hitting the deferred-snapshot path and the test needs rethinking, not the fix.
 
-- [ ] **Step 3: Commit the red test**
+- [x] **Step 3: Commit the red test**
 
 ```bash
 git add FlipcashTests/Regressions/Regression_6a4fde33e96556123eb1f0ec.swift
@@ -174,7 +174,7 @@ git commit -m "test(database): reproduce replace-feed SQLITE_BUSY against a riva
 
 Three sites read inside the transaction before writing: `replaceConversationFeed` (the `SELECT` of doomed ids), `persistMessages` (the `pluck` of the current cursor), and every caller of the `Database.transaction` helper (`Database+Balance.swift:158`, `:203`, `Database+Rates.swift:45`, `Database+VerifiedProtos.swift:21`, `:56` all read rows before upserting). The remaining `writer.transaction {` sites begin with a `DELETE` or `INSERT`, which takes the write lock as its first statement and so already consults the busy handler; leave them alone.
 
-- [ ] **Step 1: Make `replaceConversationFeed` immediate**
+- [x] **Step 1: Make `replaceConversationFeed` immediate**
 
 In `Database+Conversations.swift`, change line 230 from:
 
@@ -191,7 +191,7 @@ to:
         try writer.transaction(.immediate) {
 ```
 
-- [ ] **Step 2: Make `persistMessages` immediate**
+- [x] **Step 2: Make `persistMessages` immediate**
 
 In `Database+Conversations.swift`, change line 284 (inside `persistMessages`) from:
 
@@ -205,7 +205,7 @@ to:
         try writer.transaction(.immediate) {
 ```
 
-- [ ] **Step 3: Make the `Database.transaction` helper immediate**
+- [x] **Step 3: Make the `Database.transaction` helper immediate**
 
 In `Database.swift`, change line 56 from:
 
@@ -219,7 +219,7 @@ to:
             try writer.transaction(.immediate) { [unowned self] in
 ```
 
-- [ ] **Step 4: Run the regression test and see it pass**
+- [x] **Step 4: Run the regression test and see it pass**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/Regression_6a4fde3/replaceFeed_rivalWriterHoldsLock_waitsThenCommits
@@ -227,7 +227,7 @@ to:
 
 Expected: `** TEST SUCCEEDED **`. The test now takes a little over 200 ms because `BEGIN IMMEDIATE` waits for the rival's commit.
 
-- [ ] **Step 5: Run the existing database and conversation suites to catch a regression in the helper change**
+- [x] **Step 5: Run the existing database and conversation suites to catch a regression in the helper change**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/DatabaseBalanceUpsertTests FlipcashTests/DatabaseLiveSupplyTests FlipcashTests/ConversationControllerTests
@@ -237,7 +237,7 @@ Those are the struct names at `FlipcashTests/Database/Database+BalanceUpsertTest
 
 Expected: `** TEST SUCCEEDED **`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Flipcash/Core/Controllers/Database/Database+Conversations.swift Flipcash/Core/Controllers/Database/Database.swift
@@ -254,7 +254,7 @@ git commit -m "fix(database): take the write lock up front in read-then-write tr
 - Modify: `Flipcash/Core/Controllers/Database/Database.swift:36` and `:42`
 - Test: `FlipcashTests/Regressions/Regression_6a4fde33e96556123eb1f0ec.swift`
 
-- [ ] **Step 1: Add the failing test**
+- [x] **Step 1: Add the failing test**
 
 Append inside `struct Regression_6a4fde3`, after `replaceFeed_rivalWriterHoldsLock_waitsThenCommits`:
 
@@ -270,7 +270,7 @@ Append inside `struct Regression_6a4fde3`, after `replaceFeed_rivalWriterHoldsLo
     }
 ```
 
-- [ ] **Step 2: Run it and see it fail**
+- [x] **Step 2: Run it and see it fail**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/Regression_6a4fde3/busyTimeout_isTwoSeconds
@@ -278,7 +278,7 @@ Append inside `struct Regression_6a4fde3`, after `replaceFeed_rivalWriterHoldsLo
 
 Expected: `** TEST FAILED **` with `Expectation failed: (database.writer.busyTimeout → 2000.0) == 2`.
 
-- [ ] **Step 3: Fix the two assignments**
+- [x] **Step 3: Fix the two assignments**
 
 In `Database.swift`, replace lines 36 and 42:
 
@@ -304,7 +304,7 @@ becomes
         reader.busyTimeout = 2 // seconds
 ```
 
-- [ ] **Step 4: Run the whole regression suite and see it pass**
+- [x] **Step 4: Run the whole regression suite and see it pass**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/Regression_6a4fde3
@@ -312,7 +312,7 @@ becomes
 
 Expected: `** TEST SUCCEEDED **`, two tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Flipcash/Core/Controllers/Database/Database.swift FlipcashTests/Regressions/Regression_6a4fde33e96556123eb1f0ec.swift
@@ -329,7 +329,7 @@ This is the root-cause fix. The identity test is written against `DatabaseStore`
 - Create: `Flipcash/Core/Controllers/Database/DatabaseStore.swift`
 - Test: `FlipcashTests/Regressions/Regression_6a4fde33e96556123eb1f0ec.swift`
 
-- [ ] **Step 1: Add the failing tests**
+- [x] **Step 1: Add the failing tests**
 
 Append inside `struct Regression_6a4fde3`, after `busyTimeout_isTwoSeconds`:
 
@@ -372,7 +372,7 @@ Append inside `struct Regression_6a4fde3`, after `busyTimeout_isTwoSeconds`:
     }
 ```
 
-- [ ] **Step 2: Run the suite and see it fail to compile**
+- [x] **Step 2: Run the suite and see it fail to compile**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/Regression_6a4fde3
@@ -380,7 +380,7 @@ Append inside `struct Regression_6a4fde3`, after `busyTimeout_isTwoSeconds`:
 
 Expected: `** TEST FAILED **` (build failure) with `cannot find 'DatabaseStore' in scope`. This is the expected red state: the type does not exist yet.
 
-- [ ] **Step 3: Create `DatabaseStore`**
+- [x] **Step 3: Create `DatabaseStore`**
 
 Create `Flipcash/Core/Controllers/Database/DatabaseStore.swift`. The body of `database(for:)` is `SessionAuthenticator.initializeDatabase` (`SessionAuthenticator.swift:295-310`) and `createApplicationSupportIfNeeded` (`:312-319`) moved verbatim, with the cache lookup in front.
 
@@ -441,7 +441,7 @@ Notes for the implementer:
 - `PublicKey` is already used as a dictionary key elsewhere (`TokenCardStack.swift:83`), so it is `Hashable`.
 - There is deliberately no `close()` or eviction. SQLite.swift's `Connection` closes only in `deinit`, and `HistoryController.sync()` (`HistoryController.swift:105`) holds the database in a `Task` with no `[weak self]`, so an explicit close would race in-flight work. A cached `Database` lives for the process; the cost is two open connections per owner ever logged in.
 
-- [ ] **Step 4: Run the suite and see it pass**
+- [x] **Step 4: Run the suite and see it pass**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/Regression_6a4fde3
@@ -449,7 +449,7 @@ Notes for the implementer:
 
 Expected: `** TEST SUCCEEDED **`, four tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Flipcash/Core/Controllers/Database/DatabaseStore.swift FlipcashTests/Regressions/Regression_6a4fde33e96556123eb1f0ec.swift
@@ -464,7 +464,7 @@ git commit -m "feat(database): DatabaseStore caches one Database per owner"
 - Modify: `Flipcash/Core/Container.swift:16-21`, `:35-40`
 - Modify: `Flipcash/Core/Session/SessionAuthenticator.swift:226`, `:293-319`
 
-- [ ] **Step 1: Hold the store on `Container`**
+- [x] **Step 1: Hold the store on `Container`**
 
 In `Container.swift`, add a property after `let notificationController: NotificationController` (line 21):
 
@@ -480,7 +480,7 @@ and initialise it in `init()` after `self.notificationController = NotificationC
         self.databaseStore          = DatabaseStore()
 ```
 
-- [ ] **Step 2: Ask the store in `createSessionContainer`**
+- [x] **Step 2: Ask the store in `createSessionContainer`**
 
 In `SessionAuthenticator.swift`, change line 226 from:
 
@@ -494,7 +494,7 @@ to:
         let database = try! container.databaseStore.database(for: ownerPublicKey)
 ```
 
-- [ ] **Step 3: Delete the moved code**
+- [x] **Step 3: Delete the moved code**
 
 In `SessionAuthenticator.swift`, delete lines 293 to 320 in full, that is the `// MARK: - Database -` header, `initializeDatabase(owner:)`, and `createApplicationSupportIfNeeded()`:
 
@@ -531,7 +531,7 @@ In `SessionAuthenticator.swift`, delete lines 293 to 320 in full, that is the `/
 
 Leave the `// MARK: - Login -` header that follows in place.
 
-- [ ] **Step 4: Verify the store is now the only `Database` constructor in the app target**
+- [x] **Step 4: Verify the store is now the only `Database` constructor in the app target**
 
 ```bash
 grep -rn "Database(url" Flipcash --include=*.swift
@@ -545,7 +545,7 @@ Flipcash/Core/Controllers/Database/DatabaseStore.swift:37:        let database =
 
 (The line number may differ by one or two; the file must be the only match.)
 
-- [ ] **Step 5: Build the app**
+- [x] **Step 5: Build the app**
 
 ```bash
 ./Scripts/build.sh
@@ -553,7 +553,7 @@ Flipcash/Core/Controllers/Database/DatabaseStore.swift:37:        let database =
 
 Expected: `** BUILD SUCCEEDED **`.
 
-- [ ] **Step 6: Run the regression suite plus the suites that construct a `Container`**
+- [x] **Step 6: Run the regression suite plus the suites that construct a `Container`**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/Regression_6a4fde3 FlipcashTests/DeepLinkControllerTests
@@ -563,7 +563,7 @@ Expected: `** BUILD SUCCEEDED **`.
 
 Expected: `** TEST SUCCEEDED **`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add Flipcash/Core/Container.swift Flipcash/Core/Session/SessionAuthenticator.swift
@@ -579,7 +579,7 @@ Release builds bootstrap logging at `.info` (`FlipcashCore/Sources/FlipcashCore/
 **Files:**
 - Modify: `Flipcash/Core/Session/SessionAuthenticator.swift:128`, `:387`
 
-- [ ] **Step 1: Log each `initializeState` attempt at `info` with its retry count**
+- [x] **Step 1: Log each `initializeState` attempt at `info` with its retry count**
 
 Change line 128 from:
 
@@ -593,7 +593,7 @@ to:
         logger.info("initializeState called", metadata: ["count": "\(count)"])
 ```
 
-- [ ] **Step 2: Log `completeLogin` at `info`**
+- [x] **Step 2: Log `completeLogin` at `info`**
 
 Change line 387 from:
 
@@ -607,7 +607,7 @@ to:
         logger.info("completeLogin", metadata: ["owner": "\(initializedAccount.keyAccount.ownerPublicKey)"])
 ```
 
-- [ ] **Step 3: Build**
+- [x] **Step 3: Build**
 
 ```bash
 ./Scripts/build.sh
@@ -615,7 +615,7 @@ to:
 
 Expected: `** BUILD SUCCEEDED **`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Flipcash/Core/Session/SessionAuthenticator.swift
@@ -628,7 +628,7 @@ git commit -m "chore(session): log login attempts at info so release reports sho
 
 **Files:** none
 
-- [ ] **Step 1: Run the regression suite one last time on the finished branch**
+- [x] **Step 1: Run the regression suite one last time on the finished branch**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/Regression_6a4fde3
@@ -636,7 +636,7 @@ git commit -m "chore(session): log login attempts at info so release reports sho
 
 Expected: `** TEST SUCCEEDED **`, four tests.
 
-- [ ] **Step 2: Review the branch diff**
+- [x] **Step 2: Review the branch diff**
 
 ```bash
 git diff main...HEAD --stat
@@ -655,7 +655,7 @@ Expected files, and only these:
  FlipcashTests/Regressions/Regression_6a4fde33e96556123eb1f0ec.swift
 ```
 
-- [ ] **Step 3: Report to the user, do not open a PR**
+- [x] **Step 3: Report to the user, do not open a PR**
 
 Report in chat: the four regression tests, the fact that the crash-layer test was observed failing with `database is locked (code: 5)` before Task 2, and the two things this branch does **not** do:
 
@@ -687,3 +687,12 @@ One deviation from the brief: it suggested dropping the loser's `busyTimeout` to
 **Placeholder scan:** every code step shows the full code; every run step names the command and the expected terminal line. The one "may differ" allowance is a line number in a grep result in Task 5 Step 4, and the file-only requirement there is exact.
 
 **Type consistency:** `DatabaseStore.database(for:)` is the name used in Task 4's tests, Task 4's implementation, and Task 5's call site. `Container.databaseStore` is the property name in Task 5 Steps 1 and 2. `Database.makeTemp()` / `Database.removeTemp(at:)` match `FlipcashTests/TestSupport/Database+TestSupport.swift:14,21`. `Task.delay(milliseconds:)` exists at `FlipcashCore/Sources/FlipcashCore/Extensions/Task+Delay.swift:16`. `ConversationID.test(_:)` is at `FlipcashTests/TestSupport/Conversation+TestSupport.swift:11`. `Database.getConversations()` is at `Database+Conversations.swift:53`. `URL.versionFile(owner:)` is at `Database.swift:135`. `KeyPair.generate()` returns an optional (`KeyPair.swift:33`), hence the force unwrap in the test helper.
+
+---
+
+## Execution notes (2026-09-09)
+
+- `./Scripts/test.sh <Target>/<Suite>/<testName>` selected 0 tests and still printed `** TEST SUCCEEDED **`; every run used the suite form `FlipcashTests/Regression_6a4fde3`.
+- Red run on unfixed code failed in 0.009 s with `Caught error: database is locked (code: 5)` — the deferred snapshot upgrade returns SQLITE_BUSY without waiting. Green after `.immediate` took 0.26 s (the rival's 200 ms hold).
+- `#expect(try a !== b)` does not compile ("errors thrown from here are not handled"); the two lookups are hoisted into locals.
+- The build's `gengoogle` phase rewrites `Flipcash/Supporting Files/GoogleService-Info.plist`; it is on the pre-commit blocklist and was never staged.
