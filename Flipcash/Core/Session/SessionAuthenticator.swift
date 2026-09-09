@@ -125,7 +125,7 @@ final class SessionAuthenticator {
     }
     
     private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (KeyAccount) -> Void) {
-        logger.debug("initializeState called")
+        logger.info("initializeState called", metadata: ["count": "\(count)"])
         
         let userAccount = accountManager.fetchCurrentUserAccount()
         if let userAccount = userAccount {
@@ -356,7 +356,7 @@ final class SessionAuthenticator {
     }
     
     func completeLogin(with initializedAccount: InitializedAccount) {
-        logger.debug("completeLogin", metadata: ["owner": "\(initializedAccount.keyAccount.ownerPublicKey)"])
+        logger.info("completeLogin", metadata: ["owner": "\(initializedAccount.keyAccount.ownerPublicKey)"])
         
         let session = createSessionContainer(
             container: container,
