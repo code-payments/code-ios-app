@@ -1,5 +1,20 @@
 What to test in this build
 
+New in this release:
+• Reply to a message in chat, then tap the quote on the reply to jump back to the original
+• Edit or delete one of your chat messages and check the transcript updates for the other person
+• Tap an activity row to open its details; cancel a pending cash link from the Details screen
+• Set a profile picture and check it shows as the You tab icon and in My Account
+• Work through the Finish Your Profile checklist on the You tab
+• Set a minimum tip in My Account, then have someone open a chat with you by tipping
+• Buy a currency from its own info screen
+• Receive a grabbed deposit and watch it land in the wallet
+• Send, give, buy and convert amount screens share one left-aligned layout
+• Change a profile field and confirm the confirmation dialog before it saves
+• Enter an amount equal to the displayed maximum and check it is accepted
+• Enter a username with a leading @ and check it is accepted
+• Tap anywhere on the Send Cash pill in a chat
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
