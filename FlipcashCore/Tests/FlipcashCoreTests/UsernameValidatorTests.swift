@@ -21,6 +21,28 @@ struct UsernameValidatorTests {
         #expect(validator.validate("  taylor ")?.value == "taylor")
     }
 
+    @Test("A leading @ is dropped, so a pasted handle is accepted as its username")
+    func validate_leadingAt_stripped() {
+        #expect(validator.validate("@taylor")?.value == "taylor")
+        #expect(validator.validate(" @Taylor ")?.value == "taylor")
+    }
+
+    @Test("Only one leading @ is dropped; a second is an illegal character")
+    func validate_doubleLeadingAt_rejected() {
+        #expect(validator.validate("@@taylor") == nil)
+        #expect(validator.failure(for: "@@taylor") == .invalidCharacters)
+    }
+
+    @Test("A lone @ is an empty handle, so it reports too short")
+    func failure_loneAt_tooShort() {
+        #expect(validator.failure(for: "@") == .tooShort)
+    }
+
+    @Test("An @ anywhere but the front is an illegal character")
+    func failure_embeddedAt_invalidCharacters() {
+        #expect(validator.failure(for: "tay@lor") == .invalidCharacters)
+    }
+
     @Test("Two characters is the shortest accepted handle")
     func validate_minimumLength_boundary() {
         #expect(validator.validate("ab")?.value == "ab")
