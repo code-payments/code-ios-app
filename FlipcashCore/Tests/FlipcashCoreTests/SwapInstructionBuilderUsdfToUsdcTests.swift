@@ -248,11 +248,13 @@ struct SwapInstructionBuilderUsdfToUsdcTests {
         #expect(ix.accounts[11].isSigner  == true)
     }
 
-    @Test("Swap whitelist (account 12) is the Coinbase whitelist PDA")
-    func swap_whitelist() {
+    @Test("Swap programs (accounts 12-14) follow the user directly; there is no whitelist account")
+    func swap_programs() {
         let ix = Self.makeInstructions()[7]
-        let expected = CoinbaseStableSwapperProgram.deriveWhitelistAddress()!.publicKey
-        #expect(ix.accounts[12].publicKey == expected)
+        #expect(ix.accounts[12].publicKey == TokenProgram.address)
+        #expect(ix.accounts[13].publicKey == AssociatedTokenProgram.address)
+        #expect(ix.accounts[14].publicKey == SystemProgram.address)
+        #expect(ix.accounts.count == 15)
     }
 
     // MARK: - Discriminator + data layout (24 bytes)
