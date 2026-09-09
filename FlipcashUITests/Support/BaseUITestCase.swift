@@ -37,6 +37,13 @@ class BaseUITestCase: XCTestCase {
             app.launchArguments.append("--beta-flags=\(enabledBetaFlags.joined(separator: ","))")
         }
 
+        // The previous test's app instance can still be running here. The reset
+        // API only promises that a running app "might" be terminated during the
+        // reset, so stop it first and reset against a known-dead process.
+        if !resetPermissions.isEmpty {
+            app.terminate()
+        }
+
         for permission in resetPermissions {
             app.resetAuthorizationStatus(for: permission)
         }
@@ -266,6 +273,26 @@ class BaseUITestCase: XCTestCase {
 
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         waitUntilHittableAndTap(springboard.buttons["Allow"])
+    }
+
+    /// Taps the springboard "Allow" alert if it shows up, or returns as soon as
+    /// `settled` reports the app moved on without one; fails when neither
+    /// happens within `timeout`.
+    func allowSystemAlertIfNeeded(timeout: TimeInterval = 60, orUntil settled: () -> Bool) {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allowButton = springboard.buttons["Allow"]
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if allowButton.exists, allowButton.isHittable {
+                allowButton.tap()
+                return
+            }
+            if settled() { return }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+
+        XCTFail("Neither the system \"Allow\" alert nor the expected app state appeared within \(Int(timeout))s")
     }
 
     /// Everything legible on screen, for failure messages.
