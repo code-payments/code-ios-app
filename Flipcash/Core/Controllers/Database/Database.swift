@@ -53,7 +53,8 @@ nonisolated class Database: @unchecked Sendable {
     func transaction(silent: Bool = false, _ block: (Database) throws -> Void) rethrows {
         do {
             let startChangeCount = writer.totalChanges
-            try writer.transaction { [unowned self] in
+            // IMMEDIATE: callers read and write inside the block; see replaceConversationFeed.
+            try writer.transaction(.immediate) { [unowned self] in
                 try block(self)
             }
             let endChangeCount = writer.totalChanges
