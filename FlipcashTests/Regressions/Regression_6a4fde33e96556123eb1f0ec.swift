@@ -48,4 +48,43 @@ struct Regression_6a4fde3 {
         let ids = try database.getConversations().map(\.id)
         #expect(ids == [.test(2)])
     }
+
+    @Test("busy timeout is armed in seconds, not milliseconds")
+    func busyTimeout_isTwoSeconds() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        #expect(database.writer.busyTimeout == 2)
+        #expect(database.reader.busyTimeout == 2)
+    }
+
+    @Test("the store hands the same Database back for the same owner")
+    func databaseStore_sameOwnerTwice_returnsOneInstance() throws {
+        try withThrowawayOwner { owner in
+            let store = DatabaseStore()
+            let first = try store.database(for: owner)
+            let second = try store.database(for: owner)
+            #expect(first === second)
+        }
+    }
+
+    @Test("the store keeps different owners apart")
+    func databaseStore_twoOwners_returnsDistinctInstances() throws {
+        try withThrowawayOwner { alice in
+            try withThrowawayOwner { bob in
+                let store = DatabaseStore()
+                let alicesDatabase = try store.database(for: alice)
+                let bobsDatabase = try store.database(for: bob)
+                #expect(alicesDatabase !== bobsDatabase)
+            }
+        }
+    }
+
+    private func withThrowawayOwner(_ body: (PublicKey) throws -> Void) throws {
+        let owner = KeyPair.generate()!.publicKey
+        defer {
+            try? Database.deleteStore(owner: owner)
+            try? FileManager.default.removeItem(at: .versionFile(owner: owner))
+        }
+        try body(owner)
+    }
 }
