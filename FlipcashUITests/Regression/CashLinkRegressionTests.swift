@@ -6,7 +6,7 @@
 import XCTest
 
 /// Regression test for the cash link lifecycle: create a cash link, confirm it was "sent",
-/// then navigate to transaction history and cancel it.
+/// then navigate to transaction history and cancel it from the row's details.
 ///
 /// **Prerequisites:**
 /// - A valid `FLIPCASH_UI_TEST_ACCESS_KEY` set in `secrets.local.xcconfig`
@@ -22,6 +22,7 @@ final class CashLinkRegressionTests: BaseUITestCase {
 
     func testCashLink_createAndCancel() {
         let currencyInfo = CurrencyInfoUIScreen(app: app)
+        let details = TransactionDetailsUIScreen(app: app)
 
         assertMainScreenReached()
 
@@ -60,22 +61,19 @@ final class CashLinkRegressionTests: BaseUITestCase {
         // per-token history.
         currencyInfo.tapRecentActivityHeader(from: self)
 
-        // Step 3: Tap the first "Sending" row to trigger the cancel dialog.
-        // Rows are List cells containing "Sending" as a static text label.
-        // There may be multiple pending cash links — tap the most recent (first) one.
+        // Step 3: Open the first "Sending" row. Rows are List cells containing
+        // "Sending" as a static text label. There may be multiple pending cash
+        // links — open the most recent (first) one. Tapping a row pushes the
+        // transaction's Details screen; it no longer prompts to cancel directly.
         let sendingLabel = app.staticTexts.matching(identifier: "Sending").firstMatch
         XCTAssertTrue(
             sendingLabel.waitForExistence(timeout: 10),
             "Expected a 'Sending' transaction in history"
         )
         sendingLabel.tap()
+        details.assertReached()
 
-        // Step 4: Confirm cancellation.
-        let cancelTransfer = app.buttons["Cancel Transfer"]
-        XCTAssertTrue(
-            cancelTransfer.waitForExistence(timeout: 5),
-            "Expected 'Cancel Transfer' confirmation dialog"
-        )
-        cancelTransfer.tap()
+        // Step 4: Cancel from the Details screen's trailing action and confirm.
+        details.cancelTransfer(from: self)
     }
 }
