@@ -5,12 +5,12 @@
 
 import Foundation
 
-/// Validates a handle typed into the username field: lowercases the input, then
-/// holds it to the `Username` contract.
+/// Validates a handle typed into the username field: lowercases the input and
+/// drops the `@` a handle is shown with, then holds it to the `Username` contract.
 ///
-/// Lowercasing lives here rather than in `Username.init?` so the model stays
-/// strict — a handle reaching it uppercase is still a caller error. This is the
-/// only place a typed handle is rewritten before it reaches the model.
+/// That normalising lives here rather than in `Username.init?` so the model stays
+/// strict — a handle reaching it uppercase or prefixed is still a caller error.
+/// This is the only place a typed handle is rewritten before it reaches the model.
 public struct UsernameValidator: Validator {
 
     /// Why an input was rejected. The claim screen raises a different dialog for
@@ -54,9 +54,15 @@ public struct UsernameValidator: Validator {
         return .invalidCharacters
     }
 
-    /// Lowercased and stripped of surrounding whitespace. A paste carries both,
-    /// and neither is worth rejecting someone over.
+    /// Lowercased, stripped of surrounding whitespace, and of one leading `@`.
+    /// A paste carries all three — a handle copied out of a profile arrives as
+    /// `@taylor` — and none is worth rejecting someone over. Only one `@` goes:
+    /// `@@taylor` is not a handle anyone has, and the field never adds one.
     private func normalized(_ input: String) -> String {
-        input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var candidate = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if candidate.hasPrefix("@") {
+            candidate.removeFirst()
+        }
+        return candidate
     }
 }
