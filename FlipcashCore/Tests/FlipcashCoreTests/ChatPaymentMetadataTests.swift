@@ -27,9 +27,9 @@ struct ChatPaymentMetadataTests {
         #expect(payment.destination.value == "+15551230002")
     }
 
-    @Test("Tip DM payments carry the chat id and the tipcard origin")
+    @Test("Tip DM payments carry the chat id, the tipcard origin, and the tip action")
     func tipDmTipcardSerialization() throws {
-        let metadata = ChatPaymentMetadata.tipDm(chatID: chatID, origin: .tipcard)
+        let metadata = ChatPaymentMetadata.tipDm(chatID: chatID, origin: .tipcard, action: .tip)
 
         let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.serializedAppMetadata())
 
@@ -39,11 +39,12 @@ struct ChatPaymentMetadataTests {
             return
         }
         #expect(payment.location == .tipcard)
+        #expect(payment.action == .tip)
     }
 
-    @Test("Tip DM payments carry the chat origin when sent from a chat")
+    @Test("Tip DM payments carry the chat origin and send action when sent from a chat")
     func tipDmChatSerialization() throws {
-        let metadata = ChatPaymentMetadata.tipDm(chatID: chatID, origin: .chat)
+        let metadata = ChatPaymentMetadata.tipDm(chatID: chatID, origin: .chat, action: .send)
 
         let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.serializedAppMetadata())
 
@@ -53,6 +54,7 @@ struct ChatPaymentMetadataTests {
             return
         }
         #expect(payment.location == .chat)
+        #expect(payment.action == .send)
     }
 
     @Test("Each variant exposes its chat id uniformly")
@@ -62,9 +64,22 @@ struct ChatPaymentMetadataTests {
             sourcePhoneE164: "+15551230001",
             destinationPhoneE164: "+15551230002"
         )
-        let tip = ChatPaymentMetadata.tipDm(chatID: chatID, origin: .tipcard)
+        let tip = ChatPaymentMetadata.tipDm(chatID: chatID, origin: .tipcard, action: .tip)
 
         #expect(contact.chatID == chatID)
         #expect(tip.chatID == chatID)
+    }
+
+    @Test("The local action type never serializes the proto's DEFAULT case", arguments: TipDmAction.allCases)
+    func actionNeverSerializesDefault(action: TipDmAction) throws {
+        let metadata = ChatPaymentMetadata.tipDm(chatID: chatID, origin: .tipcard, action: action)
+
+        let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.serializedAppMetadata())
+
+        guard case .tipDmPayment(let payment) = decoded.chat.type else {
+            Issue.record("Expected tipDmPayment, got \(String(describing: decoded.chat.type))")
+            return
+        }
+        #expect(payment.action != .default)
     }
 }
