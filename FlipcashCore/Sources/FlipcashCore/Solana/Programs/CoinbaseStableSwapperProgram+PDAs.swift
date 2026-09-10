@@ -38,14 +38,6 @@ extension CoinbaseStableSwapperProgram {
         )
     }
 
-    /// PDA: ["address_whitelist"] @ CoinbaseStableSwapperProgram
-    public static func deriveWhitelistAddress() -> ProgramDerivedAccount? {
-        ProgramDerivedAccount.findProgramAddress(
-            seeds: [Data("address_whitelist".utf8)],
-            program: address
-        )
-    }
-
     /// The pool-side accounts a `Swap` instruction targets for a mint pair.
     public struct SwapAccounts: Equatable, Sendable {
         public let pool: PublicKey
@@ -53,7 +45,6 @@ extension CoinbaseStableSwapperProgram {
         public let outVault: PublicKey
         public let inVaultTokenAccount: PublicKey
         public let outVaultTokenAccount: PublicKey
-        public let whitelist: PublicKey
     }
 
     /// Derives every pool-side account `Swap` needs for the given mint pair,
@@ -67,8 +58,7 @@ extension CoinbaseStableSwapperProgram {
             let inVault = deriveTokenVaultAddress(pool: pool.publicKey, mint: fromMint),
             let outVault = deriveTokenVaultAddress(pool: pool.publicKey, mint: toMint),
             let inVaultTokenAccount = deriveVaultTokenAccountAddress(vault: inVault.publicKey),
-            let outVaultTokenAccount = deriveVaultTokenAccountAddress(vault: outVault.publicKey),
-            let whitelist = deriveWhitelistAddress()
+            let outVaultTokenAccount = deriveVaultTokenAccountAddress(vault: outVault.publicKey)
         else {
             return nil
         }
@@ -78,8 +68,7 @@ extension CoinbaseStableSwapperProgram {
             inVault: inVault.publicKey,
             outVault: outVault.publicKey,
             inVaultTokenAccount: inVaultTokenAccount.publicKey,
-            outVaultTokenAccount: outVaultTokenAccount.publicKey,
-            whitelist: whitelist.publicKey
+            outVaultTokenAccount: outVaultTokenAccount.publicKey
         )
     }
 }
