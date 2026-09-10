@@ -262,7 +262,7 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         #expect(coinbase.data == legacy.data)
     }
 
-    @Test("Coinbase swap accounts: pool PDAs, sender ATAs, fee recipient, programs")
+    @Test("Coinbase swap accounts: pool PDAs, sender ATAs, fee recipient, whitelist")
     func coinbase_swapAccounts() throws {
         let instructions = Self.makeCoinbaseInstructions()
         let ix = instructions[6]
@@ -272,6 +272,7 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         let outVault = try #require(CoinbaseStableSwapperProgram.deriveTokenVaultAddress(pool: pool, mint: .usdf)).publicKey
         let inVaultTokenAccount = try #require(CoinbaseStableSwapperProgram.deriveVaultTokenAccountAddress(vault: inVault)).publicKey
         let outVaultTokenAccount = try #require(CoinbaseStableSwapperProgram.deriveVaultTokenAccountAddress(vault: outVault)).publicKey
+        let whitelist = try #require(CoinbaseStableSwapperProgram.deriveWhitelistAddress()).publicKey
         let senderUsdcAta = instructions[4].accounts[1].publicKey
         let senderUsdfAta = instructions[2].accounts[1].publicKey
         let feeRecipientUsdcAta = try #require(
@@ -292,10 +293,7 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         #expect(ix.accounts[10].publicKey == PublicKey.usdf)
         #expect(ix.accounts[11].publicKey == Self.sender)
         #expect(ix.accounts[11].isSigner)
-        #expect(ix.accounts[12].publicKey == TokenProgram.address)
-        #expect(ix.accounts[13].publicKey == AssociatedTokenProgram.address)
-        #expect(ix.accounts[14].publicKey == SystemProgram.address)
-        #expect(ix.accounts.count == 15)
+        #expect(ix.accounts[12].publicKey == whitelist)
     }
 
     @Test("Coinbase swap data: discriminator + amountIn(8 LE) + minAmountOut(8 LE), both equal to amount")

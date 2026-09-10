@@ -9,7 +9,7 @@ extension CoinbaseStableSwapperProgram {
 
     /// Anchor-format instruction for the Coinbase Stable Swapper's `swap` handler.
     ///
-    ///   Account list (15, in this exact order):
+    ///   Account list (16, in this exact order):
     ///   0. [] pool
     ///   1. [] inVault
     ///   2. [] outVault
@@ -22,9 +22,10 @@ extension CoinbaseStableSwapperProgram {
     ///   9. [] fromMint
     ///   10. [] toMint
     ///   11. [WRITE, SIGNER] user
-    ///   12. [] TokenProgram
-    ///   13. [] AssociatedTokenProgram
-    ///   14. [] SystemProgram
+    ///   12. [] whitelist
+    ///   13. [] TokenProgram
+    ///   14. [] AssociatedTokenProgram
+    ///   15. [] SystemProgram
     ///
     public struct Swap {
 
@@ -40,6 +41,7 @@ extension CoinbaseStableSwapperProgram {
         public let fromMint: PublicKey
         public let toMint: PublicKey
         public let user: PublicKey
+        public let whitelist: PublicKey
         public let amountIn: UInt64
         public let minAmountOut: UInt64
 
@@ -59,6 +61,7 @@ extension CoinbaseStableSwapperProgram {
             fromMint: PublicKey,
             toMint: PublicKey,
             user: PublicKey,
+            whitelist: PublicKey,
             amountIn: UInt64,
             minAmountOut: UInt64
         ) {
@@ -74,6 +77,7 @@ extension CoinbaseStableSwapperProgram {
             self.fromMint = fromMint
             self.toMint = toMint
             self.user = user
+            self.whitelist = whitelist
             self.amountIn = amountIn
             self.minAmountOut = minAmountOut
         }
@@ -104,6 +108,7 @@ extension CoinbaseStableSwapperProgram.Swap: InstructionType {
                 .readonly(publicKey: fromMint),
                 .readonly(publicKey: toMint),
                 .writable(publicKey: user, signer: true),
+                .readonly(publicKey: whitelist),
                 .readonly(publicKey: TokenProgram.address),
                 .readonly(publicKey: AssociatedTokenProgram.address),
                 .readonly(publicKey: SystemProgram.address),
