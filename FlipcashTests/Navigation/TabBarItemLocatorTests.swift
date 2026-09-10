@@ -55,6 +55,23 @@ struct TabBarItemLocatorTests {
         #expect(TabBarItemLocator.tab(at: firstCenter, in: bar, tabs: HomeTab.allCases) == .scan)
     }
 
+    @Test("a point where two items overlap resolves to the nearer one")
+    func tab_inOverlap_resolvesToNearerCentre() async {
+        let bar = await makeWindowedTabBar()
+        let frames = TabBarItemLocator.itemFrames(in: bar)
+        guard frames.count == HomeTab.allCases.count, frames[2].intersects(frames[3]) else {
+            // Only iOS 26 lays the items out wider than their pitch; on a bar
+            // whose items do not overlap there is nothing to disambiguate.
+            return
+        }
+
+        // Just inside the last item's half of the shared strip.
+        let midpoint = (frames[2].midX + frames[3].midX) / 2
+        let point = CGPoint(x: midpoint + 1, y: frames[3].midY)
+        #expect(frames[2].contains(point) && frames[3].contains(point))
+        #expect(TabBarItemLocator.tab(at: point, in: bar, tabs: HomeTab.allCases) == .tipCard)
+    }
+
     @Test("a point outside every item resolves to nothing")
     func tab_outsideItems_isNil() async {
         let bar = await makeWindowedTabBar()

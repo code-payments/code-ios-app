@@ -375,7 +375,7 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
         probe.apply()
     }
 
-    final class Probe: UIViewController {
+    final class Probe: UIViewController, UIGestureRecognizerDelegate {
         var tabs: [HomeTab]
         var profileImages: TabBarProfilePhoto.ItemImages?
         var onLongPress: (HomeTab) -> Void
@@ -437,6 +437,10 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
         private func installLongPress(on bar: UITabBar) {
             guard longPressTarget !== bar else { return }
             let recognizer = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
+            // Without a delegate the bar's own `_UIContinuousSelectionGestureRecognizer`
+            // — the one that tracks a finger sliding across the items — wins the
+            // conflict and this one never begins.
+            recognizer.delegate = self
             // Let the bar keep its touches: the press still selects the held tab
             // on release, the same as the legacy pill.
             recognizer.cancelsTouchesInView = false
@@ -448,6 +452,16 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
             guard recognizer.state == .began, let bar = recognizer.view as? UITabBar else { return }
             guard let tab = TabBarItemLocator.tab(at: recognizer.location(in: bar), in: bar, tabs: tabs) else { return }
             onLongPress(tab)
+        }
+
+        /// Runs alongside the bar's own recognizers rather than instead of them,
+        /// so holding an item still selects it and a slide across the bar still
+        /// tracks.
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+        ) -> Bool {
+            true
         }
 
         // MARK: - Retry -
