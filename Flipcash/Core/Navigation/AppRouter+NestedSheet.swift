@@ -68,7 +68,7 @@ private struct NestedSheetRootView: View {
             case .addMoney:
                 AddMoneySheetRoot()
 
-            case .give, .downloadApp, .tips:
+            case .give, .downloadApp, .tips, .switchAccount:
                 // Root-only sheets; `presentNested` logs a warning if one
                 // lands here.
                 EmptyView()
@@ -127,6 +127,52 @@ struct TipsSheetRoot: View {
         // A rejected blob is terminal and a reserved upload is signed against
         // one byte count, so dismissing mid-upload loses real work.
         .interactiveDismissDisabled(creationState.isUploading)
+    }
+}
+
+/// Root view for the `.switchAccount` sheet — the account switcher, reached by
+/// long-pressing the You tab. Owns the `NavigationStack` bound to
+/// `router[.switchAccount]`, which only ever holds the root.
+struct SwitchAccountSheetRoot: View {
+
+    @Environment(AppRouter.self) private var router
+    @Environment(Container.self) private var container
+
+    var body: some View {
+        @Bindable var router = router
+        NavigationStack(path: $router[.switchAccount]) {
+            AccountSelectionScreen(
+                sessionAuthenticator: container.sessionAuthenticator,
+                action: AccountSelectionScreen.switchAccountAction(
+                    router: router,
+                    sessionAuthenticator: container.sessionAuthenticator
+                )
+            )
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton(action: router.dismissSheet)
+                }
+            }
+        }
+    }
+}
+
+extension AccountSelectionScreen {
+
+    /// The row action for switching accounts from inside a sheet: closes the
+    /// sheet, waits out its slide-down, then hands the chosen account to the
+    /// authenticator. Shared by the Settings push and the You-tab sheet.
+    static func switchAccountAction(
+        router: AppRouter,
+        sessionAuthenticator: SessionAuthenticator
+    ) -> (AccountDescription) -> Void {
+        { account in
+            Task { @MainActor in
+                router.dismissSheet()
+                try? await Task.delay(milliseconds: 250)
+                sessionAuthenticator.switchAccount(to: account.account.mnemonic)
+            }
+        }
     }
 }
 

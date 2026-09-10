@@ -56,6 +56,8 @@ private struct RoutedSheet: View {
             // Send Cash deeplink / App Intent opens the amount entry with no chat
             // behind it. (In-chat Send Cash still enters it via presentNested.)
             SendAmountSheetRoot(target: target)
+        case .switchAccount:
+            SwitchAccountSheetRoot()
         }
     }
 }
