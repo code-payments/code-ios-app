@@ -10,6 +10,7 @@
 		47DDE1F353D72DB6C899D6E0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC0A077F6E7EE1EB0853134B /* Foundation.framework */; };
 		4C7D70012FC8892D0091C7A4 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
+		08B8484332ED78035E9D399B /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D62DD627C0001B260A /* Bugsnag */; };
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
 		508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 2B166ABF94584FEF9C368C81 /* TweetNacl */; };
@@ -156,6 +157,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */,
+				08B8484332ED78035E9D399B /* Bugsnag in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -320,6 +322,7 @@
 			name = NotificationService;
 			packageProductDependencies = (
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
+				9ADEF1D62DD627C0001B260A /* Bugsnag */,
 			);
 			productName = NotificationService;
 			productReference = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */;
