@@ -22,6 +22,7 @@ struct HomeTabView: View {
     @Environment(AppRouter.self) private var router
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(Container.self) private var container
+    @Environment(BetaFlags.self) private var betaFlags
 
     @State private var selection: HomeTab = .initial
 
@@ -142,6 +143,18 @@ struct HomeTabView: View {
         }
     }
 
+    /// Holding the You tab opens the account switcher, behind the same gate as
+    /// the Switch Accounts row in Settings. The other tabs have no hold action.
+    private func handleLongPress(on tab: HomeTab) {
+        switch tab {
+        case .tipCard:
+            guard betaFlags.canSwitchAccounts else { return }
+            router.present(.switchAccount)
+        case .scan, .wallet, .chat:
+            break
+        }
+    }
+
     /// Brings the tab the router asked for forward and clears the request.
     private func selectRequestedTab() {
         guard let requested = router.requestedTabStack,
@@ -186,7 +199,11 @@ struct HomeTabView: View {
         // handing it the pair is what makes the icons fill under the finger
         // rather than when the drag commits — the binding does not change until
         // the finger lifts.
-        .background(TabBarSelectedIcons(tabs: HomeTab.allCases, profileImages: profileItemImages))
+        .background(TabBarSelectedIcons(
+            tabs: HomeTab.allCases,
+            profileImages: profileItemImages,
+            onLongPress: handleLongPress(on:)
+        ))
     }
 
     /// The unselected icon for a tab. The filled counterpart is handed to UIKit
@@ -223,7 +240,8 @@ struct HomeTabView: View {
                 HomeTabBar(
                     selection: $selection,
                     badgeCounts: [.chat: chatBadgeCount],
-                    profileSlot: profileSlot
+                    profileSlot: profileSlot,
+                    onLongPress: handleLongPress(on:)
                 )
                     // Figma insets the pill ~42pt from each edge (318pt wide on the
                     // 402pt frame); a fixed margin keeps the floating look across
@@ -322,7 +340,8 @@ private struct TipCardTab: View {
 }
 
 /// Hands each tab bar item its selected glyph, which SwiftUI's `Tab` has no API
-/// for.
+/// for, and listens for a long press on the bar, which `Tab` has no API for
+/// either.
 ///
 /// The point is *when* the swap happens. SwiftUI can only pick a glyph from the
 /// selection binding, and the system does not write that back until a drag of
@@ -342,23 +361,29 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     /// enclosing body observes it landing and this representable is updated.
     let profileImages: TabBarProfilePhoto.ItemImages?
 
+    /// Called with the tab whose item was held.
+    let onLongPress: (HomeTab) -> Void
+
     func makeUIViewController(context: Context) -> Probe {
-        Probe(tabs: tabs, profileImages: profileImages)
+        Probe(tabs: tabs, profileImages: profileImages, onLongPress: onLongPress)
     }
 
     func updateUIViewController(_ probe: Probe, context: Context) {
         probe.tabs = tabs
         probe.profileImages = profileImages
+        probe.onLongPress = onLongPress
         probe.apply()
     }
 
     final class Probe: UIViewController {
         var tabs: [HomeTab]
         var profileImages: TabBarProfilePhoto.ItemImages?
+        var onLongPress: (HomeTab) -> Void
 
-        init(tabs: [HomeTab], profileImages: TabBarProfilePhoto.ItemImages?) {
+        init(tabs: [HomeTab], profileImages: TabBarProfilePhoto.ItemImages?, onLongPress: @escaping (HomeTab) -> Void) {
             self.tabs = tabs
             self.profileImages = profileImages
+            self.onLongPress = onLongPress
             super.init(nibName: nil, bundle: nil)
         }
 
@@ -381,10 +406,11 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
         /// of the runloop, because the bar's items do not exist yet on the pass
         /// where this controller is first added.
         func apply() {
-            guard let items = resolvedTabBar?.items, items.count == tabs.count else {
+            guard let bar = resolvedTabBar, let items = bar.items, items.count == tabs.count else {
                 scheduleRetry()
                 return
             }
+            installLongPress(on: bar)
 
             for (item, tab) in zip(items, tabs) {
                 if tab == .tipCard, let profileImages {
@@ -401,6 +427,30 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
                     .withRenderingMode(.alwaysTemplate)
             }
         }
+
+        // MARK: - Long press -
+
+        /// The bar the recognizer is on, so a rebuilt bar gets its own and the
+        /// same bar is never given two.
+        private weak var longPressTarget: UITabBar?
+
+        private func installLongPress(on bar: UITabBar) {
+            guard longPressTarget !== bar else { return }
+            let recognizer = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress))
+            // Let the bar keep its touches: the press still selects the held tab
+            // on release, the same as the legacy pill.
+            recognizer.cancelsTouchesInView = false
+            bar.addGestureRecognizer(recognizer)
+            longPressTarget = bar
+        }
+
+        @objc private func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
+            guard recognizer.state == .began, let bar = recognizer.view as? UITabBar else { return }
+            guard let tab = TabBarItemLocator.tab(at: recognizer.location(in: bar), in: bar, tabs: tabs) else { return }
+            onLongPress(tab)
+        }
+
+        // MARK: - Retry -
 
         private var hasRetryScheduled = false
 

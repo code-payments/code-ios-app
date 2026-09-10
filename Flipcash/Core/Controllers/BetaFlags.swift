@@ -60,6 +60,10 @@ class BetaFlags {
         accessGranted || Option.allCases.contains { $0.availability == .publicBeta }
     }
 
+    /// Whether the account switcher is reachable — the Settings row and the
+    /// You-tab long press share this gate, so the two never disagree.
+    var canSwitchAccounts: Bool { accessGranted }
+
     /// Enables or disables a beta flag and persists the change to disk.
     func set(_ option: Option, enabled: Bool) {
         if enabled {

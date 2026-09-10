@@ -21,6 +21,10 @@ struct HomeTabBar: View {
     /// carries a picture. Nil keeps the glyph.
     var profileSlot: ProfileTabSlot?
 
+    /// Called when a tab's button is held. The tap still selects the tab on
+    /// release, so a long press lands on the tab it was made on.
+    var onLongPress: ((HomeTab) -> Void)?
+
     private let tabs = HomeTab.allCases
 
     // Figma tab bar (node 8966:1557): 32pt icons in 50pt-tall items (9pt above
@@ -30,6 +34,9 @@ struct HomeTabBar: View {
     private static let capsulePadding: CGFloat = 4
 
     private static var itemHeight: CGFloat { iconSize + itemVerticalPadding * 2 }
+
+    /// Matches `UILongPressGestureRecognizer`'s default, which the iOS 26 bar uses.
+    private static let longPressDuration: TimeInterval = 0.5
 
     /// The pill's overall height. It floats over the tab content instead of
     /// sitting in the safe area, so a tab that scrolls has to leave room for it
@@ -75,6 +82,13 @@ struct HomeTabBar: View {
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
+                        // Simultaneous, not high-priority: a high-priority long
+                        // press holds the button's tap hostage until it fails,
+                        // which made quick taps unreliable.
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: Self.longPressDuration)
+                                .onEnded { _ in onLongPress?(tab) }
+                        )
                         .accessibilityLabel(tab.accessibilityLabel)
                         .accessibilityValue((badgeCounts[tab] ?? 0) > 0 ? "\(badgeCounts[tab] ?? 0) unread" : "")
                         .accessibilityAddTraits(selection == tab ? [.isSelected] : [])
