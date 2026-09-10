@@ -33,13 +33,15 @@ nonisolated class Database: @unchecked Sendable {
         
         self.writer = try Connection(url.path)
         
-        writer.busyTimeout = 2000 // 2 sec
+        // Seconds, not milliseconds: SQLite.swift multiplies by 1000 before handing
+        // the value to `sqlite3_busy_timeout`.
+        writer.busyTimeout = 2
         try writer.run("PRAGMA journal_mode = WAL;")
         try writer.run("PRAGMA cache_size = 10000;")
         try writer.run("PRAGMA foreign_keys = ON;")
         
         self.reader = try Connection(url.path, readonly: true)
-        reader.busyTimeout = 2000 // 2 Sec
+        reader.busyTimeout = 2
         
         try createTablesIfNeeded()
     }
