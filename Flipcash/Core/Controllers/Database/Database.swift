@@ -195,7 +195,7 @@ nonisolated class Database: @unchecked Sendable {
     }
     
     static func setUserVersion(version: Int, owner: PublicKey) throws {
-        try! "\(version)".write(
+        try "\(version)".write(
             to: .versionFile(owner: owner),
             atomically: true,
             encoding: .utf8
