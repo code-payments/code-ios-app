@@ -14,7 +14,6 @@ New in this release:
 • Enter an amount equal to the displayed maximum and check it is accepted
 • Enter a username with a leading @ and check it is accepted
 • Tap anywhere on the Send Cash pill in a chat
-• Withdraw to an external wallet, and deposit USDC from Phantom and check it converts and lands
 
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
