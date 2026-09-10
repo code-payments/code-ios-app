@@ -13,8 +13,7 @@ import FlipcashCore
 struct WalletConnectionPoolResolutionTests {
 
     private nonisolated static func poolAccountData(feeRecipient: [UInt8]) -> Data {
-        // 8 discriminator + pause, unpause, treasury, configure authorities.
-        var data = Data(repeating: 0, count: 8 + 32 * 4)
+        var data = Data(repeating: 0, count: 8 + 32 + 32)
         data.append(Data(feeRecipient))
         return data
     }

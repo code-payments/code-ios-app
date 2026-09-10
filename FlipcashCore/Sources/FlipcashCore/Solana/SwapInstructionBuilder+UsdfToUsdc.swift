@@ -141,6 +141,7 @@ extension SwapInstructionBuilder {
                 fromMint: fromMintMetadata.address,
                 toMint: toMintMetadata.address,
                 user: swapAuthority,
+                whitelist: swapAccounts.whitelist,
                 amountIn: amount,
                 minAmountOut: minOutput
             ).instruction()
