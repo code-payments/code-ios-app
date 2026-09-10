@@ -56,6 +56,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if Container.isRunningUITests {
             UIView.setAnimationsEnabled(false)
             BetaFlags.shared.applyLaunchArgumentOverrides()
+        } else if CommandLine.arguments.contains(where: { $0.hasPrefix("--beta-flags=") }) {
+            // Developer-only, and deliberately not behind `--ui-testing`: that
+            // flag also suppresses auto-login from the keychain, so a launch
+            // that sets flags this way still has a session and an open
+            // database. Setting the flags on a physical device otherwise means
+            // tapping the toggles by hand — Maestro does not support physical
+            // iOS devices, and devicectl cannot inject touches.
+            BetaFlags.shared.applyLaunchArgumentOverrides()
+        }
+
+        if CommandLine.arguments.contains("--request-push") {
+            // Developer-only. The notification prompt is otherwise reachable
+            // only from onboarding or a money flow (swap, currency launch, add
+            // money), so a device that skipped onboarding has no way to reach
+            // `.authorized` — and without it there is no APNs token, no FCM
+            // token, and no way to send the extension a push at all. The user
+            // still has to tap Allow; this only puts the prompt on screen.
+            Task { @MainActor in
+                _ = try? await PushController.authorizeAndRegister()
+            }
+        }
+
+        if CommandLine.arguments.contains("--copy-push-token") {
+            // Developer-only. See PushController.copyTokenToPasteboard.
+            Task { @MainActor in
+                await PushController.copyTokenToPasteboard()
+            }
         }
 
         NotificationCenter.default.addObserver(
