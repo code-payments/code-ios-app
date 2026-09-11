@@ -22,24 +22,6 @@ struct ConversationStreamEventDecodeTests {
         }
     }
 
-    @Test("New messages decode to a newMessages event")
-    func newMessages() {
-        let event = Flipcash_Event_V1_Event.with {
-            $0.chatUpdate = .with {
-                $0.chat = .with { $0.value = conversationBytes }
-                $0.newMessages = .with { $0.messages = [textMessage(1, "hi"), textMessage(2, "yo")] }
-            }
-        }
-
-        let decoded = ConversationStreamEvent.decode(event)
-        #expect(decoded.count == 1)
-        guard case .newMessages(let conversationID, let messages) = decoded.first else {
-            Issue.record("expected .newMessages"); return
-        }
-        #expect(conversationID == ConversationID(data: conversationBytes))
-        #expect(messages.map(\.content) == [.text("hi"), .text("yo")])
-    }
-
     @Test("FullRefresh metadata decodes to a metadataRefresh event")
     func metadataRefresh() {
         let event = Flipcash_Event_V1_Event.with {
@@ -82,12 +64,12 @@ struct ConversationStreamEventDecodeTests {
         #expect(date == Date(timeIntervalSince1970: 900))
     }
 
-    @Test("New messages and a metadata update decode to both events in order")
+    @Test("An event batch and a metadata update decode to both events in order")
     func combined() {
         let event = Flipcash_Event_V1_Event.with {
             $0.chatUpdate = .with {
                 $0.chat = .with { $0.value = conversationBytes }
-                $0.newMessages = .with { $0.messages = [textMessage(5, "ping")] }
+                $0.events = .with { $0.events = [.with { $0.sequence = 5; $0.count = 1; $0.mutations = [sentMutation(5, "ping")] }] }
                 $0.metadataUpdates = [.with {
                     $0.lastActivityChanged = .with { $0.newLastActivity = .init(date: Date(timeIntervalSince1970: 1)) }
                 }]
@@ -96,7 +78,7 @@ struct ConversationStreamEventDecodeTests {
 
         let decoded = ConversationStreamEvent.decode(event)
         #expect(decoded.count == 2)
-        if case .newMessages = decoded.first {} else { Issue.record("first should be .newMessages") }
+        if case .chatEvents = decoded.first {} else { Issue.record("first should be .chatEvents") }
         if case .lastActivityChanged = decoded.last {} else { Issue.record("last should be .lastActivityChanged") }
     }
 
@@ -185,13 +167,13 @@ struct ConversationStreamEventDecodeTests {
         let event = Flipcash_Event_V1_Event.with {
             $0.chatUpdate = .with {
                 $0.chat = .with { $0.value = conversationBytes }
-                $0.newMessages = .with { $0.messages = [textMessage(1, "hi")] }
+                $0.events = .with { $0.events = [.with { $0.sequence = 1; $0.count = 1; $0.mutations = [sentMutation(1, "hi")] }] }
                 $0.isTypingNotifications = .with { $0.isTypingNotifications = [typing(u1, .startedTyping)] }
             }
         }
         let decoded = ConversationStreamEvent.decode(event)
         #expect(decoded.count == 2)
-        #expect(decoded.contains { if case .newMessages = $0 { true } else { false } })
+        #expect(decoded.contains { if case .chatEvents = $0 { true } else { false } })
         #expect(decoded.contains { if case .typingChanged = $0 { true } else { false } })
     }
 
@@ -227,33 +209,6 @@ struct ConversationStreamEventDecodeTests {
         guard case .deleted(let tombstone) = events[1].mutations.first else { Issue.record("expected .deleted"); return }
         #expect(tombstone.isDeleted)
         #expect(tombstone.id.value == 3)
-    }
-
-    @Test("both events and new_messages present decode to both (additive migration gate)")
-    func chatEventsAndNewMessagesAdditive() {
-        let event = Flipcash_Event_V1_Event.with {
-            $0.chatUpdate = .with {
-                $0.chat = .with { $0.value = conversationBytes }
-                $0.newMessages = .with { $0.messages = [textMessage(9, "dup")] }
-                $0.events = .with { $0.events = [.with { $0.sequence = 9; $0.count = 1; $0.mutations = [sentMutation(9, "dup")] }] }
-            }
-        }
-        let decoded = ConversationStreamEvent.decode(event)
-        #expect(decoded.contains { if case .chatEvents = $0 { true } else { false } })
-        #expect(decoded.contains { if case .newMessages = $0 { true } else { false } })
-    }
-
-    @Test("an absent events batch does not suppress new_messages (deprecated path still works)")
-    func emptyEventsKeepsNewMessages() {
-        let event = Flipcash_Event_V1_Event.with {
-            $0.chatUpdate = .with {
-                $0.chat = .with { $0.value = conversationBytes }
-                $0.newMessages = .with { $0.messages = [textMessage(1, "keep")] }
-            }
-        }
-        let decoded = ConversationStreamEvent.decode(event)
-        #expect(decoded.contains { if case .newMessages = $0 { true } else { false } })
-        #expect(!decoded.contains { if case .chatEvents = $0 { true } else { false } })
     }
 
     @Test("an event whose only mutation is unrepresentable still carries sequence/count so the cursor advances")

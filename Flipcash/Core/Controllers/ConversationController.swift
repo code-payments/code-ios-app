@@ -451,7 +451,7 @@ final class ConversationController {
     private func hydrateIfUnknown(_ event: ConversationStreamEvent) {
         let conversationID: ConversationID
         switch event {
-        case .newMessages(let id, _), .chatEvents(let id, _), .lastActivityChanged(let id, _), .readPointersChanged(let id, _):
+        case .chatEvents(let id, _), .lastActivityChanged(let id, _), .readPointersChanged(let id, _):
             conversationID = id
         case .metadataRefresh:
             return
@@ -614,22 +614,9 @@ final class ConversationController {
     /// post-`apply` state so monotonic rules (read pointers) hold.
     private func persist(event: ConversationStreamEvent) {
         switch event {
-        case .newMessages(let conversationID, let messages):
+        case .chatEvents(let conversationID, let events):
             // Read before the write: the newest stored id is the analytics watermark,
             // and after the upsert it would already include this batch.
-            let countedThrough = (try? database.newestMessageID(conversationID: conversationID)) ?? nil
-            let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
-            let ok = persist(operation: "upsert-messages") { try database.upsertConversationMessages(reconciled, conversationID: conversationID) }
-            if ok {
-                commitReconciled(pairs, in: conversationID)
-                receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .live)
-            } else {
-                // The delivered batch is in neither the DB nor the store — refetch it from the event log.
-                scheduleGapCatchUp(conversationID)
-            }
-            refreshFeedPreview(for: conversationID)
-            persistConversation(conversationID)
-        case .chatEvents(let conversationID, let events):
             let countedThrough = (try? database.newestMessageID(conversationID: conversationID)) ?? nil
             let (reconciled, pairs) = reconciledForPersist(events.flatMap { $0.mutations.map(\.message) }, in: conversationID)
             // Messages + the advanced cursor persist atomically. `store.apply` already advanced the
