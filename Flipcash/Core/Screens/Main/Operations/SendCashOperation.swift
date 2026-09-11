@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 private let logger = Logger(label: "flipcash.send-cash")
 

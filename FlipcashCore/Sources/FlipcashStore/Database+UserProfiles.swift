@@ -15,7 +15,7 @@ nonisolated extension Database {
     // MARK: - Get -
 
     /// The cached profile for `userID`, or `nil` when it hasn't been fetched yet.
-    func getUserProfile(userID: UserID) throws -> Profile? {
+    public func getUserProfile(userID: UserID) throws -> Profile? {
         let t = UserProfileTable()
         guard let row = try reader.pluck(t.table.filter(t.userID == userID)) else {
             return nil
@@ -26,7 +26,7 @@ nonisolated extension Database {
     // MARK: - Insert -
 
     /// Cache `profile` under `userID`, replacing any existing row.
-    func upsertUserProfile(_ profile: Profile, userID: UserID) throws {
+    public func upsertUserProfile(_ profile: Profile, userID: UserID) throws {
         let t = UserProfileTable()
         let data = try JSONEncoder().encode(profile)
         try writer.run(t.table.upsert(
@@ -39,7 +39,7 @@ nonisolated extension Database {
     // MARK: - Delete -
 
     /// Remove the cached profile for `userID`.
-    func deleteUserProfile(userID: UserID) throws {
+    public func deleteUserProfile(userID: UserID) throws {
         let t = UserProfileTable()
         try writer.run(t.table.filter(t.userID == userID).delete())
     }

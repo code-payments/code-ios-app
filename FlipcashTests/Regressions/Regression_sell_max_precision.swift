@@ -12,6 +12,7 @@ import Testing
 // @preconcurrency: BigDecimal.Rounding not Sendable upstream.
 @preconcurrency import BigDecimal
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @Suite("Regression: sell-max precision (newly-minted bonding-curve balance)")

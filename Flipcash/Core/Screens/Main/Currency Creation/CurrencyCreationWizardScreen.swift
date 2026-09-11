@@ -6,6 +6,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import FlipcashCore
+import FlipcashStore
 import FlipcashUI
 
 private let logger = Logger(label: "flipcash.currency-creation")

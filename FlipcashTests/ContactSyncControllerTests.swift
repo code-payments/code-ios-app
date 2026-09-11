@@ -7,6 +7,7 @@ import Contacts
 import Foundation
 import Testing
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 // `.serialized` because the first-connect dialog tests mutate the shared

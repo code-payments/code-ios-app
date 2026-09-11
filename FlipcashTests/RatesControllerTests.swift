@@ -13,6 +13,7 @@ import Testing
 @preconcurrency import Combine
 @testable import Flipcash
 import FlipcashCore
+import FlipcashStore
 import FlipcashAPI
 
 @Suite("RatesController")

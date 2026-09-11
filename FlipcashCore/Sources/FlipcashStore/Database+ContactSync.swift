@@ -13,13 +13,17 @@ nonisolated extension Database {
 
     /// The contact-sync state machine's persisted cursor.
     /// A `nil` checksum indicates first-run state.
-    struct ContactSyncState: Equatable, Sendable {
-        let checksum: Data?
+    public struct ContactSyncState: Equatable, Sendable {
+        public let checksum: Data?
 
-        static let empty = ContactSyncState(checksum: nil)
+        public init(checksum: Data?) {
+            self.checksum = checksum
+        }
+
+        public static let empty = ContactSyncState(checksum: nil)
     }
 
-    func contactSyncState() throws -> ContactSyncState {
+    public func contactSyncState() throws -> ContactSyncState {
         let table = ContactSyncStateTable()
         guard let row = try reader.pluck(table.table.filter(table.id == 1)) else {
             return .empty
@@ -27,7 +31,7 @@ nonisolated extension Database {
         return ContactSyncState(checksum: row[table.checksum])
     }
 
-    func setContactSyncState(_ state: ContactSyncState) throws {
+    public func setContactSyncState(_ state: ContactSyncState) throws {
         let table = ContactSyncStateTable()
         try writer.transaction {
             try writer.run(
@@ -43,7 +47,7 @@ nonisolated extension Database {
     // MARK: - Flipcash Contacts -
 
     /// Contacts the server has confirmed are on Flipcash, with their DM chat IDs.
-    func flipcashContacts() throws -> [MatchedContact] {
+    public func flipcashContacts() throws -> [MatchedContact] {
         let table = FlipcashContactTable()
         let rows = try reader.prepareRowIterator(table.table.select(table.e164, table.dmChatId, table.joinTs))
         return try rows.map { MatchedContact(e164: $0[table.e164], dmChatID: $0[table.dmChatId], joinDate: $0[table.joinTs]) }
@@ -54,7 +58,7 @@ nonisolated extension Database {
     /// Atomic — readers observe either the old set or the new set, never a partial join.
     /// Deduplicates on `e164` defensively in case the server ever streams the same number twice.
     @discardableResult
-    func replaceFlipcashContacts(_ contacts: [MatchedContact], matchedAt: Date) throws -> Int {
+    public func replaceFlipcashContacts(_ contacts: [MatchedContact], matchedAt: Date) throws -> Int {
         let table = FlipcashContactTable()
         var seen: Set<String> = []
         let deduped = contacts.filter { seen.insert($0.e164).inserted }
@@ -78,12 +82,17 @@ nonisolated extension Database {
 
     /// One row per phone in the last successfully-uploaded contact set.
     /// `contactId` is `CNContact.identifier` for resolving name/avatar at render time.
-    struct LocalContact: Equatable, Hashable, Sendable {
-        let e164: String
-        let contactId: String
+    public struct LocalContact: Equatable, Hashable, Sendable {
+        public let e164: String
+        public let contactId: String
+
+        public init(e164: String, contactId: String) {
+            self.e164 = e164
+            self.contactId = contactId
+        }
     }
 
-    func localContactsSnapshot() throws -> [LocalContact] {
+    public func localContactsSnapshot() throws -> [LocalContact] {
         let table = LocalContactsSnapshotTable()
         let rows = try reader.prepareRowIterator(table.table)
         return try rows.map { row in
@@ -92,7 +101,7 @@ nonisolated extension Database {
     }
 
     /// Replace the snapshot with the latest uploaded set.
-    func replaceLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
+    public func replaceLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
         try writer.transaction {
             try rewriteLocalContactsSnapshot(contacts)
         }
@@ -120,7 +129,7 @@ nonisolated extension Database {
     // MARK: - Combined writes -
 
     /// Replace the snapshot AND upsert the sync state in one transaction.
-    func updateContactSyncSnapshotAndState(
+    public func updateContactSyncSnapshotAndState(
         snapshot contacts: [LocalContact],
         state: ContactSyncState
     ) throws {

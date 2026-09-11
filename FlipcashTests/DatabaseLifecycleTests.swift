@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import FlipcashStore
 import Testing
 @testable import Flipcash
 

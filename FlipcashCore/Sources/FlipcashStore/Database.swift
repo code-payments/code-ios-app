@@ -7,11 +7,11 @@
 
 import Foundation
 import FlipcashCore
-import SQLite
+public import SQLite
 
 nonisolated private let logger = Logger(label: "flipcash.database")
 
-typealias Expression = SQLite.Expression
+public typealias Expression = SQLite.Expression
 
 // SQLite.swift serializes reads/writes through each `Connection`'s own
 // dispatch queue, so concurrent calls into `reader` and `writer` are safe
@@ -21,7 +21,10 @@ typealias Expression = SQLite.Expression
 // The connections themselves are mutable now that they can be closed and
 // reopened, so `lock` — not isolation — is what makes that state safe.
 // FOLLOW-UP: Remove @unchecked when SQLite.swift declares Connection: Sendable.
-nonisolated class Database: @unchecked Sendable {
+// `open` rather than `public` so the test bundle can subclass it to tie temp-file cleanup to the
+// database's lifetime. Every member stays `public`, so a subclass can add state but cannot override
+// any behaviour.
+nonisolated open class Database: @unchecked Sendable {
 
     private let storeURL: URL
 
@@ -33,7 +36,7 @@ nonisolated class Database: @unchecked Sendable {
     private let lock = NSLock()
 
     /// The write connection, opening the store first if it is currently closed.
-    var writer: Connection {
+    public var writer: Connection {
         get throws {
             lock.lock()
             defer { lock.unlock() }
@@ -49,7 +52,7 @@ nonisolated class Database: @unchecked Sendable {
     }
 
     /// The read connection, opening the store first if it is currently closed.
-    var reader: Connection {
+    public var reader: Connection {
         get throws {
             lock.lock()
             defer { lock.unlock() }
@@ -66,7 +69,7 @@ nonisolated class Database: @unchecked Sendable {
     
     // MARK: - Init -
     
-    init(url: URL) throws {
+    public init(url: URL) throws {
         self.storeURL = url
 
         // Opening both here keeps an unusable store path failing at `init`, where it
@@ -105,7 +108,7 @@ nonisolated class Database: @unchecked Sendable {
     /// captures the function in which this was called, otherwise
     /// it will always captured in transaction {}
     @inline(__always)
-    func transaction(silent: Bool = false, _ block: (Database) throws -> Void) rethrows {
+    public func transaction(silent: Bool = false, _ block: (Database) throws -> Void) rethrows {
         do {
             let connection = try writer
             let startChangeCount = connection.totalChanges
@@ -150,7 +153,7 @@ nonisolated class Database: @unchecked Sendable {
     /// TRUNCATE rather than PASSIVE: a passive checkpoint gives up silently when any
     /// reader is mid-transaction, which is the case that leaves the WAL growing without
     /// bound. This blocks up to `busyTimeout` instead, and throws when it cannot finish.
-    func checkpoint() throws {
+    public func checkpoint() throws {
         try writer.run(Self.checkpointPragma)
     }
 
@@ -164,7 +167,7 @@ nonisolated class Database: @unchecked Sendable {
     /// Nothing pairs with this. The next `reader` or `writer` access reopens the store
     /// and reapplies the pragmas, which is what lets a close arriving at an awkward
     /// moment heal itself instead of leaving the caller with a dead object.
-    func close() throws {
+    public func close() throws {
         lock.lock()
         defer {
             _reader = nil
@@ -184,7 +187,7 @@ nonisolated class Database: @unchecked Sendable {
     ///
     /// The version file is deliberately left alone: the caller deletes the store because the
     /// recorded version is stale, and writes the new one immediately afterwards.
-    static func deleteStore(files: StoreLocation.Files) throws {
+    public static func deleteStore(files: StoreLocation.Files) throws {
         let urlsToRemove: [URL] = [
             files.database,
             files.shm,
@@ -198,7 +201,7 @@ nonisolated class Database: @unchecked Sendable {
         }
     }
     
-    static func setUserVersion(version: Int, files: StoreLocation.Files) throws {
+    public static func setUserVersion(version: Int, files: StoreLocation.Files) throws {
         try "\(version)".write(
             to: files.version,
             atomically: true,
@@ -206,7 +209,7 @@ nonisolated class Database: @unchecked Sendable {
         )
     }
     
-    static func userVersion(files: StoreLocation.Files) throws -> Int? {
+    public static func userVersion(files: StoreLocation.Files) throws -> Int? {
         let versionString = try String(
             contentsOf: files.version,
             encoding: .utf8
@@ -217,6 +220,6 @@ nonisolated class Database: @unchecked Sendable {
 }
 
 nonisolated extension Notification.Name {
-    static let databaseDidChange = Notification.Name("databaseDidChange")
+    public static let databaseDidChange = Notification.Name("databaseDidChange")
 }
 

@@ -5,6 +5,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashStore
 
 private let logger = Logger(label: "flipcash.add-money-processing")
 

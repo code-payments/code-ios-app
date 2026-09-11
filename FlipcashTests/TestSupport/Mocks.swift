@@ -12,6 +12,7 @@
 import Foundation
 @testable import Flipcash
 import FlipcashCore
+import FlipcashStore
 
 extension Database {
     /// Fresh, per-access SQLite file. Each read of `.mock` returns a new
