@@ -146,9 +146,9 @@ struct DatabaseMintUpsertTests {
         try db.insert(mints: [original], date: .now)
         let stored = try #require(try db.getMintMetadata(mint: original.address))
 
-        let before = db.writer.totalChanges
+        let before = try db.writer.totalChanges
         try db.insert(mints: [original], date: .now + 60)
-        #expect(db.writer.totalChanges == before)
+        #expect(try db.writer.totalChanges == before)
         #expect(try db.getMintMetadata(mint: original.address) == stored)
     }
 
@@ -162,9 +162,9 @@ struct DatabaseMintUpsertTests {
 
         let renamed = MintMetadata.makeLaunchpad(address: mint, name: "Renamed Token")
 
-        let before = db.writer.totalChanges
+        let before = try db.writer.totalChanges
         try db.insert(mints: [renamed], date: .now + 60)
-        #expect(db.writer.totalChanges > before)
+        #expect(try db.writer.totalChanges > before)
         #expect(try db.getMintMetadata(mint: mint)?.name == "Renamed Token")
     }
 
@@ -176,9 +176,9 @@ struct DatabaseMintUpsertTests {
 
         try db.insert(mints: [.makeLaunchpad(address: mint)], date: .now)
 
-        let before = db.writer.totalChanges
+        let before = try db.writer.totalChanges
         try db.insert(mints: [Self.makeStaticMint(address: mint)], date: .now + 60)
-        #expect(db.writer.totalChanges > before)
+        #expect(try db.writer.totalChanges > before)
     }
 
     @Test("Balance is visible after mint upsert without launchpadMetadata")
