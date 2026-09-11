@@ -53,7 +53,7 @@ struct SettingsAdvancedFeaturesScreen: View {
 
                     // Sits with the other beta tool rather than on My Account: it is
                     // a way out of this account, next to Log Out, not a detail of it.
-                    if betaFlags.accessGranted {
+                    if betaFlags.canSwitchAccounts {
                         SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: .beta, insets: insets) {
                             router.push(.settingsAccountSelection)
                         }

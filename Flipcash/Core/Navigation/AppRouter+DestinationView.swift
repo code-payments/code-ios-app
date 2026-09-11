@@ -100,16 +100,13 @@ struct DestinationView: View {
 
         case .settingsAccountSelection:
             // The action closure dismisses the settings sheet and switches accounts.
-            // Captured at the modifier site so the AppRouter stays pure-navigation.
+            // Built at the modifier site so the AppRouter stays pure-navigation.
             AccountSelectionScreen(
                 sessionAuthenticator: container.sessionAuthenticator,
-                action: { [appRouter = sessionContainer.appRouter, sessionAuthenticator = container.sessionAuthenticator] account in
-                    Task { @MainActor in
-                        appRouter.dismissSheet()
-                        try? await Task.delay(milliseconds: 250)
-                        sessionAuthenticator.switchAccount(to: account.account.mnemonic)
-                    }
-                }
+                action: AccountSelectionScreen.switchAccountAction(
+                    router: sessionContainer.appRouter,
+                    sessionAuthenticator: container.sessionAuthenticator
+                )
             )
 
         case .settingsApplicationLogs:
