@@ -18,30 +18,85 @@ typealias Expression = SQLite.Expression
 // despite Database itself being a reference type. Marking it
 // `@unchecked Sendable` lets background write paths (e.g. RatesController's
 // rate persistence queue) capture it without escaping Swift 6 isolation.
+// The connections themselves are mutable now that they can be closed and
+// reopened, so `lock` — not isolation — is what makes that state safe.
 // FOLLOW-UP: Remove @unchecked when SQLite.swift declares Connection: Sendable.
 nonisolated class Database: @unchecked Sendable {
 
-    let reader: Connection
-    let writer: Connection
-
     private let storeURL: URL
+
+    /// Both are `nil` while the store is closed, and are guarded by `lock` — the two
+    /// accessors below are the only things that touch them.
+    private var _reader: Connection?
+    private var _writer: Connection?
+
+    private let lock = NSLock()
+
+    /// The write connection, opening the store first if it is currently closed.
+    var writer: Connection {
+        get throws {
+            lock.lock()
+            defer { lock.unlock() }
+
+            if let existing = _writer {
+                return existing
+            }
+
+            let connection = try Self.openWriter(at: storeURL)
+            _writer = connection
+            return connection
+        }
+    }
+
+    /// The read connection, opening the store first if it is currently closed.
+    var reader: Connection {
+        get throws {
+            lock.lock()
+            defer { lock.unlock() }
+
+            if let existing = _reader {
+                return existing
+            }
+
+            let connection = try Self.openReader(at: storeURL)
+            _reader = connection
+            return connection
+        }
+    }
     
     // MARK: - Init -
     
     init(url: URL) throws {
         self.storeURL = url
-        
-        self.writer = try Connection(url.path)
-        
-        writer.busyTimeout = 2000 // 2 sec
-        try writer.run("PRAGMA journal_mode = WAL;")
-        try writer.run("PRAGMA cache_size = 10000;")
-        try writer.run("PRAGMA foreign_keys = ON;")
-        
-        self.reader = try Connection(url.path, readonly: true)
-        reader.busyTimeout = 2000 // 2 Sec
-        
+
+        // Opening both here keeps an unusable store path failing at `init`, where it
+        // has always failed, rather than deferring it to whichever query runs first.
+        _ = try writer
+        _ = try reader
+
         try createTablesIfNeeded()
+    }
+
+    private static func openWriter(at url: URL) throws -> Connection {
+        let connection = try Connection(url.path)
+
+        // Seconds, not milliseconds: SQLite.swift multiplies by 1000 before handing
+        // the value to `sqlite3_busy_timeout`.
+        connection.busyTimeout = 2
+
+        // `journal_mode` is persisted in the database header, but the other two are
+        // per-connection and have to be set again every time the store is reopened.
+        try connection.run("PRAGMA journal_mode = WAL;")
+        try connection.run("PRAGMA cache_size = 10000;")
+        try connection.run("PRAGMA foreign_keys = ON;")
+
+        return connection
+    }
+
+    private static func openReader(at url: URL) throws -> Connection {
+        let connection = try Connection(url.path, readonly: true)
+        connection.busyTimeout = 2
+        return connection
     }
     
     // MARK: - Transaction -
@@ -52,11 +107,12 @@ nonisolated class Database: @unchecked Sendable {
     @inline(__always)
     func transaction(silent: Bool = false, _ block: (Database) throws -> Void) rethrows {
         do {
-            let startChangeCount = writer.totalChanges
-            try writer.transaction { [unowned self] in
+            let connection = try writer
+            let startChangeCount = connection.totalChanges
+            try connection.transaction { [unowned self] in
                 try block(self)
             }
-            let endChangeCount = writer.totalChanges
+            let endChangeCount = connection.totalChanges
             
             // There are instances where we want to commit
             // the transaction but avoid notifying the UI
@@ -87,13 +143,39 @@ nonisolated class Database: @unchecked Sendable {
     
     // MARK: - Lifecycle -
 
+    private static let checkpointPragma = "PRAGMA wal_checkpoint(TRUNCATE);"
+
     /// Flushes the write-ahead log back into the main database file and truncates it.
     ///
     /// TRUNCATE rather than PASSIVE: a passive checkpoint gives up silently when any
     /// reader is mid-transaction, which is the case that leaves the WAL growing without
     /// bound. This blocks up to `busyTimeout` instead, and throws when it cannot finish.
     func checkpoint() throws {
-        try writer.run("PRAGMA wal_checkpoint(TRUNCATE);")
+        try writer.run(Self.checkpointPragma)
+    }
+
+    /// Checkpoints the write-ahead log and drops both connections.
+    ///
+    /// Dropping the references is what closes the store: SQLite.swift's `Connection`
+    /// releases its handle from `deinit` and exposes no `close()` of its own. So a
+    /// connection someone else still holds — a caller partway through `transaction(_:)`,
+    /// say — closes when that caller returns rather than here.
+    ///
+    /// Nothing pairs with this. The next `reader` or `writer` access reopens the store
+    /// and reapplies the pragmas, which is what lets a close arriving at an awkward
+    /// moment heal itself instead of leaving the caller with a dead object.
+    func close() throws {
+        lock.lock()
+        defer {
+            _reader = nil
+            _writer = nil
+            lock.unlock()
+        }
+
+        // Checkpoint before the writer goes. A WAL left on disk is replayed by whichever
+        // process opens the store next, which is correct but makes that open cost time
+        // proportional to the log rather than to what the caller wanted to read.
+        try _writer?.run(Self.checkpointPragma)
     }
 
     // MARK: - Versioning -
