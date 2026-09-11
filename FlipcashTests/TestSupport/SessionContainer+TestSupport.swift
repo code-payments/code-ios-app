@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 extension SessionContainer {

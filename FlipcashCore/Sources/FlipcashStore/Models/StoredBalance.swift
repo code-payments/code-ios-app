@@ -8,25 +8,25 @@
 import Foundation
 import FlipcashCore
 
-nonisolated struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
-    let quarks: UInt64
-    let symbol: String
-    let name: String
-    let supplyFromBonding: UInt64?
-    let sellFeeBps: Int?
-    let mint: PublicKey
-    let vmAuthority: PublicKey?
-    let updatedAt: Date
-    let imageURL: URL?
-    let costBasis: Double
+nonisolated public struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
+    public let quarks: UInt64
+    public let symbol: String
+    public let name: String
+    public let supplyFromBonding: UInt64?
+    public let sellFeeBps: Int?
+    public let mint: PublicKey
+    public let vmAuthority: PublicKey?
+    public let updatedAt: Date
+    public let imageURL: URL?
+    public let costBasis: Double
 
-    let usdf: FiatAmount
+    public let usdf: FiatAmount
 
-    var id: PublicKey {
+    public var id: PublicKey {
         mint
     }
     
-    init(quarks: UInt64, symbol: String, name: String, supplyFromBonding: UInt64?, sellFeeBps: Int?, mint: PublicKey, vmAuthority: PublicKey?, updatedAt: Date, imageURL: URL?, costBasis: Double) throws {
+    public init(quarks: UInt64, symbol: String, name: String, supplyFromBonding: UInt64?, sellFeeBps: Int?, mint: PublicKey, vmAuthority: PublicKey?, updatedAt: Date, imageURL: URL?, costBasis: Double) throws {
         self.quarks            = quarks
         self.symbol            = symbol
         self.name              = name
@@ -69,7 +69,7 @@ nonisolated struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         }
     }
     
-    func computeExchangedValue(with rate: Rate) -> ExchangedFiat {
+    public func computeExchangedValue(with rate: Rate) -> ExchangedFiat {
         .compute(
             onChainAmount: TokenAmount(quarks: quarks, mint: mint),
             rate: rate,
@@ -79,7 +79,7 @@ nonisolated struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
 
     /// Computes the appreciation/depreciation of this balance.
     /// Returns a tuple with the ExchangedFiat (absolute value) and whether it's positive.
-    func computeAppreciation(with rate: Rate) -> (value: ExchangedFiat, isPositive: Bool) {
+    public func computeAppreciation(with rate: Rate) -> (value: ExchangedFiat, isPositive: Bool) {
         let appreciationUSD = usdf.value - Decimal(costBasis)
         let usdAbs = FiatAmount.usd(abs(appreciationUSD))
 
@@ -96,7 +96,7 @@ nonisolated struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
 }
 
 extension StoredBalance {
-    enum Error: Swift.Error {
+    public enum Error: Swift.Error {
         case missingStoredCoreMintForNonReserveToken
     }
 }
@@ -111,7 +111,7 @@ nonisolated extension StoredBalance {
 
     /// The USD figure the wallet's token card renders for this balance: the
     /// stored value rounded to the cents a user actually sees.
-    var displayedUSDF: FiatAmount {
+    public var displayedUSDF: FiatAmount {
         usdf.roundedToSmallestUnit()
     }
 
@@ -126,7 +126,7 @@ nonisolated extension StoredBalance {
     /// the stack positions cards by index with no per-card position animation,
     /// so the swap reads as a jump. The name settles cards showing the same
     /// figure, and no refresh changes a name.
-    static func walletOrder(_ lhs: StoredBalance, _ rhs: StoredBalance) -> Bool {
+    public static func walletOrder(_ lhs: StoredBalance, _ rhs: StoredBalance) -> Bool {
         let lhsDisplayed = lhs.displayedUSDF
         let rhsDisplayed = rhs.displayedUSDF
 

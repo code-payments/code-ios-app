@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import FlipcashStore
 @testable import Flipcash
 
 extension Database {

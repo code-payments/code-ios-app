@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 nonisolated private let logger = Logger(label: "flipcash.blocklist-controller")
 

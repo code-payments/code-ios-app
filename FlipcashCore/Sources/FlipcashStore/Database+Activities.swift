@@ -13,7 +13,7 @@ nonisolated extension Database {
     
     // MARK: - Get -
     
-    func getLatestActivityID() throws -> PublicKey? {
+    public func getLatestActivityID() throws -> PublicKey? {
         let statement = try reader.prepareRowIterator("""
         SELECT
             a.id
@@ -32,7 +32,7 @@ nonisolated extension Database {
         return ids.first
     }
     
-    func getPendingActivityIDs() throws -> [PublicKey] {
+    public func getPendingActivityIDs() throws -> [PublicKey] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             a.id
@@ -55,7 +55,7 @@ nonisolated extension Database {
     /// serialises access through its own dispatch queue; this wrapper only
     /// hops off main so the caller's actor isn't blocked on up-to-1024
     /// `NSDateFormatter.dateFromString(_:)` calls.
-    func getActivities(mint: PublicKey) async throws -> [Activity] {
+    public func getActivities(mint: PublicKey) async throws -> [Activity] {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
@@ -68,7 +68,7 @@ nonisolated extension Database {
         }
     }
 
-    func getActivities(mint: PublicKey) throws -> [Activity] {
+    public func getActivities(mint: PublicKey) throws -> [Activity] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             a.id,
@@ -115,7 +115,7 @@ nonisolated extension Database {
     /// The unified, cross-mint recent activity for the wallet preview: the newest
     /// `limit` activities regardless of token. `getActivities(mint:)` is the
     /// per-token slice; this is the "everything" feed.
-    func getRecentActivities(limit: Int) throws -> [Activity] {
+    public func getRecentActivities(limit: Int) throws -> [Activity] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             a.id,
@@ -250,7 +250,7 @@ nonisolated extension Database {
     
     // MARK: - Insert -
     
-    func insertActivities(activities: [Activity]) throws {
+    public func insertActivities(activities: [Activity]) throws {
         try activities.forEach {
             try insertActivity(activity: $0)
         }

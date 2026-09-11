@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// Sub-flow path for the buy stack. The `.buy(mint)` sheet's root is
 /// `BuyAmountScreen`; secondary screens (buy summary, post-buy processing) are

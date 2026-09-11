@@ -25,7 +25,7 @@ nonisolated extension Database {
 
     /// True once any completed incoming-money activity exists — the "added
     /// money" milestone.
-    func hasEverAddedMoney() throws -> Bool {
+    public func hasEverAddedMoney() throws -> Bool {
         let a = ActivityTable()
         return try reader.pluck(
             a.table.filter(
@@ -39,7 +39,7 @@ nonisolated extension Database {
     /// the activity feed re-syncs in full from the server on every login, while
     /// chat messages sync lazily per conversation, so an account signed into on
     /// a fresh database has activity long before it has any messages.
-    func hasEverTipped(selfUserID: UserID) throws -> Bool {
+    public func hasEverTipped(selfUserID: UserID) throws -> Bool {
         try hasEverSentTipActivity() || hasEverSentTipMessage(selfUserID: selfUserID)
     }
 

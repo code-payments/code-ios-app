@@ -14,6 +14,7 @@ import Foundation
 // or these are migrated to AsyncSequence.
 @preconcurrency import Combine
 import FlipcashCore
+import FlipcashStore
 
 nonisolated private let logger = Logger(label: "flipcash.rates-controller")
 

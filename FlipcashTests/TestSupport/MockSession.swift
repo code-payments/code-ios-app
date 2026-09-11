@@ -6,6 +6,7 @@
 import Foundation
 @testable import Flipcash
 import FlipcashCore
+import FlipcashStore
 
 /// Closure-driven mock conforming to every Session capability protocol.
 /// Unset handlers throw `MockSessionError.unimplemented`.

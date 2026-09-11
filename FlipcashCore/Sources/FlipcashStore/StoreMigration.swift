@@ -16,9 +16,9 @@ nonisolated private let logger = Logger(label: "flipcash.database.migration")
 /// the process can be killed between any two file operations — and it has to survive a user who
 /// never launches the old build again, which is why nothing is left behind for a later pass to
 /// finish.
-nonisolated enum StoreMigration {
+nonisolated public enum StoreMigration {
 
-    enum Outcome: Equatable {
+    public enum Outcome: Equatable {
         /// Nothing to do: no store in either location, or the two locations are the same directory.
         case notNeeded
         /// A store was already at the shared location. Any legacy remnants were swept.
@@ -34,7 +34,7 @@ nonisolated enum StoreMigration {
     ///
     /// Never throws. A migration that cannot complete degrades to a fresh store, which the app
     /// re-syncs; throwing here would instead block login on a file-system problem.
-    static func migrateIfNeeded(
+    public static func migrateIfNeeded(
         owner: PublicKey,
         location: StoreLocation,
         fileManager: FileManager = .default

@@ -6,6 +6,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 /// The avatar an activity draws — the counterparty's profile photo for peer
 /// activity (tips/sends), the token image for token activity (deposits, buys),

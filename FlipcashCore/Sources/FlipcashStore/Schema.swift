@@ -8,287 +8,325 @@
 import Foundation
 import FlipcashCore
 // @preconcurrency: SQLite.swift's Table and Expression not Sendable upstream.
-@preconcurrency import SQLite
+@preconcurrency public import SQLite
 
-nonisolated struct BalanceTable: Sendable {
-    static let name = "balance"
+nonisolated public struct BalanceTable: Sendable {
+    public static let name = "balance"
 
-    let table        = Table(Self.name)
-    let quarks       = Expression <UInt64>    ("quarks")
-    let mint         = Expression <PublicKey> ("mint")
-    let costBasis    = Expression <Double?>   ("costBasis")
-    let updatedAt    = Expression <Date>      ("updatedAt")
+    public init() {}
+
+    public let table        = Table(Self.name)
+    public let quarks       = Expression <UInt64>    ("quarks")
+    public let mint         = Expression <PublicKey> ("mint")
+    public let costBasis    = Expression <Double?>   ("costBasis")
+    public let updatedAt    = Expression <Date>      ("updatedAt")
 }
 
-nonisolated struct MintTable: Sendable {
-    static let name = "mint"
-    
-    let table        = Table(Self.name)
-    let mint         = Expression <PublicKey> ("mint")
-    let name         = Expression <String>    ("name")
-    let symbol       = Expression <String>    ("symbol")
-    let decimals     = Expression <Int>       ("decimals")
-    let bio          = Expression <String?>   ("bio")
-    let imageURL     = Expression <URL?>      ("imageURL")
-    
-    let vmAddress    = Expression <PublicKey?> ("vmAddress")
-    let vmAuthority  = Expression <PublicKey?> ("vmAuthority")
-    let lockDuration = Expression <Int?>       ("lockDuration")
-    
-    let currencyConfig    = Expression <PublicKey?> ("currencyConfig")
-    let liquidityPool     = Expression <PublicKey?> ("liquidityPool")
-    let seed              = Expression <PublicKey?> ("seed")
-    let authority         = Expression <PublicKey?> ("authority")
-    let mintVault         = Expression <PublicKey?> ("mintVault")
-    let coreMintVault     = Expression <PublicKey?> ("coreMintVault")
-    let coreMintFees      = Expression <PublicKey?> ("coreMintFees")
-    let supplyFromBonding = Expression <UInt64?>    ("supplyFromBonding")
-    let sellFeeBps        = Expression <Int?>       ("sellFeeBps")
+nonisolated public struct MintTable: Sendable {
+    public static let name = "mint"
 
-    let socialLinks       = Expression <String?>    ("socialLinks")
-    let billColors        = Expression <String?>    ("billColors")
+    public init() {}
+    
+    public let table        = Table(Self.name)
+    public let mint         = Expression <PublicKey> ("mint")
+    public let name         = Expression <String>    ("name")
+    public let symbol       = Expression <String>    ("symbol")
+    public let decimals     = Expression <Int>       ("decimals")
+    public let bio          = Expression <String?>   ("bio")
+    public let imageURL     = Expression <URL?>      ("imageURL")
+    
+    public let vmAddress    = Expression <PublicKey?> ("vmAddress")
+    public let vmAuthority  = Expression <PublicKey?> ("vmAuthority")
+    public let lockDuration = Expression <Int?>       ("lockDuration")
+    
+    public let currencyConfig    = Expression <PublicKey?> ("currencyConfig")
+    public let liquidityPool     = Expression <PublicKey?> ("liquidityPool")
+    public let seed              = Expression <PublicKey?> ("seed")
+    public let authority         = Expression <PublicKey?> ("authority")
+    public let mintVault         = Expression <PublicKey?> ("mintVault")
+    public let coreMintVault     = Expression <PublicKey?> ("coreMintVault")
+    public let coreMintFees      = Expression <PublicKey?> ("coreMintFees")
+    public let supplyFromBonding = Expression <UInt64?>    ("supplyFromBonding")
+    public let sellFeeBps        = Expression <Int?>       ("sellFeeBps")
 
-    let createdAt         = Expression <Date?>      ("createdAt")
+    public let socialLinks       = Expression <String?>    ("socialLinks")
+    public let billColors        = Expression <String?>    ("billColors")
 
-    let updatedAt         = Expression <Date>       ("updatedAt")
+    public let createdAt         = Expression <Date?>      ("createdAt")
+
+    public let updatedAt         = Expression <Date>       ("updatedAt")
 }
 
 
-nonisolated struct ActivityTable: Sendable {
-    static let name = "activity"
+nonisolated public struct ActivityTable: Sendable {
+    public static let name = "activity"
 
-    let table        = Table(Self.name)
-    let id           = Expression <PublicKey>    ("id")
-    let kind         = Expression <Int>          ("kind")
-    let state        = Expression <Int>          ("state")
-    let title        = Expression <String>       ("title")
-    let quarks       = Expression <UInt64>       ("quarks")       // on-chain mint-native quarks
-    let nativeAmount = Expression <Double>       ("nativeAmount")
-    let currency     = Expression <CurrencyCode> ("currency")
-    let mint         = Expression <PublicKey>    ("mint")
-    let date         = Expression <Date>         ("date")
+    public init() {}
+
+    public let table        = Table(Self.name)
+    public let id           = Expression <PublicKey>    ("id")
+    public let kind         = Expression <Int>          ("kind")
+    public let state        = Expression <Int>          ("state")
+    public let title        = Expression <String>       ("title")
+    public let quarks       = Expression <UInt64>       ("quarks")       // on-chain mint-native quarks
+    public let nativeAmount = Expression <Double>       ("nativeAmount")
+    public let currency     = Expression <CurrencyCode> ("currency")
+    public let mint         = Expression <PublicKey>    ("mint")
+    public let date         = Expression <Date>         ("date")
     // The peer on a send/receive, for feed-row avatar + name enrichment. Both
     // nil for non-peer activity (deposits, buys, withdrawals).
-    let counterpartyUserID = Expression <UUID?>   ("counterpartyUserID")
-    let counterpartyPhone  = Expression <String?> ("counterpartyPhone")
+    public let counterpartyUserID = Expression <UUID?>   ("counterpartyUserID")
+    public let counterpartyPhone  = Expression <String?> ("counterpartyPhone")
 }
 
-nonisolated struct CashLinkMetadataTable: Sendable {
-    static let name = "cashLinkMetadata"
+nonisolated public struct CashLinkMetadataTable: Sendable {
+    public static let name = "cashLinkMetadata"
 
-    let table        = Table(Self.name)
-    let id           = Expression <PublicKey> ("id")
-    let vault        = Expression <PublicKey> ("vault")
-    let canCancel    = Expression <Bool>      ("canCancel")
+    public init() {}
+
+    public let table        = Table(Self.name)
+    public let id           = Expression <PublicKey> ("id")
+    public let vault        = Expression <PublicKey> ("vault")
+    public let canCancel    = Expression <Bool>      ("canCancel")
 }
 
 // Side table for `.swapped` activities: the two swap legs + fee. Joined 1:1 to
 // `activity` by id. The destination amount columns are nullable — a swap that
 // hasn't executed yet carries only its destination mint.
-nonisolated struct SwapMetadataTable: Sendable {
-    static let name = "swapMetadata"
+nonisolated public struct SwapMetadataTable: Sendable {
+    public static let name = "swapMetadata"
 
-    let table            = Table(Self.name)
-    let id               = Expression <PublicKey>     ("id")
-    let fromMint         = Expression <PublicKey>     ("fromMint")
-    let fromQuarks       = Expression <UInt64>        ("fromQuarks")
-    let fromNativeAmount = Expression <Double>        ("fromNativeAmount")
-    let fromCurrency     = Expression <CurrencyCode>  ("fromCurrency")
-    let toMint           = Expression <PublicKey>     ("toMint")
-    let toQuarks         = Expression <UInt64?>       ("toQuarks")
-    let toNativeAmount   = Expression <Double?>       ("toNativeAmount")
-    let toCurrency       = Expression <CurrencyCode?> ("toCurrency")
-    let feeNativeAmount  = Expression <Double>        ("feeNativeAmount")
-    let feeCurrency      = Expression <CurrencyCode>  ("feeCurrency")
-    let state            = Expression <Int>           ("state")
+    public init() {}
+
+    public let table            = Table(Self.name)
+    public let id               = Expression <PublicKey>     ("id")
+    public let fromMint         = Expression <PublicKey>     ("fromMint")
+    public let fromQuarks       = Expression <UInt64>        ("fromQuarks")
+    public let fromNativeAmount = Expression <Double>        ("fromNativeAmount")
+    public let fromCurrency     = Expression <CurrencyCode>  ("fromCurrency")
+    public let toMint           = Expression <PublicKey>     ("toMint")
+    public let toQuarks         = Expression <UInt64?>       ("toQuarks")
+    public let toNativeAmount   = Expression <Double?>       ("toNativeAmount")
+    public let toCurrency       = Expression <CurrencyCode?> ("toCurrency")
+    public let feeNativeAmount  = Expression <Double>        ("feeNativeAmount")
+    public let feeCurrency      = Expression <CurrencyCode>  ("feeCurrency")
+    public let state            = Expression <Int>           ("state")
 }
 
-nonisolated struct LimitsTable: Sendable {
-    static let name = "limits"
+nonisolated public struct LimitsTable: Sendable {
+    public static let name = "limits"
 
-    let table = Table(Self.name)
-    let id    = Expression <Int>  ("id")
-    let data  = Expression <Data> ("data")
+    public init() {}
+
+    public let table = Table(Self.name)
+    public let id    = Expression <Int>  ("id")
+    public let data  = Expression <Data> ("data")
 }
 
-nonisolated struct RateTable: Sendable {
-    static let name = "rate"
+nonisolated public struct RateTable: Sendable {
+    public static let name = "rate"
 
-    let table    = Table(Self.name)
-    let currency = Expression <CurrencyCode> ("currency")
-    let data     = Expression <Data>         ("data")
+    public init() {}
+
+    public let table    = Table(Self.name)
+    public let currency = Expression <CurrencyCode> ("currency")
+    public let data     = Expression <Data>         ("data")
 }
 
 // Verified exchange-rate proofs, one per fiat currency.
-nonisolated struct VerifiedRateTable: Sendable {
-    static let name = "verified_rate"
+nonisolated public struct VerifiedRateTable: Sendable {
+    public static let name = "verified_rate"
 
-    let table      = Table(Self.name)
-    let currency   = Expression <String> ("currency")
-    let rateProto  = Expression <Data>   ("rateProto")
+    public init() {}
+
+    public let table      = Table(Self.name)
+    public let currency   = Expression <String> ("currency")
+    public let rateProto  = Expression <Data>   ("rateProto")
 }
 
-nonisolated struct ProfileTable: Sendable {
-    static let name = "profile"
+nonisolated public struct ProfileTable: Sendable {
+    public static let name = "profile"
 
-    let table = Table(Self.name)
-    let id    = Expression <Int>  ("id")
-    let data  = Expression <Data> ("data")
+    public init() {}
+
+    public let table = Table(Self.name)
+    public let id    = Expression <Int>  ("id")
+    public let data  = Expression <Data> ("data")
 }
 
 /// Cache of *other* users' profiles, keyed by user id. Populated cache-through
 /// as profiles are fetched for display (chat counterparts, tip recipients,
 /// blocked users). The signed-in user's own profile stays in the singleton
 /// `profile` table. Stored as a JSON blob — reads are only ever by-key.
-nonisolated struct UserProfileTable: Sendable {
-    static let name = "user_profile"
+nonisolated public struct UserProfileTable: Sendable {
+    public static let name = "user_profile"
 
-    let table  = Table(Self.name)
-    let userID = Expression <UUID> ("userID")   // PK
-    let data   = Expression <Data> ("data")     // JSON-encoded Profile
+    public init() {}
+
+    public let table  = Table(Self.name)
+    public let userID = Expression <UUID> ("userID")   // PK
+    public let data   = Expression <Data> ("data")     // JSON-encoded Profile
 }
 
-nonisolated struct UserFlagsTable: Sendable {
-    static let name = "userFlags"
+nonisolated public struct UserFlagsTable: Sendable {
+    public static let name = "userFlags"
 
-    let table = Table(Self.name)
-    let id    = Expression <Int>  ("id")
-    let data  = Expression <Data> ("data")
+    public init() {}
+
+    public let table = Table(Self.name)
+    public let id    = Expression <Int>  ("id")
+    public let data  = Expression <Data> ("data")
 }
 
-nonisolated struct BlocklistTable: Sendable {
-    static let name = "blocklist"
+nonisolated public struct BlocklistTable: Sendable {
+    public static let name = "blocklist"
 
-    let table          = Table(Self.name)
-    let userID         = Expression <UUID>    ("userID")        // PK
-    let blockedAt      = Expression <Double>  ("blockedAt")     // timeIntervalSinceReferenceDate
-    let displayName    = Expression <String>  ("displayName")
-    let avatarBlurhash = Expression <String?> ("avatarBlurhash")
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let userID         = Expression <UUID>    ("userID")        // PK
+    public let blockedAt      = Expression <Double>  ("blockedAt")     // timeIntervalSinceReferenceDate
+    public let displayName    = Expression <String>  ("displayName")
+    public let avatarBlurhash = Expression <String?> ("avatarBlurhash")
 }
 
 // Verified reserve-state proofs, one per mint.
-nonisolated struct VerifiedReserveTable: Sendable {
-    static let name = "verified_reserve"
+nonisolated public struct VerifiedReserveTable: Sendable {
+    public static let name = "verified_reserve"
 
-    let table        = Table(Self.name)
-    let mint         = Expression <String> ("mint")
-    let reserveProto = Expression <Data>   ("reserveProto")
+    public init() {}
+
+    public let table        = Table(Self.name)
+    public let mint         = Expression <String> ("mint")
+    public let reserveProto = Expression <Data>   ("reserveProto")
 }
 
 // Single-row table holding the contact-sync state machine cursor.
 // Primary key is always 1.
-nonisolated struct ContactSyncStateTable: Sendable {
-    static let name = "contact_sync_state"
+nonisolated public struct ContactSyncStateTable: Sendable {
+    public static let name = "contact_sync_state"
 
-    let table         = Table(Self.name)
-    let id            = Expression <Int>   ("id")
-    let checksum      = Expression <Data?> ("checksum")
+    public init() {}
+
+    public let table         = Table(Self.name)
+    public let id            = Expression <Int>   ("id")
+    public let checksum      = Expression <Data?> ("checksum")
 }
 
 // E.164 phones the server has confirmed are on Flipcash.
-nonisolated struct FlipcashContactTable: Sendable {
-    static let name = "flipcash_contact"
+nonisolated public struct FlipcashContactTable: Sendable {
+    public static let name = "flipcash_contact"
 
-    let table     = Table(Self.name)
-    let e164      = Expression <String> ("e164")
-    let dmChatId  = Expression <Data?>  ("dmChatId")
-    let joinTs    = Expression <Date?>  ("joinTs")
-    let matchedAt = Expression <Date>   ("matchedAt")
+    public init() {}
+
+    public let table     = Table(Self.name)
+    public let e164      = Expression <String> ("e164")
+    public let dmChatId  = Expression <Data?>  ("dmChatId")
+    public let joinTs    = Expression <Date?>  ("joinTs")
+    public let matchedAt = Expression <Date>   ("matchedAt")
 }
 
 // Last contact set uploaded to the server. Joined with CNContactStore at
 // render time via `contactId` so name/avatar resolution stays current.
-nonisolated struct LocalContactsSnapshotTable: Sendable {
-    static let name = "local_contacts_snapshot"
+nonisolated public struct LocalContactsSnapshotTable: Sendable {
+    public static let name = "local_contacts_snapshot"
 
-    let table     = Table(Self.name)
-    let e164      = Expression <String> ("e164")
-    let contactId = Expression <String> ("contactId")
+    public init() {}
+
+    public let table     = Table(Self.name)
+    public let e164      = Expression <String> ("e164")
+    public let contactId = Expression <String> ("contactId")
 }
 
 // DM conversation feed. Members and messages live in their own tables; the
 // feed's last-message preview is the newest row in `conversation_message`.
 // Dates are stored as raw `timeIntervalSinceReferenceDate` doubles — decoding
 // is a struct init instead of the bundled codec's per-row DateFormatter parse.
-nonisolated struct ConversationTable: Sendable {
-    static let name = "conversation"
+nonisolated public struct ConversationTable: Sendable {
+    public static let name = "conversation"
 
-    let table        = Table(Self.name)
-    let id           = Expression <Data>    ("id")          // 32-byte ChatId
-    let lastActivity = Expression <Double>  ("lastActivity")
+    public init() {}
+
+    public let table        = Table(Self.name)
+    public let id           = Expression <Data>    ("id")          // 32-byte ChatId
+    public let lastActivity = Expression <Double>  ("lastActivity")
     // Highest contiguous event-log sequence applied for this chat — the resume
     // point passed to GetDelta. Nil until the first catch-up establishes one.
-    let catchupCursor = Expression <UInt64?> ("catchupCursor")
+    public let catchupCursor = Expression <UInt64?> ("catchupCursor")
     // ConversationType raw value; scopes feed replaces and the Tips surfaces.
-    let type          = Expression <Int>     ("type")
+    public let type          = Expression <Int>     ("type")
     // Server-set: the counterpart is on the owner's blocklist. Retained so an
     // unblock restores the conversation; filtered from the displayed feed.
-    let isHidden      = Expression <Bool>    ("isHidden")
+    public let isHidden      = Expression <Bool>    ("isHidden")
     // Server-set title, group chats only. Nil for DMs.
-    let title         = Expression <String?> ("title")
+    public let title         = Expression <String?> ("title")
 }
 
-nonisolated struct ConversationMemberTable: Sendable {
-    static let name = "conversation_member"
+nonisolated public struct ConversationMemberTable: Sendable {
+    public static let name = "conversation_member"
 
-    let table                 = Table(Self.name)
-    let conversationId        = Expression <Data>    ("conversationId")
-    let userId                = Expression <UUID?>   ("userId")
-    let displayName           = Expression <String>  ("displayName")
-    let phoneE164             = Expression <String?> ("phoneE164")
-    let readPointer           = Expression <UInt64?> ("readPointer")
-    let readPointerTimestamp  = Expression <Double?> ("readPointerTimestamp")
+    public init() {}
+
+    public let table                 = Table(Self.name)
+    public let conversationId        = Expression <Data>    ("conversationId")
+    public let userId                = Expression <UUID?>   ("userId")
+    public let displayName           = Expression <String>  ("displayName")
+    public let phoneE164             = Expression <String?> ("phoneE164")
+    public let readPointer           = Expression <UInt64?> ("readPointer")
+    public let readPointerTimestamp  = Expression <Double?> ("readPointerTimestamp")
     // Profile-picture rendition blob ids, when the member has a picture.
-    let profilePictureBlobID          = Expression <Data?>   ("profilePictureBlobID")
-    let profilePictureThumbnailBlobID = Expression <Data?>   ("profilePictureThumbnailBlobID")
+    public let profilePictureBlobID          = Expression <Data?>   ("profilePictureBlobID")
+    public let profilePictureThumbnailBlobID = Expression <Data?>   ("profilePictureThumbnailBlobID")
     // The thumbnail rendition's BlurHash preview, when present.
-    let profilePictureThumbnailBlurhash = Expression <String?> ("profilePictureThumbnailBlurhash")
+    public let profilePictureThumbnailBlurhash = Expression <String?> ("profilePictureThumbnailBlurhash")
     // The member's claimed handle, when they have one. Carried on the same
     // profile the feed embeds, so it is cached rather than refetched.
-    let username = Expression <String?> ("username")
+    public let username = Expression <String?> ("username")
 }
 
 // One row per message; cash content is decomposed across the amount columns
 // the same way `activity` stores ExchangedFiat.
-nonisolated struct ConversationMessageTable: Sendable {
-    static let name = "conversation_message"
+nonisolated public struct ConversationMessageTable: Sendable {
+    public static let name = "conversation_message"
 
-    let table          = Table(Self.name)
-    let conversationId = Expression <Data>          ("conversationId")
-    let id             = Expression <UInt64>        ("id")
-    let senderId       = Expression <UUID?>         ("senderId")
-    let kind           = Expression <Int>           ("kind")
-    let text           = Expression <String?>       ("text")
-    let quarks         = Expression <UInt64?>       ("quarks")
-    let nativeAmount   = Expression <String?>       ("nativeAmount")
-    let currency       = Expression <CurrencyCode?> ("currency")
-    let mint           = Expression <PublicKey?>    ("mint")
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationId = Expression <Data>          ("conversationId")
+    public let id             = Expression <UInt64>        ("id")
+    public let senderId       = Expression <UUID?>         ("senderId")
+    public let kind           = Expression <Int>           ("kind")
+    public let text           = Expression <String?>       ("text")
+    public let quarks         = Expression <UInt64?>       ("quarks")
+    public let nativeAmount   = Expression <String?>       ("nativeAmount")
+    public let currency       = Expression <CurrencyCode?> ("currency")
+    public let mint           = Expression <PublicKey?>    ("mint")
     // Cash delivery action (0 = sent, 1 = tipped); nil for non-cash rows.
-    let cashAction     = Expression <Int?>          ("cashAction")
-    let date           = Expression <Double>        ("date")
-    let unreadSeq      = Expression <UInt64>        ("unreadSeq")
+    public let cashAction     = Expression <Int?>          ("cashAction")
+    public let date           = Expression <Double>        ("date")
+    public let unreadSeq      = Expression <UInt64>        ("unreadSeq")
     // Event-log version of this message's current state; the store applies
     // last-writer-wins by it. Zero for legacy/optimistic rows.
-    let eventSequence  = Expression <UInt64>        ("eventSequence")
+    public let eventSequence  = Expression <UInt64>        ("eventSequence")
     // Stable client identity of an optimistic send, carried onto the server row it reconciles to so a
     // row keeps one identity across sending → sent and survives a DB round-trip.
-    let clientMessageID = Expression <UUID?>        ("clientMessageID")
+    public let clientMessageID = Expression <UUID?>        ("clientMessageID")
     // Reserved for the reply feature: written as nil and ignored on read. The column exists now
     // because the schema version can only be bumped once per rebuild, and adding it later would
     // cost users a second full resync.
-    let repliedToId    = Expression <UInt64?>       ("repliedToId")
+    public let repliedToId    = Expression <UInt64?>       ("repliedToId")
     // When the sender last edited this message; nil if never edited.
-    let lastEditedTs   = Expression <Double?>       ("lastEditedTs")
+    public let lastEditedTs   = Expression <Double?>       ("lastEditedTs")
     // Tombstone detail. Both nil for a message that has not been deleted.
-    let deletedBy      = Expression <UUID?>         ("deletedBy")
-    let deletedAt      = Expression <Double?>       ("deletedAt")
+    public let deletedBy      = Expression <UUID?>         ("deletedBy")
+    public let deletedAt      = Expression <Double?>       ("deletedAt")
 }
 
 
 // MARK: - Tables -
 
 nonisolated extension Database {
-    func createTablesIfNeeded() throws {
+    public func createTablesIfNeeded() throws {
         let balanceTable          = BalanceTable()
         let mintTable             = MintTable()
         let activityTable         = ActivityTable()
@@ -569,7 +607,7 @@ nonisolated extension UInt64: @retroactive Value {
     }
 }
 
-nonisolated extension Key32: @retroactive Value {
+nonisolated extension Key32: Value {
     public static var declaredDatatype: String {
         Blob.declaredDatatype
     }
@@ -583,7 +621,7 @@ nonisolated extension Key32: @retroactive Value {
     }
 }
 
-nonisolated extension CurrencyCode: @retroactive Value {
+nonisolated extension CurrencyCode: Value {
     public static var declaredDatatype: String {
         String.declaredDatatype
     }
