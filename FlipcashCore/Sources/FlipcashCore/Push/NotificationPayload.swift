@@ -45,4 +45,19 @@ public enum NotificationPayload {
         }
         return ConversationType(payload.chatMetadata.type)
     }
+
+    /// The message a CHAT push carries inline, or `nil` when the push isn't a chat message, carries
+    /// no chat metadata, predates the server embedding the message, or carries content this client
+    /// can't represent.
+    ///
+    /// The embedded message is the only part of a push that needs no network to become store rows.
+    /// It carries the same `eventSequence` the transcript fetch would return for it, so it merges
+    /// with a fetched message rather than competing with one.
+    public static func chatMessage(_ userInfo: [AnyHashable: Any]) -> ConversationMessage? {
+        guard let payload = decode(userInfo), payload.category == .chat, payload.hasChatMetadata else {
+            return nil
+        }
+        guard payload.chatMetadata.hasMessage else { return nil }
+        return ConversationMessage(payload.chatMetadata.message)
+    }
 }

@@ -169,15 +169,23 @@ final class NotificationService: UNNotificationServiceExtension {
         // `UNNotificationContent`. Keeping the `Task` out of this `self`-isolated method is what lets
         // the region checker prove the closure crosses no isolation boundary with a non-`Sendable`.
         delivery.arm(handler: contentHandler, content: finalContent)
-        Self.startPrefetch(into: delivery, for: conversationID)
+        Self.startPrefetch(
+            into: delivery,
+            for: conversationID,
+            embedded: NotificationPayload.chatMessage(request.content.userInfo)
+        )
     }
 
     /// Spawns the transcript prefetch and registers it on `delivery`. `nonisolated static` and taking
     /// only `Sendable` arguments, so the spawned `Task` captures nothing isolated to a `self` — which
     /// is what keeps the region checker satisfied and the hand-off thread-agnostic.
-    private nonisolated static func startPrefetch(into delivery: DeliveryBox, for conversationID: ConversationID) {
+    private nonisolated static func startPrefetch(
+        into delivery: DeliveryBox,
+        for conversationID: ConversationID,
+        embedded: ConversationMessage?
+    ) {
         let task = Task {
-            await cachePreview(for: conversationID, deliver: { delivery.deliver() })
+            await cachePreview(for: conversationID, embedded: embedded, deliver: { delivery.deliver() })
         }
         delivery.setPrefetchTask(task)
     }
@@ -290,7 +298,11 @@ final class NotificationService: UNNotificationServiceExtension {
     /// connection. Calls `deliver` once the transcript is cached (or the fetch can't proceed) so the
     /// banner isn't gated on the slower branding round-trip. Best-effort: any failure just leaves the
     /// content extension to fetch live.
-    private static func cachePreview(for conversationID: ConversationID, deliver: @Sendable () -> Void) async {
+    private static func cachePreview(
+        for conversationID: ConversationID,
+        embedded: ConversationMessage?,
+        deliver: @Sendable () -> Void
+    ) async {
         guard let account = OwnerKeyStore.loadOwnerAccount() else { return deliver() }
         do {
             let client = try ChatNotificationClient()
@@ -300,7 +312,12 @@ final class NotificationService: UNNotificationServiceExtension {
                 limit: NotificationPreviewCache.previewLimit,
                 retryingEmpty: true
             )
-            guard !messages.isEmpty else { return deliver() }
+            guard !messages.isEmpty else {
+                // The fetch came back empty but the push still carried a message. Write that one
+                // rather than nothing.
+                await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
+                return deliver()
+            }
             func items(_ branding: [PublicKey: MintBrandingInfo]) -> [ChatItem] {
                 ChatItem.preview(
                     from: messages,
@@ -318,7 +335,7 @@ final class NotificationService: UNNotificationServiceExtension {
             // roughly 100 ms of checkpoint — but after delivery there is nothing keeping the process
             // alive, and being suspended mid-write while holding the App Group store's lock is the
             // case iOS kills with `0xdead10cc`.
-            await persist(messages, for: conversationID, account: account)
+            await persist(merge(fetched: messages, embedded: embedded), for: conversationID, account: account)
             deliver()
             let branding = (try? await client.resolveMintBranding(in: messages)) ?? [:]
             if !branding.isEmpty {
@@ -326,14 +343,31 @@ final class NotificationService: UNNotificationServiceExtension {
             }
         } catch {
             // Best-effort prefetch — a transport failure: the content extension falls back to a live
-            // fetch on open.
+            // fetch on open. The store write does not fall back, because the embedded message needs
+            // no transport: an offline device still lands the message the push carried.
             ExtensionReporting.capture(error, reason: "Notification preview prefetch failed")
+            await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
             deliver()
         }
     }
 
-    /// Writes the prefetched transcript into the shared store, so the app has it on next launch
-    /// instead of fetching it after the user opens the chat.
+    /// The messages to write, preferring the fetched copy of any message the push also embedded.
+    ///
+    /// The two sources overlap by exactly one message in the ordinary case — the push embeds what it
+    /// is notifying about, and the fetch returns that as its newest. They agree on `eventSequence`,
+    /// so writing both would converge anyway; deduplicating by ID keeps the write to one row per
+    /// message and keeps the fetched copy, which is the one the server rendered most recently.
+    private static func merge(
+        fetched: [ConversationMessage],
+        embedded: ConversationMessage?
+    ) -> [ConversationMessage] {
+        guard let embedded else { return fetched }
+        guard !fetched.contains(where: { $0.id == embedded.id }) else { return fetched }
+        return fetched + [embedded]
+    }
+
+    /// Writes the messages this push produced into the shared store, so the app has them on next
+    /// launch instead of fetching them after the user opens the chat.
     ///
     /// The side-car cache is still written above and still owns the content extension's expand. This
     /// is a second destination, not a replacement: the two have different readers, different
@@ -352,6 +386,10 @@ final class NotificationService: UNNotificationServiceExtension {
         for conversationID: ConversationID,
         account: UserAccount
     ) async {
+        // Nothing to write: no fetch and no embedded message. Opening the store to write zero rows
+        // would still cost a checkpoint.
+        guard !messages.isEmpty else { return }
+
         let owner = account.keyAccount.ownerPublicKey
 
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
