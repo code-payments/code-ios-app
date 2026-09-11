@@ -331,7 +331,7 @@ final class SessionAuthenticator {
         // the user version is outdated, we'll rebuild the
         // database during sync.
         let userVersion = (try? Database.userVersion(files: files)) ?? 0
-        let currentVersion = try InfoPlist.value(for: "SQLiteVersion").integer()
+        let currentVersion = Database.schemaVersion
         if currentVersion > userVersion {
             try Database.deleteStore(files: files)
             logger.error("Outdated user version, deleted database.")

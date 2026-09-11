@@ -165,4 +165,84 @@ struct NotificationPayloadTests {
         let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
         #expect(NotificationPayload.chatType(userInfo) == nil)
     }
+
+    // MARK: - chatMessage -
+
+    private static func chatPush(
+        category: Flipcash_Push_V1_Payload.Category = .chat,
+        message: Flipcash_Messaging_V1_Message?
+    ) throws -> [String: String] {
+        let payload = Flipcash_Push_V1_Payload.with {
+            $0.category = category
+            $0.chatMetadata = .with {
+                $0.type = .contactDm
+                if let message { $0.message = message }
+            }
+        }
+        return [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+    }
+
+    @Test("chatMessage maps the message embedded in the push")
+    func chatMessageFromMetadata() throws {
+        let senderUUID = UUID()
+        let embedded = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 42 }
+            $0.senderID = .with { $0.value = senderUUID.data }
+            $0.content = [.with { $0.text = .with { $0.text = "see you there" } }]
+            $0.ts = .init(date: Date(timeIntervalSince1970: 1_700_000_000))
+            $0.eventSequence = 9
+            $0.unreadSeq = 4
+        }
+
+        let message = try #require(NotificationPayload.chatMessage(try Self.chatPush(message: embedded)))
+        #expect(message.id == MessageID(value: 42))
+        #expect(message.senderID == senderUUID)
+        #expect(message.content == .text("see you there"))
+        #expect(message.date == Date(timeIntervalSince1970: 1_700_000_000))
+        #expect(message.unreadSeq == 4)
+    }
+
+    /// The whole reason the embedded message can merge with a fetched one instead of duplicating it.
+    @Test("chatMessage preserves the event sequence the transcript fetch would return")
+    func chatMessageCarriesEventSequence() throws {
+        let embedded = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 42 }
+            $0.content = [.with { $0.text = .with { $0.text = "hi" } }]
+            $0.eventSequence = 9
+        }
+
+        let message = try #require(NotificationPayload.chatMessage(try Self.chatPush(message: embedded)))
+        #expect(message.eventSequence == 9)
+    }
+
+    /// A server that predates the embedded message, which is every server until 0.5.0 ships.
+    @Test("chatMessage is nil when the push carries no embedded message")
+    func chatMessageNilWhenAbsent() throws {
+        #expect(NotificationPayload.chatMessage(try Self.chatPush(message: nil)) == nil)
+    }
+
+    @Test("chatMessage is nil for a non-chat category even when a message is embedded")
+    func chatMessageNilForNonChatCategory() throws {
+        let embedded = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 42 }
+            $0.content = [.with { $0.text = .with { $0.text = "hi" } }]
+        }
+        #expect(NotificationPayload.chatMessage(try Self.chatPush(category: .default, message: embedded)) == nil)
+    }
+
+    /// `ConversationMessage.init?` rejects content this client can't draw. The accessor has to pass
+    /// that nil through rather than substituting an empty message.
+    @Test("chatMessage is nil for embedded content the client cannot represent")
+    func chatMessageNilForUnrepresentableContent() throws {
+        let embedded = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 42 }
+            $0.content = [.with { $0.system = .with { _ in } }]
+        }
+        #expect(NotificationPayload.chatMessage(try Self.chatPush(message: embedded)) == nil)
+    }
+
+    @Test("chatMessage is nil when no payload is present")
+    func chatMessageNilWhenNoPayload() {
+        #expect(NotificationPayload.chatMessage([:]) == nil)
+    }
 }
