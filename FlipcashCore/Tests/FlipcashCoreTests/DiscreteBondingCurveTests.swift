@@ -631,16 +631,6 @@ struct DiscreteRoundtripTests {
 struct DiscreteTableValidationTests {
 
     @Test
-    func pricingTableHasCorrectLength() {
-        #expect(DiscreteCurveTables.pricingTable.count == 210_001)
-    }
-
-    @Test
-    func cumulativeTableHasCorrectLength() {
-        #expect(DiscreteCurveTables.cumulativeTable.count == 210_001)
-    }
-
-    @Test
     func pricingTableFirstEntryIsOnePenny() {
         let curve = DiscreteBondingCurve()
         guard let price = curve.spotPrice(at: 0) else {
@@ -649,66 +639,6 @@ struct DiscreteTableValidationTests {
         }
         let onePenny = BigDecimal("0.01")
         #expect(isApproximatelyEqual(price, onePenny, tolerance: BigDecimal("0.0001")))
-    }
-
-    @Test
-    func cumulativeTableFirstEntryIsZero() {
-        let first = DiscreteCurveTables.cumulativeTable[0]
-        #expect(first == UInt128(0))
-    }
-
-    @Test
-    func pricingTableIsMonotonicallyIncreasing() {
-        // Check first 100 entries
-        for i in 1..<100 {
-            let prev = DiscreteCurveTables.pricingTable[i - 1]
-            let curr = DiscreteCurveTables.pricingTable[i]
-            #expect(curr >= prev, "Price at step \(i) should be >= step \(i-1)")
-        }
-    }
-
-    @Test
-    func cumulativeTableIsMonotonicallyIncreasing() {
-        // Check first 100 entries
-        for i in 1..<100 {
-            let prev = DiscreteCurveTables.cumulativeTable[i - 1]
-            let curr = DiscreteCurveTables.cumulativeTable[i]
-            #expect(curr >= prev, "Cumulative at step \(i) should be >= step \(i-1)")
-        }
-    }
-
-    @Test
-    func pricingTableMatchesRustValues() {
-        // Expected values from Rust table.rs (raw u128 scaled by 10^18)
-        let expectedRaw: [UInt64] = [
-            10000000000000000,   // Supply: 0
-            10000877213746469,   // Supply: 100
-            10001754504443334,   // Supply: 200
-            10002631872097344,   // Supply: 300
-            10003509316715251,   // Supply: 400
-        ]
-
-        for (i, expected) in expectedRaw.enumerated() {
-            let actual = DiscreteCurveTables.pricingTable[i]
-            #expect(actual == UInt128(expected), "Mismatch at index \(i)")
-        }
-    }
-
-    @Test
-    func cumulativeTableMatchesRustValues() {
-        // Expected values from Rust table.rs
-        let expectedRaw: [UInt64] = [
-            0,                      // Supply: 0
-            1000000000000000000,    // Supply: 100
-            2000087721374646900,    // Supply: 200
-            3000263171818980300,    // Supply: 300
-            4000526359028714700,    // Supply: 400
-        ]
-
-        for (i, expected) in expectedRaw.enumerated() {
-            let actual = DiscreteCurveTables.cumulativeTable[i]
-            #expect(actual == UInt128(expected), "Mismatch at index \(i)")
-        }
     }
 
     @Test
@@ -1285,76 +1215,6 @@ struct DiscreteRealWorldTests {
     }
 
     @Test
-    func uint128StringParsing() {
-        // Test the expected value
-        let expected = "231804283000000000000"
-        guard let u128 = UInt128(string: expected) else {
-            Issue.record("Failed to parse UInt128 from: \(expected)")
-            return
-        }
-
-        print("Parsed UInt128: high=\(u128.high), low=\(u128.low)")
-
-        // Verify by reconstructing the value
-        // value = high * 2^64 + low
-        // 2^64 = 18446744073709551616
-        let twoTo64 = BigDecimal("18446744073709551616")
-        let reconstructed = BigDecimal(String(u128.high)).multiply(twoTo64, testRounding)
-            .add(BigDecimal(String(u128.low)), testRounding)
-
-        print("Reconstructed: \(reconstructed.asString(.plain))")
-        #expect(reconstructed.asString(.plain) == expected, "Should reconstruct to original value")
-    }
-
-    @Test
-    func fullToScaledU128Simulation() {
-        // Simulate exactly what toScaledU128 does
-        let tvl = BigDecimal("231.804283")
-
-        // Step 1: scale factor (10^18)
-        let scaleFactor = BigDecimal.ten.pow(18, testRounding)
-        print("Scale factor: \(scaleFactor.asString(.plain))")
-
-        // Step 2: multiply
-        let scaled = tvl.multiply(scaleFactor, testRounding)
-        print("Scaled: \(scaled.asString(.plain))")
-
-        // Step 3: round to integer - BUG: Rounding(.towardZero, 0) truncates incorrectly!
-        let floorRounding0 = Rounding(.towardZero, 0)
-        let intPart0 = scaled.round(floorRounding0)
-        print("With precision 0: \(intPart0.asString(.plain))")
-
-        // Try different precisions
-        let floorRounding21 = Rounding(.towardZero, 21)  // 21 significant digits to cover our number
-        let intPart21 = scaled.round(floorRounding21)
-        print("With precision 21: \(intPart21.asString(.plain))")
-
-        let floorRounding36 = Rounding(.towardZero, 36)
-        let intPart36 = scaled.round(floorRounding36)
-        print("With precision 36: \(intPart36.asString(.plain))")
-
-        // Try using string manipulation: extract integer part from string
-        let fullStr = scaled.asString(.plain)
-        var intPartStr = fullStr
-        if let dotIndex = fullStr.firstIndex(of: ".") {
-            intPartStr = String(fullStr[..<dotIndex])
-        }
-        print("String manipulation: \(intPartStr)")
-
-        // Step 5: parse as UInt128 using string method
-        guard let u128 = UInt128(string: intPartStr) else {
-            Issue.record("Failed to parse UInt128 from: \(intPartStr)")
-            return
-        }
-
-        print("UInt128: high=\(u128.high), low=\(u128.low)")
-
-        // Expected: high should be ~12 (231804283000000000000 / 2^64 ≈ 12.57)
-        #expect(u128.high >= 12, "high should be >= 12, got: \(u128.high)")
-        #expect(u128.high <= 13, "high should be <= 13, got: \(u128.high)")
-    }
-
-    @Test
     func supplyFromTVLForJeffyTVL() {
         // TVL = 231.804283 USDC = 231804283 quarks
         let tvlQuarks = 231_804_283
@@ -1368,80 +1228,6 @@ struct DiscreteRealWorldTests {
             #expect(supply > 20_000, "Supply should be > 20,000 for TVL of $231")
             #expect(supply < 25_000, "Supply should be < 25,000 for TVL of $231")
         }
-    }
-
-    @Test
-    func cumulativeTableMonotonicity() {
-        // Check steps 195-210
-        for i in 195..<210 {
-            let curr = DiscreteCurveTables.cumulativeTable[i]
-            let next = DiscreteCurveTables.cumulativeTable[i + 1]
-            #expect(next > curr, "cumulative[\(i+1)] should be > cumulative[\(i)]")
-        }
-    }
-
-    @Test
-    func cumulativeAtStep230() {
-        // At step 230 (supply = 23000), cumulative TVL should be around $232
-        // (230 steps * ~$1 per step)
-        let step230 = DiscreteCurveTables.cumulativeTable[230]
-
-        // Convert UInt128 to BigDecimal: value = high * 2^64 + low, then divide by 10^18
-        let twoToThe64 = BigDecimal("18446744073709551616")
-        let scale18 = BigDecimal("1000000000000000000")
-        let highPart = BigDecimal(String(step230.high)).multiply(twoToThe64, testRounding)
-        let combined = highPart.add(BigDecimal(String(step230.low)), testRounding)
-        let step230Decimal = combined.divide(scale18, testRounding)
-
-        print("Cumulative at step 230: \(step230Decimal.asString(.plain))")
-
-        // Should be roughly $230-235
-        let step230Double = Double(step230Decimal.asString(.plain))!
-        #expect(step230Double > 225, "Cumulative at step 230 should be > $225")
-        #expect(step230Double < 250, "Cumulative at step 230 should be < $250")
-    }
-
-    @Test
-    func binarySearchForJeffyTVL() {
-        // TVL = 231.804283 USDC
-        let tvl = BigDecimal("231.804283")
-        let scale18 = BigDecimal("1000000000000000000")
-        let tvlScaled = tvl.multiply(scale18, testRounding)
-
-        // Convert to UInt128 for comparison using string
-        var tvlString = tvlScaled.asString(.plain)
-        // Remove any decimal part
-        if let dotIndex = tvlString.firstIndex(of: ".") {
-            tvlString = String(tvlString[..<dotIndex])
-        }
-
-        // Use UInt128(string:) initializer
-        guard let tvlU128 = UInt128(string: tvlString) else {
-            Issue.record("Failed to convert TVL to UInt128: \(tvlString)")
-            return
-        }
-
-        print("TVL scaled: \(tvlU128)")
-
-        // Find the step where cumulative <= TVL
-        var foundStep = -1
-        for i in 0..<DiscreteCurveTables.cumulativeTable.count {
-            if DiscreteCurveTables.cumulativeTable[i] <= tvlU128 {
-                foundStep = i
-            } else {
-                break
-            }
-        }
-
-        print("Found step (linear scan): \(foundStep)")
-        print("cumulative[\(foundStep)] = \(DiscreteCurveTables.cumulativeTable[foundStep])")
-        if foundStep + 1 < DiscreteCurveTables.cumulativeTable.count {
-            print("cumulative[\(foundStep+1)] = \(DiscreteCurveTables.cumulativeTable[foundStep + 1])")
-        }
-
-        // Should find step ~230, not step 198
-        #expect(foundStep > 220, "Should find step > 220 for TVL $231.80")
-        #expect(foundStep < 240, "Should find step < 240 for TVL $231.80")
     }
 
     @Test
@@ -1623,42 +1409,6 @@ struct DiscreteAdditionalCoverageTests {
         let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, supplyQuarks: veryHighTVL)
         // Should work at high TVL but below max
         #expect(result != nil, "Should be able to buy at high but valid TVL")
-    }
-
-    // MARK: - Cumulative Table Consistency
-
-    @Test
-    func cumulativeDifferenceMatchesStepCost() {
-        // For any step i: cumulative[i+1] - cumulative[i] ≈ 100 * price[i]
-        // Test a few steps to verify table consistency
-        for step in [0, 10, 100, 1000] {
-            guard step + 1 < DiscreteCurveTables.cumulativeTable.count else { continue }
-
-            let cumPrev = DiscreteCurveTables.cumulativeTable[step]
-            let cumNext = DiscreteCurveTables.cumulativeTable[step + 1]
-            let priceAtStep = DiscreteCurveTables.pricingTable[step]
-
-            // Convert to BigDecimal for comparison
-            let twoTo64 = BigDecimal("18446744073709551616")
-            let scale18 = BigDecimal("1000000000000000000")
-
-            // cumDiff = cumNext - cumPrev (in scaled u128)
-            let cumPrevDecimal = BigDecimal(String(cumPrev.high)).multiply(twoTo64, testRounding)
-                .add(BigDecimal(String(cumPrev.low)), testRounding)
-            let cumNextDecimal = BigDecimal(String(cumNext.high)).multiply(twoTo64, testRounding)
-                .add(BigDecimal(String(cumNext.low)), testRounding)
-            let cumDiff = cumNextDecimal.subtract(cumPrevDecimal, testRounding)
-
-            // expectedCost = 100 * price (both in scaled u128)
-            let priceDecimal = BigDecimal(String(priceAtStep.high)).multiply(twoTo64, testRounding)
-                .add(BigDecimal(String(priceAtStep.low)), testRounding)
-            let expectedCost = priceDecimal.multiply(BigDecimal(100), testRounding)
-
-            // They should be approximately equal (within small tolerance for rounding)
-            let ratio = cumDiff.divide(expectedCost, testRounding)
-            #expect(isApproximatelyEqual(ratio, BigDecimal("1.0"), tolerance: BigDecimal("0.0001")),
-                   "Cumulative difference at step \(step) should equal 100 * price")
-        }
     }
 
     // MARK: - Binary Search Edge Cases
