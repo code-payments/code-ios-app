@@ -64,7 +64,7 @@ struct ProfileTests {
 
     /// Profiles persist as a JSON blob in a single-row table, so adding
     /// `profilePicture` is only safe if rows written before it still decode.
-    /// This is the whole reason the change ships without a `SQLiteVersion` bump.
+    /// This is the whole reason the change ships without a `schemaVersion` bump.
     @Test("A row persisted before profile pictures still decodes")
     func decodesProfilePersistedBeforeProfilePictures() throws {
         let legacy = Data(#"{"displayName":"Ted Livingston","email":"ted@example.com"}"#.utf8)
@@ -181,7 +181,7 @@ struct ProfileTests {
 
     /// Profiles persist as a JSON blob, so `username` is optional and rows
     /// written before it still decode — which is why this ships without a
-    /// `SQLiteVersion` bump.
+    /// `schemaVersion` bump.
     @Test("A row persisted before usernames still decodes")
     func decodesProfilePersistedBeforeUsernames() throws {
         let legacy = Data(#"{"displayName":"Ted Livingston","email":"ted@example.com"}"#.utf8)

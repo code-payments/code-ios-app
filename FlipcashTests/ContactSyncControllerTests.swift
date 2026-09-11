@@ -779,7 +779,7 @@ struct ContactSyncControllerTests {
             #expect(controller.onFlipcashMatchCount == nil)
         }
 
-        @Test("A SQLiteVersion rebuild does not re-fire the first-connect dialog")
+        @Test("A schemaVersion rebuild does not re-fire the first-connect dialog")
         func schemaRebuild_doesNotReSignal() async throws {
             UserDefaults.contactsConnected = nil
             let contacts = [Self.aliceContact, Self.bobContact]
@@ -791,7 +791,7 @@ struct ContactSyncControllerTests {
             try await firstController.performSync(contacts: contacts)
             #expect(firstController.onFlipcashMatchCount == 1)
 
-            // A SQLiteVersion bump deletes and rebuilds the DB, so the stored
+            // A schemaVersion bump deletes and rebuilds the DB, so the stored
             // checksum is gone and this sync takes the first-scan (full upload)
             // path again — but the durable flag survives, so it must stay silent.
             let rebuiltMock = MockContactSync()

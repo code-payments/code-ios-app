@@ -12,7 +12,7 @@ import FlipcashCore
 ///
 /// The email flow writes the fallback when `requireCoinbaseEmailVerification`
 /// is off; logout clears it. It lives in UserDefaults rather than SQLite
-/// because the server never sees it — a `SQLiteVersion` rebuild (which
+/// because the server never sees it — a `schemaVersion` rebuild (which
 /// restores only server data) would lose it.
 enum CoinbaseOrderEmail {
 
