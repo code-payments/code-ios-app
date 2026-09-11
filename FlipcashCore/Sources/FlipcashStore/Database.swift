@@ -112,7 +112,8 @@ nonisolated open class Database: @unchecked Sendable {
         do {
             let connection = try writer
             let startChangeCount = connection.totalChanges
-            try connection.transaction { [unowned self] in
+            // IMMEDIATE: callers read and write inside the block; see replaceConversationFeed.
+            try connection.transaction(.immediate) { [unowned self] in
                 try block(self)
             }
             let endChangeCount = connection.totalChanges
