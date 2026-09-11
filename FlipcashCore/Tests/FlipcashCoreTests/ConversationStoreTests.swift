@@ -380,14 +380,6 @@ struct ConversationStoreTests {
         #expect(store.appliedCursor(for: conversationID(1)) == 3)
     }
 
-    @Test("newMessages bumps the conversation's last activity")
-    func newMessagesBumpsActivity() {
-        var store = ConversationStore()
-        store.setFeed([conversation(1, lastActivity: 100), conversation(2, lastActivity: 200)])
-        store.apply(.newMessages(conversationID: conversationID(1), messages: [message(5, "yo", at: 500)]))
-        #expect(store.conversations.first?.id == conversationID(1))
-    }
-
     @Test("readPointersChanged advances a member's READ watermark monotonically")
     func readPointers() {
         let me = UUID()

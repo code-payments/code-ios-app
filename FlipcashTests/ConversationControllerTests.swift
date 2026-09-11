@@ -506,7 +506,7 @@ struct ConversationControllerTests {
         try await waitUntil { mock.streamOpened }
 
         let message = ConversationMessage(id: MessageID(value: 9), senderID: nil, content: .text("live"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
-        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: [message]))
+        mock.emit(.sent([message], in: ConversationID.test(1)))
 
         // The stream is consumed on a Task; poll briefly for it to apply.
         try await waitUntil { !controller.messages(for: ConversationID.test(1)).isEmpty }
@@ -535,7 +535,7 @@ struct ConversationControllerTests {
         )
         mock.feed = [existing, newConversation]
         let message = ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("first"), date: Date(timeIntervalSince1970: 200), unreadSeq: 0)
-        mock.emit(.newMessages(conversationID: ConversationID.test(2), messages: [message]))
+        mock.emit(.sent([message], in: ConversationID.test(2)))
 
         // The stream is consumed on a Task; poll briefly for the hydration.
         try await waitUntil { controller.conversations.count >= 2 }
@@ -957,7 +957,7 @@ struct ConversationControllerTests {
         let backlog = (1...150).map {
             ConversationMessage(id: MessageID(value: UInt64($0)), senderID: nil, content: .text("m\($0)"), date: Date(timeIntervalSince1970: TimeInterval($0)), unreadSeq: UInt64($0))
         }
-        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: backlog))
+        mock.emit(.sent(backlog, in: ConversationID.test(1)))
 
         // The whole backlog lands in the DB (nothing dropped), but the accessor reads a bounded window.
         try await waitUntil { ((try? database.messageCount(conversationID: ConversationID.test(1))) ?? 0) == 150 }

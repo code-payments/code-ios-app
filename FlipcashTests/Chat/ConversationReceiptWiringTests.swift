@@ -76,11 +76,11 @@ struct ConversationReceiptWiringTests {
         controller.start()
         try await waitUntil { mock.streamOpened }
 
-        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: [inboundTip(id: 5, from: them)]))
+        mock.emit(.sent([inboundTip(id: 5, from: them)], in: ConversationID.test(1)))
         try await waitUntil { spy.count(of: .tips) == 1 }
 
         // The same message delivered again (a reconnect replay) must not re-credit.
-        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: [inboundTip(id: 5, from: them)]))
+        mock.emit(.sent([inboundTip(id: 5, from: them)], in: ConversationID.test(1)))
         try await Task.sleep(for: .milliseconds(100))
 
         #expect(spy.count(of: .tips) == 1)
@@ -126,10 +126,10 @@ struct ConversationReceiptWiringTests {
         controller.start()
         try await waitUntil { mock.streamOpened && !controller.conversations.isEmpty }
 
-        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: [
+        mock.emit(.sent([
             inboundTip(id: 2, from: them),
             inboundTip(id: 3, from: them),
-        ]))
+        ], in: ConversationID.test(1)))
         try await waitUntil { ((try? database.newestMessageID(conversationID: ConversationID.test(1))) ?? nil) == MessageID(value: 3) }
 
         await controller.markRead(conversationID: ConversationID.test(1))
@@ -153,7 +153,7 @@ struct ConversationReceiptWiringTests {
         controller.start()
         try await waitUntil { mock.streamOpened && !controller.conversations.isEmpty }
 
-        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: [inboundTip(id: 2, from: them)]))
+        mock.emit(.sent([inboundTip(id: 2, from: them)], in: ConversationID.test(1)))
         try await waitUntil { ((try? database.newestMessageID(conversationID: ConversationID.test(1))) ?? nil) == MessageID(value: 2) }
 
         await controller.markRead(conversationID: ConversationID.test(1))
