@@ -227,7 +227,10 @@ nonisolated extension Database {
         let c = ConversationTable()
         let m = ConversationMemberTable()
         let ids = conversations.map(\.id.data)
-        try writer.transaction {
+        // IMMEDIATE: this transaction reads before it writes. A DEFERRED one that reads first fails
+        // the write with SQLITE_BUSY at once when another writer holds the lock, without consulting
+        // the busy handler.
+        try writer.transaction(.immediate) {
             // Delete only the same-type conversations that dropped out of this feed, then upsert the
             // rest. `writeConversation` upserts the row (leaving `catchupCursor` untouched on conflict)
             // and replaces that conversation's members, so a surviving conversation keeps its event-log
@@ -281,7 +284,8 @@ nonisolated extension Database {
     /// until it does).
     public func persistMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws {
         let c = ConversationTable()
-        try writer.transaction {
+        // IMMEDIATE: reads the current cursor before updating it (see replaceConversationFeed).
+        try writer.transaction(.immediate) {
             for message in messages {
                 try writeMessage(message, conversationId: conversationID.data)
             }
