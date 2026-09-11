@@ -293,29 +293,70 @@ final class SessionAuthenticator {
     // MARK: - Database -
     
     private func initializeDatabase(owner: PublicKey) throws -> Database {
-        try createApplicationSupportIfNeeded()
-        
+        // Resolved once. Two calls could in principle disagree — the container lookup is a
+        // system call, not a constant — and a migration that reads one directory while the
+        // store opens from another is the failure this avoids.
+        let location = StoreLocation.resolved()
+        let files = location.files(owner: owner)
+
+        if !location.isShared {
+            // The store still works; the notification extension cannot see it, so anything the
+            // extension prefetches is invisible to the app until this is fixed. That is an
+            // entitlement or provisioning problem, and it is silent without this.
+            ErrorReporting.captureError(
+                StoreError.appGroupUnavailable,
+                reason: "App Group container unavailable, database fell back to Application Support"
+            )
+        }
+
+        try createStoreDirectoryIfNeeded(at: location.directory)
+
+        switch StoreMigration.migrateIfNeeded(owner: owner, location: location) {
+        case .notNeeded, .alreadyMigrated:
+            break
+        case .migrated:
+            logger.info("Migrated the database into the App Group container.")
+        case .failed(let description):
+            // The migration cleaned up after itself, so what follows opens a fresh store and
+            // sync repopulates it. Worth reporting because the user pays for it in a full
+            // re-sync, and because it means the legacy store is still on disk.
+            ErrorReporting.captureError(
+                StoreError.migrationFailed(description),
+                reason: "Database migration to the App Group container failed"
+            )
+        }
+
         // Currently we don't do migrations so every time
         // the user version is outdated, we'll rebuild the
         // database during sync.
-        let userVersion = (try? Database.userVersion(owner: owner)) ?? 0
+        let userVersion = (try? Database.userVersion(files: files)) ?? 0
         let currentVersion = try InfoPlist.value(for: "SQLiteVersion").integer()
         if currentVersion > userVersion {
-            try Database.deleteStore(owner: owner)
+            try Database.deleteStore(files: files)
             logger.error("Outdated user version, deleted database.")
-            try Database.setUserVersion(version: currentVersion, owner: owner)
+            try Database.setUserVersion(version: currentVersion, files: files)
         }
         
-        return try Database(url: .dataStore(owner: owner))
+        return try Database(url: files.database)
     }
     
-    private func createApplicationSupportIfNeeded() throws {
-        if !FileManager.default.fileExists(atPath: URL.applicationSupportDirectory.path) {
+    /// Creates the store's directory when it is missing.
+    ///
+    /// `withIntermediateDirectories: true` where the old Application Support version passed
+    /// `false`: the App Group container root already exists once it resolves, so the call is
+    /// usually a no-op, and `true` also makes it succeed rather than throw in that case.
+    private func createStoreDirectoryIfNeeded(at directory: URL) throws {
+        if !FileManager.default.fileExists(atPath: directory.path) {
             try FileManager.default.createDirectory(
-                at: .applicationSupportDirectory,
-                withIntermediateDirectories: false
+                at: directory,
+                withIntermediateDirectories: true
             )
         }
+    }
+
+    private enum StoreError: Error {
+        case appGroupUnavailable
+        case migrationFailed(String)
     }
     
     // MARK: - Login -
