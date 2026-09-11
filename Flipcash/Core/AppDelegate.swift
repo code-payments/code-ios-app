@@ -129,6 +129,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.session.didEnterBackground()
             container.preferences.appDidEnterBackground()
             sessionContainer?.pushController.clearBadgeCount()
+            closeDatabase()
         case .active:
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
@@ -144,6 +145,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             break
         @unknown default:
             break
+        }
+    }
+
+    /// Checkpoints and closes the store on the way to the background.
+    ///
+    /// `.active` has no counterpart on purpose: the connections reopen on the first
+    /// read after the app comes back, so a return that never happens costs nothing and
+    /// a close that lands at an awkward moment repairs itself.
+    ///
+    /// The background-task assertion covers the checkpoint, which is file I/O
+    /// proportional to the write-ahead log. Being suspended partway through it leaves
+    /// the log on disk for the next launch to replay rather than damaging the store, so
+    /// the assertion buys a faster next launch, not correctness.
+    private func closeDatabase() {
+        guard let database = sessionContainer?.database else {
+            return
+        }
+
+        var identifier = UIBackgroundTaskIdentifier.invalid
+        identifier = UIApplication.shared.beginBackgroundTask(withName: "database.close") {
+            UIApplication.shared.endBackgroundTask(identifier)
+            identifier = .invalid
+        }
+
+        do {
+            try database.close()
+        } catch {
+            logger.error("Failed to close the database", metadata: ["error": "\(error)"])
+        }
+
+        if identifier != .invalid {
+            UIApplication.shared.endBackgroundTask(identifier)
         }
     }
 

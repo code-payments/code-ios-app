@@ -19,9 +19,9 @@ struct DatabaseBalanceUpsertTests {
 
         try db.insertBalance(quarks: 1_000, mint: mint, costBasis: 2.5, date: .now)
 
-        let before = db.writer.totalChanges
+        let before = try db.writer.totalChanges
         try db.insertBalance(quarks: 1_000, mint: mint, costBasis: 2.5, date: .now + 60)
-        #expect(db.writer.totalChanges == before)
+        #expect(try db.writer.totalChanges == before)
     }
 
     @Test("Changed quarks still update the stored balance")
@@ -33,9 +33,9 @@ struct DatabaseBalanceUpsertTests {
         try db.insert(mints: [.makeLaunchpad(address: mint)], date: .now)
         try db.insertBalance(quarks: 1_000, mint: mint, costBasis: 2.5, date: .now)
 
-        let before = db.writer.totalChanges
+        let before = try db.writer.totalChanges
         try db.insertBalance(quarks: 2_000, mint: mint, costBasis: 2.5, date: .now + 60)
-        #expect(db.writer.totalChanges > before)
+        #expect(try db.writer.totalChanges > before)
         #expect(try db.getBalances().first?.quarks == 2_000)
     }
 
@@ -48,9 +48,9 @@ struct DatabaseBalanceUpsertTests {
         try db.insert(mints: [.makeLaunchpad(address: mint)], date: .now)
         try db.insertBalance(quarks: 1_000, mint: mint, costBasis: 2.5, date: .now)
 
-        let before = db.writer.totalChanges
+        let before = try db.writer.totalChanges
         try db.insertBalance(quarks: 1_000, mint: mint, costBasis: 3.0, date: .now + 60)
-        #expect(db.writer.totalChanges > before)
+        #expect(try db.writer.totalChanges > before)
         #expect(try db.getBalances().first?.costBasis == 3.0)
     }
 
@@ -59,8 +59,8 @@ struct DatabaseBalanceUpsertTests {
         let (db, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
 
-        let before = db.writer.totalChanges
+        let before = try db.writer.totalChanges
         try db.insertBalance(quarks: 1_000, mint: .jeffy, costBasis: 0, date: .now)
-        #expect(db.writer.totalChanges > before)
+        #expect(try db.writer.totalChanges > before)
     }
 }
