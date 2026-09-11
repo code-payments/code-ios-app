@@ -11,7 +11,7 @@ private let logger = Logger(label: "flipcash.profile-avatars")
 /// Other users' profile-picture thumbnails, as raw bytes so every surface renders them through the
 /// same `ContactAvatarView(imageData:)` path address-book avatars use.
 ///
-/// Backed by ``ProfilePictureCache``, so bytes fetched in one launch are on screen at first paint in
+/// Backed by ``BlobCache``, so bytes fetched in one launch are on screen at first paint in
 /// the next. The in-memory map is what `@Observable` watches — the disk cache alone cannot invalidate
 /// a view — and it is populated from disk without a round trip.
 @Observable
@@ -24,7 +24,7 @@ final class ProfileAvatarStore {
     @ObservationIgnored private var blobByUser: [UserID: BlobID] = [:]
 
     @ObservationIgnored private var inFlight: Set<UserID> = []
-    @ObservationIgnored private let cache: ProfilePictureCache
+    @ObservationIgnored private let cache: BlobCache
     @ObservationIgnored private let mintURL: (BlobID, UserID) async throws -> URL?
     @ObservationIgnored private let fetch: (URL) async throws -> Data
 
@@ -33,7 +33,7 @@ final class ProfileAvatarStore {
     ///     class with a live gRPC channel, so there is no fake to pass a test.
     ///   - fetch: downloads the bytes at a URL.
     init(
-        cache: ProfilePictureCache = .shared,
+        cache: BlobCache = .profilePictures,
         mintURL: @escaping (BlobID, UserID) async throws -> URL?,
         fetch: @escaping (URL) async throws -> Data = { url in
             try await URLSession.shared.data(from: url).0
@@ -44,7 +44,7 @@ final class ProfileAvatarStore {
         self.fetch   = fetch
     }
 
-    convenience init(flipClient: FlipClient, owner: KeyPair, cache: ProfilePictureCache = .shared) {
+    convenience init(flipClient: FlipClient, owner: KeyPair, cache: BlobCache = .profilePictures) {
         self.init(
             cache: cache,
             mintURL: { blobID, userID in

@@ -425,9 +425,9 @@ final class SessionAuthenticator {
         // Drop cached notification previews — they hold chat text in cleartext in the App Group.
         NotificationPreviewCache.clear()
 
-        // Drop cached avatars for the same reason: other people's photographs, unencrypted, in a
+        // Drop every cached blob for the same reason: other people's photographs, unencrypted, in a
         // container the next account on the device reads from.
-        ProfilePictureCache.shared.clear()
+        BlobCache.clearAll()
 
         // Drop the locally collected onramp email — it must not leak into
         // another account's Coinbase orders.

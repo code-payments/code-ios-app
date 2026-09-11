@@ -1,5 +1,5 @@
 //
-//  ProfilePictureCacheTests.swift
+//  BlobCacheTests.swift
 //  FlipcashCoreTests
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
@@ -9,13 +9,13 @@ import Testing
 import Foundation
 @testable import FlipcashCore
 
-@Suite("Profile picture cache")
-struct ProfilePictureCacheTests {
+@Suite("Blob cache")
+struct BlobCacheTests {
 
-    private func cache(limitBytes: Int = 1 << 20) -> ProfilePictureCache {
-        ProfilePictureCache(
+    private func cache(limitBytes: Int = 1 << 20) -> BlobCache {
+        BlobCache(
             directory: FileManager.default.temporaryDirectory
-                .appendingPathComponent("avatars-\(UUID().uuidString)", isDirectory: true),
+                .appendingPathComponent("blobs-\(UUID().uuidString)", isDirectory: true),
             limitBytes: limitBytes
         )
     }
@@ -51,9 +51,9 @@ struct ProfilePictureCacheTests {
     /// bytes have to live on disk under a name derived from the blob id alone — no in-process index.
     @Test func anotherInstanceOverTheSameDirectoryReadsTheSameBytes() {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("avatars-\(UUID().uuidString)", isDirectory: true)
-        let writer = ProfilePictureCache(directory: directory, limitBytes: 1 << 20)
-        let reader = ProfilePictureCache(directory: directory, limitBytes: 1 << 20)
+            .appendingPathComponent("blobs-\(UUID().uuidString)", isDirectory: true)
+        let writer = BlobCache(directory: directory, limitBytes: 1 << 20)
+        let reader = BlobCache(directory: directory, limitBytes: 1 << 20)
 
         writer.write(Data([9, 9, 9]), for: blob(4))
 
@@ -118,5 +118,24 @@ struct ProfilePictureCacheTests {
         cache.write(Data(repeating: 2, count: 50), for: blob(2))
 
         #expect(cache.data(for: blob(2)) == Data(repeating: 2, count: 50))
+    }
+
+    // MARK: - Kinds -
+
+    /// Each kind of blob gets its own directory and its own ceiling. Sharing one pool would let a
+    /// scroll through an image-heavy conversation — megabytes apiece — evict every avatar on the
+    /// device, which is the bug this cache exists to fix.
+    @Test func oneKindOverItsLimitDoesNotEvictAnother() {
+        let avatars = cache(limitBytes: 1 << 20)
+        let images = cache(limitBytes: 4096)
+
+        avatars.write(Data(repeating: 0xAA, count: 1024), for: blob(1))
+
+        // Enough writes to push `images` well past its own ceiling.
+        for byte in UInt8(10)...UInt8(20) {
+            images.write(Data(repeating: byte, count: 2048), for: blob(byte))
+        }
+
+        #expect(avatars.data(for: blob(1))?.count == 1024)
     }
 }

@@ -22,7 +22,7 @@ enum ProfilePictureLoader {
         for picture: ProfilePicture?,
         using client: FlipClient,
         owner: KeyPair,
-        cache: ProfilePictureCache = .shared
+        cache: BlobCache = .profilePictures
     ) async -> UIImage? {
         guard let blobID = picture?.thumbnailBlobID else { return nil }
 

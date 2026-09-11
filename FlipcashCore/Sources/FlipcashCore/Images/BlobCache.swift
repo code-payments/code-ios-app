@@ -1,5 +1,5 @@
 //
-//  ProfilePictureCache.swift
+//  BlobCache.swift
 //  FlipcashCore
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
@@ -7,34 +7,53 @@
 
 import Foundation
 
-/// Profile-picture bytes on disk, keyed by blob id.
+/// Blob bytes on disk, keyed by blob id.
 ///
-/// A blob is immutable — a user who changes their picture gets a new id — so a hit never needs
-/// revalidating, and the entry never goes stale. That is what the URL-keyed HTTP cache cannot do
-/// here: `blobDownloadURL` mints a fresh signed URL on every fetch, so the same picture arrives
-/// under a different key each time and every launch re-downloads it.
+/// A blob is immutable — a user who changes their profile picture gets a new id — so a hit never
+/// needs revalidating and an entry never goes stale. That is what the URL-keyed HTTP cache cannot
+/// do here: `blobDownloadURL` mints a fresh signed URL on every fetch, so the same bytes arrive
+/// under a different key each time and every launch re-downloads them.
 ///
 /// It lives in the App Group container so the notification extension and the app are looking at the
 /// same bytes: the extension can warm an avatar on push arrival and the app draws it at first paint.
 ///
 /// Best-effort throughout. A failed read or write costs a re-download, never a broken screen.
-public final class ProfilePictureCache: @unchecked Sendable {
+///
+/// ## One instance per kind of blob
+///
+/// Each kind gets its own directory and its own ceiling — see ``profilePictures``. The budgets are
+/// separate because the sizes are: an avatar thumbnail is tens of kilobytes and a full-size chat
+/// image is single-digit megabytes, so one shared pool would let a single scroll through an
+/// image-heavy conversation evict every avatar on the device. The next launch would be back to
+/// blurhashes, which is the problem this cache exists to fix.
+public final class BlobCache: @unchecked Sendable {
 
     /// The App Group shared by the app and both notification extensions.
     public static let appGroup = NotificationPreviewCache.appGroup
 
-    /// The process-wide instance, in the App Group container.
-    public static let shared = ProfilePictureCache()
+    /// Profile-picture thumbnails, for the signed-in user and for everyone they see.
+    ///
+    /// Roughly 300 of them. Avatars accumulate for every counterparty the user ever encounters, so
+    /// the directory needs a ceiling; the coldest entries go first.
+    public static let profilePictures = BlobCache(name: "Avatars", limitBytes: 24 * 1024 * 1024)
 
-    /// Roughly 300 avatar thumbnails. Avatars accumulate for every counterparty the user ever sees,
-    /// so the directory needs a ceiling; the coldest entries go first.
-    public static let defaultLimitBytes = 24 * 1024 * 1024
+    /// The parent of every kind's directory.
+    ///
+    /// Having one lets ``clearAll()`` delete the lot without a registry of kinds to keep in sync. A
+    /// kind left out of such a registry would leave other people's photographs on disk through a
+    /// logout, and nothing would surface the omission.
+    private static var rootDirectory: URL {
+        let container = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: BlobCache.appGroup)
+            ?? URL.cachesDirectory
+        return container.appendingPathComponent("Blobs", isDirectory: true)
+    }
 
     private let directory: URL
     private let limitBytes: Int
     private let fileManager = FileManager.default
 
-    /// Serializes eviction against concurrent writes. Avatars are fetched from several screens at
+    /// Serializes eviction against concurrent writes. Blobs are fetched from several screens at
     /// once, and two overlapping evictions would each size the directory before the other's delete.
     private let lock = NSLock()
 
@@ -43,16 +62,17 @@ public final class ProfilePictureCache: @unchecked Sendable {
     ///     `containerURL(forSecurityApplicationGroupIdentifier:)` resolves differently on macOS,
     ///     where this package's tests run, than it does on a device.
     ///   - limitBytes: the ceiling for the whole directory.
-    public init(directory: URL, limitBytes: Int = ProfilePictureCache.defaultLimitBytes) {
+    public init(directory: URL, limitBytes: Int) {
         self.directory = directory
         self.limitBytes = limitBytes
     }
 
-    private convenience init() {
-        let container = FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: ProfilePictureCache.appGroup)
-            ?? URL.cachesDirectory
-        self.init(directory: container.appendingPathComponent("Avatars", isDirectory: true))
+    /// One kind's cache, in its own subdirectory of the App Group container.
+    private convenience init(name: String, limitBytes: Int) {
+        self.init(
+            directory: BlobCache.rootDirectory.appendingPathComponent(name, isDirectory: true),
+            limitBytes: limitBytes
+        )
     }
 
     // MARK: - Reading -
@@ -60,7 +80,7 @@ public final class ProfilePictureCache: @unchecked Sendable {
     /// The cached bytes for a blob, or nil on a miss.
     ///
     /// A hit touches the file's modification date, which is what eviction orders by — so the
-    /// pictures on the screen the user just left survive a round of eviction.
+    /// entries backing the screen the user just left survive a round of eviction.
     public func data(for blobID: BlobID) -> Data? {
         let url = fileURL(for: blobID)
         guard let data = try? Data(contentsOf: url) else { return nil }
@@ -96,12 +116,17 @@ public final class ProfilePictureCache: @unchecked Sendable {
         evictDownToLimit()
     }
 
-    /// Deletes every cached picture. Call on logout: the bytes are other users' photographs sitting
-    /// unencrypted in a container the next account on the device would read from.
+    /// Deletes every blob this cache holds.
     public func clear() {
         lock.lock()
         defer { lock.unlock() }
         try? fileManager.removeItem(at: directory)
+    }
+
+    /// Deletes every cached blob of every kind. Call on logout: these are other people's
+    /// photographs sitting unencrypted in a container the next account on the device reads from.
+    public static func clearAll() {
+        try? FileManager.default.removeItem(at: rootDirectory)
     }
 
     // MARK: - Internal -
