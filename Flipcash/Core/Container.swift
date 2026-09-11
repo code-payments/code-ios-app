@@ -19,6 +19,7 @@ class Container {
     let betaFlags: BetaFlags
     let preferences: Preferences
     let notificationController: NotificationController
+    let databaseStore: DatabaseStore
 
     @ObservationIgnored lazy var sessionAuthenticator = SessionAuthenticator(container: self)
     @ObservationIgnored lazy var deepLinkController   = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
@@ -38,6 +39,7 @@ class Container {
         self.betaFlags              = BetaFlags.shared
         self.preferences            = Preferences()
         self.notificationController = NotificationController()
+        self.databaseStore          = DatabaseStore()
         
         _ = sessionAuthenticator
     }
