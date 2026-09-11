@@ -179,12 +179,16 @@ nonisolated class Database: @unchecked Sendable {
     }
 
     // MARK: - Versioning -
-    
-    static func deleteStore(owner: PublicKey) throws {
+
+    /// Removes the store and the write-ahead log files beside it.
+    ///
+    /// The version file is deliberately left alone: the caller deletes the store because the
+    /// recorded version is stale, and writes the new one immediately afterwards.
+    static func deleteStore(files: StoreLocation.Files) throws {
         let urlsToRemove: [URL] = [
-            .dataStore(owner: owner),
-            .storeSHM(owner: owner),
-            .storeWAL(owner: owner),
+            files.database,
+            files.shm,
+            files.wal,
         ]
         
         try urlsToRemove.forEach {
@@ -194,39 +198,21 @@ nonisolated class Database: @unchecked Sendable {
         }
     }
     
-    static func setUserVersion(version: Int, owner: PublicKey) throws {
-        try! "\(version)".write(
-            to: .versionFile(owner: owner),
+    static func setUserVersion(version: Int, files: StoreLocation.Files) throws {
+        try "\(version)".write(
+            to: files.version,
             atomically: true,
             encoding: .utf8
         )
     }
     
-    static func userVersion(owner: PublicKey) throws -> Int? {
+    static func userVersion(files: StoreLocation.Files) throws -> Int? {
         let versionString = try String(
-            contentsOf: .versionFile(owner: owner),
+            contentsOf: files.version,
             encoding: .utf8
         )
         
         return Int(versionString.trimmingCharacters(in: .whitespacesAndNewlines))
-    }
-}
-
-nonisolated extension URL {
-    static func dataStore(owner: PublicKey) -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite")
-    }
-
-    static func storeWAL(owner: PublicKey) -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite-wal")
-    }
-
-    static func storeSHM(owner: PublicKey) -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite-shm")
-    }
-
-    static func versionFile(owner: PublicKey) -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58)version")
     }
 }
 
