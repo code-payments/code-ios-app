@@ -121,6 +121,25 @@ extension IntentTransferTests {
         #expect(chatMetadata.contactDmPayment.destination.value == "+14155550101")
     }
 
+    @Test("Metadata carries serialized tip DM app metadata that round-trips location and action")
+    func metadataCarriesTipDmAppMetadata() throws {
+        let chatID = ConversationID.tipDm(between: UUID(), and: UUID())
+        let chat = ChatPaymentMetadata.tipDm(chatID: chatID, origin: .chat, action: .send)
+        let intent = try makeIntent(appMetadata: chat.serializedAppMetadata())
+
+        let metadata = intent.metadata()
+        #expect(metadata.hasAppMetadata)
+
+        let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.appMetadata.value)
+        guard case .chat(let chatMetadata)? = decoded.domain else {
+            Issue.record("Expected chat domain metadata")
+            return
+        }
+        #expect(chatMetadata.chatID.value == chatID.data)
+        #expect(chatMetadata.tipDmPayment.location == .chat)
+        #expect(chatMetadata.tipDmPayment.action == .send)
+    }
+
     private func makeIntent(
         sourceCluster: AccountCluster = .mock,
         destination: PublicKey = .generate()!,
