@@ -4,6 +4,11 @@
 <dict>
 	<key>NSContactsUsageDescription</key>
 	<string>Personalizes notifications with your contact names.</string>
+	<key>bugsnag</key>
+	<dict>
+		<key>apiKey</key>
+		<string>$(FLIPCASH_BUGSNAG)</string>
+	</dict>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

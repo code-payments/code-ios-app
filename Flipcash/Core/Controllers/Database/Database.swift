@@ -85,6 +85,17 @@ nonisolated class Database: @unchecked Sendable {
         }
     }
     
+    // MARK: - Lifecycle -
+
+    /// Flushes the write-ahead log back into the main database file and truncates it.
+    ///
+    /// TRUNCATE rather than PASSIVE: a passive checkpoint gives up silently when any
+    /// reader is mid-transaction, which is the case that leaves the WAL growing without
+    /// bound. This blocks up to `busyTimeout` instead, and throws when it cannot finish.
+    func checkpoint() throws {
+        try writer.run("PRAGMA wal_checkpoint(TRUNCATE);")
+    }
+
     // MARK: - Versioning -
     
     static func deleteStore(owner: PublicKey) throws {

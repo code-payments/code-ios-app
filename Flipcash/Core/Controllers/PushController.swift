@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import UniformTypeIdentifiers
 import FlipcashCore
 
 import Firebase
@@ -221,6 +222,36 @@ extension PushController {
     
     static func installationID() async throws -> String {
         try await Installations.installations().installationID()
+    }
+
+    /// Developer-only: puts the current FCM token on the device pasteboard.
+    ///
+    /// Sending a test push to a physical device needs the token, and there is
+    /// no way to read it off the device otherwise — the log redactor strips it
+    /// (correctly), Firebase keeps it in the keychain, and the extension is
+    /// only reachable through a real push. The pasteboard is the one channel
+    /// `devicectl` can read back. Triggered by `--copy-push-token`, so it never
+    /// runs for a user and never persists the token to disk.
+    static func copyTokenToPasteboard() async {
+        // Firebase refuses to mint an FCM token before APNs has handed one over,
+        // and that round trip is not finished at launch. Retry rather than fail:
+        // the alternative is racing the network on every attempt.
+        for attempt in 1...20 {
+            do {
+                let token = try await Messaging.messaging().token()
+                await MainActor.run {
+                    UIPasteboard.general.setItems(
+                        [[UTType.utf8PlainText.identifier: token]],
+                        options: [.localOnly: true]
+                    )
+                }
+                logger.info("Copied FCM token to pasteboard", metadata: ["attempt": "\(attempt)"])
+                return
+            } catch {
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+        logger.error("Failed to copy FCM token: no APNs token after 40s")
     }
 }
 

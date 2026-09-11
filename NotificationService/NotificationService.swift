@@ -93,6 +93,9 @@ final class NotificationService: UNNotificationServiceExtension {
         _ request: UNNotificationRequest,
         withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void
     ) {
+        ExtensionReporting.startIfNeeded()
+        ExtensionReporting.breadcrumb("didReceive")
+
         guard let bestAttemptContent = request.content.mutableCopy() as? UNMutableNotificationContent else {
             contentHandler(request.content)
             return
@@ -317,6 +320,7 @@ final class NotificationService: UNNotificationServiceExtension {
         } catch {
             // Best-effort prefetch — a transport failure: the content extension falls back to a live
             // fetch on open.
+            ExtensionReporting.capture(error, reason: "Notification preview prefetch failed")
             deliver()
         }
     }
