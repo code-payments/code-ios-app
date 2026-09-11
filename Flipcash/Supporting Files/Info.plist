@@ -22,8 +22,6 @@
 		<string>INSendMessageIntent</string>
 		<string>com.flipcash.app.openChat</string>
 	</array>
-	<key>SQLiteVersion</key>
-	<integer>35</integer>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

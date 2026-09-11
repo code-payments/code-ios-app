@@ -9,6 +9,7 @@ import Contacts
 import Intents
 import FlipcashCore
 import FlipcashAPI
+import FlipcashStore
 
 /// Rewrites contact pushes to use the user's local contact name, and renders
 /// "Sent You Cash" pushes as communication notifications carrying the sender's
@@ -312,6 +313,12 @@ final class NotificationService: UNNotificationServiceExtension {
             // round-trip, then enrich the cache with token names + icons best-effort — the bubble
             // renders fine without branding if it's slow or the extension is suspended first.
             NotificationPreviewCache.write(items([:]), for: conversationID)
+
+            // Before `deliver()`, not after. The banner pays for the write — a few milliseconds plus
+            // roughly 100 ms of checkpoint — but after delivery there is nothing keeping the process
+            // alive, and being suspended mid-write while holding the App Group store's lock is the
+            // case iOS kills with `0xdead10cc`.
+            await persist(messages, for: conversationID, account: account)
             deliver()
             let branding = (try? await client.resolveMintBranding(in: messages)) ?? [:]
             if !branding.isEmpty {
@@ -324,4 +331,90 @@ final class NotificationService: UNNotificationServiceExtension {
             deliver()
         }
     }
+
+    /// Writes the prefetched transcript into the shared store, so the app has it on next launch
+    /// instead of fetching it after the user opens the chat.
+    ///
+    /// The side-car cache is still written above and still owns the content extension's expand. This
+    /// is a second destination, not a replacement: the two have different readers, different
+    /// lifetimes, and the side-car does not need the store's schema to be current.
+    ///
+    /// `cursor: 0` on purpose. Advancing the catch-up cursor would tell the app it has everything up
+    /// to this point, and the extension fetched a bounded preview rather than a delta — the app would
+    /// skip the gap on its next sync. Messages merge on `eventSequence`, so writing the same preview
+    /// twice, or writing one the app already has, changes nothing.
+    ///
+    /// No conversation row is synthesized. A conversation the app has never seen stays absent from
+    /// the feed until sync introduces it; these rows are a warm transcript for a chat the user
+    /// already has, not a way to invent one.
+    private static func persist(
+        _ messages: [ConversationMessage],
+        for conversationID: ConversationID,
+        account: UserAccount
+    ) async {
+        let owner = account.keyAccount.ownerPublicKey
+
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let resume = OneShot { continuation.resume() }
+
+            // The assertion is the mitigation: it asks the system to hold off suspension while the
+            // store is open. `performExpiringActivity` runs the block on its own queue and calls it a
+            // second time, on another thread, when the assertion is being revoked — hence `OneShot`,
+            // since resuming a continuation twice traps.
+            ProcessInfo.processInfo.performExpiringActivity(withReason: "flipcash.notification.store-write") { expired in
+                guard !expired else {
+                    // Either the write already finished (and resumed), or it is mid-transaction,
+                    // where interrupting it is worse than letting it commit. Just unblock the caller.
+                    resume.fire()
+                    return
+                }
+
+                let outcome = ExtensionStore.perform(owner: owner) { database in
+                    try database.persistMessages(messages, cursor: 0, conversationID: conversationID)
+                }
+
+                switch outcome {
+                case .wrote, .noStore, .busy:
+                    // All three are ordinary. `noStore` is a user who has not finished login on a
+                    // build that owns the shared store; `busy` is the app holding the write lock,
+                    // which means the app is running and will fetch this itself.
+                    ExtensionReporting.breadcrumb("store write: \(outcome)")
+                case .versionMismatch(let recorded):
+                    // The app rebuilds the store on its next launch. Worth a breadcrumb because a
+                    // mismatch that persists means preload is silently off for this user.
+                    ExtensionReporting.breadcrumb("store write skipped, schema \(recorded.map(String.init) ?? "none") != \(Database.schemaVersion)")
+                case .failed(let description):
+                    ExtensionReporting.capture(
+                        StoreWriteError.failed(description),
+                        reason: "Notification store write failed"
+                    )
+                }
+
+                resume.fire()
+            }
+        }
+    }
+
+    private enum StoreWriteError: Error {
+        case failed(String)
+    }
+
+    /// Runs its closure at most once, whichever thread gets there first.
+    private final class OneShot: @unchecked Sendable {
+        private let lock = NSLock()
+        private var action: (() -> Void)?
+
+        init(_ action: @escaping () -> Void) {
+            self.action = action
+        }
+
+        func fire() {
+            let captured = lock.withLock { () -> (() -> Void)? in
+                defer { action = nil }
+                return action
+            }
+            captured?()
+        }
+    }
+
 }

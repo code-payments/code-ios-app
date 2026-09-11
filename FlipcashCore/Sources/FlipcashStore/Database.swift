@@ -183,6 +183,18 @@ nonisolated open class Database: @unchecked Sendable {
 
     // MARK: - Versioning -
 
+    /// The schema version this build writes.
+    ///
+    /// A launch that finds a lower version recorded beside the store deletes the store and rebuilds
+    /// it from sync, which is the project's substitute for schema migrations. Bump this whenever a
+    /// table definition in `Schema.swift` changes.
+    ///
+    /// This used to be the `SQLiteVersion` key in the app's `Info.plist`. It moved into code because
+    /// the notification service extension needs the same number to decide whether the store on disk
+    /// is one it understands, and an extension cannot read the app's `Info.plist` — separate bundles.
+    /// Both targets link this module, so they cannot disagree.
+    public static let schemaVersion = 35
+
     /// Removes the store and the write-ahead log files beside it.
     ///
     /// The version file is deliberately left alone: the caller deletes the store because the
