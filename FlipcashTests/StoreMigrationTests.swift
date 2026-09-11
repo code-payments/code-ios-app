@@ -7,6 +7,7 @@ import Foundation
 import Testing
 import SQLite
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @Suite("Store migration")

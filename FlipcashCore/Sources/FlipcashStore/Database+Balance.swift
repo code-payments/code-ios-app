@@ -15,7 +15,7 @@ nonisolated extension Database {
     
     // MARK: - Get -
     
-    func getBalances() throws -> [StoredBalance] {
+    public func getBalances() throws -> [StoredBalance] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             b.quarks,
@@ -58,7 +58,7 @@ nonisolated extension Database {
         return balances
     }
     
-    func getMintMetadata(mint: PublicKey) throws -> StoredMintMetadata? {
+    public func getMintMetadata(mint: PublicKey) throws -> StoredMintMetadata? {
         let stored = try fetchStoredMint(mint)
         if stored == nil {
             logger.warning("Missing mint in database", metadata: ["mint": "\(mint.base58)"])
@@ -132,7 +132,7 @@ nonisolated extension Database {
         return mints.first
     }
     
-    func getVMAuthority(mint: PublicKey) throws -> PublicKey? {
+    public func getVMAuthority(mint: PublicKey) throws -> PublicKey? {
         let statement = try reader.prepareRowIterator("""
         SELECT
             m.vmAuthority
@@ -154,7 +154,7 @@ nonisolated extension Database {
     
     // MARK: - Live Supply -
 
-    func updateLiveSupply(updates: [ReserveStateUpdate], date: Date) throws {
+    public func updateLiveSupply(updates: [ReserveStateUpdate], date: Date) throws {
         try transaction {
             let table = MintTable()
             for update in updates {
@@ -178,7 +178,7 @@ nonisolated extension Database {
 
     // MARK: - Insert -
     
-    func insertBalance(quarks: UInt64, mint: PublicKey, costBasis: Double, date: Date) throws {
+    public func insertBalance(quarks: UInt64, mint: PublicKey, costBasis: Double, date: Date) throws {
         let table = BalanceTable()
         // The filter becomes the DO UPDATE's WHERE clause (fork behavior —
         // see "SQLite.swift Fork" in CLAUDE.md): a conflicting row only
@@ -199,7 +199,7 @@ nonisolated extension Database {
         )
     }
 
-    func insert(mints: [MintMetadata], date: Date) throws {
+    public func insert(mints: [MintMetadata], date: Date) throws {
         try transaction {
             for mint in mints {
                 try $0.insert(mint: mint, date: date)

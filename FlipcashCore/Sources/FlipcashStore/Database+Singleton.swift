@@ -5,10 +5,10 @@
 
 import Foundation
 import FlipcashCore
-import SQLite
+public import SQLite
 
 /// A table holding exactly one JSON-encoded row, keyed `id = 1`.
-nonisolated protocol SingletonTable {
+nonisolated public protocol SingletonTable {
     static var name: String { get }
     var table: Table { get }
     var id: Expression<Int> { get }
@@ -22,7 +22,7 @@ extension LimitsTable: SingletonTable {}
 nonisolated extension Database {
 
     /// Returns the singleton row decoded as `T`, or `nil` when the table is empty.
-    func getSingleton<T: Decodable, S: SingletonTable>(_ type: T.Type, in table: S) throws -> T? {
+    public func getSingleton<T: Decodable, S: SingletonTable>(_ type: T.Type, in table: S) throws -> T? {
         let statement = try reader.prepareRowIterator("""
         SELECT
             t.data
@@ -41,7 +41,7 @@ nonisolated extension Database {
     }
 
     /// Encodes `value` and writes it as the singleton row, replacing any existing one.
-    func upsertSingleton<T: Encodable, S: SingletonTable>(_ value: T, in table: S) throws {
+    public func upsertSingleton<T: Encodable, S: SingletonTable>(_ value: T, in table: S) throws {
         let data = try JSONEncoder().encode(value)
 
         try writer.run(

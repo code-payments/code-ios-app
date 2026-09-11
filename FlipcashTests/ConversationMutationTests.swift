@@ -8,6 +8,7 @@
 import Testing
 import Foundation
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @MainActor

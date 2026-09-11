@@ -8,6 +8,7 @@
 import Foundation
 import Testing
 @testable import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @Suite("Conversation offline cache round-trip")

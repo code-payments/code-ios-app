@@ -17,6 +17,7 @@
 import Foundation
 import Testing
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @Suite("Regression: 69ea049e – SQLite off main in TransactionHistoryScreen", .bug("69ea049e0174bec1b4390000"))

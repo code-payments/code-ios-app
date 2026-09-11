@@ -7,6 +7,7 @@ import SwiftUI
 import UIKit
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 /// One activity entry in full (Figma node 9708:105260) — what opens when a row is
 /// tapped in the Wallet's Recent section, the cross-token history, or a token's

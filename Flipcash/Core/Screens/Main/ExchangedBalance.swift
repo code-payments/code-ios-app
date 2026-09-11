@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// A stored balance paired with its fiat value at a given rate.
 struct ExchangedBalance: Identifiable, Hashable {

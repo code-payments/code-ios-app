@@ -17,6 +17,7 @@
 import Foundation
 import Testing
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 // `@MainActor` because `StoredMintMetadata.init(_:)` and `.metadata` are

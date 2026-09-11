@@ -7,6 +7,7 @@ import Testing
 import Foundation
 @testable import Flipcash
 import FlipcashCore
+import FlipcashStore
 
 @Suite("Database+VerifiedProtos")
 struct DatabaseVerifiedProtosTests {
