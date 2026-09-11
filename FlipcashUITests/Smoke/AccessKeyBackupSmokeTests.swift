@@ -87,16 +87,18 @@ final class AccessKeyBackupSmokeTests: BaseUITestCase {
         dialog.buttons["View Access Key"].tap()
 
         // Tap "Save to Photos"
-        waitAndTap(app.buttons["Save to Photos"])
+        let saveButton = app.buttons["Save to Photos"]
+        waitAndTap(saveButton)
 
-        // Allow Photos access via the system permission dialog
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        waitUntilHittableAndTap(springboard.buttons["Allow"])
+        // Allow Photos access via the system permission dialog. The alert can
+        // take well over ten seconds on a freshly cloned simulator under a full
+        // plan run, and it never appears at all when the reset in `setUp` left
+        // access granted, so wait for whichever comes first.
+        allowSystemAlertIfNeeded { !saveButton.exists }
 
         // The button should transition to success state (checkmark).
         // We verify the button is no longer showing the original title,
         // indicating it transitioned to .success state.
-        let saveButton = app.buttons["Save to Photos"]
         let disappeared = saveButton.waitForNonExistence(timeout: 10)
         XCTAssertTrue(
             disappeared,
