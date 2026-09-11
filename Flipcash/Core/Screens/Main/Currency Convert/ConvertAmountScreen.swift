@@ -5,6 +5,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashStore
 import FlipcashUI
 
 /// Amount entry for converting a currency into a chosen destination. Pushed

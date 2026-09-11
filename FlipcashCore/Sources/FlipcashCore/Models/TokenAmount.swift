@@ -63,6 +63,17 @@ extension TokenAmount: Comparable {
     }
 }
 
+// MARK: - Formatting -
+
+extension TokenAmount {
+
+    /// The on-chain quantity as a person reads it: grouped, and carrying at most
+    /// the mint's own decimals with trailing zeros dropped.
+    public func formattedQuantity() -> String {
+        decimalValue.formatted(.number.precision(.fractionLength(0...decimals)))
+    }
+}
+
 // MARK: - Description -
 
 extension TokenAmount: CustomStringConvertible, CustomDebugStringConvertible {

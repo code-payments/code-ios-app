@@ -7,6 +7,7 @@ import Foundation
 import Testing
 @testable import Flipcash
 import FlipcashCore
+import FlipcashStore
 
 @Suite("AddMoneyProcessingViewModel — settlement state machine")
 @MainActor

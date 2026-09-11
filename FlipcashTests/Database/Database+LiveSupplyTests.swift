@@ -8,6 +8,7 @@
 import Foundation
 import Testing
 import FlipcashCore
+import FlipcashStore
 import SQLite
 @testable import Flipcash
 
@@ -87,12 +88,12 @@ struct DatabaseLiveSupplyTests {
             date: .now
         )
 
-        let before = db.writer.totalChanges
+        let before = try db.writer.totalChanges
         try db.updateLiveSupply(
             updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: 500)],
             date: .now + 60
         )
-        #expect(db.writer.totalChanges == before)
+        #expect(try db.writer.totalChanges == before)
     }
 
     @Test("A supply delivered over a NULL column still writes")

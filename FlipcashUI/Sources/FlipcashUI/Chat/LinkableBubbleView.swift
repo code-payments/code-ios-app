@@ -33,8 +33,15 @@ public final class LinkableBubbleView: UIView {
     private var textTopToBubble: NSLayoutConstraint!
     /// Body pinned below the quote panel, for a reply.
     private var textTopToQuote: NSLayoutConstraint!
-    /// Collapses the panel when there is no quote, so a hidden view consumes no height.
-    private var quoteZeroHeight: NSLayoutConstraint!
+    /// Collapses the panel to nothing when there is no quote, in both axes. Height alone is not
+    /// enough: the panel is pinned to both of the bubble's sides, so whatever width it demands with
+    /// nothing in it — the rule and its gutters — becomes a floor under every bubble's width, and a
+    /// one-character message comes out as wide as a two-word one.
+    private var quoteCollapse: [NSLayoutConstraint] = []
+    /// Stretches the panel to the bubble's trailing edge, and so carries a wide quote's width out to
+    /// the bubble. Live only alongside a quote: against a collapsed panel the same equality pulls the
+    /// *other* way and squeezes the bubble down onto the panel's zero width.
+    private var quoteTrailing: NSLayoutConstraint!
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -74,19 +81,25 @@ public final class LinkableBubbleView: UIView {
             equalTo: quotePanel.bottomAnchor,
             constant: ChatQuotePanelView.bottomSpacing
         )
-        quoteZeroHeight = quotePanel.heightAnchor.constraint(equalToConstant: 0)
+        quoteCollapse = [
+            quotePanel.heightAnchor.constraint(equalToConstant: 0),
+            quotePanel.widthAnchor.constraint(equalToConstant: 0),
+        ]
 
-        NSLayoutConstraint.activate([
+        quoteTrailing = quotePanel.trailingAnchor.constraint(
+            equalTo: trailingAnchor,
+            constant: -ChatQuotePanelView.surroundInset
+        )
+
+        NSLayoutConstraint.activate(quoteCollapse + [
             background.topAnchor.constraint(equalTo: topAnchor),
             background.bottomAnchor.constraint(equalTo: bottomAnchor),
             background.leadingAnchor.constraint(equalTo: leadingAnchor),
             background.trailingAnchor.constraint(equalTo: trailingAnchor),
 
-            quotePanel.topAnchor.constraint(equalTo: topAnchor, constant: 9),
-            quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatQuotePanelView.horizontalInset),
-            quotePanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ChatQuotePanelView.horizontalInset),
+            quotePanel.topAnchor.constraint(equalTo: topAnchor, constant: ChatQuotePanelView.surroundInset),
+            quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatQuotePanelView.surroundInset),
             textTopToBubble,
-            quoteZeroHeight,
             textView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
             textView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             textView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
@@ -99,6 +112,12 @@ public final class LinkableBubbleView: UIView {
 
     /// The bubble's shape, for clipping the context-menu lift preview.
     var maskingPath: UIBezierPath { background.maskingPath }
+
+    /// Flashes the bubble's ground to point the eye at this message after a jump.
+    func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
+
+    /// Whether this bubble is currently flashing.
+    var isFlashingAttention: Bool { background.isFlashingAttention }
 
     func prepareForReuse() {
         textView.resignFirstResponder()
@@ -117,14 +136,17 @@ public final class LinkableBubbleView: UIView {
         if let quote = message.quote {
             quotePanel.isHidden = false
             quotePanel.configure(with: quote)
-            quoteZeroHeight.isActive = false
+            NSLayoutConstraint.deactivate(quoteCollapse)
+            quoteTrailing.isActive = true
             textTopToBubble.isActive = false
             textTopToQuote.isActive = true
         } else {
             quotePanel.isHidden = true
+            quotePanel.clear()
             textTopToQuote.isActive = false
             textTopToBubble.isActive = true
-            quoteZeroHeight.isActive = true
+            quoteTrailing.isActive = false
+            NSLayoutConstraint.activate(quoteCollapse)
         }
 
         background.apply(

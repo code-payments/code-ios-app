@@ -5,6 +5,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// Read access to every balance the launch gate weighs.
 @MainActor

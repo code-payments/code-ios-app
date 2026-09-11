@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashStore
 import FlipcashUI
 
 private let logger = Logger(label: "flipcash.session-auth")
@@ -125,7 +126,7 @@ final class SessionAuthenticator {
     }
     
     private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (KeyAccount) -> Void) {
-        logger.debug("initializeState called")
+        logger.info("initializeState called", metadata: ["count": "\(count)"])
         
         let userAccount = accountManager.fetchCurrentUserAccount()
         if let userAccount = userAccount {
@@ -223,7 +224,7 @@ final class SessionAuthenticator {
         let owner = initializedAccount.owner
         let ownerPublicKey = owner.authority.keyPair.publicKey
         
-        let database = try! initializeDatabase(owner: ownerPublicKey)
+        let database = try! container.databaseStore.database(for: ownerPublicKey)
         
         let historyController = HistoryController(
             container: container,
@@ -288,34 +289,6 @@ final class SessionAuthenticator {
             contactSyncController: contactSyncController,
             flipClient: container.flipClient
         )
-    }
-    
-    // MARK: - Database -
-    
-    private func initializeDatabase(owner: PublicKey) throws -> Database {
-        try createApplicationSupportIfNeeded()
-        
-        // Currently we don't do migrations so every time
-        // the user version is outdated, we'll rebuild the
-        // database during sync.
-        let userVersion = (try? Database.userVersion(owner: owner)) ?? 0
-        let currentVersion = try InfoPlist.value(for: "SQLiteVersion").integer()
-        if currentVersion > userVersion {
-            try Database.deleteStore(owner: owner)
-            logger.error("Outdated user version, deleted database.")
-            try Database.setUserVersion(version: currentVersion, owner: owner)
-        }
-        
-        return try Database(url: .dataStore(owner: owner))
-    }
-    
-    private func createApplicationSupportIfNeeded() throws {
-        if !FileManager.default.fileExists(atPath: URL.applicationSupportDirectory.path) {
-            try FileManager.default.createDirectory(
-                at: .applicationSupportDirectory,
-                withIntermediateDirectories: false
-            )
-        }
     }
     
     // MARK: - Login -
@@ -384,7 +357,7 @@ final class SessionAuthenticator {
     }
     
     func completeLogin(with initializedAccount: InitializedAccount) {
-        logger.debug("completeLogin", metadata: ["owner": "\(initializedAccount.keyAccount.ownerPublicKey)"])
+        logger.info("completeLogin", metadata: ["owner": "\(initializedAccount.keyAccount.ownerPublicKey)"])
         
         let session = createSessionContainer(
             container: container,

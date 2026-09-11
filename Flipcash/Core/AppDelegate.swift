@@ -56,6 +56,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if Container.isRunningUITests {
             UIView.setAnimationsEnabled(false)
             BetaFlags.shared.applyLaunchArgumentOverrides()
+        } else if CommandLine.arguments.contains(where: { $0.hasPrefix("--beta-flags=") }) {
+            // Developer-only, and deliberately not behind `--ui-testing`: that
+            // flag also suppresses auto-login from the keychain, so a launch
+            // that sets flags this way still has a session and an open
+            // database. Setting the flags on a physical device otherwise means
+            // tapping the toggles by hand — Maestro does not support physical
+            // iOS devices, and devicectl cannot inject touches.
+            BetaFlags.shared.applyLaunchArgumentOverrides()
+        }
+
+        if CommandLine.arguments.contains("--request-push") {
+            // Developer-only. The notification prompt is otherwise reachable
+            // only from onboarding or a money flow (swap, currency launch, add
+            // money), so a device that skipped onboarding has no way to reach
+            // `.authorized` — and without it there is no APNs token, no FCM
+            // token, and no way to send the extension a push at all. The user
+            // still has to tap Allow; this only puts the prompt on screen.
+            Task { @MainActor in
+                _ = try? await PushController.authorizeAndRegister()
+            }
+        }
+
+        if CommandLine.arguments.contains("--copy-push-token") {
+            // Developer-only. See PushController.copyTokenToPasteboard.
+            Task { @MainActor in
+                await PushController.copyTokenToPasteboard()
+            }
         }
 
         NotificationCenter.default.addObserver(
@@ -102,6 +129,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.session.didEnterBackground()
             container.preferences.appDidEnterBackground()
             sessionContainer?.pushController.clearBadgeCount()
+            closeDatabase()
         case .active:
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
@@ -117,6 +145,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             break
         @unknown default:
             break
+        }
+    }
+
+    /// Checkpoints and closes the store on the way to the background.
+    ///
+    /// `.active` has no counterpart on purpose: the connections reopen on the first
+    /// read after the app comes back, so a return that never happens costs nothing and
+    /// a close that lands at an awkward moment repairs itself.
+    ///
+    /// The background-task assertion covers the checkpoint, which is file I/O
+    /// proportional to the write-ahead log. Being suspended partway through it leaves
+    /// the log on disk for the next launch to replay rather than damaging the store, so
+    /// the assertion buys a faster next launch, not correctness.
+    private func closeDatabase() {
+        guard let database = sessionContainer?.database else {
+            return
+        }
+
+        var identifier = UIBackgroundTaskIdentifier.invalid
+        identifier = UIApplication.shared.beginBackgroundTask(withName: "database.close") {
+            UIApplication.shared.endBackgroundTask(identifier)
+            identifier = .invalid
+        }
+
+        do {
+            try database.close()
+        } catch {
+            logger.error("Failed to close the database", metadata: ["error": "\(error)"])
+        }
+
+        if identifier != .invalid {
+            UIApplication.shared.endBackgroundTask(identifier)
         }
     }
 

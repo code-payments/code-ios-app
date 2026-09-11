@@ -288,11 +288,6 @@ public struct ConversationStore: Sendable {
     @discardableResult
     public mutating func apply(_ event: ConversationStreamEvent) -> GapSignal {
         switch event {
-        case .newMessages(let conversationID, let messages):
-            if let latest = messages.max(by: { $0.id < $1.id }) {
-                advanceLastActivity(to: latest.date, in: conversationID)
-            }
-            return .none
         case .chatEvents(let conversationID, let events):
             return applyChatEvents(events, into: conversationID)
         case .metadataRefresh(let conversation):

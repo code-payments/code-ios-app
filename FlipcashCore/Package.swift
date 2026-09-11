@@ -14,6 +14,10 @@ let package = Package(
             name: "FlipcashCore",
             targets: ["FlipcashCore"]
         ),
+        .library(
+            name: "FlipcashStore",
+            targets: ["FlipcashStore"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/marmelroy/PhoneNumberKit", from: "4.1.4"),
@@ -24,6 +28,9 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(path: "../FlipcashAPI"),
         .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.6.0")),
+        // Branch-pinned to match the app project's own reference to the same fork. SPM resolves one
+        // version of it for the whole graph, so the two have to agree.
+        .package(url: "https://github.com/dbart01/SQLite.swift", branch: "master"),
     ],
     targets: [
         .target(
@@ -41,6 +48,17 @@ let package = Package(
             resources: [
                 .copy("Resources/discrete_pricing_table.bin"),
                 .copy("Resources/discrete_cumulative_table.bin"),
+            ]
+        ),
+        // The SQLite store, shared by the app and the notification service extension. It is a
+        // separate target rather than part of `FlipcashCore` so that everything depending on the
+        // models does not also pull in SQLite.
+        .target(
+            name: "FlipcashStore",
+            dependencies: [
+                "FlipcashCore",
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "SQLite", package: "SQLite.swift"),
             ]
         ),
         .testTarget(

@@ -25,6 +25,9 @@ extension AppRouter {
         case sendAmount(SendTarget)
         /// My Tipcard, or the invitation to create a profile when there isn't one.
         case tips
+        /// The account switcher, opened by long-pressing the You tab. Settings
+        /// reaches the same screen as a push on its own stack.
+        case switchAccount
 
         var id: Self { self }
 
@@ -39,6 +42,7 @@ extension AppRouter {
             case .downloadApp:  .downloadApp
             case .sendAmount:   .sendAmount
             case .tips:         .tips
+            case .switchAccount: .switchAccount
             }
         }
 
@@ -53,6 +57,7 @@ extension AppRouter {
             case .downloadApp:  .downloadApp
             case .sendAmount:   .sendAmount
             case .tips:         .tips
+            case .switchAccount: .switchAccount
             }
         }
 
@@ -63,6 +68,7 @@ extension AppRouter {
             case downloadApp
             case sendAmount
             case tips
+            case switchAccount
         }
 
         var description: String {
@@ -73,6 +79,7 @@ extension AppRouter {
             case .downloadApp:  "downloadApp"
             case .sendAmount:   "sendAmount"
             case .tips:         "tips"
+            case .switchAccount: "switchAccount"
             }
         }
     }

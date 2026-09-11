@@ -6,6 +6,7 @@
 import Foundation
 import Testing
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 /// Pins the loading-state churn behavior behind the Wallet → Currency Info

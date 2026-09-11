@@ -55,14 +55,25 @@ private struct UserProfileContent: View {
                 )
                 .padding(.top, 40)
 
-                Text(model.displayName)
-                    .font(.appDisplaySmall)
-                    .foregroundStyle(.textMain)
+                // The handle and join date read as a block under the name, so
+                // they group tighter than the screen's other spacing (node
+                // 9443:8928).
+                VStack(spacing: 5) {
+                    Text(model.displayName)
+                        .font(.appDisplaySmall)
+                        .foregroundStyle(.textMain)
 
-                if let joined = model.joinedText {
-                    Text(joined)
-                        .font(.appTextSmall)
-                        .foregroundStyle(.textSecondary)
+                    if let handle = model.handle {
+                        Text(handle)
+                            .font(.appTextSmall)
+                            .foregroundStyle(.textSecondary)
+                    }
+
+                    if let joined = model.joinedText {
+                        Text(joined)
+                            .font(.appTextSmall)
+                            .foregroundStyle(.textSecondary)
+                    }
                 }
 
                 Row(insets: .init(top: 25, leading: 0, bottom: 25, trailing: 0)) {
@@ -108,10 +119,28 @@ private struct UserProfileContent: View {
 @Observable
 final class UserProfileViewModel {
     let userID: UserID
-    private(set) var displayName: String
+
+    /// The counterpart's own name, or `nil` for an account that hasn't set one.
+    private(set) var name: String?
+
+    private(set) var username: Username?
     private(set) var imageData: Data?
     private(set) var blurhash: String?
     private(set) var joinedText: String?
+
+    /// What to call this person: their name when they have one, their handle
+    /// when they don't. A handle is public and stable, so it beats the generic
+    /// fallback, which is left for an account carrying neither.
+    var displayName: String {
+        name ?? username?.handle ?? ConversationController.fallbackCounterpartName
+    }
+
+    /// The handle line under the title. Left out when the title is already the
+    /// handle, so a name-less account doesn't read it twice.
+    var handle: String? {
+        guard name != nil else { return nil }
+        return username?.handle
+    }
 
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
@@ -126,7 +155,8 @@ final class UserProfileViewModel {
         self.blocklistController = blocklistController
         self.router = router
         self.session = session
-        self.displayName = seed.displayName
+        self.name = seed.name
+        self.username = seed.username
         self.imageData = avatarData ?? seed.imageData
         self.blurhash = seed.blurhash
     }
@@ -144,7 +174,8 @@ final class UserProfileViewModel {
     }
 
     private func apply(_ profile: Profile) {
-        if let name = profile.displayName, !name.isEmpty { displayName = name }
+        if let name = profile.displayName, !name.isEmpty { self.name = name }
+        if let username = profile.username { self.username = username }
         if blurhash == nil { blurhash = profile.profilePicture?.thumbnailBlurhash }
         if let joined = profile.joinedAt {
             joinedText = "Joined \(joined.formatted(.dateTime.month(.wide).year()))"

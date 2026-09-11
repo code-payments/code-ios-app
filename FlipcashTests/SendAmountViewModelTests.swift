@@ -598,12 +598,13 @@ struct SendAmountViewModelTests {
         #expect(mock.resolveUserIDCalls == [recipientID])
         #expect(mock.resolveContactCalls.isEmpty)
         let chat = try #require(mock.sendCalls.first?.chat)
-        guard case .tipDm(let chatID, let origin) = chat else {
+        guard case .tipDm(let chatID, let origin, let action) = chat else {
             Issue.record("Expected tipDm metadata, got \(chat)")
             return
         }
         #expect(chatID == ConversationID.tipDm(between: container.session.userID, and: recipientID))
         #expect(origin == .tipcard)
+        #expect(action == .tip)
     }
 
     @Test("The tip that opens the DM reports as tipcard even when it's composed in a chat")
@@ -622,13 +623,16 @@ struct SendAmountViewModelTests {
 
         #expect(outcome == .success)
         let chat = try #require(mock.sendCalls.first?.chat)
-        guard case .tipDm(_, let origin) = chat else {
+        guard case .tipDm(_, let origin, let action) = chat else {
             Issue.record("Expected tipDm metadata, got \(chat)")
             return
         }
-        // `CHAT` here is what the server rejects with "tip dm has not been
-        // initialized" — there is no thread yet for this payment to be sent from.
+        // A send is what the server rejects with "tip dm has not been
+        // initialized" — there is no thread yet for this payment to be sent
+        // from, so the opening payment has to resolve to a tip.
         #expect(origin == .tipcard)
+        // The DM-opening payment is always a tip, however it was composed.
+        #expect(action == .tip)
     }
 
     @Test("Once the DM exists, an in-chat send still reports as chat")
@@ -646,11 +650,12 @@ struct SendAmountViewModelTests {
 
         #expect(outcome == .success)
         let chat = try #require(mock.sendCalls.first?.chat)
-        guard case .tipDm(_, let origin) = chat else {
+        guard case .tipDm(_, let origin, let action) = chat else {
             Issue.record("Expected tipDm metadata, got \(chat)")
             return
         }
         #expect(origin == .chat)
+        #expect(action == .send)
     }
 
     @Test("A tip below the server minimum is blocked before submission")

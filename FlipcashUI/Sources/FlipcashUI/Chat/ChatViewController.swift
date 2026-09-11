@@ -62,9 +62,24 @@ public final class ChatViewController: UICollectionViewController {
     /// Within this many points of the bottom counts as "at the bottom".
     private static let bottomThreshold: CGFloat = 50
 
-    /// Extra spacing where the sender flips, on top of the base inter-item spacing, so a change of
-    /// speaker reads as a break in the column rather than another row in the same run.
-    private static let senderFlipExtraSpacing: CGFloat = 6
+    /// The gap the transcript leaves between two rows, in three tiers. The same three Android
+    /// picks from in `bottomSpacingFor`, at the same values, so a thread reads at one density on
+    /// both platforms.
+    ///
+    /// ``normal`` is the layout's base spacing: any pairing `interItemSpacing(_:after:)` does not
+    /// answer for takes it.
+    private enum RowGap {
+        /// Two messages from one sender inside the grouping window. Their facing corners are
+        /// already flattened, so the run needs only enough air to keep the bubbles apart.
+        static let tight: CGFloat = 5
+        /// Two messages from one sender that the grouping window has broken apart, and either side
+        /// of a date separator. The corners are round again, and the gap says what they no longer
+        /// do — that these are separate moments.
+        static let normal: CGFloat = 10
+        /// A change of speaker, which reads as a break in the column rather than another row in
+        /// the same run.
+        static let wide: CGFloat = 15
+    }
 
     private let chatLayout = CollectionViewChatLayout()
     private var items: [ChatItem] = []
@@ -79,6 +94,14 @@ public final class ChatViewController: UICollectionViewController {
     /// A row asked for before it was in `items` — the loader's window has to move first. The next
     /// update carrying it performs the scroll.
     private var pendingScrollTargetID: String?
+    /// The row a jump is pointing at and when its flash began, held for the flash's length so a cell
+    /// dequeued for that row mid-flash is lit too.
+    private var attention: (id: String, startedAt: CFTimeInterval)?
+
+    /// Bumped whenever a jump takes ownership of where the transcript sits. A scroll-to-bottom's
+    /// deferred re-anchor captures the value it was queued under and gives way if the count has
+    /// moved since, so a jump landing before that block runs isn't pulled back to the newest message.
+    private var positionClaim = 0
 
     /// Drag a row towards the leading edge to reply to it. Owns its own recognizer and state — see
     /// `ChatSwipeToReply` for why it is exclusive with every other gesture here.
@@ -133,7 +156,7 @@ public final class ChatViewController: UICollectionViewController {
     public init() {
         super.init(collectionViewLayout: chatLayout)
         chatLayout.delegate = self
-        chatLayout.settings.interItemSpacing = 8
+        chatLayout.settings.interItemSpacing = RowGap.normal
         // ChatLayout owns the bottom anchoring: stay pinned to the newest message across batch
         // updates (so an append at the bottom follows and a prepend preserves position). Content
         // shorter than the viewport top-aligns — the profile card sits under the nav bar with
@@ -263,8 +286,13 @@ public final class ChatViewController: UICollectionViewController {
             swipeToReply.recognizer.isEnabled = false
             swipeToReply.recognizer.isEnabled = true
             collectionView.reloadData()
-            performInitialScrollIfNeeded()
-            performPendingScrollIfLanded()
+            // A jump that was waiting on this update owns where the transcript lands, so it runs
+            // instead of the opening scroll-to-bottom rather than after it: that scroll queues a
+            // re-anchor for the next runloop turn, which would pull the transcript off the message
+            // a beat after arriving on it.
+            if !performPendingScrollIfLanded() {
+                performInitialScrollIfNeeded()
+            }
             return
         }
 
@@ -385,6 +413,7 @@ public final class ChatViewController: UICollectionViewController {
     /// hooks, so the wave restarts every time the row is (re)inserted.
     public override func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         (cell as? ChatTypingIndicatorCell)?.startAnimating()
+        reattachAttention(to: cell, at: indexPath)
     }
 
     public override func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
@@ -418,25 +447,72 @@ public final class ChatViewController: UICollectionViewController {
         scrollToRow(id: id, animated: true)
     }
 
-    /// Performs a deferred jump once the update that brought the row in has been applied.
-    private func performPendingScrollIfLanded() {
+    /// Performs a deferred jump once the update that brought the row in has been applied, reporting
+    /// whether one ran.
+    ///
+    /// A jump that runs also consumes the opening scroll-to-bottom: the two want the transcript in
+    /// different places, and the message the user asked for wins.
+    @discardableResult
+    private func performPendingScrollIfLanded() -> Bool {
         guard let target = pendingScrollTargetID,
-              items.contains(where: { $0.differenceIdentifier.hasSuffix(":\(target)") }) else { return }
+              items.contains(where: { $0.differenceIdentifier.hasSuffix(":\(target)") }) else { return false }
         pendingScrollTargetID = nil
+        needsInitialScroll = false
         scrollToRow(id: target, animated: false)
+        return true
     }
 
-    /// Centers a row that is already in `items`.
+    /// Centers a row that is already in `items` and flashes it, so the jump lands on a message the
+    /// eye can pick out of the transcript rather than on an unmarked one in the middle of the screen.
     private func scrollToRow(id: String, animated: Bool) {
         guard let index = items.firstIndex(where: { $0.differenceIdentifier.hasSuffix(":\(id)") }) else { return }
         let indexPath = IndexPath(item: index, section: 0)
+        positionClaim += 1
         guard animated else {
             collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            flashAttention(forStableID: id)
             return
         }
         ChatMotion.scroll.animate {
             self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
         }
+        // Alongside the scroll rather than after it: the flash's rise is shorter than the scroll's
+        // settle, so the row is already lit when it arrives and there is no beat where the transcript
+        // has stopped on a message that looks like every other one.
+        flashAttention(forStableID: id)
+    }
+
+    /// Flashes the row with `stableID`, and holds it as the attention target for as long as the
+    /// flash runs so `willDisplay` can re-attach it.
+    ///
+    /// The scroll before it only moves the offset — the row it lands on has no cell until the next
+    /// layout — so the layout is forced here rather than the flash being deferred a runloop turn.
+    /// Deferring doesn't work: the queued attempt can drain before any layout pass has run, and the
+    /// flash has to start alongside the scroll rather than after it. That forced pass displays the
+    /// arriving rows, so `willDisplay` lights the target; a row already on screen gets no
+    /// `willDisplay`, which is what the direct attach below covers.
+    private func flashAttention(forStableID stableID: String) {
+        let now = CACurrentMediaTime()
+        attention = (id: stableID, startedAt: now)
+        collectionView.layoutIfNeeded()
+        bubbleCell(forStableID: stableID)?.flashAttention(startedAt: now)
+    }
+
+    /// Lights a cell that has just been displayed if it carries the row a jump is pointing at.
+    ///
+    /// A recycled cell loses its `CAAnimation`s, and a jump lands right when the transcript is
+    /// re-dequeueing rows around the page that brought the target in — so without this the flash is
+    /// dropped within a frame of starting. Re-attaching from the original start time joins the flash
+    /// in progress, so a row displayed twice doesn't play it twice as long.
+    private func reattachAttention(to cell: UICollectionViewCell, at indexPath: IndexPath) {
+        guard let attention,
+              items.indices.contains(indexPath.item),
+              items[indexPath.item].id == attention.id else { return }
+        guard CACurrentMediaTime() - attention.startedAt < ChatMotion.attentionDuration else {
+            self.attention = nil
+            return
+        }
+        (cell as? BubbleCarrying)?.flashAttention(startedAt: attention.startedAt)
     }
 
     /// Scroll to the newest message by re-anchoring the layout to the last item's bottom edge.
@@ -448,12 +524,14 @@ public final class ChatViewController: UICollectionViewController {
             indexPath: IndexPath(item: items.count - 1, section: 0),
             edge: .bottom
         )
+        let claim = positionClaim
         guard animated else {
             chatLayout.restoreContentOffset(with: snapshot)
             // The first restore positions by the estimate; once the bottom cells self-size, re-anchor
             // so a tall last cell (cash card, long message) sits fully above the bar, not short.
             DispatchQueue.main.async { [weak self] in
-                self?.chatLayout.restoreContentOffset(with: snapshot)
+                guard let self, positionClaim == claim else { return }
+                chatLayout.restoreContentOffset(with: snapshot)
             }
             return
         }
@@ -465,6 +543,7 @@ public final class ChatViewController: UICollectionViewController {
             self.collectionView.setContentOffset(CGPoint(x: 0, y: target), animated: false)
         } completion: { _ in
             // Lock to the exact bottom edge once the animation lands (the estimate may have moved).
+            guard self.positionClaim == claim else { return }
             self.chatLayout.restoreContentOffset(with: snapshot)
         }
     }
@@ -588,12 +667,35 @@ extension ChatViewController: ChatLayoutDelegate {
     }
 
     public func interItemSpacing(_ chatLayout: CollectionViewChatLayout, after indexPath: IndexPath) -> CGFloat? {
-        // Only a message→message pair with different senders widens. Any other pairing (into or out
-        // of a separator, the typing indicator, the profile card) takes the base spacing.
-        guard let current = sender(at: indexPath),
-              let next = sender(at: IndexPath(item: indexPath.item + 1, section: indexPath.section)),
-              current != next else { return nil }
-        return chatLayout.settings.interItemSpacing + Self.senderFlipExtraSpacing
+        let below = IndexPath(item: indexPath.item + 1, section: indexPath.section)
+
+        // Checked before the senders, as Android does: a separator is the heading for the run under
+        // it, so it takes the same air on both sides whatever it happens to separate.
+        guard !isDateSeparator(at: indexPath), !isDateSeparator(at: below) else { return nil }
+
+        // A pairing with no sender on one side is the profile card, which is not a bubble and keeps
+        // the base spacing.
+        guard let current = sender(at: indexPath), let next = sender(at: below) else { return nil }
+        guard current == next else { return RowGap.wide }
+
+        // Same sender: tight only while they are one run. The typing indicator never joins one, so
+        // the dots arriving after the counterpart's own message read as a new turn.
+        return message(at: indexPath)?.isContinuedByNext == true ? RowGap.tight : nil
+    }
+
+    /// The message at `indexPath`, or nil for a row that is not one. Bounds-checked for the same
+    /// reason ``sender(at:)`` is.
+    private func message(at indexPath: IndexPath) -> ChatMessage? {
+        guard items.indices.contains(indexPath.item),
+              case .message(let message) = items[indexPath.item] else { return nil }
+        return message
+    }
+
+    /// Whether the row at `indexPath` is a day header. Bounds-checked; out of range is not one.
+    private func isDateSeparator(at indexPath: IndexPath) -> Bool {
+        guard items.indices.contains(indexPath.item),
+              case .dateSeparator = items[indexPath.item] else { return false }
+        return true
     }
 
     /// Which side of the thread the row at `indexPath` belongs to, or nil for a row that belongs to
@@ -838,10 +940,12 @@ extension ChatMessage {
 }
 
 /// A message cell that can supply the view + shape for the context-menu lift preview, so the lift is
-/// clipped to the bubble rather than the full side-hugging cell.
+/// clipped to the bubble rather than the full side-hugging cell, and can flash its own ground when
+/// the transcript jumps to it.
 protocol BubbleCarrying {
     var liftPreviewView: UIView { get }
     var liftPreviewMaskingPath: UIBezierPath? { get }
+    func flashAttention(startedAt start: CFTimeInterval)
 }
 #endif
 

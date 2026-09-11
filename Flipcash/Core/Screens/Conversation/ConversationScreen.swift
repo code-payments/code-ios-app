@@ -232,7 +232,7 @@ struct ConversationScreen: View {
         // it the rest of the way down, so the bar reads as running off the bottom of the display
         // rather than as a card with an edge above the home indicator.
         .background {
-            BarSurfaceFloor(isReplying: composer.replyTarget != nil)
+            BarSurfaceFloor()
         }
         .background(Color.backgroundMain)
         .navigationTitle("")

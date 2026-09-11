@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 /// Thin environment-reading wrapper that hands the DI containers to
 /// ``CurrencyInfoScreenContent``, whose two-init delegation builds the `@State`

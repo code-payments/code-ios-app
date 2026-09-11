@@ -13,12 +13,9 @@ import FlipcashAPI
 /// apply them without touching proto types.
 public enum ConversationStreamEvent: Sendable {
 
-    /// New messages arrived in a conversation.
-    case newMessages(conversationID: ConversationID, messages: [ConversationMessage])
-
     /// Durable, sequenced event-log mutations for a conversation (message sent/edited/deleted). The
     /// store applies them last-writer-wins by `event_sequence` and gap-detects via `sequence`/`count`,
-    /// catching up with `GetDelta` on a gap. Supersedes the deprecated `newMessages` overlay.
+    /// catching up with `GetDelta` on a gap.
     case chatEvents(conversationID: ConversationID, events: [DecodedChatEvent])
 
     /// A conversation's full metadata was refreshed (members/last message/last activity).
@@ -93,19 +90,10 @@ extension ConversationStreamEvent {
         let conversationID = ConversationID(update.chat)
         var events: [ConversationStreamEvent] = []
 
-        // The sequenced event log (message sent/edited/deleted). Additive with `new_messages`: both may
-        // carry the same send during the server's migration window, and last-writer-wins by
-        // `event_sequence` in the store lands it exactly once.
+        // The sequenced event log (message sent/edited/deleted).
         let chatEvents = update.events.events.map(DecodedChatEvent.init)
         if !chatEvents.isEmpty {
             events.append(.chatEvents(conversationID: conversationID, events: chatEvents))
-        }
-
-        // The deprecated real-time overlay. Decoded regardless of `events` so a message that arrives
-        // only here (an events-empty or malformed batch) is never dropped; the store dedups by version.
-        let messages = update.newMessages.messages.compactMap(ConversationMessage.init)
-        if !messages.isEmpty {
-            events.append(.newMessages(conversationID: conversationID, messages: messages))
         }
 
         for metadataUpdate in update.metadataUpdates {

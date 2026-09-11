@@ -10,6 +10,9 @@
 		47DDE1F353D72DB6C899D6E0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC0A077F6E7EE1EB0853134B /* Foundation.framework */; };
 		4C7D70012FC8892D0091C7A4 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
+		4CA1B0022FD00002000AA002 /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CA1B0012FD00001000AA001 /* FlipcashStore */; };
+		4CA1B0032FD00003000AA003 /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CA1B0012FD00001000AA001 /* FlipcashStore */; };
+		08B8484332ED78035E9D399B /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D62DD627C0001B260A /* Bugsnag */; };
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
 		508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 2B166ABF94584FEF9C368C81 /* TweetNacl */; };
@@ -156,6 +159,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */,
+				4CA1B0022FD00002000AA002 /* FlipcashStore in Frameworks */,
+				08B8484332ED78035E9D399B /* Bugsnag in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -174,6 +179,7 @@
 				508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */,
 				9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */,
 				9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */,
+				4CA1B0032FD00003000AA003 /* FlipcashStore in Frameworks */,
 				9ADEF1D92DD627C6001B260A /* Mixpanel in Frameworks */,
 				9AE5C0122FA10003004C0DE0 /* SharedCoreKit in Frameworks */,
 			);
@@ -320,6 +326,8 @@
 			name = NotificationService;
 			packageProductDependencies = (
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
+				4CA1B0012FD00001000AA001 /* FlipcashStore */,
+				9ADEF1D62DD627C0001B260A /* Bugsnag */,
 			);
 			productName = NotificationService;
 			productReference = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */;
@@ -368,6 +376,7 @@
 			name = Flipcash;
 			packageProductDependencies = (
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
+				4CA1B0012FD00001000AA001 /* FlipcashStore */,
 				9AC011172DA4320F0030298E /* FlipcashUI */,
 				9AD1265D2DA98ADC0048141F /* SQLite */,
 				9ADEF1D62DD627C0001B260A /* Bugsnag */,
@@ -681,7 +690,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -722,7 +731,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -759,7 +768,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -795,7 +804,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -835,7 +844,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1015,7 +1024,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1070,7 +1079,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1121,7 +1130,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1171,7 +1180,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1548,7 +1557,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1585,7 +1594,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1621,7 +1630,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.9.1;
+				MARKETING_VERSION = 2026.9.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1816,6 +1825,10 @@
 		9ABDD1942D9D7B61006B6CDA /* FlipcashCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlipcashCore;
+		};
+		4CA1B0012FD00001000AA001 /* FlipcashStore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlipcashStore;
 		};
 		9AC011172DA4320F0030298E /* FlipcashUI */ = {
 			isa = XCSwiftPackageProductDependency;

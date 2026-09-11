@@ -30,6 +30,7 @@ final class BubbleBackgroundView: UIView {
 
     private let shapeMask = CAShapeLayer()
     private let washLayer = CALayer()
+    private let attentionLayer = CALayer()
     private let borderLayer = CAShapeLayer()
     private var radii = RectangleCornerRadii(topLeading: baseRadius, bottomLeading: baseRadius, bottomTrailing: baseRadius, topTrailing: baseRadius)
     /// The message this chrome currently draws, so a radii change can be told apart from a recycled
@@ -47,6 +48,12 @@ final class BubbleBackgroundView: UIView {
         // colour behind the bubble's own frame change.
         washLayer.actions = ["position": NSNull(), "bounds": NSNull()]
         layer.addSublayer(washLayer)
+        // Above the wash and below the border, so the flash brightens the bubble's ground without
+        // washing over its text or softening its hairline edge.
+        attentionLayer.backgroundColor = Self.attentionWash.cgColor
+        attentionLayer.opacity = 0
+        attentionLayer.actions = ["position": NSNull(), "bounds": NSNull()]
+        layer.addSublayer(attentionLayer)
         borderLayer.fillColor = UIColor.clear.cgColor
         borderLayer.strokeColor = UIColor.white.withAlphaComponent(0.03).cgColor
         borderLayer.lineWidth = 1
@@ -62,6 +69,11 @@ final class BubbleBackgroundView: UIView {
     /// keeps a reused cell from animating in someone else's shape.
     func apply(fill: UIColor, radii: RectangleCornerRadii, identity: String? = nil) {
         washLayer.backgroundColor = fill.cgColor
+        // A recycled view taking a new row drops any flash still running, so the attention never
+        // finishes on a message it wasn't meant for.
+        if identity != self.identity {
+            attentionLayer.removeAnimation(forKey: Self.attentionKey)
+        }
         pendingCornerMorph = identity != nil && identity == self.identity && radii != self.radii
         self.identity = identity
         self.radii = radii
@@ -80,6 +92,7 @@ final class BubbleBackgroundView: UIView {
         let path = UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath
         shapeMask.path = path
         washLayer.frame = bounds
+        attentionLayer.frame = bounds
         borderLayer.path = path
         borderLayer.frame = bounds
 
@@ -92,6 +105,45 @@ final class BubbleBackgroundView: UIView {
             layer.add(ChatMotion.corner.layerAnimation(keyPath: "path", from: previous, to: path), forKey: "cornerMorph")
         }
     }
+
+    // MARK: - Attention
+
+    private static let attentionKey = "attention"
+
+    /// Brightens the bubble's ground for `ChatMotion.attentionDuration`, then lets it fade back.
+    ///
+    /// Runs as a keyframe on the layer rather than a `UIView` animation because the resting opacity
+    /// must stay 0 throughout: the row can be reconfigured or recycled mid-flash, and a model value
+    /// left raised would strand a lit bubble.
+    ///
+    /// `start` is when the flash began, in `CACurrentMediaTime()`'s clock. Passing a time already
+    /// past joins a flash in progress rather than restarting it, so a row re-dequeued mid-flash
+    /// picks it up where it left off and still ends when it would have.
+    func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) {
+        let rise = ChatMotion.attentionRise
+        let hold = ChatMotion.attentionHold
+        let total = ChatMotion.attentionDuration
+        let flash = CAKeyframeAnimation(keyPath: "opacity")
+        flash.values = [0, 1, 1, 0]
+        flash.keyTimes = [0, NSNumber(value: rise / total), NSNumber(value: (rise + hold) / total), 1]
+        flash.timingFunctions = [
+            CAMediaTimingFunction(name: .easeOut),
+            CAMediaTimingFunction(name: .linear),
+            CAMediaTimingFunction(name: .easeInEaseOut),
+        ]
+        flash.duration = total
+        flash.beginTime = start
+        attentionLayer.removeAnimation(forKey: Self.attentionKey)
+        attentionLayer.add(flash, forKey: Self.attentionKey)
+    }
+
+    /// Whether an attention flash is currently running on this chrome.
+    var isFlashingAttention: Bool { attentionLayer.animation(forKey: Self.attentionKey) != nil }
+
+    /// The lift the flash adds on top of the sender's resting wash. Sized to read on both fills —
+    /// a received bubble sits at 0.02 white, so the same absolute lift is the larger relative jump
+    /// there, which is right: the message being pointed at is usually the other person's.
+    private static let attentionWash = UIColor.white.withAlphaComponent(0.10)
 
     /// The elevation a bubble sits at once it has been lifted out of the transcript.
     ///

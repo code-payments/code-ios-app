@@ -5,6 +5,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashStore
 import FlipcashUI
 
 struct BuyConfirmationScreen: View {

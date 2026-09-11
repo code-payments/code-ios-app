@@ -53,6 +53,7 @@ public final class ChatMessageCell: ChatColumnCell {
 extension ChatMessageCell: BubbleCarrying {
     var liftPreviewView: UIView { bubbleView }
     var liftPreviewMaskingPath: UIBezierPath? { bubbleView.maskingPath }
+    func flashAttention(startedAt start: CFTimeInterval) { bubbleView.flashAttention(startedAt: start) }
 }
 
 #Preview("Cells") {

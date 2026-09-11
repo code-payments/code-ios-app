@@ -9,8 +9,7 @@ import FlipcashCore
 
 /// The unified, cross-token activity history — the "dive in" from the Wallet's
 /// Recent section. Lists every activity (newest first) with the same enriched
-/// rows as the wallet preview. Rows are non-interactive; the per-token
-/// ``TransactionHistoryScreen`` remains the place to cancel a pending cash link.
+/// rows as the wallet preview. Tapping a row opens ``TransactionDetailsScreen``.
 struct ActivityHistoryScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer

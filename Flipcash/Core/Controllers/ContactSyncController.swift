@@ -6,6 +6,7 @@
 import Contacts
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 nonisolated private let logger = Logger(label: "flipcash.contact-sync-controller")
 
@@ -50,7 +51,7 @@ final class ContactSyncController {
     /// Set once, during the user's first contact scan, to the number of the
     /// user's contacts the server matched. Gated on the durable `contactsConnected`
     /// flag (UserDefaults, not the DB) so it fires once per device and never
-    /// re-fires after a `SQLiteVersion` rebuild, later syncs, or screen opens.
+    /// re-fires after a `schemaVersion` rebuild, later syncs, or screen opens.
     var onFlipcashMatchCount: Int?
 
     nonisolated private var ownerKeyPair: KeyPair {
@@ -275,7 +276,7 @@ final class ContactSyncController {
         await resolveDirectory()
 
         // Fire the one-time "already on Flipcash" dialog on the first connect.
-        // The flag lives in UserDefaults, not the DB, so a `SQLiteVersion`
+        // The flag lives in UserDefaults, not the DB, so a `schemaVersion`
         // rebuild never re-fires it for an existing user.
         await MainActor.run {
             guard UserDefaults.contactsConnected != true else { return }
@@ -545,7 +546,7 @@ extension ContactSyncController: DMContactNaming {
 extension UserDefaults {
     /// `true` once this device has completed its first contact connect. Gates the
     /// one-time "already on Flipcash" dialog; persisted here rather than in the
-    /// per-account SQLite store so a `SQLiteVersion` rebuild doesn't re-fire it.
+    /// per-account SQLite store so a `schemaVersion` rebuild doesn't re-fire it.
     @Defaults(.contactsConnected)
     static var contactsConnected: Bool?
 }
