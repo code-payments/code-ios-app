@@ -425,6 +425,10 @@ final class SessionAuthenticator {
         // Drop cached notification previews — they hold chat text in cleartext in the App Group.
         NotificationPreviewCache.clear()
 
+        // Drop cached avatars for the same reason: other people's photographs, unencrypted, in a
+        // container the next account on the device reads from.
+        ProfilePictureCache.shared.clear()
+
         // Drop the locally collected onramp email — it must not leak into
         // another account's Coinbase orders.
         CoinbaseOrderEmail.unverifiedEmail = nil
@@ -459,7 +463,7 @@ final class SessionContainer {
     let conversationController: ConversationController
     let blocklistController: BlocklistController
     let chatSpotlightIndexer: ChatSpotlightIndexer
-    let tipAvatars: TipAvatarStore
+    let profileAvatars: ProfileAvatarStore
 
     /// Lazy so it can capture the container it reads its dependencies from;
     /// observation-ignored because `TipFlow` is itself observable and the
@@ -582,7 +586,7 @@ final class SessionContainer {
         chatSpotlightIndexer.start()
         self.chatSpotlightIndexer = chatSpotlightIndexer
 
-        self.tipAvatars = TipAvatarStore(flipClient: flipClient, owner: session.ownerKeyPair)
+        self.profileAvatars = ProfileAvatarStore(flipClient: flipClient, owner: session.ownerKeyPair)
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {

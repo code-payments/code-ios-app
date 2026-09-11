@@ -97,7 +97,18 @@ nonisolated public final class ContactAvatarCache: @unchecked Sendable {
 
     public static let shared = ContactAvatarCache()
 
-    private let cache = NSCache<NSString, UIImage>()
+    /// A decoded image and a fingerprint of the bytes it was decoded from.
+    private final class Entry {
+        let image: UIImage
+        let fingerprint: Int
+
+        init(image: UIImage, fingerprint: Int) {
+            self.image = image
+            self.fingerprint = fingerprint
+        }
+    }
+
+    private let cache = NSCache<NSString, Entry>()
 
     private init() {
         cache.countLimit = 200
@@ -106,13 +117,33 @@ nonisolated public final class ContactAvatarCache: @unchecked Sendable {
     /// Returns the cached `UIImage` for `key`. Decodes `data` and caches the
     /// result on a miss; returns `nil` when `data` doesn't yield a valid
     /// image.
+    ///
+    /// The key is a contact or user id, which survives that person changing
+    /// their picture — so a hit is only a hit when the bytes match too.
+    /// Returning the entry on the id alone leaves the old photo on screen for
+    /// the rest of the process, on every surface, since they all read through
+    /// here.
     public func image(forKey key: String, data: Data) -> UIImage? {
-        if let cached = cache.object(forKey: key as NSString) {
-            return cached
+        let fingerprint = Self.fingerprint(of: data)
+
+        if let cached = cache.object(forKey: key as NSString), cached.fingerprint == fingerprint {
+            return cached.image
         }
+
         guard let image = UIImage(data: data) else { return nil }
-        cache.setObject(image, forKey: key as NSString)
+        cache.setObject(Entry(image: image, fingerprint: fingerprint), forKey: key as NSString)
         return image
+    }
+
+    /// Identifies the bytes without retaining them — holding the source `Data`
+    /// alongside every decoded image would roughly double what the cache costs.
+    /// `Data`'s hash is seeded per process, which is the same lifetime as the
+    /// cache, and the length guards the collision.
+    private static func fingerprint(of data: Data) -> Int {
+        var hasher = Hasher()
+        hasher.combine(data.count)
+        hasher.combine(data)
+        return hasher.finalize()
     }
 }
 

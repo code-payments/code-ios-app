@@ -249,8 +249,8 @@ final class ActivityResolution {
 
         avatarBlurhash = picture?.thumbnailBlurhash
         guard let picture else { return }
-        await sessionContainer.tipAvatars.load(userID: userID, picture: picture)
-        avatarData = sessionContainer.tipAvatars.data(for: userID)
+        await sessionContainer.profileAvatars.load(userID: userID, picture: picture)
+        avatarData = sessionContainer.profileAvatars.data(for: userID)
     }
 
     private func resolveMintMetadata(_ mint: PublicKey, session: Session) async -> StoredMintMetadata? {

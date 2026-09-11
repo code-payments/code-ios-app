@@ -21,15 +21,16 @@ enum ProfilePictureLoader {
     static func thumbnail(
         for picture: ProfilePicture?,
         using client: FlipClient,
-        owner: KeyPair
+        owner: KeyPair,
+        cache: ProfilePictureCache = .shared
     ) async -> UIImage? {
         guard let blobID = picture?.thumbnailBlobID else { return nil }
 
-        // Answered from the cache before the round trip below, so a relaunch draws
-        // the picture at first paint instead of after a download URL comes back.
-        // Safe to trust: a blob is immutable, so a new picture is a new key.
-        if let cached = await RemoteImageLoader.cachedImage(cacheKey: blobID.description) {
-            return cached
+        // Answered from disk before the round trip below, so a relaunch draws the
+        // picture at first paint instead of after a download URL comes back. Safe
+        // to trust: a blob is immutable, so a new picture is a new key.
+        if let cached = cache.data(for: blobID), let image = UIImage(data: cached) {
+            return image
         }
 
         do {
@@ -39,7 +40,9 @@ enum ProfilePictureLoader {
                 return nil
             }
 
-            return try await RemoteImageLoader.image(at: url, cacheKey: blobID.description)
+            let (data, _) = try await URLSession.shared.data(from: url)
+            cache.write(data, for: blobID)
+            return UIImage(data: data)
         } catch {
             guard !Task.isCancelled else { return nil }
             logger.info("Failed to load a profile picture", metadata: ["error": "\(error)"])
