@@ -259,7 +259,7 @@ struct ConversationScreen: View {
                         title: title,
                         contact: contact,
                         conversationID: conversationID,
-                        imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
+                        imageData: contact?.imageData ?? sessionContainer.profileAvatars.data(for: tipCounterpart?.userID),
                         blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
                         width: max(navBarWidth - Self.titleSideInset * 2, 0),
                         onTap: titleTapAction,
@@ -270,7 +270,7 @@ struct ConversationScreen: View {
         }
         // Fetch the tip counterpart's avatar for the title and profile card.
         .task(id: tipCounterpart?.userID) {
-            await sessionContainer.tipAvatars.load(
+            await sessionContainer.profileAvatars.load(
                 userID: tipCounterpart?.userID,
                 picture: tipCounterpart?.profilePicture
             )
@@ -530,15 +530,15 @@ struct ConversationScreen: View {
                 conversationID: id,
                 controller: conversationController,
                 session: session,
-                // `tipAvatars` is captured directly so the coordinator retains
+                // `profileAvatars` is captured directly so the coordinator retains
                 // one small store, not the whole session container.
-                profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, tipAvatars = sessionContainer.tipAvatars] in
+                profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, profileAvatars = sessionContainer.profileAvatars] in
                     Self.profileCard(
                         context: context,
                         conversationID: id,
                         directory: contactSyncController.resolvedContacts.onFlipcash,
                         controller: conversationController,
-                        tipAvatars: tipAvatars,
+                        profileAvatars: profileAvatars,
                         // Resolved inside the closure, not captured: the card
                         // must pick up the conversation the first tip creates.
                         fallbackCounterpart: Self.cachedCounterpart(counterpartUserID, session: session)
@@ -586,7 +586,7 @@ struct ConversationScreen: View {
         conversationID: ConversationID,
         directory: [ResolvedContact],
         controller: ConversationController,
-        tipAvatars: TipAvatarStore,
+        profileAvatars: ProfileAvatarStore,
         fallbackCounterpart: ConversationMember? = nil
     ) -> ChatProfileCard {
         if let conversation = controller.conversation(withID: conversationID),
@@ -595,7 +595,7 @@ struct ConversationScreen: View {
             return ChatProfileCard(
                 name: controller.displayName(for: conversation),
                 avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
-                imageData: tipAvatars.data(for: counterpart?.userID),
+                imageData: profileAvatars.data(for: counterpart?.userID),
                 blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
                 counterpart: Self.tipDMCounterpart(counterpart)
             )
@@ -605,7 +605,7 @@ struct ConversationScreen: View {
             return ChatProfileCard(
                 name: counterpart.displayName,
                 avatarID: counterpart.userID?.uuidString ?? conversationID.description,
-                imageData: tipAvatars.data(for: counterpart.userID),
+                imageData: profileAvatars.data(for: counterpart.userID),
                 blurhash: counterpart.profilePicture?.thumbnailBlurhash,
                 counterpart: Self.tipDMCounterpart(counterpart)
             )

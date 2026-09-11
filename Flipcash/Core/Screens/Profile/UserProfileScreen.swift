@@ -19,7 +19,6 @@ struct UserProfileScreen: View {
 
     var body: some View {
         let seed = sessionContainer.conversationController.counterpartSeed(forUserID: userID)
-        let avatarData = sessionContainer.tipAvatars.data(for: userID)
         UserProfileContent(
             model: UserProfileViewModel(
                 userID: userID,
@@ -28,8 +27,8 @@ struct UserProfileScreen: View {
                 blocklistController: blocklistController,
                 router: router,
                 session: sessionContainer.session,
-                seed: seed,
-                avatarData: avatarData
+                profileAvatars: sessionContainer.profileAvatars,
+                seed: seed
             )
         )
     }
@@ -124,7 +123,6 @@ final class UserProfileViewModel {
     private(set) var name: String?
 
     private(set) var username: Username?
-    private(set) var imageData: Data?
     private(set) var blurhash: String?
     private(set) var joinedText: String?
 
@@ -147,17 +145,28 @@ final class UserProfileViewModel {
     @ObservationIgnored private let blocklistController: BlocklistController
     @ObservationIgnored private let router: AppRouter
     @ObservationIgnored private let session: Session
+    @ObservationIgnored private let profileAvatars: ProfileAvatarStore
+    @ObservationIgnored private let seedImageData: Data?
 
-    init(userID: UserID, flipClient: FlipClient, owner: KeyPair, blocklistController: BlocklistController, router: AppRouter, session: Session, seed: CounterpartSeed, avatarData: Data?) {
+    /// The avatar bytes to draw, read through to the store on every access rather than captured at
+    /// init: the store fills in after a round trip, and a counterpart who changes their picture
+    /// replaces what it holds. A screen holding a copy from init shows the blurhash until it is
+    /// dismissed and reopened.
+    var imageData: Data? {
+        profileAvatars.data(for: userID) ?? seedImageData
+    }
+
+    init(userID: UserID, flipClient: FlipClient, owner: KeyPair, blocklistController: BlocklistController, router: AppRouter, session: Session, profileAvatars: ProfileAvatarStore, seed: CounterpartSeed) {
         self.userID = userID
         self.flipClient = flipClient
         self.owner = owner
         self.blocklistController = blocklistController
         self.router = router
         self.session = session
+        self.profileAvatars = profileAvatars
         self.name = seed.name
         self.username = seed.username
-        self.imageData = avatarData ?? seed.imageData
+        self.seedImageData = seed.imageData
         self.blurhash = seed.blurhash
     }
 
@@ -167,10 +176,12 @@ final class UserProfileViewModel {
     func loadProfile() async {
         if let cached = session.cachedUserProfile(for: userID) {
             apply(cached)
+            await profileAvatars.load(userID: userID, picture: cached.profilePicture)
         }
         guard let profile = try? await flipClient.fetchProfile(userID: userID, owner: owner) else { return }
         session.cacheUserProfile(profile, for: userID)
         apply(profile)
+        await profileAvatars.load(userID: userID, picture: profile.profilePicture)
     }
 
     private func apply(_ profile: Profile) {

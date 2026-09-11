@@ -11,6 +11,7 @@ import FlipcashUI
 struct TipConversationsScreen: View {
 
     @Environment(ConversationController.self) private var conversationController
+    @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
     var body: some View {
@@ -40,6 +41,17 @@ struct TipConversationsScreen: View {
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
             }
+        }
+        // Every counterpart, not just the rows on screen. A row's own `.task` fires when the row is
+        // built, which in a `List` is when it scrolls into view — so without this the avatar below
+        // the fold starts downloading at the moment the user is looking at its blurhash.
+        .task(id: conversations.count) {
+            sessionContainer.profileAvatars.preload(
+                conversations.map {
+                    let counterpart = $0.counterpart(excluding: conversationController.selfUserID)
+                    return (counterpart?.userID, counterpart?.profilePicture)
+                }
+            )
         }
     }
 }
@@ -131,7 +143,7 @@ private struct TipConversationRow: View {
             avatarID: counterpart?.userID?.uuidString ?? conversation.id.description,
             title: title,
             subtitle: subtitle,
-            imageData: sessionContainer.tipAvatars.data(for: counterpart?.userID),
+            imageData: sessionContainer.profileAvatars.data(for: counterpart?.userID),
             blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
             accessoryPlacement: .titleLine,
             accessibilityLabel: hasUnread ? "\(title), unread messages" : title,
@@ -144,7 +156,7 @@ private struct TipConversationRow: View {
             )
         }
         .task(id: counterpart?.userID) {
-            await sessionContainer.tipAvatars.load(
+            await sessionContainer.profileAvatars.load(
                 userID: counterpart?.userID,
                 picture: counterpart?.profilePicture
             )

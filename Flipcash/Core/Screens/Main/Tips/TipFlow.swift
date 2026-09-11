@@ -367,12 +367,12 @@ final class TipFlow {
         }
     }
 
-    /// Fetches the recipient's avatar through the shared tip-avatar store —
+    /// Fetches the recipient's avatar through the shared profile-avatar store —
     /// warming the same cache the conversation surfaces read — and re-renders
     /// the card with it. The card is already up, so a failure just leaves the
     /// placeholder.
     private func loadAvatar(for recipient: TipRecipient, picture: ProfilePicture?) async {
-        let store = sessionContainer.tipAvatars
+        let store = sessionContainer.profileAvatars
         await store.load(userID: recipient.userID, picture: picture)
         guard let data = store.data(for: recipient.userID),
               let avatar = UIImage(data: data),
