@@ -8,6 +8,7 @@
 import Foundation
 import Testing
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 // `@MainActor` because `StoredMintMetadata.metadata` is main-actor-isolated

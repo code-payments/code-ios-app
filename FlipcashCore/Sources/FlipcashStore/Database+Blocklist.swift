@@ -12,7 +12,7 @@ import SQLite
 nonisolated extension Database {
 
     /// The cached blocklist, most-recently-blocked first.
-    func getBlockedUsers() throws -> [BlockedUserProfile] {
+    public func getBlockedUsers() throws -> [BlockedUserProfile] {
         let b = BlocklistTable()
         let rows = try reader.prepareRowIterator(b.table.order(b.blockedAt.desc))
         return try rows.map { row in
@@ -26,7 +26,7 @@ nonisolated extension Database {
     }
 
     /// Atomically replace the entire cached blocklist with `users`.
-    func replaceBlocklist(_ users: [BlockedUserProfile]) throws {
+    public func replaceBlocklist(_ users: [BlockedUserProfile]) throws {
         let b = BlocklistTable()
         try writer.transaction {
             try writer.run(b.table.delete())
@@ -42,7 +42,7 @@ nonisolated extension Database {
     }
 
     /// Insert or replace one blocked user (optimistic block).
-    func upsertBlockedUser(_ user: BlockedUserProfile) throws {
+    public func upsertBlockedUser(_ user: BlockedUserProfile) throws {
         let b = BlocklistTable()
         try writer.run(b.table.upsert(
             b.userID         <- user.userID,
@@ -54,7 +54,7 @@ nonisolated extension Database {
     }
 
     /// Remove one blocked user (optimistic unblock).
-    func deleteBlockedUser(userID: UserID) throws {
+    public func deleteBlockedUser(userID: UserID) throws {
         let b = BlocklistTable()
         try writer.run(b.table.filter(b.userID == userID).delete())
     }

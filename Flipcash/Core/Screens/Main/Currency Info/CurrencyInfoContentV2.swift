@@ -10,6 +10,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashStore
 import FlipcashUI
 
 /// Marks the hero card as the morph destination for the wallet's tapped card.

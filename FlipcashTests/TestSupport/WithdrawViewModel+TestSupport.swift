@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import Testing
 import FlipcashCore
+import FlipcashStore
 import FlipcashUI
 @testable import FlipcashCore
 @testable import Flipcash

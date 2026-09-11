@@ -6,6 +6,7 @@
 import Foundation
 @testable import Flipcash
 import FlipcashCore
+import FlipcashStore
 import SQLite
 
 /// Single-row read helpers used only in tests. Production reads the whole

@@ -8,39 +8,39 @@
 import Foundation
 import FlipcashCore
 
-nonisolated struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
+nonisolated public struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
     
-    let mint: PublicKey
-    let name: String
-    let symbol: String
-    let decimals: Int
-    let bio: String?
-    let imageURL: URL?
-    let vmAddress: PublicKey?
-    let vmAuthority: PublicKey?
-    let lockDuration: Int?
-    let currencyConfig: PublicKey?
-    let liquidityPool: PublicKey?
-    let seed: PublicKey?
-    let authority: PublicKey?
-    let mintVault: PublicKey?
-    let coreMintVault: PublicKey?
-    let coreMintFees: PublicKey?
-    let supplyFromBonding: UInt64?
-    let sellFeeBps: Int?
+    public let mint: PublicKey
+    public let name: String
+    public let symbol: String
+    public let decimals: Int
+    public let bio: String?
+    public let imageURL: URL?
+    public let vmAddress: PublicKey?
+    public let vmAuthority: PublicKey?
+    public let lockDuration: Int?
+    public let currencyConfig: PublicKey?
+    public let liquidityPool: PublicKey?
+    public let seed: PublicKey?
+    public let authority: PublicKey?
+    public let mintVault: PublicKey?
+    public let coreMintVault: PublicKey?
+    public let coreMintFees: PublicKey?
+    public let supplyFromBonding: UInt64?
+    public let sellFeeBps: Int?
 
-    let socialLinks: String?
-    let billColors: String?
+    public let socialLinks: String?
+    public let billColors: String?
 
-    let createdAt: Date?
+    public let createdAt: Date?
 
-    let updatedAt: Date
+    public let updatedAt: Date
 
-    var id: PublicKey {
+    public var id: PublicKey {
         mint
     }
 
-    init(mint: PublicKey, name: String, symbol: String, decimals: Int, bio: String?, imageURL: URL?, vmAddress: PublicKey?, vmAuthority: PublicKey?, lockDuration: Int?, currencyConfig: PublicKey?, liquidityPool: PublicKey?, seed: PublicKey?, authority: PublicKey?, mintVault: PublicKey?, coreMintVault: PublicKey?, coreMintFees: PublicKey?, supplyFromBonding: UInt64?, sellFeeBps: Int?, socialLinks: String? = nil, billColors: String? = nil, createdAt: Date? = nil, updatedAt: Date) {
+    public init(mint: PublicKey, name: String, symbol: String, decimals: Int, bio: String?, imageURL: URL?, vmAddress: PublicKey?, vmAuthority: PublicKey?, lockDuration: Int?, currencyConfig: PublicKey?, liquidityPool: PublicKey?, seed: PublicKey?, authority: PublicKey?, mintVault: PublicKey?, coreMintVault: PublicKey?, coreMintFees: PublicKey?, supplyFromBonding: UInt64?, sellFeeBps: Int?, socialLinks: String? = nil, billColors: String? = nil, createdAt: Date? = nil, updatedAt: Date) {
         self.mint = mint
         self.name = name
         self.symbol = symbol
@@ -68,7 +68,7 @@ nonisolated struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashab
 
 extension StoredMintMetadata {
     /// Converts StoredMintMetadata to MintMetadata
-    var metadata: MintMetadata {
+    public var metadata: MintMetadata {
         let vmMetadata: VMMetadata? = {
             guard let vmAddress = vmAddress,
                   let vmAuthority = vmAuthority,
@@ -134,14 +134,14 @@ extension StoredMintMetadata {
 
 extension StoredMintMetadata {
     /// Returns the JSON string persisted in the `socialLinks` column, or `nil` when empty.
-    nonisolated static func encodedSocialLinks(_ socialLinks: [SocialLink]) -> String? {
+    public nonisolated static func encodedSocialLinks(_ socialLinks: [SocialLink]) -> String? {
         guard !socialLinks.isEmpty,
               let data = try? JSONEncoder().encode(socialLinks) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
     /// Returns the JSON string persisted in the `billColors` column, or `nil` when empty.
-    nonisolated static func encodedBillColors(_ billColors: [String]) -> String? {
+    public nonisolated static func encodedBillColors(_ billColors: [String]) -> String? {
         guard !billColors.isEmpty,
               let data = try? JSONEncoder().encode(billColors) else { return nil }
         return String(data: data, encoding: .utf8)
@@ -150,7 +150,7 @@ extension StoredMintMetadata {
     /// Creates a StoredMintMetadata from a MintMetadata for immediate display.
     /// Used when navigating from screens that already have the full metadata
     /// (e.g. Currency Discovery) to avoid a loading flash.
-    init(_ metadata: MintMetadata) {
+    public init(_ metadata: MintMetadata) {
         let encodedSocialLinks = Self.encodedSocialLinks(metadata.socialLinks)
         let encodedBillColors = Self.encodedBillColors(metadata.billColors)
 

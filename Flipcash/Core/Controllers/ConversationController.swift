@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import FlipcashCore
+import FlipcashStore
 
 nonisolated private let logger = Logger(label: "flipcash.conversation-controller")
 

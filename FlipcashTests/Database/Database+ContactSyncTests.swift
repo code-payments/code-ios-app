@@ -6,6 +6,7 @@
 import Testing
 import Foundation
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @Suite("Database+ContactSync")

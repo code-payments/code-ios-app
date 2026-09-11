@@ -18,6 +18,7 @@
 import Foundation
 import Testing
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @MainActor
