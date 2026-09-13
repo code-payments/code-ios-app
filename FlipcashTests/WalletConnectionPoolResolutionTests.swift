@@ -12,8 +12,16 @@ import FlipcashCore
 @Suite("WalletConnection.resolveFundSwapPool")
 struct WalletConnectionPoolResolutionTests {
 
+    /// `sha256("account:LiquidityPool")[0..8]` — the real Anchor discriminator for this
+    /// account. `PoolAccount` rejects data that doesn't start with these bytes.
+    private nonisolated static let poolAccountDiscriminator: [UInt8] = [66, 38, 17, 64, 188, 80, 68, 129]
+
+    /// Fee recipient sits at offset 136: discriminator (8) + operations_authority (32)
+    /// + pause_authority (32) + two unnamed pubkeys (32 each) that the published IDL
+    /// does not describe.
     private nonisolated static func poolAccountData(feeRecipient: [UInt8]) -> Data {
-        var data = Data(repeating: 0, count: 8 + 32 + 32)
+        var data = Data(Self.poolAccountDiscriminator)
+        data.append(Data(repeating: 0, count: 32 + 32 + 32 + 32))
         data.append(Data(feeRecipient))
         return data
     }
