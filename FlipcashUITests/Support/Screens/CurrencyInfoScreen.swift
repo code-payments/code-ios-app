@@ -62,6 +62,27 @@ struct CurrencyInfoUIScreen {
         )
     }
 
+    /// Asserts the page for a held currency that is *not* Dollars.
+    ///
+    /// Give and Convert are on both held layouts, so a test that only checks
+    /// those cannot tell a token's page from the Dollars page — which is how a
+    /// wallet tap that opened the wrong card used to pass. Buy More is the tile
+    /// only a token has.
+    func assertHeldTokenReached(timeout: TimeInterval = 10) {
+        XCTAssertTrue(
+            buyMoreButton.waitForExistence(timeout: timeout),
+            "Expected a held token's CurrencyInfoScreen, with a Buy More tile — Dollars shows Withdraw there"
+        )
+    }
+
+    /// Asserts the Dollars page, which swaps Buy More for Withdraw.
+    func assertDollarsReached(timeout: TimeInterval = 10) {
+        XCTAssertTrue(
+            withdrawButton.waitForExistence(timeout: timeout),
+            "Expected the Dollars CurrencyInfoScreen, with a Withdraw tile — a token shows Buy More there"
+        )
+    }
+
     /// Asserts the page for a currency the account doesn't hold.
     func assertUnheldCurrencyReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
