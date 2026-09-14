@@ -23,12 +23,18 @@ enum HomeTab: Int, CaseIterable, Identifiable, Hashable {
 
     /// The asset-catalog name of the tab's template glyph. Selected tabs use a
     /// filled glyph and the rest an outline, per the tab bar spec.
+    ///
+    /// The scanner reads tip cards, so it carries the tip card itself rather
+    /// than a viewfinder, and You takes the people-circle the scanner's slot
+    /// left free — the glyph it shows when there is no profile photo to draw in
+    /// its place (node 10000:111297). You has only the one glyph: selection is
+    /// carried by the pill behind it, as it already is for a photo.
     func iconName(isSelected: Bool) -> String {
         switch self {
-        case .scan:    return isSelected ? "NavScanSelected"    : "NavScan"
+        case .scan:    return isSelected ? "NavTipCardSelected" : "NavTipCard"
         case .wallet:  return isSelected ? "NavWalletSelected"  : "NavWallet"
         case .chat:    return isSelected ? "NavChatSelected"    : "NavChat"
-        case .tipCard: return isSelected ? "NavTipCardSelected" : "NavTipCard"
+        case .tipCard: return "NavPeople"
         }
     }
 
