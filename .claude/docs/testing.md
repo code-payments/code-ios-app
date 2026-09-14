@@ -53,7 +53,11 @@ snapshots. The crash is inside the sanitizer, not app code, in both cases. Detai
 repro steps in [2026-08-25-tsan-ui-test-crash.md](../plans/2026-08-25-tsan-ui-test-crash.md).
 Don't move TSan back onto `AllTargets` without re-checking that analysis against the current Xcode.
 
-**Never run `swift test` in a package directory** (`FlipcashCore`, `FlipcashUI`, etc.). Packages are iOS-only; `swift test` targets the macOS host and fails with code-signing errors. Always go through `./Scripts/test.sh` (which routes through the `Flipcash` scheme on the iOS Simulator).
+**`swift test` works in `FlipcashCore` only.** It and `FlipcashCoreVectors` declare `.macOS`, so `swift test` builds and runs their suites on the macOS host. Every other package (`FlipcashUI`, `FlipcashAPI`, `CodeScanner`, `CrossPlatformVectors`) is iOS-only and cannot be tested that way.
+
+A macOS run has no app bundle, so anything reading `Bundle.main` sees nil — `AppMeta` returns `AppMeta.unknown` instead of trapping. A test that needs a real bundle value belongs in a simulator run.
+
+`./Scripts/test.sh` (the `Flipcash` scheme on the iOS Simulator) stays the check that counts, because it runs on the platform we ship. Treat `swift test` as a fast inner loop for pure-logic suites, not a substitute for it.
 
 For paired-device builds, see [Xcode MCP Server](quick-reference.md#xcode-mcp-server).
 
