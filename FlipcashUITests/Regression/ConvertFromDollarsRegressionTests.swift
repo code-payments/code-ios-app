@@ -40,7 +40,7 @@ final class ConvertFromDollarsRegressionTests: BaseUITestCase {
         // Wallet tab → the Dollars card → its info page.
         wallet.open(from: self)
         wallet.selectUsdfCurrency()
-        currencyInfo.assertHeldCurrencyReached()
+        currencyInfo.assertDollarsReached()
 
         // Convert → $0.01 → Next. Dollars can't be its own destination, so the
         // amount screen opens on a token already.

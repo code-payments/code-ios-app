@@ -38,7 +38,7 @@ final class ConvertToDollarsRegressionTests: BaseUITestCase {
         // Wallet tab → first non-USDF card → its info page.
         wallet.open(from: self)
         wallet.selectFirstCurrency()
-        currencyInfo.assertHeldCurrencyReached()
+        currencyInfo.assertHeldTokenReached()
 
         // Convert → $0.01 → Next. The destination is already Dollars.
         waitAndTap(currencyInfo.convertButton)

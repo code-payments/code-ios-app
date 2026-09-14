@@ -10,6 +10,10 @@ import XCTest
 @MainActor
 struct WalletScreen {
 
+    /// How far below a card's top edge to tap: half the deck's 64pt per-card
+    /// reveal, so the point sits inside the strip no card overlaps.
+    private static let visibleStripInset: CGFloat = 32
+
     private let app: XCUIApplication
 
     init(app: XCUIApplication) {
@@ -26,6 +30,9 @@ struct WalletScreen {
     /// stacked cards rather than a `List`. The USDF card carries the distinct
     /// identifier "currency-row-usdf" so this selector reliably targets an
     /// investable token regardless of where USDF sorts.
+    ///
+    /// Tap it with ``selectFirstCurrency()``, never with `tap()` — see
+    /// ``tapVisibleStrip(of:)``.
     var firstCurrencyRow: XCUIElement {
         app.buttons.matching(identifier: "currency-row").firstMatch
     }
@@ -87,22 +94,45 @@ struct WalletScreen {
         testCase.scrollUpToAndTap(createCurrencyTile, in: scrollView)
     }
 
-    /// Selects the first currency card and verifies CurrencyInfoScreen is reached.
+    /// Opens the first non-USDF currency's info page.
     func selectFirstCurrency() {
         XCTAssertTrue(
             firstCurrencyRow.waitForExistence(timeout: 30),
             "Expected at least one currency in the Wallet"
         )
-        firstCurrencyRow.tap()
+        tapVisibleStrip(of: firstCurrencyRow)
     }
 
-    /// Selects the USDF (Dollars) card — the source for a convert that buys
+    /// Opens the USDF (Dollars) info page — the source for a convert that buys
     /// more of a currency the account already holds.
+    ///
+    /// Dollars needs the strip tap as much as a token does: it sorts by value
+    /// like every other card, so anything worth less is drawn on top of it and
+    /// a centre tap opens that card instead.
     func selectUsdfCurrency() {
         XCTAssertTrue(
             usdfRow.waitForExistence(timeout: 30),
             "Expected the USDF card in the Wallet"
         )
-        usdfRow.tap()
+        tapVisibleStrip(of: usdfRow)
+    }
+
+    /// Taps the middle of a card's uncovered top strip.
+    ///
+    /// `TokenCardStack` lays the cards coincident and offsets each one
+    /// `fannedReveal` (64pt) below the card behind it, so all a card leaves
+    /// uncovered is that top sliver — the frame centre `XCUIElement.tap()` aims
+    /// at belongs to the card in front, which is the one the tap then opens. A
+    /// covered card still reports `isHittable == true`, so there is nothing to
+    /// assert here; the guard is `assertHeldTokenReached()` at the destination.
+    ///
+    /// The offset is in points from the top edge rather than a fraction of the
+    /// frame, because the Dollars card's watermark overflows its bounds and
+    /// inflates its accessibility frame — the same fraction lands lower there
+    /// than on a plain card.
+    private func tapVisibleStrip(of card: XCUIElement) {
+        card.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+            .withOffset(CGVector(dx: 0, dy: Self.visibleStripInset))
+            .tap()
     }
 }

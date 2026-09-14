@@ -37,7 +37,7 @@ final class ConvertBetweenTokensRegressionTests: BaseUITestCase {
         // Wallet tab → first non-USDF card → its info page.
         wallet.open(from: self)
         wallet.selectFirstCurrency()
-        currencyInfo.assertHeldCurrencyReached()
+        currencyInfo.assertHeldTokenReached()
 
         waitAndTap(currencyInfo.convertButton)
         convert.assertAmountStepReached()
