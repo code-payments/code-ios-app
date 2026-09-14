@@ -193,7 +193,7 @@ class BaseUITestCase: XCTestCase {
 
         wallet.open(from: self)
         wallet.selectFirstCurrency()
-        currencyInfo.assertHeldCurrencyReached(timeout: 30)
+        currencyInfo.assertHeldTokenReached(timeout: 30)
         waitAndTap(currencyInfo.giveButton)
 
         XCTAssertTrue(
