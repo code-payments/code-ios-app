@@ -102,6 +102,11 @@ private struct SendAmountScreenContent: View {
             .padding(20)
         }
         .ignoresSafeArea(.keyboard)
+        // Warm the verified rate proof while the amount is being typed, so the
+        // swipe doesn't stall on a cold cache. This used to happen behind the
+        // tipcard, which no longer composes anything — the wait belongs to
+        // whichever screen the user is reading, and that is this one.
+        .task { await viewModel.prewarmVerifiedRate() }
         .navigationTitle("")
         .toolbar {
             ToolbarItem(placement: .principal) {

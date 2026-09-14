@@ -9,28 +9,12 @@ import FlipcashUI
 
 private let logger = Logger(label: "flipcash.tip-flow")
 
-/// Session-scoped orchestrator for sending a tip. Entered from a scanned
-/// tipcode or a tipcard link, it gates the entry (profile, balance), resolves
-/// the recipient, drives the tipcard overlay + Send a Tip sheet, and submits
-/// through the direct-send path.
+/// Session-scoped orchestrator for opening someone's tipcard. Entered from a
+/// scanned tipcode or a tipcard link, it gates the entry (profile), resolves
+/// the recipient, shows the card, and hands over to their chat — where the
+/// amount is chosen and sent (node 10074:18893).
 @Observable
 final class TipFlow {
-
-    /// Whether the Send a Tip sheet is up. Writing false through the binding
-    /// (a swipe-down) cancels the whole flow.
-    var isSheetPresented = false
-
-    /// The custom amount chosen through the "…" chip, occupying the fourth
-    /// slot until the flow resets.
-    private(set) var customAmount: Decimal?
-
-    /// Which chip is selected.
-    var selection: TipSelection? = nil
-
-    /// The direct-send engine for the presented recipient. Owns the target,
-    /// the selected balance, and the full submission path (minimum, funds,
-    /// pin, limits). Non-nil exactly while a tip is being composed.
-    private(set) var submission: SendAmountViewModel?
 
     /// A recipient held while the user creates a profile; resumed by
     /// ``resumeAfterProfileCreation()`` once `isTippable` flips true. Holds
@@ -39,6 +23,11 @@ final class TipFlow {
     @ObservationIgnored private(set) var pendingRecipient: ProfileIdentifier?
 
     @ObservationIgnored private var prepTask: Task<Void, Never>?
+
+    /// The hold between the card landing and the chat opening. Held so a
+    /// dismissed card cancels the hand-off, and so a second entry can't start
+    /// while one is mid-flight.
+    @ObservationIgnored private var routeTask: Task<Void, Never>?
 
     /// Keeps the keyboard down while a tipcard is being routed to. A tipcard
     /// link is commonly followed from a chat the user left focused, and the
@@ -60,53 +49,17 @@ final class TipFlow {
         self.router           = sessionContainer.appRouter
     }
 
-    // MARK: - Presets -
-
-    /// The preset tiers for the display currency, USD row fallback.
-    var presets: UserFlags.TipPresets? {
-        session.userFlags?.tipPresets(for: ratesController.balanceCurrency)
-    }
-
-    /// The fiat amount a chip stands for, in the display currency.
-    func amount(for selection: TipSelection?) -> Decimal? {
-        switch selection {
-        case .low:    presets?.low
-        case .medium: presets?.medium
-        case .high:   presets?.high
-        case .custom: customAmount
-        case .none:   nil
-        }
-    }
-
-    /// The fiat amount the current selection stands for, or nil when it no
-    /// longer clears the tip floor — the recipient's fee resolves after the
-    /// sheet is up, so a selection made before it landed can fall under it.
-    var selectedAmount: Decimal? {
-        guard let amount = amount(for: selection),
-              submission?.unmetTipMinimum(entered: amount) == nil else {
-            return nil
-        }
-        return amount
-    }
-
-    /// The preset tiers on offer. A tier below the floor this tip has to clear
-    /// isn't offered: a chip never passes through the amount entry, so it would
-    /// only be rejected on the swipe.
-    var offeredTiers: [TipSelection] {
-        [.low, .medium, .high].filter { tier in
-            guard let amount = amount(for: tier) else { return true }
-            return submission?.unmetTipMinimum(entered: amount) == nil
-        }
-    }
-
     // MARK: - Entry -
 
     /// Handles a scanned or deeplinked tipcode. Gates in order: own-id codes
     /// (routed to the user's own tip card), then a tippable profile (held +
     /// profile creation presented).
-    /// The card always shows for a tippable recipient; the giveable-balance gate
-    /// is deferred to ``present(_:)``, where it blocks the Send a Tip sheet
-    /// (surfacing the Add Money / Discover dialog) without hiding the card.
+    ///
+    /// No balance gate: this flow no longer moves money, it opens a chat. The
+    /// giveable-balance check belongs to the send the chat makes, and
+    /// `ConversationScreen.sendCash()` already applies it there — gating the
+    /// card as well would stop an empty-balance user from reaching a
+    /// conversation they can read and reply in.
     func begin(userID: UserID) {
         // Tipping yourself is a payment no-op, so there's no flow to start from
         // your own code — show the user their own tip card rather than swallow
@@ -132,7 +85,7 @@ final class TipFlow {
     }
 
     private func begin(_ identifier: ProfileIdentifier) {
-        guard submission == nil, pendingRecipient == nil, prepTask == nil else { return }
+        guard pendingRecipient == nil, prepTask == nil, routeTask == nil else { return }
         // A dialog is already asking the user something (commonly this flow's
         // own balance gate) — don't churn it on every decoded camera frame.
         guard session.dialogItem == nil else { return }
@@ -168,14 +121,14 @@ final class TipFlow {
         pendingRecipient = nil
     }
 
-    /// Tears down the card, the sheet, and any in-flight preparation.
-    /// Idempotent — safe from both the drag-dismissed card and the swiped-down
-    /// sheet.
+    /// Tears down the card and any in-flight preparation or hand-off.
+    /// Idempotent — safe from the drag-dismissed card and from a failed
+    /// resolve alike.
     func cancel() {
         prepTask?.cancel()
         prepTask = nil
-        isSheetPresented = false
-        submission = nil
+        routeTask?.cancel()
+        routeTask = nil
         if case .tipcard = session.billState.bill {
             session.dismissCashBill(style: .slide)
         }
@@ -258,16 +211,13 @@ final class TipFlow {
                     return
                 }
 
+                // The chat is created by the first tip, so until then the
+                // conversation's only source for the counterpart's name,
+                // picture, and handle is the profile this resolve fetched.
                 session.cacheUserProfile(resolved, for: userID)
-                let recipient = TipRecipient(
-                    userID: userID,
-                    displayName: resolved.displayName ?? "",
-                    username: resolved.username,
-                    origin: .tipcard
-                )
                 guard !Task.isCancelled else { return }
-                present(recipient)
-                await loadAvatar(for: recipient, picture: resolved.profilePicture)
+                present(userID: userID, profile: resolved)
+                await loadAvatar(userID: userID, picture: resolved.profilePicture)
             } catch {
                 guard !Task.isCancelled else { return }
                 logger.error("Failed to prepare tip recipient", metadata: [
@@ -316,7 +266,14 @@ final class TipFlow {
         }
     }
 
-    private func present(_ recipient: TipRecipient) {
+    /// Shows the resolved card, holds it long enough to read whose it is, then
+    /// opens the chat with them.
+    ///
+    /// The card is the confirmation that the right code was scanned, not a
+    /// place to compose from: the amount is chosen in the chat, behind the
+    /// "Start Chatting" CTA, which is where the username lookup already lands
+    /// (node 10074:18893).
+    private func present(userID: UserID, profile: Profile) {
         // The card is resolved and about to show, whether reached from a scan or
         // a deep link — the second step of the Scanned → Presented → Sent Tip funnel.
         Analytics.track(event: Analytics.TipCardEvent.presented)
@@ -325,45 +282,41 @@ final class TipFlow {
         // closed. The card is a focused modal and must never share the screen with a
         // keyboard, so it takes one down on the way up regardless.
         keyboard.suppress()
-        selection = nil
-        customAmount = nil
-        submission = SendAmountViewModel(
-            sessionContainer: sessionContainer,
-            target: .tip(recipient)
-        )
 
         // A tip deep link can beat the app's foreground stream refresh, so kick the
-        // rate stream to reconnect now and warm the verified proof while the card
-        // animates in and the user reads the sheet. This overlaps the rate wait with
-        // on-screen time so the swipe submits instantly instead of racing a cold
-        // cache; the submit-time poll in `prepareSubmission` remains the backstop.
+        // rate stream to reconnect now, while the card animates in. The chat's CTA
+        // names the fee in the display currency and its amount screen priced in it,
+        // so both want a rate the moment they appear.
         ratesController.ensureStreamConnected()
-        Task { [weak self] in await self?.submission?.prewarmVerifiedRate() }
 
         session.billState = BillState(bill: .tipcard(
-            codeData: TipCode.Payload(userID: recipient.userID).codeData(),
-            name: recipient.displayName,
-            username: recipient.username.map(\.handle),
+            codeData: TipCode.Payload(userID: userID).codeData(),
+            name: profile.displayName ?? "",
+            username: profile.username.map(\.handle),
             avatar: nil
         ))
         session.presentationState = .visible(.pop)
 
-        // The sheet follows once the card's pop has settled, mirroring the
-        // received-cash valuation timing — but only if the balance gate clears.
-        // A blocked gate surfaces its dialog and leaves the card up without the
-        // sheet. `submission` is nilled by `cancel()`, so a card dismissed during
-        // the delay never presents a stale sheet.
-        Task { [weak self] in
+        // Timings are the post-tip hand-off's, which this replaces: the card's
+        // pop is given 750ms to settle and be read, then 600ms to leave before
+        // the chat takes the screen. Cancelled by `cancel()`, so a card the user
+        // drags away never drops them into a chat they backed out of.
+        routeTask = Task { [weak self] in
+            defer { self?.routeTask = nil }
             try? await Task.delay(milliseconds: 750)
-            guard let self, submission != nil else { return }
-            let rate = ratesController.rateForBalanceCurrency()
-            if let dialog = giveCashGate(session: session, rate: rate)
-                .blockingDialog(router: router, addMoneySource: .scanner, context: .sendTips)?
-                .onDismiss(perform: { [weak self] in self?.cancel() }) {
-                session.dialogItem = dialog
-                return
+            guard let self, !Task.isCancelled else { return }
+
+            if case .tipcard = session.billState.bill {
+                session.dismissCashBill(style: .pop)
             }
-            isSheetPresented = true
+            try? await Task.delay(milliseconds: 600)
+            guard !Task.isCancelled else { return }
+
+            // `navigate` rather than `push`: the card is an app-root overlay
+            // raised over whichever tab the scan or link arrived on, and a tip
+            // DM belongs on the Tips stack. This brings that tab forward with
+            // the chat as its only entry, so Back lands on the chat list.
+            router.navigate(to: .tipConversationForUser(userID))
         }
     }
 
@@ -371,96 +324,12 @@ final class TipFlow {
     /// warming the same cache the conversation surfaces read — and re-renders
     /// the card with it. The card is already up, so a failure just leaves the
     /// placeholder.
-    private func loadAvatar(for recipient: TipRecipient, picture: ProfilePicture?) async {
+    private func loadAvatar(userID: UserID, picture: ProfilePicture?) async {
         let store = sessionContainer.profileAvatars
-        await store.load(userID: recipient.userID, picture: picture)
-        guard let data = store.data(for: recipient.userID),
+        await store.load(userID: userID, picture: picture)
+        guard let data = store.data(for: userID),
               let avatar = UIImage(data: data),
               case .tipcard(let codeData, let name, let username, _) = session.billState.bill else { return }
         session.billState.bill = .tipcard(codeData: codeData, name: name, username: username, avatar: avatar)
     }
-
-    // MARK: - Amounts -
-
-    /// Adopts a custom amount when it clears the tip minimum (the engine
-    /// surfaces the minimum dialog when it doesn't) and selects it.
-    func setCustomAmount(_ amount: Decimal) -> Bool {
-        guard let submission, submission.enforceTipMinimum(entered: amount) else {
-            return false
-        }
-        customAmount = amount
-        selection = .custom
-        return true
-    }
-
-    func selectCurrency(_ balance: ExchangedBalance) {
-        submission?.selectCurrencyAction(exchangedBalance: balance)
-        // Both the selection and the custom entry are cleared: the new token's
-        // balance may not cover them, and its tip minimum is enforced afresh on
-        // the next selection.
-        selection = nil
-        customAmount = nil
-    }
-
-    /// Whether `balance` holds at least the tip minimum, so the picker can
-    /// disable tokens that can't fund even the smallest tip. No floor means the
-    /// server remains the authority — every token stays enabled.
-    func meetsMinimum(_ balance: ExchangedBalance) -> Bool {
-        guard let floor = submission?.tipFloor(
-            in: balance.exchangedFiat.nativeAmount.currency
-        ) else {
-            return true
-        }
-        return floor.isMet(by: balance.exchangedFiat)
-    }
-
-    // MARK: - Submission -
-
-    /// Thrown so the swipe control resets its knob without a success check.
-    private struct TipDismissed: Error {}
-
-    /// Submits the selected amount. On success, tears down the card + sheet
-    /// and opens the new tip conversation.
-    func swipeToTip() async throws {
-        guard let submission, let amount = selectedAmount,
-              case .tip(let recipient) = submission.target else {
-            throw TipDismissed()
-        }
-
-        switch await submission.submit(entered: amount) {
-        case .success:
-            finish(recipient: recipient)
-        case .recipientNotFound:
-            cancel()
-            throw TipDismissed()
-        case .failed:
-            throw TipDismissed()
-        }
-    }
-
-    private func finish(recipient: TipRecipient) {
-        isSheetPresented = false
-        submission = nil
-        if case .tipcard = session.billState.bill {
-            session.dismissCashBill(style: .pop)
-        }
-
-        let chatID = ConversationID.tipDm(between: session.userID, and: recipient.userID)
-        Task { [router] in
-            try? await Task.delay(milliseconds: 600)
-            // Open the post-tip chat with the keyboard up — the tip-specific
-            // variant focuses the composer; ordinary opens stay closed.
-            router.navigate(to: .tipConversationWithKeyboard(chatID))
-        }
-    }
-}
-
-// MARK: - TipSelection -
-
-/// Which of the sheet's four amount chips is active.
-enum TipSelection: String, Hashable {
-    case low
-    case medium
-    case high
-    case custom
 }
