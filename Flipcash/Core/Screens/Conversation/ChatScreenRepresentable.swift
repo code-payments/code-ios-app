@@ -57,6 +57,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let focusOnAppear: Bool
     /// Whether this is a tip DM — the send button then stays minimized.
     let isTipDm: Bool
+    /// The floor the first tip has to clear to open this chat, named on the CTA.
+    let startChattingFee: FiatAmount?
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -168,7 +170,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onSendCash: onSendCash,
                 model: barModel,
                 composer: composer,
-                isTipDm: isTipDm
+                isTipDm: isTipDm,
+                startChattingFee: startChattingFee
             )
             .environment(conversationController)
             .modifier(
