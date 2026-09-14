@@ -9,9 +9,9 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.minimum-tip")
 
-/// Sets the minimum another user must pay to open a tip DM (node 9553:113170).
-/// Reached from My Account and from the You tab's "Finish Your Profile"
-/// checklist.
+/// Sets the minimum another user must pay to open a tip DM — "Minimum To Chat"
+/// (node 10074:18892). Reached from My Account and from the You tab's "Finish
+/// Your Profile" checklist.
 ///
 /// Nothing is written until Save, so backing out discards the entry — the
 /// behaviour node 9553:113241 asks for.
@@ -63,15 +63,20 @@ struct SetMinimumTipScreen: View {
                 action: submit,
                 header: AnyView(EnterAmountHeader(
                     enteredAmount: $enteredAmount,
-                    hint: .caption("\(minimum.formatted()) minimum")
+                    hint: .description(
+                        """
+                        Choose how much someone must send you to start chatting. \
+                        You can send it back if the conversation is worthwhile.
+                        """
+                    )
                 ))
             )
             .foregroundStyle(.textMain)
             .padding(20)
         }
         .ignoresSafeArea(.keyboard)
-        .navigationTitle("Set Minimum Tip")
-        .toolbarTitleDisplayMode(.inline)
+        // Untitled by design (node 10074:18892): the description under the
+        // amount says what the screen is for, so a title would repeat it.
         .dialog(item: $dialog)
         .onAppear(perform: seedFromProfile)
         // The only continuation is a pop off a stack this screen has left.
@@ -144,7 +149,7 @@ struct SetMinimumTipScreen: View {
                     dialog = minimumDialog()
                 case .ok, .denied, .unknown, .transportFailure, .cancelled, .rejected, .none:
                     dialog = .error(
-                        title: "Couldn't Save Your Minimum Tip",
+                        title: "Couldn't Save Your Minimum",
                         subtitle: "Try again"
                     )
                 }
@@ -154,7 +159,7 @@ struct SetMinimumTipScreen: View {
 
     private func minimumDialog() -> DialogItem {
         .info(
-            title: "\(minimum.formatted()) Minimum Tip",
+            title: "\(minimum.formatted()) Minimum",
             subtitle: "Please enter a higher amount"
         )
     }

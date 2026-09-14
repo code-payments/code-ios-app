@@ -16,7 +16,7 @@ struct ProfileChangeDialogTests {
         (DialogItem.ProfileField.username, "Username"),
         (.displayName, "Display Name"),
         (.profilePicture, "Profile Picture"),
-        (.minimumTip, "Minimum Tip"),
+        (.minimumTip, "Minimum To Chat"),
     ])
     func namesField(field: DialogItem.ProfileField, label: String) {
         let item = DialogItem.confirmProfileChange(field) {}
@@ -28,7 +28,7 @@ struct ProfileChangeDialogTests {
     @Test("States the change in the body", arguments: [
         (DialogItem.ProfileField.displayName, "This will change your display name"),
         (.profilePicture, "This will change your profile photo"),
-        (.minimumTip, "This will change your minimum tip"),
+        (.minimumTip, "This will change the minimum someone must send to chat with you"),
     ])
     func statesTheChange(field: DialogItem.ProfileField, body: String) {
         let item = DialogItem.confirmProfileChange(field) {}
