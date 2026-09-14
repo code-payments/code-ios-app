@@ -299,7 +299,9 @@ struct CurrencyInfoContentV2: View {
                     actionTile("Withdraw", icon: .asset("IconArrowUp"), action: onWithdraw)
                 } else {
                     actionTile("Buy More", icon: .asset("IconArrowDown"), action: onBuy)
-                    actionTile("Convert", icon: .asset("IconArrowBottomTop"), action: onConvert)
+                    // Labelled Sell: the tile opens the convert flow, but for a
+                    // held currency the user is selling out of it.
+                    actionTile("Sell", icon: .asset("IconArrowBottomTop"), action: onConvert)
                 }
             } else {
                 actionTile("Buy In", icon: .asset("IconArrowDown"), action: onBuy)

@@ -8,9 +8,12 @@ import XCTest
 /// Page object for `CurrencyInfoScreen`'s action tiles.
 ///
 /// The tab-bar UI renders `CurrencyInfoContentV2`, which gates the tiles on
-/// whether the account holds the currency: Give / Buy More / Convert when it
+/// whether the account holds the currency: Give / Buy More / Sell when it
 /// does, a lone Buy In when it doesn't. Dollars keeps its own held row —
 /// Give / Convert / Withdraw — since it is the currency others are bought with.
+///
+/// Both Sell and Dollars' Convert open the same convert flow, so tests that
+/// only care about reaching that flow go through `swapButton`.
 @MainActor
 struct CurrencyInfoUIScreen {
 
@@ -25,7 +28,15 @@ struct CurrencyInfoUIScreen {
     /// Tiles shown for a currency the account holds.
     var giveButton: XCUIElement { app.buttons["Give"] }
     var buyMoreButton: XCUIElement { app.buttons["Buy More"] }
+
+    /// Sells a held non-USDF currency. Opens the convert flow.
+    var sellButton: XCUIElement { app.buttons["Sell"] }
+
+    /// Dollars' equivalent tile, which converts out via a reserves buy.
     var convertButton: XCUIElement { app.buttons["Convert"] }
+
+    /// Whichever of the two the current page shows.
+    var swapButton: XCUIElement { sellButton.exists ? sellButton : convertButton }
 
     /// Shown in place of Buy More on Dollars.
     var withdrawButton: XCUIElement { app.buttons["Withdraw"] }
@@ -57,8 +68,8 @@ struct CurrencyInfoUIScreen {
     /// Asserts the page for a currency the account holds.
     func assertHeldCurrencyReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            convertButton.waitForExistence(timeout: timeout),
-            "Expected CurrencyInfoScreen for a held currency, with a Convert tile"
+            sellButton.waitForExistence(timeout: timeout) || convertButton.exists,
+            "Expected CurrencyInfoScreen for a held currency, with a Sell or Convert tile"
         )
     }
 
