@@ -23,7 +23,9 @@ final class ProfileAvatarStore {
     /// and gets a new blob id, so this is what tells a stale entry from a current one.
     @ObservationIgnored private var blobByUser: [UserID: BlobID] = [:]
 
-    @ObservationIgnored private var inFlight: Set<UserID> = []
+    /// The fetch currently running for a user, for later callers to join. A caller that was merely
+    /// turned away could not learn that the fetch it skipped had failed, and nothing retried.
+    @ObservationIgnored private var inFlight: [UserID: Task<Void, Never>] = [:]
     @ObservationIgnored private let cache: BlobCache
     @ObservationIgnored private let mintURL: (BlobID, UserID) async throws -> URL?
     @ObservationIgnored private let fetch: (URL) async throws -> Data
@@ -65,22 +67,36 @@ final class ProfileAvatarStore {
     /// Makes a member's current thumbnail available to ``data(for:)``.
     ///
     /// Returns without a round trip when the bytes are already in memory or on disk for that exact
-    /// blob. Download URLs expire, so one is minted per fetch and never stored.
+    /// blob, and joins the fetch already running for that user rather than starting a second one.
     func load(userID: UserID?, picture: ProfilePicture?) async {
         guard let userID, let blobID = picture?.thumbnailBlobID else { return }
 
         // A different blob under the same user id is a changed picture, not a cache hit.
         if blobByUser[userID] == blobID, dataByUser[userID] != nil { return }
-        guard !inFlight.contains(userID) else { return }
 
         if let cached = cache.data(for: blobID) {
             store(cached, userID: userID, blobID: blobID)
             return
         }
 
-        inFlight.insert(userID)
-        defer { inFlight.remove(userID) }
+        if let running = inFlight[userID] {
+            await running.value
+            return
+        }
 
+        // Unstructured, so the fetch outlives the caller that happened to start it. Callers are
+        // SwiftUI `.task`s, cancelled when their view is covered or their id changes; a fetch
+        // cancelled with them stored nothing, and the surface kept its blurhash for good.
+        let task = Task { [self] in
+            await download(blobID: blobID, userID: userID)
+            inFlight[userID] = nil
+        }
+        inFlight[userID] = task
+        await task.value
+    }
+
+    /// Download URLs expire, so one is minted per fetch and never stored.
+    private func download(blobID: BlobID, userID: UserID) async {
         do {
             guard let url = try await mintURL(blobID, userID) else { return }
 
