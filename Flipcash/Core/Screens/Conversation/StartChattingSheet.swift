@@ -76,7 +76,7 @@ private struct StartChattingSheetContent: View {
     }
 
     var body: some View {
-        PartialSheet(prefersGlass: true) {
+        PartialSheet(background: .clear) {
             VStack(spacing: 25) {
                 VStack(spacing: 12) {
                     Text(amount.formatted())
