@@ -126,7 +126,7 @@ final class ChatService: Sendable {
     /// Starts a new group chat. `pictureBlobID` must already be `READY` (uploaded via
     /// `BlobService`); `rules` gate who may read/join and who may send — `nil` means no
     /// restrictions. On `.titleModerated` the server also reports which category flagged the
-    /// title, but that detail isn't surfaced through this Int-rawValue error — callers only see
+    /// title; `ErrorStartChat.titleModerated` carries it through so callers can say why, not just
     /// that the title was rejected.
     func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?, completion: @Sendable @escaping (Result<Conversation, ErrorStartChat>) -> Void) {
         let request = Flipcash_Chat_V1_StartChatRequest.with {
@@ -145,10 +145,14 @@ final class ChatService: Sendable {
         Task {
             do {
                 let response = try await service.startChat(request, options: .unaryDefault)
-                let error = ErrorStartChat(rawValue: response.result.rawValue) ?? .unknown
-                guard error == .ok, response.hasChat else {
+                guard response.result == .ok else {
                     logger.error("Failed to start chat")
-                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    await MainActor.run { completion(.failure(ErrorStartChat(response.result, flaggedCategory: response.flaggedCategory))) }
+                    return
+                }
+                guard response.hasChat else {
+                    logger.error("Failed to start chat")
+                    await MainActor.run { completion(.failure(.unknown)) }
                     return
                 }
                 await MainActor.run { completion(.success(Conversation(response.chat))) }
@@ -241,19 +245,20 @@ public enum ErrorGetGroupChatFeed: Int, Error {
     case rejected = -4
 }
 
-/// The proto also reports a `flaggedCategory` on `.titleModerated`; this Int-rawValue enum can't
-/// carry that payload, so callers only learn the title was rejected, not why.
-public enum ErrorStartChat: Int, Error {
-    case ok
+/// Associated-value error, modelled on `ErrorProfile`, so `.titleModerated` can carry the
+/// `flaggedCategory` the server reports for it — the moderation category the plain-Int pattern
+/// used by this file's other error enums has no room for. No `.ok` case: a success response
+/// resolves to `Conversation` in `startChat`'s `Result`, it never reaches this type.
+public enum ErrorStartChat: Error, Sendable, Equatable {
     case denied
-    case titleModerated
+    case titleModerated(Flipcash_Moderation_V1_FlaggedCategory)
     case pictureBlobNotAccepted
     case invalidRules
     case rulesNotSatisfied
-    case unknown          = -1
-    case transportFailure = -2
-    case cancelled = -3
-    case rejected = -4
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
 }
 
 public enum ErrorJoinChat: Int, Error {
@@ -313,10 +318,36 @@ extension ErrorGetGroupChatFeed: ServerError, TransportClassifiableError {
 extension ErrorStartChat: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .transportFailure: .suppressed
+        case .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .titleModerated, .pictureBlobNotAccepted, .invalidRules, .rulesNotSatisfied: .info
         case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorStartChat {
+    /// Maps a non-`.ok` `StartChatResponse.Result` to its domain error, carrying `flaggedCategory`
+    /// through on `.titleModerated` rather than flattening it. Pure and synchronous so the mapping is
+    /// unit-testable without a live RPC. Callers only reach this once they've confirmed `result != .ok`;
+    /// `.ok` itself resolves to `Conversation` in `ChatService.startChat`, not this type, but is handled
+    /// here too (as `.unknown`) so the mapping is total over every case of the proto enum.
+    init(_ result: Flipcash_Chat_V1_StartChatResponse.Result, flaggedCategory: Flipcash_Moderation_V1_FlaggedCategory) {
+        switch result {
+        case .ok:
+            self = .unknown
+        case .denied:
+            self = .denied
+        case .titleModerated:
+            self = .titleModerated(flaggedCategory)
+        case .pictureBlobNotAccepted:
+            self = .pictureBlobNotAccepted
+        case .invalidRules:
+            self = .invalidRules
+        case .rulesNotSatisfied:
+            self = .rulesNotSatisfied
+        case .UNRECOGNIZED:
+            self = .unknown
         }
     }
 }

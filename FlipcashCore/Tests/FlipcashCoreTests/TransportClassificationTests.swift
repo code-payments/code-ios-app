@@ -92,6 +92,27 @@ struct TransportClassificationTests {
         #expect(!ErrorFetchBalance.parseFailed.isRetryable)
     }
 
+    // `ErrorStartChat` carries a payload on `.titleModerated` (unlike its plain-Int siblings
+    // above), so its mapping from the wire response needs its own coverage: the flagged category
+    // must survive, not get flattened into a payload-less case.
+    @Test("ErrorStartChat.titleModerated carries the flagged category from a TITLE_MODERATED response")
+    func errorStartChatTitleModeratedCarriesCategory() {
+        let error = ErrorStartChat(.titleModerated, flaggedCategory: .nsfw)
+        guard case .titleModerated(let category) = error else {
+            Issue.record("Expected .titleModerated, got \(error)")
+            return
+        }
+        #expect(category == .nsfw)
+        #expect(error.reportingLevel == .info)
+        #expect(!error.isRetryable)
+
+        // Every other result maps to its payload-less case, unaffected by the category argument.
+        #expect(ErrorStartChat(.denied, flaggedCategory: .nsfw) == .denied)
+        #expect(ErrorStartChat(.pictureBlobNotAccepted, flaggedCategory: .nsfw) == .pictureBlobNotAccepted)
+        #expect(ErrorStartChat(.invalidRules, flaggedCategory: .nsfw) == .invalidRules)
+        #expect(ErrorStartChat(.rulesNotSatisfied, flaggedCategory: .nsfw) == .rulesNotSatisfied)
+    }
+
     // MARK: - Tier 2: associated-value errors that capture the transport error -
     // These don't conform to TransportClassifiableError (they carry the error in a
     // case rather than mapping to a dedicated one), so their `reportingLevel` is
