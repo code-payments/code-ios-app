@@ -267,7 +267,8 @@ final class TipFlow {
     }
 
     /// Shows the resolved card, holds it long enough to read whose it is, then
-    /// opens the chat with them.
+    /// opens the chat with them under it and takes the card away once the chat
+    /// has arrived.
     ///
     /// The card is the confirmation that the right code was scanned, not a
     /// place to compose from: the amount is chosen in the chat, behind the
@@ -298,25 +299,34 @@ final class TipFlow {
         session.presentationState = .visible(.pop)
 
         // Timings are the post-tip hand-off's, which this replaces: the card's
-        // pop is given 750ms to settle and be read, then 600ms to leave before
-        // the chat takes the screen. Cancelled by `cancel()`, so a card the user
-        // drags away never drops them into a chat they backed out of.
+        // pop is given 750ms to settle and be read, then 600ms over the chat
+        // before it pops away. It never leaves the screen empty — the card is an
+        // app-root overlay, so it keeps drawing while the chat pushes in
+        // underneath and leaves off it once it has arrived. Cancelled by
+        // `cancel()`, so a card the user drags away during the hold never drops
+        // them into a chat they backed out of.
         routeTask = Task { [weak self] in
             defer { self?.routeTask = nil }
             try? await Task.delay(milliseconds: 750)
             guard let self, !Task.isCancelled else { return }
 
-            if case .tipcard = session.billState.bill {
-                session.dismissCashBill(style: .pop)
-            }
-            try? await Task.delay(milliseconds: 600)
-            guard !Task.isCancelled else { return }
+            // Hands the screen over before routing to it: from here the card is
+            // an image on its way out, and the scrim and the touches belong to
+            // the chat underneath.
+            session.billState.isHandingOff = true
 
             // `navigate` rather than `push`: the card is an app-root overlay
             // raised over whichever tab the scan or link arrived on, and a tip
             // DM belongs on the Tips stack. This brings that tab forward with
             // the chat as its only entry, so Back lands on the chat list.
             router.navigate(to: .tipConversationForUser(userID))
+
+            try? await Task.delay(milliseconds: 600)
+            guard !Task.isCancelled else { return }
+
+            if case .tipcard = session.billState.bill {
+                session.dismissCashBill(style: .pop)
+            }
         }
     }
 
