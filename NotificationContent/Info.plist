@@ -7,7 +7,11 @@
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>UNNotificationExtensionCategory</key>
-			<string>CHAT_MESSAGE</string>
+			<!-- Mirrors ChatNotificationCategory.id / .groupID -->
+			<array>
+				<string>CHAT_MESSAGE</string>
+				<string>CHAT_MESSAGE_GROUP</string>
+			</array>
 			<key>UNNotificationExtensionInitialContentSizeRatio</key>
 			<real>0.88</real>
 			<key>UNNotificationExtensionUserInteractionEnabled</key>
