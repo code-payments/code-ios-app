@@ -68,9 +68,9 @@ struct ConversationScreen: View {
     @State private var presentedCard: ContactCard?
     @State private var startChattingRequest: StartChattingRequest?
     @State private var coordinator: ConversationLoadCoordinator?
-    /// Ticker for the mint the gate's requirement names, resolved from mint metadata. Nil until it
-    /// lands, and for every ungated chat.
-    @State private var gateSymbol: String?
+    /// Tickers for the mints the gate's copy names, resolved from mint metadata. Empty until they
+    /// land, and for every ungated chat.
+    @State private var mintSymbols: [PublicKey: String] = [:]
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -219,13 +219,18 @@ struct ConversationScreen: View {
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
     private var gate: ConversationGatePresentation {
+        conversationGatePresentation(gateVerdicts)
+    }
+
+    /// The rule verdicts behind ``gate``, kept separately because the head card states the chat's
+    /// advertised listener rule (``ConversationGate/headline``) whether or not the viewer is short
+    /// of it, and the presentation only ever carries something unmet.
+    private var gateVerdicts: ConversationGate {
         guard let conversation = groupConversation else { return .open }
-        return conversationGatePresentation(
-            conversationGate(
-                session: session,
-                rules: conversation.rules,
-                rates: ratesController.cachedRates
-            )
+        return conversationGate(
+            session: session,
+            rules: conversation.rules,
+            rates: ratesController.cachedRates
         )
     }
 
@@ -276,6 +281,50 @@ struct ConversationScreen: View {
         return avatars
     }
 
+    /// The transcript's rows, with the group's own card in front of them.
+    ///
+    /// The card is assembled here rather than in the mapper for the reason ``authorAvatars`` is:
+    /// its picture bytes would otherwise ride in `ConversationLoadCoordinator.Inputs`, which is
+    /// byte-compared on every observation tick, and into the shared app-group container the mapped
+    /// rows are cached to in the clear. Reading the avatar store from `body` is also what makes a
+    /// landing picture redraw the card.
+    private var transcriptItems: [ChatItem] {
+        let items = coordinator?.items ?? []
+        guard let groupCard else { return items }
+        return [.groupCard(groupCard)] + items
+    }
+
+    /// The group's card at the head of its transcript, or nil for a DM and once the history is too
+    /// long to head — the same rule the counterpart's profile card follows.
+    private var groupCard: ChatGroupCard? {
+        guard let group = groupConversation, coordinator?.headsHistory == true else { return nil }
+        return ChatGroupCard(
+            title: conversationController.displayName(for: group),
+            avatarID: group.id.description,
+            imageData: groupAvatarSubject.flatMap { sessionContainer.profileAvatars.data(for: $0) },
+            blurhash: group.picture?.thumbnailBlurhash,
+            requirement: groupCardRequirement
+        )
+    }
+
+    /// The chat's entry rule as the card states it (node 10125:19164), or nil when the chat states
+    /// none. It states the rule whether or not the viewer satisfies it, so it reads the chat's
+    /// advertised listener rule rather than anything the gate found unmet. The line is broken after
+    /// the label rather than wherever the card's width falls, as the design breaks it.
+    private var groupCardRequirement: String? {
+        switch gateVerdicts.headline {
+        case .minimumBalance(let amount, _):
+            let symbol = headlineMint.flatMap { mintSymbols[$0] }
+            let holding = symbol.map { "\(amount.formattedDroppingZeroFraction()) of $\($0)" }
+                ?? amount.formattedDroppingZeroFraction()
+            return "Balance Requirement:\n\(holding)"
+        case .staff:
+            return "This chat is for Flipcash staff"
+        case nil:
+            return nil
+        }
+    }
+
     /// The mint the gate's requirement names, when it names one. A requirement with no mint applies
     /// across every holding, so there is no single token to buy.
     private var gateMint: PublicKey? {
@@ -285,6 +334,25 @@ struct ConversationScreen: View {
         case .readOnly(let requirement):    return Self.mint(of: requirement)
         }
     }
+
+    /// The mint the head card's line names. Not always ``gateMint``: a member reads an `.open`
+    /// chat, which names nothing to satisfy, and the card still states the rule the chat runs on.
+    private var headlineMint: PublicKey? {
+        gateVerdicts.headline.flatMap(Self.mint(of:))
+    }
+
+    /// Every mint the gate's copy has to name, deduplicated — at most one per requirement, and the
+    /// same one in a chat that gates on a single token.
+    private var gateMints: [PublicKey] {
+        var mints: [PublicKey] = []
+        for mint in [gateMint, headlineMint].compactMap({ $0 }) where !mints.contains(mint) {
+            mints.append(mint)
+        }
+        return mints
+    }
+
+    /// Ticker for the requirement the panel names, once its metadata lands.
+    private var gateSymbol: String? { gateMint.flatMap { mintSymbols[$0] } }
 
     private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
         switch requirement {
@@ -305,7 +373,7 @@ struct ConversationScreen: View {
         // The UIKit transcript hosts the bar internally and owns all keyboard handling, so there's
         // no SwiftUI `.safeAreaInset` bar here.
         ChatScreenRepresentable(
-            items: coordinator?.items ?? [],
+            items: transcriptItems,
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
             onReachTop: { if chatExists, !gate.obscuresTranscript { coordinator?.reachedTop() } },
@@ -387,16 +455,16 @@ struct ConversationScreen: View {
         }
         // Name the gate's requirement in the token it asks for. The mint may be one the user holds
         // nothing of, so the local store can miss and the fetch is what fills it.
-        .task(id: gateMint) {
-            guard let gateMint else {
-                gateSymbol = nil
-                return
+        .task(id: gateMints) {
+            var symbols: [PublicKey: String] = [:]
+            for mint in gateMints {
+                if let stored = session.storedMintMetadata(for: mint) {
+                    symbols[mint] = stored.symbol
+                } else if let fetched = try? await session.fetchMintMetadata(mint: mint).symbol {
+                    symbols[mint] = fetched
+                }
             }
-            if let stored = session.storedMintMetadata(for: gateMint) {
-                gateSymbol = stored.symbol
-            } else {
-                gateSymbol = try? await session.fetchMintMetadata(mint: gateMint).symbol
-            }
+            mintSymbols = symbols
         }
         // Fetch the group's member pictures for the transcript's author gutter. Keyed on the roster
         // rather than the chat, so a member arriving in a later `GetChat` is fetched too.
@@ -714,7 +782,12 @@ struct ConversationScreen: View {
                 // `profileAvatars` is captured directly so the coordinator retains
                 // one small store, not the whole session container.
                 profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, profileAvatars = sessionContainer.profileAvatars] in
-                    Self.profileCard(
+                    // A group cards itself — the address book has nothing to say about a chat, and
+                    // the unknown-contact fallback below would flag one as an unknown person.
+                    guard conversationController.conversation(withID: id)?.type != .group else {
+                        return nil
+                    }
+                    return Self.profileCard(
                         context: context,
                         conversationID: id,
                         directory: contactSyncController.resolvedContacts.onFlipcash,
