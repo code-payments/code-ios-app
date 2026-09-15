@@ -123,8 +123,8 @@ struct HomeTabView: View {
     /// Derived in the body rather than waited on: the profile is hydrated from
     /// the database before the first paint, so a cold launch knows a picture is
     /// coming — and can decode its BlurHash — while the thumbnail is still being
-    /// read back. Keying only on the loaded photo would show the glyph until it
-    /// landed, which is the tip card's icon on somebody who has a picture.
+    /// read back. Keying only on the loaded photo would show the no-photo glyph
+    /// until it landed, on somebody who has a picture.
     private var profileSlot: ProfileTabSlot? {
         if let photo = profilePhoto.photo { return .photo(photo) }
         guard let picture = profilePicture, picture.thumbnailBlobID != nil else { return nil }
