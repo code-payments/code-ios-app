@@ -82,8 +82,13 @@ private struct BillOverlayContent: View {
     /// a non-scanner surface (a wallet/chat push, a received cash link) so the
     /// underlying screen recedes, matching Android. Over the scanner the camera
     /// stays visible instead — no scrim.
+    ///
+    /// A handing-off bill drops it too: the screen behind it is the one the bill
+    /// just routed to, and dimming the arrival would undo the hand-off.
     private var showsScrim: Bool {
-        session.isShowingBill && !session.isScannerForeground
+        session.isShowingBill
+            && !session.isScannerForeground
+            && !session.billState.isHandingOff
     }
 
     /// How the scrim enters. For an outgoing give, snap it in (`.identity`
@@ -148,7 +153,10 @@ private struct BillOverlayContent: View {
             bill: session.billState.bill,
             dismissHandler: dismissBill
         )
-        .allowsHitTesting(session.presentationState.isPresenting)
+        // A handing-off bill is a departing image over a live screen; its
+        // drag-to-dismiss would otherwise swallow the first touch the user
+        // makes in the chat it just opened.
+        .allowsHitTesting(session.presentationState.isPresenting && !session.billState.isHandingOff)
         .ignoresSafeArea()
     }
 
