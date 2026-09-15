@@ -177,12 +177,20 @@ extension ErrorBlob: ServerError {
 public enum BlobAccessContext: Sendable {
 
     /// Reading a rendition of `userID`'s current profile picture.
-    case profile(UserID)
+    case userProfile(UserID)
+
+    /// Reading a rendition of `conversationID`'s current group chat profile
+    /// picture. Authorized only while the blob is a rendition of that chat's
+    /// CURRENT picture; a superseded picture's renditions stop resolving
+    /// through it.
+    case chatProfile(ConversationID)
 
     var proto: Flipcash_Blob_V1_AccessContext {
         switch self {
-        case .profile(let userID):
-            return .with { $0.profile = .with { $0.value = userID.data } }
+        case .userProfile(let userID):
+            return .with { $0.userProfile = .with { $0.value = userID.data } }
+        case .chatProfile(let conversationID):
+            return .with { $0.chatProfile = conversationID.proto }
         }
     }
 }
