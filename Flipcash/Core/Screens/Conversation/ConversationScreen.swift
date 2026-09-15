@@ -138,6 +138,24 @@ struct ConversationScreen: View {
         ))
     }
 
+    /// What the first tip has to clear to open this chat — the fee the
+    /// counterpart charges for the conversation, falling back to the regional
+    /// tip minimum when they charge nothing. Nil once the chat exists, since a
+    /// send into an open thread carries no floor.
+    ///
+    /// Derived from the same inputs as `SendAmountViewModel.tipFloor(in:)` so
+    /// the amount the CTA names is the one the amount screen enforces.
+    private var startChattingFee: FiatAmount? {
+        guard !chatExists, let userID = tipCounterpart?.userID else { return nil }
+        let currency = ratesController.balanceCurrency
+        return TipFloor.toOpenDM(
+            recipientFee: session.cachedUserProfile(for: userID)?.minDmChatInitFee,
+            presets: session.userFlags?.tipPresets(for: currency),
+            in: currency,
+            rates: ratesController.cachedRates
+        )?.displayed
+    }
+
     /// Whether a chat exists to hold a transcript. An `existing` conversation
     /// was reached by its chat id, so it does by construction; a tip DM opened
     /// by counterpart does not until the first tip creates it server-side.
@@ -221,7 +239,8 @@ struct ConversationScreen: View {
             composer: composer,
             editingStableID: composer.editingStableID,
             focusOnAppear: openKeyboard,
-            isTipDm: tipCounterpart != nil
+            isTipDm: tipCounterpart != nil,
+            startChattingFee: startChattingFee
         )
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's

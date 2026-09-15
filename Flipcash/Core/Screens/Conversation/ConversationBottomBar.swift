@@ -56,6 +56,9 @@ struct ConversationBottomBar: View {
     /// Tip chats always show the compact symbol-only send button; ordinary
     /// chats expand to "Send €" at rest and collapse only while composing.
     var isTipDm: Bool = false
+    /// What the first tip has to clear to open this chat, named on the CTA.
+    /// Nil once the chat exists, and when no floor has resolved yet.
+    var startChattingFee: FiatAmount? = nil
 
     var body: some View {
         // Bottom-aligned, against the bar's own pinned bottom: the field is the side that grows, and
@@ -81,9 +84,10 @@ struct ConversationBottomBar: View {
                     standalone: !chatExists,
                     // A tip chat sits minimized beside its composer, but before
                     // the first tip there is no composer to sit beside: the
-                    // design draws the full-width "Send a Tip" (node 9443:8928).
+                    // design draws the full-width "Start Chatting" CTA
+                    // (node 10074:18891).
                     alwaysMinimized: isTipDm && chatExists,
-                    expandedTitle: isTipDm ? "Send a Tip" : nil,
+                    expandedTitle: isTipDm ? startChattingTitle : nil,
                     action: onSendCash
                 )
             }
@@ -115,6 +119,14 @@ struct ConversationBottomBar: View {
             content.modifier(BarSurfaceBackground())
         }
         .animation(replySpring, value: composer.replyTarget)
+    }
+
+    /// The tip CTA's title. Names the amount that opens the chat when a floor
+    /// has resolved; the fee is what the recipient charges for the
+    /// conversation, so stating it is the whole point of the button.
+    private var startChattingTitle: String {
+        guard let startChattingFee else { return "Start Chatting" }
+        return "Send \(startChattingFee.formatted()) to Start Chatting"
     }
 }
 
