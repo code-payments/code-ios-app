@@ -307,6 +307,18 @@ nonisolated extension Database {
         try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
     }
 
+    /// Removes a conversation the signed-in user has left (or been removed from): its row and member
+    /// rows. Messages are left in place, orphaned but unread — the same treatment
+    /// `replaceConversationFeed` gives a conversation that drops out of a feed snapshot.
+    public func deleteConversation(conversationID: ConversationID) throws {
+        let c = ConversationTable()
+        let m = ConversationMemberTable()
+        try writer.transaction {
+            try writer.run(c.table.filter(c.id == conversationID.data).delete())
+            try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+        }
+    }
+
     /// Must be called inside a `writer.transaction`.
     private func writeConversation(_ conversation: Conversation) throws {
         let c = ConversationTable()

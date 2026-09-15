@@ -230,4 +230,99 @@ struct ConversationStreamEventDecodeTests {
         #expect(events[0].sequence == 12)
         #expect(events[0].mutations.isEmpty) // reply content unrepresentable → dropped, event survives
     }
+
+    // MARK: - Roster updates (ChatUpdate.rosterUpdates)
+
+    private func rosterSummary(_ memberCount: UInt64, _ version: UInt64) -> Flipcash_Chat_V1_RosterSummary {
+        .with { $0.memberCount = memberCount; $0.version = version }
+    }
+
+    @Test("a join naming the recipient (metadata set) decodes to .joined with the embedded chat snapshot")
+    func rosterJoinedAsRecipient() {
+        let memberBytes = Data((0..<16).map { UInt8($0) })
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.rosterUpdates = .with {
+                    $0.rosterUpdates = [.with {
+                        $0.rosterSummary = rosterSummary(2, 3)
+                        $0.memberJoined = .with {
+                            $0.member = .with { $0.userID = .with { $0.value = memberBytes } }
+                            $0.metadata = .with { $0.chatID = .with { $0.value = conversationBytes } }
+                        }
+                    }]
+                }
+            }
+        }
+
+        let decoded = ConversationStreamEvent.decode(event)
+        guard case .rosterChanged(let conversationID, let updates) = decoded.first else {
+            Issue.record("expected .rosterChanged"); return
+        }
+        #expect(conversationID == ConversationID(data: conversationBytes))
+        #expect(updates.count == 1)
+        #expect(updates[0].rosterSummary == ConversationRosterSummary(memberCount: 2, version: 3))
+        guard case .joined(let member, let chat) = updates[0].change else { Issue.record("expected .joined"); return }
+        #expect(member.userID == (try? UUID(data: memberBytes)))
+        #expect(chat?.id == ConversationID(data: conversationBytes))
+    }
+
+    @Test("a join for another member (no metadata) decodes to .joined with a nil chat")
+    func rosterJoinedAsOtherMember() {
+        let memberBytes = Data((16..<32).map { UInt8($0) })
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.rosterUpdates = .with {
+                    $0.rosterUpdates = [.with {
+                        $0.rosterSummary = rosterSummary(3, 4)
+                        $0.memberJoined = .with {
+                            $0.member = .with { $0.userID = .with { $0.value = memberBytes } }
+                        }
+                    }]
+                }
+            }
+        }
+
+        let decoded = ConversationStreamEvent.decode(event)
+        guard case .rosterChanged(_, let updates) = decoded.first else { Issue.record("expected .rosterChanged"); return }
+        guard case .joined(_, let chat) = updates[0].change else { Issue.record("expected .joined"); return }
+        #expect(chat == nil)
+    }
+
+    @Test("a leave naming a member decodes to .left with that member's userID")
+    func rosterLeft() {
+        let memberBytes = Data((0..<16).map { UInt8($0) })
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.rosterUpdates = .with {
+                    $0.rosterUpdates = [.with {
+                        $0.rosterSummary = rosterSummary(1, 5)
+                        $0.memberLeft = .with { $0.userID = .with { $0.value = memberBytes } }
+                    }]
+                }
+            }
+        }
+
+        let decoded = ConversationStreamEvent.decode(event)
+        guard case .rosterChanged(_, let updates) = decoded.first else { Issue.record("expected .rosterChanged"); return }
+        guard case .left(let userID) = updates[0].change else { Issue.record("expected .left"); return }
+        #expect(userID == (try? UUID(data: memberBytes)))
+    }
+
+    @Test("an update with no roster summary is dropped rather than decoded without a version to compare")
+    func rosterUpdateWithoutSummaryDropped() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.rosterUpdates = .with {
+                    $0.rosterUpdates = [.with {
+                        $0.memberLeft = .with { $0.userID = .with { $0.value = Data((0..<16).map { UInt8($0) }) } }
+                    }]
+                }
+            }
+        }
+        #expect(!ConversationStreamEvent.decode(event).contains { if case .rosterChanged = $0 { true } else { false } })
+    }
 }

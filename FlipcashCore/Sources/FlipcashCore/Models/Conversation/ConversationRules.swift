@@ -68,6 +68,16 @@ extension ConversationRules {
     }
 }
 
+extension ConversationRules {
+    /// Builds the wire form for `StartChatRequest.GroupChatParameters.rules`.
+    var proto: Flipcash_Chat_V1_Rules {
+        .with {
+            $0.listener = listener.map(\.proto)
+            $0.speaker = speaker.map(\.proto)
+        }
+    }
+}
+
 /// A single requirement gating reading and joining a chat. See
 /// `chat.v1.ListenerRules`.
 public enum ConversationListenerRule: Hashable, Sendable {
@@ -92,6 +102,19 @@ extension ConversationListenerRule {
     }
 }
 
+extension ConversationListenerRule {
+    var proto: Flipcash_Chat_V1_ListenerRules {
+        .with {
+            switch self {
+            case .minimumBalance(let requirement):
+                $0.minimumBalance = requirement.proto
+            case .staff:
+                $0.staff = .init()
+            }
+        }
+    }
+}
+
 /// A single requirement gating sending messages in a chat. See
 /// `chat.v1.SpeakerRules`.
 public enum ConversationSpeakerRule: Hashable, Sendable {
@@ -112,6 +135,19 @@ extension ConversationSpeakerRule {
             self = .staff
         case nil:
             return nil
+        }
+    }
+}
+
+extension ConversationSpeakerRule {
+    var proto: Flipcash_Chat_V1_SpeakerRules {
+        .with {
+            switch self {
+            case .minimumBalance(let requirement):
+                $0.minimumBalance = requirement.proto
+            case .staff:
+                $0.staff = .init()
+            }
         }
     }
 }
@@ -146,5 +182,17 @@ extension MinimumBalanceRequirement {
             amount: FiatAmount(value: Decimal(proto.amount.nativeAmount), currency: currency),
             mints: proto.mints.compactMap { try? PublicKey($0.value) }
         )
+    }
+}
+
+extension MinimumBalanceRequirement {
+    var proto: Flipcash_Chat_V1_MinimumBalanceRequirement {
+        .with {
+            $0.amount = .with {
+                $0.currency = amount.currency.rawValue
+                $0.nativeAmount = amount.doubleValue
+            }
+            $0.mints = mints.map { mint in .with { $0.value = mint.data } }
+        }
     }
 }
