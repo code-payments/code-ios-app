@@ -59,8 +59,27 @@ struct ConversationBottomBar: View {
     /// What the first tip has to clear to open this chat, named on the CTA.
     /// Nil once the chat exists, and when no floor has resolved yet.
     var startChattingFee: FiatAmount? = nil
+    /// Whether the chat's participation rules leave this user anything to type. Anything but
+    /// ``ConversationGatePresentation/open`` replaces the whole composer with the gate panel.
+    var gate: ConversationGatePresentation = .open
+    /// Ticker for the mint the gate's requirement names, once resolved. See ``ConversationGatePanel``.
+    var gateSymbol: String? = nil
+    /// Opens the buy or add-cash flow from the gate panel's CTA.
+    var onGateAddFunds: () -> Void = {}
 
     var body: some View {
+        // The gate panel takes the bar whole rather than sitting inside it: none of the composer's
+        // springs key on state a gated user can change, and the surface underneath is the same slab
+        // either way, so the bar still reads as the bottom of the screen.
+        if gate.replacesComposer {
+            ConversationGatePanel(presentation: gate, symbol: gateSymbol, onAddFunds: onGateAddFunds)
+                .modifier(BarSurfaceBackground())
+        } else {
+            composerBar
+        }
+    }
+
+    private var composerBar: some View {
         // Bottom-aligned, against the bar's own pinned bottom: the field is the side that grows, and
         // top-aligning the control beside it made the control travel with every line the draft
         // gained or lost. Nothing animates that travel — the bar's springs key on `chatExists` and

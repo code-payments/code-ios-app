@@ -14,8 +14,17 @@ struct TipConversationsScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
+    /// The rows the tab lists, newest activity first. Groups sit among the tip DMs; they cannot come
+    /// from the feed — `GetDmChatFeed` rejects the type — so they are here only because the local
+    /// cache or a `GetChat` put them in the store.
+    private var conversations: [Conversation] {
+        let tipDMs = conversationController.conversations(of: .tipDm)
+        return (tipDMs + conversationController.conversations(of: .group))
+            .sorted { $0.lastActivity > $1.lastActivity }
+    }
+
     var body: some View {
-        let conversations = conversationController.conversations(of: .tipDm)
+        let conversations = self.conversations
 
         Background(color: .backgroundMain) {
             if conversations.isEmpty {
@@ -46,12 +55,20 @@ struct TipConversationsScreen: View {
         // built, which in a `List` is when it scrolls into view — so without this the avatar below
         // the fold starts downloading at the moment the user is looking at its blurhash.
         .task(id: conversations.count) {
-            sessionContainer.profileAvatars.preload(
-                conversations.map {
-                    let counterpart = $0.counterpart(excluding: conversationController.selfUserID)
-                    return (counterpart?.userID, counterpart?.profilePicture)
+            let selfUserID = conversationController.selfUserID
+            let subjects: [(subject: ProfileAvatarStore.AvatarSubject, picture: ProfilePicture?)] =
+                conversations.map { conversation in
+                    // A group's row draws the chat's own picture, so that is what gets warmed;
+                    // `counterpart(excluding:)` would pick an arbitrary member of it.
+                    guard conversation.type != .group,
+                          let userID = conversation.counterpart(excluding: selfUserID)?.userID
+                    else { return (.chat(conversation.id), conversation.picture) }
+                    return (
+                        .user(userID),
+                        conversation.counterpart(excluding: selfUserID)?.profilePicture
+                    )
                 }
-            )
+            sessionContainer.profileAvatars.preload(subjects)
         }
     }
 }
@@ -131,6 +148,22 @@ private struct TipConversationRow: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(Session.self) private var session
 
+    /// What the row's avatar is of: the chat itself for a group, whose roster subset has no single
+    /// face to stand for it, and the counterpart for a DM.
+    private var avatarSubject: ProfileAvatarStore.AvatarSubject {
+        guard conversation.type != .group,
+              let userID = conversation.counterpart(excluding: conversationController.selfUserID)?.userID
+        else { return .chat(conversation.id) }
+        return .user(userID)
+    }
+
+    /// The picture the ``avatarSubject`` is fetched from.
+    private var avatarPicture: ProfilePicture? {
+        conversation.type == .group
+            ? conversation.picture
+            : conversation.counterpart(excluding: conversationController.selfUserID)?.profilePicture
+    }
+
     var body: some View {
         let counterpart = conversation.counterpart(excluding: conversationController.selfUserID)
         let title = conversationController.displayName(for: conversation)
@@ -140,11 +173,13 @@ private struct TipConversationRow: View {
         let hasUnread = conversation.hasUnread(for: conversationController.selfUserID)
 
         RecipientRowScaffold(
-            avatarID: counterpart?.userID?.uuidString ?? conversation.id.description,
+            avatarID: conversation.type == .group
+                ? conversation.id.description
+                : (counterpart?.userID?.uuidString ?? conversation.id.description),
             title: title,
             subtitle: subtitle,
-            imageData: sessionContainer.profileAvatars.data(for: counterpart?.userID),
-            blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
+            imageData: sessionContainer.profileAvatars.data(for: avatarSubject),
+            blurhash: avatarPicture?.thumbnailBlurhash,
             accessoryPlacement: .titleLine,
             accessibilityLabel: hasUnread ? "\(title), unread messages" : title,
             onTap: onTap
@@ -155,11 +190,8 @@ private struct TipConversationRow: View {
                 hasUnread: hasUnread
             )
         }
-        .task(id: counterpart?.userID) {
-            await sessionContainer.profileAvatars.load(
-                userID: counterpart?.userID,
-                picture: counterpart?.profilePicture
-            )
+        .task(id: avatarSubject) {
+            await sessionContainer.profileAvatars.load(avatarSubject, picture: avatarPicture)
         }
     }
 }

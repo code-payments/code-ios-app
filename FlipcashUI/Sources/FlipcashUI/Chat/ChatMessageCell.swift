@@ -43,10 +43,10 @@ public final class ChatMessageCell: ChatColumnCell {
 
     /// - Parameter maxWidth: the widest the bubble may grow before its text wraps, in points.
     ///   The owner derives it from the collection view's width.
-    public func configure(with message: ChatMessage, maxWidth: CGFloat) {
+    public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         bubble.configure(with: message)
         maxWidthConstraint.constant = maxWidth
-        updateColumn(for: message)
+        updateColumn(for: message, authorImageData: authorImageData)
     }
 }
 

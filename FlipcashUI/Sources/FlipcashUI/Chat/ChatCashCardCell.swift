@@ -123,7 +123,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         coinIcon.image = nil
     }
 
-    public func configure(with message: ChatMessage) {
+    public func configure(with message: ChatMessage, authorImageData: Data? = nil) {
         guard case .cash(let cash) = message.content else { return }
         tokenLabel.text = cash.token
         captionLabel.text = ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
@@ -145,7 +145,7 @@ public final class ChatCashCardCell: ChatColumnCell {
             ),
             identity: message.id
         )
-        updateColumn(for: message)
+        updateColumn(for: message, authorImageData: authorImageData)
 
         // Resting alpha lives here, not just in prepareForReuse: an in-place reconfigure (a new
         // message flipping this row's grouping) re-runs configure without prepareForReuse, so this is

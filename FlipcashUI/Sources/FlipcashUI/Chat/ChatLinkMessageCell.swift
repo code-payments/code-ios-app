@@ -54,10 +54,10 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     }
 
     /// - Parameter maxWidth: the widest the bubble may grow before its text wraps.
-    public func configure(with message: ChatMessage, maxWidth: CGFloat) {
+    public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         bubbleMaxWidthConstraint.constant = maxWidth
         bubble.configure(with: message)
-        updateColumn(for: message)
+        updateColumn(for: message, authorImageData: authorImageData)
         // A failed row's whole column is the retry target (ChatColumnCell); disable the bubble's own
         // text-view link taps so a tap on a failed message retries the send rather than opening the URL.
         bubble.isUserInteractionEnabled = !message.isFailed

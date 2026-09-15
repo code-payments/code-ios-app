@@ -45,7 +45,7 @@ struct StoreMigrationContainerTests {
         try connection.run("PRAGMA journal_mode = WAL;")
         try connection.run("CREATE TABLE probe (id INTEGER PRIMARY KEY, value TEXT);")
         try connection.run("INSERT INTO probe (value) VALUES (?);", value)
-        try Database.setUserVersion(version: 35, files: files)
+        try Database.setUserVersion(version: Database.schemaVersion, files: files)
     }
 
     private func exists(_ url: URL) -> Bool {
@@ -98,12 +98,12 @@ struct StoreMigrationContainerTests {
         #expect(!exists(legacy.database))
         #expect(!exists(legacy.version))
 
-        // The recorded version has to arrive with the store. 35 is what the shipped build wrote from
-        // its `SQLiteVersion` Info.plist key and what this build reads from `Database.schemaVersion`;
-        // if the number did not travel, the launch that just migrated reads 0, decides the schema is
-        // stale, and deletes the store it moved.
+        // The recorded version has to arrive with the store. The seed writes whatever this build
+        // considers current, so the assertion tracks `Database.schemaVersion` instead of a literal
+        // that has to be edited on every schema bump. If the number did not travel, the launch that
+        // just migrated reads 0, decides the schema is stale, and deletes the store it moved.
         let recorded = (try? Database.userVersion(files: current)) ?? 0
-        #expect(recorded == 35)
+        #expect(recorded == Database.schemaVersion)
         #expect(Database.schemaVersion <= recorded)
 
         // Reached through `Database`, which is how the app reads it — and a migrated store arrives as

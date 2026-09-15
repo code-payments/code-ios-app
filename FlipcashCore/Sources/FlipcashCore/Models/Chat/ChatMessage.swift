@@ -53,6 +53,10 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// The original this row replies to, already resolved for display, or `nil` when the row is
     /// not a reply.
     public let quote: ChatQuote?
+    /// Who wrote this row, in a transcript that names its authors. `nil` in a DM, where the two
+    /// sides are already told apart by which edge the bubble hugs, and `nil` for the viewer's own
+    /// rows in any transcript.
+    public let author: ChatAuthor?
 
     public init(
         id: String,
@@ -64,7 +68,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         linkPreview: LinkPreview? = nil,
         isEdited: Bool = false,
         actions: [MessageCapability] = [],
-        quote: ChatQuote? = nil
+        quote: ChatQuote? = nil,
+        author: ChatAuthor? = nil
     ) {
         self.id = id
         self.content = content
@@ -76,6 +81,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.isEdited = isEdited
         self.actions = actions
         self.quote = quote
+        self.author = author
     }
 
     /// Convenience for text rows.
@@ -89,7 +95,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         linkPreview: LinkPreview? = nil,
         isEdited: Bool = false,
         actions: [MessageCapability] = [],
-        quote: ChatQuote? = nil
+        quote: ChatQuote? = nil,
+        author: ChatAuthor? = nil
     ) {
         self.init(
             id: id,
@@ -101,8 +108,38 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             linkPreview: linkPreview,
             isEdited: isEdited,
             actions: actions,
-            quote: quote
+            quote: quote,
+            author: author
         )
+    }
+}
+
+/// The writer of an incoming row in a transcript that names its authors — a group chat. Display
+/// data only: the name as it goes above the bubble, and what the avatar gutter needs to find a
+/// picture.
+///
+/// The picture's bytes are deliberately not here. These values are diffed on every transcript tick
+/// and written to the shared app-group container for the notification preview, so image data in
+/// them would cost a byte-compare per row and leave thumbnails in the clear on disk. ``id`` is what
+/// the transcript looks the bytes up by, and what tints the name.
+public struct ChatAuthor: Hashable, Sendable, Codable {
+
+    /// The author's user id — the avatar lookup key, and the seed `ComplementaryPalette` derives
+    /// the name's per-person tint from.
+    public let id: UserID
+
+    /// The name above the run. Empty when the roster does not name this sender; the row then draws
+    /// no name label rather than a placeholder.
+    public let name: String
+
+    /// BlurHash of the author's avatar, drawn until the bytes arrive, or nil when they have no
+    /// picture.
+    public let blurhash: String?
+
+    public init(id: UserID, name: String, blurhash: String? = nil) {
+        self.id = id
+        self.name = name
+        self.blurhash = blurhash
     }
 }
 

@@ -56,7 +56,8 @@ extension ChatItem {
         deletedPresentation: DeletedMessagePresentation = .hidden,
         capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] },
         counterpartName: String = "",
-        quotedMessage: (MessageID) -> ConversationMessage? = { _ in nil }
+        quotedMessage: (MessageID) -> ConversationMessage? = { _ in nil },
+        author: (ConversationMessage) -> ChatAuthor? = { _ in nil }
     ) -> [ChatItem] {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
         // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
@@ -86,11 +87,16 @@ extension ChatItem {
                 items.append(.dateSeparator(id: "sep-\(message.stableID)", text: message.date.formattedChatSeparator()))
             }
 
+            // Grouped by author, not by side: in a group chat two different people's messages sit on
+            // the same edge, and comparing sides would merge them into one run with its facing
+            // corners flattened — one column of bubbles attributed to whoever the run started with.
+            // `senderID` is nil only for a legacy row with no sender, and two of those group the way
+            // they always did.
             let groupedAbove = previous.map {
-                $0.isFromSelf(selfUserID) == isFromSelf && message.date.timeIntervalSince($0.date) <= gap
+                $0.senderID == message.senderID && message.date.timeIntervalSince($0.date) <= gap
             } ?? false
             let groupedBelow = next.map {
-                $0.isFromSelf(selfUserID) == isFromSelf && $0.date.timeIntervalSince(message.date) <= gap
+                $0.senderID == message.senderID && $0.date.timeIntervalSince(message.date) <= gap
             } ?? false
 
             let content: ChatMessage.Content
@@ -145,7 +151,8 @@ extension ChatItem {
                     resolving: quotedMessage(repliedTo),
                     selfUserID: selfUserID,
                     counterpartName: counterpartName,
-                    cashBranding: cashBranding
+                    cashBranding: cashBranding,
+                    author: author
                 )
             }
 
@@ -159,7 +166,10 @@ extension ChatItem {
                 linkPreview: linkPreview,
                 isEdited: message.lastEditedTs != nil && !message.isDeleted,
                 actions: orderedActions(capabilities(message)),
-                quote: quote
+                quote: quote,
+                // The viewer's own rows are never attributed: the trailing edge already says who
+                // wrote them, and a name and avatar over them would read as a second speaker.
+                author: isFromSelf ? nil : author(message)
             )))
         }
         return items
@@ -173,7 +183,8 @@ extension ChatItem {
         resolving original: ConversationMessage?,
         selfUserID: UserID,
         counterpartName: String,
-        cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?)
+        cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?),
+        author: (ConversationMessage) -> ChatAuthor?
     ) -> ChatQuote {
         guard let original else {
             return ChatQuote(
@@ -183,7 +194,11 @@ extension ChatItem {
                 kind: .unavailable
             )
         }
-        let authorName = original.isFromSelf(selfUserID) ? "You" : counterpartName
+        // A group quote names the real writer; `counterpartName` is the DM's single other party and
+        // would attribute every quoted message in a group to whoever the chat is titled after.
+        let authorName = original.isFromSelf(selfUserID)
+            ? "You"
+            : (author(original).map { $0.name.isEmpty ? counterpartName : $0.name } ?? counterpartName)
         switch original.content {
         case .text(let text):
             return ChatQuote(

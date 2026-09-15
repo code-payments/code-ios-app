@@ -56,6 +56,13 @@ final class ConversationController {
     func reconcileHidden() {
         let blocked = blockedUserIDs()
         for conversation in store.conversations {
+            // `counterpart(excluding:)` picks an arbitrary member of a group, so one blocked member
+            // would hide the whole chat from the feed — and this runs after every DM feed load, so a
+            // group the feed never touched would vanish. Blocking is a DM relationship.
+            guard conversation.type != .group else {
+                if conversation.isHidden { store.setHidden(false, in: conversation.id) }
+                continue
+            }
             let hidden = conversation.counterpart(excluding: selfUserID)?.userID.map(blocked.contains) ?? false
             if conversation.isHidden != hidden {
                 store.setHidden(hidden, in: conversation.id)
@@ -109,6 +116,20 @@ final class ConversationController {
     /// The current blocklist (wired to `BlocklistController`), used to reconcile
     /// which conversations are hidden from the feed.
     @ObservationIgnored var blockedUserIDs: () -> Set<UserID> = { [] }
+
+    /// Whether the signed-in user satisfies a conversation's listener rules — wired to the
+    /// participation gate at session setup. False only for a group chat the user may not read,
+    /// where `GetMessages`, `GetDelta` and `AdvancePointer` all answer `DENIED`; the default
+    /// admits everything, which is right for every DM and for a group with no rules.
+    @ObservationIgnored var canReadConversation: (Conversation) -> Bool = { _ in true }
+
+    /// Whether the transcript for `conversationID` is worth a round trip. A conversation the feed
+    /// doesn't hold yet is assumed readable: its rules aren't known, and refusing to fetch would
+    /// leave it permanently empty.
+    private func canRead(_ conversationID: ConversationID) -> Bool {
+        guard let conversation = conversation(withID: conversationID) else { return true }
+        return canReadConversation(conversation)
+    }
 
     @ObservationIgnored private let fetching: any ConversationFetching
     @ObservationIgnored let messaging: any ConversationMessaging
@@ -283,6 +304,12 @@ final class ConversationController {
             || hasMessages(for: conversationID)
             || store.appliedCursor(for: conversationID) > 0 else {
             logger.info("Skipping catch-up for a conversation the client holds nothing for", metadata: [
+                "conversationID": "\(conversationID)",
+            ])
+            return
+        }
+        guard canRead(conversationID) else {
+            logger.info("Skipping catch-up for a conversation the user may not read", metadata: [
                 "conversationID": "\(conversationID)",
             ])
             return
@@ -979,6 +1006,12 @@ final class ConversationController {
     }
 
     func loadMessages(for conversationID: ConversationID) async {
+        guard canRead(conversationID) else {
+            logger.info("Skipping message load for a conversation the user may not read", metadata: [
+                "conversationID": "\(conversationID)",
+            ])
+            return
+        }
         messageLoadsInFlight.insert(conversationID)
         defer { messageLoadsInFlight.remove(conversationID) }
         do {
@@ -1035,6 +1068,7 @@ final class ConversationController {
     /// persists it — retention is on, so paged-in history stays in the DB and a reopen reads it locally
     /// instead of re-fetching. No-ops while a page is in flight or once history is exhausted.
     func loadOlderMessages(for conversationID: ConversationID) async {
+        guard canRead(conversationID) else { return }
         guard hasMoreOlderMessages(for: conversationID), !isLoadingOlderMessages(for: conversationID) else { return }
         // Page before the oldest PERSISTED id — the DB holds all viewed history; the store may be trimmed.
         guard let oldest = (try? database.oldestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
@@ -1152,6 +1186,9 @@ final class ConversationController {
     }
 
     func markRead(conversationID: ConversationID) async {
+        // A pointer advance is denied for the same reason the fetch is, and a chat the user cannot
+        // read has nothing to mark.
+        guard canRead(conversationID) else { return }
         guard let latestID = (try? database.newestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
         // Skip the round-trip when the server-known READ watermark already covers
         // the latest message. We advance the watermark locally after each success.
