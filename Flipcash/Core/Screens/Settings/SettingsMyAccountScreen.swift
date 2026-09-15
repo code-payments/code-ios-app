@@ -60,7 +60,7 @@ struct SettingsMyAccountScreen: View {
             }
             .accessibilityIdentifier("account-profile-picture-row")
 
-            SettingsRow(asset: .coins, title: "Minimum Tip", insets: insets) {
+            SettingsRow(asset: .coins, title: "Minimum To Chat", insets: insets) {
                 router.push(.setMinimumTip(isSetupStep: false))
             }
             .accessibilityIdentifier("account-minimum-tip-row")
