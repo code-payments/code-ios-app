@@ -58,8 +58,6 @@ struct TipcardView: View {
             Group {
                 if includePhoto {
                     HStack(spacing: 8) {
-                        Text("Tip")
-
                         avatarImage
                             .resizable()
                             .scaledToFill()
@@ -70,11 +68,7 @@ struct TipcardView: View {
                         Text(name)
                     }
                 } else {
-                    // Set as one string rather than two views in a stack: with
-                    // no avatar between them the stack's gap stands in for the
-                    // space, and at this size it is half again as wide as the
-                    // font's own — enough to read as a double space.
-                    Text("Tip \(name)")
+                    Text(name)
                 }
             }
             // Long names get a second line before being cut, rather than being
