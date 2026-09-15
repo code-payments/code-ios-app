@@ -85,10 +85,23 @@ private struct StartChattingSheetContent: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
 
+                    // The selector borrows the toolbar's chrome on the amount
+                    // screen; here there is no toolbar, so it carries its own
+                    // border — otherwise the chevron is the only thing saying
+                    // the currency can be changed.
                     TokenSelectorButton(selectedBalance: viewModel.selectedBalance) {
                         isShowingTokenSelection = true
                     }
                     .id(viewModel.selectedBalance?.stored.mint)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background {
+                        Capsule()
+                            .strokeBorder(
+                                Metrics.inputFieldStrokeColor(highlighted: false),
+                                lineWidth: Metrics.inputFieldBorderWidth(highlighted: false)
+                            )
+                    }
                 }
 
                 SwipeControl(text: "Swipe to Send") {
