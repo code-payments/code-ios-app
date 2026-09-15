@@ -13,6 +13,14 @@ struct BillState {
 
     var bill: Bill?
 
+    /// Whether the bill has given the screen to what comes next and is only
+    /// finishing its exit. It still draws — the overlay sits above the whole
+    /// app — but the screen underneath is now the one being used, so a
+    /// handing-off bill stops dimming it and stops taking its touches.
+    ///
+    /// Cleared with the bill, by ``BillState/default()``.
+    var isHandingOff: Bool = false
+
     var primaryAction: PrimaryAction?
     var secondaryAction: SecondaryAction?
 
@@ -54,7 +62,8 @@ extension BillState {
 
         case cash(CashCode.Payload, mint: PublicKey, billColors: [String] = [])
         /// A scanned (or deeplinked) recipient's tipcard, shown over the
-        /// camera while the Send a Tip sheet is up.
+        /// camera as the confirmation of whose code was read, then held over
+        /// the chat it hands off to while that chat arrives.
         case tipcard(codeData: Data, name: String, username: String?, avatar: UIImage?)
 
         var canSwipeToDismiss: Bool {

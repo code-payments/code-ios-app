@@ -8,7 +8,7 @@ import FlipcashUI
 import FlipcashCore
 
 /// Renders the cash bill / tipcard (plus the bill designer and the
-/// received-cash / send-tip sheets) at the app root, so a presented bill appears
+/// received-cash sheet) at the app root, so a presented bill appears
 /// over ANY content — mirroring Android's app-root `BillOverlay`. It is driven
 /// entirely by the app-scoped `session.billState`, so a cash-link push or deep
 /// link that sets a bill while the user is on the Wallet/Chat/Tip Card tab now
@@ -37,8 +37,6 @@ private struct BillOverlayContent: View {
     @State private var sendButtonState: ButtonState = .normal
     @State private var sendButtonTask: Task<Void, Never>?
     @State private var billDesignerColors: [Color] = ColorEditorControl.randomDerivedColors()
-    /// The Send-a-Tip sheet's measured height, used to raise the tipcard clear of it.
-    @State private var tipSheetHeight: CGFloat = 0
 
     init(sessionContainer: SessionContainer) {
         self.sessionContainer = sessionContainer
@@ -50,7 +48,7 @@ private struct BillOverlayContent: View {
         // as a sibling of the tab NavigationStacks, an overlay whose *root* ignored
         // the safe area would flatten the Liquid Glass of the nav bars beneath it
         // on iOS 26. Nested one level down, the bill still fills the screen while
-        // the bars keep their glass. The received-cash / send-tip sheets host here
+        // the bars keep their glass. The received-cash sheet hosts here
         // (a `.sheet` modifier adds nothing to the layer tree until it presents).
         ZStack {
             billSurface
@@ -76,36 +74,6 @@ private struct BillOverlayContent: View {
             }
             .interactiveDismissDisabled()
         }
-        // Send a Tip over the scanned tipcard. A swipe-down cancels the whole
-        // flow — the card comes down with the sheet.
-        .sheet(isPresented: Binding(
-            get: { sessionContainer.tipFlow.isSheetPresented },
-            set: { isPresented in
-                if !isPresented {
-                    sessionContainer.tipFlow.cancel()
-                }
-            }
-        )) {
-            PartialSheet(
-                background: Color(red: 0.1, green: 0.1, blue: 0.1).opacity(0.7),
-                canAccessBackground: true
-            ) {
-                SendTipSheet(tipFlow: sessionContainer.tipFlow)
-                    // The sheet content's intrinsic height — the value
-                    // `PartialSheet` feeds its `.height` detent, so the sheet's
-                    // top sits at `screenHeight` minus this. Measured on the
-                    // content (not the detent-driven container, which briefly
-                    // fills the screen on present) so the tipcard's clearance is
-                    // stable and the card is nudged rather than flung.
-                    .background {
-                        GeometryReader { proxy in
-                            Color.clear
-                                .onAppear { tipSheetHeight = proxy.size.height }
-                                .onChange(of: proxy.size.height) { _, height in tipSheetHeight = height }
-                        }
-                    }
-            }
-        }
     }
 
     // MARK: - Surface -
@@ -114,8 +82,13 @@ private struct BillOverlayContent: View {
     /// a non-scanner surface (a wallet/chat push, a received cash link) so the
     /// underlying screen recedes, matching Android. Over the scanner the camera
     /// stays visible instead — no scrim.
+    ///
+    /// A handing-off bill drops it too: the screen behind it is the one the bill
+    /// just routed to, and dimming the arrival would undo the hand-off.
     private var showsScrim: Bool {
-        session.isShowingBill && !session.isScannerForeground
+        session.isShowingBill
+            && !session.isScannerForeground
+            && !session.billState.isHandingOff
     }
 
     /// How the scrim enters. For an outgoing give, snap it in (`.identity`
@@ -180,57 +153,27 @@ private struct BillOverlayContent: View {
             bill: session.billState.bill,
             dismissHandler: dismissBill
         )
-        .allowsHitTesting(session.presentationState.isPresenting)
+        // A handing-off bill is a departing image over a live screen; its
+        // drag-to-dismiss would otherwise swallow the first touch the user
+        // makes in the chat it just opened.
+        .allowsHitTesting(session.presentationState.isPresenting && !session.billState.isHandingOff)
         .ignoresSafeArea()
     }
 
     /// The resting vertical offset for a centered cash bill.
     private static let restingBillOffset = CGSize(width: 0, height: -30)
 
-    /// The tipcard rests centered on screen when presented as the scan/deep-link
-    /// overlay — and lifts only when the Send a Tip sheet comes up. (Cash bills
-    /// sit slightly above center.)
+    /// The tipcard rests centered on screen. (Cash bills sit slightly above
+    /// center.)
     private static let restingTipcardOffset = CGSize(width: 0, height: 0)
-
-    /// When the Send a Tip sheet is up, the card lifts so its top sits ~25% down
-    /// the screen — pushed up clear of the sheet without floating too high above
-    /// it, leaving the lower area for the sheet.
-    private static let tipcardSheetTopInset: CGFloat = 0.25
-
-    /// Floor gap kept between the card's bottom and the sheet's top, used only if
-    /// a taller-than-designed sheet would otherwise crowd the card.
-    private static let tipcardSheetGap: CGFloat = 24
 
     private func billCenterOffset() -> CGSize {
         switch session.billState.bill {
-        case .tipcard where sessionContainer.tipFlow.isSheetPresented:
-            tipcardSheetOffset()
         case .tipcard:
             Self.restingTipcardOffset
         case .cash, nil:
             Self.restingBillOffset
         }
-    }
-
-    private func tipcardSheetOffset() -> CGSize {
-        guard tipSheetHeight > 0,
-              let screen = UIApplication.shared.firstWindowScene?.screen.bounds else {
-            return Self.restingTipcardOffset
-        }
-
-        // The card is centered on the full screen (the canvas ignores safe area),
-        // so all edges are measured in screen coordinates from the top.
-        let cardHeight = BillCanvas.tipcardSize(canvasWidth: preferredCanvasSize().width).height
-
-        // Lift the card to the design's upper placement (card top ~25% down).
-        let designOffset = screen.height * Self.tipcardSheetTopInset
-            + cardHeight / 2 - screen.height / 2
-
-        // …but rise further if a taller-than-designed sheet would still crowd it.
-        let sheetTop = screen.height - tipSheetHeight
-        let raised = sheetTop - Self.tipcardSheetGap - cardHeight / 2 - screen.height / 2
-
-        return CGSize(width: 0, height: min(designOffset, raised))
     }
 
     private func preferredCanvasSize() -> CGSize {
