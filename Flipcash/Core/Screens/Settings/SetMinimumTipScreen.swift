@@ -33,10 +33,20 @@ struct SetMinimumTipScreen: View {
     /// the screen itself is identical either way.
     let isSetupStep: Bool
 
-    @State private var enteredAmount: String = ""
+    @State private var enteredAmount: String
     @State private var actionState: ButtonState = .normal
     @State private var dialog: DialogItem?
     @State private var submitTask: Task<Void, Never>?
+
+    /// `initialAmount` is the fee already set, formatted by ``seed(fee:currency:)``
+    /// at the call site. It seeds the field's state rather than being assigned
+    /// once the screen is up: ``AmountField`` animates digits in as they are
+    /// typed, and a seed applied after the first render plays that animation
+    /// under the push — the placeholder floating out as the value floats in.
+    init(isSetupStep: Bool, initialAmount: String) {
+        self.isSetupStep = isSetupStep
+        self._enteredAmount = State(initialValue: initialAmount)
+    }
 
     private var currency: CurrencyCode { ratesController.balanceCurrency }
 
@@ -73,7 +83,6 @@ struct SetMinimumTipScreen: View {
         .navigationTitle("Set Minimum Tip")
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
-        .onAppear(perform: seedFromProfile)
         // The only continuation is a pop off a stack this screen has left.
         .onDisappear { submitTask?.cancel() }
     }
@@ -161,13 +170,15 @@ struct SetMinimumTipScreen: View {
 
     // MARK: - Seeding -
 
-    /// Starts the field on the fee already set, so the screen opens showing
-    /// what it is about to replace.
-    private func seedFromProfile() {
-        guard enteredAmount.isEmpty, let fee = existingFee, fee.isPositive else { return }
-        enteredAmount = AmountValidator().string(
+    /// The field's starting text for the fee already on the profile, so the
+    /// screen opens showing what it is about to replace. Empty when there is no
+    /// fee, or when the one set is in another currency — that amount isn't
+    /// comparable to the one being entered, so it seeds nothing.
+    static func seed(fee: FiatAmount?, currency: CurrencyCode) -> String {
+        guard let fee, fee.currency == currency, fee.isPositive else { return "" }
+        return AmountValidator().string(
             from: fee.value,
-            fractionDigits: Self.fractionDigits(for: fee)
+            fractionDigits: fractionDigits(for: fee)
         )
     }
 
