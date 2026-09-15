@@ -3,7 +3,7 @@
 //  Flipcash
 //
 //  The top half of the left-aligned amount screens — Convert / Get / Give and
-//  Set Minimum Tip: a large amount field over a one-line hint. Dropped into
+//  Minimum To Chat: a large amount field over a hint. Dropped into
 //  `EnterAmountView` via its `header` slot, replacing the default centered
 //  amount + "Enter up to" subtitle.
 //
@@ -19,10 +19,14 @@ struct EnterAmountHeader: View {
         /// "$X available", reddening once the entry exceeds it — the spend
         /// flows, where the balance is the ceiling.
         case available(ExchangedFiat)
-        /// Fixed secondary copy, e.g. "$1.00 minimum". Never reddens: flows
-        /// that use it state their bound up front and report a breach through
-        /// a dialog on submit rather than by colouring the hint.
+        /// Fixed one-line secondary copy, e.g. "$1.00 minimum". Never reddens:
+        /// flows that use it state their bound up front and report a breach
+        /// through a dialog on submit rather than by colouring the hint.
         case caption(String)
+        /// A sentence saying what the amount is for, wrapping over as many lines
+        /// as it needs. Set a step smaller than the other two, which carry a
+        /// value rather than prose.
+        case description(String)
     }
 
     @Binding var enteredAmount: String
@@ -47,6 +51,14 @@ struct EnterAmountHeader: View {
         switch hint {
         case .available(let available): "\(available.nativeAmount.formatted()) available"
         case .caption(let text):        text
+        case .description(let text):    text
+        }
+    }
+
+    private var hintFont: Font {
+        switch hint {
+        case .available, .caption: .appTextMedium
+        case .description:         .appTextSmall
         }
     }
 
@@ -69,8 +81,9 @@ struct EnterAmountHeader: View {
             .foregroundStyle(enteredAmount.isEmpty ? Color.textTertiary : Color.textMain)
 
             Text(hintText)
-                .font(.appTextMedium)
+                .font(hintFont)
                 .foregroundStyle(isExceeding ? Color.textError : Color.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

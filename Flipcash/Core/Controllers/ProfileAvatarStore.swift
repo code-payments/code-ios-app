@@ -51,7 +51,7 @@ final class ProfileAvatarStore {
                 try await flipClient.blobDownloadURL(
                     blobID: blobID,
                     owner: owner,
-                    accessContext: .profile(userID)
+                    accessContext: .userProfile(userID)
                 )
             }
         )

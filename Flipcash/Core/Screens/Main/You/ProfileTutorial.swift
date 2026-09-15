@@ -24,14 +24,14 @@ nonisolated enum ProfileTutorialItem: TutorialItemPresentable {
     var title: String {
         switch self {
         case .profilePicture:   return "Add a profile picture"
-        case .minimumTipAmount: return "Set your minimum tip amount"
+        case .minimumTipAmount: return "Set your minimum to chat"
         }
     }
 
     var subtitle: String {
         switch self {
         case .profilePicture:   return "Select a photo from your gallery"
-        case .minimumTipAmount: return "Decide what size tip matters to you"
+        case .minimumTipAmount: return "Decide what someone must send to start chatting"
         }
     }
 

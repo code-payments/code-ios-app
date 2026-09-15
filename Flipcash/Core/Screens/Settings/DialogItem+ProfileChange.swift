@@ -24,7 +24,7 @@ extension DialogItem {
             case .username:       "Username"
             case .displayName:    "Display Name"
             case .profilePicture: "Profile Picture"
-            case .minimumTip:     "Minimum Tip"
+            case .minimumTip:     "Minimum To Chat"
             }
         }
 
@@ -39,7 +39,7 @@ extension DialogItem {
             case .profilePicture:
                 "This will change your profile photo"
             case .minimumTip:
-                "This will change your minimum tip"
+                "This will change the minimum someone must send to chat with you"
             }
         }
 

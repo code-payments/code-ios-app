@@ -33,7 +33,19 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// "unknown", not "empty".
     public var latestEventSequence: UInt64
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0) {
+    /// The chat's picture. Only ever set for group chats.
+    public var picture: ProfilePicture?
+
+    /// Summary of the chat's roster. Tells whether ``members`` — a subset for
+    /// a large group chat — is stale without needing to hold the full list.
+    /// See ``ConversationRosterSummary``.
+    public var rosterSummary: ConversationRosterSummary
+
+    /// Requirements a user must satisfy to participate. Only ever set for
+    /// group chats; `nil` means the chat has no participation requirements.
+    public var rules: ConversationRules?
+
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -42,6 +54,9 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.isHidden = isHidden
         self.title = title
         self.latestEventSequence = latestEventSequence
+        self.picture = picture
+        self.rosterSummary = rosterSummary
+        self.rules = rules
     }
 }
 
@@ -88,6 +103,9 @@ extension Conversation {
         // DMs (which never carry a title) and untitled groups behave the same.
         self.title = proto.title.isEmpty ? nil : proto.title
         self.latestEventSequence = proto.latestEventSequence
+        self.picture = proto.hasPicture ? ProfilePicture(proto.picture) : nil
+        self.rosterSummary = ConversationRosterSummary(proto.rosterSummary)
+        self.rules = proto.hasRules ? ConversationRules(proto.rules) : nil
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.
