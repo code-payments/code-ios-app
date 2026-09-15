@@ -173,6 +173,71 @@ struct ConversationModelMappingTests {
         #expect(Conversation(proto).title == nil)
     }
 
+    @Test("Metadata maps roster summary, group picture, and rules")
+    func dmMetadataMapsRosterSummaryPictureAndRules() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .group
+            $0.rosterSummary = .with {
+                $0.memberCount = 12
+                $0.version = 3
+            }
+            $0.picture = .with {
+                $0.renditions = [.with {
+                    $0.role = .original
+                    $0.blobID = .with { $0.value = Data(repeating: 0x01, count: 16) }
+                }]
+            }
+            $0.rules = .with {
+                $0.listener = [.with { $0.staff = .init() }]
+                $0.speaker = [.with {
+                    $0.minimumBalance = .with {
+                        $0.amount = .with {
+                            $0.currency = "usd"
+                            $0.nativeAmount = 5.0
+                        }
+                    }
+                }]
+            }
+        }
+
+        let conversation = Conversation(proto)
+        #expect(conversation.rosterSummary == ConversationRosterSummary(memberCount: 12, version: 3))
+        #expect(conversation.picture != nil)
+        #expect(conversation.rules?.listener == [.staff])
+        #expect(conversation.rules?.speaker == [.minimumBalance(MinimumBalanceRequirement(amount: .usd(5.0)))])
+    }
+
+    @Test("Metadata without roster summary or rules maps to defaults")
+    func dmMetadataWithoutRosterSummaryOrRulesMapsToDefaults() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .contactDm
+        }
+
+        let conversation = Conversation(proto)
+        #expect(conversation.rosterSummary == ConversationRosterSummary(memberCount: 0, version: 0))
+        #expect(conversation.picture == nil)
+        #expect(conversation.rules == nil)
+    }
+
+    @Test("A rules requirement in an unrecognized currency is dropped")
+    func dmMetadataRulesWithUnrecognizedCurrencyIsDropped() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .group
+            $0.rules = .with {
+                $0.listener = [.with {
+                    $0.minimumBalance = .with {
+                        $0.amount = .with { $0.currency = "zzz" }
+                    }
+                }]
+            }
+        }
+
+        #expect(Conversation(proto).rules?.listener == [])
+    }
+
     @Test("ConversationType round-trips through its proto value")
     func conversationTypeRoundTripsThroughProto() {
         for type in [ConversationType.contactDm, .tipDm, .group] {
