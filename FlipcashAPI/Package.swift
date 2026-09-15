@@ -56,7 +56,7 @@ enum ContractPackage: String, CaseIterable {
     var version: Version {
         switch self {
         case .ocp: return "0.4.0"
-        case .flipcash2: return "0.6.0"
+        case .flipcash2: return "0.7.0"
         }
     }
 
