@@ -87,7 +87,16 @@ struct DestinationView: View {
             UsernameEntryScreen(currentUsername: username)
 
         case .setMinimumTip(let isSetupStep):
-            SetMinimumTipScreen(isSetupStep: isSetupStep)
+            // Seeded here, like `.changeDisplayName` above, so the field opens
+            // on the fee it is about to replace instead of animating it in over
+            // the push.
+            SetMinimumTipScreen(
+                isSetupStep: isSetupStep,
+                initialAmount: SetMinimumTipScreen.seed(
+                    fee: sessionContainer.session.profile?.minDmChatInitFee,
+                    currency: sessionContainer.ratesController.balanceCurrency
+                )
+            )
 
         case .settingsAdvancedFeatures:
             SettingsAdvancedFeaturesScreen()
