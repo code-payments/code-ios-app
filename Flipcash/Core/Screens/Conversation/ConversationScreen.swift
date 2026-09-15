@@ -66,6 +66,7 @@ struct ConversationScreen: View {
     @State private var composer = ComposerModel()
     @State private var navBarWidth: CGFloat = 0
     @State private var presentedCard: ContactCard?
+    @State private var startChattingRequest: StartChattingRequest?
     @State private var coordinator: ConversationLoadCoordinator?
 
     /// Horizontal space the back button (leading) reserves on each side of the
@@ -298,6 +299,9 @@ struct ConversationScreen: View {
             ContactCardView(card: card)
                 .ignoresSafeArea()
         }
+        .sheet(item: $startChattingRequest) { request in
+            StartChattingSheet(target: request.target, fee: request.fee)
+        }
         .background {
             // Measure the bar width so the centered title item can be sized to
             // (almost) fill it — the system toolbar won't honor maxWidth on a
@@ -508,7 +512,24 @@ struct ConversationScreen: View {
             session.dialogItem = dialog
             return
         }
+        // The payment that opens a tip DM can only be the fee, and the bar has
+        // already named it — so it's confirmed rather than entered. Everything
+        // else, this one included when the fee hasn't resolved yet, opens the
+        // amount screen.
+        if case .tip = sendTarget, let fee = startChattingFee {
+            startChattingRequest = StartChattingRequest(target: sendTarget, fee: fee)
+            return
+        }
         router.presentSendAmount(sendTarget)
+    }
+
+    /// What the start-chatting sheet is opened for, snapshotted at the tap: once
+    /// the send lands the chat exists and `startChattingFee` goes nil.
+    private struct StartChattingRequest: Identifiable {
+        let target: SendTarget
+        let fee: FiatAmount
+
+        var id: SendTarget { target }
     }
 
     /// Re-send a failed message tapped in the transcript. The id is the row's stable id, which for a
