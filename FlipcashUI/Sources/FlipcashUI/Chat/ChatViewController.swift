@@ -213,6 +213,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
         collectionView.register(ChatProfileCardCell.self, forCellWithReuseIdentifier: ChatProfileCardCell.reuseIdentifier)
+        collectionView.register(ChatGroupCardCell.self, forCellWithReuseIdentifier: ChatGroupCardCell.reuseIdentifier)
 
         swipeToReply.isBlocked = { [weak self] in
             guard let self else { return true }
@@ -371,6 +372,8 @@ public final class ChatViewController: UICollectionViewController {
                 onContactAction: { [weak self] in self?.onContactAction?() },
                 onProfileTap: profileTap
             )
+        case .groupCard(let card):
+            (cell as! ChatGroupCardCell).configure(with: card)
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .message(let message):
@@ -732,7 +735,7 @@ extension ChatViewController: ChatLayoutDelegate {
     }
 
     /// Which side of the thread the row at `indexPath` belongs to, or nil for a row that belongs to
-    /// neither (a date separator, the profile card). The typing indicator counts as the counterpart:
+    /// neither (a date separator, the profile or group card). The typing indicator counts as the counterpart:
     /// it is an incoming bubble in everything but content, so it should arrive like one and should
     /// not read as a change of speaker when it follows their message.
     ///
@@ -743,7 +746,7 @@ extension ChatViewController: ChatLayoutDelegate {
         switch items[indexPath.item] {
         case .message(let message): return message.sender
         case .typingIndicator: return .other
-        case .dateSeparator, .profileCard: return nil
+        case .dateSeparator, .profileCard, .groupCard: return nil
         }
     }
 }

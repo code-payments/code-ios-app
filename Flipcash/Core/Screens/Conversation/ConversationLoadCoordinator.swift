@@ -20,12 +20,18 @@ final class ConversationLoadCoordinator {
     /// The rendered transcript, produced off the main thread and landed here as immutable state.
     private(set) var items: [ChatItem] = []
 
+    /// Whether ``items`` is the whole locally-known history, and so carries the transcript's head
+    /// card. Landed with `items` rather than read from the loader, so a view that draws its own
+    /// head card (a group's) turns it on and off in step with the rows it sits above.
+    private(set) var headsHistory = false
+
     let conversationID: ConversationID
     private let controller: ConversationController
     private let session: Session
     /// Supplies the counterpart's profile card, resolved live — it runs inside the observation
     /// scope, so whatever it reads (the contact directory, the conversation) re-triggers mapping.
-    private let profileCard: @MainActor () -> ChatProfileCard
+    /// Nil for a chat with no counterpart to card.
+    private let profileCard: @MainActor () -> ChatProfileCard?
 
     @ObservationIgnored private var lastInputs: Inputs?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
@@ -49,7 +55,7 @@ final class ConversationLoadCoordinator {
         conversationID: ConversationID,
         controller: ConversationController,
         session: Session,
-        profileCard: @escaping @MainActor () -> ChatProfileCard
+        profileCard: @escaping @MainActor () -> ChatProfileCard?
     ) {
         self.conversationID = conversationID
         self.controller = controller
@@ -62,6 +68,7 @@ final class ConversationLoadCoordinator {
         let initial = currentInputs()
         self.lastInputs = initial
         self.items = Self.map(initial)
+        self.headsHistory = initial.headsHistory
         scheduleWindowExpiry(for: initial)
         observeInputs()
     }
@@ -96,6 +103,7 @@ final class ConversationLoadCoordinator {
             let mapped = await Task.detached { Self.map(inputs) }.value
             guard let self, !Task.isCancelled else { return }
             self.items = mapped
+            self.headsHistory = inputs.headsHistory
         }
     }
 
@@ -138,6 +146,9 @@ final class ConversationLoadCoordinator {
             }
         }
         let counterpartName = conversation?.counterpart(excluding: controller.selfUserID)?.displayName ?? ""
+        // The head card belongs only above a short transcript — a long or paged history drops it,
+        // and the nav title opens the same place it would.
+        let headsHistory = loader.isEntireHistory(windowCount: window.count)
         // The window first — a reply to a nearby message resolves with no database read at all —
         // then the table, for a reply pointing above the window. Nothing pages the server: a quote
         // whose original was never fetched renders as unavailable, by design.
@@ -157,9 +168,7 @@ final class ConversationLoadCoordinator {
             counterpartReadDate: read?.date,
             suppressReceiptFor: controller.settlingSendID,
             isTyping: controller.isCounterpartTyping(in: conversationID),
-            // The card heads only a short transcript — long or paged histories drop it; the
-            // nav title opens the same contact card.
-            profileCard: loader.isEntireHistory(windowCount: window.count) ? profileCard() : nil,
+            profileCard: headsHistory ? profileCard() : nil,
             branding: branding,
             conversation: conversation,
             counterpartName: counterpartName,
@@ -167,7 +176,8 @@ final class ConversationLoadCoordinator {
             // Read live, so the windows take effect on the same re-map that lands the flags fetch.
             policy: MessagePolicy(userFlags: session.userFlags),
             now: capabilityClock,
-            namesAuthors: namesAuthors
+            namesAuthors: namesAuthors,
+            headsHistory: headsHistory
         )
     }
 
@@ -249,6 +259,8 @@ final class ConversationLoadCoordinator {
         /// Whether the transcript attributes its rows: true for a group chat, false for a DM,
         /// where every row is one of two people and a name above each would be noise.
         var namesAuthors: Bool
+        /// Whether the window is the whole locally-known history — see ``headsHistory``.
+        var headsHistory: Bool
 
         struct Branding: Equatable, Sendable {
             var token: String
