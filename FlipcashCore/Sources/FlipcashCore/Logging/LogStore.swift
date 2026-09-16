@@ -50,6 +50,21 @@ public final class LogStore: Sendable {
 
     // MARK: - Public API
 
+    /// Set once the session owner is known, so an exported log can be tied to an account.
+    /// Nil until then, which the header prints as "not set".
+    public var userID: String? {
+        get {
+            Self.userIDLock.lock()
+            defer { Self.userIDLock.unlock() }
+            return Self.storedUserID
+        }
+        set {
+            Self.userIDLock.lock()
+            defer { Self.userIDLock.unlock() }
+            Self.storedUserID = newValue
+        }
+    }
+
     /// Returns the most recent log entries as formatted strings.
     /// Synchronous — safe to call from `ErrorReporting.capture()`.
     public func recentEntries(last: Int = 100) -> [String] {
@@ -84,6 +99,9 @@ public final class LogStore: Sendable {
         let outputHandle = try FileHandle(forWritingTo: logURL)
         defer { try? outputHandle.close() }
 
+        // Before anything else, so a log file arriving from a tester says what produced it.
+        try outputHandle.write(contentsOf: Data(LogHeader.current(userID: userID).utf8))
+
         for file in logFiles {
             guard let inputHandle = try? FileHandle(forReadingFrom: file) else { continue }
             defer { try? inputHandle.close() }
@@ -99,6 +117,9 @@ public final class LogStore: Sendable {
     }
 
     // MARK: - Private
+
+    private static let userIDLock = NSLock()
+    nonisolated(unsafe) private static var storedUserID: String?
 
     private static let exportFormatterLock = NSLock()
     private static let exportFormatter: DateFormatter = {

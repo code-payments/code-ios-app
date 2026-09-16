@@ -63,6 +63,43 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
         )
     }
 
+    /// Beta Features is reached through Advanced, one level past what the unlock
+    /// test above visits. Confirms the Contracts section — new rows this repo
+    /// didn't have before — renders once developer access is on.
+    func testBetaFeatures_showsContractVersionsAfterUnlock() throws {
+        let settings = SettingsUIScreen(app: app)
+
+        assertMainScreenReached()
+        settings.open(from: self)
+        lockBetaAccessIfUnlocked(settings)
+
+        settings.tapVersionFooter(10, from: self)
+        XCTAssertTrue(
+            settings.versionToast("You are now a developer!").waitForExistence(timeout: 5),
+            "Expected the tenth tap to say beta access is unlocked"
+        )
+
+        settings.navigateToAdvancedFeatures(from: self)
+        waitAndTap(app.buttons["Beta Features"])
+
+        // Row wraps its content in a Button, so the combined accessibility
+        // element carries the Button trait despite having no tap action.
+        let ocpRow = app.buttons["contract-row-ocp"]
+        let flipcash2Row = app.buttons["contract-row-flipcash2"]
+
+        XCTAssertTrue(ocpRow.waitForExistence(timeout: 5))
+        XCTAssertTrue(flipcash2Row.exists)
+
+        waitAndTap(app.navigationBars["Beta Features"].buttons.firstMatch)
+        settings.leaveAdvancedFeatures(from: self)
+
+        settings.tapVersionFooter(10, from: self)
+        XCTAssertTrue(
+            settings.versionToast("Beta features are hidden again").waitForExistence(timeout: 5),
+            "Expected ten more taps to lock beta access again"
+        )
+    }
+
     /// Locks beta access when a previous run left it unlocked, so the taps the
     /// test makes always start from the locked state and unlock.
     ///

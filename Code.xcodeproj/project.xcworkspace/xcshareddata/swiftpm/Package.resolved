@@ -1,5 +1,5 @@
 {
-  "originHash" : "2d7a5caa3e350604efa5925ab03196e1c1a27f40ad0dbf3c89ca2181866e49a2",
+  "originHash" : "19f6429394e80addfb0ca1b640047abcc076ddc5c65cd835fc5b85b1166cdc2c",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/flipcash2-client-protocol",
       "state" : {
-        "revision" : "8a7dc040f34c8ebf95446ac05fac9366a780ccc9",
-        "version" : "0.7.0"
+        "revision" : "5003762cf59ad88bb2ead31658975611a5b4002a",
+        "version" : "0.9.0"
       }
     },
     {
@@ -213,8 +213,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/ocp-client-protocol",
       "state" : {
-        "revision" : "15ce331d3c566707f72eaf080df8cece5f853de2",
-        "version" : "0.4.0"
+        "revision" : "56f9479ada56638c9c5514f86052003b07a6fa9f",
+        "version" : "0.5.0"
       }
     },
     {

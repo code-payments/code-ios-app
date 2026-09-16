@@ -68,6 +68,12 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
                         unlinkRow(title: "Unlink Phone", isDisabled: session.profile?.phone == nil) {
                             isConfirmingUnlinkPhone = true
                         }
+
+                        sectionHeader("Contracts")
+
+                        ForEach(ContractInfo.all) { info in
+                            ContractInfoRow(info: info)
+                        }
                     }
                 }
             }
@@ -107,10 +113,10 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
         }
     }
 
-    /// True only when there's nothing at all to show — no public flags, and no
-    /// developer access to reveal the rest.
+    /// True only when there's nothing at all to show — no public flags, no developer
+    /// access to reveal the rest, and so no Contracts section either.
     private var isEmpty: Bool {
-        !betaFlags.hasVisibleOptions
+        !betaFlags.hasVisibleOptions && !betaFlags.accessGranted
     }
 
     // MARK: - Subviews -
