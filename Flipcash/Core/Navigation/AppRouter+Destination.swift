@@ -103,6 +103,8 @@ extension AppRouter {
         case tipConversationForUser(UserID)
         /// The counterpart's Flipcash profile, pushed from a tip DM's title/card; hosts the Block action.
         case userProfile(UserID)
+        /// A group chat's own profile, pushed from its head card or its navigation title.
+        case chatProfile(ConversationID)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -126,7 +128,7 @@ extension AppRouter {
                 return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup,
                  .tipConversation, .tipConversationWithKeyboard, .tipConversationForUser,
-                 .userProfile:
+                 .userProfile, .chatProfile:
                 return .tips
             }
         }
@@ -173,6 +175,7 @@ extension AppRouter {
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
             case .tipConversationForUser:       "tipConversationForUser"
             case .userProfile:                  "userProfile"
+            case .chatProfile:                  "chatProfile"
             }
         }
 
@@ -193,7 +196,8 @@ extension AppRouter {
             case .transactionDetails(let activity):
                 return activity.id.base58
             case .tipConversation(let conversationID),
-                 .tipConversationWithKeyboard(let conversationID):
+                 .tipConversationWithKeyboard(let conversationID),
+                 .chatProfile(let conversationID):
                 return conversationID.description
             case .userProfile(let userID),
                  .tipConversationForUser(let userID):

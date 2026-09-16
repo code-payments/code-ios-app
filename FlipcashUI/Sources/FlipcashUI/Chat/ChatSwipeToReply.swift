@@ -20,7 +20,7 @@ final class ChatSwipeToReply: NSObject {
     /// Furthest a row travels. Past this the drag resists rather than stopping dead, so a hard
     /// swipe still feels connected to the finger.
     nonisolated static let maxTranslation: CGFloat = 64
-    /// Offset at which the reply fires on release.
+    /// Offset at which the reply fires, mid-drag.
     nonisolated static let triggerThreshold: CGFloat = 48
     /// Width of the leading strip left to the system's interactive-pop gesture. The reply swipe runs
     /// in the same direction as back-navigation, so the two would otherwise fight over every drag
@@ -42,9 +42,10 @@ final class ChatSwipeToReply: NSObject {
 
     private var draggedCell: ChatColumnCell?
     private var draggedStableID: String?
-    /// Latched once per drag, so the threshold's haptic fires on the way past and not on every
-    /// frame beyond it. It gates the feedback only — the reply fires from `.ended`.
-    private var hasPassedThreshold = false
+    /// Latched for the rest of the drag once the threshold fires, so the reply is sent once and the
+    /// row does not re-follow a finger that is still moving after it has sprung back. Reset in
+    /// `begin`, not in `settle` — `settle` also runs on the trigger itself.
+    private var hasTriggered = false
     private let affordance = UIView()
     private let affordanceIcon = UIImageView()
     private let haptics = UIImpactFeedbackGenerator(style: .light)
@@ -96,8 +97,8 @@ final class ChatSwipeToReply: NSObject {
         return maxTranslation + maxTranslation * overshoot / (overshoot + maxTranslation)
     }
 
-    /// Whether releasing at this offset fires the reply. Consulted only from `.ended` — crossing
-    /// the threshold mid-drag arms the gesture, it does not send.
+    /// Whether this offset fires the reply. Consulted mid-drag: crossing the threshold sends,
+    /// without waiting for the finger to lift.
     nonisolated static func triggers(offset: CGFloat) -> Bool {
         offset > triggerThreshold
     }
@@ -119,21 +120,23 @@ final class ChatSwipeToReply: NSObject {
         case .began:
             begin(at: gesture.location(in: gesture.view))
         case .changed:
+            guard !hasTriggered else { return }
             let offset = Self.offset(forTranslation: gesture.translation(in: gesture.view).x)
             apply(offset: offset)
-            // The haptic at the threshold only announces that a release from here will reply. The
-            // reply itself waits for the finger to lift, so a drag that passes the threshold and
-            // comes back sends nothing.
-            if !hasPassedThreshold, Self.triggers(offset: offset) {
-                hasPassedThreshold = true
-                haptics.impactOccurred()
-            }
-        case .ended:
-            let offset = Self.offset(forTranslation: gesture.translation(in: gesture.view).x)
+            // The reply fires here rather than from `.ended`, because a gesture that waits for the
+            // finger to lift spends the whole hold doing nothing visible and reads as lag — on a
+            // measured drag the row sat pinned at full travel for half a second before the release
+            // that finally mounted the strip. Sending at the threshold puts the strip and the
+            // keyboard up while the finger is still down, which is what every other messenger does.
+            guard Self.triggers(offset: offset) else { return }
+            hasTriggered = true
+            haptics.impactOccurred()
             let stableID = draggedStableID
+            // Spring the row back now: it has done its job, and leaving it parked under a finger
+            // that has already sent would ask the user to release before they see the result.
             settle()
-            if Self.triggers(offset: offset), let stableID { onTrigger?(stableID) }
-        case .cancelled, .failed:
+            if let stableID { onTrigger?(stableID) }
+        case .ended, .cancelled, .failed:
             settle()
         case .possible, .recognized:
             break
@@ -149,7 +152,7 @@ final class ChatSwipeToReply: NSObject {
         }
         draggedCell = row.cell
         draggedStableID = row.stableID
-        hasPassedThreshold = false
+        hasTriggered = false
         haptics.prepare()
 
         affordance.alpha = 0
@@ -174,7 +177,6 @@ final class ChatSwipeToReply: NSObject {
         let restingCenter = Self.affordanceCenter(inRowOfHeight: cell?.bounds.height ?? 0)
         draggedCell = nil
         draggedStableID = nil
-        hasPassedThreshold = false
         ChatMotion.swap.animate {
             cell?.swipeOffset = 0
             self.affordance.center = restingCenter

@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 import FlipcashCore
 
 /// Base for a chat row that stacks a content view above an optional `ChatReceiptView` in a vertical
@@ -28,8 +29,8 @@ public class ChatColumnCell: UICollectionViewCell {
     /// so collapsed out of the column — in every DM.
     private let authorName = UILabel()
     /// The author's face in the leading gutter, beside the last bubble of a run. A sibling of the
-    /// column rather than a child of it: the reply swipe translates the column, and the gutter
-    /// should stay put the way iMessage's does.
+    /// column rather than a child of it, so the gutter's width is a leading inset on the column and
+    /// a tall avatar can't grow a short-bubble row. It travels with the column under a reply swipe.
     private let authorAvatar = ChatAuthorAvatarView()
     /// The column's leading inset, widened to clear the gutter on an attributed incoming row.
     private var columnLeading: NSLayoutConstraint?
@@ -39,6 +40,11 @@ public class ChatColumnCell: UICollectionViewCell {
 
     /// Fired when the user taps a failed row to retry; the argument is the message's stable id.
     var onRetry: ((String) -> Void)?
+    /// Fired when the user taps the gutter face; the argument is that author's user id.
+    var onAuthorTap: ((UserID) -> Void)?
+    /// Who the gutter face currently belongs to, so the tap knows whose profile to open. Nil on
+    /// every row that draws no face.
+    private var authorID: UserID?
     /// The message's stable id while this row is failed and tappable; nil otherwise.
     private var retryID: String?
     /// Tap-to-retry recognizer, enabled only while this row is failed so non-failed bubbles don't
@@ -59,6 +65,7 @@ public class ChatColumnCell: UICollectionViewCell {
         // Figma puts the name 12pt Medium at 50% white, 4pt above the bubble — the column's own
         // spacing (nodes 10125:19169-19184).
         authorName.font = .default(size: 12, weight: .medium)
+        authorName.textColor = UIColor(Color.textMain.opacity(Self.authorNameOpacity))
         authorName.isHidden = true
         column.addArrangedSubview(authorName)
         column.addArrangedSubview(content)
@@ -79,6 +86,10 @@ public class ChatColumnCell: UICollectionViewCell {
 
         authorAvatar.translatesAutoresizingMaskIntoConstraints = false
         authorAvatar.isHidden = true
+        // The face opens its owner's profile. Its own recognizer rather than the cell's, so it stays
+        // independent of the retry tap on the column and of whatever the bubble does with a touch.
+        authorAvatar.isUserInteractionEnabled = true
+        authorAvatar.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(authorTapped)))
         contentView.addSubview(authorAvatar)
 
         let leading = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Self.rowInset)
@@ -99,6 +110,11 @@ public class ChatColumnCell: UICollectionViewCell {
     /// The transcript's side margin, and the avatar gutter's own leading inset.
     static let rowInset: CGFloat = 12
 
+    /// The author name's tint. Figma names every speaker in the same 50% white (node 9764:15123)
+    /// rather than the per-person colour the quote panel uses, so a run of different senders reads
+    /// as one transcript instead of a palette.
+    private static let authorNameOpacity: Double = 0.5
+
     /// What an attributed incoming row gives up to the gutter: the circle plus the 8pt Figma puts
     /// between it and the bubble. Read by the layout to keep the bubble's max width proportional to
     /// the space the row actually has.
@@ -106,14 +122,21 @@ public class ChatColumnCell: UICollectionViewCell {
 
     /// How far the row's content is dragged towards the trailing edge by the reply swipe.
     ///
-    /// It moves the column, not the content view. `UICollectionViewCell.layoutSubviews` assigns
+    /// It moves the column and the gutter avatar, not the content view. `UICollectionViewCell.layoutSubviews` assigns
     /// `contentView.frame` on every pass, which cancels a transform there — and between ChatLayout's
     /// invalidations and the subview the swipe parents to the row, that pass runs often enough during
     /// a drag that the row never visibly moves. Auto Layout positions the column through `center` and
-    /// `bounds`, which a transform composes with rather than fights.
+    /// `bounds`, which a transform composes with rather than fights — the same holds for the
+    /// avatar.
     var swipeOffset: CGFloat {
         get { column.transform.tx }
-        set { column.transform = newValue == 0 ? .identity : CGAffineTransform(translationX: newValue, y: 0) }
+        set {
+            let transform: CGAffineTransform = newValue == 0 ? .identity : CGAffineTransform(translationX: newValue, y: 0)
+            column.transform = transform
+            // The face is part of the row, not furniture behind it, so it moves with the bubble it
+            // belongs to rather than sliding out from under its own run.
+            authorAvatar.transform = transform
+        }
     }
 
     /// Self-sizes on height alone, at the width the layout asked for. The column spans the row, so
@@ -147,6 +170,7 @@ public class ChatColumnCell: UICollectionViewCell {
         authorName.text = nil
         authorAvatar.isHidden = true
         authorAvatar.reset()
+        authorID = nil
         columnLeading?.constant = Self.rowInset
     }
 
@@ -177,9 +201,11 @@ public class ChatColumnCell: UICollectionViewCell {
             authorName.text = nil
             authorAvatar.isHidden = true
             authorAvatar.reset()
+            authorID = nil
             columnLeading?.constant = Self.rowInset
             return
         }
+        authorID = author.id
         // The gutter is held open for the whole run, not just the row the face sits on, so the
         // bubbles of one run stay in a single column.
         columnLeading?.constant = Self.rowInset + Self.authorGutterWidth
@@ -187,7 +213,6 @@ public class ChatColumnCell: UICollectionViewCell {
         // The name opens a run. A roster that doesn't name this sender draws no label rather than an
         // empty line, which would read as stray padding above the bubble.
         authorName.text = author.name
-        authorName.textColor = ComplementaryPalette.uiColor(.middle, for: author.id)
         authorName.isHidden = message.isContinuationFromPrevious || author.name.isEmpty
 
         // The face closes it, so a run reads as one speaker with one avatar rather than a column of
@@ -201,6 +226,11 @@ public class ChatColumnCell: UICollectionViewCell {
     @objc private func retryTapped() {
         guard let retryID else { return }
         onRetry?(retryID)
+    }
+
+    @objc private func authorTapped() {
+        guard let authorID else { return }
+        onAuthorTap?(authorID)
     }
 }
 

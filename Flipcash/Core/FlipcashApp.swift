@@ -23,6 +23,8 @@ struct FlipcashApp: App {
             #if DEBUG
             if MotionSandbox.isRequested {
                 MotionSandbox()
+            } else if let benchmark = ScrollBenchmark.requested {
+                benchmark
             } else {
                 mainScene
             }
@@ -76,6 +78,43 @@ private struct MotionSandbox: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: ChatMotionSandboxViewController, context: Context) {}
+}
+
+/// The transcript scroll benchmark, standing in for the whole app when launched with
+/// `--scroll-benchmark`.
+///
+/// Same reasoning as ``MotionSandbox``: a launch argument, because the answer wanted is a number
+/// that two builds can be compared on, and a comparison only means something if both runs drove the
+/// transcript identically. `--scroll-benchmark-messages=N`, `--scroll-benchmark-authors=N` (0 for a
+/// DM-shaped window) and `--scroll-benchmark-velocity=N` size the run; `--scroll-benchmark-pages`
+/// adds the owner's reverse-paging loop on top and `--scroll-benchmark-obscured` puts the gate's
+/// blur over it. DEBUG-only.
+private struct ScrollBenchmark: UIViewControllerRepresentable {
+
+    let configuration: ChatScrollBenchmarkViewController.Configuration
+
+    static var requested: ScrollBenchmark? {
+        guard ProcessInfo.processInfo.arguments.contains("--scroll-benchmark") else { return nil }
+        var configuration = ChatScrollBenchmarkViewController.Configuration()
+        if let messages = intArgument("--scroll-benchmark-messages") { configuration.messageCount = messages }
+        if let authors = intArgument("--scroll-benchmark-authors") { configuration.authorCount = authors }
+        if let velocity = intArgument("--scroll-benchmark-velocity") { configuration.velocity = CGFloat(velocity) }
+        configuration.pages = ProcessInfo.processInfo.arguments.contains("--scroll-benchmark-pages")
+        configuration.obscured = ProcessInfo.processInfo.arguments.contains("--scroll-benchmark-obscured")
+        return ScrollBenchmark(configuration: configuration)
+    }
+
+    private static func intArgument(_ name: String) -> Int? {
+        ProcessInfo.processInfo.arguments
+            .first { $0.hasPrefix("\(name)=") }
+            .flatMap { Int($0.dropFirst(name.count + 1)) }
+    }
+
+    func makeUIViewController(context: Context) -> ChatScrollBenchmarkViewController {
+        ChatScrollBenchmarkViewController(configuration: configuration)
+    }
+
+    func updateUIViewController(_ controller: ChatScrollBenchmarkViewController, context: Context) {}
 }
 #endif
 
