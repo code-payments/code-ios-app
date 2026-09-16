@@ -167,6 +167,48 @@ struct RouteTests {
         #expect(Route(url: URL(string: "https://app.flipcash.com/chat")!) == nil)
     }
 
+    @Test("A group invite link round-trips: the built URL parses back to the same chat")
+    func groupInviteLinkRoundTrip() {
+        // A group's ChatId is a 16-byte UUID, so its link carries the dashed form rather than the
+        // base64url a 32-byte DM id encodes to.
+        let uuid = UUID(uuidString: "3F2504E0-4F89-41D3-9A0C-0305E82C3301")!
+        let conversationID = ConversationID(uuidString: uuid.uuidString)!
+
+        let url = URL.groupChatInvite(for: conversationID)
+        // Lowercased, because `linkPathComponent` is — one spelling, so two clients that build the
+        // same link produce the same string. Parsing stays case-insensitive.
+        #expect(url.absoluteString == "https://app.flipcash.com/chat/3f2504e0-4f89-41d3-9a0c-0305e82c3301")
+
+        if case .chat(let parsed) = Route(url: url)?.path {
+            #expect(parsed == conversationID)
+        } else {
+            Issue.record("A built invite link should parse back as .chat")
+        }
+
+        // The same id over the custom scheme, which is what a push tap re-enters through.
+        let deepLink = URL(string: "flipcash://chat/\(conversationID.linkPathComponent)")!
+        if case .chat(let parsed) = Route(url: deepLink)?.path {
+            #expect(parsed == conversationID)
+        } else {
+            Issue.record("A group deep link should parse as .chat")
+        }
+    }
+
+    @Test("A group id keeps its send-cash path, and a 16-byte id that isn't a UUID still fails")
+    func groupSendCashAndMalformed() {
+        let conversationID = ConversationID(uuidString: "3F2504E0-4F89-41D3-9A0C-0305E82C3301")!
+        let url = URL(string: "https://app.flipcash.com/chat/\(conversationID.linkPathComponent)/send")!
+
+        if case .chatSendCash(let parsed) = Route(url: url)?.path {
+            #expect(parsed == conversationID)
+        } else {
+            Issue.record("A group /chat/{uuid}/send should parse as .chatSendCash")
+        }
+
+        // Neither a UUID nor 32 base64url bytes.
+        #expect(Route(url: URL(string: "https://app.flipcash.com/chat/3F2504E0-4F89-41D3")!) == nil)
+    }
+
     @Test("Chat send-cash route parses /chat/{id}/send to .chatSendCash")
     func chatSendCashRoute() {
         let idData = Data((0..<32).map { UInt8($0) })

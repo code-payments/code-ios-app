@@ -166,6 +166,12 @@ struct DestinationView: View {
         case .usernameLookup:
             UsernameLookupScreen()
 
+        case .newChat:
+            NewChatScreen()
+
+        case .newPublicGroup:
+            NewPublicGroupScreen()
+
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID))

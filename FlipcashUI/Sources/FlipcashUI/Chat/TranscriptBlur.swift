@@ -29,6 +29,9 @@ final class TranscriptBlur {
 
     private let effectView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
 
+    /// The blur itself, so anything meant to be seen *through* it can be layered directly beneath.
+    var view: UIView { effectView }
+
     /// Whether the transcript is covered. Animates in and out; setting it to the value it already
     /// has is a no-op, so a re-render reporting the same gate doesn't restart the fade.
     var isShown = false {

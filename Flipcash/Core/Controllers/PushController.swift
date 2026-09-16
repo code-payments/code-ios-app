@@ -318,13 +318,21 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
 
         postContactJoinIfNeeded(response.notification.request.content.userInfo)
 
-        if response.actionIdentifier == ChatNotificationCategory.sendCashActionID,
-           let conversationID = NotificationPayload.chatID(response.notification.request.content.userInfo)
-        {
-            let url = URL(string: "flipcash://chat/\(conversationID.base64URLEncoded)/send")!
-            handleTargetUrlIfNeeded(url.absoluteString)
+        let userInfo = response.notification.request.content.userInfo
+        let conversationID = NotificationPayload.chatID(userInfo)
+
+        if let conversationID {
+            // The push carries the chat it is about, so the tap routes on that
+            // rather than on `target_url`: the same id an invite link carries,
+            // through the same route, so a group the user hasn't joined lands on
+            // the gated screen either way. `target_url` stays the fallback for
+            // every non-chat push.
+            handleDeepLink(URL.chatDeepLink(
+                for: conversationID,
+                sendCash: response.actionIdentifier == ChatNotificationCategory.sendCashActionID
+            ))
         } else {
-            let aps = response.notification.request.content.userInfo["aps"] as? [String: Any]
+            let aps = userInfo["aps"] as? [String: Any]
             handleTargetUrlIfNeeded(aps?["target_url"] as? String)
         }
 
@@ -346,7 +354,11 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
             return
         }
 
-        logger.debug("Forwarding notification target_url to deep link handler", metadata: ["url": "\(url.sanitizedForAnalytics)"])
+        handleDeepLink(url)
+    }
+
+    private func handleDeepLink(_ url: URL) {
+        logger.debug("Forwarding notification deep link to handler", metadata: ["url": "\(url.sanitizedForAnalytics)"])
 
         Task { @MainActor in
             NotificationCenter.default.post(

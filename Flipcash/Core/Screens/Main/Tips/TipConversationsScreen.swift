@@ -90,7 +90,7 @@ private struct NewChatButton: View {
 
     var body: some View {
         Button {
-            router.push(.usernameLookup)
+            router.push(.newChat)
         } label: {
             // Bar items get their glass from the system on iOS 26, so this
             // carries no button style of its own.

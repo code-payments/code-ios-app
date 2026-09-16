@@ -88,6 +88,10 @@ extension AppRouter {
         /// Finding someone by their Flipcash handle, opened from the Chats tab.
         /// Distinct from `.username`, which claims the signed-in user's own.
         case usernameLookup
+        /// The list of ways to start a chat, pushed from the Chats tab's `+`.
+        case newChat
+        /// The "New Public Group" form, opened from the New Chat screen.
+        case newPublicGroup
         /// A tip DM conversation, pushed onto the `.tips` stack — from the
         /// Tips list or a tip-DM push notification.
         case tipConversation(ConversationID)
@@ -126,7 +130,7 @@ extension AppRouter {
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .you
-            case .profileName, .profilePhoto, .tipcard, .usernameLookup,
+            case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
                  .tipConversation, .tipConversationWithKeyboard, .tipConversationForUser,
                  .userProfile, .chatProfile:
                 return .tips
@@ -171,6 +175,8 @@ extension AppRouter {
             case .profilePhoto:                 "profilePhoto"
             case .tipcard:                      "tipcard"
             case .usernameLookup:               "usernameLookup"
+            case .newChat:                      "newChat"
+            case .newPublicGroup:               "newPublicGroup"
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
             case .tipConversationForUser:       "tipConversationForUser"
@@ -213,7 +219,7 @@ extension AppRouter {
                  .settingsAdvancedFeatures,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
-                 .profileName, .profilePhoto, .tipcard, .usernameLookup:
+                 .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup:
                 return nil
             }
         }

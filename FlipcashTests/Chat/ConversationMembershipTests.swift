@@ -176,6 +176,23 @@ struct ConversationMembershipTests {
         #expect(controller.joinedGroups.map(\.id) == [.test(1)])
     }
 
+    @Test("A leave the server has no record of still clears membership")
+    func notFoundLeaveClearsMembership() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        mock.groupFeed = [group(1, lastActivity: 100)]
+        mock.leaveError = ErrorLeaveChat.notFound
+        let controller = makeController(mock, database: database)
+        try await controller.join(conversationID: .test(1))
+
+        try await controller.leave(conversationID: .test(1))
+
+        // The server holds no membership to remove, so the local flag is the stale one.
+        #expect(controller.joinedGroups.isEmpty)
+        #expect(try database.getGroupMemberships().isEmpty)
+    }
+
     @Test("A DM is a member chat without ever joining")
     func dmIsAlwaysAMember() async throws {
         let (database, url) = try Database.makeTemp()

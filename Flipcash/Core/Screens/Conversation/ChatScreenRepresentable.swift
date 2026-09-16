@@ -38,6 +38,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps the transcript's head card — the counterpart's in a tip DM, the
     /// chat's own in a group; nil disables the card tap.
     let onProfileTap: (() -> Void)?
+    /// Fired when the user taps the group head card's "Invite People To Join". The card draws the
+    /// button only when it both asks for it and this is set.
+    let onGroupInvite: (() -> Void)?
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
     let onAuthorTap: (UserID) -> Void
     /// Fired when a context-menu action is chosen on a row, with the row's stable id. Copy never
@@ -69,6 +72,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// may read at all. Drives the gate panel in place of the bar and the blur over the transcript.
     let gate: ConversationGatePresentation
     /// Ticker for the mint the gate's requirement names, once resolved.
+    /// Whether the gate's decorative shapes are drawn behind the blur — see
+    /// ``GatePreviewPlaceholder``. Set for a chat the viewer cannot read and has no history of.
+    let showsGatePlaceholder: Bool
     let gateSymbol: String?
     /// Opens the buy or add-cash flow from the gate panel's CTA.
     let onGateAddFunds: () -> Void
@@ -89,6 +95,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
+        screen.showsGatePlaceholder = showsGatePlaceholder
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
@@ -97,6 +104,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onLinkCardTap = onLinkCardTap
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
+        screen.onGroupInvite = onGroupInvite
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in
@@ -118,6 +126,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // focus survive across updates.
         context.coordinator.barHost?.rootView = bar(coordinator: context.coordinator)
         screen.isTranscriptObscured = gate.obscuresTranscript
+        screen.showsGatePlaceholder = showsGatePlaceholder
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
@@ -126,6 +135,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onLinkCardTap = onLinkCardTap
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
+        screen.onGroupInvite = onGroupInvite
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in

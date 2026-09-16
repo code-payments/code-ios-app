@@ -18,19 +18,26 @@ struct SelectCurrencyScreen: View {
 
     let action: (ExchangedBalance) -> Void
     let isEnabled: (ExchangedBalance) -> Bool
+    let isSelected: ((ExchangedBalance) -> Bool)?
 
     private var balances: [ExchangedBalance] {
         session.balances(for: ratesController.rateForBalanceCurrency())
             .giveable()
     }
 
+    /// - Parameter isSelected: which row draws its checkmark. Defaults to the currency the wallet is
+    ///   denominated in, which is what picking one here changes. Pass a closure when the screen is
+    ///   picking for something else — a group chat's balance requirement, say — so the check follows
+    ///   that choice instead of the wallet's.
     init(
         isPresented: Binding<Bool>,
         isEnabled: @escaping (ExchangedBalance) -> Bool = { _ in true },
+        isSelected: ((ExchangedBalance) -> Bool)? = nil,
         action: @escaping (ExchangedBalance) -> Void
     ) {
         self._isPresented = isPresented
         self.isEnabled = isEnabled
+        self.isSelected = isSelected
         self.action = action
     }
 
@@ -56,7 +63,10 @@ struct SelectCurrencyScreen: View {
                                 let enabled = isEnabled(balance)
                                 CurrencyBalanceRow(
                                     exchangedBalance: balance,
-                                    accessory: .check(isSelected: ratesController.isSelectedToken(balance.stored.mint)),
+                                    accessory: .check(
+                                        isSelected: isSelected?(balance)
+                                            ?? ratesController.isSelectedToken(balance.stored.mint)
+                                    ),
                                     amountStyle: .pill
                                 ) {
                                     action(balance)

@@ -76,6 +76,9 @@ struct ConversationScreen: View {
     @State private var isJoiningChat = false
     /// Memoizes the head-carded transcript — see ``TranscriptHead``.
     @State private var transcriptHead = TranscriptHead()
+    /// Whether the invite sheet is up. A link is the only way into a group, so the empty group's
+    /// card hands one out (node 10127:118280).
+    @State private var isInviting = false
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -328,8 +331,20 @@ struct ConversationScreen: View {
             avatarID: group.id.description,
             imageData: groupAvatarSubject.flatMap { sessionContainer.profileAvatars.data(for: $0) },
             blurhash: group.picture?.thumbnailBlurhash,
-            requirement: groupCardRequirement
+            requirement: groupCardRequirement,
+            showsInvite: showsGroupInvite
         )
+    }
+
+    /// Whether the head card offers the invite link: a group the viewer belongs to that nobody else
+    /// has joined. Once someone else is in, the invite lives on the chat's profile instead, so it
+    /// stops competing with the transcript (node 10127:118280).
+    ///
+    /// Counted from ``ConversationRosterSummary/memberCount`` for the reason ``titleSubtitle`` is —
+    /// an embedded roster is a subset.
+    private var showsGroupInvite: Bool {
+        guard let group = groupConversation else { return false }
+        return conversationController.isMember(of: group) && group.rosterSummary.memberCount <= 1
     }
 
     /// The chat's entry rule as the card states it (node 10125:19164), or nil when the chat states
@@ -415,6 +430,7 @@ struct ConversationScreen: View {
             onLinkCardTap: openLinkCard,
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
+            onGroupInvite: { isInviting = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
@@ -431,6 +447,9 @@ struct ConversationScreen: View {
             isTipDm: tipCounterpart != nil,
             startChattingFee: startChattingFee,
             gate: gate,
+            // The contract has no non-member read, so a gated chat the viewer has no history of has
+            // nothing under its blur. The shapes stand in for what they are not allowed to see.
+            showsGatePlaceholder: gate.obscuresTranscript && (coordinator?.items.isEmpty ?? true),
             gateSymbol: gateSymbol,
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,
@@ -544,6 +563,11 @@ struct ConversationScreen: View {
         }
         .sheet(item: $startChattingRequest) { request in
             StartChattingSheet(target: request.target, fee: request.fee)
+        }
+        .sheet(isPresented: $isInviting) {
+            if let conversationID {
+                GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting)
+            }
         }
         .background {
             // Measure the bar width so the centered title item can be sized to
