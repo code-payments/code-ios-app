@@ -117,11 +117,21 @@ class Session {
         userFlags?.hasPreferredOnrampProvider == true
     }
     
+    /// Every holding's worth added up, in the balance currency.
+    ///
+    /// Built from each balance's stored ``StoredBalance/usdf`` rather than from
+    /// ``StoredBalance/computeExchangedValue(with:)``. The two agree — `usdf` is
+    /// the same bonding-curve sell, floored to USDF's six decimals — but the
+    /// stored one was computed once when the balance was decoded, while the
+    /// computed one re-runs the curve on every read: a `BigDecimal` division at
+    /// 50-digit precision and a string round trip across the shared-core bridge,
+    /// per bonded token, per call. This property is read from a SwiftUI body
+    /// (the chat gate), where that cost lands on the frame.
     var totalBalance: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
 
-        return balances
-            .map { $0.computeExchangedValue(with: rate) }
+        return updateableBalances.value
+            .map { ExchangedFiat(nativeAmount: $0.usdf.converting(to: rate), rate: rate) }
             .total(rate: rate)
     }
     
