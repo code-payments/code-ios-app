@@ -15,18 +15,27 @@ nonisolated extension Database {
 
     /// Async wrapper that runs the synchronous cache reads off the caller's
     /// actor so session start never blocks the main thread on row decoding.
-    public func loadConversationCache() async throws -> (conversations: [Conversation], cursors: [ConversationID: UInt64]) {
+    public func loadConversationCache() async throws -> (conversations: [Conversation], cursors: [ConversationID: UInt64], joinedGroups: Set<ConversationID>) {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     let conversations = try self.getConversations()
                     let cursors = try self.getCatchupCursors()
-                    continuation.resume(returning: (conversations, cursors))
+                    let joinedGroups = try self.getGroupMemberships()
+                    continuation.resume(returning: (conversations, cursors, joinedGroups))
                 } catch {
                     continuation.resume(throwing: error)
                 }
             }
         }
+    }
+
+    /// The group chats the signed-in user has joined, as last recorded. Seeded into the store at
+    /// hydrate time so a member isn't shown their own chat gated until the group feed lands — or for
+    /// the whole session, offline.
+    public func getGroupMemberships() throws -> Set<ConversationID> {
+        let g = GroupMembershipTable()
+        return Set(try reader.prepareRowIterator(g.table).map { ConversationID(data: $0[g.conversationId]) })
     }
 
     /// The persisted per-conversation event-log catch-up frontier (`GetDelta.after_sequence`), omitting
@@ -254,6 +263,40 @@ nonisolated extension Database {
             for conversation in conversations where conversation.type == type {
                 try writeConversation(conversation)
             }
+        }
+    }
+
+    /// Mirror a group feed load: upsert the feed's groups, record them as joined, and delete the
+    /// groups the user left elsewhere (`departed`, as reported by ``ConversationStore/setGroupFeed(_:)``).
+    ///
+    /// Deliberately not ``replaceConversationFeed(_:type:)``: the group feed carries only joined
+    /// groups, so deleting every group it omits would evict a group the user reached by link and has
+    /// not joined — including the one whose join screen is on top.
+    public func replaceGroupFeed(_ groups: [Conversation], departed: Set<ConversationID>) throws {
+        let c = ConversationTable()
+        let m = ConversationMemberTable()
+        let g = GroupMembershipTable()
+        try writer.transaction {
+            let doomed = departed.map(\.data)
+            if !doomed.isEmpty {
+                try writer.run(c.table.filter(doomed.contains(c.id)).delete())
+                try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
+                try writer.run(g.table.filter(doomed.contains(g.conversationId)).delete())
+            }
+            for group in groups where group.type == .group {
+                try writeConversation(group)
+                try writer.run(g.table.insert(or: .replace, g.conversationId <- group.id.data))
+            }
+        }
+    }
+
+    /// Record a single join or leave the client just learned about, without touching the chat row.
+    public func setGroupMembership(_ isMember: Bool, for conversationID: ConversationID) throws {
+        let g = GroupMembershipTable()
+        if isMember {
+            try writer.run(g.table.insert(or: .replace, g.conversationId <- conversationID.data))
+        } else {
+            try writer.run(g.table.filter(g.conversationId == conversationID.data).delete())
         }
     }
 

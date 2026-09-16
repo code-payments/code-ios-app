@@ -66,6 +66,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let gateSymbol: String?
     /// Opens the buy or add-cash flow from the gate panel's CTA.
     let onGateAddFunds: () -> Void
+    /// Joins the chat from the gate panel's Join button.
+    let onGateJoin: () -> Void
+    /// Whether a join is in flight; the gate panel's button stops taking taps.
+    let isJoiningChat: Bool
     /// Avatar bytes for the group's members, keyed by user id. Empty in a DM, and empty for a group
     /// until the pictures download — the rows fall back to a BlurHash, then a monogram.
     let authorAvatars: [UserID: Data]
@@ -188,7 +192,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 startChattingFee: startChattingFee,
                 gate: gate,
                 gateSymbol: gateSymbol,
-                onGateAddFunds: onGateAddFunds
+                onGateAddFunds: onGateAddFunds,
+                onGateJoin: onGateJoin,
+                isJoiningChat: isJoiningChat
             )
             .environment(conversationController)
             .modifier(

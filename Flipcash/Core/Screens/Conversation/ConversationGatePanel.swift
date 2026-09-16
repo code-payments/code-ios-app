@@ -12,9 +12,9 @@ import FlipcashUI
 /// The card that stands in for the composer when the signed-in user may not take part in a group
 /// chat: it names the rule the chat runs on, and offers the one action that can change the answer.
 ///
-/// Per node 10125:19197. The card is deliberately the same shape in both gated states — blocked
-/// and read-only — because the user's question is the same in each ("what does this chat want from
-/// me?"); only the sentence and the button change.
+/// Per node 10125:19197. The card is deliberately the same shape in all three gated states —
+/// blocked, joinable, and read-only — because the user's question is the same in each ("what does
+/// this chat want from me?"); only the sentence and the button change.
 struct ConversationGatePanel: View {
 
     /// What the gate resolved to. ``ConversationGatePresentation/open`` renders nothing; the caller
@@ -29,6 +29,12 @@ struct ConversationGatePanel: View {
     /// Opens the buy flow for the requirement's mint, or add-cash when the requirement spans every
     /// mint. Never called for ``ConversationGateRequirement/staff``, which has no button.
     let onAddFunds: () -> Void
+
+    /// Joins the chat from the ``ConversationGatePresentation/join`` state's button.
+    let onJoin: () -> Void
+
+    /// Whether a join is in flight; the button holds its title and stops taking taps.
+    let isJoining: Bool
 
     var body: some View {
         VStack(spacing: Layout.gap) {
@@ -52,11 +58,12 @@ struct ConversationGatePanel: View {
         .padding(.vertical, BarMetrics.contentPadding)
     }
 
-    /// The requirement this state is about, or nil when the chat is ungated and the panel is not
-    /// on screen at all.
+    /// The requirement this state is about, or nil when there is none to state — a chat with no
+    /// rules still shows the panel to a non-member, with Join Chat and nothing above it.
     private var requirement: ConversationGateRequirement? {
         switch presentation {
         case .open:                      nil
+        case .join(let requirement):     requirement
         case .blocked(let requirement):  requirement
         case .readOnly(let requirement): requirement
         }
@@ -72,13 +79,13 @@ struct ConversationGatePanel: View {
             let holding = symbol.map { "\(amount.formattedDroppingZeroFraction()) of $\($0)" }
                 ?? amount.formattedDroppingZeroFraction()
             switch presentation {
-            case .readOnly:          return "Minimum Balance to Send Messages: \(holding)"
-            case .open, .blocked:    return "Minimum Balance: \(holding)"
+            case .readOnly:                 return "Minimum Balance to Send Messages: \(holding)"
+            case .open, .join, .blocked:    return "Minimum Balance: \(holding)"
             }
         case .staff:
             switch presentation {
-            case .readOnly:          return "Only Flipcash staff can send messages here"
-            case .open, .blocked:    return "This chat is for Flipcash staff"
+            case .readOnly:                 return "Only Flipcash staff can send messages here"
+            case .open, .join, .blocked:    return "This chat is for Flipcash staff"
             }
         }
     }
@@ -87,6 +94,11 @@ struct ConversationGatePanel: View {
         switch presentation {
         case .open:
             EmptyView()
+
+        case .join:
+            Button("Join Chat", action: onJoin)
+                .buttonStyle(.filled)
+                .disabled(isJoining)
 
         case .blocked(let requirement), .readOnly(let requirement):
             switch requirement {

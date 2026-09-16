@@ -29,6 +29,12 @@ public struct ConversationStore: Sendable {
     /// which live events advance it and gap-detect against it. Distinct from a message's `MessageId`
     /// and from any per-message `eventSequence`.
     private var appliedCursorByConversation: [ConversationID: UInt64] = [:]
+    /// The groups the signed-in user has joined. Derived by the client rather than carried on
+    /// ``Conversation``: the chat metadata has no "am I a member" field, so membership is learned from
+    /// where the chat came from (the group feed returns only joined chats) and from roster updates
+    /// naming the user. Held here rather than on the conversation so a metadata refresh — which
+    /// replaces the whole row — cannot clobber it.
+    private var joinedGroupIDs: Set<ConversationID> = []
 
     /// An optimistic send plus the keys that place it in the transcript: `anchor` is the newest
     /// confirmed server id at send time (the row this send sits after), `sequence` is its send order.
@@ -55,6 +61,27 @@ public struct ConversationStore: Sendable {
     public mutating func setFeed(_ conversations: [Conversation], type: ConversationType) {
         let others = self.conversations.filter { $0.type != type }
         setFeed(others + conversations.filter { $0.type == type })
+    }
+
+    /// Merge the group feed in, and returns the groups the user is no longer in.
+    ///
+    /// Deliberately not ``setFeed(_:type:)``: the group feed carries only the groups the user has
+    /// *joined*, so it is authoritative for membership but not for presence. A group reached by link
+    /// and not joined sits in the store legitimately — it is the chat the join screen is showing — and
+    /// a type-scoped replace would delete it out from under that screen. So the feed's groups are
+    /// upserted and marked joined, and only a group that was previously joined and is absent from this
+    /// feed is dropped: the user left it somewhere else, and the contract says to remove it from the
+    /// chat list. The returned ids are those drops, for the caller to mirror in the cache.
+    @discardableResult
+    public mutating func setGroupFeed(_ groups: [Conversation]) -> Set<ConversationID> {
+        let joined = Set(groups.map(\.id))
+        let departed = joinedGroupIDs.subtracting(joined)
+        conversations.removeAll { $0.type == .group && departed.contains($0.id) }
+        joinedGroupIDs = joined
+        for group in groups {
+            upsert(group)
+        }
+        return departed
     }
 
     /// How far apart an incoming server copy and a pending optimistic send may be (in either
@@ -305,32 +332,8 @@ public struct ConversationStore: Sendable {
             // Typing is ephemeral UI state held by the controller, never the persisted message store.
             return .none
         case .rosterChanged(let conversationID, let updates):
-            for update in updates {
-                applyRosterUpdate(update, in: conversationID)
-            }
+            applyRosterUpdates(updates, in: conversationID)
             return .none
-        }
-    }
-
-    /// Apply one live roster change to an already-known conversation: drop it if
-    /// `rosterSummary.version` isn't greater than the version held (delivery order doesn't matter),
-    /// else advance the summary and patch the member list. No-ops for a conversation the store doesn't
-    /// hold yet — a fresh self-join arrives instead via its embedded chat snapshot
-    /// (`RosterChange.joined(chat:)`), inserted like any other ``ConversationStreamEvent/metadataRefresh(_:)``
-    /// by the controller, which alone knows whether the signed-in user is the recipient.
-    private mutating func applyRosterUpdate(_ update: DecodedRosterUpdate, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
-        guard update.rosterSummary.version > conversations[index].rosterSummary.version else { return }
-        conversations[index].rosterSummary = update.rosterSummary
-        switch update.change {
-        case .joined(let member, _):
-            if let memberIndex = conversations[index].members.firstIndex(where: { $0.userID == member.userID }) {
-                conversations[index].members[memberIndex] = member
-            } else {
-                conversations[index].members.append(member)
-            }
-        case .left(let userID):
-            conversations[index].members.removeAll { $0.userID == userID }
         }
     }
 
@@ -406,6 +409,72 @@ public struct ConversationStore: Sendable {
     public mutating func seedAppliedCursors(_ cursors: [ConversationID: UInt64]) {
         for (conversationID, cursor) in cursors where cursor > 0 {
             appliedCursorByConversation[conversationID] = cursor
+        }
+    }
+
+    // MARK: - Group membership
+
+    /// Whether the signed-in user is a member of this conversation. Always true for a DM — both
+    /// parties are members by construction — so callers can ask it of any conversation.
+    public func isMember(of conversation: Conversation) -> Bool {
+        switch conversation.type {
+        case .contactDm, .tipDm: true
+        case .group:             joinedGroupIDs.contains(conversation.id)
+        }
+    }
+
+    /// The groups the user has joined, for the caller to persist.
+    public var joinedGroups: Set<ConversationID> {
+        joinedGroupIDs
+    }
+
+    /// Record a join or a leave the client just learned about — from its own Join/Leave call, or from
+    /// a roster update naming the user.
+    public mutating func setMembership(_ isMember: Bool, in conversationID: ConversationID) {
+        if isMember {
+            joinedGroupIDs.insert(conversationID)
+        } else {
+            joinedGroupIDs.remove(conversationID)
+        }
+    }
+
+    /// Seed memberships from the persisted cache at hydrate time, so a member isn't shown their own
+    /// chat gated for as long as the group feed takes to land — or for the whole session offline.
+    public mutating func seedMemberships(_ conversationIDs: Set<ConversationID>) {
+        joinedGroupIDs.formUnion(conversationIDs)
+    }
+
+    // MARK: - Roster updates
+
+    /// Apply roster changes to a chat's cached roster, convergently: in ascending summary version,
+    /// dropping any whose version the cache already holds, so delivery order and re-delivery don't
+    /// matter. Sorting matters within a batch — applying it in delivery order would drop a lower
+    /// version's member change while claiming the higher version's count. No-ops for a chat the store
+    /// doesn't hold — a fresh self-join arrives instead via the chat snapshot embedded in
+    /// ``RosterChange/joined(member:chat:)``, which the controller inserts as a metadata refresh
+    /// because it alone knows whether the signed-in user is the one who joined.
+    ///
+    /// A joiner the server couldn't identify still advances the summary: `memberCount` is
+    /// authoritative regardless of whether the member list could be updated.
+    public mutating func applyRosterUpdates(_ updates: [DecodedRosterUpdate], in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+
+        for update in updates.sorted(by: { $0.rosterSummary.version < $1.rosterSummary.version }) {
+            guard update.rosterSummary.version > conversations[index].rosterSummary.version else { continue }
+            switch update.change {
+            case .joined(let member, _):
+                // Matching on a nil id would overwrite the first unidentified member on the roster.
+                if let userID = member.userID {
+                    if let existing = conversations[index].members.firstIndex(where: { $0.userID == userID }) {
+                        conversations[index].members[existing] = member
+                    } else {
+                        conversations[index].members.append(member)
+                    }
+                }
+            case .left(let userID):
+                conversations[index].members.removeAll { $0.userID == userID }
+            }
+            conversations[index].rosterSummary = update.rosterSummary
         }
     }
 

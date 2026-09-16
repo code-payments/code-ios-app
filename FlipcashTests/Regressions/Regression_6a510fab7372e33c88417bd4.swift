@@ -27,7 +27,7 @@ struct Regression_6a510fa {
 
     private func makeController(_ mock: MockConversations) -> ConversationController {
         ConversationController(
-            fetching: mock, messaging: mock, streaming: mock,
+            fetching: mock, membership: mock, messaging: mock, streaming: mock,
             contactNaming: MockDMContactNaming(),
             database: try! Database.makeTemp().database,
             owner: .generate()!, selfUserID: UUID()

@@ -66,13 +66,23 @@ struct ConversationBottomBar: View {
     var gateSymbol: String? = nil
     /// Opens the buy or add-cash flow from the gate panel's CTA.
     var onGateAddFunds: () -> Void = {}
+    /// Joins the chat from the gate panel's Join button.
+    var onGateJoin: () -> Void = {}
+    /// Whether a join is in flight, so the gate panel's button can stop taking taps.
+    var isJoiningChat: Bool = false
 
     var body: some View {
         // The gate panel takes the bar whole rather than sitting inside it: none of the composer's
         // springs key on state a gated user can change, and the surface underneath is the same slab
         // either way, so the bar still reads as the bottom of the screen.
         if gate.replacesComposer {
-            ConversationGatePanel(presentation: gate, symbol: gateSymbol, onAddFunds: onGateAddFunds)
+            ConversationGatePanel(
+                presentation: gate,
+                symbol: gateSymbol,
+                onAddFunds: onGateAddFunds,
+                onJoin: onGateJoin,
+                isJoining: isJoiningChat
+            )
                 .modifier(BarSurfaceBackground())
         } else {
             composerBar
