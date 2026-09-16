@@ -40,16 +40,25 @@ platform :ios do
   desc "       fastlane release version:1.2.3 notes:'Bug fixes'"
   desc "       fastlane release version:1.2.3 review_notes:'Fixes a production bug…'"
   desc "       fastlane release version:1.2.3 phased:false   # release to everyone at once"
+  desc "       fastlane release version:1.2.3 dry_run:true   # report what would be submitted, change nothing"
   lane :release do |options|
     version = options[:version] || version_from_tag
     build_number = options[:build] # Optional: specific build number
-    release_notes = options[:notes] || default_release_notes
+    # nil when notes: wasn't passed — set_whats_new then keeps whatever notes the
+    # version already carries instead of stamping the placeholder over them.
+    release_notes = options[:notes]
     review_notes = options[:review_notes]
     # Phased release is the right default, but a fix shipping under an expedited
     # review wants every user on it the day it clears — not 1% of them.
     phased = options.key?(:phased) ? options[:phased].to_s == "true" : true
+    dry_run = options[:dry_run].to_s == "true"
 
     UI.user_error!("Version required. Usage: fastlane release version:1.2.3") unless version
+
+    if dry_run
+      preview_app_review_submission(version, build_number, release_notes, phased)
+      next
+    end
 
     UI.message("Submitting version #{version} to App Store Review...")
 
@@ -60,15 +69,14 @@ platform :ios do
       is_key_content_base64: true
     )
 
-    # Set the version and select the build, but do NOT submit yet. Under
-    # skip_metadata deliver never sets "What's New", and review submission
-    # rejects a version whose whatsNew is empty — so notes must be set between
-    # selecting the build and submitting.
+    # deliver's only job here is to create/select the editable version for
+    # `version`. Under skip_metadata it never sets "What's New", and review
+    # submission rejects a version whose whatsNew is empty, so the notes go on
+    # between this and the submission below. The build is attached there too.
     deliver(
       api_key: api_key,
       app_identifier: ENV["APP_IDENTIFIER"],
       app_version: version,
-      build_number: build_number,
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: true,
@@ -77,29 +85,10 @@ platform :ios do
       precheck_include_in_app_purchases: false
     )
 
-    # deliver skipped whatsNew (skip_metadata); set it on the editable version's
-    # en-US localization directly, then submit.
     set_whats_new(version, release_notes)
     set_review_notes(review_notes) if review_notes
 
-    deliver(
-      api_key: api_key,
-      app_identifier: ENV["APP_IDENTIFIER"],
-      app_version: version,
-      skip_binary_upload: true,
-      skip_screenshots: true,
-      skip_metadata: true,
-      force: true,
-      submit_for_review: true,
-      automatic_release: true,
-      phased_release: phased,
-      submission_information: {
-        add_id_info_uses_idfa: false
-      },
-      precheck_include_in_app_purchases: false
-    )
-
-    UI.success("Version #{version} submitted for App Store Review!")
+    submit_to_app_review(version, build_number, phased)
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -314,24 +303,45 @@ platform :ios do
     )
   end
 
+  # The app this repo releases, reached through a freshly-minted token.
+  def asc_app
+    Spaceship::ConnectAPI.token = asc_token
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("App '#{ENV['APP_IDENTIFIER']}' not found in App Store Connect") unless app
+    app
+  end
+
+  # en-US is the app's primary locale; falling back to the first localization
+  # keeps the notes landing somewhere if that ever changes.
+  def en_us_version_localization(edit_version)
+    localizations = edit_version.get_app_store_version_localizations
+    localizations.find { |l| l.locale == "en-US" } || localizations.first
+  end
+
   # Set the "What's New" (release notes) on the editable App Store version's
   # en-US localization. deliver skips this under skip_metadata, but review
   # submission requires a non-empty whatsNew.
   #
-  # NOTE: unvalidated against a live submit — 1.17.0 was submitted via the App
-  # Store Connect UI because the old single-deliver lane failed here. Confirm on
-  # the next release; if it errors, set What's New + submit in App Store Connect.
+  # `notes` is nil when the lane ran without notes:. A resubmit reaches this with
+  # the first attempt's real notes already on the version, so only an empty
+  # whatsNew is filled — otherwise the placeholder would quietly replace them.
   def set_whats_new(version, notes)
-    Spaceship::ConnectAPI.token = asc_token
-    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
-    UI.user_error!("App '#{ENV['APP_IDENTIFIER']}' not found in App Store Connect") unless app
-
-    edit_version = app.get_edit_app_store_version(platform: "IOS")
+    edit_version = asc_app.get_edit_app_store_version(platform: "IOS")
     UI.user_error!("No editable App Store version to set 'What's New' on") unless edit_version
 
-    localizations = edit_version.get_app_store_version_localizations
-    loc = localizations.find { |l| l.locale == "en-US" } || localizations.first
+    loc = en_us_version_localization(edit_version)
     UI.user_error!("No App Store version localization to set 'What's New' on") unless loc
+
+    if notes.nil?
+      existing = loc.whats_new.to_s.strip
+      unless existing.empty?
+        UI.message("Keeping the existing 'What's New' for #{version} (#{existing.bytesize} bytes) — pass notes:'…' to replace it")
+        return
+      end
+
+      notes = default_release_notes
+      UI.important("'What's New' is empty and no notes: were passed — falling back to \"#{notes}\"")
+    end
 
     loc.update(attributes: { whatsNew: notes })
     UI.success("Set 'What's New' for #{version}")
@@ -341,11 +351,7 @@ platform :ios do
   # under skip_metadata, and an expedited-review request needs its justification
   # in front of the reviewer rather than only in the request form.
   def set_review_notes(notes)
-    Spaceship::ConnectAPI.token = asc_token
-    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
-    UI.user_error!("App '#{ENV['APP_IDENTIFIER']}' not found in App Store Connect") unless app
-
-    edit_version = app.get_edit_app_store_version(platform: "IOS")
+    edit_version = asc_app.get_edit_app_store_version(platform: "IOS")
     UI.user_error!("No editable App Store version to set review notes on") unless edit_version
 
     detail = begin
@@ -361,6 +367,184 @@ platform :ios do
     end
 
     UI.success("Set review notes for #{edit_version.version_string}")
+  end
+
+  # ── App Review submission ────────────────────────────────────
+
+  # Submits the editable App Store version for review.
+  #
+  # Apple retired appStoreVersionSubmissions — it answers DELETE and nothing else
+  # — so a submission is a reviewSubmission: attach the build, reuse or open the
+  # app's single pending submission, add the version to it, then mark it
+  # submitted. The lane drives this itself rather than through deliver's
+  # submit_for_review so the in-flight guard and the release settings are stated
+  # here, where a failed release is read.
+  def submit_to_app_review(version, build_number, phased)
+    app = asc_app
+    edit_version = app.get_edit_app_store_version(platform: "IOS")
+    UI.user_error!("No editable App Store version to submit") unless edit_version
+    unless edit_version.version_string == version
+      UI.user_error!("App Store Connect's editable version is #{edit_version.version_string}, not #{version} — submit the version that was tagged and dogfooded")
+    end
+
+    in_progress = app.get_in_progress_review_submission(platform: "IOS")
+    if in_progress
+      UI.user_error!("Review submission #{in_progress.id} is already in flight (#{in_progress.state}). Cancel it in App Store Connect → App Review before submitting again.")
+    end
+
+    build = release_build!(app, version, build_number)
+    edit_version.select_build(build_id: build.id)
+    UI.success("Attached build #{build.version} to #{version}")
+
+    set_release_behavior(edit_version, phased)
+
+    submission = app.get_ready_review_submission(platform: "IOS")
+    attached = submission ? review_item_version_ids(submission) : []
+
+    if submission.nil?
+      submission = app.create_review_submission(platform: "IOS")
+      UI.message("Opened review submission #{submission.id}")
+    elsif (attached - [edit_version.id]).any?
+      UI.user_error!("Review submission #{submission.id} holds items this lane didn't add. Clear it in App Store Connect → App Review, then re-run.")
+    else
+      UI.message("Reusing pending review submission #{submission.id}")
+    end
+
+    submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id) unless attached.include?(edit_version.id)
+
+    wait_for_review_ready(edit_version)
+    submission.submit_for_review
+
+    UI.success("Submitted #{version} (build #{build.version}) for App Store Review!")
+  end
+
+  # Reports what a real run would submit, against App Store Connect as it stands.
+  # Every call here is a read, so it is safe while a submission is in flight —
+  # and it is the way to exercise the submission path without using up a version.
+  def preview_app_review_submission(version, build_number, notes, phased)
+    app = asc_app
+
+    in_progress = app.get_in_progress_review_submission(platform: "IOS")
+
+    edit_version = app.get_edit_app_store_version(platform: "IOS")
+    if edit_version.nil?
+      UI.message("Editable version:  (none) — deliver would create #{version}")
+    else
+      matches = edit_version.version_string == version ? "" : " ✗ not #{version} — deliver would switch it"
+      UI.message("Editable version:  #{edit_version.version_string} (#{edit_version.app_version_state})#{matches}")
+      UI.message("Attached build:    #{edit_version.build ? edit_version.build.version : '(none)'}")
+      loc = en_us_version_localization(edit_version)
+      UI.message("What's New:        #{whats_new_plan(notes, loc ? loc.whats_new.to_s.strip : '')}")
+    end
+
+    build = find_release_build(app, version, build_number)
+    UI.message("Would submit:      #{build ? "build #{build.version} (#{build.processing_state})" : "nothing — no build#{build_number ? " #{build_number}" : ''} uploaded for #{version}"}")
+
+    ready = app.get_ready_review_submission(platform: "IOS")
+    UI.message("Review submission: #{review_submission_plan(in_progress, ready)}")
+
+    if in_progress
+      UI.important("Dry run — nothing changed. A real run would refuse until #{in_progress.id} clears review.")
+    else
+      UI.success("Dry run — nothing changed. Would release after approval, #{phased ? 'phased' : 'to everyone at once'}.")
+    end
+  end
+
+  # An in-flight submission beats everything else: the lane refuses on it, so say
+  # that here rather than describing a submission that would never be opened.
+  def review_submission_plan(in_progress, ready)
+    return "#{in_progress.id} in flight (#{in_progress.state}) — a real run would refuse" if in_progress
+    ready ? "#{ready.id} (READY_FOR_REVIEW) — would be reused" : "(none) — would be opened"
+  end
+
+  def whats_new_plan(notes, existing)
+    return "would be replaced (notes: passed, #{notes.bytesize} bytes)" if notes
+    return "empty — would be filled with \"#{default_release_notes}\"" if existing.empty?
+    "kept as-is (#{existing.bytesize} bytes)"
+  end
+
+  # Release settings have to land before the submission — App Store Connect locks
+  # them once a version is submitted.
+  #
+  # deliver nominally carried these as automatic_release:/phased_release:, but it
+  # applies both from upload_metadata, which returns immediately under
+  # skip_metadata — so neither ever reached App Store Connect from this lane.
+  def set_release_behavior(edit_version, phased)
+    edit_version.update(attributes: {
+      releaseType: Spaceship::ConnectAPI::AppStoreVersion::ReleaseType::AFTER_APPROVAL
+    })
+
+    # The relationship 404s rather than coming back empty when there is none.
+    current = begin
+      edit_version.fetch_app_store_version_phased_release
+    rescue StandardError
+      nil
+    end
+
+    if phased && current.nil?
+      edit_version.create_app_store_version_phased_release(attributes: {
+        phasedReleaseState: Spaceship::ConnectAPI::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
+      })
+    elsif !phased && current
+      current.delete!
+    end
+
+    UI.success("#{edit_version.version_string} will release after approval, #{phased ? 'phased' : 'to everyone at once'}")
+  end
+
+  # The build to submit: the one pinned by build:, else the newest uploaded for
+  # this version. Filtering on the version keeps a stray deploy build that shares
+  # the version string out of an App Store submission.
+  def find_release_build(app, version, build_number)
+    Spaceship::ConnectAPI::Build.all(
+      app_id: app.id,
+      version: version,
+      build_number: build_number&.to_s,
+      platform: "IOS"
+    ).first
+  end
+
+  def release_build!(app, version, build_number)
+    build = find_release_build(app, version, build_number)
+    unless build
+      UI.user_error!("No build#{build_number ? " #{build_number}" : ''} uploaded for #{version} — wait for the tagged build, then re-run. Don't submit a different version.")
+    end
+
+    unless build.processing_state == Spaceship::ConnectAPI::Build::ProcessingState::VALID
+      UI.user_error!("Build #{build.version} for #{version} is #{build.processing_state} — wait for processing to finish, then re-run.")
+    end
+
+    if build.uses_non_exempt_encryption.nil?
+      UI.user_error!("Build #{build.version} has no export-compliance answer, which blocks submission. Answer it on the build in App Store Connect.")
+    end
+
+    build
+  end
+
+  # App Store version ids already queued on a pending review submission. Fetched
+  # separately because the submission itself carries item ids without the
+  # appStoreVersion each one points at.
+  def review_item_version_ids(submission)
+    Spaceship::ConnectAPI::ReviewSubmissionItem.all(
+      review_submission_id: submission.id,
+      includes: "appStoreVersion"
+    ).map { |item| item.app_store_version&.id }.compact
+  end
+
+  # Apple recomputes the version's state after an item is added and rejects a
+  # submit that lands before it reports READY_FOR_REVIEW.
+  def wait_for_review_ready(edit_version, attempts: 10, interval: 15)
+    ready = Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::READY_FOR_REVIEW
+
+    attempts.times do
+      state = Spaceship::ConnectAPI::AppStoreVersion.get(app_store_version_id: edit_version.id).app_version_state
+      return if state == ready
+
+      UI.message("Waiting for #{edit_version.version_string} to reach #{ready} (#{state})…")
+      sleep(interval)
+    end
+
+    UI.important("#{edit_version.version_string} never reported #{ready} — submitting anyway.")
   end
 
   def current_branch
@@ -484,19 +668,34 @@ platform :ios do
     end
   end
 
-  # Blocks until a build (optionally a specific number) has finished App Store
-  # Connect processing so it can be handed to a TestFlight group.
-  # Most recently uploaded build, optionally pinned to a build number. Does not
-  # wait — returns nil if nothing matches yet.
+  # Most recently uploaded iOS build, optionally pinned to a build number. Does
+  # not wait — returns nil if nothing matches yet.
+  #
+  # Deliberately not Build.all: that hands the response to all_pages, which
+  # follows every `next` link, so its limit sets the page size rather than the
+  # result count — limit: 1 walked the app's whole build history one request at
+  # a time. One page of the sorted list is all this needs.
+  #
+  # Build.all's platform: argument filters after fetching for the same reason
+  # (App Store Connect has no platform filter on /builds), so the page is taken
+  # a little wider than one and the newest iOS build picked out of it.
   def latest_build(app, build_number)
-    Spaceship::ConnectAPI::Build.all(
-      app_id: app.id,
-      build_number: build_number&.to_s,
+    Spaceship::ConnectAPI.get_builds(
+      filter: {
+        app: app.id,
+        version: build_number&.to_s,
+        processingState: "PROCESSING,FAILED,INVALID,VALID"
+      },
+      includes: Spaceship::ConnectAPI::Build::ESSENTIAL_INCLUDES,
       sort: "-uploadedDate",
-      limit: 1
-    ).first
+      limit: 10
+    ).to_models.find do |build|
+      build.pre_release_version&.platform == Spaceship::ConnectAPI::Platform::IOS
+    end
   end
 
+  # Blocks until a build (optionally a specific number) has finished App Store
+  # Connect processing so it can be handed to a TestFlight group.
   def wait_for_processed_build(app, build_number, timeout: 30 * 60, interval: 30)
     waited = 0
     loop do

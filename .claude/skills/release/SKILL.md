@@ -262,16 +262,19 @@ After user confirms:
 The gate has cleared the tag-built TestFlight build; submit that same build for `{NEXT}`:
 
 ```bash
+fastlane release version:{NEXT} dry_run:true   # read-only; check this first
 fastlane release version:{NEXT}
 ```
 
-`fastlane release` (in `fastlane/Fastfile`) attaches the latest processed build for `{NEXT}` to the App Store version and submits it with phased release. It reads the ASC creds from `fastlane/.env` — if it reports a missing `ASC_*` / `APP_IDENTIFIER`, have the user restore that file (`Scripts/pull_secrets`) and re-run.
+`fastlane release` (in `fastlane/Fastfile`) attaches the build for `{NEXT}` to the App Store version and submits it through the App Store Connect `reviewSubmissions` flow, with phased release and release-after-approval. It reads the ASC creds from `fastlane/.env` — if it reports a missing `ASC_*` / `APP_IDENTIFIER`, have the user restore that file (`Scripts/pull_secrets`) and re-run.
 
-Use the step-7 changelog as the "What's New" notes — App Store notes are plain text, so drop the `##` section headers and pass the lines: `fastlane release version:{NEXT} notes:"{plain-text changelog}"`. If a build for `{NEXT}` isn't processed yet (deliver can't find it), wait and re-run — don't fall back to a different version.
+**Run `dry_run:true` first.** It reads the editable version, its state, the build it would submit, what it would do to "What's New", and whether a review submission is already open — and changes nothing. A resubmit is the case worth checking: the lane refuses outright when a submission is already in flight, and the dry run says so before you spend a real attempt on it.
+
+Use the step-7 changelog as the "What's New" notes — App Store notes are plain text, so drop the `##` section headers and pass the lines: `fastlane release version:{NEXT} notes:"{plain-text changelog}"`. Omitting `notes:` keeps whatever the version already carries, so a resubmit without `notes:` no longer stamps the "Bug fixes and performance improvements." placeholder over real notes; the placeholder is used only when `whatsNew` is empty. If a build for `{NEXT}` isn't processed yet (deliver can't find it), wait and re-run — don't fall back to a different version.
 
 **Pass `build:{number}` explicitly** (the tag-built, dogfooded build) — `deliver` otherwise takes the latest build for the version, and a stray deploy build can share the version string. Confirm the number with `fastlane distribute group:'…' dry_run:true` (reports the latest processed build).
 
-**If `deliver` fails at submit** with *"missing … 'whatsNew'"* or a version "not in valid state", the safe fallback is to paste the "What's New" and submit the build from the App Store Connect UI (deliver only *submits* here — the binary is already uploaded, so nothing is lost). The lane sets `whatsNew` via a `set_whats_new` helper before submitting, but that path was unvalidated as of 1.17.0 (which was submitted manually).
+**If the lane fails at submit**, the fallback is to paste the "What's New" and submit the build from the App Store Connect UI — the binary is already uploaded, so nothing is lost. That is the path 2026.9.1 took: the lane's old submit step died on `The resource 'appStoreVersionSubmissions' does not allow 'CREATE'`, Apple having retired that endpoint. The lane now drives `reviewSubmissions` itself instead of leaving the submit to `deliver`, and its read-only paths were checked against the live API, but no version has yet been submitted through it — so treat the first run as unproven and keep the UI fallback in reach.
 
 ### 11. GitHub Release (draft)
 Always create the release as a draft. Publish it manually from the GitHub UI once the App Store rollout is live — publishing fires webhooks and "Latest release" badges, so it should reflect what's actually available to users.
