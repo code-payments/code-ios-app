@@ -59,6 +59,20 @@ public final class ChatViewController: UICollectionViewController {
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
+    /// Avatar bytes for the transcript's authors, keyed by user id. Empty in a DM, where no row is
+    /// attributed. The owner fills it as pictures download; rows already on screen pick the new
+    /// bytes up without a diff, since nothing about the message itself changed.
+    public var authorAvatars: [UserID: Data] = [:] {
+        didSet {
+            guard authorAvatars != oldValue, isViewLoaded else { return }
+            for cell in collectionView.visibleCells {
+                guard let indexPath = collectionView.indexPath(for: cell),
+                      let message = message(at: indexPath) else { continue }
+                configure(cell, with: message)
+            }
+        }
+    }
+
     /// Within this many points of the bottom counts as "at the bottom".
     private static let bottomThreshold: CGFloat = 50
 
@@ -360,27 +374,39 @@ public final class ChatViewController: UICollectionViewController {
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .message(let message):
-            let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
-            let maxWidth = width * Self.maxBubbleWidthFraction
-            switch cell {
-            // Only text messages are sent optimistically, so only they can reach the failed state
-            // that arms retry (wired on both text cells). Cash messages are always server-confirmed.
-            case let cell as ChatLinkMessageCell:
-                cell.configure(with: message, maxWidth: maxWidth)
-                cell.onRetry = { [weak self] id in self?.onRetry?(id) }
-                cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
-                cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
-            case let cell as ChatMessageCell:
-                cell.configure(with: message, maxWidth: maxWidth)
-                cell.onRetry = { [weak self] id in self?.onRetry?(id) }
-                cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
-            case let cell as ChatCashCardCell:
-                cell.configure(with: message)
-            default:
-                assertionFailure("Unhandled chat cell class for reuse identifier \(item.cellReuseIdentifier)")
-            }
+            configure(cell, with: message)
         }
         return cell
+    }
+
+    /// Fills a message cell. Split out of `cellForItemAt` because an avatar landing re-runs it for
+    /// the rows already on screen, which must render identically to a fresh dequeue.
+    private func configure(_ cell: UICollectionViewCell, with message: ChatMessage) {
+        let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
+        // An attributed incoming row gives its leading gutter to the avatar, so the same fraction of
+        // a narrower row — otherwise the widest bubbles in a group run past where they do in a DM.
+        let available = message.author != nil && message.sender != .me
+            ? width - ChatColumnCell.authorGutterWidth
+            : width
+        let maxWidth = available * Self.maxBubbleWidthFraction
+        let authorImageData = message.author.flatMap { authorAvatars[$0.id] }
+        switch cell {
+        // Only text messages are sent optimistically, so only they can reach the failed state
+        // that arms retry (wired on both text cells). Cash messages are always server-confirmed.
+        case let cell as ChatLinkMessageCell:
+            cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
+            cell.onRetry = { [weak self] id in self?.onRetry?(id) }
+            cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+            cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
+        case let cell as ChatMessageCell:
+            cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
+            cell.onRetry = { [weak self] id in self?.onRetry?(id) }
+            cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
+        case let cell as ChatCashCardCell:
+            cell.configure(with: message, authorImageData: authorImageData)
+        default:
+            assertionFailure("Unhandled chat cell class for message row")
+        }
     }
 
     // MARK: - Selection
@@ -677,6 +703,13 @@ extension ChatViewController: ChatLayoutDelegate {
         // the base spacing.
         guard let current = sender(at: indexPath), let next = sender(at: below) else { return nil }
         guard current == next else { return RowGap.wide }
+
+        // In an attributed transcript the side is not the speaker: two people's incoming bubbles
+        // both read as `.other`, and without this a change of author would take the tight gap that
+        // belongs inside one run. A row with no author is a DM row, where the side is the speaker.
+        let currentAuthor = message(at: indexPath)?.author?.id
+        let nextAuthor = message(at: below)?.author?.id
+        guard currentAuthor == nextAuthor else { return RowGap.wide }
 
         // Same sender: tight only while they are one run. The typing indicator never joins one, so
         // the dots arriving after the counterpart's own message read as a new turn.

@@ -187,17 +187,20 @@ struct DeepLinkAction {
     
     // MARK: - Execute -
 
-    /// Routes a chat id to its surface. Only tip DMs are navigable — contact DMs
+    /// Routes a chat id to its surface. Tip DMs and group chats are navigable — contact DMs
     /// are no longer surfaced in the app. The push payload carries no type, so
     /// the controller resolves it, hydrating an id the feed doesn't know yet
     /// (e.g. a first-ever tip's push) so the routed screen finds it populated.
+    ///
+    /// A group cannot appear in any feed — `GetDmChatFeed` rejects the type — so this link is the
+    /// only way in for a user who has not yet had an event for the chat.
     private static func routeChat(_ conversationID: ConversationID, in container: SessionContainer) async {
         let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
 
         switch conversation?.type {
-        case .tipDm:
+        case .tipDm, .group:
             container.appRouter.navigate(to: .tipConversation(conversationID))
-        case .contactDm, .group, nil:
+        case .contactDm, nil:
             logger.info("Ignoring non-tip chat deeplink", metadata: [
                 "conversationID": "\(conversationID)",
             ])
@@ -255,6 +258,14 @@ struct DeepLinkAction {
         case .chatSendCash(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
                 let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
+                // A group has no single payee, so there is nothing to send to. The push it came
+                // from still carries the Send Cash action — the extension tags one chat category
+                // for every chat — so land on the chat rather than swallowing the tap.
+                if conversation?.type == .group {
+                    Analytics.deeplinkRouted(kind: kind)
+                    await Self.routeChat(conversationID, in: container)
+                    return
+                }
                 // Only tip DMs resolve a send target now; contact/phone sends
                 // are no longer surfaced.
                 guard let target = SendTarget(

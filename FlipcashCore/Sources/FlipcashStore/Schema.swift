@@ -260,6 +260,19 @@ nonisolated public struct ConversationTable: Sendable {
     public let isHidden      = Expression <Bool>    ("isHidden")
     // Server-set title, group chats only. Nil for DMs.
     public let title         = Expression <String?> ("title")
+    // The chat's own picture renditions, group chats only. Mirrors the member
+    // table's three-column ProfilePicture layout.
+    public let pictureBlobID          = Expression <Data?>   ("pictureBlobID")
+    public let pictureThumbnailBlobID = Expression <Data?>   ("pictureThumbnailBlobID")
+    public let pictureThumbnailBlurhash = Expression <String?> ("pictureThumbnailBlurhash")
+    // Roster summary. Cached so a group restored cold reports its real member
+    // count instead of zero while the metadata refetch is in flight.
+    public let rosterMemberCount = Expression <UInt64> ("rosterMemberCount")
+    public let rosterVersion     = Expression <UInt64> ("rosterVersion")
+    // Participation rules as JSON. This module deliberately doesn't depend on
+    // FlipcashAPI, so the proto can't be stored; ConversationRules is Codable
+    // for exactly this.
+    public let rules             = Expression <Data?>  ("rules")
 }
 
 nonisolated public struct ConversationMemberTable: Sendable {
@@ -528,6 +541,12 @@ nonisolated extension Database {
                 t.column(conversationTable.type, defaultValue: ConversationType.contactDm.rawValue)
                 t.column(conversationTable.isHidden, defaultValue: false)
                 t.column(conversationTable.title)
+                t.column(conversationTable.pictureBlobID)
+                t.column(conversationTable.pictureThumbnailBlobID)
+                t.column(conversationTable.pictureThumbnailBlurhash)
+                t.column(conversationTable.rosterMemberCount, defaultValue: 0)
+                t.column(conversationTable.rosterVersion, defaultValue: 0)
+                t.column(conversationTable.rules)
             })
         }
 

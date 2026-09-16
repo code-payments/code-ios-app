@@ -124,7 +124,11 @@ final class ConversationLoadCoordinator {
 
     private func currentInputs() -> Inputs {
         let conversation = controller.conversation(withID: conversationID)
-        let read = conversation?.counterpartReadReceipt(excluding: controller.selfUserID)
+        // A group has no single counterpart to have read anything — `counterpartReadReceipt` picks
+        // an arbitrary member — so the receipt stays at "Delivered" there, which is what the design
+        // shows (node 10125:19256). Group read state is an N-member problem and not this pass.
+        let namesAuthors = conversation?.type == .group
+        let read = namesAuthors ? nil : conversation?.counterpartReadReceipt(excluding: controller.selfUserID)
         let window = loader.messages
         var branding: [PublicKey: Inputs.Branding] = [:]
         for message in window {
@@ -162,11 +166,26 @@ final class ConversationLoadCoordinator {
             quotedMessages: quotedMessages,
             // Read live, so the windows take effect on the same re-map that lands the flags fetch.
             policy: MessagePolicy(userFlags: session.userFlags),
-            now: capabilityClock
+            now: capabilityClock,
+            namesAuthors: namesAuthors
         )
     }
 
     nonisolated private static func map(_ inputs: Inputs) -> [ChatItem] {
+        // Built here rather than in `Inputs` so the equality check that short-circuits a re-map
+        // compares the roster it is derived from, not a second copy of it.
+        let authors: [UserID: ChatAuthor] = inputs.namesAuthors
+            ? Dictionary(
+                (inputs.conversation?.members ?? []).compactMap { member in
+                    member.userID.map { ($0, ChatAuthor(
+                        id: $0,
+                        name: member.displayName,
+                        blurhash: member.profilePicture?.thumbnailBlurhash
+                    )) }
+                },
+                uniquingKeysWith: { first, _ in first }
+            )
+            : [:]
         var items = ChatItem.from(
             inputs.messages,
             selfUserID: inputs.selfUserID,
@@ -192,7 +211,10 @@ final class ConversationLoadCoordinator {
                 )
             },
             counterpartName: inputs.counterpartName,
-            quotedMessage: { inputs.quotedMessages[$0.value] }
+            quotedMessage: { inputs.quotedMessages[$0.value] },
+            // A sender the roster does not carry — the subset a large group embeds leaves plenty —
+            // gets no author, so the row draws as it does in a DM rather than under a blank name.
+            author: { message in message.senderID.flatMap { authors[$0] } }
         )
         if inputs.isTyping {
             items.append(.typingIndicator)
@@ -224,6 +246,9 @@ final class ConversationLoadCoordinator {
         var policy: MessagePolicy
         /// The clock capabilities resolve against; advanced only at a window's expiry.
         var now: Date
+        /// Whether the transcript attributes its rows: true for a group chat, false for a DM,
+        /// where every row is one of two people and a name above each would be noise.
+        var namesAuthors: Bool
 
         struct Branding: Equatable, Sendable {
             var token: String

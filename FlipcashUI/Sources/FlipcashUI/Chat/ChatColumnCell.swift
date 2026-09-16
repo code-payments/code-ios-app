@@ -24,6 +24,15 @@ public class ChatColumnCell: UICollectionViewCell {
 
     private let receipt = ChatReceiptView()
     private let column = UIStackView()
+    /// The author's name above the first bubble of a run, in an attributed transcript. Hidden — and
+    /// so collapsed out of the column — in every DM.
+    private let authorName = UILabel()
+    /// The author's face in the leading gutter, beside the last bubble of a run. A sibling of the
+    /// column rather than a child of it: the reply swipe translates the column, and the gutter
+    /// should stay put the way iMessage's does.
+    private let authorAvatar = ChatAuthorAvatarView()
+    /// The column's leading inset, widened to clear the gutter on an attributed incoming row.
+    private var columnLeading: NSLayoutConstraint?
     /// The subclass's content view, kept so the retry recognizer can restrict itself to the visible
     /// row — the column spans the full width, so its own bounds are not the hit area.
     private var content: UIView?
@@ -47,6 +56,11 @@ public class ChatColumnCell: UICollectionViewCell {
         self.content = content
         column.axis = .vertical
         column.spacing = 4
+        // Figma puts the name 12pt Medium at 50% white, 4pt above the bubble — the column's own
+        // spacing (nodes 10125:19169-19184).
+        authorName.font = .default(size: 12, weight: .medium)
+        authorName.isHidden = true
+        column.addArrangedSubview(authorName)
         column.addArrangedSubview(content)
         column.addArrangedSubview(receipt)
         column.translatesAutoresizingMaskIntoConstraints = false
@@ -63,13 +77,32 @@ public class ChatColumnCell: UICollectionViewCell {
         column.addGestureRecognizer(tap)
         retryTap = tap
 
+        authorAvatar.translatesAutoresizingMaskIntoConstraints = false
+        authorAvatar.isHidden = true
+        contentView.addSubview(authorAvatar)
+
+        let leading = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Self.rowInset)
+        columnLeading = leading
         NSLayoutConstraint.activate([
-            column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
-            column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            leading,
+            column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -Self.rowInset),
             column.topAnchor.constraint(equalTo: contentView.topAnchor),
             column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            // Leading and bottom only, with the view's own size constraints doing the rest: an
+            // avatar pinned top as well would set a floor on the row's fitting height, and
+            // `preferredLayoutAttributesFitting` would grow every short bubble to the gutter.
+            authorAvatar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Self.rowInset),
+            authorAvatar.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
     }
+
+    /// The transcript's side margin, and the avatar gutter's own leading inset.
+    static let rowInset: CGFloat = 12
+
+    /// What an attributed incoming row gives up to the gutter: the circle plus the 8pt Figma puts
+    /// between it and the bubble. Read by the layout to keep the bubble's max width proportional to
+    /// the space the row actually has.
+    public static let authorGutterWidth = ChatAuthorAvatarView.size + 8
 
     /// How far the row's content is dragged towards the trailing edge by the reply swipe.
     ///
@@ -108,12 +141,19 @@ public class ChatColumnCell: UICollectionViewCell {
         // Clear the line so a recycled cell never carries its prior row's text into the next use,
         // or animates away from it.
         receipt.reset()
+        // Same for the attribution: a recycled cell would otherwise draw the previous author's name
+        // and face for the frame before `updateColumn` runs.
+        authorName.isHidden = true
+        authorName.text = nil
+        authorAvatar.isHidden = true
+        authorAvatar.reset()
+        columnLeading?.constant = Self.rowInset
     }
 
     /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The line
     /// itself comes from the mapping (`message.receipt`) and renders itself; the cell only decides
     /// whether the update animates, and makes a failed row tappable to retry.
-    func updateColumn(for message: ChatMessage) {
+    func updateColumn(for message: ChatMessage, authorImageData: Data? = nil) {
         // Cross-fade the receipt only when the *same* row changes in place (Delivered→Read, the settling
         // line revealing). A recycled or freshly dequeued cell renders a different row, so its line is set
         // directly — otherwise the cross-fade would replay this cell's prior line (a reused failed cell
@@ -125,6 +165,37 @@ public class ChatColumnCell: UICollectionViewCell {
         retryTap?.isEnabled = message.isFailed
         receipt.setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
         column.alignment = message.sender == .me ? .trailing : .leading
+        updateAttribution(for: message, authorImageData: authorImageData)
+    }
+
+    /// Names the author above the first bubble of their run and puts their face beside the last one,
+    /// the way Figma draws a group transcript. `message.author` is nil in every DM and on the
+    /// viewer's own rows, which collapses both back to the plain layout.
+    private func updateAttribution(for message: ChatMessage, authorImageData: Data?) {
+        guard let author = message.author, message.sender != .me else {
+            authorName.isHidden = true
+            authorName.text = nil
+            authorAvatar.isHidden = true
+            authorAvatar.reset()
+            columnLeading?.constant = Self.rowInset
+            return
+        }
+        // The gutter is held open for the whole run, not just the row the face sits on, so the
+        // bubbles of one run stay in a single column.
+        columnLeading?.constant = Self.rowInset + Self.authorGutterWidth
+
+        // The name opens a run. A roster that doesn't name this sender draws no label rather than an
+        // empty line, which would read as stray padding above the bubble.
+        authorName.text = author.name
+        authorName.textColor = ComplementaryPalette.uiColor(.middle, for: author.id)
+        authorName.isHidden = message.isContinuationFromPrevious || author.name.isEmpty
+
+        // The face closes it, so a run reads as one speaker with one avatar rather than a column of
+        // repeated thumbnails.
+        authorAvatar.isHidden = message.isContinuedByNext
+        if !authorAvatar.isHidden {
+            authorAvatar.configure(with: author, imageData: authorImageData)
+        }
     }
 
     @objc private func retryTapped() {

@@ -59,6 +59,16 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let isTipDm: Bool
     /// The floor the first tip has to clear to open this chat, named on the CTA.
     let startChattingFee: FiatAmount?
+    /// Whether the chat's participation rules leave this user anything to type, and whether they
+    /// may read at all. Drives the gate panel in place of the bar and the blur over the transcript.
+    let gate: ConversationGatePresentation
+    /// Ticker for the mint the gate's requirement names, once resolved.
+    let gateSymbol: String?
+    /// Opens the buy or add-cash flow from the gate panel's CTA.
+    let onGateAddFunds: () -> Void
+    /// Avatar bytes for the group's members, keyed by user id. Empty in a DM, and empty for a group
+    /// until the pictures download — the rows fall back to a BlurHash, then a monogram.
+    let authorAvatars: [UserID: Data]
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -68,6 +78,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         barHost.view.clipsToBounds = false
         let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
         screen.focusesComposerOnAppear = focusOnAppear
+        screen.isTranscriptObscured = gate.obscuresTranscript
+        screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
@@ -93,6 +105,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // Re-supply the bar with current inputs; SwiftUI diffs it, so the composer's draft and
         // focus survive across updates.
         context.coordinator.barHost?.rootView = bar(coordinator: context.coordinator)
+        screen.isTranscriptObscured = gate.obscuresTranscript
+        screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
@@ -171,7 +185,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 model: barModel,
                 composer: composer,
                 isTipDm: isTipDm,
-                startChattingFee: startChattingFee
+                startChattingFee: startChattingFee,
+                gate: gate,
+                gateSymbol: gateSymbol,
+                onGateAddFunds: onGateAddFunds
             )
             .environment(conversationController)
             .modifier(

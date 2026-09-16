@@ -552,6 +552,18 @@ final class SessionContainer {
         conversationController.receipts.usdRate = { [weak ratesController] currency in
             ratesController?.rate(for: currency)
         }
+        // A group chat's listener rules gate reading, so a chat the user doesn't qualify for has
+        // nothing to fetch — `GetMessages`, `GetDelta` and `AdvancePointer` all answer `DENIED`.
+        // Evaluating the gate here keeps those round trips, and the reports they'd produce, off the
+        // wire. Wired before `start()` so the cache-seeded feed is already gated.
+        conversationController.canReadConversation = { [weak session, weak ratesController] conversation in
+            guard let session else { return true }
+            return conversationGate(
+                session: session,
+                rules: conversation.rules,
+                rates: ratesController?.cachedRates ?? [:]
+            ).listener.isSatisfied
+        }
         conversationController.start()
         self.conversationController = conversationController
 

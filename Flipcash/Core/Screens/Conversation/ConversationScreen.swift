@@ -68,6 +68,9 @@ struct ConversationScreen: View {
     @State private var presentedCard: ContactCard?
     @State private var startChattingRequest: StartChattingRequest?
     @State private var coordinator: ConversationLoadCoordinator?
+    /// Ticker for the mint the gate's requirement names, resolved from mint metadata. Nil until it
+    /// lands, and for every ungated chat.
+    @State private var gateSymbol: String?
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -173,7 +176,9 @@ struct ConversationScreen: View {
     /// For a tip DM, all counterpart taps open the profile screen — even when
     /// the counterpart is also an address-book contact.
     private var profileTapAction: (() -> Void)? {
-        guard let userID = tipCounterpart?.userID else { return nil }
+        // A group has no counterpart to open a profile for; the chat-info screen that would go here
+        // is part of the membership work and has no RPC behind it yet.
+        guard groupConversation == nil, let userID = tipCounterpart?.userID else { return nil }
         return { router.push(.userProfile(userID)) }
     }
 
@@ -183,7 +188,7 @@ struct ConversationScreen: View {
     /// Inert only when neither a contact nor a phone number is known.
     private var titleTapAction: (() -> Void)? {
         if let profileTapAction { return profileTapAction }
-        guard contact != nil || addableContactPhone != nil else { return nil }
+        guard groupConversation == nil, contact != nil || addableContactPhone != nil else { return nil }
         return { openContactCard() }
     }
 
@@ -207,6 +212,87 @@ struct ConversationScreen: View {
         return contact?.displayName ?? ConversationController.fallbackCounterpartName
     }
 
+    /// The chat's participation rules weighed against the signed-in user: what the bottom of the
+    /// screen draws, and whether the transcript is readable at all. `.open` for every DM and for a
+    /// group with no rules.
+    ///
+    /// Recomputed on each observation tick rather than cached, so a balance that crosses the
+    /// requirement — or a rate that finally loads — opens the chat without a reopen.
+    private var gate: ConversationGatePresentation {
+        guard let conversation = groupConversation else { return .open }
+        return conversationGatePresentation(
+            conversationGate(
+                session: session,
+                rules: conversation.rules,
+                rates: ratesController.cachedRates
+            )
+        )
+    }
+
+    /// This chat when it is a group, else nil — the single test every group surface on this screen
+    /// branches on, so none of them can disagree about what a group is.
+    private var groupConversation: Conversation? {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID),
+              conversation.type == .group
+        else { return nil }
+        return conversation
+    }
+
+    /// The group's roster, or empty for every DM. The transcript names its authors from this, and
+    /// their pictures are fetched for it.
+    private var groupMembers: [ConversationMember] {
+        groupConversation?.members ?? []
+    }
+
+    /// "12 people" under the title, or nil for a DM, which has no count worth stating.
+    ///
+    /// From ``ConversationRosterSummary/memberCount``, not `members.count`: the roster a large group
+    /// embeds is only a subset, so counting it would under-report the chat.
+    private var titleSubtitle: String? {
+        guard let count = groupConversation?.rosterSummary.memberCount else { return nil }
+        return count == 1 ? "1 person" : "\(count) people"
+    }
+
+    /// The group's own picture, fetched under the chat's access context rather than any member's.
+    private var groupAvatarSubject: ProfileAvatarStore.AvatarSubject? {
+        groupConversation.map { .chat($0.id) }
+    }
+
+    /// Avatar bytes for the group's members, keyed by user id.
+    ///
+    /// Resolved here, in the view, rather than in the mapper: `ConversationLoadCoordinator.Inputs`
+    /// is byte-compared on every observation tick and the mapped rows are persisted to the shared
+    /// app-group container in the clear, so thumbnails must not travel that way. Reading the store
+    /// from `body` is also what makes a landing picture redraw the gutter — the dependency is the
+    /// point.
+    private var authorAvatars: [UserID: Data] {
+        var avatars: [UserID: Data] = [:]
+        for member in groupMembers {
+            guard let userID = member.userID,
+                  let data = sessionContainer.profileAvatars.data(for: userID) else { continue }
+            avatars[userID] = data
+        }
+        return avatars
+    }
+
+    /// The mint the gate's requirement names, when it names one. A requirement with no mint applies
+    /// across every holding, so there is no single token to buy.
+    private var gateMint: PublicKey? {
+        switch gate {
+        case .open:                         return nil
+        case .blocked(let requirement):     return Self.mint(of: requirement)
+        case .readOnly(let requirement):    return Self.mint(of: requirement)
+        }
+    }
+
+    private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
+        switch requirement {
+        case .minimumBalance(_, let mint):  mint
+        case .staff:                        nil
+        }
+    }
+
     /// The newest server-confirmed message — what the receive buzz and mark-read track. Optimistic
     /// pending sends render after the confirmed run, so they must not drive these signals (an unresolved
     /// send would otherwise sit at the transcript's tail and mask incoming messages).
@@ -222,7 +308,7 @@ struct ConversationScreen: View {
             items: coordinator?.items ?? [],
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
-            onReachTop: { if chatExists { coordinator?.reachedTop() } },
+            onReachTop: { if chatExists, !gate.obscuresTranscript { coordinator?.reachedTop() } },
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
@@ -241,7 +327,11 @@ struct ConversationScreen: View {
             editingStableID: composer.editingStableID,
             focusOnAppear: openKeyboard,
             isTipDm: tipCounterpart != nil,
-            startChattingFee: startChattingFee
+            startChattingFee: startChattingFee,
+            gate: gate,
+            gateSymbol: gateSymbol,
+            onGateAddFunds: addFunds,
+            authorAvatars: authorAvatars
         )
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
@@ -277,16 +367,51 @@ struct ConversationScreen: View {
                 ToolbarItem(placement: .principal) {
                     ConversationTitleItem(
                         title: title,
+                        subtitle: titleSubtitle,
                         contact: contact,
                         conversationID: conversationID,
-                        imageData: contact?.imageData ?? sessionContainer.profileAvatars.data(for: tipCounterpart?.userID),
-                        blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
+                        // A group's face is the chat's own picture. Falling through to the
+                        // counterpart would draw an arbitrary member, since `counterpart(excluding:)`
+                        // picks one from the roster subset.
+                        imageData: groupAvatarSubject.map { sessionContainer.profileAvatars.data(for: $0) }
+                            ?? contact?.imageData
+                            ?? sessionContainer.profileAvatars.data(for: tipCounterpart?.userID),
+                        blurhash: groupConversation.map { $0.picture?.thumbnailBlurhash }
+                            ?? tipCounterpart?.profilePicture?.thumbnailBlurhash,
                         width: max(navBarWidth - Self.titleSideInset * 2, 0),
                         onTap: titleTapAction,
                         opensProfile: profileTapAction != nil
                     )
                 }
             }
+        }
+        // Name the gate's requirement in the token it asks for. The mint may be one the user holds
+        // nothing of, so the local store can miss and the fetch is what fills it.
+        .task(id: gateMint) {
+            guard let gateMint else {
+                gateSymbol = nil
+                return
+            }
+            if let stored = session.storedMintMetadata(for: gateMint) {
+                gateSymbol = stored.symbol
+            } else {
+                gateSymbol = try? await session.fetchMintMetadata(mint: gateMint).symbol
+            }
+        }
+        // Fetch the group's member pictures for the transcript's author gutter. Keyed on the roster
+        // rather than the chat, so a member arriving in a later `GetChat` is fetched too.
+        .task(id: groupMembers.compactMap(\.userID)) {
+            sessionContainer.profileAvatars.preload(
+                groupMembers.map { (userID: $0.userID, picture: $0.profilePicture) }
+            )
+        }
+        // Fetch the group's own picture for the title bar, under the chat's access context.
+        .task(id: groupConversation?.picture?.thumbnailBlobID) {
+            guard let groupAvatarSubject else { return }
+            await sessionContainer.profileAvatars.load(
+                groupAvatarSubject,
+                picture: groupConversation?.picture
+            )
         }
         // Fetch the tip counterpart's avatar for the title and profile card.
         .task(id: tipCounterpart?.userID) {
@@ -331,6 +456,11 @@ struct ConversationScreen: View {
             // feed or stream has the freshly-created chat) would otherwise render the unresolved
             // counterpart — a "Flipcash User" title and no Send Cash button. No-ops when already loaded.
             _ = await conversationController.hydratedConversation(withID: conversationID)
+            // The gate is read after hydration, not before: `GetChat` is what delivers the rules,
+            // and it carries no listener gate of its own. Everything below it does — a transcript
+            // the user may not read answers `DENIED` to the fetch, the pointer advance, and the
+            // catch-up alike — so a blocked chat stops here with its metadata and nothing else.
+            guard !gate.obscuresTranscript else { return }
             // The newest page IS the fresh state and seats the event-log cursor to head, so opening a
             // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
             // foreground / reconnect / live-gap triggers instead.
@@ -345,7 +475,7 @@ struct ConversationScreen: View {
             // advances the self-read watermark past the message we just sent, so the conversation
             // doesn't show as unread in the feed. didInitialRead skips the opening load (the .task
             // already marked read), and markRead short-circuits when the watermark already covers it.
-            guard didInitialRead, let conversationID else { return }
+            guard didInitialRead, !gate.obscuresTranscript, let conversationID else { return }
             conversationController.scheduleMarkRead(conversationID: conversationID)
         }
         // Buzz on a live message from the other side while this conversation is on screen. `old != nil`
@@ -553,6 +683,17 @@ struct ConversationScreen: View {
         }
     }
 
+    /// The gate panel's CTA: buys the mint the requirement names, or opens add-cash when the
+    /// requirement spans every holding and so has no one token to buy. Both routes leave the chat on
+    /// the stack, so satisfying the requirement returns to an ungated screen.
+    private func addFunds() {
+        guard let gateMint else {
+            router.presentAddMoney(.general, source: .chat)
+            return
+        }
+        router.push(.buyCurrency(gateMint))
+    }
+
     private func openLink(_ url: URL) {
         // iOS won't re-enter the app for our own universal link from an in-app tap, so route every
         // tapped link through the deep-link handler; anything it doesn't recognize opens externally.
@@ -677,6 +818,9 @@ struct ConversationScreen: View {
 private struct ConversationTitleItem: View {
 
     let title: String
+    /// The line under the title — a group's member count. Nil in a DM, where the title sits
+    /// vertically centred on its own.
+    let subtitle: String?
     let contact: ResolvedContact?
     let conversationID: ConversationID?
     let imageData: Data?
@@ -688,6 +832,7 @@ private struct ConversationTitleItem: View {
     var body: some View {
         let label = ConversationTitleLabel(
             title: title,
+            subtitle: subtitle,
             contact: contact,
             conversationID: conversationID,
             imageData: imageData,
@@ -698,7 +843,7 @@ private struct ConversationTitleItem: View {
             let hint = opensProfile ? "Opens profile" : (contact != nil ? "Opens contact card" : "Adds to Contacts")
             Button(action: onTap) { label }
                 .buttonStyle(.plain)
-                .accessibilityLabel(title)
+                .accessibilityLabel(subtitle.map { "\(title), \($0)" } ?? title)
                 .accessibilityHint(hint)
         } else {
             label
@@ -709,6 +854,7 @@ private struct ConversationTitleItem: View {
 private struct ConversationTitleLabel: View {
 
     let title: String
+    let subtitle: String?
     let contact: ResolvedContact?
     let conversationID: ConversationID?
     let imageData: Data?
@@ -725,10 +871,21 @@ private struct ConversationTitleLabel: View {
                 size: 44
             )
             .accessibilityHidden(true)
-            Text(title)
-                .font(.appBarButton)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
+            // The 44pt avatar already sets the bar's height, so the second line costs nothing and a
+            // titled-only DM keeps the layout it has (nodes 10125:19191-19194).
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title)
+                    .font(.appBarButton)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.default(size: 13, weight: .medium))
+                        .foregroundStyle(Color.textMain.opacity(0.5))
+                        .lineLimit(1)
+                }
+            }
+            .accessibilityElement(children: .combine)
             Spacer(minLength: 0)
         }
         .frame(width: width, alignment: .leading)

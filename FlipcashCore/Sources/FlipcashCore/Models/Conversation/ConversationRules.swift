@@ -43,7 +43,7 @@ extension ConversationRosterSummary {
 /// Requirements a user must satisfy to participate in a group chat. Only
 /// ever set for group chats; unset means the chat has no participation
 /// requirements. See `chat.v1.Rules`.
-public struct ConversationRules: Hashable, Sendable {
+public struct ConversationRules: Hashable, Codable, Sendable {
 
     /// Requirements to read and join the chat. Empty means anyone can.
     public var listener: [ConversationListenerRule]
@@ -80,7 +80,7 @@ extension ConversationRules {
 
 /// A single requirement gating reading and joining a chat. See
 /// `chat.v1.ListenerRules`.
-public enum ConversationListenerRule: Hashable, Sendable {
+public enum ConversationListenerRule: Hashable, Codable, Sendable {
     case minimumBalance(MinimumBalanceRequirement)
     case staff
 }
@@ -117,7 +117,7 @@ extension ConversationListenerRule {
 
 /// A single requirement gating sending messages in a chat. See
 /// `chat.v1.SpeakerRules`.
-public enum ConversationSpeakerRule: Hashable, Sendable {
+public enum ConversationSpeakerRule: Hashable, Codable, Sendable {
     case minimumBalance(MinimumBalanceRequirement)
     case staff
 }
@@ -154,7 +154,7 @@ extension ConversationSpeakerRule {
 
 /// Requires holding a minimum balance, denominated in fiat, in an acceptable
 /// mint. See `chat.v1.MinimumBalanceRequirement`.
-public struct MinimumBalanceRequirement: Hashable, Sendable {
+public struct MinimumBalanceRequirement: Hashable, Codable, Sendable {
 
     /// The minimum balance, denominated in fiat.
     public let amount: FiatAmount

@@ -56,6 +56,13 @@ public final class ChatScreenViewController: UIViewController {
     /// SwiftUI's focus state but never presents the keyboard across the hosting boundary — only a
     /// real `becomeFirstResponder` does.
     public var focusesComposerOnAppear = false
+
+    /// Whether the transcript is blurred out and frozen, because the chat's listener rules are
+    /// unmet. The bar is left sharp and keeps its own height, so the gate panel the caller hosts in
+    /// place of the composer measures and reserves transcript inset exactly as the composer does.
+    public var isTranscriptObscured = false {
+        didSet { transcriptBlur.isShown = isTranscriptObscured }
+    }
     private var didFocusComposer = false
     /// Whether the composer held the keyboard when the current context menu opened, and so should get
     /// it back when that menu goes. Cleared by `dismissKeyboard()` so an action handing off to a sheet
@@ -63,6 +70,8 @@ public final class ChatScreenViewController: UIViewController {
     private var composerHeldKeyboardUnderMenu = false
     /// The blur shown behind a context menu, and held past it for an edit.
     private let backdrop = MessageBackdrop()
+    /// The blur over a transcript the user is not allowed to read. See `TranscriptBlur`.
+    private let transcriptBlur = TranscriptBlur()
     /// The row floated above a held blur, while an edit is open on it.
     private var editedStableID: String?
     /// Deferred attempts left at floating the edited message's copy. The menu's dismissal
@@ -124,6 +133,13 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onContactAction = newValue }
     }
 
+    /// Avatar bytes for the transcript's authors, keyed by user id — see
+    /// ``ChatViewController/authorAvatars``.
+    public var authorAvatars: [UserID: Data] {
+        get { transcript.authorAvatars }
+        set { transcript.authorAvatars = newValue }
+    }
+
     /// Forwards profile-card taps from the transcript to the owner.
     public var onProfileTap: (() -> Void)? {
         get { transcript.onProfileTap }
@@ -172,6 +188,10 @@ public final class ChatScreenViewController: UIViewController {
         ])
 
         let constraints = addBar(bar, controller: barController)
+        // Above the transcript and below the top fade, which puts it below the bar as well: the
+        // fade still has to draw over the blurred transcript, and the gate panel has to stay sharp.
+        transcriptBlur.install(in: view, below: topFade)
+
         barHeightConstraint = constraints.height
         barClipHeightConstraint = constraints.clipHeight
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom)

@@ -83,7 +83,13 @@ nonisolated extension Database {
                 lastActivity: Date(timeIntervalSinceReferenceDate: row[c.lastActivity]),
                 type: ConversationType(rawValue: row[c.type]) ?? .contactDm,
                 isHidden: row[c.isHidden],
-                title: row[c.title]
+                title: row[c.title],
+                picture: conversationPicture(from: row),
+                rosterSummary: ConversationRosterSummary(
+                    memberCount: row[c.rosterMemberCount],
+                    version: row[c.rosterVersion]
+                ),
+                rules: conversationRules(from: row)
             )
         }
     }
@@ -331,6 +337,12 @@ nonisolated extension Database {
                 c.type         <- conversation.type.rawValue,
                 c.isHidden     <- conversation.isHidden,
                 c.title        <- conversation.title,
+                c.pictureBlobID          <- conversation.picture?.blobID.data,
+                c.pictureThumbnailBlobID <- conversation.picture?.thumbnailBlobID.data,
+                c.pictureThumbnailBlurhash <- conversation.picture?.thumbnailBlurhash,
+                c.rosterMemberCount <- conversation.rosterSummary.memberCount,
+                c.rosterVersion     <- conversation.rosterSummary.version,
+                c.rules             <- conversation.rules.flatMap { try? JSONEncoder().encode($0) },
                 onConflictOf: c.id
             )
         )
@@ -445,6 +457,32 @@ nonisolated extension Database {
     }
 
     // MARK: - Decode -
+
+    /// Returns nil unless both rendition columns are present — the pair is
+    /// written together, so a lone column is treated as no picture. Group chats
+    /// only; a DM never carries a chat picture.
+    private func conversationPicture(from row: RowIterator.Element) -> ProfilePicture? {
+        let c = ConversationTable()
+        guard let blobID = row[c.pictureBlobID],
+              let thumbnailBlobID = row[c.pictureThumbnailBlobID] else {
+            return nil
+        }
+        return ProfilePicture(
+            blobID: BlobID(data: blobID),
+            thumbnailBlobID: BlobID(data: thumbnailBlobID),
+            thumbnailBlurhash: row[c.pictureThumbnailBlurhash]
+        )
+    }
+
+    /// Returns nil when the chat has no rules, and also when the stored JSON
+    /// names a rule this build doesn't know. An unreadable rule set degrades to
+    /// "no rules" rather than failing the whole conversation row; the next
+    /// metadata fetch replaces it.
+    private func conversationRules(from row: RowIterator.Element) -> ConversationRules? {
+        let c = ConversationTable()
+        guard let data = row[c.rules] else { return nil }
+        return try? JSONDecoder().decode(ConversationRules.self, from: data)
+    }
 
     /// Returns nil unless both rendition columns are present — the pair is
     /// written together, so a lone column is treated as no picture.
