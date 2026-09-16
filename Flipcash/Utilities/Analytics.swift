@@ -103,6 +103,9 @@ extension Analytics {
             // Bugsnag
             Bugsnag.setUser(userID, withEmail: userID, andName: nil)
             
+            // Exported logs — same identifier, so a log file and a Bugsnag report never disagree
+            LogStore.shared.userID = userID
+            
             // Mixpanel
             mixpanel.identify(distinctId: userID)
             mixpanel.people.set(property: "$email", to: "userID:\(userID)")
