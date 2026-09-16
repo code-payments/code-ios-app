@@ -257,19 +257,11 @@ struct DeepLinkAction {
 
         case .chatSendCash(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
-                let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
-                // A group has no single payee, so there is nothing to send to. The push it came
-                // from still carries the Send Cash action — the extension tags one chat category
-                // for every chat — so land on the chat rather than swallowing the tap.
-                if conversation?.type == .group {
-                    Analytics.deeplinkRouted(kind: kind)
-                    await Self.routeChat(conversationID, in: container)
-                    return
-                }
-                // Only tip DMs resolve a send target now; contact/phone sends
-                // are no longer surfaced.
+                // Only tip DMs resolve a send target now; contact/phone sends are no longer
+                // surfaced, and a group has no single payee (`SendTarget.init` returns nil for one,
+                // which is why a group push carries no Send Cash action to begin with).
                 guard let target = SendTarget(
-                    conversation: conversation,
+                    conversation: await container.conversationController.hydratedConversation(withID: conversationID),
                     dmChatID: conversationID.data,
                     selfUserID: container.session.userID
                 ), case .tip = target else { return }

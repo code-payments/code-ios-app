@@ -186,13 +186,21 @@ class PushController {
             title: "Send Cash",
             options: [.foreground]
         )
-        let category = UNNotificationCategory(
+        let dm = UNNotificationCategory(
             identifier: ChatNotificationCategory.id,
             actions: [reply, sendCash],
             intentIdentifiers: [],
             options: []
         )
-        center.setNotificationCategories([category])
+        // A group has no single payee for Send Cash to resolve, so its pushes get their own
+        // category carrying Reply alone rather than an action that can only dead-end.
+        let group = UNNotificationCategory(
+            identifier: ChatNotificationCategory.groupID,
+            actions: [reply],
+            intentIdentifiers: [],
+            options: []
+        )
+        center.setNotificationCategories([dm, group])
     }
 
     // MARK: - Registration -

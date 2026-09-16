@@ -132,10 +132,13 @@ final class NotificationService: UNNotificationServiceExtension {
         )
         bestAttemptContent.threadIdentifier = payload.groupKey
 
-        // Tag chat pushes with the category so the Reply and Send Cash actions
-        // (registered in the app) attach to the notification.
+        // Tag chat pushes with the category so the actions registered in the app attach to the
+        // notification. Which category is decided by the chat type the payload itself carries, so
+        // the tag is set here — before any store read, which may not resolve in time or at all.
         if payload.category == .chat {
-            bestAttemptContent.categoryIdentifier = ChatNotificationCategory.id
+            bestAttemptContent.categoryIdentifier = ChatNotificationCategory.id(
+                for: NotificationPayload.chatType(request.content.userInfo) ?? .tipDm
+            )
         }
 
         // Non-chat pushes need no prefetch and no communication styling: deliver the substituted
