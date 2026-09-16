@@ -1,8 +1,9 @@
 # Rewriting `fastlane release`'s App Review submission (2026-09-16)
 
-Resubmitting 2026.9.1 exposed two defects in the `release` lane, and the fix
-turned up a third. The lane now drives the App Store Connect `reviewSubmissions`
-flow itself instead of delegating the submit to `deliver`.
+Resubmitting 2026.9.1 exposed two defects in the `release` lane; fixing them
+turned up a third, and a fourth in the build lookup `distribute` shares. The lane
+now drives the App Store Connect `reviewSubmissions` flow itself instead of
+delegating the submit to `deliver`.
 
 ## What was broken
 
