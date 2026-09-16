@@ -128,7 +128,13 @@ final class ChatService: Sendable {
     /// restrictions. On `.titleModerated` the server also reports which category flagged the
     /// title; `ErrorStartChat.titleModerated` carries it through so callers can say why, not just
     /// that the title was rejected.
-    func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?, completion: @Sendable @escaping (Result<Conversation, ErrorStartChat>) -> Void) {
+    ///
+    /// `idempotencyKey` is required by the server: caller and key together identify the chat being
+    /// created, so a retry with the same key returns the original chat (result `.ok`) rather than
+    /// creating a duplicate, even if `title`/`pictureBlobID`/`rules` differ on the retry. Mint it once
+    /// where the user's intent to create the chat originates and reuse it for every retry of that same
+    /// attempt — never generate a fresh key per call, or retries lose their idempotency.
+    func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?, idempotencyKey: UUID, completion: @Sendable @escaping (Result<Conversation, ErrorStartChat>) -> Void) {
         let request = Flipcash_Chat_V1_StartChatRequest.with {
             $0.group = .with {
                 $0.title = title
@@ -139,6 +145,7 @@ final class ChatService: Sendable {
                     $0.rules = rules.proto
                 }
             }
+            $0.idempotencyKey = .with { $0.value = idempotencyKey.data }
             $0.auth = owner.authFor(message: $0)
         }
 

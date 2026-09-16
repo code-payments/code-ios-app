@@ -55,9 +55,13 @@ extension FlipClient {
 
     /// Starts a new group chat and returns its metadata on success. `rules` gates who may read/join
     /// and who may send; `nil` leaves the chat unrestricted.
-    public func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?) async throws -> Conversation {
+    ///
+    /// `idempotencyKey` must be minted by the caller where the user's intent to create the chat
+    /// originates (not here) and reused for every retry of that same attempt — see
+    /// `ChatService.startChat`. A retry with the same key returns the original chat.
+    public func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?, idempotencyKey: UUID) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
-            chatService.startChat(owner: owner, title: title, pictureBlobID: pictureBlobID, rules: rules) { c.resume(with: $0) }
+            chatService.startChat(owner: owner, title: title, pictureBlobID: pictureBlobID, rules: rules, idempotencyKey: idempotencyKey) { c.resume(with: $0) }
         }
     }
 
