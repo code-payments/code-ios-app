@@ -464,6 +464,8 @@ final class SessionContainer {
     let blocklistController: BlocklistController
     let chatSpotlightIndexer: ChatSpotlightIndexer
     let profileAvatars: ProfileAvatarStore
+    /// Identities for chat senders the chat's own roster leaves out — see ``KnownAuthorDirectory``.
+    let knownAuthors: KnownAuthorDirectory
 
     /// Lazy so it can capture the container it reads its dependencies from;
     /// observation-ignored because `TipFlow` is itself observable and the
@@ -600,6 +602,7 @@ final class SessionContainer {
         self.chatSpotlightIndexer = chatSpotlightIndexer
 
         self.profileAvatars = ProfileAvatarStore(flipClient: flipClient, owner: session.ownerKeyPair)
+        self.knownAuthors = KnownAuthorDirectory(database: database)
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {

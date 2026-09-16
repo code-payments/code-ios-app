@@ -32,8 +32,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps the profile card's call to action. The owner opens the
     /// counterpart's contact card (or the add-contact sheet), same as tapping the nav title.
     let onContactAction: () -> Void
-    /// Fired when the user taps the profile card in a tip DM; nil disables the card tap.
+    /// Fired when the user taps the transcript's head card — the counterpart's in a tip DM, the
+    /// chat's own in a group; nil disables the card tap.
     let onProfileTap: (() -> Void)?
+    /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
+    let onAuthorTap: (UserID) -> Void
     /// Fired when a context-menu action is chosen on a row, with the row's stable id. Copy never
     /// arrives here — the transcript puts the text on the pasteboard itself.
     let onMessageAction: (String, MessageCapability) -> Void
@@ -90,6 +93,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
+        screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in
             onQuoteTap(stableID)
@@ -117,6 +121,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onOpenURL = onOpenURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
+        screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in
             onQuoteTap(stableID)

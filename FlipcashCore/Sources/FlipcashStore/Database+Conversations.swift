@@ -529,7 +529,7 @@ nonisolated extension Database {
 
     /// Returns nil unless both rendition columns are present — the pair is
     /// written together, so a lone column is treated as no picture.
-    private func memberProfilePicture(from row: RowIterator.Element) -> ProfilePicture? {
+    func memberProfilePicture(from row: RowIterator.Element) -> ProfilePicture? {
         let m = ConversationMemberTable()
         guard let blobID = row[m.profilePictureBlobID],
               let thumbnailBlobID = row[m.profilePictureThumbnailBlobID] else {

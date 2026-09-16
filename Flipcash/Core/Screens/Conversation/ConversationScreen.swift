@@ -74,6 +74,8 @@ struct ConversationScreen: View {
     /// Whether a `JoinChat` is in flight, so the gate panel's button stops taking taps. The join has
     /// no other UI state — it either seats membership, which re-resolves the gate, or it alerts.
     @State private var isJoiningChat = false
+    /// Memoizes the head-carded transcript — see ``TranscriptHead``.
+    @State private var transcriptHead = TranscriptHead()
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -177,12 +179,20 @@ struct ConversationScreen: View {
     }
 
     /// For a tip DM, all counterpart taps open the profile screen — even when
-    /// the counterpart is also an address-book contact.
+    /// the counterpart is also an address-book contact. A group has no counterpart, so the same
+    /// taps open the chat's own profile instead.
     private var profileTapAction: (() -> Void)? {
-        // A group has no counterpart to open a profile for; the chat-info screen that would go here
-        // is part of the membership work and has no RPC behind it yet.
-        guard groupConversation == nil, let userID = tipCounterpart?.userID else { return nil }
+        if let group = groupConversation {
+            return { router.push(.chatProfile(group.id)) }
+        }
+        guard let userID = tipCounterpart?.userID else { return nil }
         return { router.push(.userProfile(userID)) }
+    }
+
+    /// Tapping a face in the gutter opens that person's profile — the same screen the counterpart's
+    /// own card opens in a DM.
+    private func openAuthorProfile(_ userID: UserID) {
+        router.push(.userProfile(userID))
     }
 
     /// Tapping the title opens the counterpart's contact card: their address-book
@@ -254,6 +264,13 @@ struct ConversationScreen: View {
         groupConversation?.members ?? []
     }
 
+    /// The people the transcript attributes its rows to — the window's senders, named by the chat's
+    /// own roster where it carries them and by the local cache where it does not. Their pictures are
+    /// fetched for this, and their avatar bytes read back for it.
+    private var attributedMembers: [ConversationMember] {
+        coordinator?.attributedMembers ?? []
+    }
+
     /// "12 people" under the title, or nil for a DM, which has no count worth stating.
     ///
     /// From ``ConversationRosterSummary/memberCount``, not `members.count`: the roster a large group
@@ -277,7 +294,7 @@ struct ConversationScreen: View {
     /// point.
     private var authorAvatars: [UserID: Data] {
         var avatars: [UserID: Data] = [:]
-        for member in groupMembers {
+        for member in attributedMembers {
             guard let userID = member.userID,
                   let data = sessionContainer.profileAvatars.data(for: userID) else { continue }
             avatars[userID] = data
@@ -293,9 +310,7 @@ struct ConversationScreen: View {
     /// rows are cached to in the clear. Reading the avatar store from `body` is also what makes a
     /// landing picture redraw the card.
     private var transcriptItems: [ChatItem] {
-        let items = coordinator?.items ?? []
-        guard let groupCard else { return items }
-        return [.groupCard(groupCard)] + items
+        transcriptHead.prepending(groupCard, to: coordinator?.items ?? [])
     }
 
     /// The group's card at the head of its transcript, or nil for a DM and once the history is too
@@ -377,16 +392,23 @@ struct ConversationScreen: View {
     var body: some View {
         // The UIKit transcript hosts the bar internally and owns all keyboard handling, so there's
         // no SwiftUI `.safeAreaInset` bar here.
+        //
+        // The gate is resolved once here and passed down. It has to be: the transcript calls
+        // `onReachTop` on every scroll frame it spends near the top, and reading `gate` re-evaluates
+        // the chat's rules against the balance and the rate table each time.
+        let gate = self.gate
+        let pagesHistory = chatExists && !gate.obscuresTranscript
         ChatScreenRepresentable(
             items: transcriptItems,
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
-            onReachTop: { if chatExists, !gate.obscuresTranscript { coordinator?.reachedTop() } },
+            onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
+            onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
             showsSendCash: sendTarget != nil,
@@ -473,11 +495,18 @@ struct ConversationScreen: View {
             }
             mintSymbols = symbols
         }
-        // Fetch the group's member pictures for the transcript's author gutter. Keyed on the roster
-        // rather than the chat, so a member arriving in a later `GetChat` is fetched too.
-        .task(id: groupMembers.compactMap(\.userID)) {
+        // Read what the device already knows about this chat's senders, for the ones its own roster
+        // leaves out. One read per open: the local cache is not moving under an open transcript.
+        .task(id: groupConversation?.id) {
+            guard groupConversation != nil else { return }
+            await sessionContainer.knownAuthors.reload()
+        }
+        // Fetch the pictures for the transcript's author gutter. Keyed on who the rows are actually
+        // attributed to, so a sender the roster names later — or that the local cache names — is
+        // fetched when they appear rather than only at open.
+        .task(id: attributedMembers.compactMap(\.userID)) {
             sessionContainer.profileAvatars.preload(
-                groupMembers.map { (userID: $0.userID, picture: $0.profilePicture) }
+                attributedMembers.map { (userID: $0.userID, picture: $0.profilePicture) }
             )
         }
         // Fetch the group's own picture for the title bar, under the chat's access context.
@@ -635,9 +664,13 @@ struct ConversationScreen: View {
             composer.beginReplying(to: ComposerModel.ReplyTarget(
                 messageID: message.id,
                 stableID: stableID,
+                // A group names the real writer; `counterpartName` is the DM's single other party
+                // and would attribute every reply in a group to whoever the chat is titled after.
                 authorName: message.isFromSelf(conversationController.selfUserID)
                     ? "You"
-                    : (coordinator?.counterpartName ?? ""),
+                    : (message.senderID.flatMap { coordinator?.attributedName(for: $0) }
+                        ?? coordinator?.counterpartName
+                        ?? ""),
                 authorID: message.senderID,
                 snippet: preview.snippet,
                 kind: preview.kind
@@ -823,6 +856,7 @@ struct ConversationScreen: View {
                 conversationID: id,
                 controller: conversationController,
                 session: session,
+                knownAuthors: sessionContainer.knownAuthors,
                 // `profileAvatars` is captured directly so the coordinator retains
                 // one small store, not the whole session container.
                 profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, profileAvatars = sessionContainer.profileAvatars] in
@@ -1006,5 +1040,32 @@ private struct ConversationTitleLabel: View {
             Spacer(minLength: 0)
         }
         .frame(width: width, alignment: .leading)
+    }
+}
+
+/// Keeps one array for a head card sitting above an unchanged transcript.
+///
+/// A DM hands the loader's own `[ChatItem]` straight through, so the transcript's `newItems != items`
+/// check settles on buffer identity and costs nothing. Prepending a card builds a fresh array on every
+/// body pass, which defeats that check and deep-compares every row instead — on each of the many body
+/// passes a push, a pop or an opening reply strip causes. Returning the previous array whenever both
+/// inputs are unchanged puts the group back on the same O(1) path.
+///
+/// A reference type held in `@State`: it is read during `body` and must not invalidate the view when
+/// it remembers something.
+@MainActor private final class TranscriptHead {
+
+    private var lastCard: ChatGroupCard?
+    private var lastTail: [ChatItem] = []
+    private var composed: [ChatItem] = []
+
+    /// `tail` with `card` in front of it, or `tail` itself when there is no card.
+    func prepending(_ card: ChatGroupCard?, to tail: [ChatItem]) -> [ChatItem] {
+        guard let card else { return tail }
+        if card == lastCard, tail == lastTail { return composed }
+        lastCard = card
+        lastTail = tail
+        composed = [.groupCard(card)] + tail
+        return composed
     }
 }

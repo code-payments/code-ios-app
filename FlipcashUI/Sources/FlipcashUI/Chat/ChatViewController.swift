@@ -46,8 +46,13 @@ public final class ChatViewController: UICollectionViewController {
     /// counterpart's contact card (or the add-contact sheet), same as the nav title.
     public var onContactAction: (() -> Void)?
 
-    /// Called when the user taps the profile card header in a tip DM; nil disables the tap.
+    /// Called when the user taps the transcript's head card — the counterpart's in a tip DM, the
+    /// chat's own in a group. The owner opens that subject's profile; nil disables the tap.
     public var onProfileTap: (() -> Void)?
+
+    /// Called when the user taps an author's face in the gutter; the argument is that author's user
+    /// id. Never fires in a DM, where no row draws one.
+    public var onAuthorTap: ((UserID) -> Void)?
 
     /// Fired when a context-menu action other than Copy is chosen, with the row's id. Copy is handled
     /// here — it needs nothing the transcript does not already hold.
@@ -373,7 +378,8 @@ public final class ChatViewController: UICollectionViewController {
                 onProfileTap: profileTap
             )
         case .groupCard(let card):
-            (cell as! ChatGroupCardCell).configure(with: card)
+            let cardTap: (() -> Void)? = onProfileTap == nil ? nil : { [weak self] in self?.onProfileTap?() }
+            (cell as! ChatGroupCardCell).configure(with: card, onTap: cardTap)
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .message(let message):
@@ -393,6 +399,7 @@ public final class ChatViewController: UICollectionViewController {
             : width
         let maxWidth = available * Self.maxBubbleWidthFraction
         let authorImageData = message.author.flatMap { authorAvatars[$0.id] }
+        (cell as? ChatColumnCell)?.onAuthorTap = { [weak self] userID in self?.onAuthorTap?(userID) }
         switch cell {
         // Only text messages are sent optimistically, so only they can reach the failed state
         // that arms retry (wired on both text cells). Cash messages are always server-confirmed.

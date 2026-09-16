@@ -17,9 +17,9 @@ public final class ChatGroupCardCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatGroupCardCell"
 
-    public func configure(with card: ChatGroupCard) {
+    public func configure(with card: ChatGroupCard, onTap: (() -> Void)? = nil) {
         contentConfiguration = UIHostingConfiguration {
-            GroupCardView(card: card)
+            GroupCardView(card: card, onTap: onTap)
         }
         .margins(.all, 0)
     }
@@ -29,24 +29,12 @@ public final class ChatGroupCardCell: UICollectionViewCell {
 private struct GroupCardView: View {
 
     let card: ChatGroupCard
+    /// Opens the chat's own profile; nil leaves the card inert.
+    var onTap: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
-            ContactAvatarView(
-                id: card.avatarID,
-                displayName: card.title,
-                imageData: card.imageData,
-                blurhash: card.blurhash,
-                size: Layout.avatar
-            )
-            .overlay { Circle().strokeBorder(Color.white.opacity(Layout.borderOpacity)) }
-            .accessibilityHidden(true)
-
-            Text(card.title)
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
-                .padding(.top, Layout.titleGap)
+            header
 
             if let requirement = card.requirement {
                 Text(requirement)
@@ -72,6 +60,41 @@ private struct GroupCardView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// The picture and the title, with the chevron that says the card opens something (node
+    /// 10127:116723). The requirement line below stays outside the tap target — it states a rule,
+    /// it does not lead anywhere.
+    @ViewBuilder private var header: some View {
+        let content = VStack(spacing: 0) {
+            ContactAvatarView(
+                id: card.avatarID,
+                displayName: card.title,
+                imageData: card.imageData,
+                blurhash: card.blurhash,
+                size: Layout.avatar
+            )
+            .overlay { Circle().strokeBorder(Color.white.opacity(Layout.borderOpacity)) }
+            .accessibilityHidden(true)
+
+            HStack(spacing: 6) {
+                Text(card.title)
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                if onTap != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            .padding(.top, Layout.titleGap)
+        }
+        if let onTap {
+            Button(action: onTap) { content }.buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
+
     /// Node 10125:19157 — a 210×228 card, its column starting 31pt down, 13pt under the 80pt
     /// picture and the requirement line centred at 177pt.
     private enum Layout {
@@ -94,7 +117,7 @@ private struct GroupCardView: View {
             title: "Ballers",
             avatarID: "ballers",
             requirement: "Balance Requirement:\n$100.00 of $BadBoys"
-        ))
+        ), onTap: {})
         GroupCardView(card: ChatGroupCard(title: "Flipcash Staff", avatarID: "staff"))
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)

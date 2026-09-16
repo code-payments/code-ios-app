@@ -186,6 +186,10 @@ struct DestinationView: View {
         case .userProfile(let userID):
             UserProfileScreen(userID: userID)
                 .id(userID)
+
+        case .chatProfile(let conversationID):
+            ChatProfileScreen(conversationID: conversationID)
+                .id(conversationID)
         }
     }
 }

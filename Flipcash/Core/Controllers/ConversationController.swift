@@ -1037,14 +1037,41 @@ final class ConversationController {
     /// arriving message grows the window at the tail instead of sliding the oldest revealed row out.
     func windowedMessages(for conversationID: ConversationID, startingAt startID: UInt64?, limit: Int) -> [ConversationMessage] {
         _ = messageRevision   // observe: re-read when a confirmed DB write lands
+        return store.displayedMessages(for: conversationID, over: confirmedWindow(for: conversationID, startingAt: startID, limit: limit))
+    }
+
+    /// The confirmed rows behind ``windowedMessages(for:startingAt:limit:)``, cached against
+    /// ``messageRevision``.
+    ///
+    /// The window read runs synchronously on the main actor on every observation tick, and an
+    /// id-anchored window grows without bound as the reader pages back, so re-decoding it per tick
+    /// is what a long group transcript feels as scroll jank. Nothing but a confirmed write can
+    /// change these rows, and every such write bumps the revision — the pending overlay is applied
+    /// on top by the caller and stays live.
+    private func confirmedWindow(for conversationID: ConversationID, startingAt startID: UInt64?, limit: Int) -> [ConversationMessage] {
+        let key = ConfirmedWindowKey(conversationID: conversationID, startID: startID, limit: limit, revision: messageRevision)
+        if let cached = confirmedWindowCache, cached.key == key {
+            return cached.messages
+        }
         let confirmed: [ConversationMessage]
         if let startID {
             confirmed = (try? database.messages(conversationID: conversationID, from: startID)) ?? []
         } else {
             confirmed = (try? database.messagesWindow(conversationID: conversationID, before: nil, limit: limit)) ?? []
         }
-        return store.displayedMessages(for: conversationID, over: confirmed)
+        confirmedWindowCache = (key, confirmed)
+        return confirmed
     }
+
+    private struct ConfirmedWindowKey: Equatable {
+        let conversationID: ConversationID
+        let startID: UInt64?
+        let limit: Int
+        let revision: Int
+    }
+
+    /// One entry, not a table: a screen reads one chat's window, and the next open replaces it.
+    @ObservationIgnored private var confirmedWindowCache: (key: ConfirmedWindowKey, messages: [ConversationMessage])?
 
     func windowedMessages(for conversationID: ConversationID, limit: Int) -> [ConversationMessage] {
         windowedMessages(for: conversationID, startingAt: nil, limit: limit)

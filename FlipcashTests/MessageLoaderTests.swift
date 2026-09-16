@@ -63,13 +63,17 @@ struct MessageLoaderTests {
         defer { Database.removeTemp(at: url) }
         let id = ConversationID.test(1)
         try database.upsertConversationMessages((1...200).map { message(UInt64($0)) }, conversationID: id)
-        let loader = MessageLoader(conversationID: id, controller: makeController(database), growthInterval: .zero)
+        let controller = makeController(database)
+        let loader = MessageLoader(conversationID: id, controller: controller, growthInterval: .zero)
 
         loader.loadOlder()                      // reader pages back: window anchored at 101
         #expect(loader.messages.first?.id.value == 101)
 
-        // A message arrives while the reader is scrolled up.
-        try database.upsertConversationMessages([message(201)], conversationID: id)
+        // A message arrives while the reader is scrolled up. It lands through the controller, the way
+        // a streamed message does — a bare database write would leave the window's cache unbumped.
+        controller.persist(operation: "apply-chat-events") {
+            try database.upsertConversationMessages([message(201)], conversationID: id)
+        }
         let grown = loader.messages
         #expect(grown.first?.id.value == 101)   // the revealed history is intact
         #expect(grown.last?.id.value == 201)    // the arrival grew the tail

@@ -25,6 +25,12 @@ final class ConversationLoadCoordinator {
     /// head card (a group's) turns it on and off in step with the rows it sits above.
     private(set) var headsHistory = false
 
+    /// The people the landed transcript attributes its rows to, in the order the window first shows
+    /// them. The view fetches their avatars from this: the mapped rows carry only a BlurHash —
+    /// thumbnail bytes must not ride in ``Inputs``, which is compared on every observation tick, nor
+    /// into the app-group cache the rows are written to in the clear.
+    private(set) var attributedMembers: [ConversationMember] = []
+
     let conversationID: ConversationID
     private let controller: ConversationController
     private let session: Session
@@ -32,6 +38,9 @@ final class ConversationLoadCoordinator {
     /// scope, so whatever it reads (the contact directory, the conversation) re-triggers mapping.
     /// Nil for a chat with no counterpart to card.
     private let profileCard: @MainActor () -> ChatProfileCard?
+    /// Names senders the chat's own roster leaves out, from what the device already knows about
+    /// them. Observed like every other input, so a reload re-attributes the window in place.
+    private let knownAuthors: KnownAuthorDirectory
 
     @ObservationIgnored private var lastInputs: Inputs?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
@@ -55,19 +64,23 @@ final class ConversationLoadCoordinator {
         conversationID: ConversationID,
         controller: ConversationController,
         session: Session,
+        knownAuthors: KnownAuthorDirectory,
         profileCard: @escaping @MainActor () -> ChatProfileCard?
     ) {
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
+        self.knownAuthors = knownAuthors
         self.profileCard = profileCard
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
 
         // First paint is synchronous so an open never flashes an empty transcript; every later
         // change maps off the main thread.
         let initial = currentInputs()
+        let initialMembers = Self.attributedMembers(in: initial)
         self.lastInputs = initial
-        self.items = Self.map(initial)
+        self.attributedMembers = initialMembers
+        self.items = Self.map(initial, authors: Self.authors(from: initialMembers))
         self.headsHistory = initial.headsHistory
         scheduleWindowExpiry(for: initial)
         observeInputs()
@@ -79,6 +92,14 @@ final class ConversationLoadCoordinator {
     /// The counterpart's display name as the last mapping resolved it. The composer's reply strip
     /// reads this so the strip and the sent bubble's quote name the same person the same way.
     var counterpartName: String { lastInputs?.counterpartName ?? "" }
+
+    /// The name the landed transcript attributes `senderID`'s rows to, or nil when neither the
+    /// chat's roster nor the local cache can name them. The composer's reply strip resolves through
+    /// this so it names the same person the quoted bubble does.
+    func attributedName(for senderID: UserID) -> String? {
+        let name = attributedMembers.first { $0.userID == senderID }?.displayName
+        return (name?.isEmpty ?? true) ? nil : name
+    }
 
     // Tracks exactly the inputs `map` reads; on the next change to any of them it re-maps off the
     // main thread and re-arms. An unchanged input set short-circuits before spawning any work.
@@ -98,12 +119,17 @@ final class ConversationLoadCoordinator {
         guard inputs != lastInputs else { return }
         lastInputs = inputs
         scheduleWindowExpiry(for: inputs)
+        // Resolved here rather than inside the mapping so the view can read the same roster the
+        // rows were attributed from, and so the resolution runs once per change rather than twice.
+        let members = Self.attributedMembers(in: inputs)
+        let authors = Self.authors(from: members)
         mapTask?.cancel()
         mapTask = Task { [weak self] in
-            let mapped = await Task.detached { Self.map(inputs) }.value
+            let mapped = await Task.detached { Self.map(inputs, authors: authors) }.value
             guard let self, !Task.isCancelled else { return }
             self.items = mapped
             self.headsHistory = inputs.headsHistory
+            self.attributedMembers = members
         }
     }
 
@@ -153,9 +179,15 @@ final class ConversationLoadCoordinator {
         // then the table, for a reply pointing above the window. Nothing pages the server: a quote
         // whose original was never fetched renders as unavailable, by design.
         var quotedMessages: [UInt64: ConversationMessage] = [:]
+        // Indexed rather than searched: this runs on every observation tick, and a linear scan per
+        // reply is quadratic in the window, which a long group transcript feels as scroll jank.
+        var byID: [UInt64: ConversationMessage] = [:]
+        for message in window {
+            byID[message.id.value] = message
+        }
         for message in window {
             guard let repliedTo = message.repliedTo, quotedMessages[repliedTo.value] == nil else { continue }
-            if let inWindow = window.first(where: { $0.id == repliedTo }) {
+            if let inWindow = byID[repliedTo.value] {
                 quotedMessages[repliedTo.value] = inWindow
             } else if let persisted = controller.persistedMessage(repliedTo, in: conversationID) {
                 quotedMessages[repliedTo.value] = persisted
@@ -177,25 +209,14 @@ final class ConversationLoadCoordinator {
             policy: MessagePolicy(userFlags: session.userFlags),
             now: capabilityClock,
             namesAuthors: namesAuthors,
+            // Only a transcript that attributes its rows has anything to resolve, so a DM never
+            // takes a dependency on the directory and never re-maps when it reloads.
+            knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory
         )
     }
 
-    nonisolated private static func map(_ inputs: Inputs) -> [ChatItem] {
-        // Built here rather than in `Inputs` so the equality check that short-circuits a re-map
-        // compares the roster it is derived from, not a second copy of it.
-        let authors: [UserID: ChatAuthor] = inputs.namesAuthors
-            ? Dictionary(
-                (inputs.conversation?.members ?? []).compactMap { member in
-                    member.userID.map { ($0, ChatAuthor(
-                        id: $0,
-                        name: member.displayName,
-                        blurhash: member.profilePicture?.thumbnailBlurhash
-                    )) }
-                },
-                uniquingKeysWith: { first, _ in first }
-            )
-            : [:]
+    nonisolated private static func map(_ inputs: Inputs, authors: [UserID: ChatAuthor]) -> [ChatItem] {
         var items = ChatItem.from(
             inputs.messages,
             selfUserID: inputs.selfUserID,
@@ -222,8 +243,8 @@ final class ConversationLoadCoordinator {
             },
             counterpartName: inputs.counterpartName,
             quotedMessage: { inputs.quotedMessages[$0.value] },
-            // A sender the roster does not carry — the subset a large group embeds leaves plenty —
-            // gets no author, so the row draws as it does in a DM rather than under a blank name.
+            // A sender neither the chat nor the local cache can name gets no author, so the row
+            // draws as it does in a DM rather than under a blank name.
             author: { message in message.senderID.flatMap { authors[$0] } }
         )
         if inputs.isTyping {
@@ -233,6 +254,46 @@ final class ConversationLoadCoordinator {
             items.insert(.profileCard(card), at: 0)
         }
         return items
+    }
+
+    /// Who the window's senders are, resolved for the window only rather than for the whole
+    /// directory — the local cache can name far more people than any one transcript shows.
+    ///
+    /// The chat's own roster wins: it is the identity that chat published for the member, which is
+    /// what the transcript is attributing. Everyone it leaves out — the subset a large group embeds
+    /// leaves plenty — falls through to whatever the device knows about them from elsewhere.
+    /// Empty for every transcript that does not attribute its rows.
+    nonisolated private static func attributedMembers(in inputs: Inputs) -> [ConversationMember] {
+        guard inputs.namesAuthors else { return [] }
+
+        var roster: [UserID: ConversationMember] = [:]
+        for member in inputs.conversation?.members ?? [] {
+            guard let userID = member.userID, roster[userID] == nil else { continue }
+            roster[userID] = member
+        }
+
+        var seen: Set<UserID> = []
+        var members: [ConversationMember] = []
+        for message in inputs.messages {
+            guard let senderID = message.senderID, seen.insert(senderID).inserted else { continue }
+            guard let member = roster[senderID] ?? inputs.knownAuthors.membersByUserID[senderID] else { continue }
+            members.append(member)
+        }
+        return members
+    }
+
+    /// The name and BlurHash each row draws, keyed by the sender it belongs to.
+    nonisolated private static func authors(from members: [ConversationMember]) -> [UserID: ChatAuthor] {
+        var authors: [UserID: ChatAuthor] = [:]
+        for member in members {
+            guard let userID = member.userID else { continue }
+            authors[userID] = ChatAuthor(
+                id: userID,
+                name: member.displayName,
+                blurhash: member.profilePicture?.thumbnailBlurhash
+            )
+        }
+        return authors
     }
 
     /// Everything `map` reads, captured by value so an unchanged set short-circuits the remap and
@@ -259,6 +320,9 @@ final class ConversationLoadCoordinator {
         /// Whether the transcript attributes its rows: true for a group chat, false for a DM,
         /// where every row is one of two people and a name above each would be noise.
         var namesAuthors: Bool
+        /// Identities for senders the chat's own roster leaves out. Compared by identity — see
+        /// ``KnownAuthorDirectory/Snapshot``.
+        var knownAuthors: KnownAuthorDirectory.Snapshot
         /// Whether the window is the whole locally-known history — see ``headsHistory``.
         var headsHistory: Bool
 

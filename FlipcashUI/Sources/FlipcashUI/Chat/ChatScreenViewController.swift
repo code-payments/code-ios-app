@@ -140,10 +140,17 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.authorAvatars = newValue }
     }
 
-    /// Forwards profile-card taps from the transcript to the owner.
+    /// Forwards head-card taps from the transcript to the owner.
     public var onProfileTap: (() -> Void)? {
         get { transcript.onProfileTap }
         set { transcript.onProfileTap = newValue }
+    }
+
+    /// Forwards gutter-avatar taps from the transcript to the owner — see
+    /// ``ChatViewController/onAuthorTap``.
+    public var onAuthorTap: ((UserID) -> Void)? {
+        get { transcript.onAuthorTap }
+        set { transcript.onAuthorTap = newValue }
     }
 
     /// Called when the blur behind an open edit is tapped — WhatsApp's way out of an edit, beside
