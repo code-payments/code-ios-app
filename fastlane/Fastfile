@@ -668,19 +668,34 @@ platform :ios do
     end
   end
 
-  # Blocks until a build (optionally a specific number) has finished App Store
-  # Connect processing so it can be handed to a TestFlight group.
-  # Most recently uploaded build, optionally pinned to a build number. Does not
-  # wait — returns nil if nothing matches yet.
+  # Most recently uploaded iOS build, optionally pinned to a build number. Does
+  # not wait — returns nil if nothing matches yet.
+  #
+  # Deliberately not Build.all: that hands the response to all_pages, which
+  # follows every `next` link, so its limit sets the page size rather than the
+  # result count — limit: 1 walked the app's whole build history one request at
+  # a time. One page of the sorted list is all this needs.
+  #
+  # Build.all's platform: argument filters after fetching for the same reason
+  # (App Store Connect has no platform filter on /builds), so the page is taken
+  # a little wider than one and the newest iOS build picked out of it.
   def latest_build(app, build_number)
-    Spaceship::ConnectAPI::Build.all(
-      app_id: app.id,
-      build_number: build_number&.to_s,
+    Spaceship::ConnectAPI.get_builds(
+      filter: {
+        app: app.id,
+        version: build_number&.to_s,
+        processingState: "PROCESSING,FAILED,INVALID,VALID"
+      },
+      includes: Spaceship::ConnectAPI::Build::ESSENTIAL_INCLUDES,
       sort: "-uploadedDate",
-      limit: 1
-    ).first
+      limit: 10
+    ).to_models.find do |build|
+      build.pre_release_version&.platform == Spaceship::ConnectAPI::Platform::IOS
+    end
   end
 
+  # Blocks until a build (optionally a specific number) has finished App Store
+  # Connect processing so it can be handed to a TestFlight group.
   def wait_for_processed_build(app, build_number, timeout: 30 * 60, interval: 30)
     waited = 0
     loop do

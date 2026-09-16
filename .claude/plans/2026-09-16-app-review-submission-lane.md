@@ -76,9 +76,21 @@ would submit build 540 (VALID), and review submission
 — `set_release_behavior`, `select_build`, `submit_for_review` — have not run
 against App Store Connect, so the first real submission is the proof.
 
-## Loose end
+## `latest_build` pages the whole build history
 
-`latest_build(app, build_number)`, used by `distribute`, calls `Build.all(...,
-limit: 1)` with no version filter, and spaceship's `all_pages` follows `next`
-links — so it can page through every build one request at a time. Not touched
-here.
+`latest_build(app, build_number)`, used by `distribute` and
+`wait_for_processed_build`, called `Build.all(..., limit: 1)`. `Build.all` hands
+its response to `all_pages`, which is `next_pages(count: nil)` — it follows every
+`next` link until there are none. `limit` therefore sets the page size, not the
+result count, so asking for the single newest build walked the app's entire
+build history one request at a time, and `wait_for_processed_build` repeated
+that every 30 seconds while a build processed.
+
+It now calls `Spaceship::ConnectAPI.get_builds` directly and reads one page.
+`Build.all`'s `platform:` argument filters after fetching (App Store Connect has
+no platform filter on `/builds`), so the page is taken at 10 rather than 1 and
+the newest iOS build picked out of it.
+
+Checked read-only with `fastlane distribute dry_run:true`: unpinned it reports
+build 545, `build:540` reports 540, and `build:99999` reports nothing uploaded
+yet — the same answers as before, in one request.
