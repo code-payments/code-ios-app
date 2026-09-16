@@ -77,6 +77,10 @@ struct TransportClassificationTests {
     @Test func errorNotifyIsTyping() { assertClassifies(ErrorNotifyIsTyping.self) }
     @Test func errorGetDmChatFeed() { assertClassifies(ErrorGetDmChatFeed.self) }
     @Test func errorGetChat() { assertClassifies(ErrorGetChat.self) }
+    @Test func errorGetGroupChatFeed() { assertClassifies(ErrorGetGroupChatFeed.self) }
+    @Test func errorStartChat() { assertClassifies(ErrorStartChat.self) }
+    @Test func errorJoinChat() { assertClassifies(ErrorJoinChat.self) }
+    @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }
 
     // In-band outcomes fall outside the generic four-case contract.
     @Test("Explicit server outcomes never retry")
@@ -86,6 +90,27 @@ struct TransportClassificationTests {
         #expect(!ErrorFetchBalance.notFound.isRetryable)
         #expect(!ErrorFetchBalance.accountNotInList.isRetryable)
         #expect(!ErrorFetchBalance.parseFailed.isRetryable)
+    }
+
+    // `ErrorStartChat` carries a payload on `.titleModerated` (unlike its plain-Int siblings
+    // above), so its mapping from the wire response needs its own coverage: the flagged category
+    // must survive, not get flattened into a payload-less case.
+    @Test("ErrorStartChat.titleModerated carries the flagged category from a TITLE_MODERATED response")
+    func errorStartChatTitleModeratedCarriesCategory() {
+        let error = ErrorStartChat(.titleModerated, flaggedCategory: .nsfw)
+        guard case .titleModerated(let category) = error else {
+            Issue.record("Expected .titleModerated, got \(error)")
+            return
+        }
+        #expect(category == .nsfw)
+        #expect(error.reportingLevel == .info)
+        #expect(!error.isRetryable)
+
+        // Every other result maps to its payload-less case, unaffected by the category argument.
+        #expect(ErrorStartChat(.denied, flaggedCategory: .nsfw) == .denied)
+        #expect(ErrorStartChat(.pictureBlobNotAccepted, flaggedCategory: .nsfw) == .pictureBlobNotAccepted)
+        #expect(ErrorStartChat(.invalidRules, flaggedCategory: .nsfw) == .invalidRules)
+        #expect(ErrorStartChat(.rulesNotSatisfied, flaggedCategory: .nsfw) == .rulesNotSatisfied)
     }
 
     // MARK: - Tier 2: associated-value errors that capture the transport error -

@@ -222,6 +222,7 @@ final class ConversationController {
             for await event in events {
                 guard let self else { return }
                 let gap = self.store.apply(event)
+                self.handleRosterUpdates(event)
                 self.persist(event: event)
                 self.hydrateIfUnknown(event)
                 self.logCounterpartRead(event)
@@ -453,6 +454,13 @@ final class ConversationController {
         switch event {
         case .chatEvents(let id, _), .lastActivityChanged(let id, _), .readPointersChanged(let id, _):
             conversationID = id
+        case .rosterChanged(let id, let updates):
+            // A self-leave already dropped this conversation on purpose (`handleRosterUpdates` runs
+            // first) — don't re-fetch a chat the server no longer considers us a member of.
+            guard !updates.contains(where: { if case .left(let userID) = $0.change { userID == selfUserID } else { false } }) else {
+                return
+            }
+            conversationID = id
         case .metadataRefresh:
             return
         case .typingChanged:
@@ -477,6 +485,32 @@ final class ConversationController {
                     "error": "\(error)",
                 ])
                 ErrorReporting.captureError(error, reason: "Failed to hydrate conversation referenced by the event stream")
+            }
+        }
+    }
+
+    /// Applies the two roster effects that need the signed-in user's identity, which the pure
+    /// `ConversationStore` doesn't hold: a self-join inserts the chat from its embedded snapshot
+    /// (`metadata` is set only for the member who just joined), and a self-leave drops the chat from
+    /// the feed and the database. Every other member's join/leave is already folded into the
+    /// conversation's roster by `store.apply(event)`, persisted generically by `persist(event:)`.
+    private func handleRosterUpdates(_ event: ConversationStreamEvent) {
+        guard case .rosterChanged(let conversationID, let updates) = event else { return }
+        for update in updates {
+            switch update.change {
+            case .joined(_, let chat?):
+                // RosterUpdate.roster_summary is authoritative for versioning; the embedded metadata's
+                // own roster_summary is not compared separately, so it's overwritten here.
+                var chat = chat
+                chat.rosterSummary = update.rosterSummary
+                store.apply(.metadataRefresh(chat))
+            case .joined:
+                break
+            case .left(let userID) where userID == selfUserID:
+                store.remove(conversationID)
+                persist(operation: "delete-conversation") { try database.deleteConversation(conversationID: conversationID) }
+            case .left:
+                break
             }
         }
     }
@@ -643,6 +677,12 @@ final class ConversationController {
         case .lastActivityChanged(let conversationID, _),
              .readPointersChanged(let conversationID, _):
             persistConversation(conversationID)
+        case .rosterChanged(let conversationID, _):
+            // Persists whatever the store now holds: a generic in-place roster patch, or a fresh
+            // self-join `handleRosterUpdates` already inserted. No-ops for a self-leave — that
+            // conversation was already removed from both the store and the database.
+            persistConversation(conversationID)
+            refreshFeedPreview(for: conversationID)
         case .typingChanged:
             break
         }

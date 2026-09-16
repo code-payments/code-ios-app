@@ -31,6 +31,12 @@ public enum ConversationStreamEvent: Sendable {
     /// event log; the controller holds it as transient UI state and the server clears it with a
     /// stopped/timed-out notification.
     case typingChanged(conversationID: ConversationID, notifications: [TypingNotification])
+
+    /// One or more members joined or left the roster. Like `readPointersChanged`, this rides outside
+    /// the gap-detected event log as a convergent overlay — the store applies each update by
+    /// `RosterSummary.version` (a greater version wins, drop-if-not-greater), so delivery order
+    /// doesn't matter.
+    case rosterChanged(conversationID: ConversationID, updates: [DecodedRosterUpdate])
 }
 
 /// One durable event in a chat's log: a contiguous run of mutations delivered atomically. `sequence`
@@ -79,6 +85,31 @@ public struct MemberReadPointer: Sendable, Hashable {
     }
 }
 
+/// One live roster change from a `RosterUpdate`: the chat's roster summary after the change (compared
+/// by ``ConversationRosterSummary/version`` — apply a greater version, drop the rest) and what
+/// changed. Delivered to every member of the chat, including — for a join — the joining member's
+/// other devices and — for a leave — the leaving member themself.
+public struct DecodedRosterUpdate: Sendable {
+    public let rosterSummary: ConversationRosterSummary
+    public let change: RosterChange
+
+    public init(rosterSummary: ConversationRosterSummary, change: RosterChange) {
+        self.rosterSummary = rosterSummary
+        self.change = change
+    }
+}
+
+/// What changed in a roster update.
+public enum RosterChange: Sendable {
+    /// A member joined. `chat` is the full chat snapshot, set only when the signed-in user is the
+    /// member who joined — the recipient inserts it into their feed directly, without a refetch.
+    /// `nil` for every other member's join.
+    case joined(member: ConversationMember, chat: Conversation?)
+    /// A member left. Naming the signed-in user means the recipient is no longer a member and should
+    /// remove the chat from their feed.
+    case left(userID: UserID)
+}
+
 extension ConversationStreamEvent {
 
     /// Decodes a raw stream event into zero or more domain events. Pure and
@@ -125,6 +156,11 @@ extension ConversationStreamEvent {
             events.append(.typingChanged(conversationID: conversationID, notifications: typing))
         }
 
+        let rosterUpdates = update.rosterUpdates.rosterUpdates.compactMap(DecodedRosterUpdate.init)
+        if !rosterUpdates.isEmpty {
+            events.append(.rosterChanged(conversationID: conversationID, updates: rosterUpdates))
+        }
+
         return events
     }
 }
@@ -158,6 +194,26 @@ extension DecodedMutation {
             guard let message = ConversationMessage(proto) else { return nil }
             self = .deleted(message)
         case .none:
+            return nil
+        }
+    }
+}
+
+extension DecodedRosterUpdate {
+    /// Nil when the update carries no roster summary (nothing to version-compare against) or its kind
+    /// is neither joined nor left (a future oneof case this client doesn't know about yet).
+    init?(_ proto: Flipcash_Chat_V1_RosterUpdate) {
+        guard proto.hasRosterSummary else { return nil }
+        let rosterSummary = ConversationRosterSummary(proto.rosterSummary)
+        switch proto.kind {
+        case .memberJoined(let joined):
+            let member = ConversationMember(joined.member)
+            let chat = joined.hasMetadata ? Conversation(joined.metadata) : nil
+            self.init(rosterSummary: rosterSummary, change: .joined(member: member, chat: chat))
+        case .memberLeft(let left):
+            guard let userID = try? UUID(data: left.userID.value) else { return nil }
+            self.init(rosterSummary: rosterSummary, change: .left(userID: userID))
+        case nil:
             return nil
         }
     }

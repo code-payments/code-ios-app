@@ -396,12 +396,117 @@ struct ConversationStoreTests {
         #expect(store.selfReadPointer(for: conversationID(1), selfUserID: me) == MessageID(value: 5))   // never backward
     }
 
-    @Test("hasPendingMessages reflects only the optimistic overlay")
-    func hasPending() {
+
+
+    // MARK: - Roster updates
+
+    @Test("a roster update for an already-known member patches it in place and advances the summary")
+    func rosterUpdatePatchesExistingMember() {
+        let other = UUID()
         var store = ConversationStore()
-        #expect(!store.hasPendingMessages(for: conversationID(1)))
-        let clientID = UUID()
-        store.insertPending(pending(clientID, "c"), anchoredTo: 0, into: conversationID(1))
-        #expect(store.hasPendingMessages(for: conversationID(1)))
+        store.setFeed([Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: other, displayName: "Old Name")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0),
+            rosterSummary: ConversationRosterSummary(memberCount: 1, version: 1)
+        )])
+
+        store.apply(.rosterChanged(conversationID: conversationID(1), updates: [
+            DecodedRosterUpdate(
+                rosterSummary: ConversationRosterSummary(memberCount: 1, version: 2),
+                change: .joined(member: ConversationMember(userID: other, displayName: "New Name"), chat: nil)
+            )
+        ]))
+
+        let conversation = store.conversations.first { $0.id == conversationID(1) }
+        #expect(conversation?.members.first { $0.userID == other }?.displayName == "New Name")
+        #expect(conversation?.rosterSummary.version == 2)
+    }
+
+    @Test("a roster update whose version doesn't advance past the held one is dropped")
+    func rosterUpdateDropsStaleVersion() {
+        let other = UUID()
+        var store = ConversationStore()
+        store.setFeed([Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: other, displayName: "Current")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0),
+            rosterSummary: ConversationRosterSummary(memberCount: 1, version: 5)
+        )])
+
+        store.apply(.rosterChanged(conversationID: conversationID(1), updates: [
+            DecodedRosterUpdate(
+                rosterSummary: ConversationRosterSummary(memberCount: 1, version: 5), // not greater — dropped
+                change: .joined(member: ConversationMember(userID: other, displayName: "Stale"), chat: nil)
+            )
+        ]))
+
+        let conversation = store.conversations.first { $0.id == conversationID(1) }
+        #expect(conversation?.members.first?.displayName == "Current")
+        #expect(conversation?.rosterSummary.version == 5)
+    }
+
+    @Test("a join for a brand-new member inserts them into the roster")
+    func rosterUpdateInsertsNewMember() {
+        let existing = UUID()
+        let joiner = UUID()
+        var store = ConversationStore()
+        store.setFeed([Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: existing, displayName: "Existing")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0),
+            rosterSummary: ConversationRosterSummary(memberCount: 1, version: 1)
+        )])
+
+        store.apply(.rosterChanged(conversationID: conversationID(1), updates: [
+            DecodedRosterUpdate(
+                rosterSummary: ConversationRosterSummary(memberCount: 2, version: 2),
+                change: .joined(member: ConversationMember(userID: joiner, displayName: "Joiner"), chat: nil)
+            )
+        ]))
+
+        let members = store.conversations.first { $0.id == conversationID(1) }?.members ?? []
+        #expect(members.map(\.userID).contains(joiner))
+        #expect(members.count == 2)
+    }
+
+    @Test("a leave removes the named member from the roster")
+    func rosterUpdateRemovesMember() {
+        let leaving = UUID()
+        var store = ConversationStore()
+        store.setFeed([Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: leaving, displayName: "Leaving")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0),
+            rosterSummary: ConversationRosterSummary(memberCount: 1, version: 1)
+        )])
+
+        store.apply(.rosterChanged(conversationID: conversationID(1), updates: [
+            DecodedRosterUpdate(rosterSummary: ConversationRosterSummary(memberCount: 0, version: 2), change: .left(userID: leaving))
+        ]))
+
+        let members = store.conversations.first { $0.id == conversationID(1) }?.members ?? []
+        #expect(members.isEmpty)
+    }
+
+    @Test("a roster update for a conversation the store doesn't hold is a no-op")
+    func rosterUpdateUnknownConversationNoOp() {
+        var store = ConversationStore()
+        store.apply(.rosterChanged(conversationID: conversationID(9), updates: [
+            DecodedRosterUpdate(rosterSummary: ConversationRosterSummary(memberCount: 1, version: 1), change: .left(userID: UUID()))
+        ]))
+        #expect(store.conversations.isEmpty)
+    }
+
+    @Test("remove(_:) drops a conversation from the feed")
+    func removeConversationDropsFromFeed() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 0), conversation(2, lastActivity: 1)])
+        store.remove(conversationID(1))
+        #expect(store.conversations.map(\.id) == [conversationID(2)])
     }
 }

@@ -34,6 +34,49 @@ extension FlipClient {
         }
     }
 
+    /// Page the group chat feed to exhaustion against a single pinned snapshot. Unlike a DM feed, the
+    /// caller's own membership can change mid-read (a join or a leave lands as a `rosterChanged`
+    /// stream event, not a feed mutation) — the same live-stream caveat as `getDmChatFeed` applies.
+    public func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] {
+        var all: [Conversation] = []
+        var pagingToken: Data?
+
+        while true {
+            let page = try await withCheckedThrowingContinuation { c in
+                chatService.getGroupChatFeed(owner: owner, pagingToken: pagingToken) { c.resume(with: $0) }
+            }
+            all.append(contentsOf: page.conversations)
+            if !page.hasMore { break }
+            pagingToken = page.pagingToken
+        }
+
+        return all
+    }
+
+    /// Starts a new group chat and returns its metadata on success. `rules` gates who may read/join
+    /// and who may send; `nil` leaves the chat unrestricted.
+    public func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?) async throws -> Conversation {
+        try await withCheckedThrowingContinuation { c in
+            chatService.startChat(owner: owner, title: title, pictureBlobID: pictureBlobID, rules: rules) { c.resume(with: $0) }
+        }
+    }
+
+    /// Joins an existing group chat. Fails with `.rulesNotSatisfied` when the caller doesn't meet the
+    /// chat's `ConversationRules`.
+    public func joinChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
+        try await withCheckedThrowingContinuation { c in
+            chatService.joinChat(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Leaves a group chat. The caller's own `rosterChanged` event (naming itself) is what actually
+    /// drops the chat from the local feed and database — this call just tells the server to emit it.
+    public func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.leaveChat(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+    }
+
     public func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
         try await withCheckedThrowingContinuation { c in
             chatMessagingService.getMessages(owner: owner, conversationID: conversationID, pagingToken: before?.pagingToken) { c.resume(with: $0) }

@@ -304,7 +304,40 @@ public struct ConversationStore: Sendable {
         case .typingChanged:
             // Typing is ephemeral UI state held by the controller, never the persisted message store.
             return .none
+        case .rosterChanged(let conversationID, let updates):
+            for update in updates {
+                applyRosterUpdate(update, in: conversationID)
+            }
+            return .none
         }
+    }
+
+    /// Apply one live roster change to an already-known conversation: drop it if
+    /// `rosterSummary.version` isn't greater than the version held (delivery order doesn't matter),
+    /// else advance the summary and patch the member list. No-ops for a conversation the store doesn't
+    /// hold yet — a fresh self-join arrives instead via its embedded chat snapshot
+    /// (`RosterChange.joined(chat:)`), inserted like any other ``ConversationStreamEvent/metadataRefresh(_:)``
+    /// by the controller, which alone knows whether the signed-in user is the recipient.
+    private mutating func applyRosterUpdate(_ update: DecodedRosterUpdate, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard update.rosterSummary.version > conversations[index].rosterSummary.version else { return }
+        conversations[index].rosterSummary = update.rosterSummary
+        switch update.change {
+        case .joined(let member, _):
+            if let memberIndex = conversations[index].members.firstIndex(where: { $0.userID == member.userID }) {
+                conversations[index].members[memberIndex] = member
+            } else {
+                conversations[index].members.append(member)
+            }
+        case .left(let userID):
+            conversations[index].members.removeAll { $0.userID == userID }
+        }
+    }
+
+    /// Drops a conversation from the feed entirely — used when the signed-in user leaves (or is
+    /// removed from) a group chat. No-ops when the conversation isn't held.
+    public mutating func remove(_ conversationID: ConversationID) {
+        conversations.removeAll { $0.id == conversationID }
     }
 
     /// Advance the contiguous event-log frontier while events arrive gapless and flag a gap the moment
