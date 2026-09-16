@@ -58,11 +58,21 @@ protocol ContactSyncing: AnyObject, Sendable {
     func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<MatchedContact, Error>
 }
 
-/// DM conversation read surface used by `ConversationController` — the feed plus a
+/// Conversation read surface used by `ConversationController` — the DM and group feeds plus a
 /// single conversation by id. Maps 1:1 to the `flipcash.chat.v1.Chat` RPCs.
 protocol ConversationFetching: AnyObject, Sendable {
     func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation]
+    /// The groups the caller is a member of. A group reached by link and not joined is not in it.
+    func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation]
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
+}
+
+/// Group membership surface used by `ConversationController`. Separate from ``ConversationFetching``
+/// because these write: they are the only chat RPCs that change what the caller is a member of.
+protocol ConversationMembership: AnyObject, Sendable {
+    /// Joins a chat, returning its metadata as it stands after the join.
+    func joinChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
+    func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws
 }
 
 /// DM message send/read surface used by `ConversationController`. Maps to the
@@ -106,5 +116,5 @@ protocol ConversationEventStreaming: AnyObject, Sendable {
 }
 
 extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing,
-                      ConversationFetching, ConversationMessaging,
+                      ConversationFetching, ConversationMembership, ConversationMessaging,
                       ConversationEventStreaming {}

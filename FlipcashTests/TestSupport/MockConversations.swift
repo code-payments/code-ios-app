@@ -7,9 +7,9 @@ import Foundation
 import FlipcashCore
 @testable import Flipcash
 
-/// Scriptable conformer for the four conversation capability protocols. Records
+/// Scriptable conformer for the conversation capability protocols. Records
 /// every call; the test sets scripted responses before driving the controller.
-final class MockConversations: ConversationFetching, ConversationMessaging, ConversationEventStreaming, @unchecked Sendable {
+final class MockConversations: ConversationFetching, ConversationMembership, ConversationMessaging, ConversationEventStreaming, @unchecked Sendable {
 
     struct Sent: Sendable {
         let conversationID: ConversationID
@@ -36,6 +36,11 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     private let lock = NSLock()
 
     private var _feed: [Conversation] = []
+    private var _groupFeed: [Conversation] = []
+    private var _joined: [ConversationID] = []
+    private var _left: [ConversationID] = []
+    private var _joinError: Error?
+    private var _leaveError: Error?
     private var _messages: [ConversationMessage] = []
     private var _olderMessages: [ConversationMessage] = []
     private var _olderQueries: [MessageID] = []
@@ -66,6 +71,23 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var feed: [Conversation] {
         get { lock.withLock { _feed } }
         set { lock.withLock { _feed = newValue } }
+    }
+    /// Scripted `GetGroupChatFeed` result — the groups the caller has joined.
+    var groupFeed: [Conversation] {
+        get { lock.withLock { _groupFeed } }
+        set { lock.withLock { _groupFeed = newValue } }
+    }
+    /// Conversations `joinChat` was called for, in order.
+    var joined: [ConversationID] { lock.withLock { _joined } }
+    /// Conversations `leaveChat` was called for, in order.
+    var left: [ConversationID] { lock.withLock { _left } }
+    var joinError: Error? {
+        get { lock.withLock { _joinError } }
+        set { lock.withLock { _joinError = newValue } }
+    }
+    var leaveError: Error? {
+        get { lock.withLock { _leaveError } }
+        set { lock.withLock { _leaveError = newValue } }
     }
     var messages: [ConversationMessage] {
         get { lock.withLock { _messages } }
@@ -169,11 +191,31 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] { feed }
 
+    func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] { groupFeed }
+
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
         guard let conversation = feed.first(where: { $0.id == conversationID }) else {
             throw CancellationError()
         }
         return conversation
+    }
+
+    // MARK: - ConversationMembership
+
+    /// Answers with the chat as the group feed or the DM feed holds it; a join for a chat neither
+    /// knows has nothing to return, which is what the real RPC's `NOT_FOUND` becomes here.
+    func joinChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
+        lock.withLock { _joined.append(conversationID) }
+        if let joinError { throw joinError }
+        guard let conversation = (groupFeed + feed).first(where: { $0.id == conversationID }) else {
+            throw ErrorJoinChat.notFound
+        }
+        return conversation
+    }
+
+    func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws {
+        lock.withLock { _left.append(conversationID) }
+        if let leaveError { throw leaveError }
     }
 
     // MARK: - ConversationMessaging

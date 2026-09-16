@@ -227,22 +227,34 @@ struct ConversationGateTests {
 
     // MARK: - Presentation
 
-    @Test("An ungated chat gets the ordinary composer")
-    func presentation_open_isOpen() {
-        #expect(conversationGatePresentation(.open) == .open)
+    @Test("An ungated chat a member is in gets the ordinary composer")
+    func presentation_openAndMember_isOpen() {
+        #expect(conversationGatePresentation(.open, isMember: true) == .open)
     }
 
-    @Test("A failing listener gate blocks the chat")
-    func presentation_listenerFails_isBlocked() {
+    @Test("Satisfying the rules without joining offers the join, not the composer")
+    func presentation_openAndNotMember_isJoin() {
+        let gate = ConversationGate(listener: .satisfied, speaker: .satisfied, headline: .staff)
+        #expect(conversationGatePresentation(gate, isMember: false) == .join(.staff))
+    }
+
+    @Test("A chat with no rules names nothing above its join button")
+    func presentation_noRules_joinNamesNothing() {
+        #expect(conversationGatePresentation(.open, isMember: false) == .join(nil))
+    }
+
+    @Test("A failing listener gate blocks the chat whether or not the user is a member")
+    func presentation_listenerFails_isBlockedEitherWay() {
         let gate = ConversationGate(
             listener: .unsatisfied(unmet: [.staff], primary: .staff),
             speaker: .unsatisfied(unmet: [.staff], primary: .staff),
             headline: .staff
         )
-        #expect(conversationGatePresentation(gate) == .blocked(.staff))
+        #expect(conversationGatePresentation(gate, isMember: false) == .blocked(.staff))
+        #expect(conversationGatePresentation(gate, isMember: true) == .blocked(.staff))
     }
 
-    @Test("Someone who can read but not send gets a read-only chat, not a blurred one")
+    @Test("A member who can read but not send gets a read-only chat, not a blurred one")
     func presentation_speakerFails_isReadOnly() {
         let requirement = ConversationGateRequirement.minimumBalance(amount: .usd(100), mint: nil)
         let gate = ConversationGate(
@@ -250,7 +262,7 @@ struct ConversationGateTests {
             speaker: .unsatisfied(unmet: [requirement], primary: requirement),
             headline: nil
         )
-        let presentation = conversationGatePresentation(gate)
+        let presentation = conversationGatePresentation(gate, isMember: true)
         #expect(presentation == .readOnly(requirement))
         #expect(presentation.obscuresTranscript == false)
         #expect(presentation.replacesComposer)
@@ -259,6 +271,7 @@ struct ConversationGateTests {
     @Test("Only a failing listener gate blurs and freezes the transcript")
     func presentation_obscuresTranscript_onlyWhenUnreadable() {
         #expect(ConversationGatePresentation.open.obscuresTranscript == false)
+        #expect(ConversationGatePresentation.join(nil).obscuresTranscript == false)
         #expect(ConversationGatePresentation.readOnly(.staff).obscuresTranscript == false)
         #expect(ConversationGatePresentation.blocked(.staff).obscuresTranscript)
     }

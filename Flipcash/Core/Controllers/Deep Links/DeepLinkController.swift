@@ -192,8 +192,8 @@ struct DeepLinkAction {
     /// the controller resolves it, hydrating an id the feed doesn't know yet
     /// (e.g. a first-ever tip's push) so the routed screen finds it populated.
     ///
-    /// A group cannot appear in any feed — `GetDmChatFeed` rejects the type — so this link is the
-    /// only way in for a user who has not yet had an event for the chat.
+    /// `GetGroupChatFeed` carries only the groups the user has joined, so for a group they have not
+    /// joined this link is the only way in — and the screen it lands on is the one that offers the join.
     private static func routeChat(_ conversationID: ConversationID, in container: SessionContainer) async {
         let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
 

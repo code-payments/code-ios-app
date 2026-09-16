@@ -275,6 +275,21 @@ nonisolated public struct ConversationTable: Sendable {
     public let rules             = Expression <Data?>  ("rules")
 }
 
+// The group chats the signed-in user has joined. Its own table rather than a
+// column on `conversation` because membership is client-derived — no field on
+// the chat metadata carries it — so a metadata refresh, which rewrites the
+// whole conversation row, must not be able to clear it. Presence of the row is
+// the whole value; a group not listed here is one the user can see but has not
+// joined.
+nonisolated public struct GroupMembershipTable: Sendable {
+    public static let name = "group_membership"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationId = Expression <Data> ("conversationId")
+}
+
 nonisolated public struct ConversationMemberTable: Sendable {
     public static let name = "conversation_member"
 
@@ -547,6 +562,14 @@ nonisolated extension Database {
                 t.column(conversationTable.rosterMemberCount, defaultValue: 0)
                 t.column(conversationTable.rosterVersion, defaultValue: 0)
                 t.column(conversationTable.rules)
+            })
+        }
+
+        let groupMembershipTable = GroupMembershipTable()
+
+        try writer.transaction {
+            try writer.run(groupMembershipTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(groupMembershipTable.conversationId, primaryKey: true)
             })
         }
 

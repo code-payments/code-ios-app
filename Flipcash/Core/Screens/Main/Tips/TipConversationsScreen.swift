@@ -14,12 +14,13 @@ struct TipConversationsScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
-    /// The rows the tab lists, newest activity first. Groups sit among the tip DMs; they cannot come
-    /// from the feed — `GetDmChatFeed` rejects the type — so they are here only because the local
-    /// cache or a `GetChat` put them in the store.
+    /// The rows the tab lists, newest activity first. Groups sit among the tip DMs, but only the
+    /// ones the user has joined: a group reached by a `/chat/{id}` link and not joined is in the
+    /// store so its own screen can offer the join, not so it can appear in a list the user never
+    /// added it to.
     private var conversations: [Conversation] {
         let tipDMs = conversationController.conversations(of: .tipDm)
-        return (tipDMs + conversationController.conversations(of: .group))
+        return (tipDMs + conversationController.joinedGroups)
             .sorted { $0.lastActivity > $1.lastActivity }
     }
 

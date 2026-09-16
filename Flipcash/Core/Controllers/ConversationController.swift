@@ -125,13 +125,15 @@ final class ConversationController {
 
     /// Whether the transcript for `conversationID` is worth a round trip. A conversation the feed
     /// doesn't hold yet is assumed readable: its rules aren't known, and refusing to fetch would
-    /// leave it permanently empty.
+    /// leave it permanently empty. A group the user has not joined is not — the server answers
+    /// `DENIED` for a non-member whether or not the chat's rules are satisfied.
     private func canRead(_ conversationID: ConversationID) -> Bool {
         guard let conversation = conversation(withID: conversationID) else { return true }
-        return canReadConversation(conversation)
+        return store.isMember(of: conversation) && canReadConversation(conversation)
     }
 
     @ObservationIgnored private let fetching: any ConversationFetching
+    @ObservationIgnored private let membership: any ConversationMembership
     @ObservationIgnored let messaging: any ConversationMessaging
     @ObservationIgnored private let streaming: any ConversationEventStreaming
     @ObservationIgnored private let contactNaming: any DMContactNaming
@@ -170,6 +172,7 @@ final class ConversationController {
 
     init(
         fetching: any ConversationFetching,
+        membership: any ConversationMembership,
         messaging: any ConversationMessaging,
         streaming: any ConversationEventStreaming,
         contactNaming: any DMContactNaming,
@@ -182,6 +185,7 @@ final class ConversationController {
         receipts: ConversationReceiptReporter? = nil
     ) {
         self.fetching = fetching
+        self.membership = membership
         self.messaging = messaging
         self.streaming = streaming
         self.contactNaming = contactNaming
@@ -206,10 +210,14 @@ final class ConversationController {
     func hydrateFromDatabase() async {
         do {
             let cache = try await database.loadConversationCache()
-            guard !cache.conversations.isEmpty else { return }
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
+                // Memberships seed ahead of the feed guard: they live in their own table, and a group
+                // the user has joined must not sit blurred behind its own gate for as long as the group
+                // feed takes to land — or for the whole session, offline.
+                store.seedMemberships(cache.joinedGroups)
+                guard !cache.conversations.isEmpty else { return }
                 store.setFeed(cache.conversations)
                 store.seedAppliedCursors(cache.cursors)
             }
@@ -243,8 +251,10 @@ final class ConversationController {
             for await event in events {
                 guard let self else { return }
                 let gap = self.store.apply(event)
-                self.handleRosterUpdates(event)
                 self.persist(event: event)
+                // Before `hydrateIfUnknown`: the user's own join carries the chat's metadata, so
+                // seating it here spares a `GetChat` for a group the feed hasn't reached yet.
+                self.applyRosterMembership(event)
                 self.hydrateIfUnknown(event)
                 self.logCounterpartRead(event)
                 self.applyTyping(event)
@@ -482,8 +492,8 @@ final class ConversationController {
         case .chatEvents(let id, _), .lastActivityChanged(let id, _), .readPointersChanged(let id, _):
             conversationID = id
         case .rosterChanged(let id, let updates):
-            // A self-leave already dropped this conversation on purpose (`handleRosterUpdates` runs
-            // first) — don't re-fetch a chat the server no longer considers us a member of.
+            // Don't re-fetch a chat the server no longer considers us a member of: a self-leave means
+            // `GetChat` can only come back denied.
             guard !updates.contains(where: { if case .left(let userID) = $0.change { userID == selfUserID } else { false } }) else {
                 return
             }
@@ -516,32 +526,6 @@ final class ConversationController {
         }
     }
 
-    /// Applies the two roster effects that need the signed-in user's identity, which the pure
-    /// `ConversationStore` doesn't hold: a self-join inserts the chat from its embedded snapshot
-    /// (`metadata` is set only for the member who just joined), and a self-leave drops the chat from
-    /// the feed and the database. Every other member's join/leave is already folded into the
-    /// conversation's roster by `store.apply(event)`, persisted generically by `persist(event:)`.
-    private func handleRosterUpdates(_ event: ConversationStreamEvent) {
-        guard case .rosterChanged(let conversationID, let updates) = event else { return }
-        for update in updates {
-            switch update.change {
-            case .joined(_, let chat?):
-                // RosterUpdate.roster_summary is authoritative for versioning; the embedded metadata's
-                // own roster_summary is not compared separately, so it's overwritten here.
-                var chat = chat
-                chat.rosterSummary = update.rosterSummary
-                store.apply(.metadataRefresh(chat))
-            case .joined:
-                break
-            case .left(let userID) where userID == selfUserID:
-                store.remove(conversationID)
-                persist(operation: "delete-conversation") { try database.deleteConversation(conversationID: conversationID) }
-            case .left:
-                break
-            }
-        }
-    }
-
     // MARK: - Feed
 
     func loadFeed() async {
@@ -558,7 +542,35 @@ final class ConversationController {
         // type's failure doesn't drop the other's conversations.
         async let contact = loadFeed(type: .contactDm)
         async let tip = loadFeed(type: .tipDm)
-        return await contact + tip
+        async let groups = loadGroupFeed()
+        return await contact + tip + groups
+    }
+
+    /// Loads the group feed, returning the groups the server reported — empty if the load failed or
+    /// group chats are off.
+    ///
+    /// Deliberately not ``loadFeed(type:)``: `GetGroupChatFeed` answers only the groups the caller has
+    /// *joined*. That makes it authoritative for membership, which it seats, but not for presence — a
+    /// group reached by a `/chat/{id}` link and not joined is legitimately in the store and absent from
+    /// this feed, so a type-scoped replace would delete it out from under its own open screen.
+    @discardableResult
+    func loadGroupFeed() async -> [Conversation] {
+        do {
+            let groups = try await fetching.getGroupChatFeed(owner: owner)
+            let departed = store.setGroupFeed(groups)
+            reconcileHidden()
+            persist(operation: "replace-group-feed") { try database.replaceGroupFeed(groups, departed: departed) }
+            // Same repair the DM feeds need: the store refuses a tombstone as a preview, so a chat whose
+            // newest message is deleted seats blank without this.
+            for group in groups where group.lastMessage?.isDeleted == true {
+                refreshFeedPreview(for: group.id)
+            }
+            return groups
+        } catch {
+            logger.error("Failed to load group chat feed", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error, reason: "Failed to load group chat feed")
+            return []
+        }
     }
 
     /// Loads one DM feed type and returns the conversations the server reported,
@@ -585,6 +597,77 @@ final class ConversationController {
             ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation feed")
             return []
+        }
+    }
+
+    // MARK: - Group membership
+
+    /// Whether the signed-in user is a member of the conversation. Always true for a DM, so callers
+    /// can ask it of any chat.
+    func isMember(of conversation: Conversation) -> Bool {
+        store.isMember(of: conversation)
+    }
+
+    /// The groups the user has joined, most-recent activity first, hidden chats excluded.
+    ///
+    /// The Chats list shows these rather than every group the store holds: a group reached by link and
+    /// not joined is in the store so its own screen can offer the join, not so it can appear in a list
+    /// the user never added it to.
+    var joinedGroups: [Conversation] {
+        conversations(of: .group).filter { store.isMember(of: $0) }
+    }
+
+    /// Joins a group and seats the metadata the join returns. Throws so the caller can surface the
+    /// failure; nothing local moves unless the server accepted the join.
+    func join(conversationID: ConversationID) async throws {
+        let conversation = try await membership.joinChat(owner: owner, conversationID: conversationID)
+        store.apply(.metadataRefresh(conversation))
+        store.setMembership(true, in: conversationID)
+        persistConversation(conversation)
+        persistMembership(true, in: conversationID)
+        refreshFeedPreview(for: conversationID)
+    }
+
+    /// Leaves a group. The chat stays in the store — the screen the user left from is still on top and
+    /// needs it to render the gate — but drops out of ``joinedGroups``, so it leaves the Chats list.
+    func leave(conversationID: ConversationID) async throws {
+        try await membership.leaveChat(owner: owner, conversationID: conversationID)
+        store.setMembership(false, in: conversationID)
+        persistMembership(false, in: conversationID)
+    }
+
+    /// Records the signed-in user's own join or leave when a roster update names them, so a membership
+    /// change made on another device reaches the gate and the chat list. Everyone else's joins and
+    /// leaves are the store's business; this watches only for the user.
+    ///
+    /// A self-leave un-joins the chat rather than dropping it: the screen the user left from is still
+    /// on top, and it needs the conversation to render the gate it just fell behind.
+    private func applyRosterMembership(_ event: ConversationStreamEvent) {
+        guard case .rosterChanged(let conversationID, let updates) = event else { return }
+        for update in updates.sorted(by: { $0.rosterSummary.version < $1.rosterSummary.version }) {
+            switch update.change {
+            case .joined(let member, let chat):
+                guard member.userID == selfUserID else { continue }
+                if var chat {
+                    // `RosterUpdate.roster_summary` is authoritative for versioning; the summary
+                    // embedded in the snapshot is never compared separately, so it is overwritten.
+                    chat.rosterSummary = update.rosterSummary
+                    store.apply(.metadataRefresh(chat))
+                    persistConversation(chat)
+                }
+                store.setMembership(true, in: conversationID)
+                persistMembership(true, in: conversationID)
+            case .left(let userID):
+                guard userID == selfUserID else { continue }
+                store.setMembership(false, in: conversationID)
+                persistMembership(false, in: conversationID)
+            }
+        }
+    }
+
+    private func persistMembership(_ isMember: Bool, in conversationID: ConversationID) {
+        persist(operation: "set-group-membership") {
+            try database.setGroupMembership(isMember, for: conversationID)
         }
     }
 
@@ -705,9 +788,9 @@ final class ConversationController {
              .readPointersChanged(let conversationID, _):
             persistConversation(conversationID)
         case .rosterChanged(let conversationID, _):
-            // Persists whatever the store now holds: a generic in-place roster patch, or a fresh
-            // self-join `handleRosterUpdates` already inserted. No-ops for a self-leave — that
-            // conversation was already removed from both the store and the database.
+            // Persists whatever the store now holds: the roster patch it already folded into the
+            // chat's member list and summary. A self-join's own snapshot arrives after this, from
+            // `applyRosterMembership`, which persists it itself.
             persistConversation(conversationID)
             refreshFeedPreview(for: conversationID)
         case .typingChanged:

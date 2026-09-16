@@ -540,6 +540,7 @@ final class SessionContainer {
 
         let conversationController = ConversationController(
             fetching: flipClient,
+            membership: flipClient,
             messaging: flipClient,
             streaming: flipClient,
             contactNaming: contactSyncController,

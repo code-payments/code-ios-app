@@ -71,6 +71,9 @@ struct ConversationScreen: View {
     /// Tickers for the mints the gate's copy names, resolved from mint metadata. Empty until they
     /// land, and for every ungated chat.
     @State private var mintSymbols: [PublicKey: String] = [:]
+    /// Whether a `JoinChat` is in flight, so the gate panel's button stops taking taps. The join has
+    /// no other UI state — it either seats membership, which re-resolves the gate, or it alerts.
+    @State private var isJoiningChat = false
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -219,7 +222,8 @@ struct ConversationScreen: View {
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
     private var gate: ConversationGatePresentation {
-        conversationGatePresentation(gateVerdicts)
+        guard let conversation = groupConversation else { return .open }
+        return conversationGatePresentation(gateVerdicts, isMember: conversationController.isMember(of: conversation))
     }
 
     /// The rule verdicts behind ``gate``, kept separately because the head card states the chat's
@@ -330,6 +334,7 @@ struct ConversationScreen: View {
     private var gateMint: PublicKey? {
         switch gate {
         case .open:                         return nil
+        case .join(let requirement):        return requirement.flatMap(Self.mint(of:))
         case .blocked(let requirement):     return Self.mint(of: requirement)
         case .readOnly(let requirement):    return Self.mint(of: requirement)
         }
@@ -399,6 +404,8 @@ struct ConversationScreen: View {
             gate: gate,
             gateSymbol: gateSymbol,
             onGateAddFunds: addFunds,
+            onGateJoin: joinChat,
+            isJoiningChat: isJoiningChat,
             authorAvatars: authorAvatars
         )
         .ignoresSafeArea(.keyboard)
@@ -529,14 +536,7 @@ struct ConversationScreen: View {
             // the user may not read answers `DENIED` to the fetch, the pointer advance, and the
             // catch-up alike — so a blocked chat stops here with its metadata and nothing else.
             guard !gate.obscuresTranscript else { return }
-            // The newest page IS the fresh state and seats the event-log cursor to head, so opening a
-            // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
-            // foreground / reconnect / live-gap triggers instead.
-            await conversationController.loadMessages(for: conversationID)
-            await conversationController.markRead(conversationID: conversationID)
-            // Reading the thread clears its own delivered pushes; other chats keep theirs.
-            await pushController.clearDeliveredNotifications(for: conversationID)
-            didInitialRead = true
+            await loadTranscript(for: conversationID)
         }
         .onChange(of: latestConfirmedMessage?.stableID) {
             // Fires on a live arrival or our own send. Marking read on our own send is intentional: it
@@ -760,6 +760,50 @@ struct ConversationScreen: View {
             return
         }
         router.push(.buyCurrency(gateMint))
+    }
+
+    /// Everything the screen does once the gate lets it read. Factored out of the opening `.task`
+    /// because a join opens the gate mid-screen, which does not re-run that task.
+    private func loadTranscript(for conversationID: ConversationID) async {
+        // The newest page IS the fresh state and seats the event-log cursor to head, so opening a
+        // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
+        // foreground / reconnect / live-gap triggers instead.
+        await conversationController.loadMessages(for: conversationID)
+        await conversationController.markRead(conversationID: conversationID)
+        // Reading the thread clears its own delivered pushes; other chats keep theirs.
+        await pushController.clearDeliveredNotifications(for: conversationID)
+        didInitialRead = true
+    }
+
+    /// The gate panel's Join: joins the chat, which seats membership and re-resolves the gate to
+    /// ``ConversationGatePresentation/open``. A refused join leaves the screen exactly as it was, so
+    /// the failure has to be said out loud rather than shown by the gate not moving.
+    private func joinChat() {
+        guard let conversationID, !isJoiningChat else { return }
+        isJoiningChat = true
+        Task {
+            defer { isJoiningChat = false }
+            do {
+                try await conversationController.join(conversationID: conversationID)
+                await loadTranscript(for: conversationID)
+            } catch {
+                session.dialogItem = DialogItem.alert(
+                    title: "Couldn't Join Chat",
+                    subtitle: joinFailureSubtitle(error)
+                ) {
+                    DialogAction.okay(kind: .standard)
+                }
+            }
+        }
+    }
+
+    /// `rulesNotSatisfied` is the server disagreeing with the gate this screen just drew, so it gets
+    /// the one message the user can act on; everything else is a generic retry.
+    private func joinFailureSubtitle(_ error: Error) -> String {
+        guard case ErrorJoinChat.rulesNotSatisfied = error else {
+            return "Something went wrong. Please try again."
+        }
+        return "You don't meet this chat's requirements yet."
     }
 
     private func openLink(_ url: URL) {

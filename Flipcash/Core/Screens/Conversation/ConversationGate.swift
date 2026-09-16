@@ -197,44 +197,51 @@ private func verdict(for unmet: [ConversationGateRequirement]) -> ConversationGa
 enum ConversationGatePresentation: Equatable {
     /// Nothing gated — the ordinary composer.
     case open
+    /// Rules met but not yet a member: a readable transcript with Join Chat in
+    /// place of the composer, carrying the chat's stated requirement to restate
+    /// what joining costs (node 10125:19102).
+    case join(ConversationGateRequirement?)
     /// Listener rules unmet: blurred transcript, the requirement named, and a
     /// CTA when the requirement has one (node 10125:19153).
     case blocked(ConversationGateRequirement)
-    /// Rules met for reading but not for sending: sharp transcript, the
-    /// requirement in place of the composer.
+    /// A member who can read but not send: sharp transcript, the requirement in
+    /// place of the composer.
     case readOnly(ConversationGateRequirement)
 
     /// Whether the transcript is blurred and its messages left unfetched.
     ///
-    /// Only ``blocked``. Listener rules gate *reading*, so a user who satisfies
-    /// them sees the real transcript even when the speaker rules shut the
-    /// composer.
+    /// Only ``blocked``. Listener rules gate *reading*, so anyone who satisfies
+    /// them may read whether or not they have joined — which is why the design
+    /// shows a qualified non-member the real transcript with Join Chat under it.
     var obscuresTranscript: Bool {
         switch self {
-        case .open, .readOnly:  return false
-        case .blocked:          return true
+        case .open, .join, .readOnly:  return false
+        case .blocked:                 return true
         }
     }
 
     /// Whether the composer is replaced by a gate panel.
     var replacesComposer: Bool {
         switch self {
-        case .open:                return false
-        case .blocked, .readOnly:  return true
+        case .open:                       return false
+        case .join, .blocked, .readOnly:  return true
         }
     }
 }
 
-/// Turns a rule verdict into what the screen draws.
+/// Turns a rule verdict plus membership into what the screen draws.
 ///
-/// Listener and speaker are weighed in that order because they nest: a user who
-/// may not read cannot be offered a composer, so the listener verdict decides
-/// the transcript first and the speaker verdict only ever narrows what is left.
-func conversationGatePresentation(_ gate: ConversationGate) -> ConversationGatePresentation {
+/// Membership is a separate argument rather than part of ``conversationGate``
+/// because it comes from somewhere else entirely: the rules are read off the
+/// chat's metadata, while membership is derived by ``ConversationController``
+/// from the group feed and from roster updates. Keeping the two apart means the
+/// rules evaluation stays a pure function of the chat plus the user's holdings.
+func conversationGatePresentation(_ gate: ConversationGate, isMember: Bool) -> ConversationGatePresentation {
     switch gate.listener {
     case .unsatisfied(_, let primary):
         return .blocked(primary)
     case .satisfied:
+        guard isMember else { return .join(gate.headline) }
         switch gate.speaker {
         case .unsatisfied(_, let primary):  return .readOnly(primary)
         case .satisfied:                    return .open
