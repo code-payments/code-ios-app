@@ -324,28 +324,30 @@ struct ChatBubbleViewBareTests {
         #expect(marker?.isHidden == false)
     }
 
-    @Test("The chrome suppresses the implicit backgroundColor action on its own layer")
-    func suppressesBackgroundColorActionOnOwnLayer() {
-        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
-        let background = chrome(view)
-        let action = background.action(for: background.layer, forKey: "backgroundColor")
-        #expect(action is NSNull)
-    }
-
-    // UIView's own `action(for:forKey:)` answers "backgroundColor" the same way (NSNull outside an
-    // animation context) no matter which layer it's asked about — it keys off the event name, not
-    // the layer identity. So a foreign layer's answer can't be distinguished from a hijack by its
-    // value alone; what's checked here is that the override's `layer === self.layer` branch is
-    // skipped, i.e. the answer is whatever plain `UIView.action(for:forKey:)` would give, not this
-    // view's own hardcoded one.
-    @Test("The chrome does not hijack a sublayer's own event — a foreign layer gets an ordinary UIView's answer")
-    func doesNotHijackASublayersAction() {
+    // Inside a live animation context `UIView` answers "backgroundColor" with a real
+    // `CABasicAnimation` — that context is what a reconfigure inside a collection-view batch update
+    // puts the view in, and the cross-fade this override exists to stop. Asking outside one proves
+    // nothing: `UIView` answers `NSNull` there anyway.
+    @Test("Inside an animation context the chrome suppresses its own backgroundColor action but not a sublayer's")
+    func suppressesBackgroundColorActionOnlyOnItsOwnLayer() {
         let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
         let background = chrome(view)
         let foreignLayer = CALayer()
-        let deferred = background.action(for: foreignLayer, forKey: "backgroundColor")
-        let plain = UIView().action(for: foreignLayer, forKey: "backgroundColor")
-        #expect((deferred is NSNull) == (plain is NSNull))
+
+        var own: CAAction?
+        var foreign: CAAction?
+        var plain: CAAction?
+        UIView.animate(withDuration: 0.3) {
+            own = background.action(for: background.layer, forKey: "backgroundColor")
+            foreign = background.action(for: foreignLayer, forKey: "backgroundColor")
+            plain = UIView().action(for: foreignLayer, forKey: "backgroundColor")
+        }
+
+        // The context is only live if an ordinary view answers with an animation; without that the
+        // other two expectations would pass against any implementation.
+        #expect(plain is CABasicAnimation)
+        #expect(own is NSNull)
+        #expect(foreign is CABasicAnimation)
     }
 
     @Test("Raising with a shape casts the lift shadow along that path")
@@ -369,9 +371,10 @@ struct ChatBubbleViewBareTests {
     func reusedInstance_bareToOrdinary_restoresChrome() {
         let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
         view.configure(with: ChatMessage(id: "2", text: "hi", sender: .me))
-        // A recycled cell's own reconfigure path always runs under a fresh layout pass (the
-        // collection view invalidates it); mirror that here since nothing else invalidates a
-        // constraint's constant change on an already laid-out, windowless test view.
+        // Verified by deleting it: `layoutIfNeeded()` on its own leaves the body label at its
+        // previous inset while the chrome updates, so the pass is asked for explicitly. A recycled
+        // cell gets that pass from the collection view invalidating it, which is what this stands in
+        // for.
         view.setNeedsLayout()
         view.layoutIfNeeded()
 

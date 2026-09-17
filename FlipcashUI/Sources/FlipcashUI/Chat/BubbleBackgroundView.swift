@@ -64,12 +64,12 @@ final class BubbleBackgroundView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    // Bare mode swaps `backgroundColor` to clear, and a reconfigure inside a batch update is an
-    // animation context — without this the base cross-fades while the row is moving. This must be a
-    // delegate override, not `layer.actions`: `CALayer.action(for:forKey:)` asks the delegate (this
-    // view) first, and `UIView`'s own answer for `backgroundColor` always wins over the layer's own
-    // dictionary. The `layer === self.layer` check matters — this view has four sublayers, and they
-    // must keep falling through to their own `actions` dictionaries.
+    /// Bare mode swaps `backgroundColor` to clear, and a reconfigure inside a batch update is an
+    /// animation context — without this the base cross-fades while the row is moving. This must be a
+    /// delegate override, not `layer.actions`: `CALayer.action(for:forKey:)` asks the delegate (this
+    /// view) first, and `UIView`'s own answer for `backgroundColor` always wins over the layer's own
+    /// dictionary. The `layer === self.layer` check matters — this view has four sublayers, and they
+    /// must keep falling through to their own `actions` dictionaries.
     override func action(for layer: CALayer, forKey event: String) -> CAAction? {
         if layer === self.layer, event == "backgroundColor" {
             return NSNull()
