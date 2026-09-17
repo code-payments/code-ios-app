@@ -1001,19 +1001,33 @@ real account. `ChatMotionSandboxViewController` scripts `.send → .delivered �
 text row against the shipping `ChatViewController`, with no server, account or counterpart, and
 `--motion-sandbox` stands it up in place of the whole app.
 
+`./Scripts/build.sh` defaults to `generic/platform=iOS`, which produces a device build that no
+simulator can install. Override the destination:
+
 ```bash
-./Scripts/build.sh
+DESTINATION='platform=iOS Simulator,name=iPhone 17 Pro' ./Scripts/build.sh
 ```
 
-Expected: BUILD SUCCEEDED.
+Expected: `** BUILD SUCCEEDED **`.
 
-Then install the simulator build and launch it with the sandbox argument:
+Then install that build on the booted simulator and launch it with the sandbox argument. Boot one
+first if `xcrun simctl list devices booted` comes back empty.
 
 ```bash
+APP="$(xcodebuild -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -showBuildSettings 2>/dev/null | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2}' | head -1)/Flipcash.app"
+xcrun simctl install booted "$APP"
 xcrun simctl launch --console-pty booted com.flipcash.app.ios --motion-sandbox
 ```
 
-Watch the console for the run and confirm two things:
+The launch streams the console and never returns on its own — the app does not exit. Run it in the
+background, let it collect for at least 60 seconds (one loop of the script is about 8.6s, so that is
+seven), then stop it:
+
+```bash
+xcrun simctl terminate booted com.flipcash.app.ios
+```
+
+Read the captured console and confirm two things:
 
 1. **No Auto Layout constraint breakage.** Nesting the receipt one stack level deeper is exactly the
    kind of change that produces `Unable to simultaneously satisfy constraints`. The log must be clean
