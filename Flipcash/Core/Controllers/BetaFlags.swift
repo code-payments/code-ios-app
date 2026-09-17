@@ -38,7 +38,10 @@ class BetaFlags {
     
     // MARK: - Init -
     
-    private init() {
+    // Internal rather than private: `shared` is the app's one instance, but the
+    // launch sequence — read stored, apply defaults, apply overrides — is only
+    // verifiable by constructing an instance per simulated launch.
+    init() {
         readStoredOptions()
         applyDefaults()
         readAccessGranted()
@@ -77,14 +80,32 @@ class BetaFlags {
     /// Resets every flag, then enables each option named in the
     /// `--beta-flags=<comma-separated rawValues>` launch argument.
     func applyLaunchArgumentOverrides() {
+        applyLaunchArgumentOverrides(arguments: CommandLine.arguments)
+    }
+
+    /// Resets every flag, then enables each option named by a `--beta-flags=`
+    /// argument in `arguments`, and forgets which default-on options have been
+    /// offered so that a launch without the argument gets them back.
+    ///
+    /// The whole set is replaced rather than merged, so a run can name the exact
+    /// flags it wants and test a default-on feature in its off state.
+    func applyLaunchArgumentOverrides(arguments: [String]) {
         let prefix = "--beta-flags="
-        let enabled = CommandLine.arguments
+        let enabled = arguments
             .first { $0.hasPrefix(prefix) }?
             .dropFirst(prefix.count)
             .split(separator: ",")
             .compactMap { Option(rawValue: String($0)) }
 
         options = Set(enabled ?? [])
+
+        // Clearing `options` above is an override, not a user turning the
+        // default-on flags off, so the record of the offer goes with it. Left
+        // behind, it tells `applyDefaults()` those flags were already offered
+        // and they stay off for the life of the install — one UI test run, which
+        // takes this path whether or not it names a flag, strips them for good.
+        appliedDefaults = nil
+
         writeToCache()
     }
 
