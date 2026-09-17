@@ -65,6 +65,22 @@ struct ChatBubbleViewCornerTests {
         #expect(bubbleRun.maskingPath.cgPath != neitherRun.maskingPath.cgPath)
     }
 
+    @Test("The author run alone does not flatten the bottom corner; only the bubble run does")
+    func authorRunAloneLeavesTheBottomCornerUntouched() {
+        let authorRunOnly = laidOutBubble(
+            ChatMessage(id: "1", text: "hi", sender: .me, isContinuedByNext: true, joinsBubbleBelow: false)
+        )
+        let neitherRun = laidOutBubble(
+            ChatMessage(id: "2", text: "hi", sender: .me)
+        )
+        #expect(authorRunOnly.maskingPath.cgPath == neitherRun.maskingPath.cgPath)
+
+        let bubbleRun = laidOutBubble(
+            ChatMessage(id: "3", text: "hi", sender: .me, joinsBubbleBelow: true)
+        )
+        #expect(bubbleRun.maskingPath.cgPath != neitherRun.maskingPath.cgPath)
+    }
+
     @Test("A middle bubble in a self run flattens both inner (trailing) corners")
     func selfMiddleOfRun_flattensBothInner() {
         let r = BubbleBackgroundView.radii(isFromSelf: true, groupedAbove: true, groupedBelow: true)

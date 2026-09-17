@@ -12,7 +12,7 @@ import FlipcashCore
 
 /// A single chat bubble: a multiline label over the shared `BubbleBackgroundView`, styled to
 /// match the app's conversation design (white-opacity fill, hairline border, app font, flattened
-/// inner corners on a same-sender run). Dumb — hand it a `ChatMessage` and it draws.
+/// inner corners on a bubble run). Dumb — hand it a `ChatMessage` and it draws.
 public final class ChatBubbleView: UIView {
 
     private let background = BubbleBackgroundView()

@@ -131,7 +131,7 @@ public nonisolated enum ChatMotion {
     public static let swap = ChatSpring(duration: 0.27, bounce: 0.31)
     /// The send arrow scaling in and out of the composer.
     public static let sendButton = ChatSpring(duration: 0.17, bounce: 0.34)
-    /// A bubble's corners flattening as a same-sender run forms. Deliberately the slowest of the
+    /// A bubble's corners flattening as a bubble run forms. Deliberately the slowest of the
     /// set, so the regrouping reads as settling rather than as a second event.
     public static let corner = ChatSpring(duration: 0.45, bounce: 0.32)
 
