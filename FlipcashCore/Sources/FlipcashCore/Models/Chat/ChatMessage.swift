@@ -31,11 +31,22 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     public let id: String
     public let content: Content
     public let sender: Sender
-    /// The row above is the same sender — tighten the spacing and flatten the inner top
-    /// corner so a same-sender run reads as one column.
+    /// The row above has the same author — the name above this row is suppressed, so a run reads as
+    /// one speaker. Attribution only: the inner corner and the row gap are `joinsBubbleAbove`'s job.
     public let isContinuationFromPrevious: Bool
-    /// The row below is the same sender — flatten the inner bottom corner.
+    /// The row below has the same author — the run's single gutter face sits on the row that closes
+    /// it, not on this one. Attribution only, as above.
     public let isContinuedByNext: Bool
+    /// The bubble above is part of the same *bubble* run: flatten the inner top corner. Separate
+    /// from the author run because a bare emoji row breaks the chrome without breaking attribution.
+    public let joinsBubbleAbove: Bool
+    /// The bubble below is part of the same bubble run: flatten the inner bottom corner, and take
+    /// the tight row gap.
+    public let joinsBubbleBelow: Bool
+    /// The body is one to three emoji and nothing else. Derived from the text at map time the way
+    /// `linkPreview` is. `rendersAsLargeEmoji` is what decides the rendering — this flag is just the
+    /// body test, so a reply or a link row can carry it and still draw a bubble.
+    public let isEmojiOnly: Bool
     /// The status line shown under this bubble, or nil when the row carries none. Carried on the
     /// message — not a separate transcript row — so a send stays a clean insert instead of tearing
     /// the line down and rebuilding it.
@@ -62,12 +73,26 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// avatar gutter is a property of the transcript rather than of whichever rows drew a face.
     public let isAttributedTranscript: Bool
 
+    /// Whether this row draws as bare, enlarged emoji instead of a bubble: an emoji-only text body
+    /// with nothing else in the bubble to hold. A reply's quote panel and a link row's preview both
+    /// live inside the bubble and have no standalone layout, so either one keeps the chrome.
+    public var rendersAsLargeEmoji: Bool {
+        guard isEmojiOnly, quote == nil, linkPreview == nil else { return false }
+        switch content {
+        case .text:           return true
+        case .cash, .deleted: return false
+        }
+    }
+
     public init(
         id: String,
         content: Content,
         sender: Sender,
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
+        joinsBubbleAbove: Bool = false,
+        joinsBubbleBelow: Bool = false,
+        isEmojiOnly: Bool = false,
         receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil,
         isEdited: Bool = false,
@@ -81,6 +106,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.sender = sender
         self.isContinuationFromPrevious = isContinuationFromPrevious
         self.isContinuedByNext = isContinuedByNext
+        self.joinsBubbleAbove = joinsBubbleAbove
+        self.joinsBubbleBelow = joinsBubbleBelow
+        self.isEmojiOnly = isEmojiOnly
         self.receipt = receipt
         self.linkPreview = linkPreview
         self.isEdited = isEdited
@@ -97,6 +125,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         sender: Sender,
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
+        joinsBubbleAbove: Bool = false,
+        joinsBubbleBelow: Bool = false,
+        isEmojiOnly: Bool = false,
         receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil,
         isEdited: Bool = false,
@@ -111,6 +142,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             sender: sender,
             isContinuationFromPrevious: isContinuationFromPrevious,
             isContinuedByNext: isContinuedByNext,
+            joinsBubbleAbove: joinsBubbleAbove,
+            joinsBubbleBelow: joinsBubbleBelow,
+            isEmojiOnly: isEmojiOnly,
             receipt: receipt,
             linkPreview: linkPreview,
             isEdited: isEdited,
