@@ -722,9 +722,9 @@ extension ChatViewController: ChatLayoutDelegate {
         let nextAuthor = message(at: below)?.author?.id
         guard currentAuthor == nextAuthor else { return RowGap.wide }
 
-        // Same sender: tight only while they are one run. The typing indicator never joins one, so
-        // the dots arriving after the counterpart's own message read as a new turn.
-        return message(at: indexPath)?.isContinuedByNext == true ? RowGap.tight : nil
+        // Same sender: tight only while they are one bubble run. The typing indicator never joins
+        // one, so the dots arriving after the counterpart's own message read as a new turn.
+        return message(at: indexPath)?.joinsBubbleBelow == true ? RowGap.tight : nil
     }
 
     /// The message at `indexPath`, or nil for a row that is not one. Bounds-checked for the same
@@ -977,7 +977,9 @@ extension ChatMessage {
                 text: texts[i % texts.count],
                 sender: senders[i],
                 isContinuationFromPrevious: isContinuation,
-                isContinuedByNext: isContinued
+                isContinuedByNext: isContinued,
+                joinsBubbleAbove: isContinuation,
+                joinsBubbleBelow: isContinued
             )
         }
     }

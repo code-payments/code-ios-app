@@ -198,17 +198,23 @@ public final class ChatMotionSandboxViewController: UIViewController {
         return items
     }
 
-    /// Recomputes the same-sender grouping flags across the whole list, the way `ChatItem.from`
-    /// does for the real transcript. Without it the row above an arrival keeps the flags it was
-    /// built with, so its inner corner never flattens and the morph has nothing to animate.
+    /// Recomputes the same-sender grouping flags across the whole list from sender adjacency alone.
+    /// No sandbox row renders bare, so unlike `ChatItem.from` this never breaks the bubble run around
+    /// one — the two run flags stay identical here. Without recomputing at all, the row above an
+    /// arrival keeps the flags it was built with, so its inner corner never flattens and the morph
+    /// has nothing to animate.
     private static func grouped(_ messages: [ChatMessage]) -> [ChatMessage] {
         messages.enumerated().map { index, message in
-            ChatMessage(
+            let above = index > 0 && messages[index - 1].sender == message.sender
+            let below = index < messages.count - 1 && messages[index + 1].sender == message.sender
+            return ChatMessage(
                 id: message.id,
                 content: message.content,
                 sender: message.sender,
-                isContinuationFromPrevious: index > 0 && messages[index - 1].sender == message.sender,
-                isContinuedByNext: index < messages.count - 1 && messages[index + 1].sender == message.sender,
+                isContinuationFromPrevious: above,
+                isContinuedByNext: below,
+                joinsBubbleAbove: above,
+                joinsBubbleBelow: below,
                 receipt: message.receipt,
                 linkPreview: message.linkPreview
             )

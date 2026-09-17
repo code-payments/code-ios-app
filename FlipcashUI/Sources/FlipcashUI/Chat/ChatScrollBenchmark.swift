@@ -275,6 +275,8 @@ public final class ChatScrollBenchmarkViewController: UIViewController {
                 sender: sender,
                 isContinuationFromPrevious: isContinuation,
                 isContinuedByNext: isContinued,
+                joinsBubbleAbove: isContinuation,
+                joinsBubbleBelow: isContinued,
                 author: sender == .me ? nil : author,
                 isAttributedTranscript: !authors.isEmpty
             )))

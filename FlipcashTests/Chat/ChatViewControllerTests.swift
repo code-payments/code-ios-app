@@ -86,8 +86,8 @@ struct ChatViewControllerTests {
         }
 
         let after = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
-            .message(ChatMessage(id: "sent-1", text: "first send", sender: .me, isContinuedByNext: true)),
-            .message(ChatMessage(id: "sent-2", text: "second send", sender: .me, isContinuationFromPrevious: true, receipt: .delivered)),
+            .message(ChatMessage(id: "sent-1", text: "first send", sender: .me, isContinuedByNext: true, joinsBubbleBelow: true)),
+            .message(ChatMessage(id: "sent-2", text: "second send", sender: .me, isContinuationFromPrevious: true, joinsBubbleAbove: true, receipt: .delivered)),
         ]
         controller.update(items: after)
         #expect(controller.collectionView.numberOfItems(inSection: 0) == after.count)
@@ -113,8 +113,8 @@ struct ChatViewControllerTests {
         }
 
         let after: [ChatItem] = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
-            .message(ChatMessage(id: "them-1", text: "typing next", sender: .other, isContinuedByNext: true)),
-            .message(ChatMessage(id: "them-2", text: "the reply", sender: .other, isContinuationFromPrevious: true)),
+            .message(ChatMessage(id: "them-1", text: "typing next", sender: .other, isContinuedByNext: true, joinsBubbleBelow: true)),
+            .message(ChatMessage(id: "them-2", text: "the reply", sender: .other, isContinuationFromPrevious: true, joinsBubbleAbove: true)),
         ]
         controller.update(items: after)
         #expect(controller.collectionView.numberOfItems(inSection: 0) == after.count)
@@ -243,8 +243,18 @@ struct ChatRowSpacingTests {
             id: id,
             content: .text("hi"),
             sender: sender,
-            isContinuedByNext: continuedByNext
+            isContinuedByNext: continuedByNext,
+            joinsBubbleBelow: continuedByNext
         ))
+    }
+
+    @Test("A bare emoji row below a bubble takes the normal gap, not the run's tight one")
+    func emojiRowBreaksTheTightGap() {
+        let items: [ChatItem] = [
+            .message(ChatMessage(id: "1", text: "hi", sender: .me, isContinuedByNext: true)),
+            .message(ChatMessage(id: "2", text: "👍", sender: .me, isContinuationFromPrevious: true, isEmojiOnly: true)),
+        ]
+        #expect(gap(after: 0, in: items) == 10)
     }
 
     @Test("A run from one sender stays tight")

@@ -140,8 +140,8 @@ public final class ChatCashCardCell: ChatColumnCell {
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
             radii: BubbleBackgroundView.radii(
                 isFromSelf: message.sender == .me,
-                groupedAbove: message.isContinuationFromPrevious,
-                groupedBelow: message.isContinuedByNext
+                groupedAbove: message.joinsBubbleAbove,
+                groupedBelow: message.joinsBubbleBelow
             ),
             identity: message.id
         )

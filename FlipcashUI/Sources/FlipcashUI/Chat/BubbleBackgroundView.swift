@@ -18,10 +18,10 @@ import SwiftUI
 /// both showed straight through, leaving one message reading three different ways. Carrying its own
 /// ground, it renders the same in all three.
 ///
-/// A same-sender run flattens the inner corners
-/// from 12 to 4, which UIKit's `cornerCurve`/`maskedCorners` can't express, so the path is taken
-/// straight from SwiftUI's `UnevenRoundedRectangle(.continuous)` (pure geometry, no hosted SwiftUI
-/// views) and drawn into a `CAShapeLayer`.
+/// A bubble run flattens the inner corners
+/// from `baseRadius` to `groupedRadius`, which UIKit's `cornerCurve`/`maskedCorners` can't express,
+/// so the path is taken straight from SwiftUI's `UnevenRoundedRectangle(.continuous)` (pure geometry,
+/// no hosted SwiftUI views) and drawn into a `CAShapeLayer`.
 final class BubbleBackgroundView: UIView {
 
     /// Base corner radius; the inner corner of a grouped run uses `groupedRadius`.
@@ -184,8 +184,8 @@ final class BubbleBackgroundView: UIView {
             : UIColor.white.withAlphaComponent(0.02)
     }
 
-    /// Per-corner radii: a same-sender run flattens the inner corners (nearest the avatar column)
-    /// from 12 to 4 so stacked bubbles read as one column.
+    /// Per-corner radii: a bubble run flattens the inner corners (nearest the avatar column)
+    /// from `baseRadius` to `groupedRadius` so stacked bubbles read as one column.
     static func radii(isFromSelf: Bool, groupedAbove: Bool, groupedBelow: Bool) -> RectangleCornerRadii {
         let top = groupedAbove ? groupedRadius : baseRadius
         let bottom = groupedBelow ? groupedRadius : baseRadius

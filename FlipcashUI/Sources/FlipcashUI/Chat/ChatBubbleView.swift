@@ -132,8 +132,8 @@ public final class ChatBubbleView: UIView {
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
             radii: BubbleBackgroundView.radii(
                 isFromSelf: message.sender == .me,
-                groupedAbove: message.isContinuationFromPrevious,
-                groupedBelow: message.isContinuedByNext
+                groupedAbove: message.joinsBubbleAbove,
+                groupedBelow: message.joinsBubbleBelow
             ),
             identity: message.id
         )
@@ -194,8 +194,8 @@ public final class ChatBubbleView: UIView {
 
     let samples: [ChatMessage] = [
         ChatMessage(id: "1", text: "Hey! How's it going?", sender: .other),
-        ChatMessage(id: "2", text: "Pretty good.", sender: .me, isContinuedByNext: true),
-        ChatMessage(id: "3", text: "This one is much longer to show the bubble wrap across several lines and hug its content nicely.", sender: .me, isContinuationFromPrevious: true),
+        ChatMessage(id: "2", text: "Pretty good.", sender: .me, isContinuedByNext: true, joinsBubbleBelow: true),
+        ChatMessage(id: "3", text: "This one is much longer to show the bubble wrap across several lines and hug its content nicely.", sender: .me, isContinuationFromPrevious: true, joinsBubbleAbove: true),
     ]
     for message in samples {
         let bubble = ChatBubbleView()
