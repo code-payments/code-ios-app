@@ -57,12 +57,12 @@ struct ChatBubbleViewCornerTests {
         let neitherRun = laidOutBubble(
             ChatMessage(id: "2", text: "hi", sender: .me)
         )
-        #expect(authorRunOnly.maskingPath.cgPath == neitherRun.maskingPath.cgPath)
+        #expect(authorRunOnly.maskingPath?.cgPath == neitherRun.maskingPath?.cgPath)
 
         let bubbleRun = laidOutBubble(
             ChatMessage(id: "3", text: "hi", sender: .me, joinsBubbleAbove: true)
         )
-        #expect(bubbleRun.maskingPath.cgPath != neitherRun.maskingPath.cgPath)
+        #expect(bubbleRun.maskingPath?.cgPath != neitherRun.maskingPath?.cgPath)
     }
 
     @Test("The author run alone does not flatten the bottom corner; only the bubble run does")
@@ -73,12 +73,12 @@ struct ChatBubbleViewCornerTests {
         let neitherRun = laidOutBubble(
             ChatMessage(id: "2", text: "hi", sender: .me)
         )
-        #expect(authorRunOnly.maskingPath.cgPath == neitherRun.maskingPath.cgPath)
+        #expect(authorRunOnly.maskingPath?.cgPath == neitherRun.maskingPath?.cgPath)
 
         let bubbleRun = laidOutBubble(
             ChatMessage(id: "3", text: "hi", sender: .me, joinsBubbleBelow: true)
         )
-        #expect(bubbleRun.maskingPath.cgPath != neitherRun.maskingPath.cgPath)
+        #expect(bubbleRun.maskingPath?.cgPath != neitherRun.maskingPath?.cgPath)
     }
 
     @Test("A middle bubble in a self run flattens both inner (trailing) corners")
@@ -241,5 +241,129 @@ struct ChatBubbleDeletedTests {
         let deleted = ChatItem.message(ChatMessage(id: "1", content: .deleted("Message deleted"), sender: .other))
         let plain = ChatItem.message(ChatMessage(id: "1", text: "hi", sender: .other))
         #expect(deleted.differenceIdentifier == plain.differenceIdentifier)
+    }
+}
+
+@MainActor
+@Suite("Bare emoji bubble")
+struct ChatBubbleViewBareTests {
+
+    private func bubble(_ message: ChatMessage) -> ChatBubbleView {
+        let view = ChatBubbleView()
+        view.configure(with: message)
+        view.frame = CGRect(x: 0, y: 0, width: 280, height: 80)
+        view.layoutIfNeeded()
+        return view
+    }
+
+    private func chrome(_ view: ChatBubbleView) -> BubbleBackgroundView {
+        view.descendants(of: BubbleBackgroundView.self)[0]
+    }
+
+    private func body(_ view: ChatBubbleView, _ text: String) -> UILabel? {
+        view.descendants(of: UILabel.self).first { $0.text == text }
+    }
+
+    @Test("A bare row drops the opaque base, the wash and the border")
+    func bareDropsTheChrome() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        #expect(chrome(view).backgroundColor == .clear)
+        #expect(!chrome(view).isDrawingBubble)
+    }
+
+    @Test("An ordinary row still draws all three")
+    func ordinaryKeepsTheChrome() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        #expect(chrome(view).backgroundColor != .clear)
+        #expect(chrome(view).isDrawingBubble)
+    }
+
+    @Test("A bare row keeps its shape mask, so the attention flash stays rounded")
+    func bareKeepsTheMask() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        #expect(chrome(view).layer.mask != nil)
+    }
+
+    @Test("A bare row draws the body large and flush to the view's edge")
+    func bareEnlargesAndUninsetsTheBody() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        #expect(body(view, "👍")?.font.pointSize == 48)
+        #expect(body(view, "👍")?.frame.minX == 0)
+    }
+
+    @Test("An ordinary row keeps the body size and the 12pt inset")
+    func ordinaryKeepsTheBodyMetrics() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        #expect(body(view, "hi")?.font.pointSize == 16)
+        #expect(body(view, "hi")?.frame.minX == 12)
+    }
+
+    @Test("A bare row has no lift masking path, so nothing casts a bubble-shaped shadow")
+    func bareHasNoLiftPath() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        #expect(view.maskingPath == nil)
+    }
+
+    @Test("An ordinary row still clips its lift preview to the bubble")
+    func ordinaryKeepsItsLiftPath() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        #expect(view.maskingPath != nil)
+    }
+
+    @Test("A bare row keeps the Edited marker out of the bubble")
+    func bareHidesTheInBubbleMarker() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true, isEdited: true))
+        let marker = view.descendants(of: UILabel.self).first { $0.text == EditedMarker.text }
+        #expect(marker?.isHidden == true)
+    }
+
+    @Test("An ordinary edited row still draws the marker in the bubble")
+    func ordinaryKeepsTheInBubbleMarker() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me, isEdited: true))
+        let marker = view.descendants(of: UILabel.self).first { $0.text == EditedMarker.text }
+        #expect(marker?.isHidden == false)
+    }
+}
+
+@MainActor
+@Suite("Edited marker placement")
+struct ChatEditedMarkerPlacementTests {
+
+    private func laidOutCell(_ message: ChatMessage) -> ChatMessageCell {
+        let cell = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 120))
+        cell.configure(with: message, maxWidth: 250)
+        cell.layoutIfNeeded()
+        return cell
+    }
+
+    private func visibleMarkers(in cell: ChatMessageCell) -> [UILabel] {
+        cell.descendants(of: UILabel.self).filter { $0.text == EditedMarker.text && !$0.isHidden }
+    }
+
+    @Test("A bare edited row draws one marker, outside the bubble, and VoiceOver can read it")
+    func bareDrawsTheMarkerOnTheMetadataLine() {
+        let cell = laidOutCell(
+            ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true, isEdited: true)
+        )
+        let markers = visibleMarkers(in: cell)
+        #expect(markers.count == 1)
+        #expect(!cell.bubbleView.descendants(of: UILabel.self).contains { $0 === markers.first })
+        #expect(markers.first?.isAccessibilityElement == true)
+    }
+
+    @Test("An ordinary edited row draws one marker, inside the bubble")
+    func ordinaryDrawsTheMarkerInTheBubble() {
+        let cell = laidOutCell(ChatMessage(id: "1", text: "hi", sender: .me, isEdited: true))
+        let markers = visibleMarkers(in: cell)
+        #expect(markers.count == 1)
+        #expect(cell.bubbleView.descendants(of: UILabel.self).contains { $0 === markers.first })
+    }
+
+    @Test("A bare row that was never edited draws no marker at all")
+    func bareUneditedDrawsNothing() {
+        let cell = laidOutCell(
+            ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true)
+        )
+        #expect(visibleMarkers(in: cell).isEmpty)
     }
 }

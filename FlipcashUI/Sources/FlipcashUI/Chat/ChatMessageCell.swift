@@ -46,7 +46,11 @@ public final class ChatMessageCell: ChatColumnCell {
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         bubble.configure(with: message)
         maxWidthConstraint.constant = maxWidth
-        updateColumn(for: message, authorImageData: authorImageData)
+        updateColumn(
+            for: message,
+            authorImageData: authorImageData,
+            showsEditedMarker: message.rendersAsLargeEmoji && message.isEdited
+        )
     }
 }
 

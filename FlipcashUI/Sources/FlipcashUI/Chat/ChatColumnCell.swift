@@ -82,6 +82,10 @@ public class ChatColumnCell: UICollectionViewCell {
         metadata.isLayoutMarginsRelativeArrangement = true
         metadata.directionalLayoutMargins = .zero
         editedMarker.isHidden = true
+        // Nothing else on a bare row says the message was edited: its body skips the reservation run
+        // the bubble's marker hides behind. A hidden label is out of the accessibility tree anyway,
+        // so this speaks only on the rows that show it.
+        editedMarker.isAccessibilityElement = true
         metadata.addArrangedSubview(editedMarker)
         metadata.addArrangedSubview(receipt)
         metadata.isHidden = true

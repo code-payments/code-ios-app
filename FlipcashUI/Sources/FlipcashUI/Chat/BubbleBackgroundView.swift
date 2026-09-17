@@ -44,9 +44,12 @@ final class BubbleBackgroundView: UIView {
         super.init(frame: frame)
         layer.mask = shapeMask
         backgroundColor = UIColor(Color.backgroundMain)
+        // Bare mode swaps this to clear, and a reconfigure inside a batch update is an animation
+        // context — without this the base cross-fades while the row is moving.
+        layer.actions = ["backgroundColor": NSNull()]
         // Resized in `layoutSubviews`, where an implicit animation would drag a block of solid
         // colour behind the bubble's own frame change.
-        washLayer.actions = ["position": NSNull(), "bounds": NSNull()]
+        washLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
         layer.addSublayer(washLayer)
         // Above the wash and below the border, so the flash brightens the bubble's ground without
         // washing over its text or softening its hairline edge.
@@ -57,6 +60,7 @@ final class BubbleBackgroundView: UIView {
         borderLayer.fillColor = UIColor.clear.cgColor
         borderLayer.strokeColor = UIColor.white.withAlphaComponent(0.03).cgColor
         borderLayer.lineWidth = 1
+        borderLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
         layer.addSublayer(borderLayer)
     }
 
@@ -67,7 +71,15 @@ final class BubbleBackgroundView: UIView {
     /// same row that changes the radii morphs the corner instead of snapping it. A first setup, a
     /// recycled view taking a new row, and any caller that passes no identity all snap, which is what
     /// keeps a reused cell from animating in someone else's shape.
-    func apply(fill: UIColor, radii: RectangleCornerRadii, identity: String? = nil) {
+    ///
+    /// `bare` draws no bubble at all, for a row that is only its content.
+    func apply(fill: UIColor, radii: RectangleCornerRadii, bare: Bool = false, identity: String? = nil) {
+        // The opaque base goes too, not just the wash and the border: it is there so a bubble reads
+        // the same under the context menu's dim and the edit blur, and behind a bare row the same
+        // base would be a rectangular patch against both.
+        backgroundColor = bare ? .clear : UIColor(Color.backgroundMain)
+        washLayer.isHidden = bare
+        borderLayer.isHidden = bare
         washLayer.backgroundColor = fill.cgColor
         // A recycled view taking a new row drops any flash still running, so the attention never
         // finishes on a message it wasn't meant for.
@@ -79,6 +91,11 @@ final class BubbleBackgroundView: UIView {
         self.radii = radii
         setNeedsLayout()
     }
+
+    /// Whether this chrome draws a bubble: the opaque base, the wash and the hairline border. False
+    /// for a bare row, which keeps only the shape mask and the attention layer — the mask because
+    /// an unclipped flash would be a rectangle floating where no bubble is.
+    var isDrawingBubble: Bool { !washLayer.isHidden }
 
     /// The bubble's continuous, per-corner rounded shape in its own coordinate space — the same
     /// geometry used for the layer mask. Clips the context-menu lift preview to the bubble.
