@@ -330,7 +330,7 @@ with:
 
 ```swift
     /// The row above has the same author — the name above this row is suppressed, so a run reads as
-    /// one speaker. Attribution only: the inner corner and the row gap are `joinsBubbleAbove`'s job.
+    /// one speaker. Attribution only: the inner corner and the row gap are the bubble-run flags' job.
     public let isContinuationFromPrevious: Bool
     /// The row below has the same author — the run's single gutter face sits on the row that closes
     /// it, not on this one. Attribution only, as above.
