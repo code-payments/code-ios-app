@@ -21,6 +21,15 @@ go in one invocation.
 `Flipcash/Supporting Files/GoogleService-Info.plist` from `code-app-credentials/`, so it sits dirty
 in the worktree for the whole run and must never be committed.
 
+**Simulator steps:** `./Scripts/build.sh` defaults to `generic/platform=iOS` — a device build no
+simulator can install — so any step that launches the app must pass
+`DESTINATION='platform=iOS Simulator,name=iPhone 17 Pro'`. Address the simulator by explicit UDID
+rather than `booted`: more than one is routinely booted here, `simctl` silently picks one, and a run
+that lands on the wrong device gets torn down by whatever else is using it. `simctl launch
+--console-pty` never returns, because the app does not exit — background it, let it collect, then
+`simctl terminate`. Background it as the command itself rather than with a trailing `&` inside a
+script, which gets reaped with its parent shell.
+
 ---
 
 ## File Structure
