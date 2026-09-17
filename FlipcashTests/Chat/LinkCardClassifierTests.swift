@@ -45,7 +45,16 @@ import FlipcashCore
                 continue
             }
 
-            #expect(expected.kind == "cash", "vector `\(vector.name)` is not a cash case")
+            // Phase 1 is cash links only. The token vector is canonical's commitment that both
+            // platforms draw that link as a card eventually, and iOS does not yet — so the gap is
+            // recorded here rather than hidden by holding the fixture back. `withKnownIssue` closes
+            // itself: the day the classifier returns a token card this fails, and this branch goes.
+            guard expected.kind == "cash" else {
+                withKnownIssue("iOS has no \(expected.kind) card yet: vector `\(vector.name)`") {
+                    #expect(actual != nil)
+                }
+                continue
+            }
             guard case .cash(let cash)? = actual else {
                 Issue.record("vector `\(vector.name)` produced no cash card: \(vector.note)")
                 continue

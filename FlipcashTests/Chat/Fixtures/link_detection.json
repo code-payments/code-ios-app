@@ -176,8 +176,12 @@
           "url": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112"
         }
       ],
-      "card": null,
-      "note": "Card-eligible per the spec, but not in phase 1 (open decision 4). Span only."
+      "card": {
+        "kind": "token",
+        "url": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112",
+        "mint": "So11111111111111111111111111111111111111112"
+      },
+      "note": "A token link renders as that token's bill. The mint is taken from the path and is not validated here -- an unknown mint is a card that never resolves, not a rejected one."
     }
   ]
 }
