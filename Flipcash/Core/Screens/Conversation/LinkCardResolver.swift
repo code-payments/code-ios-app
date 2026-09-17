@@ -51,6 +51,40 @@ actor LinkCardResolver {
     }
 }
 
+// MARK: - State -
+
+nonisolated extension LinkCard {
+
+    /// The same card carrying whatever `states` already knows about it, keyed the way the resolver
+    /// caches — so a re-map renders a card that has already resolved without asking again.
+    func applying(_ states: [String: LinkCard.Cash.State]) -> LinkCard {
+        switch self {
+        case .cash(let cash):
+            guard let state = states[cash.entropy] else { return self }
+            return .cash(Cash(url: cash.url, entropy: cash.entropy, state: state))
+        }
+    }
+
+    /// The link identity this card resolves against, which is what the resolver memoizes on.
+    var resolutionKey: String {
+        switch self {
+        case .cash(let cash): cash.entropy
+        }
+    }
+
+    /// Whether this card still has a lookup outstanding.
+    var isUnresolved: Bool {
+        state == .unresolved
+    }
+
+    /// How far this card's lookup got.
+    var state: Cash.State {
+        switch self {
+        case .cash(let cash): cash.state
+        }
+    }
+}
+
 // MARK: - Lookup -
 
 /// The one call a card needs. `Client` conforms as-is; the point of the protocol is everything it

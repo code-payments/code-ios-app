@@ -870,6 +870,7 @@ struct ConversationScreen: View {
                 controller: conversationController,
                 session: session,
                 knownAuthors: sessionContainer.knownAuthors,
+                linkCards: sessionContainer.linkCardResolver,
                 // `profileAvatars` is captured directly so the coordinator retains
                 // one small store, not the whole session container.
                 profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, profileAvatars = sessionContainer.profileAvatars] in

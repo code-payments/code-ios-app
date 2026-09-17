@@ -46,6 +46,15 @@ final class ConversationLoadCoordinator {
     /// Names senders the chat's own roster leaves out, from what the device already knows about
     /// them. Observed like every other input, so a reload re-attributes the window in place.
     private let knownAuthors: KnownAuthorDirectory
+    /// Fills a link card in. Read-only by construction — see ``LinkCardResolver``.
+    private let linkCards: LinkCardResolver
+
+    /// What the resolver has answered so far, keyed the way it memoizes. Carried into `Inputs` so
+    /// mapping stays pure, and observation-ignored for the same reason `capabilityClock` is: the
+    /// resolution task advances it and re-maps explicitly, rather than through the observation arm.
+    @ObservationIgnored private var cardStates: [String: LinkCard.Cash.State] = [:]
+    /// Lookups already in flight, so a re-map mid-resolution does not ask a second time.
+    @ObservationIgnored private var cardsInFlight: Set<String> = []
 
     @ObservationIgnored private var lastInputs: Inputs?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
@@ -70,12 +79,14 @@ final class ConversationLoadCoordinator {
         controller: ConversationController,
         session: Session,
         knownAuthors: KnownAuthorDirectory,
+        linkCards: LinkCardResolver,
         profileCard: @escaping @MainActor () -> ChatProfileCard?
     ) {
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
         self.knownAuthors = knownAuthors
+        self.linkCards = linkCards
         self.profileCard = profileCard
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
 
@@ -89,6 +100,7 @@ final class ConversationLoadCoordinator {
         self.items = Self.map(initial, authors: Self.authors(from: initialAttribution.members))
         self.headsHistory = initial.headsHistory
         scheduleWindowExpiry(for: initial)
+        resolveCards(in: items)
         observeInputs()
     }
 
@@ -134,9 +146,39 @@ final class ConversationLoadCoordinator {
             let mapped = await Task.detached { Self.map(inputs, authors: authors) }.value
             guard let self, !Task.isCancelled else { return }
             self.items = mapped
+            self.resolveCards(in: mapped)
             self.headsHistory = inputs.headsHistory
             self.attributedMembers = attribution.members
             self.unattributedSenders = attribution.unnamed
+        }
+    }
+
+    // Asks the resolver for every card the landed transcript still shows unresolved, then re-maps
+    // so the answers land in place. The first pass renders unresolved cards and the second fills
+    // them in — the spec calls the unresolved card the floor rather than a failure, so there is no
+    // spinner and the two passes lay out identically. A lookup that fails leaves the card where it
+    // is, and is recorded all the same so a scrolling transcript does not retry it on every tick.
+    private func resolveCards(in items: [ChatItem]) {
+        var pending: [LinkCard] = []
+        var seen: Set<String> = []
+        for case .message(let message) in items {
+            guard let card = message.linkPreview?.card, card.isUnresolved else { continue }
+            let key = card.resolutionKey
+            guard cardStates[key] == nil, !cardsInFlight.contains(key), seen.insert(key).inserted else { continue }
+            pending.append(card)
+        }
+        guard !pending.isEmpty else { return }
+
+        cardsInFlight.formUnion(seen)
+        Task { [weak self, linkCards] in
+            var states: [String: LinkCard.Cash.State] = [:]
+            for card in pending {
+                states[card.resolutionKey] = await linkCards.resolve(card).state
+            }
+            guard let self else { return }
+            self.cardsInFlight.subtract(seen)
+            self.cardStates.merge(states) { _, new in new }
+            self.refresh(with: self.currentInputs())
         }
     }
 
@@ -219,11 +261,13 @@ final class ConversationLoadCoordinator {
             // Only a transcript that attributes its rows has anything to resolve, so a DM never
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
-            headsHistory: headsHistory
+            headsHistory: headsHistory,
+            cardStates: cardStates
         )
     }
 
     nonisolated private static func map(_ inputs: Inputs, authors: [UserID: ChatAuthor]) -> [ChatItem] {
+        let classifier = LinkCardClassifier()
         var items = ChatItem.from(
             inputs.messages,
             selfUserID: inputs.selfUserID,
@@ -253,7 +297,13 @@ final class ConversationLoadCoordinator {
             // A sender neither the chat nor the local cache can name gets no author, so the row
             // draws as it does in a DM rather than under a blank name.
             author: { message in message.senderID.flatMap { authors[$0] } },
-            namesAuthors: inputs.namesAuthors
+            namesAuthors: inputs.namesAuthors,
+            // Classification is pure and host-gated; the state comes from whatever the resolver has
+            // already answered. Nothing here touches the network — a card that has not resolved yet
+            // renders unresolved and `resolveCards` asks for it once the rows have landed.
+            linkCard: { links in
+                classifier.firstCard(in: links.map(\.url))?.applying(inputs.cardStates)
+            }
         )
         if inputs.isTyping {
             items.append(.typingIndicator)
@@ -345,6 +395,9 @@ final class ConversationLoadCoordinator {
         var knownAuthors: KnownAuthorDirectory.Snapshot
         /// Whether the window is the whole locally-known history — see ``headsHistory``.
         var headsHistory: Bool
+        /// What the resolver has answered about the window's link cards, keyed by link identity.
+        /// Part of the input set, so an answer landing re-maps the transcript in place.
+        var cardStates: [String: LinkCard.Cash.State]
 
         struct Branding: Equatable, Sendable {
             var token: String
