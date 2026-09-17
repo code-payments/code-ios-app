@@ -80,4 +80,24 @@ struct ChatMessageRenderingTests {
         #expect(!row.joinsBubbleAbove)
         #expect(!row.joinsBubbleBelow)
     }
+
+    @Test("The notification preview flags an emoji-only row the way the transcript does")
+    func previewFlagsEmojiOnly() {
+        let sender = UUID()
+        let messages = [
+            ConversationMessage(
+                id: MessageID(value: 1), senderID: sender, content: .text("👍"),
+                date: Date(timeIntervalSince1970: 1_000_000), unreadSeq: 1
+            ),
+        ]
+        let items = ChatItem.preview(from: messages, selfUserID: sender)
+        let rows: [ChatMessage] = items.compactMap { item in
+            switch item {
+            case .message(let message): return message
+            default:                    return nil
+            }
+        }
+        #expect(rows.count == 1)
+        #expect(rows[0].rendersAsLargeEmoji)
+    }
 }
