@@ -271,6 +271,12 @@ struct ConversationScreen: View {
         coordinator?.attributedMembers ?? []
     }
 
+    /// The window's senders no roster and no cached profile could name. Fetched by user id, which
+    /// is public, so a group larger than the subset its metadata embeds still names every row.
+    private var unattributedSenders: [UserID] {
+        coordinator?.unattributedSenders ?? []
+    }
+
     /// "12 people" under the title, or nil for a DM, which has no count worth stating.
     ///
     /// From ``ConversationRosterSummary/memberCount``, not `members.count`: the roster a large group
@@ -500,6 +506,13 @@ struct ConversationScreen: View {
         .task(id: groupConversation?.id) {
             guard groupConversation != nil else { return }
             await sessionContainer.knownAuthors.reload()
+        }
+        // Name the senders the chat's roster and the local cache both leave out. Keyed on that set,
+        // so it runs when a page of older messages reveals a sender nothing here can name — and not
+        // again once the fetch has landed them.
+        .task(id: unattributedSenders) {
+            guard !unattributedSenders.isEmpty else { return }
+            await sessionContainer.knownAuthors.resolve(unattributedSenders)
         }
         // Fetch the pictures for the transcript's author gutter. Keyed on who the rows are actually
         // attributed to, so a sender the roster names later — or that the local cache names — is

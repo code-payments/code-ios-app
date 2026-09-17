@@ -394,7 +394,8 @@ public final class ChatViewController: UICollectionViewController {
         let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
         // An attributed incoming row gives its leading gutter to the avatar, so the same fraction of
         // a narrower row — otherwise the widest bubbles in a group run past where they do in a DM.
-        let available = message.author != nil && message.sender != .me
+        // Keyed off the transcript rather than this row's author, to match the inset the cell takes.
+        let available = message.isAttributedTranscript && message.sender != .me
             ? width - ChatColumnCell.authorGutterWidth
             : width
         let maxWidth = available * Self.maxBubbleWidthFraction

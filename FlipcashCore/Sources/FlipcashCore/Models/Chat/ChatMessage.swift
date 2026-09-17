@@ -57,6 +57,10 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// sides are already told apart by which edge the bubble hugs, and `nil` for the viewer's own
     /// rows in any transcript.
     public let author: ChatAuthor?
+    /// Whether the transcript this row belongs to names its authors — a group chat. True on every
+    /// row of one, including the viewer's own and a row whose sender no roster can name, so the
+    /// avatar gutter is a property of the transcript rather than of whichever rows drew a face.
+    public let isAttributedTranscript: Bool
 
     public init(
         id: String,
@@ -69,7 +73,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         isEdited: Bool = false,
         actions: [MessageCapability] = [],
         quote: ChatQuote? = nil,
-        author: ChatAuthor? = nil
+        author: ChatAuthor? = nil,
+        isAttributedTranscript: Bool = false
     ) {
         self.id = id
         self.content = content
@@ -82,6 +87,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.actions = actions
         self.quote = quote
         self.author = author
+        self.isAttributedTranscript = isAttributedTranscript
     }
 
     /// Convenience for text rows.
@@ -96,7 +102,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         isEdited: Bool = false,
         actions: [MessageCapability] = [],
         quote: ChatQuote? = nil,
-        author: ChatAuthor? = nil
+        author: ChatAuthor? = nil,
+        isAttributedTranscript: Bool = false
     ) {
         self.init(
             id: id,
@@ -109,7 +116,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             isEdited: isEdited,
             actions: actions,
             quote: quote,
-            author: author
+            author: author,
+            isAttributedTranscript: isAttributedTranscript
         )
     }
 }

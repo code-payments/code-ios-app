@@ -17,7 +17,10 @@ struct ChatMessageMappingTests {
 
     private let me = UUID()
     private let them = UUID()
-    private let base = Date(timeIntervalSince1970: 1_000_000)
+    /// 9am local, so every offset the suite adds stays on one day whatever timezone the test runs
+    /// in — a change of day is its own reason to break a run, and only one case here means to.
+    private let base = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 1_000_000))
+        .addingTimeInterval(9 * 60 * 60)
 
     private func text(_ id: UInt64, _ sender: UUID, _ body: String, after offset: TimeInterval) -> ConversationMessage {
         ConversationMessage(
@@ -77,9 +80,9 @@ struct ChatMessageMappingTests {
     func grouping() {
         let messages = [
             text(1, me, "a", after: 0),
-            text(2, me, "b", after: 60),            // +1m, same sender → grouped with #1
-            text(3, them, "c", after: 120),         // other sender → breaks the run
-            text(4, me, "d", after: 120 + 16 * 60), // me again, but a gap from #3 → standalone
+            text(2, me, "b", after: 60),               // +1m, same sender → grouped with #1
+            text(3, them, "c", after: 120),            // other sender → breaks the run
+            text(4, me, "d", after: 120 + 4 * 60 * 60) // me again, but a gap from #3 → standalone
         ]
 
         let items = ChatItem.from(messages, selfUserID: me)
@@ -93,21 +96,53 @@ struct ChatMessageMappingTests {
         #expect(!rows[2].isContinuationFromPrevious)
         #expect(!rows[2].isContinuedByNext)
         #expect(!rows[3].isContinuationFromPrevious) // gap from #3
-        // One separator opens the transcript; another breaks the 16-minute gap before #4.
+        // One separator opens the transcript; another breaks the four-hour gap before #4.
         #expect(separatorCount(items) == 2)
     }
 
-    @Test("A gap longer than 15 minutes breaks a same-sender run")
+    @Test("A pause of minutes keeps a same-sender run together; a pause past the gap breaks it")
     func gapBreaksRun() {
-        let messages = [
-            text(1, me, "a", after: 0),
-            text(2, me, "b", after: 16 * 60), // +16m, same sender, but past the gap
-        ]
+        // Anchored to a local morning so neither pause can reach midnight and break the run for the
+        // other reason, whatever timezone the test runs in.
+        func pair(_ pause: TimeInterval) -> [ChatMessage] {
+            let start = base
+            let rows = [
+                ConversationMessage(id: MessageID(value: 1), senderID: me, content: .text("a"), date: start, unreadSeq: 1),
+                ConversationMessage(id: MessageID(value: 2), senderID: me, content: .text("b"), date: start.addingTimeInterval(pause), unreadSeq: 2),
+            ]
+            return messageRows(ChatItem.from(rows, selfUserID: me))
+        }
 
-        let rows = messageRows(ChatItem.from(messages, selfUserID: me))
+        // The window is Android's, so a lull long enough to leave the app and come back is still
+        // one exchange rather than a column of separated single bubbles.
+        let grouped = pair(40 * 60)
+        #expect(grouped[0].isContinuedByNext)
+        #expect(grouped[1].isContinuationFromPrevious)
+
+        let broken = pair(4 * 60 * 60)
+        #expect(!broken[0].isContinuedByNext)
+        #expect(!broken[1].isContinuationFromPrevious)
+    }
+
+    @Test("A run does not carry across a change of day, however short the pause")
+    func dayChangeBreaksRun() {
+        // Straddling local midnight, so the two rows are minutes apart but on different dates.
+        let midnight = Calendar.current.startOfDay(for: base.addingTimeInterval(24 * 60 * 60))
+        let before = ConversationMessage(
+            id: MessageID(value: 1), senderID: me, content: .text("a"),
+            date: midnight.addingTimeInterval(-60), unreadSeq: 1
+        )
+        let after = ConversationMessage(
+            id: MessageID(value: 2), senderID: me, content: .text("b"),
+            date: midnight.addingTimeInterval(60), unreadSeq: 2
+        )
+
+        let items = ChatItem.from([before, after], selfUserID: me)
+        let rows = messageRows(items)
 
         #expect(!rows[0].isContinuedByNext)
         #expect(!rows[1].isContinuationFromPrevious)
+        #expect(separatorCount(items) == 2) // one opening the transcript, one heading the new day
     }
 
     @Test("Cash messages map to formatted cash content with a currency flag")
@@ -360,5 +395,27 @@ struct ChatMessageMappingTests {
         #expect(rows.count == 2)
         #expect(rows[1].content == .deleted("This message was deleted"))
         #expect(rows[0].isContinuedByNext)
+    }
+
+    @Test("A group transcript flags every row, including a sender the roster cannot name")
+    func attributionIsFlaggedPerTranscript() {
+        let named = UUID()
+        let items = ChatItem.from(
+            [text(1, named, "hi", after: 0), text(2, them, "whoa", after: 30), text(3, me, "hey", after: 60)],
+            selfUserID: me,
+            author: { $0.senderID == named ? ChatAuthor(id: named, name: "KT") : nil },
+            namesAuthors: true
+        )
+        let rows = messageRows(items)
+        // The flag is the transcript's, so the unnamed row carries it too and keeps the gutter.
+        #expect(rows.allSatisfy { $0.isAttributedTranscript })
+        #expect(rows[0].author?.name == "KT")
+        #expect(rows[1].author == nil)
+    }
+
+    @Test("A DM flags no row, so no bubble gives up a gutter")
+    func directMessagesAreNotAttributed() {
+        let items = ChatItem.from([text(1, them, "hi", after: 0)], selfUserID: me)
+        #expect(messageRows(items).allSatisfy { !$0.isAttributedTranscript })
     }
 }
