@@ -1361,7 +1361,7 @@ above the `for index in 0..<total` loop:
         }
 ```
 
-and replace the three flag arguments in the `ChatMessage(...)` call with:
+and replace the four run-flag arguments in the `ChatMessage(...)` call with these five lines:
 
 ```swift
                 isContinuationFromPrevious: isContinuation,
