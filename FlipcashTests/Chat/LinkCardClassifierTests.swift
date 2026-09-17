@@ -71,6 +71,20 @@ import FlipcashCore
         }
     }
 
+    /// Not in the canonical fixture, which wraps only an allowlisted host. Android's classifier
+    /// unwraps before the host gate for exactly this case; a gate on the wrapper alone lets the
+    /// wrapper choose the host behind it, and `Route` classifies the target by path alone.
+    @Test func aJumpWrapperCannotSmuggleAHostPastTheAllowlist() throws {
+        let inner = "https://send.flipcash.com.evil.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        let wrapper = "https://jump.flipcash.com/#source=" + inner.addingPercentEncoding(
+            withAllowedCharacters: .alphanumerics
+        )!
+        let url = try #require(URL(string: wrapper))
+        let link = DetectedLink(range: NSRange(location: 0, length: (wrapper as NSString).length), url: url)
+
+        #expect(LinkCardClassifier().firstCard(in: [link]) == nil)
+    }
+
     @Test func theHostAllowlistMatchesTheCrossPlatformFixture() throws {
         #expect(Set(try loadFixture().cardHosts) == LinkCardClassifier.cardHosts)
     }

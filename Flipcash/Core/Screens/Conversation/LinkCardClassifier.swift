@@ -10,14 +10,18 @@ import FlipcashCore
 
 /// Which link in a message, if any, becomes a card.
 ///
-/// Two gates, in this order.
+/// Three steps, in this order.
 ///
-/// **Host.** ``cardHosts`` is checked first, on an exact match. `Route.Path.parse` matches on path
-/// alone — deliberately, and its own doc comment says so, because every URL it normally sees
-/// arrived through the associated-domains entitlement. Message text arrived through nothing, so on
-/// its own `Route` would parse `send.flipcash.com.evil.com/c/#/e=…` as `.cash`. `Route` is not
-/// widened for this: its rules are right for routing, and a chat-rendering problem should not
-/// change where a tapped link goes.
+/// **Unwrap.** A `jump.flipcash.com/#source=` wrapper is resolved to its target *before* the host
+/// gate. `Route` classifies the target by path alone, so gating the redirector instead would let
+/// the wrapper pick the host behind it and put a branded card in front of it.
+///
+/// **Host.** ``cardHosts`` is checked against whatever the unwrap produced, on an exact match.
+/// `Route.Path.parse` matches on path alone — deliberately, and its own doc comment says so,
+/// because every URL it normally sees arrived through the associated-domains entitlement. Message
+/// text arrived through nothing, so on its own `Route` would parse
+/// `send.flipcash.com.evil.com/c/#/e=…` as `.cash`. `Route` is not widened for this: its rules are
+/// right for routing, and a chat-rendering problem should not change where a tapped link goes.
 ///
 /// **Route.** Whatever survives the host gate goes to the real parser. No second path parser is
 /// written.
@@ -49,9 +53,9 @@ nonisolated struct LinkCardClassifier {
     }
 
     private func classify(_ link: DetectedLink) -> LinkCard? {
-        guard let host = link.url.host()?.lowercased(), Self.cardHosts.contains(host) else { return nil }
-
         let target = Route.unwrappingJump(link.url) ?? link.url
+
+        guard let host = target.host()?.lowercased(), Self.cardHosts.contains(host) else { return nil }
         guard let route = Route(url: target), case .cash = route.path else { return nil }
         guard let entropy = route.fragments[.entropy]?.value, !entropy.isEmpty else { return nil }
 
