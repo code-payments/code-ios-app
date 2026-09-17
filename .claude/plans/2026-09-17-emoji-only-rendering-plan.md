@@ -530,8 +530,28 @@ and append these tests to the suite:
 
     @Test("A cash row is never emoji-only")
     func cashRowIsNeverEmojiOnly() {
-        let items = ChatItem.from([text(1, me, "👍", after: 0)], selfUserID: me)
-        #expect(messageRows(items)[0].isEmojiOnly)
+        let fiat = ExchangedFiat(
+            nativeAmount: FiatAmount(value: 5, currency: .usd),
+            rate: Rate(fx: 1, currency: .usd)
+        )
+        let items = ChatItem.from([
+            ConversationMessage(id: MessageID(value: 1), senderID: me, content: .cash(fiat), date: base, unreadSeq: 1),
+        ], selfUserID: me)
+        let rows = messageRows(items)
+        #expect(!rows[0].isEmojiOnly)
+        #expect(!rows[0].rendersAsLargeEmoji)
+    }
+
+    @Test("A tombstone is never emoji-only, whatever it replaced")
+    func tombstoneIsNeverEmojiOnly() {
+        let items = ChatItem.from(
+            [deleted(1, them, after: 0)],
+            selfUserID: me,
+            deletedPresentation: .placeholder
+        )
+        let rows = messageRows(items)
+        #expect(!rows[0].isEmojiOnly)
+        #expect(!rows[0].rendersAsLargeEmoji)
     }
 ```
 
