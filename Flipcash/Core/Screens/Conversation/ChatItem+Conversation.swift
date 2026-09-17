@@ -88,9 +88,9 @@ extension ChatItem {
                 || !calendar.isDate(message.date, inSameDayAs: earlier.date)
         }
 
-        // What renders bare: a text body of one to three emoji, on a row that is not a reply — the
-        // quote panel lives inside the bubble and has no standalone layout. One predicate, applied to
-        // the row and to both neighbours, so a single place decides what counts.
+        // What breaks the bubble run: a text body of one to three emoji, on a row that is not a
+        // reply — the quote panel lives inside the bubble and has no standalone layout. Narrower
+        // than `ChatMessage.rendersAsLargeEmoji`, which also has a link row to rule out.
         func isEmojiOnlyBody(_ message: ConversationMessage) -> Bool {
             switch message.content {
             case .text(let text): EmojiOnlyDetector.isEmojiOnly(text)
@@ -130,8 +130,9 @@ extension ChatItem {
             } ?? false
 
             // The bubble run, which is not the author run. A bubble stacked above a bare emoji would
-            // otherwise flatten its inner corner from 12 to 4 and take the 5pt gap, pointing at a
-            // bubble that is not there — while the name and the gutter face stay where they are.
+            // otherwise flatten its inner corner to `BubbleBackgroundView.groupedRadius` and take
+            // the tight row gap, pointing at a bubble that is not there — while the name and the
+            // gutter face stay where they are.
             let isBare = rendersBare(message)
             let joinsBubbleAbove = groupedAbove && !isBare && !(previous.map(rendersBare) ?? false)
             let joinsBubbleBelow = groupedBelow && !isBare && !(next.map(rendersBare) ?? false)
