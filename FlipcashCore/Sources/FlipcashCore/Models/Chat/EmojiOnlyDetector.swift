@@ -8,8 +8,7 @@
 import Foundation
 
 /// Whether a message body is nothing but a handful of emoji — the transcript draws one of those
-/// bare and enlarged instead of in a bubble. Pure and synchronous, like `LinkDetector`: the mapper
-/// runs it on every remap, so it walks at most `limit + 1` grapheme clusters before bailing.
+/// bare and enlarged instead of in a bubble. Pure and synchronous, like `LinkDetector`.
 public enum EmojiOnlyDetector {
 
     /// True when `text` is 1...`limit` emoji and nothing else. Whitespace around and between them is
@@ -32,8 +31,10 @@ public enum EmojiOnlyDetector {
     /// sequence, and a bare `unicodeScalars.count > 1` test would admit a letter with a combining
     /// mark. What separates a real emoji is default emoji presentation, an explicit U+FE0F variation
     /// selector, or the keycap combining mark itself (`#⃣` is U+0023 U+20E3 and carries no U+FE0F).
-    /// Flags, ZWJ families and skin-tone modifiers all pass on the first test: Swift groups each into
-    /// a single `Character` whose first scalar already has emoji presentation.
+    /// The second clause is load-bearing beyond keycaps: a ZWJ sequence whose base has only text
+    /// presentation — `🏳️‍🌈`, `❤️‍🔥` — fails the first test and qualifies only because Swift keeps
+    /// the U+FE0F on the composed `Character`. Skin-tone modifiers, regional-indicator flags, and a
+    /// ZWJ sequence built on an already-emoji-presentation base (`👨‍👩‍👧‍👦`) pass on the first test.
     private static func isEmojiCluster(_ cluster: Character) -> Bool {
         guard let first = cluster.unicodeScalars.first, first.properties.isEmoji else { return false }
         return first.properties.isEmojiPresentation

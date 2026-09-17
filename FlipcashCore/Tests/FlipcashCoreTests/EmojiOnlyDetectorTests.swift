@@ -41,6 +41,8 @@ struct EmojiOnlyDetectorTests {
         #expect(EmojiOnlyDetector.isEmojiOnly("👍🏽"))          // skin-tone modifier
         #expect(EmojiOnlyDetector.isEmojiOnly("🇺🇸"))          // regional-indicator flag
         #expect(EmojiOnlyDetector.isEmojiOnly("#️⃣"))          // keycap
+        #expect(EmojiOnlyDetector.isEmojiOnly("🏳️‍🌈"))        // ZWJ on a text-presentation base
+        #expect(EmojiOnlyDetector.isEmojiOnly("❤️‍🔥"))        // ZWJ on a text-presentation base
         #expect(EmojiOnlyDetector.isEmojiOnly("👨‍👩‍👧‍👦👍🏽🇺🇸"))   // three of them together
     }
 
@@ -50,6 +52,9 @@ struct EmojiOnlyDetectorTests {
         #expect(!EmojiOnlyDetector.isEmojiOnly("#"))
         #expect(!EmojiOnlyDetector.isEmojiOnly("*"))
         #expect(!EmojiOnlyDetector.isEmojiOnly("e\u{0301}"))  // letter + combining mark
+        // Bare text-presentation emoji, no variation selector: intentionally excluded. Admitting
+        // "❤" would also blow up "™", "©" and "Ⓜ" to 48pt.
+        #expect(!EmojiOnlyDetector.isEmojiOnly("\u{2764}"))
     }
 
     @Test("Empty and whitespace-only bodies do not qualify")
@@ -62,5 +67,6 @@ struct EmojiOnlyDetectorTests {
     func limitIsConfigurable() {
         #expect(EmojiOnlyDetector.isEmojiOnly("👍😀🎉🔥", limit: 4))
         #expect(!EmojiOnlyDetector.isEmojiOnly("👍😀", limit: 1))
+        #expect(!EmojiOnlyDetector.isEmojiOnly("👍", limit: 0))
     }
 }
