@@ -45,11 +45,6 @@ public final class ChatScreenViewController: UIViewController {
     private var barClipHeightConstraint: NSLayoutConstraint!
     /// Keeps the bar above the keyboard. Not `view.keyboardLayoutGuide`: see `KeyboardFloor`.
     private var keyboardFloor: KeyboardFloor!
-    /// Fades the transcript into the navigation bar. See `TranscriptTopFade`.
-    private let topFade = TranscriptTopFade()
-    private var topFadeHeightConstraint: NSLayoutConstraint!
-    /// How far below the navigation bar the fade finishes.
-    private static let topFadeTail: CGFloat = 36
 
     /// Raise the keyboard once the screen has finished appearing (post-tip open). Driven from
     /// UIKit rather than a SwiftUI `@FocusState`: a hosted composer's programmatic focus updates
@@ -184,20 +179,10 @@ public final class ChatScreenViewController: UIViewController {
             transcript.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        topFade.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(topFade)
-        topFadeHeightConstraint = topFade.heightAnchor.constraint(equalToConstant: 0)
-        NSLayoutConstraint.activate([
-            topFade.topAnchor.constraint(equalTo: view.topAnchor),
-            topFade.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            topFade.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            topFadeHeightConstraint,
-        ])
-
         let constraints = addBar(bar, controller: barController)
-        // Above the transcript and below the top fade, which puts it below the bar as well: the
-        // fade still has to draw over the blurred transcript, and the gate panel has to stay sharp.
-        transcriptBlur.install(in: view, below: topFade)
+        // Above the transcript and below the bar clip, so the gate panel naming the unmet
+        // requirement stays sharp over the transcript it is talking about.
+        transcriptBlur.install(in: view, below: barClip)
 
         barHeightConstraint = constraints.height
         barClipHeightConstraint = constraints.clipHeight
@@ -396,8 +381,9 @@ public final class ChatScreenViewController: UIViewController {
         }
         host.setContentScrollView(transcript.collectionView, for: .top)
         // `topEdgeEffect` is the UIKit counterpart of the `softScrollEdge` modifier the SwiftUI
-        // screens use. Without it the transcript is cut at a hard line where the bar's background
-        // ends; with it that background is gone, which is what `TranscriptTopFade` replaces.
+        // screens use — a UIKit scroll view the modifier cannot reach has to set it itself. Without
+        // it the transcript is cut at a hard line where the bar's background ends; with it the
+        // transcript blurs progressively as it passes under the bar, as the Chats list does.
         if #available(iOS 26.0, *) {
             transcript.collectionView.topEdgeEffect.style = .soft
         }
@@ -511,10 +497,6 @@ public final class ChatScreenViewController: UIViewController {
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         keyboardFloor.refresh()
-        // The bar underlaps the transcript, so the safe-area inset measures the height the fade
-        // has to stay opaque for; it holds until just above the title and clears over the tail.
-        topFadeHeightConstraint.constant = view.safeAreaInsets.top + Self.topFadeTail
-        topFade.opaqueLength = max(view.safeAreaInsets.top - 12, 0)
         backdrop.layoutHeld()
         refreshEditSpotlight()
         // Reserve only the bar's own height. On-device the system already grows the collection
@@ -622,47 +604,6 @@ private extension UIView {
             if let responder = subview.firstTextInputResponder { return responder }
         }
         return nil
-    }
-}
-
-/// The transcript's fade into the navigation bar: opaque background colour for `opaqueLength`,
-/// then a gradient to clear over the rest of its height.
-///
-/// The soft `topEdgeEffect` blurs what scrolls under the bar but does not darken it, and a cash
-/// card's amount is large white text — blurred, it still reads over the title and up into the
-/// status bar. This takes that content to the background colour instead, the way `WalletScreen`
-/// fades its own bar-less top.
-private final class TranscriptTopFade: UIView {
-
-    override class var layerClass: AnyClass { CAGradientLayer.self }
-
-    /// Height, from the top, that stays fully opaque before the gradient starts.
-    var opaqueLength: CGFloat = 0 {
-        didSet {
-            guard opaqueLength != oldValue else { return }
-            setNeedsLayout()
-        }
-    }
-
-    private var gradient: CAGradientLayer { layer as! CAGradientLayer }
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isUserInteractionEnabled = false
-        gradient.startPoint = CGPoint(x: 0.5, y: 0)
-        gradient.endPoint = CGPoint(x: 0.5, y: 1)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        // Resolved here rather than once at init so a trait change repaints the gradient.
-        let background = UIColor(Color.backgroundMain).resolvedColor(with: traitCollection)
-        gradient.colors = [background.cgColor, background.cgColor, background.withAlphaComponent(0).cgColor]
-        let hold = bounds.height > 0 ? min(opaqueLength / bounds.height, 1) : 0
-        gradient.locations = [0, NSNumber(value: Double(hold)), 1]
     }
 }
 
