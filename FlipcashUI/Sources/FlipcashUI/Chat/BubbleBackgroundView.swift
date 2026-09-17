@@ -18,10 +18,10 @@ import SwiftUI
 /// both showed straight through, leaving one message reading three different ways. Carrying its own
 /// ground, it renders the same in all three.
 ///
-/// A same-sender run flattens the inner corners
-/// from 12 to 4, which UIKit's `cornerCurve`/`maskedCorners` can't express, so the path is taken
-/// straight from SwiftUI's `UnevenRoundedRectangle(.continuous)` (pure geometry, no hosted SwiftUI
-/// views) and drawn into a `CAShapeLayer`.
+/// A bubble run flattens the inner corners
+/// from `baseRadius` to `groupedRadius`, which UIKit's `cornerCurve`/`maskedCorners` can't express,
+/// so the path is taken straight from SwiftUI's `UnevenRoundedRectangle(.continuous)` (pure geometry,
+/// no hosted SwiftUI views) and drawn into a `CAShapeLayer`.
 final class BubbleBackgroundView: UIView {
 
     /// Base corner radius; the inner corner of a grouped run uses `groupedRadius`.
@@ -46,7 +46,7 @@ final class BubbleBackgroundView: UIView {
         backgroundColor = UIColor(Color.backgroundMain)
         // Resized in `layoutSubviews`, where an implicit animation would drag a block of solid
         // colour behind the bubble's own frame change.
-        washLayer.actions = ["position": NSNull(), "bounds": NSNull()]
+        washLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
         layer.addSublayer(washLayer)
         // Above the wash and below the border, so the flash brightens the bubble's ground without
         // washing over its text or softening its hairline edge.
@@ -57,17 +57,39 @@ final class BubbleBackgroundView: UIView {
         borderLayer.fillColor = UIColor.clear.cgColor
         borderLayer.strokeColor = UIColor.white.withAlphaComponent(0.03).cgColor
         borderLayer.lineWidth = 1
+        borderLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
         layer.addSublayer(borderLayer)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    /// Bare mode swaps `backgroundColor` to clear, and a reconfigure inside a batch update is an
+    /// animation context — without this the base cross-fades while the row is moving. This must be a
+    /// delegate override, not `layer.actions`: `CALayer.action(for:forKey:)` asks the delegate (this
+    /// view) first, and `UIView`'s own answer for `backgroundColor` always wins over the layer's own
+    /// dictionary. The `layer === self.layer` check matters — this view has four sublayers, and they
+    /// must keep falling through to their own `actions` dictionaries.
+    override func action(for layer: CALayer, forKey event: String) -> CAAction? {
+        if layer === self.layer, event == "backgroundColor" {
+            return NSNull()
+        }
+        return super.action(for: layer, forKey: event)
+    }
+
     /// Sets the chrome. `identity` is the row this is drawing — pass it, and a later `apply` for the
     /// same row that changes the radii morphs the corner instead of snapping it. A first setup, a
     /// recycled view taking a new row, and any caller that passes no identity all snap, which is what
     /// keeps a reused cell from animating in someone else's shape.
-    func apply(fill: UIColor, radii: RectangleCornerRadii, identity: String? = nil) {
+    ///
+    /// `bare` draws no bubble at all, for a row that is only its content.
+    func apply(fill: UIColor, radii: RectangleCornerRadii, bare: Bool = false, identity: String? = nil) {
+        // The opaque base goes too, not just the wash and the border: it is there so a bubble reads
+        // the same under the context menu's dim and the edit blur, and behind a bare row the same
+        // base would be a rectangular patch against both.
+        backgroundColor = bare ? .clear : UIColor(Color.backgroundMain)
+        washLayer.isHidden = bare
+        borderLayer.isHidden = bare
         washLayer.backgroundColor = fill.cgColor
         // A recycled view taking a new row drops any flash still running, so the attention never
         // finishes on a message it wasn't meant for.
@@ -79,6 +101,11 @@ final class BubbleBackgroundView: UIView {
         self.radii = radii
         setNeedsLayout()
     }
+
+    /// Whether this chrome draws a bubble: the opaque base, the wash and the hairline border. False
+    /// for a bare row, which keeps only the shape mask and the attention layer — the mask because
+    /// an unclipped flash would be a rectangle floating where no bubble is.
+    var isDrawingBubble: Bool { !washLayer.isHidden }
 
     /// The bubble's continuous, per-corner rounded shape in its own coordinate space — the same
     /// geometry used for the layer mask. Clips the context-menu lift preview to the bubble.
@@ -157,13 +184,16 @@ final class BubbleBackgroundView: UIView {
     private static let liftShadowOffset = CGSize(width: 0, height: 10)
 
     /// Raises `view` to the lifted plane. `shape` is the bubble's own path, so the shadow follows a
-    /// flattened grouped corner instead of falling back to the view's square bounds.
+    /// flattened grouped corner instead of falling back to the view's square bounds. `nil` — a bare
+    /// row, with no bubble to trace — casts no shadow at all, rather than one Core Animation derives
+    /// from the view's rendered alpha: a clear-backgrounded preview's only opaque content is its
+    /// emoji, and an undirected shadow would trace that glyph instead of reading as chromeless.
     ///
     /// Applied to the view *hosting* the chrome, never to this view: its layer is masked to the
     /// bubble shape, and a mask clips a shadow as readily as it clips a sublayer.
     static func raise(_ view: UIView, shape: UIBezierPath?) {
         view.layer.shadowColor = UIColor.black.cgColor
-        view.layer.shadowOpacity = liftShadowOpacity
+        view.layer.shadowOpacity = shape == nil ? 0 : liftShadowOpacity
         view.layer.shadowRadius = liftShadowRadius
         view.layer.shadowOffset = liftShadowOffset
         view.layer.shadowPath = shape?.cgPath
@@ -184,8 +214,8 @@ final class BubbleBackgroundView: UIView {
             : UIColor.white.withAlphaComponent(0.02)
     }
 
-    /// Per-corner radii: a same-sender run flattens the inner corners (nearest the avatar column)
-    /// from 12 to 4 so stacked bubbles read as one column.
+    /// Per-corner radii: a bubble run flattens the inner corners (nearest the avatar column)
+    /// from `baseRadius` to `groupedRadius` so stacked bubbles read as one column.
     static func radii(isFromSelf: Bool, groupedAbove: Bool, groupedBelow: Bool) -> RectangleCornerRadii {
         let top = groupedAbove ? groupedRadius : baseRadius
         let bottom = groupedBelow ? groupedRadius : baseRadius

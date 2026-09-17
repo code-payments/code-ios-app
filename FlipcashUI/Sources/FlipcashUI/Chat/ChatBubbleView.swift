@@ -12,7 +12,7 @@ import FlipcashCore
 
 /// A single chat bubble: a multiline label over the shared `BubbleBackgroundView`, styled to
 /// match the app's conversation design (white-opacity fill, hairline border, app font, flattened
-/// inner corners on a same-sender run). Dumb — hand it a `ChatMessage` and it draws.
+/// inner corners on a bubble run). Dumb — hand it a `ChatMessage` and it draws.
 public final class ChatBubbleView: UIView {
 
     private let background = BubbleBackgroundView()
@@ -30,6 +30,20 @@ public final class ChatBubbleView: UIView {
     private var labelTopToBubble: NSLayoutConstraint!
     /// Body pinned below the quote panel, for a reply.
     private var labelTopToQuote: NSLayoutConstraint!
+    /// Body insets from the bubble's edges, relaxed to nothing on a bare row so the emoji starts
+    /// where the bubble's outer edge would.
+    private var labelLeading: NSLayoutConstraint!
+    private var labelTrailing: NSLayoutConstraint!
+    private var labelBottom: NSLayoutConstraint!
+    /// Whether the row currently draws bare, so `maskingPath` can decline to clip a lift preview to
+    /// a bubble that is not drawn.
+    private var isBare = false
+
+    private static let bodyInset: CGFloat = 12
+    private static let bodyPadding: CGFloat = 9
+    /// A bare row's padding. Smaller than a bubble's because the emoji carries its own margin
+    /// inside its line box, and the transcript's rhythm is what is being matched, not the bubble's.
+    private static let barePadding: CGFloat = 4
     /// Collapses the panel to nothing when there is no quote, in both axes. Height alone is not
     /// enough: the panel is pinned to both of the bubble's sides, so whatever width it demands with
     /// nothing in it — the rule and its gutters — becomes a floor under every bubble's width, and a
@@ -61,7 +75,7 @@ public final class ChatBubbleView: UIView {
         quotePanel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(quotePanel)
 
-        labelTopToBubble = label.topAnchor.constraint(equalTo: topAnchor, constant: 9)
+        labelTopToBubble = label.topAnchor.constraint(equalTo: topAnchor, constant: Self.bodyPadding)
         labelTopToQuote = label.topAnchor.constraint(
             equalTo: quotePanel.bottomAnchor,
             constant: ChatQuotePanelView.bottomSpacing
@@ -76,6 +90,10 @@ public final class ChatBubbleView: UIView {
             constant: -ChatQuotePanelView.surroundInset
         )
 
+        labelBottom = label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.bodyPadding)
+        labelLeading = label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.bodyInset)
+        labelTrailing = label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.bodyInset)
+
         NSLayoutConstraint.activate(quoteCollapse + [
             background.topAnchor.constraint(equalTo: topAnchor),
             background.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -85,9 +103,9 @@ public final class ChatBubbleView: UIView {
             quotePanel.topAnchor.constraint(equalTo: topAnchor, constant: ChatQuotePanelView.surroundInset),
             quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatQuotePanelView.surroundInset),
             labelTopToBubble,
-            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            labelBottom,
+            labelLeading,
+            labelTrailing,
 
             // Bottom-trailing corner: the body's reservation run keeps the space clear, so the
             // marker lands on the last line where it fits and on the wrapped line where it doesn't.
@@ -97,8 +115,9 @@ public final class ChatBubbleView: UIView {
     }
 
     /// The bubble's shape in its own coordinate space, for clipping the context-menu lift preview.
-    /// The background is pinned to every edge, so its bounds match the bubble's.
-    var maskingPath: UIBezierPath { background.maskingPath }
+    /// The background is pinned to every edge, so its bounds match the bubble's. `nil` on a bare
+    /// row: there is no bubble to clip to, and a lift given no path casts no shadow.
+    var maskingPath: UIBezierPath? { isBare ? nil : background.maskingPath }
 
     /// Flashes the bubble's ground to point the eye at this message after a jump.
     func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
@@ -108,7 +127,12 @@ public final class ChatBubbleView: UIView {
 
     public func configure(with message: ChatMessage) {
         label.attributedText = Self.displayText(for: message)
-        editedLabel.isHidden = !Self.showsEditedMarker(for: message)
+        editedLabel.isHidden = !Self.showsEditedMarker(for: message) || message.rendersAsLargeEmoji
+        isBare = message.rendersAsLargeEmoji
+        labelTopToBubble.constant = isBare ? Self.barePadding : Self.bodyPadding
+        labelBottom.constant = isBare ? -Self.barePadding : -Self.bodyPadding
+        labelLeading.constant = isBare ? 0 : Self.bodyInset
+        labelTrailing.constant = isBare ? 0 : -Self.bodyInset
 
         // Deactivate before activating: with both top constraints live the layout is
         // unsatisfiable, and UIKit resolves that by breaking one at random.
@@ -132,9 +156,10 @@ public final class ChatBubbleView: UIView {
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
             radii: BubbleBackgroundView.radii(
                 isFromSelf: message.sender == .me,
-                groupedAbove: message.isContinuationFromPrevious,
-                groupedBelow: message.isContinuedByNext
+                groupedAbove: message.joinsBubbleAbove,
+                groupedBelow: message.joinsBubbleBelow
             ),
+            bare: isBare,
             identity: message.id
         )
     }
@@ -167,9 +192,13 @@ public final class ChatBubbleView: UIView {
             return nil
         }
 
-        let bodyFont: UIFont = isPlaceholder
-            ? .italicSystemFont(ofSize: 16)
-            : .default(size: 16, weight: .medium)
+        let bodyFont: UIFont = if isPlaceholder {
+            .italicSystemFont(ofSize: 16)
+        } else if message.rendersAsLargeEmoji {
+            .default(size: 48, weight: .medium)
+        } else {
+            .default(size: 16, weight: .medium)
+        }
         let bodyColor: UIColor = isPlaceholder ? UIColor.white.withAlphaComponent(0.55) : .white
 
         let result = NSMutableAttributedString(
@@ -177,7 +206,7 @@ public final class ChatBubbleView: UIView {
             attributes: [.font: bodyFont, .foregroundColor: bodyColor]
         )
 
-        if Self.showsEditedMarker(for: message) {
+        if Self.showsEditedMarker(for: message), !message.rendersAsLargeEmoji {
             result.append(EditedMarker.reservation)
         }
 
@@ -194,8 +223,8 @@ public final class ChatBubbleView: UIView {
 
     let samples: [ChatMessage] = [
         ChatMessage(id: "1", text: "Hey! How's it going?", sender: .other),
-        ChatMessage(id: "2", text: "Pretty good.", sender: .me, isContinuedByNext: true),
-        ChatMessage(id: "3", text: "This one is much longer to show the bubble wrap across several lines and hug its content nicely.", sender: .me, isContinuationFromPrevious: true),
+        ChatMessage(id: "2", text: "Pretty good.", sender: .me, isContinuedByNext: true, joinsBubbleBelow: true),
+        ChatMessage(id: "3", text: "This one is much longer to show the bubble wrap across several lines and hug its content nicely.", sender: .me, isContinuationFromPrevious: true, joinsBubbleAbove: true),
     ]
     for message in samples {
         let bubble = ChatBubbleView()

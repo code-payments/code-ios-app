@@ -24,6 +24,10 @@ import FlipcashCore
 public class ChatColumnCell: UICollectionViewCell {
 
     private let receipt = ChatReceiptView()
+    /// The "Edited" marker on the metadata line, for a row that has no bubble to put it in. Hidden
+    /// on every other cell, which draws the marker inside the bubble as it always has.
+    private let editedMarker = EditedMarker.makeLabel()
+    private let metadata = ChatMetadataRow()
     private let column = UIStackView()
     /// The author's name above the first bubble of a run, in an attributed transcript. Hidden — and
     /// so collapsed out of the column — in every DM.
@@ -72,7 +76,23 @@ public class ChatColumnCell: UICollectionViewCell {
         authorName.isHidden = true
         column.addArrangedSubview(authorName)
         column.addArrangedSubview(content)
-        column.addArrangedSubview(receipt)
+        metadata.axis = .horizontal
+        // The two pieces are set in the same 11pt type, so centring them reads as one line without
+        // asking a stack for a baseline that `ChatReceiptView` — a plain view around two faces — does
+        // not vend.
+        metadata.alignment = .center
+        metadata.spacing = Self.metadataSpacing
+        metadata.isLayoutMarginsRelativeArrangement = true
+        metadata.directionalLayoutMargins = .zero
+        editedMarker.isHidden = true
+        // Nothing else on a bare row says the message was edited: its body skips the reservation run
+        // the bubble's marker hides behind. A hidden label is out of the accessibility tree anyway,
+        // so this speaks only on the rows that show it.
+        editedMarker.isAccessibilityElement = true
+        metadata.addArrangedSubview(editedMarker)
+        metadata.addArrangedSubview(receipt)
+        metadata.isHidden = true
+        column.addArrangedSubview(metadata)
         column.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(column)
 
@@ -112,6 +132,9 @@ public class ChatColumnCell: UICollectionViewCell {
 
     /// The transcript's side margin, and the avatar gutter's own leading inset.
     static let rowInset: CGFloat = 12
+
+    /// Between "Edited" and the receipt — the same gap the receipt sets between its own two halves.
+    private static let metadataSpacing: CGFloat = 4
 
     /// The author name's tint. Figma names every speaker in the same 50% white (node 9764:15123)
     /// rather than the per-person colour the quote panel uses, so a run of different senders reads
@@ -175,6 +198,8 @@ public class ChatColumnCell: UICollectionViewCell {
         // Clear the line so a recycled cell never carries its prior row's text into the next use,
         // or animates away from it.
         receipt.reset()
+        editedMarker.isHidden = true
+        metadata.isHidden = true
         // Same for the attribution: a recycled cell would otherwise draw the previous author's name
         // and face for the frame before `updateColumn` runs.
         authorName.isHidden = true
@@ -189,7 +214,11 @@ public class ChatColumnCell: UICollectionViewCell {
     /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The line
     /// itself comes from the mapping (`message.receipt`) and renders itself; the cell only decides
     /// whether the update animates, and makes a failed row tappable to retry.
-    func updateColumn(for message: ChatMessage, authorImageData: Data? = nil) {
+    ///
+    /// - Parameter showsEditedMarker: draws "Edited" on the metadata line, to the left of the
+    ///   receipt. Only a row with no bubble asks for this; every other cell draws the marker inside
+    ///   its bubble.
+    func updateColumn(for message: ChatMessage, authorImageData: Data? = nil, showsEditedMarker: Bool = false) {
         // Cross-fade the receipt only when the *same* row changes in place (Delivered→Read, the settling
         // line revealing). A recycled or freshly dequeued cell renders a different row, so its line is set
         // directly — otherwise the cross-fade would replay this cell's prior line (a reused failed cell
@@ -200,6 +229,13 @@ public class ChatColumnCell: UICollectionViewCell {
         retryID = message.isFailed ? message.id : nil
         retryTap?.isEnabled = message.isFailed
         receipt.setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
+        editedMarker.isHidden = !showsEditedMarker
+        // Collapsed when it holds neither piece, or the column's 4pt spacing leaves a gap under every
+        // row that carries no metadata at all.
+        metadata.isHidden = editedMarker.isHidden && receipt.isHidden
+        // The receipt carries its own trailing padding inside its faces; a marker standing alone has
+        // none, and would sit 10pt further out than the line it replaces.
+        metadata.directionalLayoutMargins.trailing = receipt.isHidden ? ChatReceiptView.trailingPadding : 0
         column.alignment = message.sender == .me ? .trailing : .leading
         updateAttribution(for: message, authorImageData: authorImageData)
     }
@@ -255,7 +291,25 @@ extension ChatColumnCell: UIGestureRecognizerDelegate {
     /// move when the receipt collapses, which leaves the empty half of the row inside its bounds.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         let point = touch.location(in: column)
-        return (content.map { $0.frame.contains(point) } ?? false) || (!receipt.isHidden && receipt.frame.contains(point))
+        return (content.map { $0.frame.contains(point) } ?? false) || (!metadata.isHidden && metadata.frame.contains(point))
+    }
+}
+
+/// The line under a row's content: an optional "Edited" marker and the receipt, trailing-aligned so
+/// the two read as one piece of metadata.
+///
+/// A subclass only so it can refuse the implicit geometry animation, for the same reason
+/// `ChatReceiptView` does: an arranged subview revealed inside a batch update otherwise springs in
+/// from the stack's origin, and nesting the receipt a level deeper would let showing or hiding
+/// "Edited" drag the Delivered→Read swap sideways. `transform` and `opacity` still fall through, so
+/// the faces animate as they always did.
+private final class ChatMetadataRow: UIStackView {
+
+    override func action(for layer: CALayer, forKey event: String) -> CAAction? {
+        if layer === self.layer, event == "position" || event == "bounds" {
+            return NSNull()
+        }
+        return super.action(for: layer, forKey: event)
     }
 }
 #endif

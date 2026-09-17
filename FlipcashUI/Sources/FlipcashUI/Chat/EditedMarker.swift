@@ -43,8 +43,9 @@ enum EditedMarker {
         label.text = text
         label.font = font
         label.textColor = color
-        // The body already carries the marker in its reservation run, so VoiceOver reads it in
-        // place; this label would only repeat it.
+        // A bubble's body carries the marker in its reservation run, so VoiceOver reads it in place
+        // and this label would only repeat it. A row that draws the marker on its own — with no
+        // reservation behind it — turns this back on.
         label.isAccessibilityElement = false
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
         label.translatesAutoresizingMaskIntoConstraints = false

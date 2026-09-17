@@ -46,7 +46,11 @@ public final class ChatMessageCell: ChatColumnCell {
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         bubble.configure(with: message)
         maxWidthConstraint.constant = maxWidth
-        updateColumn(for: message, authorImageData: authorImageData)
+        updateColumn(
+            for: message,
+            authorImageData: authorImageData,
+            showsEditedMarker: message.rendersAsLargeEmoji && ChatBubbleView.showsEditedMarker(for: message)
+        )
     }
 }
 
@@ -63,8 +67,8 @@ extension ChatMessageCell: BubbleCarrying {
 
     let samples: [ChatMessage] = [
         ChatMessage(id: "1", text: "First message from them.", sender: .other),
-        ChatMessage(id: "2", text: "And a reply from me.", sender: .me, isContinuedByNext: true),
-        ChatMessage(id: "3", text: "Second line, same sender, so the corner flattens.", sender: .me, isContinuationFromPrevious: true),
+        ChatMessage(id: "2", text: "And a reply from me.", sender: .me, isContinuedByNext: true, joinsBubbleBelow: true),
+        ChatMessage(id: "3", text: "Second line, joins the bubble run, so the corner flattens.", sender: .me, isContinuationFromPrevious: true, joinsBubbleAbove: true),
         ChatMessage(id: "4", text: "A longer one back from them that wraps onto more than a single line to prove self-sizing.", sender: .other),
     ]
 

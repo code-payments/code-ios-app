@@ -261,6 +261,14 @@ public final class ChatScrollBenchmarkViewController: UIViewController {
             )))
         }
 
+        // The harness builds messages directly rather than through `ChatItem.from`, so it has to
+        // reach the same two conclusions the mapper does: which rows render bare, and where that
+        // breaks the bubble run. Without this the pool's emoji row draws a bubble here and not in
+        // the app, and the benchmark stops being a picture of the shipping transcript.
+        func rendersBare(_ index: Int) -> Bool {
+            index >= 0 && index < total && EmojiOnlyDetector.isEmojiOnly(texts[index % texts.count])
+        }
+
         // Runs of three, so continuation grouping and author changes are both exercised the way a
         // real group transcript exercises them.
         for index in 0..<total {
@@ -275,6 +283,9 @@ public final class ChatScrollBenchmarkViewController: UIViewController {
                 sender: sender,
                 isContinuationFromPrevious: isContinuation,
                 isContinuedByNext: isContinued,
+                joinsBubbleAbove: isContinuation && !rendersBare(index) && !rendersBare(index - 1),
+                joinsBubbleBelow: isContinued && !rendersBare(index) && !rendersBare(index + 1),
+                isEmojiOnly: rendersBare(index),
                 author: sender == .me ? nil : author,
                 isAttributedTranscript: !authors.isEmpty
             )))

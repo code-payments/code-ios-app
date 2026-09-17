@@ -88,6 +88,19 @@ extension ChatItem {
                 || !calendar.isDate(message.date, inSameDayAs: earlier.date)
         }
 
+        // What breaks the bubble run: a text body of one to three emoji, on a row that is not a
+        // reply — the quote panel lives inside the bubble and has no standalone layout. Narrower
+        // than `ChatMessage.rendersAsLargeEmoji`, which also has a link row to rule out.
+        func isEmojiOnlyBody(_ message: ConversationMessage) -> Bool {
+            switch message.content {
+            case .text(let text): EmojiOnlyDetector.isEmojiOnly(text)
+            case .cash, .deleted: false
+            }
+        }
+        func rendersBare(_ message: ConversationMessage) -> Bool {
+            message.repliedTo == nil && isEmojiOnlyBody(message)
+        }
+
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -115,6 +128,14 @@ extension ChatItem {
             let groupedBelow = next.map {
                 $0.senderID == message.senderID && !separates($0, from: message)
             } ?? false
+
+            // The bubble run, which is not the author run. A bubble stacked above a bare emoji would
+            // otherwise flatten its inner corner to `BubbleBackgroundView.groupedRadius` and take
+            // the tight row gap, pointing at a bubble that is not there — while the name and the
+            // gutter face stay where they are.
+            let isBare = rendersBare(message)
+            let joinsBubbleAbove = groupedAbove && !isBare && !(previous.map(rendersBare) ?? false)
+            let joinsBubbleBelow = groupedBelow && !isBare && !(next.map(rendersBare) ?? false)
 
             let content: ChatMessage.Content
             let linkPreview: LinkPreview?
@@ -179,6 +200,9 @@ extension ChatItem {
                 sender: isFromSelf ? .me : .other,
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow,
+                joinsBubbleAbove: joinsBubbleAbove,
+                joinsBubbleBelow: joinsBubbleBelow,
+                isEmojiOnly: isEmojiOnlyBody(message),
                 receipt: receipt,
                 linkPreview: linkPreview,
                 isEdited: message.lastEditedTs != nil && !message.isDeleted,

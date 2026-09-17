@@ -81,12 +81,22 @@ extension ChatItem {
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
             }
 
+            // The same body test the transcript runs, so a notification preview draws a bare emoji
+            // the way the conversation behind it will. The bubble-run flags stay false: a preview is
+            // at most three rows and never groups them.
+            let isEmojiOnly: Bool
+            switch message.content {
+            case .text(let text):  isEmojiOnly = EmojiOnlyDetector.isEmojiOnly(text)
+            case .cash, .deleted:  isEmojiOnly = false
+            }
+
             items.append(.message(ChatMessage(
                 id: String(message.id.value),
                 content: content,
                 sender: sender,
                 isContinuationFromPrevious: false,
-                isContinuedByNext: false
+                isContinuedByNext: false,
+                isEmojiOnly: isEmojiOnly
             )))
             previous = message
         }

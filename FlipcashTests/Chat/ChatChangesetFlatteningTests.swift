@@ -31,6 +31,8 @@ struct ChatChangesetFlatteningTests {
             sender: sender,
             isContinuationFromPrevious: continuationFromPrevious,
             isContinuedByNext: continuedByNext,
+            joinsBubbleAbove: continuationFromPrevious,
+            joinsBubbleBelow: continuedByNext,
             receipt: receipt
         ))
     }
