@@ -44,9 +44,6 @@ final class BubbleBackgroundView: UIView {
         super.init(frame: frame)
         layer.mask = shapeMask
         backgroundColor = UIColor(Color.backgroundMain)
-        // Bare mode swaps this to clear, and a reconfigure inside a batch update is an animation
-        // context — without this the base cross-fades while the row is moving.
-        layer.actions = ["backgroundColor": NSNull()]
         // Resized in `layoutSubviews`, where an implicit animation would drag a block of solid
         // colour behind the bubble's own frame change.
         washLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
@@ -66,6 +63,19 @@ final class BubbleBackgroundView: UIView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    // Bare mode swaps `backgroundColor` to clear, and a reconfigure inside a batch update is an
+    // animation context — without this the base cross-fades while the row is moving. This must be a
+    // delegate override, not `layer.actions`: `CALayer.action(for:forKey:)` asks the delegate (this
+    // view) first, and `UIView`'s own answer for `backgroundColor` always wins over the layer's own
+    // dictionary. The `layer === self.layer` check matters — this view has four sublayers, and they
+    // must keep falling through to their own `actions` dictionaries.
+    override func action(for layer: CALayer, forKey event: String) -> CAAction? {
+        if layer === self.layer, event == "backgroundColor" {
+            return NSNull()
+        }
+        return super.action(for: layer, forKey: event)
+    }
 
     /// Sets the chrome. `identity` is the row this is drawing — pass it, and a later `apply` for the
     /// same row that changes the radii morphs the corner instead of snapping it. A first setup, a
@@ -174,13 +184,16 @@ final class BubbleBackgroundView: UIView {
     private static let liftShadowOffset = CGSize(width: 0, height: 10)
 
     /// Raises `view` to the lifted plane. `shape` is the bubble's own path, so the shadow follows a
-    /// flattened grouped corner instead of falling back to the view's square bounds.
+    /// flattened grouped corner instead of falling back to the view's square bounds. `nil` — a bare
+    /// row, with no bubble to trace — casts no shadow at all, rather than one Core Animation derives
+    /// from the view's rendered alpha: a clear-backgrounded preview's only opaque content is its
+    /// emoji, and an undirected shadow would trace that glyph instead of reading as chromeless.
     ///
     /// Applied to the view *hosting* the chrome, never to this view: its layer is masked to the
     /// bubble shape, and a mask clips a shadow as readily as it clips a sublayer.
     static func raise(_ view: UIView, shape: UIBezierPath?) {
         view.layer.shadowColor = UIColor.black.cgColor
-        view.layer.shadowOpacity = liftShadowOpacity
+        view.layer.shadowOpacity = shape == nil ? 0 : liftShadowOpacity
         view.layer.shadowRadius = liftShadowRadius
         view.layer.shadowOffset = liftShadowOffset
         view.layer.shadowPath = shape?.cgPath

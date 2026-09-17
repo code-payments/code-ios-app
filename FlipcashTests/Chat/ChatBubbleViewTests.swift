@@ -323,6 +323,78 @@ struct ChatBubbleViewBareTests {
         let marker = view.descendants(of: UILabel.self).first { $0.text == EditedMarker.text }
         #expect(marker?.isHidden == false)
     }
+
+    @Test("The chrome suppresses the implicit backgroundColor action on its own layer")
+    func suppressesBackgroundColorActionOnOwnLayer() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        let background = chrome(view)
+        let action = background.action(for: background.layer, forKey: "backgroundColor")
+        #expect(action is NSNull)
+    }
+
+    // UIView's own `action(for:forKey:)` answers "backgroundColor" the same way (NSNull outside an
+    // animation context) no matter which layer it's asked about — it keys off the event name, not
+    // the layer identity. So a foreign layer's answer can't be distinguished from a hijack by its
+    // value alone; what's checked here is that the override's `layer === self.layer` branch is
+    // skipped, i.e. the answer is whatever plain `UIView.action(for:forKey:)` would give, not this
+    // view's own hardcoded one.
+    @Test("The chrome does not hijack a sublayer's own event — a foreign layer gets an ordinary UIView's answer")
+    func doesNotHijackASublayersAction() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        let background = chrome(view)
+        let foreignLayer = CALayer()
+        let deferred = background.action(for: foreignLayer, forKey: "backgroundColor")
+        let plain = UIView().action(for: foreignLayer, forKey: "backgroundColor")
+        #expect((deferred is NSNull) == (plain is NSNull))
+    }
+
+    @Test("Raising with a shape casts the lift shadow along that path")
+    func raiseWithShapeCastsTheLiftShadow() {
+        let view = UIView()
+        let path = UIBezierPath(rect: CGRect(x: 0, y: 0, width: 40, height: 40))
+        BubbleBackgroundView.raise(view, shape: path)
+        #expect(view.layer.shadowOpacity == 0.65)
+        #expect(view.layer.shadowPath != nil)
+    }
+
+    @Test("Raising a bare row's clear-backgrounded preview with no shape casts no shadow at all")
+    func raiseWithNoShapeCastsNoShadow() {
+        let view = UIView()
+        BubbleBackgroundView.raise(view, shape: nil)
+        #expect(view.layer.shadowOpacity == 0)
+        #expect(view.layer.shadowPath == nil)
+    }
+
+    @Test("Reconfiguring a bare view with an ordinary message fully restores the bubble chrome")
+    func reusedInstance_bareToOrdinary_restoresChrome() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        view.configure(with: ChatMessage(id: "2", text: "hi", sender: .me))
+        // A recycled cell's own reconfigure path always runs under a fresh layout pass (the
+        // collection view invalidates it); mirror that here since nothing else invalidates a
+        // constraint's constant change on an already laid-out, windowless test view.
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+
+        #expect(chrome(view).isDrawingBubble)
+        #expect(chrome(view).backgroundColor != .clear)
+        #expect(view.maskingPath != nil)
+        #expect(body(view, "hi")?.font.pointSize == 16)
+        #expect(body(view, "hi")?.frame.minX == 12)
+    }
+
+    @Test("Reconfiguring an ordinary view with a bare message fully reaches the bare state")
+    func reusedInstance_ordinaryToBare_reachesBareState() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        view.configure(with: ChatMessage(id: "2", text: "👍", sender: .me, isEmojiOnly: true))
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+
+        #expect(!chrome(view).isDrawingBubble)
+        #expect(chrome(view).backgroundColor == .clear)
+        #expect(view.maskingPath == nil)
+        #expect(body(view, "👍")?.font.pointSize == 48)
+        #expect(body(view, "👍")?.frame.minX == 0)
+    }
 }
 
 @MainActor

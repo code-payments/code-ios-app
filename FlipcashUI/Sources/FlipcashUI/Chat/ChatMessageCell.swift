@@ -49,7 +49,7 @@ public final class ChatMessageCell: ChatColumnCell {
         updateColumn(
             for: message,
             authorImageData: authorImageData,
-            showsEditedMarker: message.rendersAsLargeEmoji && message.isEdited
+            showsEditedMarker: message.rendersAsLargeEmoji && ChatBubbleView.showsEditedMarker(for: message)
         )
     }
 }
