@@ -27,10 +27,7 @@ import FlipcashCore
                 amount: "$15.00",
                 claim: .claimable,
                 tokenName: "Dollars",
-                iconURL: nil,
-                billColors: [],
-                isUSDF: true,
-                issuedByViewer: false
+                iconURL: nil
             )
         }
         let resolved = await resolver.resolve(.cash(card))

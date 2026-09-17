@@ -68,43 +68,28 @@ public enum LinkCard: Hashable, Sendable, Codable {
             /// The mint's name, as the wallet's own card shows it.
             public let tokenName: String
             public let iconURL: URL?
-            /// The mint's bill-customization colors (`#RRGGBB`) — the gradient the card is painted
-            /// in. Empty takes the fallback.
-            public let billColors: [String]
-            /// Whether this is the reserve, which has fixed gold branding rather than a mint's own.
-            public let isUSDF: Bool
-            public let issuedByViewer: Bool
 
-            public init(
-                amount: String,
-                claim: Claim,
-                tokenName: String,
-                iconURL: URL?,
-                billColors: [String],
-                isUSDF: Bool,
-                issuedByViewer: Bool
-            ) {
+            public init(amount: String, claim: Claim, tokenName: String, iconURL: URL?) {
                 self.amount = amount
                 self.claim = claim
                 self.tokenName = tokenName
                 self.iconURL = iconURL
-                self.billColors = billColors
-                self.isUSDF = isUSDF
-                self.issuedByViewer = issuedByViewer
             }
 
-            /// The line inside the bill, under the amount. Resolved here, next to
-            /// `ChatCashContent.caption`, so the view stays dumb and both cash surfaces word
-            /// themselves in one layer.
+            /// The line on the card's stub. Resolved here, next to `ChatCashContent.caption`, so
+            /// the view stays dumb and both cash surfaces word themselves in one layer.
             ///
-            /// A claimed or expired card says so and offers nothing to tap: the card is a drawing
-            /// of a link that is still openable, and the claim itself only ever happens through
-            /// the deep-link path.
+            /// A claimable link reads the same for the sender and the recipient. The bubble's
+            /// alignment already says who sent it, and the card would be saying it a second time in
+            /// the one place both people look at the same object.
+            ///
+            /// "Tap to claim" names what the *link* does, not what the card does: the card claims
+            /// nothing, and a tap on it opens the link through the deep-link path the URL took.
             public var caption: String {
                 switch claim {
                 case .claimed:   "Claimed"
                 case .expired:   "Expired"
-                case .claimable: issuedByViewer ? "You sent this" : "Tap to claim"
+                case .claimable: "Tap to claim"
                 }
             }
         }

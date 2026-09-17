@@ -66,16 +66,24 @@ struct TokenCardView: View {
         )
     }
 
-    private static let cornerRadius: CGFloat = TokenBillStyle.cornerRadius   // 12 — medium shape
+    private static let cornerRadius: CGFloat = Metrics.boxRadius   // 12 — medium shape
+    private static let fallback = Color(hex: "#06450F")!
+    // Sourced from the model so the Dollars card and its give bill can't drift.
+    private static let usdfGradient: [Color] = MintMetadata.usdf.billColors.compactMap { Color(hex: $0) }
 
-    // Shared with the UIKit bill a cash link draws in the transcript, so the Dollars card, its
-    // give bill and a link card are painted from one palette.
     private var gradient: LinearGradient {
-        LinearGradient(
-            colors: TokenBillStyle.colorStops(colors: colors, isUSDF: isUSDF),
-            startPoint: .leading,
-            endPoint: .trailing
-        )
+        let stops: [Color]
+        if isUSDF {
+            stops = Self.usdfGradient
+        } else {
+            let parsed = colors.compactMap(Color.init(hex:))
+            switch parsed.count {
+            case 0:  stops = [Self.fallback, Self.fallback]
+            case 1:  stops = [parsed[0], parsed[0]]
+            default: stops = parsed
+            }
+        }
+        return LinearGradient(colors: stops, startPoint: .leading, endPoint: .trailing)
     }
 
     var body: some View {

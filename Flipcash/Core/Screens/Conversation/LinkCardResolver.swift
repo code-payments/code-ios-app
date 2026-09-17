@@ -122,10 +122,9 @@ extension LinkCardResolver {
             )
 
             guard let exchangedFiat = info.exchangedFiat else { throw ErrorFetchBalance.notFound }
-            // The card is the mint's own bill — its name, its icon, its gradient. A mint with no
-            // metadata has none of that, and a bill painted in the fallback green under a name we
-            // do not have would brand the link as a token it may not pay out. Fail the lookup and
-            // let it render unresolved instead.
+            // The card names and pictures the mint. A mint with no metadata gives neither, and a
+            // card with an amount on it under no name says less than the brand mark does. Fail the
+            // lookup and let it render unresolved instead.
             guard let mint = info.mintMetadata else { throw ErrorFetchBalance.notFound }
 
             let claim: LinkCard.Cash.Claim = switch info.claimState {
@@ -140,10 +139,7 @@ extension LinkCardResolver {
                 // The reserve arrives already branded "Dollars" off the wire, which is what the
                 // wallet card shows, so there is no special case here.
                 tokenName: mint.name,
-                iconURL: mint.imageURL,
-                billColors: mint.billColors,
-                isUSDF: mint.address == PublicKey.usdf,
-                issuedByViewer: info.isGiftCardIssuer
+                iconURL: mint.imageURL
             )
         }
     }

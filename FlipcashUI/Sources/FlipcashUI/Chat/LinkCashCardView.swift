@@ -11,39 +11,66 @@ import SwiftUI
 import FlipcashCore
 import Kingfisher
 
-/// The cash-link card: the same bill the wallet deck and the token screen draw, in place of the
-/// URL it was made from. A link to a token is recognisably that token before it is opened.
+/// The cash-link card: a paper ticket drawn in place of the URL it was made from.
 ///
-/// Drawn in UIKit rather than by hosting `TokenCardView`, because this sits inside a recycled
-/// transcript bubble and hosting a SwiftUI view per dequeue costs a view-controller adoption —
-/// `ChatAuthorAvatarView` makes the same trade for the same reason. The palette is not restated:
-/// both renderers take their stops from ``TokenBillStyle``.
+/// Two pieces stacked — the ticket and its stub — with a scored seam between them and a notch
+/// bitten out of each side. The notches are *cleared* rather than painted, so the transcript shows
+/// through them and the card reads as perforated paper instead of one panel with a line across it.
+///
+/// A claimed link is drawn with the stub simply not there: no gap and no offset, because the
+/// half-notches left along the ticket's bottom edge are the evidence. The band the stub occupied
+/// stays open at its full height in every state, so a lookup landing never changes the card's
+/// height and shoves the transcript.
+///
+/// Paper and ink are fixed for every cash link regardless of mint. Painting the token's own bill
+/// would need colours the lookup may not have, and a card in the fallback green under a name we do
+/// not hold would brand the link as a token it may not pay out.
+///
+/// Drawn in UIKit rather than by hosting SwiftUI, because this sits inside a recycled transcript
+/// bubble and hosting a SwiftUI view per dequeue costs a view-controller adoption —
+/// `ChatAuthorAvatarView` makes the same trade for the same reason.
 ///
 /// Dumb — everything it draws arrives already formatted on `LinkCard.Cash`, the same way
-/// `ChatCashCardCell` takes its strings off `ChatCashContent`. It draws nothing tappable of its
-/// own: opening the link is the bubble's job, through the same deep-link path the URL took, so
-/// there is exactly one way in.
+/// `ChatCashCardCell` takes its strings off `ChatCashContent`. Opening the link is the bubble's
+/// job, through the same deep-link path the URL took, so there is exactly one way in.
 final class LinkCashCardView: UIView {
 
     /// The type row's brand mark, shown when there is no token to name.
     private static let brand = "Cash Link"
 
-    /// The wallet bill's inset, and the "$" watermark's size on a full-height card. Both scale
-    /// with the card, which in a bubble is a fraction of the wallet's width.
-    private static let referenceHeight: CGFloat = 224
-    private static let referenceInset: CGFloat = 16
-    private static let referenceWatermark: CGFloat = 213
+    /// The proportions of the wallet's bill: 224pt of card across 328pt of usable width — its own
+    /// height at full width less two screen insets on a 375pt phone. A chat bubble is a good deal
+    /// narrower than that, and scaling the height with the width is what keeps the card a ticket
+    /// there rather than a tall panel.
+    private static let aspectRatio: CGFloat = 224.0 / 328.0
 
-    private let gradient = CAGradientLayer()
-    private let watermark = UILabel()
+    /// The stub's share of the card's height, held whether or not the stub is drawn.
+    private static let stubShare: CGFloat = 0.28
+
+    private static let notchRadius: CGFloat = 9
+    private static let dash: [NSNumber] = [4, 4]
+    private static let inset: CGFloat = 14
+    private static let iconSize: CGFloat = 20
+    private static let pillHeight: CGFloat = 26
+
+    private static let paper = UIColor(red: 242 / 255, green: 240 / 255, blue: 234 / 255, alpha: 1)
+    private static let ink = UIColor(red: 20 / 255, green: 18 / 255, blue: 31 / 255, alpha: 1)
+
+    private let topPiece = UIView()
+    private let stubPiece = UIView()
+    private let topMask = CAShapeLayer()
+    private let stubMask = CAShapeLayer()
+    private let score = CAShapeLayer()
+    private let silhouette = CAShapeLayer()
+    private let topDim = UIView()
+    private let stubDim = UIView()
+
     private let coinIcon = UIImageView()
     private let tokenLabel = UILabel()
     private let amountLabel = UILabel()
-    private let captionLabel = UILabel()
-
-    /// The watermark's last applied point size, so a layout pass that changes nothing does not
-    /// dirty the label and ask for another.
-    private var watermarkSize: CGFloat = 0
+    private let stubPill = UIView()
+    private let stubLabel = UILabel()
+    private let tornLabel = UILabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -54,93 +81,163 @@ final class LinkCashCardView: UIView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     private func setUp() {
-        layer.cornerRadius = TokenBillStyle.cornerRadius
-        layer.cornerCurve = .continuous
-        layer.masksToBounds = true
-        layer.borderWidth = 1
-        layer.borderColor = UIColor.white.withAlphaComponent(0.10).cgColor
+        topPiece.backgroundColor = Self.paper
+        topPiece.layer.mask = topMask
+        addSubview(topPiece)
 
-        gradient.startPoint = CGPoint(x: 0, y: 0.5)
-        gradient.endPoint = CGPoint(x: 1, y: 0.5)
-        layer.insertSublayer(gradient, at: 0)
+        stubPiece.backgroundColor = Self.paper
+        stubPiece.layer.mask = stubMask
+        addSubview(stubPiece)
 
-        // The reserve bill's oversized "$", tucked toward the trailing edge and taller than the
-        // card so it clips top and bottom. Overlay blend rather than plain white, matching the
-        // SwiftUI card's watermark (node 9223:23556).
-        watermark.text = "$"
-        watermark.textColor = .white
-        watermark.alpha = 0.30
-        watermark.layer.compositingFilter = "overlayBlendMode"
-        watermark.isUserInteractionEnabled = false
-        watermark.isAccessibilityElement = false
-        watermark.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(watermark)
+        // The score belongs to the ticket rather than sitting between the two pieces: on the
+        // ticket's layer it is clipped by the ticket's own mask and covered by the ticket's dim,
+        // so it cannot outlive the paper it is scored into.
+        score.strokeColor = Self.ink.withAlphaComponent(0.45).cgColor
+        score.lineWidth = 1
+        score.lineDashPattern = Self.dash
+        score.fillColor = nil
+        topPiece.layer.addSublayer(score)
 
         coinIcon.contentMode = .scaleAspectFill
         coinIcon.clipsToBounds = true
-        coinIcon.layer.cornerRadius = 12
-        coinIcon.translatesAutoresizingMaskIntoConstraints = false
+        coinIcon.layer.cornerRadius = Self.iconSize / 2
+        topPiece.addSubview(coinIcon)
 
         tokenLabel.font = .appTextSmall
-        tokenLabel.textColor = .white
+        tokenLabel.textColor = Self.ink.withAlphaComponent(0.55)
         tokenLabel.numberOfLines = 1
+        topPiece.addSubview(tokenLabel)
 
         amountLabel.font = .appDisplaySmall
-        amountLabel.textColor = .white
+        amountLabel.textColor = Self.ink
         amountLabel.numberOfLines = 1
+        amountLabel.textAlignment = .center
         amountLabel.adjustsFontSizeToFitWidth = true
         amountLabel.minimumScaleFactor = 0.5
-        amountLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
-        amountLabel.setContentHuggingPriority(.required, for: .horizontal)
+        topPiece.addSubview(amountLabel)
 
-        let header = UIStackView(arrangedSubviews: [coinIcon, tokenLabel, UIView(), amountLabel])
-        header.spacing = 8
-        header.alignment = .center
-        header.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(header)
+        stubPill.backgroundColor = Self.ink
+        stubPiece.addSubview(stubPill)
 
-        captionLabel.font = .appTextSmall
-        captionLabel.textColor = .white
-        captionLabel.numberOfLines = 1
-        captionLabel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(captionLabel)
+        stubLabel.font = .appTextSmall
+        stubLabel.numberOfLines = 1
+        stubLabel.textAlignment = .center
+        stubPiece.addSubview(stubLabel)
 
-        // The inset is the wallet card's own, unscaled: the bill's proportions change with the
-        // container but its furniture does not, the same way Android's `TokenCard` takes a height
-        // and leaves its padding alone.
+        // Each piece dims itself, added last so the piece's mask clips it. One overlay across the
+        // whole card would paint over the cleared notches and fill the holes back in.
+        for (dim, piece) in [(topDim, topPiece), (stubDim, stubPiece)] {
+            dim.backgroundColor = UIColor.black.withAlphaComponent(0.35)
+            dim.isUserInteractionEnabled = false
+            piece.addSubview(dim)
+        }
+
+        // The torn state's furniture hangs off `self`, because what it stands in for is the piece
+        // that is gone. The silhouette traces the stub's outline, notch bites included: a line
+        // struck straight across the band would close the bite that is the whole tell.
+        silhouette.strokeColor = Self.paper.withAlphaComponent(0.25).cgColor
+        silhouette.lineWidth = 1
+        silhouette.lineDashPattern = Self.dash
+        silhouette.fillColor = nil
+        layer.addSublayer(silhouette)
+
+        // Off-paper, and so outside either dim: the paper this would have sat on left with whoever
+        // claimed the link.
+        tornLabel.font = .appTextSmall
+        tornLabel.textColor = UIColor(Color.textSecondary)
+        tornLabel.textAlignment = .center
+        tornLabel.numberOfLines = 1
+        addSubview(tornLabel)
+
         NSLayoutConstraint.activate([
-            header.topAnchor.constraint(equalTo: topAnchor, constant: Self.referenceInset),
-            header.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.referenceInset),
-            header.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.referenceInset),
-            captionLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.referenceInset),
-            captionLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.referenceInset),
-            coinIcon.widthAnchor.constraint(equalToConstant: 24),
-            coinIcon.heightAnchor.constraint(equalToConstant: 24),
-
-            captionLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -Self.referenceInset),
-
-            watermark.centerYAnchor.constraint(equalTo: centerYAnchor),
-            watermark.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-
-            // The bill's proportions, not its size. Always live, including while collapsed: a card
-            // with no width has no height either, so this stays consistent with the bubble's
+            // The ticket's proportions, not its size. Always live, including while collapsed: a
+            // card with no width has no height either, so this stays consistent with the bubble's
             // zero-size constraints rather than fighting them.
-            heightAnchor.constraint(equalTo: widthAnchor, multiplier: TokenBillStyle.aspectRatio),
+            heightAnchor.constraint(equalTo: widthAnchor, multiplier: Self.aspectRatio),
         ])
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        gradient.frame = bounds
 
-        // The "$" is sized as a proportion of the card, not in points: it is meant to overrun the
-        // bill's height and clip, and a fixed 213pt on a bubble-width card would leave a stroke
-        // rather than a glyph.
-        let size = (Self.referenceWatermark * bounds.height / Self.referenceHeight).rounded()
-        if size != watermarkSize, size > 0 {
-            watermarkSize = size
-            watermark.font = .default(size: size, weight: .bold)
-        }
+        let width = bounds.width
+        let height = bounds.height
+        guard width > 0, height > 0 else { return }
+
+        let notch = Self.notchRadius
+        let corner = Metrics.boxRadius
+        let stubHeight = (height * Self.stubShare).rounded()
+        let seam = height - stubHeight
+
+        topPiece.frame = CGRect(x: 0, y: 0, width: width, height: seam)
+        stubPiece.frame = CGRect(x: 0, y: seam, width: width, height: stubHeight)
+        topDim.frame = topPiece.bounds
+        stubDim.frame = stubPiece.bounds
+
+        topMask.frame = topPiece.bounds
+        topMask.path = Self.ticketPath(size: topPiece.bounds.size, notch: notch, corner: corner).cgPath
+        stubMask.frame = stubPiece.bounds
+        stubMask.path = Self.stubPath(size: stubPiece.bounds.size, notch: notch, corner: corner).cgPath
+
+        // Between the notches, and half a point up so the hairline lands inside the paper rather
+        // than straddling its bottom edge.
+        let line = UIBezierPath()
+        line.move(to: CGPoint(x: notch, y: seam - 0.5))
+        line.addLine(to: CGPoint(x: width - notch, y: seam - 0.5))
+        score.frame = topPiece.bounds
+        score.path = line.cgPath
+
+        silhouette.frame = stubPiece.frame
+        silhouette.path = stubMask.path
+
+        layOutHeader(in: topPiece.bounds)
+        layOutStub(in: stubPiece.bounds)
+        tornLabel.frame = stubPiece.frame
+    }
+
+    /// Icon and token name centred as one group along the top, amount centred in what is left.
+    private func layOutHeader(in bounds: CGRect) {
+        let inset = Self.inset
+        let available = bounds.width - inset * 2
+        let lead = coinIcon.isHidden ? 0 : Self.iconSize + 6
+
+        let nameSize = tokenLabel.sizeThatFits(CGSize(width: available - lead, height: .greatestFiniteMagnitude))
+        let nameWidth = min(nameSize.width, available - lead)
+        let rowHeight = max(Self.iconSize, nameSize.height)
+        let rowX = ((bounds.width - (nameWidth + lead)) / 2).rounded()
+
+        coinIcon.frame = CGRect(
+            x: rowX,
+            y: inset + ((rowHeight - Self.iconSize) / 2).rounded(),
+            width: Self.iconSize,
+            height: Self.iconSize
+        )
+        tokenLabel.frame = CGRect(x: rowX + lead, y: inset, width: nameWidth, height: rowHeight)
+
+        let amountTop = inset + rowHeight
+        amountLabel.frame = CGRect(
+            x: inset,
+            y: amountTop,
+            width: available,
+            height: max(0, bounds.height - amountTop - inset)
+        )
+    }
+
+    private func layOutStub(in bounds: CGRect) {
+        let available = bounds.width - Self.inset * 2
+        let textSize = stubLabel.sizeThatFits(CGSize(width: available, height: .greatestFiniteMagnitude))
+        let pilled = !stubPill.isHidden
+        let boxHeight = pilled ? Self.pillHeight : textSize.height
+        let boxWidth = min(available, textSize.width + (pilled ? 24 : 0))
+
+        stubLabel.frame = CGRect(
+            x: ((bounds.width - boxWidth) / 2).rounded(),
+            y: ((bounds.height - boxHeight) / 2).rounded(),
+            width: boxWidth,
+            height: boxHeight
+        )
+        stubPill.frame = stubLabel.frame
+        stubPill.layer.cornerRadius = boxHeight / 2
     }
 
     func prepareForReuse() {
@@ -149,39 +246,99 @@ final class LinkCashCardView: UIView {
     }
 
     /// Draws `card`. An unresolved card — including one whose lookup failed, timed out or never ran
-    /// — is a neutral panel of the same size carrying the brand mark, which is the floor the bill
-    /// degrades to rather than an error state. There is no honest bill for a token whose name and
-    /// colours are unknown, so a guess is not offered in place of one.
+    /// — is the identical ticket carrying the brand mark, with no icon and no amount. Nothing moves
+    /// or resizes when the lookup lands; text appears. A second drawing for the unresolved case
+    /// would be a second thing that can look wrong.
     func configure(with card: LinkCard) {
         switch card {
         case .cash(let cash):
             switch cash.state {
             case .unresolved:
                 tokenLabel.text = Self.brand
-                amountLabel.isHidden = true
-                captionLabel.isHidden = true
                 coinIcon.isHidden = true
                 coinIcon.kf.cancelDownloadTask()
                 coinIcon.image = nil
-                watermark.isHidden = true
-                // No token colour to take yet. A neutral ground, dark enough to separate the card
-                // from the bubble it sits on and no darker.
-                gradient.colors = Array(repeating: UIColor.white.withAlphaComponent(0.10).cgColor, count: 2)
+                amountLabel.text = nil
+                stubPill.isHidden = true
+                stubLabel.text = nil
+                tornLabel.text = nil
+                setTorn(false, dimmed: false)
 
             case .resolved(let value):
                 tokenLabel.text = value.tokenName
-                amountLabel.text = value.amount
-                amountLabel.isHidden = false
-                captionLabel.text = value.caption
-                captionLabel.isHidden = false
                 coinIcon.isHidden = value.iconURL == nil
                 coinIcon.kf.setImage(with: value.iconURL)
-                watermark.isHidden = !value.isUSDF
-                gradient.colors = TokenBillStyle
-                    .colorStops(colors: value.billColors, isUSDF: value.isUSDF)
-                    .map { UIColor($0).cgColor }
+                amountLabel.text = value.amount
+
+                // The pill is the card's one call to action, drawn only while there is something
+                // to do. A claimed or expired link reads as a note instead.
+                let actionable = value.claim == .claimable
+                stubPill.isHidden = !actionable
+                stubLabel.textColor = actionable ? Self.paper : Self.ink.withAlphaComponent(0.55)
+                stubLabel.text = value.claim == .claimed ? nil : value.caption
+                tornLabel.text = value.caption
+                setTorn(value.claim == .claimed, dimmed: value.claim != .claimable)
             }
         }
+        setNeedsLayout()
+    }
+
+    /// Claimed tears: the stub is not drawn and its silhouette holds the band. Expired dims but
+    /// stays intact — expired means the link lapsed where it sat, not that anyone took it.
+    private func setTorn(_ torn: Bool, dimmed: Bool) {
+        stubPiece.isHidden = torn
+        score.isHidden = torn
+        silhouette.isHidden = !torn
+        tornLabel.isHidden = !torn
+        topDim.isHidden = !dimmed
+        stubDim.isHidden = !dimmed
+    }
+
+    // MARK: - The two halves of the perforation
+
+    /// The ticket: rounded across the top, square at the seam, with a half-notch bitten inward from
+    /// each bottom corner. Traced as one closed outline rather than punched with an even-odd rule,
+    /// because the stub's identical outline is also stroked as the torn state's silhouette.
+    private static func ticketPath(size: CGSize, notch: CGFloat, corner: CGFloat) -> UIBezierPath {
+        let path = UIBezierPath()
+        let width = size.width
+        let height = size.height
+        path.move(to: CGPoint(x: 0, y: corner))
+        path.addArc(withCenter: CGPoint(x: corner, y: corner), radius: corner,
+                    startAngle: .pi, endAngle: 1.5 * .pi, clockwise: true)
+        path.addLine(to: CGPoint(x: width - corner, y: 0))
+        path.addArc(withCenter: CGPoint(x: width - corner, y: corner), radius: corner,
+                    startAngle: 1.5 * .pi, endAngle: 2 * .pi, clockwise: true)
+        path.addLine(to: CGPoint(x: width, y: height - notch))
+        path.addArc(withCenter: CGPoint(x: width, y: height), radius: notch,
+                    startAngle: 1.5 * .pi, endAngle: .pi, clockwise: false)
+        path.addLine(to: CGPoint(x: notch, y: height))
+        path.addArc(withCenter: CGPoint(x: 0, y: height), radius: notch,
+                    startAngle: 0, endAngle: 1.5 * .pi, clockwise: false)
+        path.close()
+        return path
+    }
+
+    /// The stub: the ticket inverted — square at the seam with the matching half-notches along its
+    /// top, rounded across the bottom. The two halves of each notch meet to make one hole.
+    private static func stubPath(size: CGSize, notch: CGFloat, corner: CGFloat) -> UIBezierPath {
+        let path = UIBezierPath()
+        let width = size.width
+        let height = size.height
+        path.move(to: CGPoint(x: 0, y: notch))
+        path.addArc(withCenter: .zero, radius: notch,
+                    startAngle: 0.5 * .pi, endAngle: 0, clockwise: false)
+        path.addLine(to: CGPoint(x: width - notch, y: 0))
+        path.addArc(withCenter: CGPoint(x: width, y: 0), radius: notch,
+                    startAngle: .pi, endAngle: 0.5 * .pi, clockwise: false)
+        path.addLine(to: CGPoint(x: width, y: height - corner))
+        path.addArc(withCenter: CGPoint(x: width - corner, y: height - corner), radius: corner,
+                    startAngle: 0, endAngle: 0.5 * .pi, clockwise: true)
+        path.addLine(to: CGPoint(x: corner, y: height))
+        path.addArc(withCenter: CGPoint(x: corner, y: height - corner), radius: corner,
+                    startAngle: 0.5 * .pi, endAngle: .pi, clockwise: true)
+        path.close()
+        return path
     }
 }
 #endif
