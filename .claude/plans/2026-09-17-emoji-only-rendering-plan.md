@@ -993,15 +993,37 @@ private final class ChatMetadataRow: UIStackView {
 
 Expected: PASS. `ChatReceiptViewTests` is the one that guards the reveal and the Delivered→Read swap — the behaviour this task puts a stack level above.
 
-- [ ] **Step 7: Check the receipt by eye on an ordinary text row**
+- [ ] **Step 7: Drive the receipt animation through the motion sandbox**
 
-Build and run, send a message, and watch the "Delivered" reveal and the Delivered→Read swap on a *text* row — the animation this task moved is shared by every cell, and an emoji row is not where a regression would show first.
+The animation this task moves is shared by every cell, and an emoji row is not where a regression
+would show first — so it has to be exercised on an ordinary text row. Do not try to do that with a
+real account. `ChatMotionSandboxViewController` scripts `.send → .delivered → .read` on a `.me`
+text row against the shipping `ChatViewController`, with no server, account or counterpart, and
+`--motion-sandbox` stands it up in place of the whole app.
 
 ```bash
 ./Scripts/build.sh
 ```
 
 Expected: BUILD SUCCEEDED.
+
+Then install the simulator build and launch it with the sandbox argument:
+
+```bash
+xcrun simctl launch --console-pty booted com.flipcash.app.ios --motion-sandbox
+```
+
+Watch the console for the run and confirm two things:
+
+1. **No Auto Layout constraint breakage.** Nesting the receipt one stack level deeper is exactly the
+   kind of change that produces `Unable to simultaneously satisfy constraints`. The log must be clean
+   through at least two loops of the script.
+2. **No crash or hang** across the `.reset` beat, which re-pushes the transcript un-animated.
+
+Report the console output either way. The visual check — that "Delivered" still reveals in place
+rather than springing in from the stack's origin, and that the Delivered→Read swap does not drag
+sideways — is the coordinator's, who captures it from the same harness; your job is to confirm the
+run is clean and to say so plainly if it is not.
 
 - [ ] **Step 8: Commit**
 
@@ -1017,6 +1039,7 @@ git add FlipcashUI/Sources/FlipcashUI/Chat/ChatColumnCell.swift FlipcashUI/Sourc
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift:42-61`, `:70-81`, `:83-87`
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift:51-97`, `:99-101`, `:110-141`, `:167-182`
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift:45-49`
+- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatScrollBenchmark.swift:249-283`
 - Test: `FlipcashTests/Chat/ChatBubbleViewTests.swift`
 
 - [ ] **Step 1: Write the failing tests**
@@ -1317,22 +1340,76 @@ Expected: PASS. The last two are the other suites `ChatBubbleViewTests.swift` al
 
 Expected: PASS — the lift path changed type, so this is the suite that would catch a break.
 
-- [ ] **Step 8: Look at it**
+- [ ] **Step 8: Make the scroll benchmark produce bare rows**
+
+`ChatScrollBenchmark`'s text pool already holds `"👍"` at index 6, so a qualifying row appears
+every eighth message. But `window(_:offset:)` builds each `ChatMessage` directly instead of going
+through `ChatItem.from`, so `isEmojiOnly` stays at its `false` default and those rows would still
+draw a bubble after this task — the one harness that can show the feature would not show it.
+
+The harness has to make the same two decisions the mapper makes. In
+`FlipcashUI/Sources/FlipcashUI/Chat/ChatScrollBenchmark.swift`, inside `window(_:offset:)`, add
+above the `for index in 0..<total` loop:
+
+```swift
+        // The harness builds messages directly rather than through `ChatItem.from`, so it has to
+        // reach the same two conclusions the mapper does: which rows render bare, and where that
+        // breaks the bubble run. Without this the pool's emoji row draws a bubble here and not in
+        // the app, and the benchmark stops being a picture of the shipping transcript.
+        func rendersBare(_ index: Int) -> Bool {
+            index >= 0 && index < total && EmojiOnlyDetector.isEmojiOnly(texts[index % texts.count])
+        }
+```
+
+and replace the three flag arguments in the `ChatMessage(...)` call with:
+
+```swift
+                isContinuationFromPrevious: isContinuation,
+                isContinuedByNext: isContinued,
+                joinsBubbleAbove: isContinuation && !rendersBare(index) && !rendersBare(index - 1),
+                joinsBubbleBelow: isContinued && !rendersBare(index) && !rendersBare(index + 1),
+                isEmojiOnly: rendersBare(index),
+```
+
+Leave `isContinuationFromPrevious` / `isContinuedByNext` exactly as they are — they are the author
+run, which a bare row does not break.
+
+`ChatMotionSandbox` needs no equivalent change: no row in its fixture qualifies, and its
+`grouped(_:)` doc already says so.
+
+- [ ] **Step 9: Look at it**
 
 ```bash
 ./Scripts/build.sh
 ```
 
-Build and run, and send a one-emoji message, a three-emoji message, and an emoji reply. Three things this task cannot assert in a unit test:
+Expected: BUILD SUCCEEDED.
 
-- the 48pt glyph is not clipped top or bottom (an emoji fills its line box, and a body line height sized for 16pt text would crop it — if it crops, set the label's line height explicitly rather than reducing the font size);
-- long-pressing a bare emoji lifts it with no bubble-shaped shadow and no rectangular patch behind it, and the same under the edit blur;
-- jumping to a bare emoji from a quote flashes a rounded highlight, not a rectangle.
-
-- [ ] **Step 9: Commit**
+Then stand up a transcript with no account and hold it still — velocity 0 leaves the benchmark's
+display link spinning without moving the content, so the capture is repeatable:
 
 ```bash
-git add FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift FlipcashTests/Chat/ChatBubbleViewTests.swift && git commit -m "feat(chat): render an emoji-only message without a bubble"
+xcrun simctl launch booted com.flipcash.app.ios --scroll-benchmark --scroll-benchmark-messages=24 --scroll-benchmark-authors=4 --scroll-benchmark-velocity=0
+```
+
+The pool puts a bare row at indices 6, 14 and 22, so two are on screen at rest. Check the one thing
+a unit test cannot reach:
+
+- **the 48pt glyph is not clipped top or bottom.** An emoji fills its line box, and a body line
+  height sized for 16pt text crops it. If it crops, set the label's line height explicitly rather
+  than reducing the font size — the size is the feature.
+
+Two more need gestures and belong to the coordinator, who drives them from the same harness; say in
+your report that you did not check them:
+
+- long-pressing a bare emoji lifts it with no bubble-shaped shadow and no rectangular patch behind
+  it, and the same under the edit blur;
+- jumping to a bare emoji from a quote flashes a rounded highlight, not a rectangle.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatScrollBenchmark.swift FlipcashTests/Chat/ChatBubbleViewTests.swift && git commit -m "feat(chat): render an emoji-only message without a bubble"
 ```
 
 ---
