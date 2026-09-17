@@ -4,7 +4,7 @@
 
 **Goal:** A chat message whose whole body is one to three emoji renders as the emoji alone at 48pt — no bubble, no border, no wash — the way iMessage draws one, while keeping its side, receipt line, avatar gutter, tap-to-retry, swipe-to-reply and context menu.
 
-**Architecture:** Detection is a pure function in `FlipcashCore` (`EmojiOnlyDetector`), called by the transcript mapper. The mapper splits today's single grouping pair into two: `isContinuationFromPrevious`/`isContinuedByNext` keep their values and now mean the *author* run only (name + gutter face), while new `joinsBubbleAbove`/`joinsBubbleBelow` carry the *bubble* run (flattened inner corners, tight row gap). A bare emoji row breaks the bubble run on both sides without touching attribution. A third flag, `isEmojiOnly`, plus a computed `rendersAsLargeEmoji`, select a new `ChatEmojiMessageCell` through the existing `cellReuseIdentifier` → `differenceIdentifier` path, so editing a message into or out of emoji-only diffs as delete+insert.
+**Architecture:** Detection is a pure function in `FlipcashCore` (`EmojiOnlyDetector`), called by the transcript mapper. The mapper splits today's single grouping pair into two: `isContinuationFromPrevious`/`isContinuedByNext` keep their values and now mean the *author* run only (name + gutter face), while new `joinsBubbleAbove`/`joinsBubbleBelow` carry the *bubble* run (flattened inner corners, tight row gap). A bare emoji row breaks the bubble run on both sides without touching attribution. A third flag, `isEmojiOnly`, plus a computed `rendersAsLargeEmoji`, put `ChatBubbleView` into a bare mode — the chrome switched off on the view every text row already uses, which is the shape Android shipped. There is no new cell class, so editing a message into or out of emoji-only stays an in-place reconfigure.
 
 **Tech Stack:** Swift 6.1, UIKit (`UICollectionView` + ChatLayout), DifferenceKit, Swift Testing (`import Testing`, `@Suite`/`@Test`, `#expect` — never XCTest), SwiftUI only for `UnevenRoundedRectangle` geometry.
 
@@ -24,10 +24,6 @@ in the worktree for the whole run and must never be committed.
 | `FlipcashCore/Sources/FlipcashCore/Models/Chat/EmojiOnlyDetector.swift` | Pure "is this body 1–3 emoji?" test |
 | `FlipcashCore/Tests/FlipcashCoreTests/EmojiOnlyDetectorTests.swift` | Detector unit tests |
 | `FlipcashCore/Tests/FlipcashCoreTests/ChatMessageRenderingTests.swift` | `rendersAsLargeEmoji` gating |
-| `FlipcashUI/Sources/FlipcashUI/Chat/LargeEmojiView.swift` | The bare 48pt emoji body + its own attention flash |
-| `FlipcashUI/Sources/FlipcashUI/Chat/ChatEmojiMessageCell.swift` | `ChatColumnCell` subclass hosting `LargeEmojiView` |
-| `FlipcashTests/Chat/ChatEmojiMessageCellTests.swift` | Cell: no bubble chrome, font size, "Edited" placement |
-| `FlipcashTests/Chat/ChatItemCellSelectionTests.swift` | `cellReuseIdentifier` mapping |
 
 **Modified**
 | File | Change |
@@ -35,19 +31,19 @@ in the worktree for the whole run and must never be committed.
 | `FlipcashCore/Sources/FlipcashCore/Models/Chat/ChatMessage.swift` | Three stored flags + `rendersAsLargeEmoji` |
 | `Flipcash/Core/Screens/Conversation/ChatItem+Conversation.swift` | Computes the three flags |
 | `FlipcashCore/Sources/FlipcashCore/Models/Chat/ChatPreviewMapping.swift` | Sets `isEmojiOnly` for the notification preview |
-| `FlipcashUI/Sources/FlipcashUI/Chat/ChatItem+Differentiable.swift` | Emoji cell in the class decision |
-| `FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift` | Radii read `joinsBubble*` |
+| `FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift` | Radii read `joinsBubble*`; bare mode — 48pt body, no insets, optional masking path |
 | `FlipcashUI/Sources/FlipcashUI/Chat/LinkableBubbleView.swift` | Radii read `joinsBubble*` |
 | `FlipcashUI/Sources/FlipcashUI/Chat/ChatCashCardCell.swift` | Radii read `joinsBubble*` |
-| `FlipcashUI/Sources/FlipcashUI/Chat/ChatViewController.swift` | Row gap reads `joinsBubbleBelow`; registers + configures the emoji cell |
-| `FlipcashUI/Sources/FlipcashUI/Chat/ChatMotion.swift` | Owns the attention keyframe |
-| `FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift` | Uses `ChatMotion.attentionFlash`; `raise` no-ops without a shape |
+| `FlipcashUI/Sources/FlipcashUI/Chat/ChatViewController.swift` | Row gap reads `joinsBubbleBelow` |
+| `FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift` | `apply` takes `bare`: no opaque base, no wash, no border |
+| `FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift` | Asks the column for the "Edited" marker on a bare row |
 | `FlipcashUI/Sources/FlipcashUI/Chat/ChatColumnCell.swift` | Bottom slot becomes a metadata row (Edited + receipt) |
 | `FlipcashUI/Sources/FlipcashUI/Chat/ChatReceiptView.swift` | `trailingPadding` promoted to the view |
 | `FlipcashUI/Sources/FlipcashUI/Chat/ChatScrollBenchmark.swift`, `ChatMotionSandbox.swift`, previews | Mirror the new flags |
+| `FlipcashTests/Chat/ChatBubbleViewTests.swift` | Bare row vs ordinary row: chrome, body metrics, lift path |
 | `FlipcashTests/Chat/ChatViewControllerTests.swift`, `ChatChangesetFlatteningTests.swift`, `ChatTranscriptDiffFuzzTests.swift`, `ChatMessageMappingTests.swift` | Fixtures + new cases |
 
-**Order:** detection → model → mapper → consumers → motion → view → column → cell → wiring → preview cache. Every task ends on a green build.
+**Order:** detection → model → mapper → corner and gap consumers → metadata row → bare bubble → preview cache. Every task ends on a green build.
 
 ---
 
@@ -842,229 +838,7 @@ git add FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift FlipcashUI/Sourc
 
 ---
 
-### Task 5: The attention flash moves to `ChatMotion`
-
-**Files:**
-- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatMotion.swift:153-160`
-- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift:113-138`, `:159-170`
-
-No new test: this is a pure extraction, covered by the existing quote-jump tests that assert `isFlashingAttention`.
-
-- [ ] **Step 1: Add the builder to `ChatMotion`**
-
-In `FlipcashUI/Sources/FlipcashUI/Chat/ChatMotion.swift`, after `attentionDuration` (line 160), add:
-
-```swift
-    /// The quote-jump flash: a keyframe on `opacity` that lights quickly, holds, then fades slowly,
-    /// leaving the resting value at 0 throughout. Built here rather than in a view because two
-    /// different grounds play it — a bubble's wash layer and a bare emoji row's own patch — and they
-    /// must run to one timing.
-    ///
-    /// `start` is when the flash began, on `CACurrentMediaTime()`'s clock. A time already past joins
-    /// a flash in progress rather than restarting it, so a row re-dequeued mid-flash picks it up
-    /// where it left off and still ends when it would have.
-    nonisolated public static func attentionFlash(startedAt start: CFTimeInterval) -> CAKeyframeAnimation {
-        let total = attentionDuration
-        let flash = CAKeyframeAnimation(keyPath: "opacity")
-        flash.values = [0, 1, 1, 0]
-        flash.keyTimes = [
-            0,
-            NSNumber(value: attentionRise / total),
-            NSNumber(value: (attentionRise + attentionHold) / total),
-            1,
-        ]
-        flash.timingFunctions = [
-            CAMediaTimingFunction(name: .easeOut),
-            CAMediaTimingFunction(name: .linear),
-            CAMediaTimingFunction(name: .easeInEaseOut),
-        ]
-        flash.duration = total
-        flash.beginTime = start
-        return flash
-    }
-```
-
-- [ ] **Step 2: Call it from `BubbleBackgroundView`**
-
-Replace `BubbleBackgroundView.swift:113-138` with:
-
-```swift
-    /// Brightens the bubble's ground for `ChatMotion.attentionDuration`, then lets it fade back.
-    ///
-    /// Runs as a keyframe on the layer rather than a `UIView` animation because the resting opacity
-    /// must stay 0 throughout: the row can be reconfigured or recycled mid-flash, and a model value
-    /// left raised would strand a lit bubble.
-    func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) {
-        attentionLayer.removeAnimation(forKey: Self.attentionKey)
-        attentionLayer.add(ChatMotion.attentionFlash(startedAt: start), forKey: Self.attentionKey)
-    }
-```
-
-- [ ] **Step 3: Make `raise` a no-op without a shape**
-
-Replace `BubbleBackgroundView.swift:164-170` with:
-
-```swift
-    static func raise(_ view: UIView, shape: UIBezierPath?) {
-        // No path means no bubble to trace, and Core Animation would fall back to the layer tree's
-        // alpha channel — behind a bare emoji row that is a dark blob around the glyphs rather than
-        // an edge. A shapeless caller gets no lift at all.
-        guard let shape else { return lower(view) }
-        view.layer.shadowColor = UIColor.black.cgColor
-        view.layer.shadowOpacity = liftShadowOpacity
-        view.layer.shadowRadius = liftShadowRadius
-        view.layer.shadowOffset = liftShadowOffset
-        view.layer.shadowPath = shape.cgPath
-    }
-```
-
-- [ ] **Step 4: Run the suites that cover the flash and the lift**
-
-```bash
-./Scripts/test.sh FlipcashTests/ChatMotionTests && ./Scripts/test.sh FlipcashTests/ChatViewControllerTests && ./Scripts/test.sh FlipcashTests/ChatBubbleViewTests
-```
-
-Expected: PASS. `ChatViewControllerTests` is the one that exercises `flashAttention` through `BubbleCarrying`.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add FlipcashUI/Sources/FlipcashUI/Chat/ChatMotion.swift FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift && git commit -m "refactor(chat): move the attention keyframe into ChatMotion"
-```
-
----
-
-### Task 6: `LargeEmojiView`
-
-**Files:**
-- Create: `FlipcashUI/Sources/FlipcashUI/Chat/LargeEmojiView.swift`
-
-The cell tests in Task 8 cover this view; it has no behaviour worth testing without a cell around it.
-
-- [ ] **Step 1: Write the view**
-
-Create `FlipcashUI/Sources/FlipcashUI/Chat/LargeEmojiView.swift`:
-
-```swift
-//
-//  LargeEmojiView.swift
-//  FlipcashUI
-//
-//  Copyright © 2026 Code Inc. All rights reserved.
-//
-
-#if canImport(UIKit)
-import UIKit
-import FlipcashCore
-
-/// A message body that is nothing but one to three emoji, drawn bare and enlarged — no bubble, no
-/// border, no wash. The column around it supplies the row's side, its gutter and its metadata line;
-/// this view is only the glyphs and the ground the quote-jump flash lights.
-///
-/// It deliberately does not reuse `BubbleBackgroundView`. That view composites its wash over an
-/// opaque base, on purpose, so a bubble renders the same under the context menu's dim and the edit
-/// blur. Behind a bare emoji the same opaque base would show as a rectangular patch against both.
-final class LargeEmojiView: UIView {
-
-    /// The bare emoji's type size — one size for one, two or three of them.
-    static let fontSize: CGFloat = 48
-
-    /// Keeps the glyphs off the rows above and below, in place of a bubble's inset.
-    private static let verticalPadding: CGFloat = 4
-    private static let attentionKey = "attention"
-    /// The same lift the bubble's ground takes, so a jumped-to emoji reads as the same event.
-    private static let attentionWash = UIColor.white.withAlphaComponent(0.10)
-    private static let attentionRadius: CGFloat = 12
-    /// How far the lit patch spreads past the glyphs, so the flash reads as a highlight rather than
-    /// a box drawn tight around them.
-    private static let attentionSpread: CGFloat = 6
-
-    private let label = UILabel()
-    private let attentionLayer = CALayer()
-    /// The row this view currently draws, so a recycled view drops a flash meant for another one.
-    private var identity: String?
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        label.font = .systemFont(ofSize: Self.fontSize)
-        label.numberOfLines = 1
-        label.translatesAutoresizingMaskIntoConstraints = false
-
-        attentionLayer.backgroundColor = Self.attentionWash.cgColor
-        attentionLayer.cornerRadius = Self.attentionRadius
-        attentionLayer.cornerCurve = .continuous
-        attentionLayer.opacity = 0
-        // Resized in `layoutSubviews`, where an implicit animation would drag the patch behind the
-        // row's own frame change.
-        attentionLayer.actions = ["position": NSNull(), "bounds": NSNull()]
-        layer.addSublayer(attentionLayer)
-        addSubview(label)
-
-        NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: topAnchor, constant: Self.verticalPadding),
-            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.verticalPadding),
-            label.leadingAnchor.constraint(equalTo: leadingAnchor),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        attentionLayer.frame = bounds.insetBy(dx: -Self.attentionSpread, dy: -Self.attentionSpread)
-    }
-
-    /// Draws `message`'s body. A non-text row never reaches here — `rendersAsLargeEmoji` is false for
-    /// one — so the guard is the switch's exhaustive form rather than a fallback.
-    func configure(with message: ChatMessage) {
-        if identity != message.id {
-            attentionLayer.removeAnimation(forKey: Self.attentionKey)
-        }
-        identity = message.id
-        switch message.content {
-        case .text(let text):     label.text = text
-        case .cash, .deleted:     label.text = nil
-        }
-    }
-
-    /// Clears the glyphs and cancels any flash in flight. Call from `prepareForReuse`.
-    func reset() {
-        attentionLayer.removeAnimation(forKey: Self.attentionKey)
-        label.text = nil
-        identity = nil
-    }
-
-    /// Lights the ground behind the glyphs, on `ChatMotion`'s shared timing.
-    func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) {
-        attentionLayer.removeAnimation(forKey: Self.attentionKey)
-        attentionLayer.add(ChatMotion.attentionFlash(startedAt: start), forKey: Self.attentionKey)
-    }
-
-    /// Whether a flash is currently running — the test hook, matching `BubbleBackgroundView`'s.
-    var isFlashingAttention: Bool { attentionLayer.animation(forKey: Self.attentionKey) != nil }
-}
-#endif
-```
-
-- [ ] **Step 2: Build to verify it compiles**
-
-```bash
-./Scripts/build.sh
-```
-
-Expected: BUILD SUCCEEDED.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add FlipcashUI/Sources/FlipcashUI/Chat/LargeEmojiView.swift && git commit -m "feat(chat): add the bare, enlarged emoji body view"
-```
-
----
-
-### Task 7: The column's bottom slot becomes a metadata row
+### Task 5: The column's bottom slot becomes a metadata row
 
 This is the riskiest edit in the plan: it moves a view whose implicit-animation suppression is load-bearing and shared by every cell in the transcript.
 
@@ -1230,446 +1004,332 @@ git add FlipcashUI/Sources/FlipcashUI/Chat/ChatColumnCell.swift FlipcashUI/Sourc
 
 ---
 
-### Task 8: `ChatEmojiMessageCell`
+### Task 6: The bubble draws bare
 
 **Files:**
-- Create: `FlipcashUI/Sources/FlipcashUI/Chat/ChatEmojiMessageCell.swift`
-- Test: `FlipcashTests/Chat/ChatEmojiMessageCellTests.swift`
+- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift:42-61`, `:70-81`, `:83-87`
+- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift:51-97`, `:99-101`, `:110-141`, `:167-182`
+- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift:45-49`
+- Test: `FlipcashTests/Chat/ChatBubbleViewTests.swift`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `FlipcashTests/Chat/ChatEmojiMessageCellTests.swift`:
+Append a new suite to the end of `FlipcashTests/Chat/ChatBubbleViewTests.swift`:
 
 ```swift
-//
-//  ChatEmojiMessageCellTests.swift
-//  FlipcashTests
-//
-//  Copyright © 2026 Code Inc. All rights reserved.
-//
-
-import Testing
-import UIKit
-import FlipcashCore
-@testable import FlipcashUI
-
 @MainActor
-@Suite("ChatEmojiMessageCell")
-struct ChatEmojiMessageCellTests {
+@Suite("Bare emoji bubble")
+struct ChatBubbleViewBareTests {
 
-    private func makeCell() -> ChatEmojiMessageCell {
-        ChatEmojiMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 200))
+    private func bubble(_ message: ChatMessage) -> ChatBubbleView {
+        let view = ChatBubbleView()
+        view.configure(with: message)
+        view.frame = CGRect(x: 0, y: 0, width: 280, height: 80)
+        view.layoutIfNeeded()
+        return view
     }
 
-    private func message(_ body: String = "👍", isEdited: Bool = false, receipt: ChatReceipt? = nil) -> ChatMessage {
-        ChatMessage(id: "1", text: body, sender: .me, isEmojiOnly: true, receipt: receipt, isEdited: isEdited)
+    private func chrome(_ view: ChatBubbleView) -> BubbleBackgroundView {
+        view.descendants(of: BubbleBackgroundView.self)[0]
     }
 
-    @Test("The row draws no bubble chrome")
-    func noBubbleChrome() {
-        let cell = makeCell()
-        cell.configure(with: message(), maxWidth: 280)
-        cell.layoutIfNeeded()
-        #expect(cell.descendants(of: BubbleBackgroundView.self).isEmpty)
+    private func body(_ view: ChatBubbleView, _ text: String) -> UILabel? {
+        view.descendants(of: UILabel.self).first { $0.text == text }
     }
 
-    @Test("The emoji is drawn at the large size")
-    func emojiIsLarge() {
-        let cell = makeCell()
-        cell.configure(with: message(), maxWidth: 280)
-        cell.layoutIfNeeded()
-        let label = cell.descendants(of: UILabel.self).first { $0.text == "👍" }
-        #expect(label?.font.pointSize == LargeEmojiView.fontSize)
+    @Test("A bare row drops the opaque base, the wash and the border")
+    func bareDropsTheChrome() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        #expect(chrome(view).backgroundColor == .clear)
+        #expect(!chrome(view).isDrawingBubble)
     }
 
-    @Test("Edited lands on the metadata line, outside the body")
-    func editedMarkerIsOnTheMetadataLine() {
-        let cell = makeCell()
-        cell.configure(with: message(isEdited: true), maxWidth: 280)
-        cell.layoutIfNeeded()
+    @Test("An ordinary row still draws all three")
+    func ordinaryKeepsTheChrome() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        #expect(chrome(view).backgroundColor != .clear)
+        #expect(chrome(view).isDrawingBubble)
+    }
 
-        let marker = cell.descendants(of: UILabel.self).first { $0.text == EditedMarker.text }
-        #expect(marker != nil)
+    @Test("A bare row keeps its shape mask, so the attention flash stays rounded")
+    func bareKeepsTheMask() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        #expect(chrome(view).layer.mask != nil)
+    }
+
+    @Test("A bare row draws the body large and flush to the view's edge")
+    func bareEnlargesAndUninsetsTheBody() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        #expect(body(view, "👍")?.font.pointSize == 48)
+        #expect(body(view, "👍")?.frame.minX == 0)
+    }
+
+    @Test("An ordinary row keeps the body size and the 12pt inset")
+    func ordinaryKeepsTheBodyMetrics() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        #expect(body(view, "hi")?.font.pointSize == 16)
+        #expect(body(view, "hi")?.frame.minX == 12)
+    }
+
+    @Test("A bare row has no lift masking path, so nothing casts a bubble-shaped shadow")
+    func bareHasNoLiftPath() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true))
+        #expect(view.maskingPath == nil)
+    }
+
+    @Test("An ordinary row still clips its lift preview to the bubble")
+    func ordinaryKeepsItsLiftPath() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
+        #expect(view.maskingPath != nil)
+    }
+
+    @Test("A bare row keeps the Edited marker out of the bubble")
+    func bareHidesTheInBubbleMarker() {
+        let view = bubble(ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true, isEdited: true))
+        let marker = view.descendants(of: UILabel.self).first { $0.text == EditedMarker.text }
+        #expect(marker?.isHidden == true)
+    }
+
+    @Test("An ordinary edited row still draws the marker in the bubble")
+    func ordinaryKeepsTheInBubbleMarker() {
+        let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me, isEdited: true))
+        let marker = view.descendants(of: UILabel.self).first { $0.text == EditedMarker.text }
         #expect(marker?.isHidden == false)
-
-        // It belongs to the column, not to the emoji body.
-        let body = cell.descendants(of: LargeEmojiView.self).first
-        let markersInBody = body?.descendants(of: UILabel.self).filter { $0.text == EditedMarker.text } ?? []
-        #expect(markersInBody.isEmpty)
-    }
-
-    @Test("An unedited row draws no marker")
-    func noMarkerWhenUnedited() {
-        let cell = makeCell()
-        cell.configure(with: message(), maxWidth: 280)
-        cell.layoutIfNeeded()
-        let marker = cell.descendants(of: UILabel.self).first { $0.text == EditedMarker.text }
-        #expect(marker?.isHidden ?? true)
-    }
-
-    @Test("Edited sits beside the receipt rather than replacing it")
-    func editedAndReceiptShareTheLine() {
-        let cell = makeCell()
-        cell.configure(with: message(isEdited: true, receipt: .delivered), maxWidth: 280)
-        cell.layoutIfNeeded()
-
-        let labels = cell.descendants(of: UILabel.self)
-        #expect(labels.contains { $0.text == EditedMarker.text && !$0.isHidden })
-        #expect(labels.contains { $0.text == "Delivered" })
-    }
-
-    @Test("The quote-jump flash runs on the row's own ground")
-    func flashRunsWithoutABubble() {
-        let cell = makeCell()
-        cell.configure(with: message(), maxWidth: 280)
-        cell.layoutIfNeeded()
-        cell.flashAttention(startedAt: CACurrentMediaTime())
-        #expect(cell.descendants(of: LargeEmojiView.self).first?.isFlashingAttention == true)
-    }
-
-    @Test("The lift preview is the emoji itself, with no bubble shape to clip to")
-    func liftPreviewIsTheEmoji() {
-        let cell = makeCell()
-        cell.configure(with: message(), maxWidth: 280)
-        #expect(cell.liftPreviewView is LargeEmojiView)
-        #expect(cell.liftPreviewMaskingPath == nil)
     }
 }
 ```
 
+Note: `ChatMessage`'s `isEdited` argument comes after `isEmojiOnly` in both inits, so the calls above compile against the signature Task 2 landed. If the argument order differs, fix the call, not the model.
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-./Scripts/test.sh FlipcashTests/ChatEmojiMessageCellTests
+./Scripts/test.sh FlipcashTests/ChatBubbleViewTests
 ```
 
-Expected: compile failure — `cannot find 'ChatEmojiMessageCell' in scope`.
+Expected: compile failure — `value of type 'BubbleBackgroundView' has no member 'isDrawingBubble'`, and `maskingPath` is not optional so `== nil` does not compile.
 
-- [ ] **Step 3: Write the cell**
+- [ ] **Step 3: Give `BubbleBackgroundView` a bare mode**
 
-Create `FlipcashUI/Sources/FlipcashUI/Chat/ChatEmojiMessageCell.swift`:
+In `BubbleBackgroundView.swift`, in `init(frame:)`, suppress the implicit animation on the view's own background (after `backgroundColor = UIColor(Color.backgroundMain)`, line 46):
 
 ```swift
-//
-//  ChatEmojiMessageCell.swift
-//  FlipcashUI
-//
-//  Copyright © 2026 Code Inc. All rights reserved.
-//
+        // Bare mode swaps this to clear, and a reconfigure inside a batch update is an animation
+        // context — without this the base cross-fades while the row is moving.
+        layer.actions = ["backgroundColor": NSNull()]
+```
 
-#if canImport(UIKit)
-import UIKit
-import FlipcashCore
+Give the border layer the same suppression the wash has, and add `hidden` to both, since bare toggles it (replace the `washLayer.actions` line at :49 and add after `borderLayer.lineWidth = 1` at :59):
 
-/// A recycled cell for a message whose whole body is one to three emoji: the glyphs alone, bare and
-/// enlarged, with no bubble around them. Subclassing `ChatColumnCell` carries the receipt line,
-/// tap-to-retry, the avatar gutter and swipe-to-reply across unchanged; only the content view
-/// differs.
-public final class ChatEmojiMessageCell: ChatColumnCell {
+```swift
+        washLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
+```
 
-    public static let reuseIdentifier = "ChatEmojiMessageCell"
+```swift
+        borderLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
+```
 
-    private let emoji = LargeEmojiView()
-    private var maxWidthConstraint: NSLayoutConstraint!
+Replace `apply(fill:radii:identity:)` (line 70) with:
 
-    public override init(frame: CGRect) {
-        super.init(frame: frame)
-        installColumn(content: emoji)
-        // Three 48pt emoji come nowhere near this; the cap is here so a detector bug cannot produce
-        // an unbounded row.
-        maxWidthConstraint = emoji.widthAnchor.constraint(lessThanOrEqualToConstant: 280)
-        maxWidthConstraint.isActive = true
+```swift
+    /// Sets the chrome. `identity` is the row this is drawing — pass it, and a later `apply` for the
+    /// same row that changes the radii morphs the corner instead of snapping it. A first setup, a
+    /// recycled view taking a new row, and any caller that passes no identity all snap, which is what
+    /// keeps a reused cell from animating in someone else's shape.
+    ///
+    /// `bare` draws no bubble at all, for a row that is only its content.
+    func apply(fill: UIColor, radii: RectangleCornerRadii, bare: Bool = false, identity: String? = nil) {
+        // The opaque base goes too, not just the wash and the border: it is there so a bubble reads
+        // the same under the context menu's dim and the edit blur, and behind a bare row the same
+        // base would be a rectangular patch against both.
+        backgroundColor = bare ? .clear : UIColor(Color.backgroundMain)
+        washLayer.isHidden = bare
+        borderLayer.isHidden = bare
+        washLayer.backgroundColor = fill.cgColor
+        // A recycled view taking a new row drops any flash still running, so the attention never
+        // finishes on a message it wasn't meant for.
+        if identity != self.identity {
+            attentionLayer.removeAnimation(forKey: Self.attentionKey)
+        }
+        pendingCornerMorph = identity != nil && identity == self.identity && radii != self.radii
+        self.identity = identity
+        self.radii = radii
+        setNeedsLayout()
     }
 
-    @available(*, unavailable)
-    public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    /// Whether this chrome draws a bubble: the opaque base, the wash and the hairline border. False
+    /// for a bare row, which keeps only the shape mask and the attention layer — the mask because
+    /// an unclipped flash would be a rectangle floating where no bubble is.
+    var isDrawingBubble: Bool { !washLayer.isHidden }
+```
 
-    /// - Parameter maxWidth: the widest the body may grow, in points. The owner derives it from the
-    ///   collection view's width, exactly as it does for a bubble.
+Note the shape mask and `attentionLayer` are deliberately untouched by `bare`.
+
+- [ ] **Step 4: Give `ChatBubbleView` a bare configuration**
+
+In `ChatBubbleView.swift`, add the stored constraints and metrics next to the existing `labelTopToBubble` (after line 31):
+
+```swift
+    /// Body insets from the bubble's edges, relaxed to nothing on a bare row so the emoji starts
+    /// where the bubble's outer edge would.
+    private var labelLeading: NSLayoutConstraint!
+    private var labelTrailing: NSLayoutConstraint!
+    private var labelBottom: NSLayoutConstraint!
+    /// Whether the row currently draws bare, so `maskingPath` can decline to clip a lift preview to
+    /// a bubble that is not drawn.
+    private var isBare = false
+
+    private static let bodyInset: CGFloat = 12
+    private static let bodyPadding: CGFloat = 9
+    /// A bare row's padding. Smaller than a bubble's because the emoji carries its own margin
+    /// inside its line box, and the transcript's rhythm is what is being matched, not the bubble's.
+    private static let barePadding: CGFloat = 4
+```
+
+In `setUp()`, build those three as stored constraints. Replace the three lines inside the `NSLayoutConstraint.activate` list that currently read:
+
+```swift
+            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+```
+
+with:
+
+```swift
+            labelBottom,
+            labelLeading,
+            labelTrailing,
+```
+
+and assign them just above the `NSLayoutConstraint.activate` call, next to where `quoteTrailing` is built:
+
+```swift
+        labelBottom = label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.bodyPadding)
+        labelLeading = label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.bodyInset)
+        labelTrailing = label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.bodyInset)
+```
+
+Also change `labelTopToBubble`'s literal (line 63) to the constant:
+
+```swift
+        labelTopToBubble = label.topAnchor.constraint(equalTo: topAnchor, constant: Self.bodyPadding)
+```
+
+Make `maskingPath` optional (line 99):
+
+```swift
+    /// The bubble's shape in its own coordinate space, for clipping the context-menu lift preview.
+    /// The background is pinned to every edge, so its bounds match the bubble's. `nil` on a bare
+    /// row: there is no bubble to clip to, and a lift given no path casts no shadow.
+    var maskingPath: UIBezierPath? { isBare ? nil : background.maskingPath }
+```
+
+In `configure(with:)`, set the bare state first — before the quote branch, right after the `editedLabel` line:
+
+```swift
+        isBare = message.rendersAsLargeEmoji
+        labelTopToBubble.constant = isBare ? Self.barePadding : Self.bodyPadding
+        labelBottom.constant = isBare ? -Self.barePadding : -Self.bodyPadding
+        labelLeading.constant = isBare ? 0 : Self.bodyInset
+        labelTrailing.constant = isBare ? 0 : -Self.bodyInset
+```
+
+and change the `editedLabel` line above it so a bare row's marker never draws in the bubble — it goes on the metadata line instead:
+
+```swift
+        editedLabel.isHidden = !Self.showsEditedMarker(for: message) || message.rendersAsLargeEmoji
+```
+
+Finally pass `bare:` to the chrome, in the same `background.apply` call Task 4 already edited:
+
+```swift
+        background.apply(
+            fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
+            radii: BubbleBackgroundView.radii(
+                isFromSelf: message.sender == .me,
+                groupedAbove: message.joinsBubbleAbove,
+                groupedBelow: message.joinsBubbleBelow
+            ),
+            bare: isBare,
+            identity: message.id
+        )
+```
+
+- [ ] **Step 5: Draw the body at the large size**
+
+In `displayText(for:)`, replace the `bodyFont` binding (line 167) with:
+
+```swift
+        let bodyFont: UIFont = if isPlaceholder {
+            .italicSystemFont(ofSize: 16)
+        } else if message.rendersAsLargeEmoji {
+            .default(size: 48, weight: .medium)
+        } else {
+            .default(size: 16, weight: .medium)
+        }
+```
+
+and skip the marker's reservation run on a bare row, since the marker is not in the bubble to reserve for (line 180):
+
+```swift
+        if Self.showsEditedMarker(for: message), !message.rendersAsLargeEmoji {
+            result.append(EditedMarker.reservation)
+        }
+```
+
+- [ ] **Step 6: Put a bare row's "Edited" on the metadata line**
+
+In `ChatMessageCell.swift`, `configure(with:maxWidth:authorImageData:)` (line 45) becomes:
+
+```swift
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
-        emoji.configure(with: message)
+        bubble.configure(with: message)
         maxWidthConstraint.constant = maxWidth
-        // There is no bubble to hold the marker, so it goes on the metadata line beside the receipt.
-        updateColumn(for: message, authorImageData: authorImageData, showsEditedMarker: message.isEdited)
+        updateColumn(
+            for: message,
+            authorImageData: authorImageData,
+            showsEditedMarker: message.rendersAsLargeEmoji && message.isEdited
+        )
     }
-
-    public override func prepareForReuse() {
-        super.prepareForReuse()
-        emoji.reset()
-    }
-}
-
-extension ChatEmojiMessageCell: BubbleCarrying {
-    var liftPreviewView: UIView { emoji }
-    /// Nil on purpose: a bare emoji lifts as itself. There is no bubble shape to clip the preview to,
-    /// and `BubbleBackgroundView.raise` takes that as "cast no shadow" rather than tracing one from
-    /// the glyphs' alpha.
-    var liftPreviewMaskingPath: UIBezierPath? { nil }
-    func flashAttention(startedAt start: CFTimeInterval) { emoji.flashAttention(startedAt: start) }
-}
-
-#Preview("Bare emoji rows") {
-    let stack = UIStackView()
-    stack.axis = .vertical
-    stack.spacing = 10
-    stack.translatesAutoresizingMaskIntoConstraints = false
-
-    let samples: [ChatMessage] = [
-        ChatMessage(id: "1", text: "👍", sender: .other, isEmojiOnly: true),
-        ChatMessage(id: "2", text: "😀🎉", sender: .me, isEmojiOnly: true),
-        ChatMessage(id: "3", text: "👨‍👩‍👧‍👦👍🏽🇺🇸", sender: .me, isEmojiOnly: true, receipt: .delivered, isEdited: true),
-    ]
-    for message in samples {
-        let cell = ChatEmojiMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 80))
-        cell.configure(with: message, maxWidth: 280)
-        cell.widthAnchor.constraint(equalToConstant: 320).isActive = true
-        stack.addArrangedSubview(cell)
-    }
-
-    let container = UIView()
-    container.backgroundColor = UIColor(Color.backgroundMain)
-    container.addSubview(stack)
-    NSLayoutConstraint.activate([
-        stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-        stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-        stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-    ])
-    return container
-}
-#endif
 ```
 
-The preview uses `Color.backgroundMain`, so add `import SwiftUI` beside `import UIKit`.
+`liftPreviewMaskingPath` needs no edit: it already forwards `bubbleView.maskingPath`, which is now optional.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 7: Run the tests to verify they pass**
 
 ```bash
-./Scripts/test.sh FlipcashTests/ChatEmojiMessageCellTests
+./Scripts/test.sh FlipcashTests/ChatBubbleViewTests
 ```
 
-Expected: PASS, 7 tests.
-
-- [ ] **Step 5: Commit**
+Expected: PASS, including the pre-existing `ChatBubbleViewCornerTests` suite in the same file.
 
 ```bash
-git add FlipcashUI/Sources/FlipcashUI/Chat/ChatEmojiMessageCell.swift FlipcashTests/Chat/ChatEmojiMessageCellTests.swift && git commit -m "feat(chat): render an emoji-only message without a bubble"
+./Scripts/test.sh FlipcashTests/ChatViewControllerTests
+```
+
+Expected: PASS — the lift path changed type, so this is the suite that would catch a break.
+
+- [ ] **Step 8: Look at it**
+
+```bash
+./Scripts/build.sh
+```
+
+Build and run, and send a one-emoji message, a three-emoji message, and an emoji reply. Three things this task cannot assert in a unit test:
+
+- the 48pt glyph is not clipped top or bottom (an emoji fills its line box, and a body line height sized for 16pt text would crop it — if it crops, set the label's line height explicitly rather than reducing the font size);
+- long-pressing a bare emoji lifts it with no bubble-shaped shadow and no rectangular patch behind it, and the same under the edit blur;
+- jumping to a bare emoji from a quote flashes a rounded highlight, not a rectangle.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift FlipcashTests/Chat/ChatBubbleViewTests.swift && git commit -m "feat(chat): render an emoji-only message without a bubble"
 ```
 
 ---
-
-### Task 9: The transcript picks the cell
-
-**Files:**
-- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatItem+Differentiable.swift:26-48`
-- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatViewController.swift:215-221`, `:405-419`
-- Modify: `FlipcashTests/Chat/ChatTranscriptDiffFuzzTests.swift:37-50`, `:56-82`, `:107-113`
-- Test: `FlipcashTests/Chat/ChatItemCellSelectionTests.swift`
-
-- [ ] **Step 1: Write the failing tests**
-
-Create `FlipcashTests/Chat/ChatItemCellSelectionTests.swift`:
-
-```swift
-//
-//  ChatItemCellSelectionTests.swift
-//  FlipcashTests
-//
-//  Copyright © 2026 Code Inc. All rights reserved.
-//
-
-import Testing
-import Foundation
-import FlipcashCore
-@testable import FlipcashUI
-
-@Suite("ChatItem cell selection")
-struct ChatItemCellSelectionTests {
-
-    private func item(
-        text: String = "👍",
-        isEmojiOnly: Bool = true,
-        linkPreview: LinkPreview? = nil,
-        quote: ChatQuote? = nil
-    ) -> ChatItem {
-        .message(ChatMessage(
-            id: "1",
-            text: text,
-            sender: .me,
-            isEmojiOnly: isEmojiOnly,
-            linkPreview: linkPreview,
-            quote: quote
-        ))
-    }
-
-    @Test("An emoji-only row picks the emoji cell")
-    func emojiRowPicksTheEmojiCell() {
-        #expect(item().cellReuseIdentifier == ChatEmojiMessageCell.reuseIdentifier)
-    }
-
-    @Test("A plain text row still picks the message cell")
-    func textRowPicksTheMessageCell() {
-        #expect(item(text: "hello", isEmojiOnly: false).cellReuseIdentifier == ChatMessageCell.reuseIdentifier)
-    }
-
-    @Test("An emoji reply keeps the bubble cell")
-    func replyPicksTheMessageCell() {
-        let quote = ChatQuote(stableID: "0", authorName: "Them", snippet: "hi", kind: .text)
-        #expect(item(quote: quote).cellReuseIdentifier == ChatMessageCell.reuseIdentifier)
-    }
-
-    @Test("A link row keeps the link cell")
-    func linkRowPicksTheLinkCell() {
-        let preview = LinkPreview(url: URL(string: "https://example.com")!)
-        #expect(item(linkPreview: preview).cellReuseIdentifier == ChatLinkMessageCell.reuseIdentifier)
-    }
-
-    @Test("A tombstone with an emoji body keeps the message cell")
-    func tombstonePicksTheMessageCell() {
-        let deleted = ChatItem.message(ChatMessage(
-            id: "1",
-            content: .deleted("This message was deleted"),
-            sender: .me,
-            isEmojiOnly: true
-        ))
-        #expect(deleted.cellReuseIdentifier == ChatMessageCell.reuseIdentifier)
-    }
-
-    @Test("Editing a row into emoji-only changes its difference identity")
-    func classChangeChangesIdentity() {
-        #expect(item(text: "hello", isEmojiOnly: false).differenceIdentifier != item().differenceIdentifier)
-    }
-}
-```
-
-- [ ] **Step 2: Run the tests to verify they fail**
-
-```bash
-./Scripts/test.sh FlipcashTests/ChatItemCellSelectionTests
-```
-
-Expected: FAIL on `emojiRowPicksTheEmojiCell` and `classChangeChangesIdentity` — both still resolve to `ChatMessageCell`.
-
-- [ ] **Step 3: Teach `cellReuseIdentifier` about the emoji cell**
-
-Replace `ChatItem+Differentiable.swift:26-48` with:
-
-```swift
-    var cellReuseIdentifier: String {
-        switch self {
-        case .typingIndicator:
-            ChatTypingIndicatorCell.reuseIdentifier
-        case .profileCard:
-            ChatProfileCardCell.reuseIdentifier
-        case .groupCard:
-            ChatGroupCardCell.reuseIdentifier
-        case .dateSeparator:
-            ChatDateSeparatorCell.reuseIdentifier
-        case .message(let message):
-            Self.messageCellReuseIdentifier(for: message)
-        }
-    }
-
-    /// The cell class a message row renders with. A bare emoji row is its own class, so editing a
-    /// message into or out of emoji-only diffs as delete+insert — the rule the transcript already
-    /// applies to text ↔ cash and to a link gained or lost.
-    private static func messageCellReuseIdentifier(for message: ChatMessage) -> String {
-        if message.rendersAsLargeEmoji { return ChatEmojiMessageCell.reuseIdentifier }
-        switch message.content {
-        case .text:
-            return message.linkPreview != nil ? ChatLinkMessageCell.reuseIdentifier : ChatMessageCell.reuseIdentifier
-        case .deleted:
-            // Deliberately the same cell class as plain text: a message becoming a tombstone
-            // then diffs as an in-place reconfigure rather than a delete-and-insert.
-            return ChatMessageCell.reuseIdentifier
-        case .cash:
-            return ChatCashCardCell.reuseIdentifier
-        }
-    }
-```
-
-- [ ] **Step 4: Register and configure the cell**
-
-In `ChatViewController.swift`, after line 215, add:
-
-```swift
-        collectionView.register(ChatEmojiMessageCell.self, forCellWithReuseIdentifier: ChatEmojiMessageCell.reuseIdentifier)
-```
-
-and in `configure(_:with:)`, after the `ChatMessageCell` branch (line 416), add:
-
-```swift
-        case let cell as ChatEmojiMessageCell:
-            cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
-            cell.onRetry = { [weak self] id in self?.onRetry?(id) }
-```
-
-- [ ] **Step 5: Teach the fuzz generator to flip in and out of the emoji cell**
-
-In `ChatTranscriptDiffFuzzTests.swift`, add the case to `Row` (line 41) and to `messageID`:
-
-```swift
-    private enum Row {
-        case text(id: Int, receipt: Bool, grouped: Bool)
-        case emoji(id: Int)
-        case link(id: Int)
-        case cash(id: Int)
-        case separator(id: Int)
-        case typing
-
-        var messageID: Int? {
-            switch self {
-            case .text(let id, _, _), .emoji(let id), .link(let id), .cash(let id), .separator(let id): id
-            case .typing: nil
-            }
-        }
-    }
-```
-
-Add its arm to `build(_:)`, after the `.text` case:
-
-```swift
-            case .emoji(let id):
-                .message(ChatMessage(
-                    id: "m\(id)",
-                    text: "👍",
-                    sender: .me,
-                    isEmojiOnly: true
-                ))
-```
-
-and put it in the kind-flip (`case 6, 7`):
-
-```swift
-                switch rows[index] {
-                case .text: rows[index] = Bool.random(using: &rng) ? .cash(id: id) : (Bool.random(using: &rng) ? .link(id: id) : .emoji(id: id))
-                case .cash, .link, .emoji: rows[index] = .text(id: id, receipt: false, grouped: false)
-                case .separator, .typing: break
-                }
-```
-
-- [ ] **Step 6: Run the tests to verify they pass**
-
-```bash
-./Scripts/test.sh FlipcashTests/ChatItemCellSelectionTests
-```
-
-Expected: PASS, 6 tests.
-
-```bash
-./Scripts/test.sh FlipcashTests/ChatTranscriptDiffFuzzTests
-```
-
-Expected: PASS, 4 seeds. A failure here names the seed and push index — replay that seed rather than re-running blind.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add FlipcashUI/Sources/FlipcashUI/Chat/ChatItem+Differentiable.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatViewController.swift FlipcashTests/Chat/ChatItemCellSelectionTests.swift FlipcashTests/Chat/ChatTranscriptDiffFuzzTests.swift && git commit -m "feat(chat): dequeue the bare emoji cell for an emoji-only row"
-```
-
----
-
-### Task 10: The notification preview matches the transcript
+### Task 7: The notification preview matches the transcript
 
 **Files:**
 - Modify: `FlipcashCore/Sources/FlipcashCore/Models/Chat/ChatPreviewMapping.swift:84-90`
@@ -1762,25 +1422,27 @@ Expected: BUILD SUCCEEDED.
 - [ ] **Run the chat suites**
 
 ```bash
-./Scripts/test.sh FlipcashCoreTests/EmojiOnlyDetectorTests && ./Scripts/test.sh FlipcashCoreTests/ChatMessageRenderingTests && ./Scripts/test.sh FlipcashTests/ChatMessageMappingTests && ./Scripts/test.sh FlipcashTests/ChatViewControllerTests && ./Scripts/test.sh FlipcashTests/ChatItemCellSelectionTests && ./Scripts/test.sh FlipcashTests/ChatEmojiMessageCellTests && ./Scripts/test.sh FlipcashTests/ChatTranscriptDiffFuzzTests && ./Scripts/test.sh FlipcashTests/ChatChangesetFlatteningTests && ./Scripts/test.sh FlipcashTests/ChatReceiptViewTests
+./Scripts/test.sh FlipcashCoreTests/EmojiOnlyDetectorTests && ./Scripts/test.sh FlipcashCoreTests/ChatMessageRenderingTests && ./Scripts/test.sh FlipcashTests/ChatMessageMappingTests && ./Scripts/test.sh FlipcashTests/ChatViewControllerTests && ./Scripts/test.sh FlipcashTests/ChatBubbleViewTests && ./Scripts/test.sh FlipcashTests/ChatTranscriptDiffFuzzTests && ./Scripts/test.sh FlipcashTests/ChatChangesetFlatteningTests && ./Scripts/test.sh FlipcashTests/ChatReceiptViewTests
 ```
 
 The full `AllTargets` suite is the user's job — don't run it.
 
 - [ ] **Check by hand, in this order**
 
-1. An ordinary text row's receipt: the "Delivered" reveal and the Delivered→Read swap (Task 7 moved that view).
-2. Send one, two and three emoji: bare, 48pt, no bubble, correct side.
-3. Send four emoji, and an emoji with text: both keep the bubble.
-4. A bubble directly above and below a bare emoji: full 12pt corners, normal gap.
-5. In a group chat, a run of `[text, 👍]` from one person: the name sits above the text, the face beside the 👍.
-6. Edit an emoji-only message: it stays bare and "Edited" appears on the metadata line.
-7. Edit a text message into `👍` and back: the row swaps cell class without the transcript jumping.
-8. Reply with an emoji: the bubble stays.
-9. Long-press a bare emoji: it lifts with no shadow blob and no rectangular patch behind it.
-10. Tap a quote pointing at a bare emoji row: it flashes.
+1. An ordinary text row's receipt: the "Delivered" reveal and the Delivered→Read swap (Task 5 moved that view).
+2. An ordinary text row generally: the bubble still has its fill, its hairline border and its full corners — Task 6 put a flag through the view every text row uses.
+3. Send one, two and three emoji: bare, 48pt, no bubble, correct side.
+4. Send four emoji, and an emoji with text: both keep the bubble.
+5. A bubble directly above and below a bare emoji: full 12pt corners, normal gap.
+6. In a group chat, a run of `[text, 👍]` from one person: the name sits above the text, the face beside the 👍.
+7. Edit an emoji-only message: it stays bare and "Edited" appears on the metadata line.
+8. Edit a text message into `👍` and back: the row reconfigures in place, with no jump.
+9. Reply with an emoji: the bubble stays.
+10. Long-press a bare emoji: it lifts with no shadow blob and no rectangular patch behind it.
+11. Tap a quote pointing at a bare emoji row: it flashes.
 
 ## Risks carried from the spec
 
 - **Notification preview cache.** `ChatMessage` is `Codable` and `NotificationPreviewCache` writes `[ChatItem]` as JSON into the App Group. Swift's synthesized decoder applies no default for a missing key, so a cache written by the previous build fails to decode once the three properties land. The read is `try?` with a live-fetch fallback, so the cost is one slower notification expand per conversation — a one-time expand, not a crash.
-- **The metadata row (Task 7)** is the riskiest edit: it moves a view whose implicit-animation suppression is load-bearing and shared by every cell. Check the receipt on a text row before checking anything about emoji.
+- **Bare mode is a flag on the view every text bubble uses (Task 6)**, so a regression there reaches ordinary bubbles rather than staying inside an emoji-only cell. That is the cost of not isolating this in its own cell class; the mitigation is that the bare tests assert the non-bare row still draws its wash, border and base.
+- **The metadata row (Task 5)** is the riskiest edit: it moves a view whose implicit-animation suppression is load-bearing and shared by every cell. Check the receipt on a text row before checking anything about emoji.

@@ -87,31 +87,38 @@ no new constant.
 `ChatMessage.rendersAsLargeEmoji` is computed, not stored: `isEmojiOnly` and
 `.text` content and `quote == nil` and `linkPreview == nil`.
 
-## Cell selection
+## The bubble draws bare, rather than a second cell
 
-`ChatItem.cellReuseIdentifier` returns `ChatEmojiMessageCell.reuseIdentifier` for
-a row where `rendersAsLargeEmoji` holds. That identifier is already folded into
-`differenceIdentifier`, so editing a message into or out of emoji-only diffs as
-delete-plus-insert rather than an in-place reconfigure — the rule the transcript
-already applies to text↔cash and to a link gained or lost. UIKit forbids
-reconfiguring an item into a different cell class, and `ChatTranscriptDiffFuzzTests`
-already asserts the dequeued class matches the identifier.
+`ChatBubbleView` already layers a `BubbleBackgroundView` under a *sibling* `UILabel` —
+the label is not a child of the background, so the background's shape mask never clips
+the text. A bare row is therefore the same view with its chrome switched off, not a new
+cell.
 
-## `ChatEmojiMessageCell: ChatColumnCell`
+`BubbleBackgroundView.apply` takes a `bare` flag. Bare clears the opaque `backgroundMain`
+base and hides the wash and the hairline border; it keeps the shape mask and the
+attention layer. Keeping the mask is what keeps the jump flash rounded — without it the
+highlight would be a rectangle floating where no bubble is.
 
-A `UILabel` at 48pt, one line, no background and no horizontal inset, so the
-emoji starts where the bubble's outer edge would. 4pt of vertical padding keeps
-the transcript's rhythm. Subclassing `ChatColumnCell` carries the receipt,
-tap-to-retry, the avatar gutter and swipe-to-reply across unchanged.
+`ChatBubbleView.configure` reads `message.rendersAsLargeEmoji` and, when it holds, draws
+the body at 48pt, drops the 12pt horizontal inset to 0 so the emoji starts where the
+bubble's outer edge would, and tightens the 9pt vertical padding to 4pt. The label is
+still capped at the cell's `maxWidth`, which three 48pt emoji come nowhere near — the cap
+is there so a detector bug cannot produce an unbounded row.
 
-It conforms to `BubbleCarrying`, which is what keeps the context-menu lift, the
-edit spotlight (`ChatScreenViewController.refreshEditSpotlight` reads
-`bubbleFrame` and `bubbleSnapshot`) and the quote-jump flash working.
-`liftPreviewMaskingPath` is `nil` and no shadow is raised: a bare emoji lifts as
-itself, and `BubbleBackgroundView.raise` on a clear layer casts nothing anyway.
+`ChatMessageCell` keeps its `BubbleCarrying` conformance and returns `nil` from
+`liftPreviewMaskingPath` for a bare row: the lift preview is not clipped to a bubble
+shape, and `BubbleBackgroundView.raise` given no path leaves UIKit to derive the shadow
+from the layer's contents, which for a clear layer is nothing. A bare emoji lifts as
+itself.
 
-The label is still capped at the cell's `maxWidth`, which three 48pt emoji come
-nowhere near — the cap is there so a detector bug cannot produce an unbounded row.
+Nothing about cell selection changes. `cellReuseIdentifier` is untouched, so editing a
+message into or out of emoji-only stays an in-place reconfigure and the transcript's
+diffing is not involved at all.
+
+This is the shape Android shipped in `code-payments/code-android-app#1482`, where the
+bare form lays out through the existing `Bubble` behind a `bare` flag for the same
+reason it does here: the run's corner geometry, the width ceiling and the jump flash
+stay in one place.
 
 ## "Edited" on the metadata line
 
@@ -121,8 +128,8 @@ row that puts "Edited" to the left of "Delivered"; on an incoming row it sits
 alone, since a receipt only ever rides the viewer's own latest sent message or a
 failed send.
 
-The label is hidden by default and only `ChatEmojiMessageCell` asks for it. Every
-other cell keeps `EditedMarker`'s in-bubble placement untouched. It uses
+The label is hidden by default, and `ChatMessageCell` asks for it only on a bare row.
+Every other row keeps `EditedMarker`'s in-bubble placement untouched. It uses
 `EditedMarker.font` and `.color`, which are already the receipt line's type and
 tint, so the two pieces read as one line.
 
@@ -138,19 +145,6 @@ Two things the row has to preserve:
   otherwise the column's 4pt spacing leaves a gap under every row that carries
   neither.
 
-## Attention flash
-
-`BubbleCarrying.flashAttention` today runs a keyframe on
-`BubbleBackgroundView`'s wash layer, and a bare emoji row has no wash. The
-keyframe builder moves to `ChatMotion` — where the rest of the transcript's
-motion vocabulary already lives — and the emoji cell gets its own rounded layer
-carrying the same white-0.10 lift.
-
-It deliberately does not reuse `BubbleBackgroundView`. That view composites its
-wash over an opaque `backgroundMain` base, on purpose, so a bubble renders the
-same under the context menu's dim and the edit blur. Behind a bare emoji the same
-opaque base would show as a rectangular patch against both.
-
 ## What does not change
 
 - Grouping input: runs are still computed by author, with the same window and the
@@ -165,13 +159,14 @@ opaque base would show as a rectangular patch against both.
   fails; ZWJ family, skin tone, flag and keycap pass; `1`, `#`, `*` and a letter
   with a combining mark fail; whitespace-separated emoji pass; empty and
   whitespace-only fail.
-- `cellReuseIdentifier` mapping: a qualifying row picks the emoji cell; a reply,
-  a link row and a tombstone with an emoji body all keep the bubble.
+- `rendersAsLargeEmoji`: a qualifying row renders bare; a reply, a link row and a
+  tombstone with an emoji body all keep the bubble.
 - Mapper: an emoji row clears `joinsBubbleAbove`/`joinsBubbleBelow` on itself and
   on both neighbours, while leaving `isContinuationFromPrevious` /
   `isContinuedByNext` alone — the split is the part most likely to regress.
-- Cell: no bubble background, the label's font size, and the "Edited" marker
-  landing on the metadata line rather than inside the content view.
+- `ChatBubbleView`: a bare row draws no wash, no border and no opaque base, while an
+  ordinary row still draws all three; the label's font size; and the "Edited" marker
+  landing on the metadata line rather than inside the bubble.
 
 ## Risks
 
@@ -182,6 +177,10 @@ opaque base would show as a rectangular patch against both.
   land. The read is `try?` and a miss falls back to a live fetch, which is what
   that cache is documented to do, so the cost is one slower notification expand
   per conversation.
+- **Bare mode is a flag on the view every text bubble uses**, so a regression there
+  reaches ordinary bubbles rather than staying inside an emoji-only cell. That is the
+  cost of not isolating this in its own cell class; the mitigation is that the bare
+  tests assert the non-bare row still draws its wash, border and base.
 - **The metadata row is the riskiest edit**, because it moves a view whose
   animation behaviour is load-bearing and shared by every cell in the transcript.
   The receipt's reveal and Delivered→Read swap should be checked on an ordinary
