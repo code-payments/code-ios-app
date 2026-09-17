@@ -602,7 +602,7 @@ final class SessionContainer {
         self.chatSpotlightIndexer = chatSpotlightIndexer
 
         self.profileAvatars = ProfileAvatarStore(flipClient: flipClient, owner: session.ownerKeyPair)
-        self.knownAuthors = KnownAuthorDirectory(database: database)
+        self.knownAuthors = KnownAuthorDirectory(database: database, flipClient: flipClient, owner: session.ownerKeyPair)
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {

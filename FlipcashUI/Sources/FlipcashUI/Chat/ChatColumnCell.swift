@@ -196,19 +196,22 @@ public class ChatColumnCell: UICollectionViewCell {
     /// the way Figma draws a group transcript. `message.author` is nil in every DM and on the
     /// viewer's own rows, which collapses both back to the plain layout.
     private func updateAttribution(for message: ChatMessage, authorImageData: Data?) {
+        // The gutter belongs to the transcript, not to the rows that happen to draw a face: it is
+        // held open for every incoming row of a group chat — the middle of a run, and a row whose
+        // sender no roster could name — so the bubbles share one leading edge instead of stepping
+        // in and out as faces come and go.
+        let reservesGutter = message.isAttributedTranscript && message.sender != .me
+        columnLeading?.constant = reservesGutter ? Self.rowInset + Self.authorGutterWidth : Self.rowInset
+
         guard let author = message.author, message.sender != .me else {
             authorName.isHidden = true
             authorName.text = nil
             authorAvatar.isHidden = true
             authorAvatar.reset()
             authorID = nil
-            columnLeading?.constant = Self.rowInset
             return
         }
         authorID = author.id
-        // The gutter is held open for the whole run, not just the row the face sits on, so the
-        // bubbles of one run stay in a single column.
-        columnLeading?.constant = Self.rowInset + Self.authorGutterWidth
 
         // The name opens a run. A roster that doesn't name this sender draws no label rather than an
         // empty line, which would read as stray padding above the bubble.

@@ -31,6 +31,11 @@ final class ConversationLoadCoordinator {
     /// into the app-group cache the rows are written to in the clear.
     private(set) var attributedMembers: [ConversationMember] = []
 
+    /// The window's senders that neither the chat's roster nor the local cache could name, in the
+    /// order the window first shows them. The view resolves these over the network — the transcript
+    /// itself never blocks on it, and a sender that lands is attributed by the next re-map.
+    private(set) var unattributedSenders: [UserID] = []
+
     let conversationID: ConversationID
     private let controller: ConversationController
     private let session: Session
@@ -77,10 +82,11 @@ final class ConversationLoadCoordinator {
         // First paint is synchronous so an open never flashes an empty transcript; every later
         // change maps off the main thread.
         let initial = currentInputs()
-        let initialMembers = Self.attributedMembers(in: initial)
+        let initialAttribution = Self.attribution(in: initial)
         self.lastInputs = initial
-        self.attributedMembers = initialMembers
-        self.items = Self.map(initial, authors: Self.authors(from: initialMembers))
+        self.attributedMembers = initialAttribution.members
+        self.unattributedSenders = initialAttribution.unnamed
+        self.items = Self.map(initial, authors: Self.authors(from: initialAttribution.members))
         self.headsHistory = initial.headsHistory
         scheduleWindowExpiry(for: initial)
         observeInputs()
@@ -121,15 +127,16 @@ final class ConversationLoadCoordinator {
         scheduleWindowExpiry(for: inputs)
         // Resolved here rather than inside the mapping so the view can read the same roster the
         // rows were attributed from, and so the resolution runs once per change rather than twice.
-        let members = Self.attributedMembers(in: inputs)
-        let authors = Self.authors(from: members)
+        let attribution = Self.attribution(in: inputs)
+        let authors = Self.authors(from: attribution.members)
         mapTask?.cancel()
         mapTask = Task { [weak self] in
             let mapped = await Task.detached { Self.map(inputs, authors: authors) }.value
             guard let self, !Task.isCancelled else { return }
             self.items = mapped
             self.headsHistory = inputs.headsHistory
-            self.attributedMembers = members
+            self.attributedMembers = attribution.members
+            self.unattributedSenders = attribution.unnamed
         }
     }
 
@@ -245,7 +252,8 @@ final class ConversationLoadCoordinator {
             quotedMessage: { inputs.quotedMessages[$0.value] },
             // A sender neither the chat nor the local cache can name gets no author, so the row
             // draws as it does in a DM rather than under a blank name.
-            author: { message in message.senderID.flatMap { authors[$0] } }
+            author: { message in message.senderID.flatMap { authors[$0] } },
+            namesAuthors: inputs.namesAuthors
         )
         if inputs.isTyping {
             items.append(.typingIndicator)
@@ -261,10 +269,11 @@ final class ConversationLoadCoordinator {
     ///
     /// The chat's own roster wins: it is the identity that chat published for the member, which is
     /// what the transcript is attributing. Everyone it leaves out — the subset a large group embeds
-    /// leaves plenty — falls through to whatever the device knows about them from elsewhere.
-    /// Empty for every transcript that does not attribute its rows.
-    nonisolated private static func attributedMembers(in inputs: Inputs) -> [ConversationMember] {
-        guard inputs.namesAuthors else { return [] }
+    /// leaves plenty — falls through to whatever the device knows about them from elsewhere. The
+    /// senders neither source covers come back in `unnamed`, for the view to fetch.
+    /// Both are empty for every transcript that does not attribute its rows.
+    nonisolated private static func attribution(in inputs: Inputs) -> (members: [ConversationMember], unnamed: [UserID]) {
+        guard inputs.namesAuthors else { return ([], []) }
 
         var roster: [UserID: ConversationMember] = [:]
         for member in inputs.conversation?.members ?? [] {
@@ -274,12 +283,23 @@ final class ConversationLoadCoordinator {
 
         var seen: Set<UserID> = []
         var members: [ConversationMember] = []
+        var unnamed: [UserID] = []
         for message in inputs.messages {
             guard let senderID = message.senderID, seen.insert(senderID).inserted else { continue }
-            guard let member = roster[senderID] ?? inputs.knownAuthors.membersByUserID[senderID] else { continue }
+            // The viewer's own rows are never attributed, so their id is not worth a round trip.
+            guard senderID != inputs.selfUserID else { continue }
+            guard let member = roster[senderID] ?? inputs.knownAuthors.membersByUserID[senderID] else {
+                unnamed.append(senderID)
+                continue
+            }
+            // A roster row with no name attributes nothing, so it is a gap like an absent one —
+            // the profile fetch is what can still fill it.
+            if member.displayName.isEmpty {
+                unnamed.append(senderID)
+            }
             members.append(member)
         }
-        return members
+        return (members, unnamed)
     }
 
     /// The name and BlurHash each row draws, keyed by the sender it belongs to.

@@ -42,14 +42,17 @@ extension ChatItem {
 
     /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
     /// formats cash amounts, derives the currency flag, inserts a date separator before the first
-    /// message and whenever a gap longer than `gap` opens, and computes same-sender grouping the
-    /// way the transcript does. Pure — `cashBranding` supplies the token name + launchpad icon so
-    /// this stays testable; it defaults to plain "Cash" (USDF), and the screen injects bonded-mint
-    /// branding from `Session`.
+    /// message, whenever a gap longer than `gap` opens and at every change of day, and computes
+    /// same-sender grouping the way the transcript does. Pure — `cashBranding` supplies the token
+    /// name + launchpad icon so this stays testable; it defaults to plain "Cash" (USDF), and the
+    /// screen injects bonded-mint branding from `Session`.
     nonisolated static func from(
         _ messages: [ConversationMessage],
         selfUserID: UserID,
-        gap: TimeInterval = 15 * 60,
+        // How long a pause has to be before it heads the next message with its own separator and
+        // ends the run above it. Android's `SeparatorConfig.Continuous` gap, so a pause of minutes
+        // keeps one exchange together on both platforms instead of cutting it into single bubbles.
+        gap: TimeInterval = 3 * 60 * 60,
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },
@@ -57,7 +60,8 @@ extension ChatItem {
         capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] },
         counterpartName: String = "",
         quotedMessage: (MessageID) -> ConversationMessage? = { _ in nil },
-        author: (ConversationMessage) -> ChatAuthor? = { _ in nil }
+        author: (ConversationMessage) -> ChatAuthor? = { _ in nil },
+        namesAuthors: Bool = false
     ) -> [ChatItem] {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
         // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
@@ -75,6 +79,15 @@ extension ChatItem {
         let latestSentFromSelfID = messages.last {
             $0.isFromSelf(selfUserID) && $0.status == .sent && !$0.isDeleted
         }?.stableID
+        // A separator heads `message` when the pause before `earlier` ran longer than the gap, or
+        // when the two fall on different days — the second is what keeps a late-night exchange from
+        // reading as one run across midnight, which the gap alone would let through.
+        let calendar = Calendar.current
+        func separates(_ message: ConversationMessage, from earlier: ConversationMessage) -> Bool {
+            message.date.timeIntervalSince(earlier.date) > gap
+                || !calendar.isDate(message.date, inSameDayAs: earlier.date)
+        }
+
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -82,7 +95,7 @@ extension ChatItem {
             let next = index + 1 < messages.count ? messages[index + 1] : nil
 
             // A separator opens the transcript and breaks any run longer than the gap.
-            let showsSeparator = previous.map { message.date.timeIntervalSince($0.date) > gap } ?? true
+            let showsSeparator = previous.map { separates(message, from: $0) } ?? true
             if showsSeparator {
                 items.append(.dateSeparator(id: "sep-\(message.stableID)", text: message.date.formattedChatSeparator()))
             }
@@ -92,11 +105,15 @@ extension ChatItem {
             // corners flattened — one column of bubbles attributed to whoever the run started with.
             // `senderID` is nil only for a legacy row with no sender, and two of those group the way
             // they always did.
+            //
+            // A run ends exactly where a separator starts, rather than on a window of its own: the
+            // separator is already the heading of what follows it, so a second, shorter threshold
+            // would flatten runs the transcript still draws as continuous.
             let groupedAbove = previous.map {
-                $0.senderID == message.senderID && message.date.timeIntervalSince($0.date) <= gap
+                $0.senderID == message.senderID && !showsSeparator
             } ?? false
             let groupedBelow = next.map {
-                $0.senderID == message.senderID && $0.date.timeIntervalSince(message.date) <= gap
+                $0.senderID == message.senderID && !separates($0, from: message)
             } ?? false
 
             let content: ChatMessage.Content
@@ -169,7 +186,11 @@ extension ChatItem {
                 quote: quote,
                 // The viewer's own rows are never attributed: the trailing edge already says who
                 // wrote them, and a name and avatar over them would read as a second speaker.
-                author: isFromSelf ? nil : author(message)
+                author: isFromSelf ? nil : author(message),
+                // Carried on every row of a group transcript, not just the ones that resolved an
+                // author, so the gutter the faces sit in is held open for all of them and the
+                // incoming bubbles share one leading edge.
+                isAttributedTranscript: namesAuthors
             )))
         }
         return items
