@@ -10,7 +10,7 @@ import FlipcashCore
     private final class BundleToken {}
 
     struct Vector: Decodable {
-        struct Span: Decodable { let url: String }
+        struct Span: Decodable { let start: Int; let end: Int; let url: String }
         struct Card: Decodable { let kind: String; let url: String }
         let name: String
         let spans: [Span]
@@ -33,8 +33,12 @@ import FlipcashCore
         let classifier = LinkCardClassifier()
 
         for vector in try loadFixture().vectors {
-            let urls = vector.spans.compactMap { URL(string: $0.url) }
-            let actual = classifier.firstCard(in: urls)
+            let links = vector.spans.compactMap { span in
+                URL(string: span.url).map {
+                    DetectedLink(range: NSRange(location: span.start, length: span.end - span.start), url: $0)
+                }
+            }
+            let actual = classifier.firstCard(in: links)
 
             guard let expected = vector.card else {
                 #expect(actual == nil, "vector `\(vector.name)`: \(vector.note)")
@@ -48,6 +52,13 @@ import FlipcashCore
             }
             #expect(cash.url.absoluteString == expected.url, "vector `\(vector.name)`: \(vector.note)")
             #expect(cash.state == .unresolved, "vector `\(vector.name)` must start unresolved")
+            // The card carries the span it was built from, which is what the bubble cuts out of the
+            // body. For a jump link that span is the wrapper, not `cash.url`, so it is matched
+            // against the detected spans rather than against the card's own target.
+            #expect(
+                links.contains { $0.range == cash.range },
+                "vector `\(vector.name)` card range \(cash.range) is not one of its detected spans"
+            )
         }
     }
 

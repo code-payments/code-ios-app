@@ -8,6 +8,7 @@ import FlipcashCore
     private let card = LinkCard.Cash(
         url: URL(string: "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3")!,
         entropy: "KNi8pQr1n5hRU65vKJGge3",
+        range: NSRange(location: 0, length: 54),
         state: .unresolved
     )
 
@@ -25,8 +26,10 @@ import FlipcashCore
             LinkCard.Cash.Resolved(
                 amount: "$15.00",
                 claim: .claimable,
-                tokenSymbol: "Cash",
+                tokenName: "Dollars",
                 iconURL: nil,
+                billColors: [],
+                isUSDF: true,
                 issuedByViewer: false
             )
         }
@@ -80,6 +83,7 @@ import FlipcashCore
             LinkCard.Cash(
                 url: URL(string: "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3")!,
                 entropy: "KNi8pQr1n5hRU65vKJGge3",
+                range: NSRange(location: 0, length: 54),
                 state: .unresolved
             )
         )

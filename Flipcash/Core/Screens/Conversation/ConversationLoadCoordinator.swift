@@ -302,7 +302,7 @@ final class ConversationLoadCoordinator {
             // already answered. Nothing here touches the network — a card that has not resolved yet
             // renders unresolved and `resolveCards` asks for it once the rows have landed.
             linkCard: { links in
-                classifier.firstCard(in: links.map(\.url))?.applying(inputs.cardStates)
+                classifier.firstCard(in: links)?.applying(inputs.cardStates)
             }
         )
         if inputs.isTyping {

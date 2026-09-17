@@ -19,8 +19,12 @@ public final class LinkableBubbleView: UIView {
     private let editedLabel = EditedMarker.makeLabel()
     private let cardView = LinkCashCardView()
 
-    /// Called when the user taps a detected link.
+    /// Called when the user taps a detected link, or the card standing in for one.
     var onOpenURL: ((URL) -> Void)?
+
+    /// What the card opens. The card is drawn in place of its URL, so the body no longer carries a
+    /// span to tap — without this a link-only message would render something that goes nowhere.
+    private var cardURL: URL?
 
     private(set) var quotePanel = ChatQuotePanelView()
 
@@ -93,6 +97,7 @@ public final class LinkableBubbleView: UIView {
         addSubview(quotePanel)
 
         cardView.translatesAutoresizingMaskIntoConstraints = false
+        cardView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(cardTapped)))
         addSubview(cardView)
 
         textTopToBubble = textView.topAnchor.constraint(equalTo: topAnchor, constant: 9)
@@ -158,33 +163,50 @@ public final class LinkableBubbleView: UIView {
     /// Flashes the bubble's ground to point the eye at this message after a jump.
     func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
 
+    /// Routes a tap on the card the same way a tap on the URL went: out through `onOpenURL`, which
+    /// is the deep-link path. The card itself stays inert so there is one way in, not two.
+    @objc func cardTapped() {
+        cardURL.map { onOpenURL?($0) }
+    }
+
     /// Whether this bubble is currently flashing.
     var isFlashingAttention: Bool { background.isFlashingAttention }
 
     func prepareForReuse() {
         textView.resignFirstResponder()
         quotePanel.onTap = nil
+        cardURL = nil
         cardView.prepareForReuse()
     }
 
     public func configure(with message: ChatMessage) {
         // Shares the plain bubble's text builder so a link message gets the same body styling, the
         // same tombstone copy, and the same "Edited" reservation, with the link spans laid over it
-        // from the preview the mapper already detected.
-        textView.attributedText = Self.linkedText(for: message)
+        // from the preview the mapper already detected — less whatever span the card now draws.
+        let body = Self.linkedText(for: message)
+        textView.attributedText = body?.text
         editedLabel.isHidden = !ChatBubbleView.showsEditedMarker(for: message)
 
         // Card first, because it decides which top the body gets.
         if let card = message.linkPreview?.card {
             cardView.isHidden = false
+            cardURL = card.url
             cardView.configure(with: card)
             NSLayoutConstraint.deactivate(cardCollapse)
             NSLayoutConstraint.activate(cardSides)
         } else {
             cardView.isHidden = true
+            cardURL = nil
             NSLayoutConstraint.deactivate(cardSides + [cardTopToBubble, cardTopToQuote, textTopToCard])
             NSLayoutConstraint.activate(cardCollapse)
         }
+
+        // A message that was nothing but the link has no text left under the card, so the gap
+        // between them closes and the bubble is the card plus its own padding. The exception is a
+        // message the sender edited: the marker is pinned to the body's bottom and needs the run
+        // that reserves its hole.
+        let keepsBody = body?.hasBody ?? true
+        textTopToCard.constant = keepsBody || !editedLabel.isHidden ? 8 : 0
 
         // Deactivate before activating: with both top constraints live the layout is
         // unsatisfiable, and UIKit resolves that by breaking one at random.
@@ -225,22 +247,65 @@ public final class LinkableBubbleView: UIView {
 
 extension LinkableBubbleView {
 
-    /// The bubble's body with a link attribute over each detected span.
+    /// The bubble's body: every detected link underlined, and the card's own link cut out.
     ///
     /// `DetectedLink.range` is already UTF-16 offsets into the same string `displayText` renders, so
     /// the ranges apply straight to the attributed string. They are clamped anyway: the preview is
     /// derived from the message text at map time, and a row that somehow carries a stale preview
     /// should lose its underline rather than trap.
-    static func linkedText(for message: ChatMessage) -> NSAttributedString? {
+    ///
+    /// The card is the link, drawn — leaving the URL in the body underneath would say the same
+    /// thing twice — so the span it was built from goes with it. `hasBody` reports whether any of
+    /// the sender's text survived that cut; a message that was nothing but the link leaves none,
+    /// and the bubble draws the card on its own.
+    static func linkedText(for message: ChatMessage) -> (text: NSAttributedString, hasBody: Bool)? {
         guard let text = ChatBubbleView.displayText(for: message) else { return nil }
-        guard let links = message.linkPreview?.links, !links.isEmpty else { return text }
 
         let result = NSMutableAttributedString(attributedString: text)
-        for link in links where link.length > 0 {
+        for link in message.linkPreview?.links ?? [] where link.length > 0 {
             guard link.location >= 0, link.location + link.length <= result.length else { continue }
             result.addAttribute(.link, value: link.url, range: link.range)
         }
-        return result
+
+        guard let card = message.linkPreview?.card, case .text(let body) = message.content else {
+            return (result, true)
+        }
+        let bodyText = body as NSString
+        guard let cut = cutRange(for: card.range, in: bodyText) else { return (result, true) }
+
+        // Deleting from the attributed string rather than the raw text is what keeps the *other*
+        // links underlined: their ranges shift with the cut on their own, where re-applying them
+        // afterwards would need every offset recomputed.
+        result.deleteCharacters(in: cut)
+        return (result, cut.length < bodyText.length)
+    }
+
+    /// The span to remove for a carded link, the gap it leaves included, or nil if `text` cannot
+    /// hold the span — a row carrying a stale preview should keep its text rather than trap.
+    ///
+    /// Cutting a word out of a sentence otherwise strands both of its spaces: "check example.com
+    /// out" would render as "check  out". So the whitespace after the link goes with it when the
+    /// link sits between two, and the whitespace before it goes when the link ends the message.
+    /// The separator is whatever was there, which is how a link alone on its line takes the line
+    /// with it rather than leaving a blank one.
+    static func cutRange(for link: NSRange, in text: NSString) -> NSRange? {
+        guard link.length > 0, link.location >= 0 else { return nil }
+        var start = link.location
+        var end = link.location + link.length
+        guard end <= text.length else { return nil }
+
+        let whitespace = CharacterSet.whitespacesAndNewlines
+        func isGap(_ index: Int) -> Bool {
+            guard let scalar = Unicode.Scalar(text.character(at: index)) else { return false }
+            return whitespace.contains(scalar)
+        }
+
+        if end < text.length, isGap(end), start == 0 || isGap(start - 1) {
+            end += 1
+        } else if start > 0, end == text.length, isGap(start - 1) {
+            start -= 1
+        }
+        return NSRange(location: start, length: end - start)
     }
 }
 

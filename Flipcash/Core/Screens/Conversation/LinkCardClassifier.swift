@@ -39,17 +39,22 @@ nonisolated struct LinkCardClassifier {
     ]
 
     /// The first card-eligible link wins; at most one card per message.
-    func firstCard(in urls: [URL]) -> LinkCard? {
-        urls.lazy.compactMap { classify($0) }.first
+    ///
+    /// Takes the detected links rather than their URLs because the card carries the span it was
+    /// built from, and the bubble draws the card in place of that span. A jump-wrapped link's text
+    /// is the wrapper while its `url` is the target, so a later search for the URL would find
+    /// nothing to remove.
+    func firstCard(in links: [DetectedLink]) -> LinkCard? {
+        links.lazy.compactMap { classify($0) }.first
     }
 
-    private func classify(_ url: URL) -> LinkCard? {
-        guard let host = url.host()?.lowercased(), Self.cardHosts.contains(host) else { return nil }
+    private func classify(_ link: DetectedLink) -> LinkCard? {
+        guard let host = link.url.host()?.lowercased(), Self.cardHosts.contains(host) else { return nil }
 
-        let target = Route.unwrappingJump(url) ?? url
+        let target = Route.unwrappingJump(link.url) ?? link.url
         guard let route = Route(url: target), case .cash = route.path else { return nil }
         guard let entropy = route.fragments[.entropy]?.value, !entropy.isEmpty else { return nil }
 
-        return .cash(LinkCard.Cash(url: target, entropy: entropy, state: .unresolved))
+        return .cash(LinkCard.Cash(url: target, entropy: entropy, range: link.range, state: .unresolved))
     }
 }

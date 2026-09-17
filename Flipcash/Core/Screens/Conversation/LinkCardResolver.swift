@@ -32,7 +32,7 @@ actor LinkCardResolver {
         switch card {
         case .cash(let cash):
             let state = await state(for: cash.entropy)
-            return .cash(LinkCard.Cash(url: cash.url, entropy: cash.entropy, state: state))
+            return .cash(LinkCard.Cash(url: cash.url, entropy: cash.entropy, range: cash.range, state: state))
         }
     }
 
@@ -61,7 +61,7 @@ nonisolated extension LinkCard {
         switch self {
         case .cash(let cash):
             guard let state = states[cash.entropy] else { return self }
-            return .cash(Cash(url: cash.url, entropy: cash.entropy, state: state))
+            return .cash(Cash(url: cash.url, entropy: cash.entropy, range: cash.range, state: state))
         }
     }
 
@@ -122,6 +122,11 @@ extension LinkCardResolver {
             )
 
             guard let exchangedFiat = info.exchangedFiat else { throw ErrorFetchBalance.notFound }
+            // The card is the mint's own bill — its name, its icon, its gradient. A mint with no
+            // metadata has none of that, and a bill painted in the fallback green under a name we
+            // do not have would brand the link as a token it may not pay out. Fail the lookup and
+            // let it render unresolved instead.
+            guard let mint = info.mintMetadata else { throw ErrorFetchBalance.notFound }
 
             let claim: LinkCard.Cash.Claim = switch info.claimState {
             case .claimed: .claimed
@@ -132,8 +137,12 @@ extension LinkCardResolver {
             return LinkCard.Cash.Resolved(
                 amount: exchangedFiat.nativeAmount.formatted(),
                 claim: claim,
-                tokenSymbol: info.mintMetadata?.symbol ?? "Cash",
-                iconURL: info.mintMetadata?.imageURL,
+                // The reserve arrives already branded "Dollars" off the wire, which is what the
+                // wallet card shows, so there is no special case here.
+                tokenName: mint.name,
+                iconURL: mint.imageURL,
+                billColors: mint.billColors,
+                isUSDF: mint.address == PublicKey.usdf,
                 issuedByViewer: info.isGiftCardIssuer
             )
         }

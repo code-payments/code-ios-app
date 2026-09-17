@@ -48,7 +48,7 @@ struct LinkableBubbleViewTests {
             ])
         )
 
-        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message)).text
         var linked: [URL] = []
         rendered.enumerateAttribute(.link, in: NSRange(location: 0, length: rendered.length)) { value, _, _ in
             if let url = value as? URL { linked.append(url) }
@@ -67,11 +67,105 @@ struct LinkableBubbleViewTests {
             ])
         )
 
-        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message)).text
         var linked = 0
         rendered.enumerateAttribute(.link, in: NSRange(location: 0, length: rendered.length)) { value, _, _ in
             if value != nil { linked += 1 }
         }
         #expect(linked == 0)
+    }
+
+    // MARK: - The carded link leaves the body
+
+    /// The same four shapes Android's `LinkSpanRemovalTest` pins, so a message that gets a card
+    /// reads the same on both platforms.
+    private static let cashLink = "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+
+    private func carded(_ text: String, at location: Int) -> ChatMessage {
+        let link = DetectedLink(
+            range: NSRange(location: location, length: (Self.cashLink as NSString).length),
+            url: url(Self.cashLink)
+        )
+        return ChatMessage(
+            id: "1",
+            text: text,
+            sender: .me,
+            linkPreview: LinkPreview(
+                links: [link],
+                card: .cash(
+                    LinkCard.Cash(
+                        url: link.url,
+                        entropy: "KNi8pQr1n5hRU65vKJGge3",
+                        range: link.range,
+                        state: .unresolved
+                    )
+                )
+            )
+        )
+    }
+
+    @Test("A message that was nothing but the link leaves no body under the card")
+    func linkedText_linkOnly() throws {
+        let rendered = try #require(LinkableBubbleView.linkedText(for: carded(Self.cashLink, at: 0)))
+        #expect(rendered.text.string.isEmpty)
+        #expect(rendered.hasBody == false)
+    }
+
+    @Test("A link at the end takes the space in front of it")
+    func linkedText_trailingLink() throws {
+        let message = carded("here you go: \(Self.cashLink)", at: 13)
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        #expect(rendered.text.string == "here you go:")
+        #expect(rendered.hasBody)
+    }
+
+    @Test("A link mid-sentence takes one of its two spaces, not both and not neither")
+    func linkedText_midSentenceLink() throws {
+        let message = carded("check \(Self.cashLink) out", at: 6)
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        #expect(rendered.text.string == "check out")
+    }
+
+    @Test("A link alone on its line takes the line with it")
+    func linkedText_linkOnItsOwnLine() throws {
+        let message = carded("here you go\n\(Self.cashLink)\nenjoy", at: 12)
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        #expect(rendered.text.string == "here you go\nenjoy")
+    }
+
+    @Test("A card span past the end of the text leaves the body alone")
+    func linkedText_staleCardSpanKeepsTheBody() throws {
+        let message = carded("hi", at: 0)
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        #expect(rendered.text.string == "hi")
+        #expect(rendered.hasBody)
+    }
+
+    @Test("Tapping the card opens the link the card replaced")
+    func cardTap_opensTheLink() {
+        let view = LinkableBubbleView()
+        var opened: [URL] = []
+        view.onOpenURL = { opened.append($0) }
+        view.configure(with: carded(Self.cashLink, at: 0))
+        view.cardTapped()
+        #expect(opened == [url(Self.cashLink)])
+    }
+
+    @Test("A bubble recycled from a carded message to a plain one opens nothing")
+    func cardTap_afterReuse() {
+        let view = LinkableBubbleView()
+        var opened: [URL] = []
+        view.onOpenURL = { opened.append($0) }
+        view.configure(with: carded(Self.cashLink, at: 0))
+        view.configure(with: ChatMessage(id: "2", text: "see https://apple.com", sender: .me))
+        view.cardTapped()
+        #expect(opened.isEmpty)
+    }
+
+    @Test("An inverted card span leaves the body alone")
+    func cutRange_rejectsAnInvertedSpan() {
+        let text = "here you go" as NSString
+        #expect(LinkableBubbleView.cutRange(for: NSRange(location: 4, length: -2), in: text) == nil)
+        #expect(LinkableBubbleView.cutRange(for: NSRange(location: -1, length: 4), in: text) == nil)
     }
 }
