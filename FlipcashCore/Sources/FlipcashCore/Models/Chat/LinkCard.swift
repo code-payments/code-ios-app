@@ -58,6 +58,20 @@ public enum LinkCard: Hashable, Sendable, Codable {
                 self.iconURL = iconURL
                 self.issuedByViewer = issuedByViewer
             }
+
+            /// The line under the amount. Resolved here, next to `ChatCashContent.caption`, so the
+            /// cell stays dumb and both cash surfaces word themselves in one layer.
+            ///
+            /// A claimed or expired card says so and offers nothing to tap: the card is decoration
+            /// over a link that is still openable, and the claim itself only ever happens through
+            /// the deep-link path.
+            public var caption: String {
+                switch claim {
+                case .claimed:   "Claimed"
+                case .expired:   "Expired"
+                case .claimable: issuedByViewer ? "You sent this" : "Tap to claim"
+                }
+            }
         }
 
         public enum Claim: String, Hashable, Sendable, Codable {

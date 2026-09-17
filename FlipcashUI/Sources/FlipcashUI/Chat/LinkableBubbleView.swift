@@ -17,6 +17,7 @@ public final class LinkableBubbleView: UIView {
     private let background = BubbleBackgroundView()
     private let textView = LinkTextView()
     private let editedLabel = EditedMarker.makeLabel()
+    private let cardView = LinkCashCardView()
 
     /// Called when the user taps a detected link.
     var onOpenURL: ((URL) -> Void)?
@@ -33,6 +34,16 @@ public final class LinkableBubbleView: UIView {
     private var textTopToBubble: NSLayoutConstraint!
     /// Body pinned below the quote panel, for a reply.
     private var textTopToQuote: NSLayoutConstraint!
+    /// Body pinned below the link card, for a message that carries one. The card takes whichever
+    /// top the body would otherwise have had, so a reply with a card still reads quote, card, text.
+    private var textTopToCard: NSLayoutConstraint!
+    private var cardTopToBubble: NSLayoutConstraint!
+    private var cardTopToQuote: NSLayoutConstraint!
+    private var cardSides: [NSLayoutConstraint] = []
+    /// Collapses the card to nothing in both axes when there is none, for the same reason the quote
+    /// panel collapses in both: a card pinned to the bubble's sides would otherwise put a floor
+    /// under every link bubble's width.
+    private var cardCollapse: [NSLayoutConstraint] = []
     /// Collapses the panel to nothing when there is no quote, in both axes. Height alone is not
     /// enough: the panel is pinned to both of the bubble's sides, so whatever width it demands with
     /// nothing in it — the rule and its gutters — becomes a floor under every bubble's width, and a
@@ -60,7 +71,12 @@ public final class LinkableBubbleView: UIView {
         textView.backgroundColor = .clear
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
-        textView.dataDetectorTypes = .link
+        // Deliberately off. `LinkDetector` is the one detector, gated by the cross-platform
+        // detection vectors and by the guards those vectors cover — the ASCII-authority check that
+        // stops a glued emoji from retargeting a host through Punycode, among them. The text view's
+        // own detection is a second detector with none of that, so the spans are applied from
+        // `LinkPreview.links` in `configure(with:)` instead.
+        textView.dataDetectorTypes = []
         textView.font = .default(size: 16, weight: .medium)
         textView.textColor = .white
         textView.linkTextAttributes = [
@@ -76,6 +92,9 @@ public final class LinkableBubbleView: UIView {
         quotePanel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(quotePanel)
 
+        cardView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(cardView)
+
         textTopToBubble = textView.topAnchor.constraint(equalTo: topAnchor, constant: 9)
         textTopToQuote = textView.topAnchor.constraint(
             equalTo: quotePanel.bottomAnchor,
@@ -86,12 +105,35 @@ public final class LinkableBubbleView: UIView {
             quotePanel.widthAnchor.constraint(equalToConstant: 0),
         ]
 
+        textTopToCard = textView.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: 8)
+        cardTopToBubble = cardView.topAnchor.constraint(equalTo: topAnchor, constant: 9)
+        cardTopToQuote = cardView.topAnchor.constraint(
+            equalTo: quotePanel.bottomAnchor,
+            constant: ChatQuotePanelView.bottomSpacing
+        )
+        cardSides = [
+            cardView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            cardView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+        ]
+        cardCollapse = [
+            cardView.heightAnchor.constraint(equalToConstant: 0),
+            cardView.widthAnchor.constraint(equalToConstant: 0),
+        ]
+        // Parks the collapsed card somewhere definite. Its real top and sides are switched off with
+        // it, and a zero-sized view with no position left is ambiguous rather than free.
+        let cardParkTop = cardView.topAnchor.constraint(equalTo: topAnchor)
+        let cardParkLeading = cardView.leadingAnchor.constraint(equalTo: leadingAnchor)
+        cardParkTop.priority = .defaultLow
+        cardParkLeading.priority = .defaultLow
+
         quoteTrailing = quotePanel.trailingAnchor.constraint(
             equalTo: trailingAnchor,
             constant: -ChatQuotePanelView.surroundInset
         )
 
-        NSLayoutConstraint.activate(quoteCollapse + [
+        NSLayoutConstraint.activate(quoteCollapse + cardCollapse + [
+            cardParkTop,
+            cardParkLeading,
             background.topAnchor.constraint(equalTo: topAnchor),
             background.bottomAnchor.constraint(equalTo: bottomAnchor),
             background.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -122,29 +164,49 @@ public final class LinkableBubbleView: UIView {
     func prepareForReuse() {
         textView.resignFirstResponder()
         quotePanel.onTap = nil
+        cardView.prepareForReuse()
     }
 
     public func configure(with message: ChatMessage) {
         // Shares the plain bubble's text builder so a link message gets the same body styling, the
-        // same tombstone copy, and the same "Edited" reservation. Data detection still runs — the
-        // text view is non-editable, so it detects over `attributedText` as it did over `text`.
-        textView.attributedText = ChatBubbleView.displayText(for: message)
+        // same tombstone copy, and the same "Edited" reservation, with the link spans laid over it
+        // from the preview the mapper already detected.
+        textView.attributedText = Self.linkedText(for: message)
         editedLabel.isHidden = !ChatBubbleView.showsEditedMarker(for: message)
+
+        // Card first, because it decides which top the body gets.
+        if let card = message.linkPreview?.card {
+            cardView.isHidden = false
+            cardView.configure(with: card)
+            NSLayoutConstraint.deactivate(cardCollapse)
+            NSLayoutConstraint.activate(cardSides)
+        } else {
+            cardView.isHidden = true
+            NSLayoutConstraint.deactivate(cardSides + [cardTopToBubble, cardTopToQuote, textTopToCard])
+            NSLayoutConstraint.activate(cardCollapse)
+        }
 
         // Deactivate before activating: with both top constraints live the layout is
         // unsatisfiable, and UIKit resolves that by breaking one at random.
+        let hasCard = message.linkPreview?.card != nil
         if let quote = message.quote {
             quotePanel.isHidden = false
             quotePanel.configure(with: quote)
             NSLayoutConstraint.deactivate(quoteCollapse)
             quoteTrailing.isActive = true
             textTopToBubble.isActive = false
-            textTopToQuote.isActive = true
+            cardTopToBubble.isActive = false
+            textTopToQuote.isActive = !hasCard
+            cardTopToQuote.isActive = hasCard
+            textTopToCard.isActive = hasCard
         } else {
             quotePanel.isHidden = true
             quotePanel.clear()
             textTopToQuote.isActive = false
-            textTopToBubble.isActive = true
+            cardTopToQuote.isActive = false
+            textTopToBubble.isActive = !hasCard
+            cardTopToBubble.isActive = hasCard
+            textTopToCard.isActive = hasCard
             quoteTrailing.isActive = false
             NSLayoutConstraint.activate(quoteCollapse)
         }
@@ -158,6 +220,27 @@ public final class LinkableBubbleView: UIView {
             ),
             identity: message.id
         )
+    }
+}
+
+extension LinkableBubbleView {
+
+    /// The bubble's body with a link attribute over each detected span.
+    ///
+    /// `DetectedLink.range` is already UTF-16 offsets into the same string `displayText` renders, so
+    /// the ranges apply straight to the attributed string. They are clamped anyway: the preview is
+    /// derived from the message text at map time, and a row that somehow carries a stale preview
+    /// should lose its underline rather than trap.
+    static func linkedText(for message: ChatMessage) -> NSAttributedString? {
+        guard let text = ChatBubbleView.displayText(for: message) else { return nil }
+        guard let links = message.linkPreview?.links, !links.isEmpty else { return text }
+
+        let result = NSMutableAttributedString(attributedString: text)
+        for link in links where link.length > 0 {
+            guard link.location >= 0, link.location + link.length <= result.length else { continue }
+            result.addAttribute(.link, value: link.url, range: link.range)
+        }
+        return result
     }
 }
 
