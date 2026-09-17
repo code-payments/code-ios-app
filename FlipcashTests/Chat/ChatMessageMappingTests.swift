@@ -32,6 +32,17 @@ struct ChatMessageMappingTests {
         )
     }
 
+    private func reply(_ id: UInt64, _ sender: UUID, _ body: String, to repliedTo: UInt64, after offset: TimeInterval) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: id),
+            senderID: sender,
+            content: .text(body),
+            date: base.addingTimeInterval(offset),
+            unreadSeq: id,
+            repliedTo: MessageID(value: repliedTo)
+        )
+    }
+
     /// The message rows, dropping the interleaved date separators.
     private func messageRows(_ items: [ChatItem]) -> [ChatMessage] {
         items.compactMap { if case .message(let message) = $0 { message } else { nil } }
@@ -417,5 +428,76 @@ struct ChatMessageMappingTests {
     func directMessagesAreNotAttributed() {
         let items = ChatItem.from([text(1, them, "hi", after: 0)], selfUserID: me)
         #expect(messageRows(items).allSatisfy { !$0.isAttributedTranscript })
+    }
+
+    @Test("A bare emoji row breaks the bubble run on both sides and leaves attribution alone")
+    func emojiRowSplitsBubbleRunFromAuthorRun() {
+        let items = ChatItem.from([
+            text(1, them, "hello", after: 0),
+            text(2, them, "👍", after: 60),
+            text(3, them, "there", after: 120),
+        ], selfUserID: me)
+        let rows = messageRows(items)
+
+        // The author run is untouched — one run of three from the same sender.
+        #expect(rows.map(\.isContinuationFromPrevious) == [false, true, true])
+        #expect(rows.map(\.isContinuedByNext) == [true, true, false])
+
+        // The bubble run is broken around the emoji row, on the row itself and on both neighbours.
+        #expect(rows.map(\.joinsBubbleAbove) == [false, false, false])
+        #expect(rows.map(\.joinsBubbleBelow) == [false, false, false])
+
+        #expect(rows.map(\.isEmojiOnly) == [false, true, false])
+        #expect(rows.map(\.rendersAsLargeEmoji) == [false, true, false])
+    }
+
+    @Test("Two adjacent bubbles still join")
+    func bubbleRunSurvivesWithoutAnEmojiRow() {
+        let items = ChatItem.from([text(1, me, "a", after: 0), text(2, me, "b", after: 60)], selfUserID: me)
+        let rows = messageRows(items)
+        #expect(rows[0].joinsBubbleBelow)
+        #expect(rows[1].joinsBubbleAbove)
+        #expect(rows[0].isContinuedByNext)
+        #expect(rows[1].isContinuationFromPrevious)
+    }
+
+    @Test("An emoji reply keeps its bubble and its place in the bubble run")
+    func emojiReplyKeepsBubble() {
+        let items = ChatItem.from([
+            text(1, them, "hello", after: 0),
+            reply(2, them, "👍", to: 1, after: 60),
+        ], selfUserID: me)
+        let rows = messageRows(items)
+
+        #expect(rows[1].isEmojiOnly)
+        #expect(!rows[1].rendersAsLargeEmoji)
+        #expect(rows[0].joinsBubbleBelow)
+        #expect(rows[1].joinsBubbleAbove)
+    }
+
+    @Test("A cash row is never emoji-only")
+    func cashRowIsNeverEmojiOnly() {
+        let fiat = ExchangedFiat(
+            nativeAmount: FiatAmount(value: 5, currency: .usd),
+            rate: Rate(fx: 1, currency: .usd)
+        )
+        let items = ChatItem.from([
+            ConversationMessage(id: MessageID(value: 1), senderID: me, content: .cash(fiat), date: base, unreadSeq: 1),
+        ], selfUserID: me)
+        let rows = messageRows(items)
+        #expect(!rows[0].isEmojiOnly)
+        #expect(!rows[0].rendersAsLargeEmoji)
+    }
+
+    @Test("A tombstone is never emoji-only, whatever it replaced")
+    func tombstoneIsNeverEmojiOnly() {
+        let items = ChatItem.from(
+            [deleted(1, them, after: 0)],
+            selfUserID: me,
+            deletedPresentation: .placeholder
+        )
+        let rows = messageRows(items)
+        #expect(!rows[0].isEmojiOnly)
+        #expect(!rows[0].rendersAsLargeEmoji)
     }
 }
