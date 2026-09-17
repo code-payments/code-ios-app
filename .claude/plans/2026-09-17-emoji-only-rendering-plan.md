@@ -10,6 +10,13 @@
 
 **Spec:** `.claude/plans/2026-09-17-emoji-only-rendering.md`
 
+**Test identifiers:** `./Scripts/test.sh` takes `<Target>/<Suite>[/<TestName>]`, where `<Suite>` is
+the **struct** name, not the file name. Several chat test files declare more than one suite —
+`ChatViewControllerTests.swift` holds `ChatViewControllerTests` and `ChatRowSpacingTests`, and
+`ChatBubbleViewTests.swift` holds `ChatBubbleViewCornerTests`, `ChatMessageCellAlignmentTests` and
+`ChatBubbleDeletedTests`. Naming the file runs nothing and reports success. Several identifiers can
+go in one invocation.
+
 **Staging:** stage the files each task names, never `git add -A` or `git add .`. A build populates
 `Flipcash/Supporting Files/GoogleService-Info.plist` from `code-app-credentials/`, so it sits dirty
 in the worktree for the whole run and must never be committed.
@@ -671,7 +678,7 @@ and add:
 - [ ] **Step 2: Run the tests to verify the new one fails**
 
 ```bash
-./Scripts/test.sh FlipcashTests/ChatViewControllerTests
+./Scripts/test.sh FlipcashTests/ChatRowSpacingTests
 ```
 
 Expected: FAIL on `emojiRowBreaksTheTightGap` — `Expectation failed: gap(after: 0, in: items) == 10` (it is 5, because the spacing still reads `isContinuedByNext`).
@@ -819,7 +826,7 @@ Make the identical substitution at `LinkableBubbleView.swift:156-157` and `ChatC
 - [ ] **Step 6: Run the tests to verify they pass**
 
 ```bash
-./Scripts/test.sh FlipcashTests/ChatViewControllerTests
+./Scripts/test.sh FlipcashTests/ChatRowSpacingTests
 ```
 
 Expected: PASS, including `emojiRowBreaksTheTightGap`.
@@ -1104,7 +1111,7 @@ Note: `ChatMessage`'s `isEdited` argument comes after `isEmojiOnly` in both init
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-./Scripts/test.sh FlipcashTests/ChatBubbleViewTests
+./Scripts/test.sh FlipcashTests/ChatBubbleViewBareTests
 ```
 
 Expected: compile failure — `value of type 'BubbleBackgroundView' has no member 'isDrawingBubble'`, and `maskingPath` is not optional so `== nil` does not compile.
@@ -1299,10 +1306,10 @@ In `ChatMessageCell.swift`, `configure(with:maxWidth:authorImageData:)` (line 45
 - [ ] **Step 7: Run the tests to verify they pass**
 
 ```bash
-./Scripts/test.sh FlipcashTests/ChatBubbleViewTests
+./Scripts/test.sh FlipcashTests/ChatBubbleViewBareTests FlipcashTests/ChatBubbleViewCornerTests FlipcashTests/ChatBubbleDeletedTests
 ```
 
-Expected: PASS, including the pre-existing `ChatBubbleViewCornerTests` suite in the same file.
+Expected: PASS. The last two are the other suites `ChatBubbleViewTests.swift` already declares — they cover the ordinary bubble this task puts a flag through.
 
 ```bash
 ./Scripts/test.sh FlipcashTests/ChatViewControllerTests
@@ -1422,7 +1429,19 @@ Expected: BUILD SUCCEEDED.
 - [ ] **Run the chat suites**
 
 ```bash
-./Scripts/test.sh FlipcashCoreTests/EmojiOnlyDetectorTests && ./Scripts/test.sh FlipcashCoreTests/ChatMessageRenderingTests && ./Scripts/test.sh FlipcashTests/ChatMessageMappingTests && ./Scripts/test.sh FlipcashTests/ChatViewControllerTests && ./Scripts/test.sh FlipcashTests/ChatBubbleViewTests && ./Scripts/test.sh FlipcashTests/ChatTranscriptDiffFuzzTests && ./Scripts/test.sh FlipcashTests/ChatChangesetFlatteningTests && ./Scripts/test.sh FlipcashTests/ChatReceiptViewTests
+./Scripts/test.sh \
+  FlipcashCoreTests/EmojiOnlyDetectorTests \
+  FlipcashCoreTests/ChatMessageRenderingTests \
+  FlipcashTests/ChatMessageMappingTests \
+  FlipcashTests/ChatViewControllerTests \
+  FlipcashTests/ChatRowSpacingTests \
+  FlipcashTests/ChatBubbleViewBareTests \
+  FlipcashTests/ChatBubbleViewCornerTests \
+  FlipcashTests/ChatBubbleDeletedTests \
+  FlipcashTests/ChatMessageCellAlignmentTests \
+  FlipcashTests/ChatTranscriptDiffFuzzTests \
+  FlipcashTests/ChatChangesetFlatteningTests \
+  FlipcashTests/ChatReceiptViewTests
 ```
 
 The full `AllTargets` suite is the user's job — don't run it.
