@@ -10,6 +10,10 @@
 
 **Spec:** `.claude/plans/2026-09-17-emoji-only-rendering.md`
 
+**Staging:** stage the files each task names, never `git add -A` or `git add .`. A build populates
+`Flipcash/Supporting Files/GoogleService-Info.plist` from `code-app-credentials/`, so it sits dirty
+in the worktree for the whole run and must never be committed.
+
 ---
 
 ## File Structure
@@ -805,7 +809,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add -A && git commit -m "refactor(chat): draw corners and row gaps from the bubble run"
+git add FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift FlipcashUI/Sources/FlipcashUI/Chat/LinkableBubbleView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatCashCardCell.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatViewController.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatScrollBenchmark.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatMotionSandbox.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift FlipcashTests/Chat/ChatViewControllerTests.swift FlipcashTests/Chat/ChatChangesetFlatteningTests.swift FlipcashTests/Chat/ChatTranscriptDiffFuzzTests.swift && git commit -m "refactor(chat): draw corners and row gaps from the bubble run"
 ```
 
 ---
