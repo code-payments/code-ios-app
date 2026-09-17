@@ -23,6 +23,10 @@ final class ChatReceiptView: UIView {
     static let defaultColor = UIColor.white.withAlphaComponent(0.5)
     /// Color of the failed status line: the theme's error-text token, which tracks appearance changes.
     static let failedColor = UIColor(Color.textError)
+    /// Keeps the line off the column's trailing edge. Owned by the view rather than the face because
+    /// the metadata row applies the same inset when the receipt is hidden and "Edited" stands alone —
+    /// otherwise a lone marker sits 10pt further out than "Delivered" did.
+    static let trailingPadding: CGFloat = 10
 
     private let front = ChatReceiptFace()
     private let back = ChatReceiptFace()
@@ -184,8 +188,6 @@ private final class ChatReceiptFace: UIView {
 
     /// Gap between the status word and the time.
     private static let gap: CGFloat = 4
-    /// Keeps the line off the column's trailing edge.
-    private static let trailingPadding: CGFloat = 10
     private static let fontSize: CGFloat = 11
 
     private let status = UILabel()
@@ -221,7 +223,7 @@ private final class ChatReceiptFace: UIView {
             row.topAnchor.constraint(equalTo: topAnchor),
             row.bottomAnchor.constraint(equalTo: bottomAnchor),
             row.leadingAnchor.constraint(equalTo: leadingAnchor),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.trailingPadding),
+            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ChatReceiptView.trailingPadding),
         ])
     }
 
