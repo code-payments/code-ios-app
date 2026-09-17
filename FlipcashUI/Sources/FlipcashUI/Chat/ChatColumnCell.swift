@@ -45,6 +45,9 @@ public class ChatColumnCell: UICollectionViewCell {
     /// Who the gutter face currently belongs to, so the tap knows whose profile to open. Nil on
     /// every row that draws no face.
     private var authorID: UserID?
+    /// Whether this row holds the leading gutter open — every incoming row of an attributed
+    /// transcript, whether or not it draws a face there.
+    private var reservesAuthorGutter = false
     /// The message's stable id while this row is failed and tappable; nil otherwise.
     private var retryID: String?
     /// Tap-to-retry recognizer, enabled only while this row is failed so non-failed bubbles don't
@@ -120,6 +123,14 @@ public class ChatColumnCell: UICollectionViewCell {
     /// the space the row actually has.
     public static let authorGutterWidth = ChatAuthorAvatarView.size + 8
 
+    /// Whether a point in this cell's coordinates falls in the author gutter. The reply swipe asks
+    /// before it starts: the gutter is the face's own tap target, so a drag beginning there is
+    /// someone reaching for a profile rather than for reply.
+    func isInAuthorGutter(_ point: CGPoint) -> Bool {
+        guard reservesAuthorGutter else { return false }
+        return point.x < Self.rowInset + Self.authorGutterWidth
+    }
+
     /// How far the row's content is dragged towards the trailing edge by the reply swipe.
     ///
     /// It moves the column and the gutter avatar, not the content view. `UICollectionViewCell.layoutSubviews` assigns
@@ -171,6 +182,7 @@ public class ChatColumnCell: UICollectionViewCell {
         authorAvatar.isHidden = true
         authorAvatar.reset()
         authorID = nil
+        reservesAuthorGutter = false
         columnLeading?.constant = Self.rowInset
     }
 
@@ -200,8 +212,8 @@ public class ChatColumnCell: UICollectionViewCell {
         // held open for every incoming row of a group chat — the middle of a run, and a row whose
         // sender no roster could name — so the bubbles share one leading edge instead of stepping
         // in and out as faces come and go.
-        let reservesGutter = message.isAttributedTranscript && message.sender != .me
-        columnLeading?.constant = reservesGutter ? Self.rowInset + Self.authorGutterWidth : Self.rowInset
+        reservesAuthorGutter = message.isAttributedTranscript && message.sender != .me
+        columnLeading?.constant = reservesAuthorGutter ? Self.rowInset + Self.authorGutterWidth : Self.rowInset
 
         guard let author = message.author, message.sender != .me else {
             authorName.isHidden = true
