@@ -98,6 +98,49 @@ import FlipcashCore
         #expect(await counter.value == 1)
     }
 
+    /// A claim settles and the memo is wrong — this is the only way back to the server for it.
+    @Test func invalidatingACashLinkAsksAgain() async throws {
+        let counter = Counter()
+        let resolver = Self.resolver(cash: { _ in
+            await counter.increment()
+            return LinkCard.Cash.Resolved(
+                amount: "$15.00",
+                claim: await counter.value == 1 ? .claimable : .claimed,
+                tokenName: "Dollars",
+                iconURL: nil
+            )
+        })
+
+        _ = await resolver.resolve(.cash(card))
+        await resolver.invalidateCash(entropy: card.entropy)
+        let again = await resolver.resolve(.cash(card))
+
+        guard case .cash(let cash) = again, case .resolved(let value) = cash.state else {
+            Issue.record("card did not resolve"); return
+        }
+        #expect(await counter.value == 2)
+        #expect(value.claim == .claimed)
+    }
+
+    /// The caches are separate, and invalidation has to respect that: a mint's branding does not
+    /// settle, so a claim has no business dropping it.
+    @Test func invalidatingACashLinkLeavesTheMintCacheAlone() async throws {
+        let counter = Counter()
+        let resolver = Self.resolver(
+            cash: { _ in throw Offline() },
+            mint: { _ in
+                await counter.increment()
+                return LinkCard.Token.Resolved(name: "Dollars", iconURL: nil, colors: [], isReserve: true)
+            }
+        )
+
+        _ = await resolver.resolve(.token(Self.tokenCard))
+        await resolver.invalidateCash(entropy: card.entropy)
+        _ = await resolver.resolve(.token(Self.tokenCard))
+
+        #expect(await counter.value == 1)
+    }
+
     /// The two kinds share one dictionary on the way back to the transcript, so their keys have to
     /// stay apart even when a mint address and an entropy read alike.
     @Test func aCashAndATokenCardNeverShareAResolutionKey() {

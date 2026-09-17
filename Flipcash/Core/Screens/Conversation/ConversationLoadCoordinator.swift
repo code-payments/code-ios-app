@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import UIKit
 import FlipcashCore
 import FlipcashUI
 
@@ -55,6 +56,10 @@ final class ConversationLoadCoordinator {
     @ObservationIgnored private var cardStates: [String: LinkCard.State] = [:]
     /// Lookups already in flight, so a re-map mid-resolution does not ask a second time.
     @ObservationIgnored private var cardsInFlight: Set<String> = []
+    /// Settled claims already acted on, so the log — which only grows — is read as the news in it.
+    @ObservationIgnored private var honoredClaims: Set<String> = []
+    @ObservationIgnored private var claimRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var foregroundTask: Task<Void, Never>?
 
     @ObservationIgnored private var lastInputs: Inputs?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
@@ -68,6 +73,11 @@ final class ConversationLoadCoordinator {
     /// landed exactly on `date + window` would still resolve the capability as granted and then
     /// compute the same deadline again, and the row would never drop.
     private static let expiryGrace: TimeInterval = 1
+
+    /// How often a card the reader can still act on asks again, while they are looking at it. A
+    /// link claimed on someone else's device sends nothing here, so a claimable card is only ever
+    /// as fresh as the last ask; Android re-asks on the same cadence.
+    private static let claimableRefresh: TimeInterval = 15
 
     /// The furthest ahead a single sleep is allowed to reach. A 48-hour delete window would
     /// otherwise park a task for two days behind a transcript nobody is reading; clamping costs at
@@ -102,6 +112,13 @@ final class ConversationLoadCoordinator {
         scheduleWindowExpiry(for: initial)
         resolveCards(in: items)
         observeInputs()
+        observeSettledClaims()
+        startClaimableRefresh()
+    }
+
+    isolated deinit {
+        claimRefreshTask?.cancel()
+        foregroundTask?.cancel()
     }
 
     /// The reader reached the top — reveal older history.
@@ -180,6 +197,93 @@ final class ConversationLoadCoordinator {
             self.cardStates.merge(states) { _, new in new }
             self.refresh(with: self.currentInputs())
         }
+    }
+
+    // Re-asks for a card the moment its claim settles on this device. `receiveCashLink` names the
+    // entropy on the way out, which is the only notice this app gets that a link's claim state
+    // moved: the transcript behind the sheet is still drawing "Tap to claim" for cash that has just
+    // been collected. Tracks the log rather than folding it into `Inputs`, which is the set `map`
+    // reads, and re-arms itself once per change the way `observeInputs` does.
+    private func observeSettledClaims() {
+        let settled = withObservationTracking {
+            session.cashLinkClaims.settled
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeSettledClaims() }
+        }
+
+        let news = settled.subtracting(honoredClaims)
+        honoredClaims = settled
+        guard !news.isEmpty else { return }
+        let cards = cashCards { news.contains($0.entropy) }
+        guard !cards.isEmpty else { return }
+        Task { await self.reresolveCash(cards) }
+    }
+
+    // Re-asks for every card the transcript still shows as claimable, on a fixed cadence and again
+    // on foreground — where the cadence has been asleep and the answer is most likely to have moved.
+    // Claimed and expired are terminal, so they are left alone: asking again spends a request on an
+    // answer that cannot have changed.
+    private func startClaimableRefresh() {
+        claimRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.claimableRefresh))
+                guard let self, !Task.isCancelled else { return }
+                await self.refreshClaimableCards()
+            }
+        }
+        foregroundTask = Task { [weak self] in
+            let foregrounds = NotificationCenter.default.notifications(named: UIApplication.didBecomeActiveNotification)
+            for await _ in foregrounds {
+                guard let self, !Task.isCancelled else { return }
+                await self.refreshClaimableCards()
+            }
+        }
+    }
+
+    private func refreshClaimableCards() async {
+        // A tick that lands while the app is on its way out would spend a request nobody is looking
+        // at; the foreground arm asks again on the way back in.
+        guard UIApplication.shared.applicationState == .active else { return }
+        await reresolveCash(cashCards { cash in
+            guard case .resolved(let resolved) = cash.state else { return false }
+            return resolved.claim == .claimable
+        })
+    }
+
+    // Drops what the resolver memoized for these links and asks again, landing each answer over the
+    // old one rather than clearing it first: a cleared state draws the card unresolved for as long
+    // as the lookup takes, and on a 15-second cadence that is a card that blinks. An answer that
+    // comes back unchanged leaves `Inputs` equal, so nothing re-maps at all.
+    private func reresolveCash(_ cards: [LinkCard.Cash]) async {
+        let pending = cards.filter { !cardsInFlight.contains(LinkCard.cash($0).resolutionKey) }
+        guard !pending.isEmpty else { return }
+
+        let keys = Set(pending.map { LinkCard.cash($0).resolutionKey })
+        cardsInFlight.formUnion(keys)
+
+        var states: [String: LinkCard.State] = [:]
+        for cash in pending {
+            await linkCards.invalidateCash(entropy: cash.entropy)
+            let card = LinkCard.cash(cash)
+            states[card.resolutionKey] = await linkCards.resolve(card).state
+        }
+
+        cardsInFlight.subtract(keys)
+        cardStates.merge(states) { _, new in new }
+        refresh(with: currentInputs())
+    }
+
+    // The cash cards the landed transcript draws, one per link — the same link quoted twice is one
+    // lookup, the way `resolveCards` treats it.
+    private func cashCards(where include: (LinkCard.Cash) -> Bool) -> [LinkCard.Cash] {
+        var cards: [LinkCard.Cash] = []
+        var seen: Set<String> = []
+        for case .message(let message) in items {
+            guard case .cash(let cash)? = message.linkPreview?.card, include(cash) else { continue }
+            guard seen.insert(cash.entropy).inserted else { continue }
+            cards.append(cash)
+        }
+        return cards
     }
 
     // Wakes once, at the next instant a message loses Edit or Delete, and advances `capabilityClock`

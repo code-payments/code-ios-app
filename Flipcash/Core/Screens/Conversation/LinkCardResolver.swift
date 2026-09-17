@@ -50,6 +50,18 @@ actor LinkCardResolver {
         }
     }
 
+    /// Forgets what a cash link's lookup answered, so the next ask goes back to the server.
+    ///
+    /// A claim state is the one part of a card that changes under it: a link someone else collects
+    /// keeps reading "Tap to claim" until something asks again, and nothing arrives to say it
+    /// should. Callers decide when — a claim settling on this device, and a slow re-ask while a
+    /// claimable card is on screen.
+    ///
+    /// The token cache has no equivalent, because a mint's branding does not settle.
+    func invalidateCash(entropy: String) {
+        cashCache[entropy] = nil
+    }
+
     private func cashState(for entropy: String) async -> LinkCard.Cash.State {
         if let cached = cashCache[entropy] { return cached }
 

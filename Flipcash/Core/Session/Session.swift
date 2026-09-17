@@ -239,6 +239,11 @@ class Session {
     @ObservationIgnored private let historyController: HistoryController
     @ObservationIgnored private let database: Database
 
+    /// Cash links whose claim has settled on this device — see ``CashLinkClaimLog``. Held here
+    /// because ``receiveCashLink`` is the only writer; a chat transcript reads it to re-ask for the
+    /// card it is still drawing as claimable.
+    @ObservationIgnored let cashLinkClaims = CashLinkClaimLog()
+
     @ObservationIgnored private var poller: Poller!
 
     @ObservationIgnored private var scanOperation: ScanCashOperation?
@@ -1594,6 +1599,7 @@ class Session {
                         "claimState": "\(giftCardAccountInfo.claimState)",
                         "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                     ])
+                    cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy)
                     dialogItem = .error(title: "Cash Already Collected", subtitle: "This cash has already been collected, or was cancelled by the sender")
                     return
                 }
@@ -1695,6 +1701,8 @@ class Session {
 
                 updatePostTransaction()
 
+                cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy)
+
                 showCashBill(
                     .init(
                         exchangedFiat: exchangedFiat,
@@ -1717,6 +1725,7 @@ class Session {
                 logger.info("Cash link already claimed (server race)", metadata: [
                     "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                 ])
+                cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy)
                 dialogItem = .error(title: "Cash Already Collected", subtitle: "This cash has already been collected, or was cancelled by the sender")
                 Analytics.transfer(
                     event: .receiveCashLink,
