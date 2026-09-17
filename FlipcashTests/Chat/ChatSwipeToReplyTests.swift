@@ -39,6 +39,12 @@ struct ChatSwipeToReplyTests {
         #expect(ChatSwipeToReply.shouldBegin(velocity: CGPoint(x: 300, y: 40), isBlocked: true) == false)
     }
 
+    @Test("The row tracks the finger up to the maximum")
+    func translation_tracksTheFinger() {
+        #expect(ChatSwipeToReply.offset(forTranslation: 20) == 20)
+        #expect(ChatSwipeToReply.offset(forTranslation: ChatSwipeToReply.maxTranslation) == ChatSwipeToReply.maxTranslation)
+    }
+
     @Test("Translation past the maximum is bounded")
     func translation_isBounded() {
         let bound = ChatSwipeToReply.maxTranslation * 2
@@ -48,16 +54,16 @@ struct ChatSwipeToReplyTests {
         #expect(ChatSwipeToReply.offset(forTranslation: 500) > ChatSwipeToReply.offset(forTranslation: 200))
     }
 
-    @Test("A drag towards the leading edge does not move the row")
-    func leadingTranslation_isIgnored() {
-        #expect(ChatSwipeToReply.offset(forTranslation: -80) == 0)
-    }
-
     @Test("Translation past the threshold resists")
     func translation_resistsPastThreshold() {
         let offset = ChatSwipeToReply.offset(forTranslation: 120)
         #expect(offset > ChatSwipeToReply.triggerThreshold)
         #expect(offset < 120)
+    }
+
+    @Test("A drag towards the leading edge does not move the row")
+    func leadingTranslation_isIgnored() {
+        #expect(ChatSwipeToReply.offset(forTranslation: -80) == 0)
     }
 
     @Test("Releasing past the threshold triggers the reply")
@@ -98,7 +104,6 @@ struct ChatSwipeToReplyTests {
 
     @Test("The arrow rides the row into the gap the drag opens")
     func arrow_landsInsideTheRow() {
-        let center = ChatSwipeToReply.affordanceCenter(inRowOfHeight: 48)
         // At full travel the row carries it back over the leading edge, clear of the bubble that
         // has moved out of the way by the same distance.
         let travelled = ChatSwipeToReply.affordanceCenter(
@@ -113,6 +118,23 @@ struct ChatSwipeToReplyTests {
         let rest = ChatSwipeToReply.affordanceCenter(inRowOfHeight: 48).x
         let dragged = ChatSwipeToReply.affordanceCenter(inRowOfHeight: 48, offset: 30).x
         #expect(dragged - rest == 30)
+    }
+
+    @Test("The arrow stops at the maximum while the row rubber-bands on")
+    func arrow_stopsAtItsTravel() {
+        let full = ChatSwipeToReply.affordanceCenter(
+            inRowOfHeight: 48, offset: ChatSwipeToReply.maxTranslation
+        ).x
+        // Every offset the rubber band can still produce leaves the arrow where it stopped.
+        #expect(ChatSwipeToReply.affordanceCenter(
+            inRowOfHeight: 48, offset: ChatSwipeToReply.offset(forTranslation: 500)
+        ).x == full)
+        #expect(ChatSwipeToReply.affordanceCenter(inRowOfHeight: 48, offset: 2_000).x == full)
+    }
+
+    @Test("The arrow reaches its stop only past the threshold that arms the reply")
+    func arrow_stopsPastTheThreshold() {
+        #expect(ChatSwipeToReply.maxTranslation > ChatSwipeToReply.triggerThreshold)
     }
 }
 
@@ -161,6 +183,89 @@ struct ChatColumnCellSwipeOffsetTests {
         cell.layoutIfNeeded()
         #expect(cell.swipeOffset == 0)
         #expect(bubbleX(cell) == before)
+    }
+}
+
+@Suite("The author gutter and the reply swipe")
+@MainActor
+struct ChatColumnCellAuthorGutterTests {
+
+    private func cell(for message: ChatMessage) -> ChatMessageCell {
+        let cell = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 60))
+        cell.configure(with: message, maxWidth: 250)
+        cell.layoutIfNeeded()
+        return cell
+    }
+
+    private func incomingGroupMessage() -> ChatMessage {
+        ChatMessage(
+            id: "1",
+            text: "hi",
+            sender: .other,
+            actions: [.reply],
+            author: ChatAuthor(id: UserID(), name: "KT"),
+            isAttributedTranscript: true
+        )
+    }
+
+    /// The strip the face sits in: the row's own margin plus the gutter it gives up.
+    private var insideGutter: CGPoint {
+        CGPoint(x: ChatColumnCell.rowInset + ChatColumnCell.authorGutterWidth - 1, y: 30)
+    }
+
+    private var beyondGutter: CGPoint {
+        CGPoint(x: ChatColumnCell.rowInset + ChatColumnCell.authorGutterWidth + 1, y: 30)
+    }
+
+    @Test("A point in an attributed incoming row's gutter starts no reply swipe")
+    func attributedIncoming_gutterIsExcluded() {
+        let cell = cell(for: incomingGroupMessage())
+        #expect(cell.isInAuthorGutter(insideGutter))
+        #expect(cell.isInAuthorGutter(CGPoint(x: 0, y: 30)))
+    }
+
+    @Test("The rest of an attributed incoming row still swipes")
+    func attributedIncoming_bubbleSideIsIncluded() {
+        let cell = cell(for: incomingGroupMessage())
+        #expect(cell.isInAuthorGutter(beyondGutter) == false)
+        #expect(cell.isInAuthorGutter(CGPoint(x: 200, y: 30)) == false)
+    }
+
+    @Test("A row that draws no face but holds the gutter open excludes it too")
+    func attributedIncoming_midRunExcludesGutter() {
+        // The middle of a run hides the avatar; the gutter is the transcript's, so the strip is
+        // still the face's and still off limits.
+        let message = ChatMessage(
+            id: "1",
+            text: "hi",
+            sender: .other,
+            isContinuedByNext: true,
+            actions: [.reply],
+            author: ChatAuthor(id: UserID(), name: "KT"),
+            isAttributedTranscript: true
+        )
+        #expect(cell(for: message).isInAuthorGutter(insideGutter))
+    }
+
+    @Test("A DM row reserves no gutter, so its leading edge swipes")
+    func dm_hasNoGutter() {
+        let cell = cell(for: ChatMessage(id: "1", text: "hi", sender: .other, actions: [.reply]))
+        #expect(cell.isInAuthorGutter(insideGutter) == false)
+    }
+
+    @Test("The viewer's own row in a group reserves no gutter")
+    func ownRowInGroup_hasNoGutter() {
+        let message = ChatMessage(
+            id: "1", text: "hi", sender: .me, actions: [.reply], isAttributedTranscript: true
+        )
+        #expect(cell(for: message).isInAuthorGutter(insideGutter) == false)
+    }
+
+    @Test("Reuse clears the gutter")
+    func reuse_clearsTheGutter() {
+        let cell = cell(for: incomingGroupMessage())
+        cell.prepareForReuse()
+        #expect(cell.isInAuthorGutter(insideGutter) == false)
     }
 }
 

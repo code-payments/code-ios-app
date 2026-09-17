@@ -228,6 +228,9 @@ public final class ChatViewController: UICollectionViewController {
             guard let self,
                   let indexPath = self.collectionView.indexPathForItem(at: point),
                   let cell = self.collectionView.cellForItem(at: indexPath) as? ChatColumnCell,
+                  // A drag that starts on an author's face belongs to the face — see
+                  // `ChatColumnCell.isInAuthorGutter`.
+                  !cell.isInAuthorGutter(cell.convert(point, from: self.collectionView)),
                   case .message(let message) = self.items[indexPath.item],
                   message.actions.contains(.reply)
             else { return nil }
