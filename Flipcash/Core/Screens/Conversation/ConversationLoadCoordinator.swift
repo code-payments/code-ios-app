@@ -52,7 +52,7 @@ final class ConversationLoadCoordinator {
     /// What the resolver has answered so far, keyed the way it memoizes. Carried into `Inputs` so
     /// mapping stays pure, and observation-ignored for the same reason `capabilityClock` is: the
     /// resolution task advances it and re-maps explicitly, rather than through the observation arm.
-    @ObservationIgnored private var cardStates: [String: LinkCard.Cash.State] = [:]
+    @ObservationIgnored private var cardStates: [String: LinkCard.State] = [:]
     /// Lookups already in flight, so a re-map mid-resolution does not ask a second time.
     @ObservationIgnored private var cardsInFlight: Set<String> = []
 
@@ -171,7 +171,7 @@ final class ConversationLoadCoordinator {
 
         cardsInFlight.formUnion(seen)
         Task { [weak self, linkCards] in
-            var states: [String: LinkCard.Cash.State] = [:]
+            var states: [String: LinkCard.State] = [:]
             for card in pending {
                 states[card.resolutionKey] = await linkCards.resolve(card).state
             }
@@ -397,7 +397,7 @@ final class ConversationLoadCoordinator {
         var headsHistory: Bool
         /// What the resolver has answered about the window's link cards, keyed by link identity.
         /// Part of the input set, so an answer landing re-maps the transcript in place.
-        var cardStates: [String: LinkCard.Cash.State]
+        var cardStates: [String: LinkCard.State]
 
         struct Branding: Equatable, Sendable {
             var token: String

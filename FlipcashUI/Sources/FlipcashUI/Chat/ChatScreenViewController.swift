@@ -123,6 +123,11 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onOpenURL = newValue }
     }
 
+    public var onLinkCardTap: ((LinkCard) -> Void)? {
+        get { transcript.onLinkCardTap }
+        set { transcript.onLinkCardTap = newValue }
+    }
+
     public var onContactAction: (() -> Void)? {
         get { transcript.onContactAction }
         set { transcript.onContactAction = newValue }

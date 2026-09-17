@@ -517,7 +517,8 @@ final class SessionContainer {
         let owner = session.ownerKeyPair
 
         self.linkCardResolver = LinkCardResolver(
-            lookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner)
+            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
+            mintLookup: LinkCardResolver.mintLookup(reader: client)
         )
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {

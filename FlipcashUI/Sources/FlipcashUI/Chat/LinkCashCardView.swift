@@ -30,6 +30,8 @@ import Kingfisher
 /// bubble and hosting a SwiftUI view per dequeue costs a view-controller adoption —
 /// `ChatAuthorAvatarView` makes the same trade for the same reason.
 ///
+/// Sized by ``LinkCardView``, which owns the proportions both card kinds share.
+///
 /// Dumb — everything it draws arrives already formatted on `LinkCard.Cash`, the same way
 /// `ChatCashCardCell` takes its strings off `ChatCashContent`. Opening the link is the bubble's
 /// job, through the same deep-link path the URL took, so there is exactly one way in.
@@ -37,12 +39,6 @@ final class LinkCashCardView: UIView {
 
     /// The type row's brand mark, shown when there is no token to name.
     private static let brand = "Cash Link"
-
-    /// The proportions of the wallet's bill: 224pt of card across 328pt of usable width — its own
-    /// height at full width less two screen insets on a 375pt phone. A chat bubble is a good deal
-    /// narrower than that, and scaling the height with the width is what keeps the card a ticket
-    /// there rather than a tall panel.
-    private static let aspectRatio: CGFloat = 224.0 / 328.0
 
     /// The stub's share of the card's height, held whether or not the stub is drawn.
     private static let stubShare: CGFloat = 0.28
@@ -148,13 +144,6 @@ final class LinkCashCardView: UIView {
         tornLabel.textAlignment = .center
         tornLabel.numberOfLines = 1
         addSubview(tornLabel)
-
-        NSLayoutConstraint.activate([
-            // The ticket's proportions, not its size. Always live, including while collapsed: a
-            // card with no width has no height either, so this stays consistent with the bubble's
-            // zero-size constraints rather than fighting them.
-            heightAnchor.constraint(equalTo: widthAnchor, multiplier: Self.aspectRatio),
-        ])
     }
 
     override func layoutSubviews() {
@@ -249,36 +238,33 @@ final class LinkCashCardView: UIView {
     /// — is the identical ticket carrying the brand mark, with no icon and no amount. Nothing moves
     /// or resizes when the lookup lands; text appears. A second drawing for the unresolved case
     /// would be a second thing that can look wrong.
-    func configure(with card: LinkCard) {
-        switch card {
-        case .cash(let cash):
-            switch cash.state {
-            case .unresolved:
-                tokenLabel.text = Self.brand
-                coinIcon.isHidden = true
-                coinIcon.kf.cancelDownloadTask()
-                coinIcon.image = nil
-                amountLabel.text = nil
-                stubPill.isHidden = true
-                stubLabel.text = nil
-                tornLabel.text = nil
-                setTorn(false, dimmed: false)
+    func configure(with cash: LinkCard.Cash) {
+        switch cash.state {
+        case .unresolved:
+            tokenLabel.text = Self.brand
+            coinIcon.isHidden = true
+            coinIcon.kf.cancelDownloadTask()
+            coinIcon.image = nil
+            amountLabel.text = nil
+            stubPill.isHidden = true
+            stubLabel.text = nil
+            tornLabel.text = nil
+            setTorn(false, dimmed: false)
 
-            case .resolved(let value):
-                tokenLabel.text = value.tokenName
-                coinIcon.isHidden = value.iconURL == nil
-                coinIcon.kf.setImage(with: value.iconURL)
-                amountLabel.text = value.amount
+        case .resolved(let value):
+            tokenLabel.text = value.tokenName
+            coinIcon.isHidden = value.iconURL == nil
+            coinIcon.kf.setImage(with: value.iconURL)
+            amountLabel.text = value.amount
 
-                // The pill is the card's one call to action, drawn only while there is something
-                // to do. A claimed or expired link reads as a note instead.
-                let actionable = value.claim == .claimable
-                stubPill.isHidden = !actionable
-                stubLabel.textColor = actionable ? Self.paper : Self.ink.withAlphaComponent(0.55)
-                stubLabel.text = value.claim == .claimed ? nil : value.caption
-                tornLabel.text = value.caption
-                setTorn(value.claim == .claimed, dimmed: value.claim != .claimable)
-            }
+            // The pill is the card's one call to action, drawn only while there is something
+            // to do. A claimed or expired link reads as a note instead.
+            let actionable = value.claim == .claimable
+            stubPill.isHidden = !actionable
+            stubLabel.textColor = actionable ? Self.paper : Self.ink.withAlphaComponent(0.55)
+            stubLabel.text = value.claim == .claimed ? nil : value.caption
+            tornLabel.text = value.caption
+            setTorn(value.claim == .claimed, dimmed: value.claim != .claimable)
         }
         setNeedsLayout()
     }

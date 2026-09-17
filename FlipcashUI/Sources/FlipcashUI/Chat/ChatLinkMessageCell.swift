@@ -30,6 +30,11 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         didSet { bubble.onOpenURL = onOpenURL }
     }
 
+    /// Called when the user taps the card the bubble drew in place of a link.
+    var onLinkCardTap: ((LinkCard) -> Void)? {
+        didSet { bubble.onLinkCardTap = onLinkCardTap }
+    }
+
     var bubbleView: LinkableBubbleView { bubble }
 
     /// Forwarded from the bubble's quote panel: the stable id of the row to jump to.

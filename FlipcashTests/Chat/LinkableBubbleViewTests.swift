@@ -141,25 +141,25 @@ struct LinkableBubbleViewTests {
         #expect(rendered.hasBody)
     }
 
-    @Test("Tapping the card opens the link the card replaced")
-    func cardTap_opensTheLink() {
+    @Test("Tapping the card hands back the card it replaced the link with")
+    func cardTap_reportsTheCard() {
         let view = LinkableBubbleView()
-        var opened: [URL] = []
-        view.onOpenURL = { opened.append($0) }
+        var tapped: [URL] = []
+        view.onLinkCardTap = { tapped.append($0.url) }
         view.configure(with: carded(Self.cashLink, at: 0))
         view.cardTapped()
-        #expect(opened == [url(Self.cashLink)])
+        #expect(tapped == [url(Self.cashLink)])
     }
 
-    @Test("A bubble recycled from a carded message to a plain one opens nothing")
+    @Test("A bubble recycled from a carded message to a plain one reports nothing")
     func cardTap_afterReuse() {
         let view = LinkableBubbleView()
-        var opened: [URL] = []
-        view.onOpenURL = { opened.append($0) }
+        var tapped: [URL] = []
+        view.onLinkCardTap = { tapped.append($0.url) }
         view.configure(with: carded(Self.cashLink, at: 0))
         view.configure(with: ChatMessage(id: "2", text: "see https://apple.com", sender: .me))
         view.cardTapped()
-        #expect(opened.isEmpty)
+        #expect(tapped.isEmpty)
     }
 
     @Test("An inverted card span leaves the body alone")

@@ -11,7 +11,7 @@ import FlipcashCore
 
     struct Vector: Decodable {
         struct Span: Decodable { let start: Int; let end: Int; let url: String }
-        struct Card: Decodable { let kind: String; let url: String }
+        struct Card: Decodable { let kind: String; let url: String; let mint: String? }
         let name: String
         let spans: [Span]
         let card: Card?
@@ -45,29 +45,25 @@ import FlipcashCore
                 continue
             }
 
-            // Phase 1 is cash links only. The token vector is canonical's commitment that both
-            // platforms draw that link as a card eventually, and iOS does not yet — so the gap is
-            // recorded here rather than hidden by holding the fixture back. `withKnownIssue` closes
-            // itself: the day the classifier returns a token card this fails, and this branch goes.
-            guard expected.kind == "cash" else {
-                withKnownIssue("iOS has no \(expected.kind) card yet: vector `\(vector.name)`") {
-                    #expect(actual != nil)
-                }
+            guard let card = actual else {
+                Issue.record("vector `\(vector.name)` produced no \(expected.kind) card: \(vector.note)")
                 continue
             }
-            guard case .cash(let cash)? = actual else {
-                Issue.record("vector `\(vector.name)` produced no cash card: \(vector.note)")
-                continue
-            }
-            #expect(cash.url.absoluteString == expected.url, "vector `\(vector.name)`: \(vector.note)")
-            #expect(cash.state == .unresolved, "vector `\(vector.name)` must start unresolved")
+            #expect(card.kindName == expected.kind, "vector `\(vector.name)`: \(vector.note)")
+            #expect(card.url.absoluteString == expected.url, "vector `\(vector.name)`: \(vector.note)")
+            #expect(card.isUnresolved, "vector `\(vector.name)` must start unresolved")
             // The card carries the span it was built from, which is what the bubble cuts out of the
-            // body. For a jump link that span is the wrapper, not `cash.url`, so it is matched
+            // body. For a jump link that span is the wrapper, not `card.url`, so it is matched
             // against the detected spans rather than against the card's own target.
             #expect(
-                links.contains { $0.range == cash.range },
-                "vector `\(vector.name)` card range \(cash.range) is not one of its detected spans"
+                links.contains { $0.range == card.range },
+                "vector `\(vector.name)` card range \(card.range) is not one of its detected spans"
             )
+            // The mint is read out of the path rather than matched against the URL, so the fixture
+            // states it separately and the classifier has to agree.
+            if case .token(let token) = card {
+                #expect(token.mint.base58 == expected.mint, "vector `\(vector.name)`: \(vector.note)")
+            }
         }
     }
 
@@ -87,5 +83,15 @@ import FlipcashCore
 
     @Test func theHostAllowlistMatchesTheCrossPlatformFixture() throws {
         #expect(Set(try loadFixture().cardHosts) == LinkCardClassifier.cardHosts)
+    }
+}
+
+/// The fixture names a card's kind as a string; this is the one place that string meets the enum.
+private extension LinkCard {
+    var kindName: String {
+        switch self {
+        case .cash: "cash"
+        case .token: "token"
+        }
     }
 }

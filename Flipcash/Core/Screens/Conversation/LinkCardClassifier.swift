@@ -26,8 +26,10 @@ import FlipcashCore
 /// **Route.** Whatever survives the host gate goes to the real parser. No second path parser is
 /// written.
 ///
-/// `.login` and `.verifyEmail` are excluded by omission — they carry the account seed and a
-/// verification secret, and a card with a tap target in front of either is a phishing aid.
+/// Two paths become cards: `.cash` and `.token`. The rest are refused by name rather than by a
+/// `default`, so a new route has to be ruled on here instead of inheriting a card. `.login` and
+/// `.verifyEmail` in particular carry the account seed and a verification secret, and a card with a
+/// tap target in front of either is a phishing aid.
 nonisolated struct LinkCardClassifier {
 
     /// The union of the hosts the two apps claim — iOS's associated-domains entitlement and
@@ -56,9 +58,22 @@ nonisolated struct LinkCardClassifier {
         let target = Route.unwrappingJump(link.url) ?? link.url
 
         guard let host = target.host()?.lowercased(), Self.cardHosts.contains(host) else { return nil }
-        guard let route = Route(url: target), case .cash = route.path else { return nil }
-        guard let entropy = route.fragments[.entropy]?.value, !entropy.isEmpty else { return nil }
+        guard let route = Route(url: target) else { return nil }
 
-        return .cash(LinkCard.Cash(url: target, entropy: entropy, range: link.range, state: .unresolved))
+        switch route.path {
+        case .cash:
+            guard let entropy = route.fragments[.entropy]?.value, !entropy.isEmpty else { return nil }
+            return .cash(LinkCard.Cash(url: target, entropy: entropy, range: link.range, state: .unresolved))
+
+        case .token(let mint):
+            // A mint the server has never heard of is a card that never fills in, not a rejected
+            // one: `Route` already proved the address is well-formed base58, and whether it names
+            // anything is a question only the lookup can answer.
+            return .token(LinkCard.Token(url: target, mint: mint, range: link.range, state: .unresolved))
+
+        case .login, .verifyEmail, .chat, .chatSendCash, .tip, .username,
+             .give, .balance, .discover, .unknown:
+            return nil
+        }
     }
 }

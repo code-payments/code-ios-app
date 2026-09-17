@@ -15,11 +15,13 @@ import Foundation
 public enum LinkCard: Hashable, Sendable, Codable {
 
     case cash(Cash)
+    case token(Token)
 
     /// The URL the card stands for, jump wrapper already unwrapped. Tapping the card opens this.
     public var url: URL {
         switch self {
         case .cash(let cash): cash.url
+        case .token(let token): token.url
         }
     }
 
@@ -31,7 +33,16 @@ public enum LinkCard: Hashable, Sendable, Codable {
     public var range: NSRange {
         switch self {
         case .cash(let cash): cash.range
+        case .token(let token): token.range
         }
+    }
+
+    /// How far a card's lookup got, kept per kind so the two cannot be handed to each other. The
+    /// resolver memoizes these and a re-map applies them back, which is what stops a scroll from
+    /// asking again for a card it has already filled in.
+    public enum State: Hashable, Sendable, Codable {
+        case cash(Cash.State)
+        case token(Token.State)
     }
 
     public struct Cash: Hashable, Sendable, Codable {
@@ -98,6 +109,61 @@ public enum LinkCard: Hashable, Sendable, Codable {
             case claimable
             case claimed
             case expired
+        }
+    }
+
+    public struct Token: Hashable, Sendable, Codable {
+
+        public let url: URL
+        public let mint: PublicKey
+        /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
+        public let location: Int
+        public let length: Int
+        public let state: State
+
+        public var range: NSRange { NSRange(location: location, length: length) }
+
+        public init(url: URL, mint: PublicKey, range: NSRange, state: State) {
+            self.url = url
+            self.mint = mint
+            self.location = range.location
+            self.length = range.length
+            self.state = state
+        }
+
+        /// The address, shortened to its two ends. What the card names while the mint is still
+        /// unknown, and the reason an unresolved token card is not a blank rectangle: the raw link
+        /// showed the address, so a card that showed nothing would tell the reader less than the
+        /// text it replaced.
+        public var abbreviatedMint: String {
+            let address = mint.base58
+            guard address.count > Self.abbreviationChars * 2 else { return address }
+            return "\(address.prefix(Self.abbreviationChars))…\(address.suffix(Self.abbreviationChars))"
+        }
+
+        private static let abbreviationChars = 4
+
+        public enum State: Hashable, Sendable, Codable {
+            /// The mint is known, its branding is not. Also where a failed or offline lookup stays.
+            case unresolved
+            case resolved(Resolved)
+        }
+
+        public struct Resolved: Hashable, Sendable, Codable {
+            /// The mint's name, as the wallet's own card shows it.
+            public let name: String
+            public let iconURL: URL?
+            /// The bill's gradient stops, `#RRGGBB`, straight off `MintMetadata.billColors`.
+            public let colors: [String]
+            /// Whether to draw the reserve's `$` watermark, which is USDF's alone.
+            public let isReserve: Bool
+
+            public init(name: String, iconURL: URL?, colors: [String], isReserve: Bool) {
+                self.name = name
+                self.iconURL = iconURL
+                self.colors = colors
+                self.isReserve = isReserve
+            }
         }
     }
 }

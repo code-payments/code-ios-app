@@ -11,20 +11,27 @@ import FlipcashCore
 
 /// A chat bubble that renders text with tappable links, over the shared `BubbleBackgroundView`. Used
 /// only for messages that contain a link; plain text stays on the cheaper `ChatBubbleView` (a
-/// `UILabel`). Link taps are reported through `onOpenURL`; the bubble itself opens nothing.
+/// `UILabel`). Link taps are reported through `onOpenURL` and card taps through `onLinkCardTap`;
+/// the bubble itself opens nothing.
 public final class LinkableBubbleView: UIView {
 
     private let background = BubbleBackgroundView()
     private let textView = LinkTextView()
     private let editedLabel = EditedMarker.makeLabel()
-    private let cardView = LinkCashCardView()
+    private let cardView = LinkCardView()
 
-    /// Called when the user taps a detected link, or the card standing in for one.
+    /// Called when the user taps a detected link.
     var onOpenURL: ((URL) -> Void)?
 
-    /// What the card opens. The card is drawn in place of its URL, so the body no longer carries a
-    /// span to tap — without this a link-only message would render something that goes nowhere.
-    private var cardURL: URL?
+    /// Called when the user taps the card standing in for a link. The whole card goes back rather
+    /// than its URL, because where a tap should land differs by kind and only the owner knows the
+    /// transcript it is landing in.
+    var onLinkCardTap: ((LinkCard) -> Void)?
+
+    /// The card this bubble is currently drawing. The card is drawn in place of its URL, so the
+    /// body no longer carries a span to tap — without this a link-only message would render
+    /// something that goes nowhere.
+    private var card: LinkCard?
 
     private(set) var quotePanel = ChatQuotePanelView()
 
@@ -163,10 +170,10 @@ public final class LinkableBubbleView: UIView {
     /// Flashes the bubble's ground to point the eye at this message after a jump.
     func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
 
-    /// Routes a tap on the card the same way a tap on the URL went: out through `onOpenURL`, which
-    /// is the deep-link path. The card itself stays inert so there is one way in, not two.
+    /// Hands the tapped card to the owner. The card itself stays inert so there is one way in, not
+    /// two.
     @objc func cardTapped() {
-        cardURL.map { onOpenURL?($0) }
+        card.map { onLinkCardTap?($0) }
     }
 
     /// Whether this bubble is currently flashing.
@@ -175,7 +182,7 @@ public final class LinkableBubbleView: UIView {
     func prepareForReuse() {
         textView.resignFirstResponder()
         quotePanel.onTap = nil
-        cardURL = nil
+        card = nil
         cardView.prepareForReuse()
     }
 
@@ -190,13 +197,13 @@ public final class LinkableBubbleView: UIView {
         // Card first, because it decides which top the body gets.
         if let card = message.linkPreview?.card {
             cardView.isHidden = false
-            cardURL = card.url
+            self.card = card
             cardView.configure(with: card)
             NSLayoutConstraint.deactivate(cardCollapse)
             NSLayoutConstraint.activate(cardSides)
         } else {
             cardView.isHidden = true
-            cardURL = nil
+            self.card = nil
             NSLayoutConstraint.deactivate(cardSides + [cardTopToBubble, cardTopToQuote, textTopToCard])
             NSLayoutConstraint.activate(cardCollapse)
         }
