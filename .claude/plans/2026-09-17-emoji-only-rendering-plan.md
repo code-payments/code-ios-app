@@ -1062,6 +1062,8 @@ git add FlipcashUI/Sources/FlipcashUI/Chat/ChatColumnCell.swift FlipcashUI/Sourc
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift:42-61`, `:70-81`, `:83-87`
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift:51-97`, `:99-101`, `:110-141`, `:167-182`
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift:45-49`
+- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/EditedMarker.swift:46-48`
+- Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatColumnCell.swift:84-85`
 - Modify: `FlipcashUI/Sources/FlipcashUI/Chat/ChatScrollBenchmark.swift:249-283`
 - Test: `FlipcashTests/Chat/ChatBubbleViewTests.swift`
 
@@ -1349,7 +1351,91 @@ In `ChatMessageCell.swift`, `configure(with:maxWidth:authorImageData:)` (line 45
 
 `liftPreviewMaskingPath` needs no edit: it already forwards `bubbleView.maskingPath`, which is now optional.
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [ ] **Step 7: Make the standalone marker readable, and cover the wiring**
+
+`EditedMarker.makeLabel()` switches accessibility off, and says why: "The body already carries the
+marker in its reservation run, so VoiceOver reads it in place." That is true of a bubble, whose body
+appends `EditedMarker.reservation` — and Step 5 just stopped a bare row from appending it. So a bare
+row's marker would be the only "Edited" on screen and the only one VoiceOver cannot read.
+
+Correct the comment in `FlipcashUI/Sources/FlipcashUI/Chat/EditedMarker.swift:46-48` so it names the
+call site it is actually describing:
+
+```swift
+        // A bubble's body carries the marker in its reservation run, so VoiceOver reads it in place
+        // and this label would only repeat it. A row that draws the marker on its own — with no
+        // reservation behind it — turns this back on.
+        label.isAccessibilityElement = false
+```
+
+Then turn it back on for the column's copy. In `ChatColumnCell.swift`, in `installColumn`, directly
+after the existing `editedMarker.isHidden = true`:
+
+```swift
+        // Nothing else on a bare row says the message was edited: its body skips the reservation run
+        // the bubble's marker hides behind. A hidden label is out of the accessibility tree anyway,
+        // so this speaks only on the rows that show it.
+        editedMarker.isAccessibilityElement = true
+```
+
+Now append a second suite to `FlipcashTests/Chat/ChatBubbleViewTests.swift`. It asserts the two
+markers never both draw, that the bare row's one is the column's rather than the bubble's, and that
+it is reachable:
+
+```swift
+@MainActor
+@Suite("Edited marker placement")
+struct ChatEditedMarkerPlacementTests {
+
+    private func laidOutCell(_ message: ChatMessage) -> ChatMessageCell {
+        let cell = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 120))
+        cell.configure(with: message, maxWidth: 250)
+        cell.layoutIfNeeded()
+        return cell
+    }
+
+    private func visibleMarkers(in cell: ChatMessageCell) -> [UILabel] {
+        cell.descendants(of: UILabel.self).filter { $0.text == EditedMarker.text && !$0.isHidden }
+    }
+
+    @Test("A bare edited row draws one marker, outside the bubble, and VoiceOver can read it")
+    func bareDrawsTheMarkerOnTheMetadataLine() {
+        let cell = laidOutCell(
+            ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true, isEdited: true)
+        )
+        let markers = visibleMarkers(in: cell)
+        #expect(markers.count == 1)
+        #expect(!cell.bubbleView.descendants(of: UILabel.self).contains { $0 === markers.first })
+        #expect(markers.first?.isAccessibilityElement == true)
+    }
+
+    @Test("An ordinary edited row draws one marker, inside the bubble")
+    func ordinaryDrawsTheMarkerInTheBubble() {
+        let cell = laidOutCell(ChatMessage(id: "1", text: "hi", sender: .me, isEdited: true))
+        let markers = visibleMarkers(in: cell)
+        #expect(markers.count == 1)
+        #expect(cell.bubbleView.descendants(of: UILabel.self).contains { $0 === markers.first })
+    }
+
+    @Test("A bare row that was never edited draws no marker at all")
+    func bareUneditedDrawsNothing() {
+        let cell = laidOutCell(
+            ChatMessage(id: "1", text: "👍", sender: .me, isEmojiOnly: true)
+        )
+        #expect(visibleMarkers(in: cell).isEmpty)
+    }
+}
+```
+
+Run it:
+
+```bash
+./Scripts/test.sh FlipcashTests/ChatEditedMarkerPlacementTests
+```
+
+Expected: PASS.
+
+- [ ] **Step 8: Run the tests to verify they pass**
 
 ```bash
 ./Scripts/test.sh FlipcashTests/ChatBubbleViewBareTests FlipcashTests/ChatBubbleViewCornerTests FlipcashTests/ChatBubbleDeletedTests
@@ -1363,7 +1449,7 @@ Expected: PASS. The last two are the other suites `ChatBubbleViewTests.swift` al
 
 Expected: PASS — the lift path changed type, so this is the suite that would catch a break.
 
-- [ ] **Step 8: Make the scroll benchmark produce bare rows**
+- [ ] **Step 9: Make the scroll benchmark produce bare rows**
 
 `ChatScrollBenchmark`'s text pool already holds `"👍"` at index 6, so a qualifying row appears
 every eighth message. But `window(_:offset:)` builds each `ChatMessage` directly instead of going
@@ -1400,39 +1486,61 @@ run, which a bare row does not break.
 `ChatMotionSandbox` needs no equivalent change: no row in its fixture qualifies, and its
 `grouped(_:)` doc already says so.
 
-- [ ] **Step 9: Look at it**
+- [ ] **Step 10: Look at it**
 
 ```bash
-./Scripts/build.sh
+DESTINATION='platform=iOS Simulator,name=iPhone 17 Pro' ./Scripts/build.sh
 ```
 
-Expected: BUILD SUCCEEDED.
+Expected: `** BUILD SUCCEEDED **`. `./Scripts/build.sh` on its own defaults to
+`generic/platform=iOS`, a device build no simulator can install.
 
-Then stand up a transcript with no account and hold it still — velocity 0 leaves the benchmark's
-display link spinning without moving the content, so the capture is repeatable:
+Then stand up a transcript with no account and hold it still. Velocity 0 leaves the benchmark's
+display link spinning without moving the content, so the frame is static and the capture repeatable.
+Resolve the simulator to an explicit UDID rather than `booted` — more than one is routinely booted
+here and `simctl` picks one silently:
 
 ```bash
-xcrun simctl launch booted com.flipcash.app.ios --scroll-benchmark --scroll-benchmark-messages=24 --scroll-benchmark-authors=4 --scroll-benchmark-velocity=0
+SIM=$(xcrun simctl list devices 'iPhone 17 Pro' -j | python3 -c 'import json,sys; d=[x for v in json.load(sys.stdin)["devices"].values() for x in v if x.get("isAvailable")]; print(d[0]["udid"])')
+xcrun simctl boot "$SIM" 2>/dev/null || true
+APP="$(xcodebuild -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -showBuildSettings 2>/dev/null | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2}' | head -1)/Flipcash.app"
+xcrun simctl install "$SIM" "$APP"
+xcrun simctl launch "$SIM" com.flipcash.app.ios --scroll-benchmark --scroll-benchmark-messages=24 --scroll-benchmark-authors=4 --scroll-benchmark-velocity=0
 ```
 
-The pool puts a bare row at indices 6, 14 and 22, so two are on screen at rest. Check the one thing
-a unit test cannot reach:
+This `launch` returns once the app is up, because it is not passed `--console-pty`. Give it a few
+seconds to settle, then capture the frame into your scratchpad directory and **open the PNG and look
+at it** — this step cannot be answered from a log:
 
+```bash
+xcrun simctl io "$SIM" screenshot "$SCRATCH/bare-emoji.png"
+```
+
+The pool puts a bare row at indices 6, 14 and 22, so two are on screen at rest. Confirm both of
+these in the image:
+
+- **the emoji has no bubble** — no fill, no hairline border, no rectangular patch behind it;
 - **the 48pt glyph is not clipped top or bottom.** An emoji fills its line box, and a body line
   height sized for 16pt text crops it. If it crops, set the label's line height explicitly rather
   than reducing the font size — the size is the feature.
 
-Two more need gestures and belong to the coordinator, who drives them from the same harness; say in
-your report that you did not check them:
+Then stop the app:
+
+```bash
+xcrun simctl terminate "$SIM" com.flipcash.app.ios
+```
+
+Attach the screenshot to your report. Two more checks need gestures and belong to the coordinator,
+who drives them from this same harness — say in your report that you did not check them:
 
 - long-pressing a bare emoji lifts it with no bubble-shaped shadow and no rectangular patch behind
   it, and the same under the edit blur;
 - jumping to a bare emoji from a quote flashes a rounded highlight, not a rectangle.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatScrollBenchmark.swift FlipcashTests/Chat/ChatBubbleViewTests.swift && git commit -m "feat(chat): render an emoji-only message without a bubble"
+git add FlipcashUI/Sources/FlipcashUI/Chat/BubbleBackgroundView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatBubbleView.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatMessageCell.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatColumnCell.swift FlipcashUI/Sources/FlipcashUI/Chat/EditedMarker.swift FlipcashUI/Sources/FlipcashUI/Chat/ChatScrollBenchmark.swift FlipcashTests/Chat/ChatBubbleViewTests.swift && git commit -m "feat(chat): render an emoji-only message without a bubble"
 ```
 
 ---
