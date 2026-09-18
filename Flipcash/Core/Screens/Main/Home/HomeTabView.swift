@@ -12,11 +12,11 @@ import FlipcashUI
 ///
 /// On iOS 26 the tabs live in a native `TabView`, which renders the system
 /// Liquid Glass tab bar; below that we fall back to the home-grown floating
-/// `HomeTabBar` pill. The native `TabView` keeps every tab alive, so the Scan
-/// tab's camera is gated on `selection` (rather than relying on `onDisappear`)
-/// to tear down when it isn't the active tab. The selected tab's push target is
-/// published to the router via `activeTabStack`, since a tab is the active
-/// surface without being a sheet.
+/// `HomeTabBar` pill. The native `TabView` builds and keeps every tab alive, so
+/// two tabs opt out of that in ``tabContent(for:)``: Scan, whose camera is gated
+/// on `selection` so it tears down, and Chat, which is not built until it is
+/// first selected. The selected tab's push target is published to the router via
+/// `activeTabStack`, since a tab is the active surface without being a sheet.
 struct HomeTabView: View {
 
     @Environment(AppRouter.self) private var router
@@ -25,6 +25,10 @@ struct HomeTabView: View {
     @Environment(BetaFlags.self) private var betaFlags
 
     @State private var selection: HomeTab = .initial
+
+    /// Whether Chat has been selected yet. Gates its first build; see
+    /// ``tabContent(for:)``.
+    @State private var hasOpenedChat = false
 
     /// The You tab's icon, once the profile has a picture. Owned here rather
     /// than by either bar, because both bars want the same download.
@@ -99,6 +103,7 @@ struct HomeTabView: View {
             .onChange(of: router.requestedTabStack) { _, _ in selectRequestedTab() }
             .onChange(of: selection) { _, tab in
                 router.activeTabStack = tab.pushStack
+                if tab == .chat { hasOpenedChat = true }
                 // Leaving the tab puts the card back (and the brightness with it).
                 tipCardPresentation.collapse()
             }
@@ -258,9 +263,14 @@ struct HomeTabView: View {
         .animation(.easeInOut(duration: 0.2), value: isTabBarHidden)
     }
 
-    /// The content for a given tab. The Scan tab is gated on `selection` so its
-    /// camera tears down when the tab isn't active — the native `TabView` keeps
-    /// every tab alive, so an `onDisappear` alone wouldn't stop it.
+    /// The content for a given tab. Two tabs are not simply built, because the
+    /// native `TabView` builds and keeps all four alive: Scan is gated on
+    /// `selection` so its camera tears down when the tab isn't active (an
+    /// `onDisappear` alone wouldn't stop it), and Chat is held back until it is
+    /// first selected.
+    ///
+    /// The legacy pill asks only for the selected tab, so both gates are no-ops
+    /// there.
     @ViewBuilder private func tabContent(for tab: HomeTab) -> some View {
         switch tab {
         case .scan:
@@ -273,7 +283,21 @@ struct HomeTabView: View {
             WalletScreen(onScanTipCard: { selection = .scan })
                 .environment(cardExpansion)
         case .chat:
-            ChatTab()
+            // Building the conversation list cost 300–550 ms on the launch that
+            // lands on Wallet, after first paint, which is the jank right as the
+            // wallet appears. Deferring it to the first selection moves that off
+            // the launch; `selection` alone answers the frame Chat is tapped, so
+            // there is nothing to see in between.
+            //
+            // It stays built afterwards, unlike Scan. Scan is gated so it *does*
+            // tear down; Chat holds state worth keeping — scroll position, a
+            // half-filled profile form — that tearing down on every tab change
+            // would discard.
+            if selection == .chat || hasOpenedChat {
+                ChatTab()
+            } else {
+                Color.backgroundMain
+            }
         case .tipCard:
             TipCardTab()
                 .environment(tipCardPresentation)
