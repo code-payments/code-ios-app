@@ -285,9 +285,11 @@ struct NewPublicGroupScreen: View {
 
                 guard !Task.isCancelled else { return }
 
-                // The form is replaced rather than stacked under the chat: coming back to a filled
-                // form for a group that now exists would only offer to create it twice.
-                router.popTopmost()
+                // The whole create flow is replaced rather than stacked under the chat. Back from
+                // a group that now exists belongs at the chat list holding it, not at a filled
+                // form offering to create it twice or at the picker that opened the form. The
+                // chat list is this stack's root, so unwinding to it is the same as popping both.
+                router.popToRoot()
                 router.push(.tipConversation(conversation.id))
 
             } catch {
