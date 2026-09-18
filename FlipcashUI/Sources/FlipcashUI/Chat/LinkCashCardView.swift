@@ -32,9 +32,11 @@ import Kingfisher
 ///
 /// Sized by ``LinkCardView``, which owns the proportions both card kinds share.
 ///
-/// Dumb — everything it draws arrives already formatted on `LinkCard.Cash`, the same way
-/// `ChatCashCardCell` takes its strings off `ChatCashContent`. Opening the link is the bubble's
-/// job, through the same deep-link path the URL took, so there is exactly one way in.
+/// Dumb — everything it draws arrives already formatted on `LinkCard.Cash.State`, the same way
+/// `ChatCashCardCell` takes its strings off `ChatCashContent`. It draws nothing off the link
+/// itself: a cash card names the token and the amount, and the entropy says neither. Opening the
+/// link is the bubble's job, through the same deep-link path the URL took, so there is exactly one
+/// way in.
 final class LinkCashCardView: UIView {
 
     /// The type row's brand mark, shown when there is no token to name.
@@ -48,6 +50,12 @@ final class LinkCashCardView: UIView {
     private static let inset: CGFloat = 14
     private static let iconSize: CGFloat = 20
     private static let pillHeight: CGFloat = 26
+
+    /// The width the amount's loading slot stands in at, as a share of the usable width. It is not
+    /// a measurement of anything — the amount is not known yet — so it is sized to look like the
+    /// sort of thing that lands there rather than to predict it.
+    private static let amountSlotShare: CGFloat = 0.55
+    private static let amountSlotRadius: CGFloat = 6
 
     private static let paper = UIColor(red: 242 / 255, green: 240 / 255, blue: 234 / 255, alpha: 1)
     private static let ink = UIColor(red: 20 / 255, green: 18 / 255, blue: 31 / 255, alpha: 1)
@@ -67,6 +75,14 @@ final class LinkCashCardView: UIView {
     private let stubPill = UIView()
     private let stubLabel = UILabel()
     private let tornLabel = UILabel()
+
+    /// The one place the lookup will put something and there is nothing yet. Everything else on an
+    /// unresolved ticket — the paper, the seam, the notches, the brand mark, the claim pill — is
+    /// already true, and a shimmer over a true thing reads as a disclaimer about it.
+    private let amountShimmer = LinkCardShimmerView(
+        ground: LinkCashCardView.ink.withAlphaComponent(0.07),
+        highlight: LinkCashCardView.paper
+    )
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -119,6 +135,11 @@ final class LinkCashCardView: UIView {
         stubLabel.numberOfLines = 1
         stubLabel.textAlignment = .center
         stubPiece.addSubview(stubLabel)
+
+        // Added before the dims, so a dimmed card dims its slots too rather than leaving them
+        // glowing over paper that has been greyed out.
+        amountShimmer.roundCorners(to: Self.amountSlotRadius)
+        topPiece.addSubview(amountShimmer)
 
         // Each piece dims itself, added last so the piece's mask clips it. One overlay across the
         // whole card would paint over the cleared notches and fill the holes back in.
@@ -210,6 +231,17 @@ final class LinkCashCardView: UIView {
             width: available,
             height: max(0, bounds.height - amountTop - inset)
         )
+
+        // Centred in the amount's box the way the amount itself is, and only as tall as one line of
+        // it: the box runs to the seam, and a slot filling it would be a panel rather than a word.
+        let slotWidth = (available * Self.amountSlotShare).rounded()
+        let slotHeight = amountLabel.font.lineHeight.rounded()
+        amountShimmer.frame = CGRect(
+            x: ((bounds.width - slotWidth) / 2).rounded(),
+            y: (amountLabel.frame.midY - slotHeight / 2).rounded(),
+            width: slotWidth,
+            height: slotHeight
+        )
     }
 
     private func layOutStub(in bounds: CGRect) {
@@ -232,22 +264,35 @@ final class LinkCashCardView: UIView {
     func prepareForReuse() {
         coinIcon.kf.cancelDownloadTask()
         coinIcon.image = nil
+        amountShimmer.setShimmering(false)
     }
 
-    /// Draws `card`. An unresolved card — including one whose lookup failed, timed out or never ran
-    /// — is the identical ticket carrying the brand mark, with no icon and no amount. Nothing moves
-    /// or resizes when the lookup lands; text appears. A second drawing for the unresolved case
-    /// would be a second thing that can look wrong.
-    func configure(with cash: LinkCard.Cash) {
-        switch cash.state {
+    /// Draws the ticket in `state`. An unresolved card — including one whose lookup failed, timed out or
+    /// never ran — is the identical ticket carrying the brand mark and the claim pill, with no icon
+    /// and no amount. Nothing moves or resizes when the lookup lands; text appears. A second drawing
+    /// for the unresolved case would be a second thing that can look wrong.
+    ///
+    /// - Parameter loading: whether a lookup is still out, which shimmers the amount's empty slot.
+    ///   It is not read off the state, because a failure lands as `unresolved` too and a card that
+    ///   failed must stop shimmering rather than promise an answer that is not coming.
+    func configure(with state: LinkCard.Cash.State, loading: Bool) {
+        amountShimmer.setShimmering(loading)
+
+        switch state {
         case .unresolved:
             tokenLabel.text = Self.brand
             coinIcon.isHidden = true
             coinIcon.kf.cancelDownloadTask()
             coinIcon.image = nil
             amountLabel.text = nil
-            stubPill.isHidden = true
-            stubLabel.text = nil
+            // Offered from the first frame, before the lookup lands and still if it fails. The tap
+            // is live in every state — `cardTapped` fires unconditionally — so the pill labels a
+            // control that already works rather than promising one that might not exist. A link
+            // that comes back claimed or expired withdraws the offer, onto a dimmed card with its
+            // own line under the tear, which is the trade this buys the reader.
+            stubPill.isHidden = false
+            stubLabel.textColor = Self.paper
+            stubLabel.text = LinkCard.Cash.Claim.claimable.caption
             tornLabel.text = nil
             setTorn(false, dimmed: false)
 

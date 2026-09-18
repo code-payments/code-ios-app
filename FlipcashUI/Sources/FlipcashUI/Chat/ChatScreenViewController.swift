@@ -128,6 +128,13 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onLinkCardTap = newValue }
     }
 
+    /// Where a link card in the transcript looks its link up — see
+    /// ``ChatViewController/linkCardSource``.
+    public weak var linkCardSource: (any LinkCardSource)? {
+        get { transcript.linkCardSource }
+        set { transcript.linkCardSource = newValue }
+    }
+
     public var onContactAction: (() -> Void)? {
         get { transcript.onContactAction }
         set { transcript.onContactAction = newValue }

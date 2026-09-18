@@ -8,15 +8,13 @@ import FlipcashCore
     private let card = LinkCard.Cash(
         url: URL(string: "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3")!,
         entropy: "KNi8pQr1n5hRU65vKJGge3",
-        range: NSRange(location: 0, length: 54),
-        state: .unresolved
+        range: NSRange(location: 0, length: 54)
     )
 
     private static let tokenCard = LinkCard.Token(
         url: URL(string: "https://app.flipcash.com/token/\(PublicKey.usdf.base58)")!,
         mint: .usdf,
-        range: NSRange(location: 0, length: 74),
-        state: .unresolved
+        range: NSRange(location: 0, length: 74)
     )
 
     private struct Offline: Error {}
@@ -36,9 +34,7 @@ import FlipcashCore
 
     @Test func aFailedLookupStaysUnresolved() async throws {
         let resolver = Self.resolver(cash: { _ in throw Offline() })
-        let resolved = await resolver.resolve(.cash(card))
-        guard case .cash(let cash) = resolved else { Issue.record("not a cash card"); return }
-        #expect(cash.state == .unresolved)
+        #expect(await resolver.resolve(.cash(card)) == .cash(.unresolved))
     }
 
     @Test func aSuccessfulLookupFillsTheCardIn() async throws {
@@ -50,8 +46,7 @@ import FlipcashCore
                 iconURL: nil
             )
         })
-        let resolved = await resolver.resolve(.cash(card))
-        guard case .cash(let cash) = resolved, case .resolved(let value) = cash.state else {
+        guard case .cash(.resolved(let value)) = await resolver.resolve(.cash(card)) else {
             Issue.record("card did not resolve"); return
         }
         #expect(value.amount == "$15.00")
@@ -61,19 +56,37 @@ import FlipcashCore
         let counter = Counter()
         let resolver = Self.resolver(cash: { _ in
             await counter.increment()
-            throw Offline()
+            return LinkCard.Cash.Resolved(
+                amount: "$15.00",
+                claim: .claimed,
+                tokenName: "Dollars",
+                iconURL: nil
+            )
         })
         _ = await resolver.resolve(.cash(card))
         _ = await resolver.resolve(.cash(card))
         #expect(await counter.value == 1)
     }
 
+    /// The one answer that is not kept. A card whose lookup failed while the phone was in a lift
+    /// would otherwise stay blank for as long as the session lives, which is what holding a failure
+    /// costs and why neither platform does it.
+    @Test func aFailedLookupIsForgottenSoTheNextAskGoesBackOut() async throws {
+        let counter = Counter()
+        let resolver = Self.resolver(cash: { _ in
+            await counter.increment()
+            throw Offline()
+        })
+        _ = await resolver.resolve(.cash(card))
+        _ = await resolver.resolve(.cash(card))
+        #expect(await counter.value == 2)
+    }
+
     @Test func aTokenCardResolvesThroughTheMintLookup() async throws {
         let resolver = Self.resolver(mint: { _ in
             LinkCard.Token.Resolved(name: "Dollars", iconURL: nil, colors: ["#C4980B"], isReserve: true)
         })
-        let resolved = await resolver.resolve(.token(Self.tokenCard))
-        guard case .token(let token) = resolved, case .resolved(let value) = token.state else {
+        guard case .token(.resolved(let value)) = await resolver.resolve(.token(Self.tokenCard)) else {
             Issue.record("card did not resolve"); return
         }
         #expect(value.name == "Dollars")
@@ -82,19 +95,45 @@ import FlipcashCore
 
     @Test func anUnknownMintStaysUnresolvedRatherThanFailing() async throws {
         let resolver = Self.resolver(mint: { _ in throw Offline() })
-        let resolved = await resolver.resolve(.token(Self.tokenCard))
-        guard case .token(let token) = resolved else { Issue.record("not a token card"); return }
-        #expect(token.state == .unresolved)
+        #expect(await resolver.resolve(.token(Self.tokenCard)) == .token(.unresolved))
     }
 
     @Test func theSameMintIsOnlyLookedUpOnce() async throws {
         let counter = Counter()
         let resolver = Self.resolver(mint: { _ in
             await counter.increment()
-            throw Offline()
+            return LinkCard.Token.Resolved(name: "Dollars", iconURL: nil, colors: [], isReserve: true)
         })
         _ = await resolver.resolve(.token(Self.tokenCard))
         _ = await resolver.resolve(.token(Self.tokenCard))
+        #expect(await counter.value == 1)
+    }
+
+    /// Two rows quoting one link, both asking before either answer is back. The resolver memoizes
+    /// the query rather than the answer for this: an actor serializes turns, not awaits, so a cache
+    /// of answers would have both callers miss and both query.
+    @Test func twoCallersAskingAtOnceShareOneQuery() async throws {
+        let counter = Counter()
+        let gate = Gate()
+        let resolver = Self.resolver(cash: { _ in
+            await counter.increment()
+            await gate.wait()
+            return LinkCard.Cash.Resolved(
+                amount: "$15.00",
+                claim: .claimed,
+                tokenName: "Dollars",
+                iconURL: nil
+            )
+        })
+
+        async let first = resolver.resolve(.cash(card))
+        // The second caller can only find the first one's query once it exists, so the gate holds
+        // the lookup open until the counter says it has started.
+        while await counter.value == 0 { await Task.yield() }
+        async let second = resolver.resolve(.cash(card))
+        await gate.open()
+
+        _ = await (first, second)
         #expect(await counter.value == 1)
     }
 
@@ -115,7 +154,7 @@ import FlipcashCore
         await resolver.invalidateCash(entropy: card.entropy)
         let again = await resolver.resolve(.cash(card))
 
-        guard case .cash(let cash) = again, case .resolved(let value) = cash.state else {
+        guard case .cash(.resolved(let value)) = again else {
             Issue.record("card did not resolve"); return
         }
         #expect(await counter.value == 2)
@@ -149,19 +188,27 @@ import FlipcashCore
         #expect(LinkCard.token(Self.tokenCard).resolutionKey.hasPrefix("token:"))
     }
 
-    @Test func aStateOfTheWrongKindIsIgnored() {
-        let states: [String: LinkCard.State] = [
-            LinkCard.cash(card).resolutionKey: .token(.resolved(
-                LinkCard.Token.Resolved(name: "Dollars", iconURL: nil, colors: [], isReserve: true)
-            ))
-        ]
-        let applied = LinkCard.cash(card).applying(states)
-        #expect(applied.isUnresolved)
-    }
-
     private actor Counter {
         private(set) var value = 0
         func increment() { value += 1 }
+    }
+
+    /// Holds a lookup open until the test says otherwise, so two callers are provably in flight at
+    /// the same moment rather than merely likely to be.
+    private actor Gate {
+        private var continuations: [CheckedContinuation<Void, Never>] = []
+        private var isOpen = false
+
+        func wait() async {
+            guard !isOpen else { return }
+            await withCheckedContinuation { continuations.append($0) }
+        }
+
+        func open() {
+            isOpen = true
+            continuations.forEach { $0.resume() }
+            continuations = []
+        }
     }
 }
 
@@ -192,8 +239,7 @@ import FlipcashCore
             LinkCard.Cash(
                 url: URL(string: "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3")!,
                 entropy: "KNi8pQr1n5hRU65vKJGge3",
-                range: NSRange(location: 0, length: 54),
-                state: .unresolved
+                range: NSRange(location: 0, length: 54)
             )
         )
         _ = await resolver.resolve(card)
@@ -230,8 +276,7 @@ import FlipcashCore
             LinkCard.Token(
                 url: URL(string: "https://app.flipcash.com/token/\(PublicKey.usdf.base58)")!,
                 mint: .usdf,
-                range: NSRange(location: 0, length: 74),
-                state: .unresolved
+                range: NSRange(location: 0, length: 74)
             )
         )
         _ = await resolver.resolve(card)

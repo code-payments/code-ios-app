@@ -9,9 +9,10 @@ import Foundation
 
 /// A link in a message that renders as a card in place of the sender's URL.
 ///
-/// Display-ready by construction: whoever builds it has already classified the URL, formatted the
-/// amount, and read the mint's branding, so the transcript needs neither `Route` nor a currency
-/// formatter. See `LinkCardClassifier` and `LinkCardResolver` in the app target.
+/// Identity only: which link, of which kind, over which span. Classified by construction, so the
+/// transcript needs no `Route` — but not looked up, because the card view does that for itself and
+/// a transcript that carried the answer would re-diff every row each time one landed. See
+/// `LinkCardClassifier` and `LinkCardResolver` in the app target, and `LinkCardSource` in the UI.
 public enum LinkCard: Hashable, Sendable, Codable {
 
     case cash(Cash)
@@ -37,12 +38,22 @@ public enum LinkCard: Hashable, Sendable, Codable {
         }
     }
 
-    /// How far a card's lookup got, kept per kind so the two cannot be handed to each other. The
-    /// resolver memoizes these and a re-map applies them back, which is what stops a scroll from
-    /// asking again for a card it has already filled in.
+    /// How far a card's lookup got, kept per kind so the two cannot be handed to each other.
+    ///
+    /// It does not live on the card. A card is the link's identity — url, entropy or mint, span —
+    /// and the view resolves it, so a lookup landing cannot change what the transcript diffed.
     public enum State: Hashable, Sendable, Codable {
         case cash(Cash.State)
         case token(Token.State)
+
+        /// Whether the lookup came back with something. A failure of any kind is `unresolved`,
+        /// which is the one answer not worth remembering — the next look asks again.
+        public var isResolved: Bool {
+            switch self {
+            case .cash(.resolved), .token(.resolved):     true
+            case .cash(.unresolved), .token(.unresolved): false
+            }
+        }
     }
 
     public struct Cash: Hashable, Sendable, Codable {
@@ -52,16 +63,14 @@ public enum LinkCard: Hashable, Sendable, Codable {
         /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
         public let location: Int
         public let length: Int
-        public let state: State
 
         public var range: NSRange { NSRange(location: location, length: length) }
 
-        public init(url: URL, entropy: String, range: NSRange, state: State) {
+        public init(url: URL, entropy: String, range: NSRange) {
             self.url = url
             self.entropy = entropy
             self.location = range.location
             self.length = range.length
-            self.state = state
         }
 
         public enum State: Hashable, Sendable, Codable {
@@ -87,6 +96,15 @@ public enum LinkCard: Hashable, Sendable, Codable {
                 self.iconURL = iconURL
             }
 
+            /// The line on the card's stub, from the claim it carries.
+            public var caption: String { claim.caption }
+        }
+
+        public enum Claim: String, Hashable, Sendable, Codable {
+            case claimable
+            case claimed
+            case expired
+
             /// The line on the card's stub. Resolved here, next to `ChatCashContent.caption`, so
             /// the view stays dumb and both cash surfaces word themselves in one layer.
             ///
@@ -96,19 +114,15 @@ public enum LinkCard: Hashable, Sendable, Codable {
             ///
             /// "Tap to claim" names what the *link* does, not what the card does: the card claims
             /// nothing, and a tap on it opens the link through the deep-link path the URL took.
+            /// That is also why an unresolved card can say it before it knows anything: the tap is
+            /// live in every state, so the line describes a control that already works.
             public var caption: String {
-                switch claim {
+                switch self {
                 case .claimed:   "Claimed"
                 case .expired:   "Expired"
                 case .claimable: "Tap to claim"
                 }
             }
-        }
-
-        public enum Claim: String, Hashable, Sendable, Codable {
-            case claimable
-            case claimed
-            case expired
         }
     }
 
@@ -119,16 +133,14 @@ public enum LinkCard: Hashable, Sendable, Codable {
         /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
         public let location: Int
         public let length: Int
-        public let state: State
 
         public var range: NSRange { NSRange(location: location, length: length) }
 
-        public init(url: URL, mint: PublicKey, range: NSRange, state: State) {
+        public init(url: URL, mint: PublicKey, range: NSRange) {
             self.url = url
             self.mint = mint
             self.location = range.location
             self.length = range.length
-            self.state = state
         }
 
         /// The address, shortened to its two ends. What the card names while the mint is still

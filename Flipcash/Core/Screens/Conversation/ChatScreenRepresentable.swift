@@ -32,6 +32,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps the card drawn in place of a link, with the whole card. The owner
     /// decides where it lands, which differs by kind.
     let onLinkCardTap: (LinkCard) -> Void
+    /// Where a link card looks its link up — see ``LinkCardFeed``. Container-scoped, so it outlives
+    /// both this view and the rows that subscribe to it.
+    let linkCardSource: any LinkCardSource
     /// Fired when the user taps the profile card's call to action. The owner opens the
     /// counterpart's contact card (or the add-contact sheet), same as tapping the nav title.
     let onContactAction: () -> Void
@@ -95,6 +98,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
         screen.onLinkCardTap = onLinkCardTap
+        screen.linkCardSource = linkCardSource
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onAuthorTap = onAuthorTap
@@ -124,6 +128,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
         screen.onLinkCardTap = onLinkCardTap
+        screen.linkCardSource = linkCardSource
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onAuthorTap = onAuthorTap

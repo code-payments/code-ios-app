@@ -20,9 +20,10 @@ nonisolated(unsafe) private let linkDetector = LinkDetector()
 /// entries, purges under memory pressure, and synchronizes its own access, so the mapper stays
 /// non-isolated. Keyed by text, so identical messages share the result.
 ///
-/// Only the detection half is cached. A card's state changes as resolution lands, so a cache keyed
-/// on text that stored a resolved card would pin the first answer forever; `LinkCardResolver` has
-/// its own cache, keyed on the entropy, which is the part that does not change.
+/// Only the detection half is cached. Classification is a closure the caller injects, and it is
+/// cheap next to `NSDataDetector`, so the cache holds the spans rather than the card built from
+/// them. Nothing about resolution is cached here — a card is identity alone, and the lookup behind
+/// it belongs to `LinkCardResolver`, keyed on the entropy.
 private final class DetectedLinkBox {
     nonisolated let links: [DetectedLink]
     nonisolated init(_ links: [DetectedLink]) { self.links = links }
@@ -72,9 +73,9 @@ extension ChatItem {
         author: (ConversationMessage) -> ChatAuthor? = { _ in nil },
         namesAuthors: Bool = false,
         /// The card, if any, for a message's detected links. Injected like the other collaborators
-        /// so the mapper stays pure; the screen supplies classification plus whatever the resolver
-        /// has already filled in, and defaults to no card. Takes the detected links rather than the
-        /// text so the detector runs once per message, here.
+        /// so the mapper stays pure; the screen supplies classification and nothing else, and it
+        /// defaults to no card. Takes the detected links rather than the text so the detector runs
+        /// once per message, here.
         linkCard: ([DetectedLink]) -> LinkCard? = { _ in nil }
     ) -> [ChatItem] {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under

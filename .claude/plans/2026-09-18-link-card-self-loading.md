@@ -3,7 +3,8 @@
 Moving link-card resolution out of the transcript's load pass and into the card view, with a
 loading state. Shipped behaviour today is in [#795](https://github.com/code-payments/code-ios-app/pull/795).
 
-**Status:** design approved, implementation not started.
+**Status:** implemented on `feat/link-card-loading-state`. The sections below are the design as
+agreed; where the build departed from it, the section says so.
 
 ---
 
@@ -45,14 +46,24 @@ Three properties of the existing code make this cheaper than it sounds:
 contents through a protocol the UI package owns, and the app target conforms:
 
 ```swift
-public protocol LinkCardSource: Sendable {
+@MainActor
+public protocol LinkCardSource: AnyObject {
     /// What is already known about this card, without suspending — nil if nothing is.
-    @MainActor func known(_ card: LinkCard) -> LinkCard.State?
+    func known(_ card: LinkCard) -> LinkCard.State?
 
     /// Every state this card takes, first answer onward. Ends when the caller stops iterating.
     func states(for card: LinkCard) -> AsyncStream<LinkCard.State>
 }
 ```
+
+As built the protocol is main-actor isolated as a whole and class-bound, because the view holds the
+source weakly and both methods only ever run on the main actor. The conformance is
+[`LinkCardFeed`](../../Flipcash/Core/Screens/Conversation/LinkCardFeed.swift), built lazily in
+`SessionAuthenticator` over `LinkCardResolver`, `LinkCardMemo` and `CashLinkClaimLog` — the claim log
+directly rather than the whole `Session`, so a test can stand the feed up with three cheap objects.
+The injection route needed one more stop than the design lists: `makeUIViewController` returns
+`ChatScreenViewController`, which now forwards `linkCardSource` to the transcript the way it already
+forwards `onLinkCardTap`.
 
 The two methods answer different questions. `known` is what stops a scroll-in from shimmering over a
 link already resolved this session — the job `LinkCardMemo` was added for. `states` is the
@@ -80,12 +91,21 @@ Blast radius is contained. `state` appears only in the coordinator, the `LinkCar
 
 `configure(with:source:)` branches once:
 
-- `source.known(card)` returns a state — paint it. No shimmer, no task.
-- It returns nil — paint the existing unresolved rendering, start the shimmer, and start a task
-  iterating `states(for:)`. The first element stops the shimmer.
+- `source.known(card)` returns a state — paint it, no shimmer.
+- It returns nil — paint the existing unresolved rendering and start the shimmer. The first element
+  of the stream stops it.
 
-The task is held on the view and cancelled in `prepareForReuse`, and on reconfigure when the
-incoming card's `resolutionKey` differs. Cells recycle, so a task outliving its card would paint one
+Either way it then subscribes, which is the one correction the design needed: a known card still has
+to hear about a claim settling or a claimable link being re-asked, and those arrive through the same
+stream. Its first element repeats what is already painted, which costs a redraw of values that have
+not changed.
+
+`states(for:)` is called on the caller's turn and only the iteration goes in the task. A task body
+does not run until the caller suspends, so subscribing inside it would leave a window in which an
+answer is yielded to nobody.
+
+The task is held on the view and cancelled in `prepareForReuse` and at the top of every
+`configure`. Cells recycle, so a task outliving its card would paint one
 link's answer onto another link's row. This is the one new failure mode the change introduces and
 the main thing tests need to pin down.
 
@@ -98,9 +118,24 @@ cards. So: a small shimmer layer, a `CAGradientLayer` highlight band swept acros
 Shimmer only what is genuinely absent until the lookup lands. Both cards already say true things
 while unresolved, and a shimmer over a correct value tells the reader it is a guess.
 
-On the cash card that means the amount and the stub slots, and *not* the type row: unresolved it
-reads "Cash Link", a brand constant that refines to the token's name on resolve. Android reached the
-same conclusion independently about its own equivalent label.
+On the cash card that means the amount, and only the amount. The type row is not absent: unresolved
+it reads "Cash Link", a brand constant that refines to the token's name on resolve, and Android
+reached the same conclusion independently about its own equivalent label.
+
+The stub is not absent either, though that is a later decision. It first shipped here as a second
+shimmering slot; Brandon then called it on Android — overriding that session's recommendation — that
+the claim pill should be drawn optimistically from the first frame, in the loading state and after a
+failed lookup alike, and iOS follows. The pill is honest rather than optimistic because the tap is
+live in every state: `LinkableBubbleView.cardTapped` fires unconditionally and
+`ConversationScreen.openLinkCard` opens the URL without consulting resolution, so "Tap to claim"
+labels a control that already works. `LinkCard` carries no state at all, so the tap *cannot* be
+gated on one. With the pill present from frame one nothing in the stub band is missing, and
+shimmering it would have contradicted the rule above, so `stubShimmer` came out.
+
+The caption moved to `LinkCard.Cash.Claim` to make this possible — an unresolved card has no
+`Resolved` to ask, but it can name the claim it is offering. What the reader trades for the earlier
+offer is that a link already spent withdraws it when the answer lands, onto a dimmed card with its
+own line under the tear.
 
 The token card carries the mint's abbreviated address, which is correct-then-refined in the same
 way, so its text does not shimmer either. What shimmers is the bill surface: unresolved, the
@@ -123,6 +158,12 @@ this device (`observeSettledClaims`, reading `session.cashLinkClaims`).
 
 Both move into the source, which yields the new state into the stream the card is already iterating.
 The coordinator is then left with no card code at all.
+
+Two details the design did not anticipate. Forgetting is unconditional: a claim that settles while
+the card is scrolled away still drops the memo entry, or the next row to show that link would paint
+"Tap to claim" for cash already collected. And every ask carries the generation its key was on, so a
+query still in flight when the claim settled cannot land its stale answer over the fresh one — an
+actor serialises turns, not awaits, and invalidation happens in the middle of one.
 
 This also makes the cadence match its stated intent. The comment on `claimableRefresh` says a card
 re-asks "while they are looking at it", but the current implementation refreshes every claimable card
@@ -148,16 +189,21 @@ one link — is load-bearing, and the source picks it up by memoizing a `Task` p
 `LinkCardResolverTests` and `LinkCardClassifierTests` are unaffected apart from the `state` argument
 leaving the initialisers.
 
-Worth adding:
+What landed: `LinkCardLandingTests` became `LinkCardFeedTests` over the feed's stream, and
+`LinkCardViewTests` is new, driving `LinkCardView` against a hand-fed source. Between them they pin
+recycling (configure A, reuse, configure B, then deliver A's answer — B is untouched), a `known` hit
+painting with no shimmer, a failure stopping the shimmer without being remembered, a settled claim
+and a cadence re-ask each reaching an on-screen card, a recycled row dropping out of the cadence, and
+two rows quoting one link making one query — the `cardsInFlight` guarantee moving house, which the
+actor could not make on its own. Two later cases pin the optimistic pill from both ends: an
+unresolved card offers the claim on its first frame and still offers it after the lookup fails, and
+one that comes back claimed withdraws the offer.
 
-- Recycling. Configure card A, reuse the cell, configure card B, then let A's answer arrive. B must
-  be untouched.
-- A `known` hit paints resolved with no shimmer and no subscription.
-- A failed lookup stops the shimmer, leaves the card unresolved, and is not remembered — the next
-  appearance asks again.
-- A claimable card's refresh reaches an on-screen card through the stream.
-- Two rows quoting one link make one query. This is the `cardsInFlight` guarantee moving house, and
-  the current actor cannot make it on its own.
+`LinkCardViewTests` keys its stub source on `LinkCard` rather than on `resolutionKey`: the key is
+internal to the app target, and a card is the link's identity either way. `refreshClaimable` is
+internal for the same kind of reason — a test ticks the cadence instead of waiting fifteen seconds
+for it — and the foreground guard moved out to the cadence loop, where the foreground arm is active
+by definition.
 
 ## Cancellation, and what Android already settled
 
@@ -180,7 +226,11 @@ moves.
 So the source holds a `Task` per key rather than a `LinkCard.State` per key. Every subscriber awaits
 the same task, cancelling a subscriber cancels nothing, and the source is torn down with the
 conversation. One change closes the re-entrancy gap, replaces `cardsInFlight`, and settles
-cancellation.
+cancellation. Android's note on the same shape is to keep the `await` outside the lock, which is
+what memoizing the task achieves here: the dictionary write happens before the first suspension.
+
+Concurrency stays unbounded, deliberately. The asks are one per distinct link on screen, they are
+already deduplicated per key, and a queue would add a knob with no observed pressure behind it.
 
 ## Failures are forgotten, not recorded
 

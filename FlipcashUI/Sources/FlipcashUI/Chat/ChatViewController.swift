@@ -47,6 +47,10 @@ public final class ChatViewController: UICollectionViewController {
     /// pushes that token onto this chat's own stack — and only the owner holds that stack.
     public var onLinkCardTap: ((LinkCard) -> Void)?
 
+    /// Where a link card looks its link up. Each card subscribes for itself, so the transcript
+    /// carries no resolution state and a lookup landing cannot change a row's diff.
+    public weak var linkCardSource: (any LinkCardSource)?
+
     /// Called when the user taps the profile card's call to action; the owner opens the
     /// counterpart's contact card (or the add-contact sheet), same as the nav title.
     public var onContactAction: (() -> Void)?
@@ -413,6 +417,8 @@ public final class ChatViewController: UICollectionViewController {
         // Only text messages are sent optimistically, so only they can reach the failed state
         // that arms retry (wired on both text cells). Cash messages are always server-confirmed.
         case let cell as ChatLinkMessageCell:
+            // Before `configure`, which is where the card subscribes.
+            cell.linkCardSource = linkCardSource
             cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }

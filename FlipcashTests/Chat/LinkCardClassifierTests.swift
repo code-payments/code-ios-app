@@ -51,7 +51,6 @@ import FlipcashCore
             }
             #expect(card.kindName == expected.kind, "vector `\(vector.name)`: \(vector.note)")
             #expect(card.url.absoluteString == expected.url, "vector `\(vector.name)`: \(vector.note)")
-            #expect(card.isUnresolved, "vector `\(vector.name)` must start unresolved")
             // The card carries the span it was built from, which is what the bubble cuts out of the
             // body. For a jump link that span is the wrapper, not `card.url`, so it is matched
             // against the detected spans rather than against the card's own target.

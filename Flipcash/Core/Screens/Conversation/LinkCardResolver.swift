@@ -15,19 +15,32 @@ import FlipcashCore
 /// `receiveCashLink`, because that claims the link, and a card that claims what it renders would
 /// empty a link by scrolling past it. A token card asks `GetMint` for branding and nothing else.
 ///
-/// The two kinds memoize in separate caches so an entropy and a mint address cannot collide on one
+/// The two kinds memoize in separate maps so an entropy and a mint address cannot collide on one
 /// key, and each kind's lookup is the only thing that can write its own side.
 ///
 /// Failure of any kind — offline, timeout, malformed entropy, an unknown mint, a kill switch —
-/// returns the card unchanged, in its unresolved state. Neither card has an error state by design:
-/// the link underneath is still tappable and still works.
+/// answers unresolved and is then forgotten, so the next ask goes back to the server. Neither card
+/// has an error state by design: the link underneath is still tappable and still works. Holding a
+/// failure would let one bad moment decide the card for as long as the caller lives, which is the
+/// conclusion Android reached first and for the same reason.
 actor LinkCardResolver {
 
     private let cashLookup: @Sendable (String) async throws -> LinkCard.Cash.Resolved
     private let mintLookup: @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved
 
-    private var cashCache: [String: LinkCard.Cash.State] = [:]
-    private var tokenCache: [PublicKey: LinkCard.Token.State] = [:]
+    /// The query per key, not the answer.
+    ///
+    /// An actor serializes turns, not awaits: checking a cache, awaiting the lookup and writing the
+    /// answer back spans a suspension point, so two callers arriving for one key both miss and both
+    /// query. Memoizing the `Task` closes that — the second caller finds the first one's task and
+    /// awaits it — and it is also what makes several rows quoting one link cost one query, a
+    /// guarantee that used to be the load coordinator's `cardsInFlight`.
+    ///
+    /// The task is not cancelled when a caller stops awaiting it. `Task.value` propagates
+    /// cancellation to the awaiting caller alone, so a recycled row abandons its await and the query
+    /// still finishes for whoever asks next.
+    private var cashQueries: [String: Task<LinkCard.Cash.State, Never>] = [:]
+    private var tokenQueries: [PublicKey: Task<LinkCard.Token.State, Never>] = [:]
 
     init(
         cashLookup: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved,
@@ -37,16 +50,11 @@ actor LinkCardResolver {
         self.mintLookup = mintLookup
     }
 
-    /// The same card with its state filled in, or unchanged if the lookup fails.
-    func resolve(_ card: LinkCard) async -> LinkCard {
+    /// How far `card`'s lookup got: resolved, or unresolved if it failed.
+    func resolve(_ card: LinkCard) async -> LinkCard.State {
         switch card {
-        case .cash(let cash):
-            let state = await cashState(for: cash.entropy)
-            return .cash(LinkCard.Cash(url: cash.url, entropy: cash.entropy, range: cash.range, state: state))
-
-        case .token(let token):
-            let state = await tokenState(for: token.mint)
-            return .token(LinkCard.Token(url: token.url, mint: token.mint, range: token.range, state: state))
+        case .cash(let cash):   .cash(await cashState(for: cash.entropy))
+        case .token(let token): .token(await tokenState(for: token.mint))
         }
     }
 
@@ -59,88 +67,58 @@ actor LinkCardResolver {
     ///
     /// The token cache has no equivalent, because a mint's branding does not settle.
     func invalidateCash(entropy: String) {
-        cashCache[entropy] = nil
+        cashQueries[entropy] = nil
     }
 
     private func cashState(for entropy: String) async -> LinkCard.Cash.State {
-        if let cached = cashCache[entropy] { return cached }
+        if let query = cashQueries[entropy] { return await query.value }
 
-        let state: LinkCard.Cash.State
-        do {
-            state = .resolved(try await cashLookup(entropy))
-        } catch {
-            state = .unresolved
+        let lookup = cashLookup
+        let query = Task<LinkCard.Cash.State, Never> {
+            do { return .resolved(try await lookup(entropy)) } catch { return .unresolved }
         }
+        // Written before the first await, so a second caller for this key finds it rather than
+        // starting its own.
+        cashQueries[entropy] = query
 
-        cashCache[entropy] = state
+        let state = await query.value
+        if state == .unresolved, cashQueries[entropy] == query { cashQueries[entropy] = nil }
         return state
     }
 
     private func tokenState(for mint: PublicKey) async -> LinkCard.Token.State {
-        if let cached = tokenCache[mint] { return cached }
+        if let query = tokenQueries[mint] { return await query.value }
 
-        let state: LinkCard.Token.State
-        do {
-            state = .resolved(try await mintLookup(mint))
-        } catch {
-            state = .unresolved
+        let lookup = mintLookup
+        let query = Task<LinkCard.Token.State, Never> {
+            do { return .resolved(try await lookup(mint)) } catch { return .unresolved }
         }
+        tokenQueries[mint] = query
 
-        tokenCache[mint] = state
+        let state = await query.value
+        if state == .unresolved, tokenQueries[mint] == query { tokenQueries[mint] = nil }
         return state
     }
 }
 
-// MARK: - State -
+// MARK: - Keys -
 
 nonisolated extension LinkCard {
 
-    /// The same card carrying whatever `states` already knows about it, keyed by ``resolutionKey``
-    /// — so a re-map renders a card that has already resolved without asking again.
-    ///
-    /// A state of the wrong kind is ignored rather than trusted: the key namespace already keeps
-    /// the two apart, and this is the second lock on it.
-    func applying(_ states: [String: LinkCard.State]) -> LinkCard {
-        guard let state = states[resolutionKey] else { return self }
-
-        switch (self, state) {
-        case (.cash(let cash), .cash(let cashState)):
-            return .cash(Cash(url: cash.url, entropy: cash.entropy, range: cash.range, state: cashState))
-
-        case (.token(let token), .token(let tokenState)):
-            return .token(Token(url: token.url, mint: token.mint, range: token.range, state: tokenState))
-
-        case (.cash, .token), (.token, .cash):
-            return self
-        }
-    }
-
     /// The link identity this card resolves against, which is what the resolver memoizes on.
     ///
-    /// Namespaced by kind because the two live in one dictionary on the way back to the transcript,
-    /// and base58 says nothing about which kind wrote it.
+    /// Namespaced by kind because the two share one dictionary in ``LinkCardMemo``, and base58 says
+    /// nothing about which kind wrote it.
     var resolutionKey: String {
         switch self {
-        case .cash(let cash): "cash:\(cash.entropy)"
+        case .cash(let cash): Self.cashKey(entropy: cash.entropy)
         case .token(let token): "token:\(token.mint.base58)"
         }
     }
 
-    /// Whether this card still has a lookup outstanding.
-    var isUnresolved: Bool {
-        switch state {
-        case .cash(let cash): cash == .unresolved
-        case .token(let token): token == .unresolved
-        }
-    }
-
-    /// How far this card's lookup got.
-    var state: State {
-        switch self {
-        case .cash(let cash): .cash(cash.state)
-        case .token(let token): .token(token.state)
-        }
-    }
+    /// The same key from an entropy alone. A settled claim names the entropy and nothing else, so
+    /// the one place that has to build a key without a card builds it here rather than by hand.
+    static func cashKey(entropy: String) -> String { "cash:\(entropy)" }
 }
 
 // MARK: - Lookup -

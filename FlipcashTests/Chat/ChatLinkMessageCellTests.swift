@@ -51,7 +51,7 @@ struct ChatLinkMessageCellTests {
                 links: [link],
                 card: .cash(
                     LinkCard.Cash(url: link.url, entropy: "KNi8pQr1n5hRU65vKJGge3",
-                                  range: link.range, state: .unresolved)
+                                  range: link.range)
                 )
             )
         )
