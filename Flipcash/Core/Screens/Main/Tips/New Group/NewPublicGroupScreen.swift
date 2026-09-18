@@ -234,17 +234,32 @@ struct NewPublicGroupScreen: View {
                 }
             }
 
-            AmountPresetButton(
-                isSelected: model.minimumBalance.map { !NewPublicGroupModel.presets.contains($0) } ?? false
-            ) {
+            // The fourth slot is the keypad's, and a custom amount has nowhere else to show, so
+            // it takes this chip's face — the ellipsis is what an unused slot looks like. Same
+            // rule Android's chip row follows.
+            AmountPresetButton(isSelected: customAmount != nil) {
                 isTitleFocused = false
                 isEnteringCustomAmount = true
             } label: {
-                Image.system(.ellipsis)
+                if let customAmount {
+                    Text(customAmount.formattedDroppingZeroFraction())
+                } else {
+                    Image.system(.ellipsis)
+                }
             }
-            .accessibilityLabel("Custom amount")
+            .accessibilityLabel(
+                customAmount.map { "Custom amount, \($0.formattedDroppingZeroFraction())" } ?? "Custom amount"
+            )
             .accessibilityIdentifier("new-group-custom-amount-button")
         }
+    }
+
+    /// The requirement when it is not one of the presets — what the fourth chip shows in place of
+    /// its ellipsis.
+    private var customAmount: FiatAmount? {
+        guard let amount = model.minimumBalance,
+              !NewPublicGroupModel.presets.contains(amount) else { return nil }
+        return amount
     }
 
     /// Shown only once the limit is close enough to explain a disabled Create.
@@ -417,6 +432,10 @@ private struct AmountPresetButton<Label: View>: View {
             label()
                 .font(.default(size: 22, weight: .bold))
                 .tracking(-0.88)
+                // Four chips share the row, so a custom amount wider than a preset shrinks to fit
+                // rather than wrapping or clipping.
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
                 .foregroundStyle(isSelected ? Color.textAction : Color.textMain)
                 .frame(maxWidth: .infinity)
                 .frame(height: Self.height)
