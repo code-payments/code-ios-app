@@ -95,9 +95,18 @@ There is nothing to reuse. The only skeleton in the codebase is `CurrencyDiscove
 SwiftUI view using `.redacted(reason: .placeholder)`, which is no help to these `CALayer`-drawn
 cards. So: a small shimmer layer, a `CAGradientLayer` highlight band swept across the card.
 
-One sweep across the whole card, not one per label. The unresolved token card names the mint's
-abbreviated address, which is real content — it is what the raw link text showed — and shimmering
-that label alone would tell the reader it is a placeholder.
+Shimmer only what is genuinely absent until the lookup lands. Both cards already say true things
+while unresolved, and a shimmer over a correct value tells the reader it is a guess.
+
+On the cash card that means the amount and the stub slots, and *not* the type row: unresolved it
+reads "Cash Link", a brand constant that refines to the token's name on resolve. Android reached the
+same conclusion independently about its own equivalent label.
+
+The token card carries the mint's abbreviated address, which is correct-then-refined in the same
+way, so its text does not shimmer either. What shimmers is the bill surface: unresolved, the
+gradient is the neutral row colour standing in for branding nobody has fetched, which makes it the
+one part of that card that really is a placeholder. Sweeping the surface says the look is still
+coming without implying the address is a guess.
 
 Two lifecycle rules. Stop on `didMoveToWindow`, so rows scrolled offscreen are not animating. Honour
 Reduce Motion with a static dim rather than a sweep.
@@ -122,10 +131,16 @@ is configured, it refreshes what is actually being looked at.
 
 ## What the coordinator loses
 
-`holdFirstPaintForCards`, `firstPaintDeadline`, `awaitsFirstCards`, `firstPaintWait`,
-`releaseFirstPaint`, `resolveCards`, `unansweredCards`, `ask`, `land`, `landCardState`,
-`startClaimableRefresh`, `refreshClaimableCards`, `reresolveCash`, `cashCards`,
-`observeSettledClaims`, `cardStates`, `cardsInFlight`, and `cardMemo`.
+Deleted outright: `holdFirstPaintForCards`, `firstPaintDeadline`, `awaitsFirstCards`,
+`firstPaintWait`, `releaseFirstPaint`, `resolveCards`, `unansweredCards`, `ask`, `land`,
+`landCardState`, `cardStates`.
+
+Moved into the source rather than deleted: `startClaimableRefresh`, `refreshClaimableCards`,
+`reresolveCash`, `cashCards`, `observeSettledClaims`, and `cardMemo`.
+
+`cardsInFlight` needs care. It looks like a deletion but its job — deduplicating concurrent asks for
+one link — is load-bearing, and the source picks it up by memoizing a `Task` per key. See
+[Cancellation](#cancellation-and-what-android-already-settled).
 
 ## Tests
 
@@ -138,12 +153,49 @@ Worth adding:
 - Recycling. Configure card A, reuse the cell, configure card B, then let A's answer arrive. B must
   be untouched.
 - A `known` hit paints resolved with no shimmer and no subscription.
-- A failed lookup stops the shimmer and leaves the card unresolved.
+- A failed lookup stops the shimmer, leaves the card unresolved, and is not remembered — the next
+  appearance asks again.
 - A claimable card's refresh reaches an on-screen card through the stream.
+- Two rows quoting one link make one query. This is the `cardsInFlight` guarantee moving house, and
+  the current actor cannot make it on its own.
 
-## Open question
+## Cancellation, and what Android already settled
 
-Whether the source should cancel an in-flight lookup when its last subscriber goes away. Cancelling
-frees a request for a card scrolled past quickly; not cancelling means the answer is memoized and
-ready if the reader scrolls back. Leaning toward not cancelling, on the grounds that the resolver
-already memoizes failures to stop retry storms, but this is not settled.
+A lookup is not cancelled when its last subscriber goes away. It is bounded by the chat screen
+instead.
+
+Android answered this first and the reasoning transfers. Its `LinkCardResolver` memoizes **the
+query, not the answer** — a `Deferred` per key, launched in a scope the resolver owns — so a
+consumer that dies mid-await cancels only its own await. The query finishes and the next reader
+takes the answer. The scope is `@ViewModelScoped` and ended by `ChatViewModel.onCleared`, so the
+cache dies with the screen and re-entering a chat asks again.
+
+iOS should adopt the same shape, because it also fixes a hole here. `LinkCardResolver.cashState`
+checks its cache, then awaits the lookup, then writes. On an actor that `await` is a suspension
+point, so two concurrent `resolve` calls for one key both miss the cache and both query. Today
+`ConversationLoadCoordinator.cardsInFlight` hides it by deduplicating at the call site on the main
+actor — which means the deduplication disappears along with the coordinator's card code unless it
+moves.
+
+So the source holds a `Task` per key rather than a `LinkCard.State` per key. Every subscriber awaits
+the same task, cancelling a subscriber cancels nothing, and the source is torn down with the
+conversation. One change closes the re-entrancy gap, replaces `cardsInFlight`, and settles
+cancellation.
+
+## Failures are forgotten, not recorded
+
+The two platforms currently cache failures in opposite directions, each correctly for its own
+architecture.
+
+Android forgets a failure, so the next pass asks again: holding one "means one bad moment decides
+the card until the reader leaves the chat and comes back". iOS records it, because `landCardState`
+is reached from a re-map that runs on every observation tick, and a remembered failure is what stops
+a scrolling transcript retrying continuously.
+
+This refactor removes iOS's reason. Once the card drives its own ask, there is no per-tick re-map —
+the ask happens once per appearance, which is far rarer. Converging on Android's behaviour then
+looks better: a card that failed while offline resolves when the reader scrolls back to it after
+reconnecting, instead of staying dead for the visit.
+
+So: forget. The accepted cost is that a failing card re-shimmers each time it appears. If that reads
+badly in practice, the fallback is to keep forgetting but hold a short cooldown per key.
