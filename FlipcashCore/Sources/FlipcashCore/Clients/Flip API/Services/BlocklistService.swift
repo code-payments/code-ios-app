@@ -17,6 +17,11 @@ private let logger = Logger(label: "flipcash.blocklist-service")
 public struct BlockedUserEntry: Sendable {
     public let userID: UserID
     public let blockedAt: Date
+
+    public init(userID: UserID, blockedAt: Date) {
+        self.userID = userID
+        self.blockedAt = blockedAt
+    }
 }
 
 /// A single page of blocked users from the server, with the cursor for the next page.
