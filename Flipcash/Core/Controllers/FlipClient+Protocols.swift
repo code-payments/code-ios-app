@@ -75,6 +75,17 @@ protocol ConversationMembership: AnyObject, Sendable {
     func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws
 }
 
+/// Per-viewer chat settings used by `ConversationController` — currently only mute. Separate from
+/// ``ConversationMembership`` because nothing here changes who is in the chat: mute is the viewer's
+/// own state, and the server keeps it per-viewer.
+protocol ConversationViewerSettings: AnyObject, Sendable {
+    /// Mutes a chat until `mute` lapses, or forever. Returns the resulting viewer state, version
+    /// included, so the caller can seat it under the same greater-value-wins rule the stream uses.
+    func muteChat(owner: KeyPair, conversationID: ConversationID, mute: ConversationMuteState) async throws -> ConversationViewerState
+    /// Unmutes a chat. Its own RPC rather than a zero-length mute — the contract has no such shape.
+    func unmuteChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState
+}
+
 /// DM message send/read surface used by `ConversationController`. Maps to the
 /// `flipcash.messaging.v1.Messaging` RPCs.
 protocol ConversationMessaging: AnyObject, Sendable {
@@ -115,6 +126,31 @@ protocol ConversationEventStreaming: AnyObject, Sendable {
     func closeConversationStream()
 }
 
+/// The chat reads that `FlipClient` exposes with a defaulted `viewMode`, restated without it.
+///
+/// A default argument doesn't witness a protocol requirement that omits the parameter, so these
+/// forward at `.full` — the only mode this app reads in. A screen that needs a redacted read belongs
+/// on the protocol above, not here.
+extension FlipClient {
+
+    func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
+        try await getChat(owner: owner, conversationID: conversationID, viewMode: .full)
+    }
+
+    func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
+        try await getMessages(owner: owner, conversationID: conversationID, before: before, viewMode: .full)
+    }
+
+    func getDelta(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
+    ) async throws -> UInt64 {
+        try await getDelta(owner: owner, conversationID: conversationID, afterSequence: afterSequence, viewMode: .full, onBatch: onBatch)
+    }
+}
+
 extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing,
                       ConversationFetching, ConversationMembership, ConversationMessaging,
-                      ConversationEventStreaming {}
+                      ConversationViewerSettings, ConversationEventStreaming {}

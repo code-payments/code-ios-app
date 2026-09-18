@@ -9,7 +9,7 @@ import FlipcashCore
 
 /// Scriptable conformer for the conversation capability protocols. Records
 /// every call; the test sets scripted responses before driving the controller.
-final class MockConversations: ConversationFetching, ConversationMembership, ConversationMessaging, ConversationEventStreaming, @unchecked Sendable {
+final class MockConversations: ConversationFetching, ConversationMembership, ConversationViewerSettings, ConversationMessaging, ConversationEventStreaming, @unchecked Sendable {
 
     struct Sent: Sendable {
         let conversationID: ConversationID
@@ -41,6 +41,10 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     private var _left: [ConversationID] = []
     private var _joinError: Error?
     private var _leaveError: Error?
+    private var _muted: [(conversationID: ConversationID, mute: ConversationMuteState)] = []
+    private var _unmuted: [ConversationID] = []
+    private var _viewerStateResult: ConversationViewerState?
+    private var _muteError: Error?
     private var _messages: [ConversationMessage] = []
     private var _olderMessages: [ConversationMessage] = []
     private var _olderQueries: [MessageID] = []
@@ -88,6 +92,20 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     var leaveError: Error? {
         get { lock.withLock { _leaveError } }
         set { lock.withLock { _leaveError = newValue } }
+    }
+
+    /// Every `MuteChat` call, in order, with the duration each asked for.
+    var muted: [(conversationID: ConversationID, mute: ConversationMuteState)] { lock.withLock { _muted } }
+    var unmuted: [ConversationID] { lock.withLock { _unmuted } }
+    /// Viewer state both mute RPCs return. Unset returns one at version 1 carrying the requested
+    /// mute, which is enough for any test that isn't exercising version comparison.
+    var viewerStateResult: ConversationViewerState? {
+        get { lock.withLock { _viewerStateResult } }
+        set { lock.withLock { _viewerStateResult = newValue } }
+    }
+    var muteError: Error? {
+        get { lock.withLock { _muteError } }
+        set { lock.withLock { _muteError = newValue } }
     }
     var messages: [ConversationMessage] {
         get { lock.withLock { _messages } }
@@ -216,6 +234,20 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws {
         lock.withLock { _left.append(conversationID) }
         if let leaveError { throw leaveError }
+    }
+
+    // MARK: - ConversationViewerSettings
+
+    func muteChat(owner: KeyPair, conversationID: ConversationID, mute: ConversationMuteState) async throws -> ConversationViewerState {
+        lock.withLock { _muted.append((conversationID, mute)) }
+        if let muteError { throw muteError }
+        return viewerStateResult ?? ConversationViewerState(mute: mute, version: 1)
+    }
+
+    func unmuteChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState {
+        lock.withLock { _unmuted.append(conversationID) }
+        if let muteError { throw muteError }
+        return viewerStateResult ?? ConversationViewerState(mute: nil, version: 1)
     }
 
     // MARK: - ConversationMessaging

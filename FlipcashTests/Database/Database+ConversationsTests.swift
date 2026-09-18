@@ -485,6 +485,34 @@ struct DatabaseConversationsTests {
         #expect(loaded.lastMessage == preview)
     }
 
+    @Test("Mute state round-trips as its expiry and version, not as a boolean")
+    func viewerStateRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let expiry = Date(timeIntervalSince1970: 1_700_000_000)
+        var stored = conversation(byte: 1)
+        stored.viewerState = ConversationViewerState(mute: .until(expiry), version: 7)
+
+        try database.upsertConversation(stored)
+
+        let loaded = try #require(try database.getConversations().first)
+        // The version comes back with it, so a cold-start reload can't beat a fresher stream update.
+        #expect(loaded.viewerState == stored.viewerState)
+        // And the expiry, not a muted flag: the mute lapses on its own after a cold start.
+        #expect(loaded.isMuted(at: expiry.addingTimeInterval(-1)))
+        #expect(loaded.isMuted(at: expiry) == false)
+    }
+
+    @Test("A conversation with no viewer state round-trips as none")
+    func viewerStateAbsentRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(conversation(byte: 1))
+
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.viewerState == nil)
+    }
+
     @Test("A conversation with no stored messages loads a nil preview")
     func conversationWithoutMessages() throws {
         let (database, url) = try Database.makeTemp()

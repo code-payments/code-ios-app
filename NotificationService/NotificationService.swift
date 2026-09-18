@@ -148,18 +148,40 @@ final class NotificationService: UNNotificationServiceExtension {
             return
         }
 
+        // A muted chat's push is still delivered and still stored — the server sends it deliberately
+        // so the client keeps the message and its unread count — but it must not interrupt.
+        //
+        // This is the quietest the extension can be. `UNNotificationServiceExtension` has no way to
+        // drop a notification: whatever it returns is displayed, and returning nothing displays the
+        // original content. `.passive` is the system's floor — the notification joins the
+        // notification list without lighting the screen or playing a sound. The foreground path in
+        // `PushController` can suppress outright; this one cannot, and a muted chat's message will
+        // still appear in the list when the phone is next unlocked.
+        //
+        // Communication styling is skipped with it: it exists to make the banner prominent, which is
+        // the opposite of what a muted chat wants.
+        let isMuted = NotificationPayload.isMuted(request.content.userInfo)
+
         // "Sent You Cash" (CHAT) renders as a communication notification so the sender's avatar — or
         // the system monogram fallback — shows like a chat app. This styled copy (when a sender
         // resolves; otherwise the substituted content) is what's delivered, from both the prefetch
         // completion and the expiry deadline.
-        let finalContent: UNNotificationContent =
-            titleContacts.compactMap { $0 }.first.map { sender in
-                communicationContent(
-                    from: bestAttemptContent,
-                    sender: sender,
-                    conversationIdentifier: payload.groupKey
-                )
-            } ?? bestAttemptContent.copy() as! UNNotificationContent
+        let finalContent: UNNotificationContent
+        if isMuted {
+            let silenced = bestAttemptContent.mutableCopy() as! UNMutableNotificationContent
+            silenced.sound = nil
+            silenced.interruptionLevel = .passive
+            finalContent = silenced
+        } else {
+            finalContent =
+                titleContacts.compactMap { $0 }.first.map { sender in
+                    communicationContent(
+                        from: bestAttemptContent,
+                        sender: sender,
+                        conversationIdentifier: payload.groupKey
+                    )
+                } ?? bestAttemptContent.copy() as! UNNotificationContent
+        }
 
         // Prefetch the recent transcript into the shared cache so the content extension renders from
         // the cache on expand with no resident gRPC connection. The banner is held until the transcript

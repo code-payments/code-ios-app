@@ -490,6 +490,16 @@ public struct ConversationStore: Sendable {
         conversations[index].viewerState = viewerState
     }
 
+    /// Drops the cached viewer state for a chat the signed-in user just left.
+    ///
+    /// The server clears mute on leave and restarts the version with it, so this discards the
+    /// version too rather than keeping it: a retained higher version would make
+    /// ``applyViewerStateChanged(_:in:)`` swallow every update the chat sends after a rejoin.
+    public mutating func clearViewerState(in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        conversations[index].viewerState = nil
+    }
+
     private mutating func upsert(_ conversation: Conversation) {
         let conversation = seated(conversation)
         if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {

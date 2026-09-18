@@ -18,7 +18,7 @@ struct ConversationReplySendTests {
     /// Mirrors `ConversationControllerTests.makeController` — the same four mocks and a temp DB.
     private func makeController(_ mock: MockConversations, selfUserID: UserID = UUID()) -> ConversationController {
         ConversationController(
-            fetching: mock, membership: mock, messaging: mock, streaming: mock,
+            fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
             contactNaming: MockDMContactNaming(),
             database: try! Database.makeTemp().database,
             owner: .generate()!, selfUserID: selfUserID,
