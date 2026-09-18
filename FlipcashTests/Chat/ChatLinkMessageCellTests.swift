@@ -72,13 +72,62 @@ struct ChatLinkMessageCellTests {
         #expect(card.height > 0)
     }
 
-    @Test("A card message with text alongside it gets the same card as one without")
-    func cardedMessage_sizesTheCardTheSameWithOrWithoutText() {
-        let bare = makeCell()
-        bare.configure(with: cardedMessage(text: Self.cashLink), maxWidth: 250)
-        let withText = makeCell()
-        withText.configure(with: cardedMessage(text: "\(Self.cashLink) enjoy"), maxWidth: 250)
-        #expect(layOut(bare).size == layOut(withText).size)
+    private func chrome(_ cell: ChatLinkMessageCell) -> BubbleBackgroundView? {
+        cell.descendants(of: BubbleBackgroundView.self).first
+    }
+
+    @Test("A message that was nothing but the link drops the bubble and runs the card its full width")
+    func linkOnlyMessage_dropsTheBubble() {
+        let maxWidth: CGFloat = 250
+        let cell = makeCell()
+        cell.configure(with: cardedMessage(text: Self.cashLink), maxWidth: maxWidth)
+        #expect(layOut(cell).width == maxWidth)
+        #expect(chrome(cell)?.isDrawingBubble == false)
+    }
+
+    @Test("Text alongside the card keeps the bubble, and keeps the card inside its padding")
+    func cardedMessageWithText_keepsTheBubble() {
+        let maxWidth: CGFloat = 250
+        let cell = makeCell()
+        cell.configure(with: cardedMessage(text: "\(Self.cashLink) enjoy"), maxWidth: maxWidth)
+        #expect(layOut(cell).width < maxWidth)
+        #expect(chrome(cell)?.isDrawingBubble == true)
+    }
+
+    @Test("A cell recycled from a bare card to a carded message puts the bubble back")
+    func reusedCell_bareToCarded_restoresTheBubble() {
+        let cell = makeCell()
+        cell.configure(with: cardedMessage(text: Self.cashLink), maxWidth: 250)
+        cell.layoutIfNeeded()
+        cell.configure(with: cardedMessage(text: "\(Self.cashLink) enjoy"), maxWidth: 250)
+        #expect(layOut(cell).width < 250)
+        #expect(chrome(cell)?.isDrawingBubble == true)
+    }
+
+    /// What `ChatColumnCell.preferredLayoutAttributesFitting` asks the cell for, which is the height
+    /// the transcript then lays the row out at.
+    private func measure(_ cell: ChatLinkMessageCell, width: CGFloat) -> CGFloat {
+        cell.contentView.systemLayoutSizeFitting(
+            CGSize(width: width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+    }
+
+    @Test("A cell recycled from a bare card measures the next row at its own geometry, not the bare one")
+    func reusedCell_bareToCarded_measuresAtTheRestoredGeometry() {
+        let carded = cardedMessage(text: "\(Self.cashLink) enjoy")
+        let fresh = makeCell()
+        fresh.configure(with: carded, maxWidth: 250)
+        let expected = measure(fresh, width: 320)
+
+        let recycled = makeCell()
+        recycled.configure(with: cardedMessage(text: Self.cashLink), maxWidth: 250)
+        _ = measure(recycled, width: 320)
+        recycled.prepareForReuse()
+        recycled.configure(with: carded, maxWidth: 250)
+
+        #expect(measure(recycled, width: 320) == expected)
     }
 
     @Test("A message with no card leaves the bubble sized by its text")

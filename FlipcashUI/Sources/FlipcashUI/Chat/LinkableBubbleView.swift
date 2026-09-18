@@ -35,6 +35,20 @@ public final class LinkableBubbleView: UIView {
 
     private(set) var quotePanel = ChatQuotePanelView()
 
+    /// Whether the row currently draws as the card on its own, with no bubble behind it.
+    private var isBare = false
+
+    /// Clips the card to the bubble's shape on a bare row. The card's own corner is the bubble's
+    /// base radius, so this shows only where a run flattens an inner corner — without it a card in
+    /// the middle of a run would keep its full round while the bubbles above and below it are
+    /// nearly square. Off otherwise, where the card sits inside the bubble's padding and never
+    /// reaches a corner.
+    private let cardMask = CAShapeLayer()
+
+    /// The card's inset from the bubble's edges, and the bubble's own vertical padding.
+    private static let bodyInset: CGFloat = 12
+    private static let bodyPadding: CGFloat = 9
+
     /// Forwarded from the panel: the stable id of the message to jump to.
     var onQuoteTap: ((String) -> Void)? {
         get { quotePanel.onTap }
@@ -51,6 +65,11 @@ public final class LinkableBubbleView: UIView {
     private var cardTopToBubble: NSLayoutConstraint!
     private var cardTopToQuote: NSLayoutConstraint!
     private var cardSides: [NSLayoutConstraint] = []
+    /// Body pinned to the bubble's bottom. Off on a bare row, where the card closes the bubble and
+    /// an empty text view left holding the bottom would still claim a line's worth of height.
+    private var textBottom: NSLayoutConstraint!
+    /// Card pinned to the bubble's bottom, for a row that is nothing but the card.
+    private var cardBottomToBubble: NSLayoutConstraint!
     /// Collapses the card to nothing in both axes when there is none, for the same reason the quote
     /// panel collapses in both: a card pinned to the bubble's sides would otherwise put a floor
     /// under every link bubble's width.
@@ -118,14 +137,15 @@ public final class LinkableBubbleView: UIView {
         ]
 
         textTopToCard = textView.topAnchor.constraint(equalTo: cardView.bottomAnchor, constant: 8)
-        cardTopToBubble = cardView.topAnchor.constraint(equalTo: topAnchor, constant: 9)
+        cardTopToBubble = cardView.topAnchor.constraint(equalTo: topAnchor, constant: Self.bodyPadding)
         cardTopToQuote = cardView.topAnchor.constraint(
             equalTo: quotePanel.bottomAnchor,
             constant: ChatQuotePanelView.bottomSpacing
         )
+        cardBottomToBubble = cardView.bottomAnchor.constraint(equalTo: bottomAnchor)
         cardSides = [
-            cardView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            cardView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            cardView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.bodyInset),
+            cardView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.bodyInset),
         ]
         cardCollapse = [
             cardView.heightAnchor.constraint(equalToConstant: 0),
@@ -143,6 +163,8 @@ public final class LinkableBubbleView: UIView {
             constant: -ChatQuotePanelView.surroundInset
         )
 
+        textBottom = textView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.bodyPadding)
+
         NSLayoutConstraint.activate(quoteCollapse + cardCollapse + [
             cardParkTop,
             cardParkLeading,
@@ -154,9 +176,9 @@ public final class LinkableBubbleView: UIView {
             quotePanel.topAnchor.constraint(equalTo: topAnchor, constant: ChatQuotePanelView.surroundInset),
             quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatQuotePanelView.surroundInset),
             textTopToBubble,
-            textView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9),
-            textView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            textView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            textBottom,
+            textView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.bodyInset),
+            textView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.bodyInset),
 
             // Same bottom-trailing corner as the plain bubble, off the same reservation run.
             editedLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -EditedMarker.trailingInset),
@@ -164,7 +186,9 @@ public final class LinkableBubbleView: UIView {
         ])
     }
 
-    /// The bubble's shape, for clipping the context-menu lift preview.
+    /// The bubble's shape, for clipping the context-menu lift preview. Still the right shape on a
+    /// bare row, unlike the plain bubble's: the card fills the frame the bubble would have had and
+    /// rounds to the same radius, so the lift traces the card rather than a bubble that is not drawn.
     var maskingPath: UIBezierPath { background.maskingPath }
 
     /// Flashes the bubble's ground to point the eye at this message after a jump.
@@ -209,11 +233,16 @@ public final class LinkableBubbleView: UIView {
         }
 
         // A message that was nothing but the link has no text left under the card, so the gap
-        // between them closes and the bubble is the card plus its own padding. The exception is a
-        // message the sender edited: the marker is pinned to the body's bottom and needs the run
-        // that reserves its hole.
+        // between them closes. The exception is a message the sender edited: the marker is pinned to
+        // the body's bottom and needs the run that reserves its hole.
         let keepsBody = body?.hasBody ?? true
         textTopToCard.constant = keepsBody || !editedLabel.isHidden ? 8 : 0
+
+        // Nothing left to put in a bubble. Asked of the message rather than derived from
+        // `keepsBody` here, because the transcript mapper asks the same question of this row's
+        // neighbours to break the bubble run — one answer, or a bubble flattens its corner toward
+        // chrome that is not drawn.
+        setBare(message.rendersAsBareLinkCard)
 
         // Deactivate before activating: with both top constraints live the layout is
         // unsatisfiable, and UIKit resolves that by breaking one at random.
@@ -247,8 +276,47 @@ public final class LinkableBubbleView: UIView {
                 groupedAbove: message.joinsBubbleAbove,
                 groupedBelow: message.joinsBubbleBelow
             ),
+            bare: isBare,
             identity: message.id
         )
+    }
+
+    /// Switches the bubble between carrying the card and being it.
+    ///
+    /// The card runs to the full width and height the bubble would have had: its own inset is
+    /// inside its frame, so the bubble's padding here would be a second one — and with no fill to
+    /// sit inside, it is drawn outside the card's edge, where it reads as a gap rather than as
+    /// padding. The body goes with the bubble, bottom constraint included: an empty text view still
+    /// lays out a line, and left holding the bubble's bottom it would leave that line's worth of
+    /// dead space under the card.
+    private func setBare(_ bare: Bool) {
+        guard bare != isBare else { return }
+        isBare = bare
+
+        // Deactivate before activating: two bottoms on one bubble is unsatisfiable, and UIKit
+        // resolves that by breaking one at random.
+        if bare {
+            textBottom.isActive = false
+            cardBottomToBubble.isActive = true
+        } else {
+            cardBottomToBubble.isActive = false
+            textBottom.isActive = true
+        }
+        textView.isHidden = bare
+        cardTopToBubble.constant = bare ? 0 : Self.bodyPadding
+        cardSides[0].constant = bare ? 0 : Self.bodyInset
+        cardSides[1].constant = bare ? 0 : -Self.bodyInset
+        cardView.layer.mask = bare ? cardMask : nil
+        setNeedsLayout()
+    }
+
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        guard isBare else { return }
+        // Taken from the chrome rather than rebuilt, so the card and the bubble it stands in for
+        // can never round differently.
+        cardMask.frame = cardView.bounds
+        cardMask.path = background.maskingPath.cgPath
     }
 }
 
@@ -278,41 +346,15 @@ extension LinkableBubbleView {
             return (result, true)
         }
         let bodyText = body as NSString
-        guard let cut = cutRange(for: card.range, in: bodyText) else { return (result, true) }
+        guard let cut = LinkCard.cutRange(for: card.range, in: bodyText) else {
+            return (result, true)
+        }
 
         // Deleting from the attributed string rather than the raw text is what keeps the *other*
         // links underlined: their ranges shift with the cut on their own, where re-applying them
         // afterwards would need every offset recomputed.
         result.deleteCharacters(in: cut)
         return (result, cut.length < bodyText.length)
-    }
-
-    /// The span to remove for a carded link, the gap it leaves included, or nil if `text` cannot
-    /// hold the span — a row carrying a stale preview should keep its text rather than trap.
-    ///
-    /// Cutting a word out of a sentence otherwise strands both of its spaces: "check example.com
-    /// out" would render as "check  out". So the whitespace after the link goes with it when the
-    /// link sits between two, and the whitespace before it goes when the link ends the message.
-    /// The separator is whatever was there, which is how a link alone on its line takes the line
-    /// with it rather than leaving a blank one.
-    static func cutRange(for link: NSRange, in text: NSString) -> NSRange? {
-        guard link.length > 0, link.location >= 0 else { return nil }
-        var start = link.location
-        var end = link.location + link.length
-        guard end <= text.length else { return nil }
-
-        let whitespace = CharacterSet.whitespacesAndNewlines
-        func isGap(_ index: Int) -> Bool {
-            guard let scalar = Unicode.Scalar(text.character(at: index)) else { return false }
-            return whitespace.contains(scalar)
-        }
-
-        if end < text.length, isGap(end), start == 0 || isGap(start - 1) {
-            end += 1
-        } else if start > 0, end == text.length, isGap(start - 1) {
-            start -= 1
-        }
-        return NSRange(location: start, length: end - start)
     }
 }
 

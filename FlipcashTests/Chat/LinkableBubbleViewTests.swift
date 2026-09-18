@@ -162,10 +162,72 @@ struct LinkableBubbleViewTests {
         #expect(tapped.isEmpty)
     }
 
+    // MARK: - A card with nothing around it
+
+    private func chrome(_ view: LinkableBubbleView) -> BubbleBackgroundView? {
+        view.descendants(of: BubbleBackgroundView.self).first
+    }
+
+    /// The card is already a surface with its own fill and its own rounded shape, so a bubble behind
+    /// it draws a second, slightly larger card around the first. Android's `BareLinkCard` gate.
+    @Test("A message that was nothing but the link draws the card with no bubble behind it")
+    func linkOnly_dropsTheBubble() {
+        let view = LinkableBubbleView()
+        view.configure(with: carded(Self.cashLink, at: 0))
+        #expect(chrome(view)?.isDrawingBubble == false)
+    }
+
+    @Test("Text alongside the card keeps the bubble")
+    func cardWithText_keepsTheBubble() {
+        let view = LinkableBubbleView()
+        view.configure(with: carded("here you go: \(Self.cashLink)", at: 13))
+        #expect(chrome(view)?.isDrawingBubble == true)
+    }
+
+    /// A citation belongs to the message rather than to the link, and the panel has no standalone
+    /// layout — so a reply that is only a link keeps its bubble.
+    @Test("A reply that is only a link keeps the bubble for its quote")
+    func linkOnlyReply_keepsTheBubble() {
+        let view = LinkableBubbleView()
+        let message = carded(Self.cashLink, at: 0)
+        view.configure(with: ChatMessage(
+            id: message.id,
+            content: message.content,
+            sender: message.sender,
+            linkPreview: message.linkPreview,
+            quote: ChatQuote(stableID: "7", authorName: "Ada", snippet: "dinner at 7?", kind: .text)
+        ))
+        #expect(chrome(view)?.isDrawingBubble == true)
+    }
+
+    /// The marker is pinned to the body's bottom, so it needs the body's run and the bubble under it.
+    @Test("An edited link-only message keeps the bubble for its marker")
+    func editedLinkOnly_keepsTheBubble() {
+        let view = LinkableBubbleView()
+        let message = carded(Self.cashLink, at: 0)
+        view.configure(with: ChatMessage(
+            id: message.id,
+            content: message.content,
+            sender: message.sender,
+            linkPreview: message.linkPreview,
+            isEdited: true
+        ))
+        #expect(chrome(view)?.isDrawingBubble == true)
+    }
+
+    @Test("A bubble recycled from a bare card back to ordinary text draws its bubble again")
+    func reuse_bareToOrdinary_restoresTheBubble() {
+        let view = LinkableBubbleView()
+        view.configure(with: carded(Self.cashLink, at: 0))
+        view.configure(with: ChatMessage(id: "2", text: "see https://apple.com", sender: .me,
+                                         linkPreview: LinkPreview(url: url("https://apple.com"))))
+        #expect(chrome(view)?.isDrawingBubble == true)
+    }
+
     @Test("An inverted card span leaves the body alone")
     func cutRange_rejectsAnInvertedSpan() {
         let text = "here you go" as NSString
-        #expect(LinkableBubbleView.cutRange(for: NSRange(location: 4, length: -2), in: text) == nil)
-        #expect(LinkableBubbleView.cutRange(for: NSRange(location: -1, length: 4), in: text) == nil)
+        #expect(LinkCard.cutRange(for: NSRange(location: 4, length: -2), in: text) == nil)
+        #expect(LinkCard.cutRange(for: NSRange(location: -1, length: 4), in: text) == nil)
     }
 }
