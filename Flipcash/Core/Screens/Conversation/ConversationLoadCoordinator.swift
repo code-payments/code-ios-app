@@ -66,6 +66,12 @@ final class ConversationLoadCoordinator {
     @ObservationIgnored private var claimRefreshTask: Task<Void, Never>?
     @ObservationIgnored private var foregroundTask: Task<Void, Never>?
 
+    /// Whether the transcript is being held back until the cards in it answer — see
+    /// ``holdFirstPaintForCards()``. While it is set, an answer records without re-mapping, because
+    /// the release lands the whole transcript itself, once.
+    @ObservationIgnored private var awaitsFirstCards = false
+    @ObservationIgnored private var firstPaintDeadline: Task<Void, Never>?
+
     @ObservationIgnored private var lastInputs: Inputs?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
 
@@ -83,6 +89,11 @@ final class ConversationLoadCoordinator {
     /// link claimed on someone else's device sends nothing here, so a claimable card is only ever
     /// as fresh as the last ask; Android re-asks on the same cadence.
     private static let claimableRefresh: TimeInterval = 15
+
+    /// The longest a chat's cards may hold its transcript off the screen — see
+    /// ``holdFirstPaintForCards()``. Long enough for a lookup that is merely slow, short enough
+    /// that one that never answers is not what the reader is left staring at.
+    private static let firstPaintWait: TimeInterval = 2
 
     /// The furthest ahead a single sleep is allowed to reach. A 48-hour delete window would
     /// otherwise park a task for two days behind a transcript nobody is reading; clamping costs at
@@ -110,15 +121,8 @@ final class ConversationLoadCoordinator {
 
         // First paint is synchronous so an open never flashes an empty transcript; every later
         // change maps off the main thread.
-        let initial = currentInputs()
-        let initialAttribution = Self.attribution(in: initial)
-        self.lastInputs = initial
-        self.attributedMembers = initialAttribution.members
-        self.unattributedSenders = initialAttribution.unnamed
-        self.items = Self.map(initial, authors: Self.authors(from: initialAttribution.members))
-        self.headsHistory = initial.headsHistory
-        scheduleWindowExpiry(for: initial)
-        resolveCards(in: items)
+        paint(currentInputs())
+        holdFirstPaintForCards()
         observeInputs()
         observeSettledClaims()
         startClaimableRefresh()
@@ -127,6 +131,7 @@ final class ConversationLoadCoordinator {
     isolated deinit {
         claimRefreshTask?.cancel()
         foregroundTask?.cancel()
+        firstPaintDeadline?.cancel()
     }
 
     /// The reader reached the top — reveal older history.
@@ -170,6 +175,9 @@ final class ConversationLoadCoordinator {
         mapTask = Task { [weak self] in
             let mapped = await Task.detached { Self.map(inputs, authors: authors) }.value
             guard let self, !Task.isCancelled else { return }
+            // A change landing mid-hold must not put the blank cards on screen that the hold is
+            // keeping off it. `releaseFirstPaint` maps the inputs again, so nothing here is lost.
+            guard !self.awaitsFirstCards else { return }
             self.items = mapped
             self.resolveCards(in: mapped)
             self.headsHistory = inputs.headsHistory
@@ -178,12 +186,69 @@ final class ConversationLoadCoordinator {
         }
     }
 
+    // Maps on the main thread and lands the whole result at once, rather than through `refresh`'s
+    // detached hop. Two callers need that: first paint, where the hop would flash an empty
+    // transcript, and the release of a held first paint, where it would flash the unresolved cards
+    // the hold exists to avoid.
+    private func paint(_ inputs: Inputs) {
+        let attribution = Self.attribution(in: inputs)
+        lastInputs = inputs
+        attributedMembers = attribution.members
+        unattributedSenders = attribution.unnamed
+        items = Self.map(inputs, authors: Self.authors(from: attribution.members))
+        headsHistory = inputs.headsHistory
+        scheduleWindowExpiry(for: inputs)
+    }
+
+    // Holds the transcript off the screen while the cards in it are looked up, so it appears once
+    // with its cards answered instead of painting them blank and correcting itself a hop later.
+    // Android shows no such flash because its mapping pass awaits the resolver per message; this is
+    // that, at the one point where it costs nothing to wait — a chat is opening, so there is no
+    // transcript yet to take away. A chat opened before reads its answers out of the memo and never
+    // gets here at all.
+    //
+    // Only first paint waits. A card arriving in a live transcript still draws unresolved and fills
+    // in, because holding a landed transcript for a lookup would stall messages that have nothing
+    // to do with the card.
+    private func holdFirstPaintForCards() {
+        let pending = unansweredCards(in: items)
+        guard !pending.isEmpty else { return }
+
+        awaitsFirstCards = true
+        items = []
+        ask(pending) { [weak self] in self?.releaseFirstPaint() }
+        // Bounded, because a transcript is worth more than its cards: a lookup that never answers
+        // would otherwise decide how long the chat stays empty. At the deadline the rows land as
+        // they were mapped, unresolved cards and all, and late answers fill them in as before.
+        firstPaintDeadline = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.firstPaintWait))
+            guard !Task.isCancelled else { return }
+            self?.releaseFirstPaint()
+        }
+    }
+
+    // Lets a held transcript through — on the last answer or on the deadline, whichever came first
+    // — and lands it in one pass against whatever the cards answered by then.
+    private func releaseFirstPaint() {
+        guard awaitsFirstCards else { return }
+        awaitsFirstCards = false
+        firstPaintDeadline?.cancel()
+        firstPaintDeadline = nil
+        paint(currentInputs())
+    }
+
     // Asks the resolver for every card the landed transcript still shows unresolved, then re-maps
-    // so the answers land in place. The first pass renders unresolved cards and the second fills
-    // them in — the spec calls the unresolved card the floor rather than a failure, so there is no
-    // spinner and the two passes lay out identically. A lookup that fails leaves the card where it
-    // is, and is recorded all the same so a scrolling transcript does not retry it on every tick.
+    // so the answers land in place. A lookup that fails leaves the card where it is, and is
+    // recorded all the same so a scrolling transcript does not retry it on every tick.
     private func resolveCards(in items: [ChatItem]) {
+        let pending = unansweredCards(in: items)
+        guard !pending.isEmpty else { return }
+        ask(pending, then: nil)
+    }
+
+    // The cards the given rows draw with no answer yet and no question already out — the same link
+    // quoted twice is one lookup, and a recorded failure counts as an answer.
+    private func unansweredCards(in items: [ChatItem]) -> [LinkCard] {
         var pending: [LinkCard] = []
         var seen: Set<String> = []
         for case .message(let message) in items {
@@ -192,13 +257,18 @@ final class ConversationLoadCoordinator {
             guard cardStates[key] == nil, !cardsInFlight.contains(key), seen.insert(key).inserted else { continue }
             pending.append(card)
         }
-        guard !pending.isEmpty else { return }
+        return pending
+    }
 
-        cardsInFlight.formUnion(seen)
-        Task { [weak self, linkCards] in
+    // One question per card, asked together, with each answer landed as it arrives — see `land`.
+    // `finished` runs when the last of them is in, which is what a held first paint waits on.
+    private func ask(_ pending: [LinkCard], then finished: (@MainActor () -> Void)?) {
+        cardsInFlight.formUnion(pending.map(\.resolutionKey))
+        Task { [linkCards] in
             await Self.land(pending, through: linkCards) { [weak self] key, state in
                 self?.landCardState(state, for: key)
             }
+            finished?()
         }
     }
 
@@ -232,6 +302,9 @@ final class ConversationLoadCoordinator {
         cardsInFlight.remove(key)
         cardStates[key] = state
         cardMemo.record(state, for: key)
+        // A held first paint lands the whole transcript itself, once, rather than letting each
+        // answer paint a transcript whose other cards are still blank.
+        guard !awaitsFirstCards else { return }
         refresh(with: currentInputs())
     }
 
