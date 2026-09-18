@@ -84,6 +84,18 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         }
     }
 
+    /// Whether this row draws as the link card on its own, with no bubble behind it.
+    ///
+    /// The card is already a surface with its own fill and its own rounded shape, so a bubble
+    /// behind it draws a second, slightly larger card around the first. A quote and the "Edited"
+    /// marker belong to the message rather than to the link, and either one keeps the chrome — as
+    /// does anything the sender wrote around the link.
+    public var rendersAsBareLinkCard: Bool {
+        guard case .text(let text) = content, let card = linkPreview?.card else { return false }
+        guard quote == nil, !isEdited else { return false }
+        return LinkCard.isTheWholeBody(card.range, of: text)
+    }
+
     public init(
         id: String,
         content: Content,

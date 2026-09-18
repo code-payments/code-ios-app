@@ -10,37 +10,40 @@ struct LinkDetectorTests {
     @Test("A bare https URL is detected")
     func soleHTTPSURL() {
         let preview = detector.webLink(in: "https://apple.com")
-        #expect(preview?.url.absoluteString == "https://apple.com")
+        #expect(preview?.url?.absoluteString == "https://apple.com")
     }
 
-    @Test("A scheme-less domain is detected")
+    @Test("A scheme-less domain is detected, and resolves to https")
     func schemelessDomain_isSole() {
+        // NSDataDetector hands back `http://` for a bare domain. Android prepends `https://`, and
+        // `test-vectors/link_detection.json` settles the disagreement on https — a bare domain must
+        // not be a cleartext link on one platform and a secure one on the other.
         let preview = detector.webLink(in: "apple.com")
-        #expect(preview?.url.scheme == "http")
+        #expect(preview?.url?.absoluteString == "https://apple.com")
     }
 
     @Test("A URL is detected alongside surrounding text")
     func textPlusURL_notSole() {
         let preview = detector.webLink(in: "look at this https://apple.com")
-        #expect(preview?.url.absoluteString == "https://apple.com")
+        #expect(preview?.url?.absoluteString == "https://apple.com")
     }
 
     @Test("The trailing URL is chosen when there are several")
     func multipleURLs_picksTrailing() {
         let preview = detector.webLink(in: "https://a.com then https://b.com")
-        #expect(preview?.url.absoluteString == "https://b.com")
+        #expect(preview?.url?.absoluteString == "https://b.com")
     }
 
     @Test("Trailing punctuation is not part of the URL")
     func trailingPunctuation_excluded() {
         let preview = detector.webLink(in: "see https://apple.com.")
-        #expect(preview?.url.absoluteString == "https://apple.com")
+        #expect(preview?.url?.absoluteString == "https://apple.com")
     }
 
     @Test("A mid-sentence URL is still detected")
     func midSentenceURL_keepsFullText() {
         let preview = detector.webLink(in: "prices went up 20% https://apple.com, check it")
-        #expect(preview?.url.absoluteString == "https://apple.com")
+        #expect(preview?.url?.absoluteString == "https://apple.com")
     }
 
     @Test("Email addresses do not produce a web link")
@@ -66,12 +69,12 @@ struct LinkDetectorTests {
     @Test("A mangled trailing URL is rejected, letting an earlier clean URL win")
     func nonASCIIMangledTrailingURL_fallsBackToEarlierCleanMatch() {
         let preview = detector.webLink(in: "https://a.com then https://b.com😀")
-        #expect(preview?.url.absoluteString == "https://a.com")
+        #expect(preview?.url?.absoluteString == "https://a.com")
     }
 
     @Test("A non-ASCII path keeps the URL — only a mangled host is rejected")
     func nonASCIIPath_isDetected() {
         let preview = detector.webLink(in: "https://en.wikipedia.org/wiki/Café")
-        #expect(preview?.url.host() == "en.wikipedia.org")
+        #expect(preview?.url?.host() == "en.wikipedia.org")
     }
 }

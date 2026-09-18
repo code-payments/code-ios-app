@@ -29,6 +29,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
+    /// Fired when the user taps the card drawn in place of a link, with the whole card. The owner
+    /// decides where it lands, which differs by kind.
+    let onLinkCardTap: (LinkCard) -> Void
     /// Fired when the user taps the profile card's call to action. The owner opens the
     /// counterpart's contact card (or the add-contact sheet), same as tapping the nav title.
     let onContactAction: () -> Void
@@ -91,6 +94,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
+        screen.onLinkCardTap = onLinkCardTap
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onAuthorTap = onAuthorTap
@@ -119,6 +123,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
+        screen.onLinkCardTap = onLinkCardTap
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onAuthorTap = onAuthorTap

@@ -76,6 +76,26 @@ nonisolated struct Route {
     }
 }
 
+// MARK: - Jump -
+
+nonisolated extension Route {
+
+    /// The real URL behind a `jump.flipcash.com` redirector, or nil if this is not one.
+    ///
+    /// A jump link carries its target percent-encoded in `#source=`. A jump pointing at another
+    /// jump is malformed and is not followed. Mirrors Android `DeepLink.unwrapJumpTarget`.
+    static func unwrappingJump(_ url: URL) -> URL? {
+        let prefix = "https://jump.flipcash.com/#source="
+        guard url.absoluteString.hasPrefix(prefix) else { return nil }
+        let encoded = String(url.absoluteString.dropFirst(prefix.count))
+        guard let decoded = encoded.removingPercentEncoding,
+              let target = URL(string: decoded),
+              !decoded.hasPrefix(prefix)
+        else { return nil }
+        return target
+    }
+}
+
 // MARK: - Path -
 
 nonisolated extension Route {

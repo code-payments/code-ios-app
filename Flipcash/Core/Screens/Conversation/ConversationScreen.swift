@@ -412,6 +412,7 @@ struct ConversationScreen: View {
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
+            onLinkCardTap: openLinkCard,
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
             onAuthorTap: openAuthorProfile,
@@ -859,6 +860,22 @@ struct ConversationScreen: View {
         UIApplication.shared.open(url)
     }
 
+    /// Where a tapped link card lands, which is not the same place for both kinds.
+    ///
+    /// A cash card goes out through the deep-link path its URL would have taken — claiming is that
+    /// path's job and the card has no part in it. A token card pushes onto this chat's own stack,
+    /// the way `openCurrencyInfo` does for a cash message, rather than through the deep-link
+    /// handler: `.token` there resets the balance tab and walks the reader out of the conversation
+    /// they were reading.
+    private func openLinkCard(_ card: LinkCard) {
+        switch card {
+        case .cash:
+            openLink(card.url)
+        case .token(let token):
+            router.push(.currencyInfo(token.mint))
+        }
+    }
+
     /// Builds (or clears) the transcript loader/coordinator as the conversation id resolves — including
     /// a re-resolution to a *different* id (a contact's pre-assigned chat id replaced by the
     /// server-assigned one), which must re-window the new conversation, not keep rendering the old.
@@ -870,6 +887,8 @@ struct ConversationScreen: View {
                 controller: conversationController,
                 session: session,
                 knownAuthors: sessionContainer.knownAuthors,
+                linkCards: sessionContainer.linkCardResolver,
+                linkCardMemo: sessionContainer.linkCardMemo,
                 // `profileAvatars` is captured directly so the coordinator retains
                 // one small store, not the whole session container.
                 profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, profileAvatars = sessionContainer.profileAvatars] in

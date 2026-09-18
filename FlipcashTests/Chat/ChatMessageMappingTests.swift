@@ -313,7 +313,7 @@ struct ChatMessageMappingTests {
     @Test("A text message containing a URL carries the trailing link as its preview")
     func textWithURL_hasLinkPreview() {
         let rows = messageRows(ChatItem.from([text(1, me, "check https://apple.com", after: 0)], selfUserID: me))
-        #expect(rows.first?.linkPreview?.url.absoluteString == "https://apple.com")
+        #expect(rows.first?.linkPreview?.url?.absoluteString == "https://apple.com")
     }
 
     @Test("A URL-only message has a link preview")

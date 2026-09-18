@@ -42,6 +42,11 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the user taps a URL in a text bubble; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
 
+    /// Called when the user taps the card drawn in place of a link. The whole card goes back
+    /// because the two kinds land in different places — a cash card opens its link, a token card
+    /// pushes that token onto this chat's own stack — and only the owner holds that stack.
+    public var onLinkCardTap: ((LinkCard) -> Void)?
+
     /// Called when the user taps the profile card's call to action; the owner opens the
     /// counterpart's contact card (or the add-contact sheet), same as the nav title.
     public var onContactAction: (() -> Void)?
@@ -411,6 +416,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+            cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card) }
             cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
         case let cell as ChatMessageCell:
             cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)

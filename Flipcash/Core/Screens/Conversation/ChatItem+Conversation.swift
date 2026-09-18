@@ -19,9 +19,13 @@ nonisolated(unsafe) private let linkDetector = LinkDetector()
 /// tick must not re-scan the whole transcript with `NSDataDetector`. `NSCache` bounds the retained
 /// entries, purges under memory pressure, and synchronizes its own access, so the mapper stays
 /// non-isolated. Keyed by text, so identical messages share the result.
+///
+/// Only the detection half is cached. A card's state changes as resolution lands, so a cache keyed
+/// on text that stored a resolved card would pin the first answer forever; `LinkCardResolver` has
+/// its own cache, keyed on the entropy, which is the part that does not change.
 private final class DetectedLinkBox {
-    nonisolated let preview: LinkPreview?
-    nonisolated init(_ preview: LinkPreview?) { self.preview = preview }
+    nonisolated let links: [DetectedLink]
+    nonisolated init(_ links: [DetectedLink]) { self.links = links }
 }
 
 nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLinkBox> = {
@@ -30,12 +34,17 @@ nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLink
     return cache
 }()
 
-nonisolated private func detectedLink(in text: String) -> LinkPreview? {
+nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) -> LinkCard?) -> LinkPreview? {
     let key = text as NSString
-    if let cached = linkPreviewCache.object(forKey: key) { return cached.preview }
-    let preview = linkDetector.webLink(in: text)
-    linkPreviewCache.setObject(DetectedLinkBox(preview), forKey: key)
-    return preview
+    let links: [DetectedLink]
+    if let cached = linkPreviewCache.object(forKey: key) {
+        links = cached.links
+    } else {
+        links = linkDetector.webLinks(in: text)
+        linkPreviewCache.setObject(DetectedLinkBox(links), forKey: key)
+    }
+    guard !links.isEmpty else { return nil }
+    return LinkPreview(links: links, card: card(links))
 }
 
 extension ChatItem {
@@ -61,7 +70,12 @@ extension ChatItem {
         counterpartName: String = "",
         quotedMessage: (MessageID) -> ConversationMessage? = { _ in nil },
         author: (ConversationMessage) -> ChatAuthor? = { _ in nil },
-        namesAuthors: Bool = false
+        namesAuthors: Bool = false,
+        /// The card, if any, for a message's detected links. Injected like the other collaborators
+        /// so the mapper stays pure; the screen supplies classification plus whatever the resolver
+        /// has already filled in, and defaults to no card. Takes the detected links rather than the
+        /// text so the detector runs once per message, here.
+        linkCard: ([DetectedLink]) -> LinkCard? = { _ in nil }
     ) -> [ChatItem] {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
         // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
@@ -142,7 +156,7 @@ extension ChatItem {
             switch message.content {
             case .text(let text):
                 content = .text(text)
-                linkPreview = detectedLink(in: text)
+                linkPreview = detectedLink(in: text, card: linkCard)
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
                 content = .cash(ChatCashContent(

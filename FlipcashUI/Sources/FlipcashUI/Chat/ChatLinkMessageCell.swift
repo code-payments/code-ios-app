@@ -18,10 +18,21 @@ public final class ChatLinkMessageCell: ChatColumnCell {
 
     private let bubble = LinkableBubbleView()
     private var bubbleMaxWidthConstraint: NSLayoutConstraint!
+    /// Holds a carded bubble open at the transcript's full bubble width. The card is pinned to the
+    /// bubble's sides and takes its width from the bubble, and the bubble takes its width from its
+    /// text — so a message that was nothing but the link, whose text the card replaced, would
+    /// otherwise collapse the bubble to its padding and the card to nothing with it. Not required,
+    /// so the `<=` above still wins on a narrow transcript.
+    private var bubbleCardWidthConstraint: NSLayoutConstraint!
 
     /// Called when the user taps a URL in the bubble.
     var onOpenURL: ((URL) -> Void)? {
         didSet { bubble.onOpenURL = onOpenURL }
+    }
+
+    /// Called when the user taps the card the bubble drew in place of a link.
+    var onLinkCardTap: ((LinkCard) -> Void)? {
+        didSet { bubble.onLinkCardTap = onLinkCardTap }
     }
 
     var bubbleView: LinkableBubbleView { bubble }
@@ -43,6 +54,8 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         installColumn(content: bubble)
         bubbleMaxWidthConstraint = bubble.widthAnchor.constraint(lessThanOrEqualToConstant: 280)
         bubbleMaxWidthConstraint.isActive = true
+        bubbleCardWidthConstraint = bubble.widthAnchor.constraint(equalToConstant: 280)
+        bubbleCardWidthConstraint.priority = .defaultHigh
     }
 
     @available(*, unavailable)
@@ -56,6 +69,8 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     /// - Parameter maxWidth: the widest the bubble may grow before its text wraps.
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         bubbleMaxWidthConstraint.constant = maxWidth
+        bubbleCardWidthConstraint.constant = maxWidth
+        bubbleCardWidthConstraint.isActive = message.linkPreview?.card != nil
         bubble.configure(with: message)
         updateColumn(for: message, authorImageData: authorImageData)
         // A failed row's whole column is the retry target (ChatColumnCell); disable the bubble's own

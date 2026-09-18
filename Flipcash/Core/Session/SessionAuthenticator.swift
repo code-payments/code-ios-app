@@ -466,6 +466,14 @@ final class SessionContainer {
     let profileAvatars: ProfileAvatarStore
     /// Identities for chat senders the chat's own roster leaves out — see ``KnownAuthorDirectory``.
     let knownAuthors: KnownAuthorDirectory
+    /// Fills cash link cards in for chat transcripts. Container-scoped so a link shared into two
+    /// conversations is looked up once, and holding a `GiftCardAccountReading` rather than the
+    /// `Client` it was built from — rendering a card must never reach a path that claims it.
+    let linkCardResolver: LinkCardResolver
+    /// What the resolver has already answered, on the main actor — see ``LinkCardMemo``. Scoped
+    /// beside the resolver because it remembers the same answers; a transcript seeds its first
+    /// paint from this so a chat opened again does not flash an unresolved card it already knows.
+    let linkCardMemo = LinkCardMemo()
 
     /// Lazy so it can capture the container it reads its dependencies from;
     /// observation-ignored because `TipFlow` is itself observable and the
@@ -511,6 +519,11 @@ final class SessionContainer {
         // `flipClient.fetchCoinbaseOnrampJWT`.
         let coinbaseApiKey = (try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()) ?? ""
         let owner = session.ownerKeyPair
+
+        self.linkCardResolver = LinkCardResolver(
+            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
+            mintLookup: LinkCardResolver.mintLookup(reader: client)
+        )
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {
                 throw MissingCoinbaseApiKey()

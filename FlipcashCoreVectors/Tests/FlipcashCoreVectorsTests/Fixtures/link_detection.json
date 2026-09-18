@@ -1,0 +1,187 @@
+{
+  "algorithm": "link-detection",
+  "note": "Chat link spans and card eligibility. Offsets are UTF-16 code units, half-open. `url` is the resolved URL (https:// prepended when the match had no scheme). `card` is null or the first card-eligible Flipcash link in the message, with its jump wrapper already unwrapped. A match whose following character is non-ASCII is rejected. Behavior parity, not a computation with an external reference.",
+  "cardHosts": [
+    "app.flipcash.com",
+    "send.flipcash.com",
+    "flipcash.com",
+    "www.flipcash.com",
+    "jump.flipcash.com"
+  ],
+  "vectors": [
+    {
+      "name": "bare-cash-link",
+      "text": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 54,
+          "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "The shape the bug report screenshot showed: nothing but the link."
+    },
+    {
+      "name": "text-around-link",
+      "text": "Here you go https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3 enjoy",
+      "spans": [
+        {
+          "start": 12,
+          "end": 66,
+          "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "Card above, this whole string as the caption beneath it."
+    },
+    {
+      "name": "two-links-one-card",
+      "text": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3 and https://send.flipcash.com/c/#/e=8mXeQ2vTb4pLzRw9dKcHfA",
+      "spans": [
+        {
+          "start": 0,
+          "end": 54,
+          "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        },
+        {
+          "start": 59,
+          "end": 113,
+          "url": "https://send.flipcash.com/c/#/e=8mXeQ2vTb4pLzRw9dKcHfA"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "Both links are tappable spans; the first card-eligible one wins."
+    },
+    {
+      "name": "bare-domain",
+      "text": "see flipcash.com/download",
+      "spans": [
+        {
+          "start": 4,
+          "end": 25,
+          "url": "https://flipcash.com/download"
+        }
+      ],
+      "card": null,
+      "note": "No scheme: still a link, resolved with https://. A reserved path, so no card."
+    },
+    {
+      "name": "app-host-cash-link",
+      "text": "https://app.flipcash.com/cash/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 56,
+          "url": "https://app.flipcash.com/cash/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://app.flipcash.com/cash/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "Both hosts and both path spellings reach the same route."
+    },
+    {
+      "name": "jump-wrapped-cash-link",
+      "text": "https://jump.flipcash.com/#source=https%3A%2F%2Fsend.flipcash.com%2Fc%2F%23%2Fe%3DKNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 104,
+          "url": "https://jump.flipcash.com/#source=https%3A%2F%2Fsend.flipcash.com%2Fc%2F%23%2Fe%3DKNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "The card's url is the unwrapped target; resolution needs that, not the redirector."
+    },
+    {
+      "name": "glued-emoji-host",
+      "text": "https://send.flipcash.com\ud83d\ude00/c/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [],
+      "card": null,
+      "note": "No span at all. The trailing character is non-ASCII, so the match is rejected: iOS by authorityIsASCII, Android by the boundary rule."
+    },
+    {
+      "name": "lookalike-host",
+      "text": "https://send.flipcash.com.evil.com/c/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 63,
+          "url": "https://send.flipcash.com.evil.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": null,
+      "note": "A link, because it is one. Not a card: the host is not in cardHosts, and both route classifiers match on path alone, so nothing else would have stopped it."
+    },
+    {
+      "name": "login-link",
+      "text": "https://app.flipcash.com/login/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 57,
+          "url": "https://app.flipcash.com/login/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": null,
+      "note": "Carries the account seed. Never a card, whatever the host says."
+    },
+    {
+      "name": "verify-link",
+      "text": "https://app.flipcash.com/verify/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 58,
+          "url": "https://app.flipcash.com/verify/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": null,
+      "note": "Carries a verification secret. Never a card."
+    },
+    {
+      "name": "tip-card-by-id",
+      "text": "https://flipcash.com/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b",
+      "spans": [
+        {
+          "start": 0,
+          "end": 57,
+          "url": "https://flipcash.com/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b"
+        }
+      ],
+      "card": null,
+      "note": "Card-eligible per the spec, but not in phase 1 (open decision 4). Span only."
+    },
+    {
+      "name": "token-link",
+      "text": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112",
+      "spans": [
+        {
+          "start": 0,
+          "end": 74,
+          "url": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112"
+        }
+      ],
+      "card": {
+        "kind": "token",
+        "url": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112",
+        "mint": "So11111111111111111111111111111111111111112"
+      },
+      "note": "A token link renders as that token's bill. The mint is taken from the path and is not validated here -- an unknown mint is a card that never resolves, not a rejected one."
+    }
+  ]
+}

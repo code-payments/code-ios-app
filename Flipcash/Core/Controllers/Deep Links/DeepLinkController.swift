@@ -71,21 +71,10 @@ final class DeepLinkController {
             container.walletConnection.didReceiveURL(url: url)
         }
         
-        // Hadle jump subdomains by forwarding the underlying
+        // Handle jump subdomains by forwarding the underlying
         // URL to the correct handler. Don't perform any
         // other action on jump subdomains.
-        let prefix = "https://jump.flipcash.com/#source="
-        let urlString = url.absoluteString
-        if urlString.hasPrefix(prefix) {
-
-            let jumpString = urlString.replacingOccurrences(of: prefix, with: "")
-            guard
-                let decodedString = jumpString.removingPercentEncoding,
-                let jumpURL = URL(string: decodedString)
-            else {
-                return nil
-            }
-
+        if let jumpURL = Route.unwrappingJump(url) {
             logger.info("Jumping to", metadata: ["url": "\(jumpURL.sanitizedForAnalytics)"])
             return handle(open: jumpURL)
         }
