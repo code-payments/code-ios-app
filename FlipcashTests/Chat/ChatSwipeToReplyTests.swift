@@ -186,9 +186,9 @@ struct ChatColumnCellSwipeOffsetTests {
     }
 }
 
-@Suite("The author gutter and the reply swipe")
+@Suite("The leading strip and the reply swipe")
 @MainActor
-struct ChatColumnCellAuthorGutterTests {
+struct ChatColumnCellLeadingStripTests {
 
     private func cell(for message: ChatMessage) -> ChatMessageCell {
         let cell = ChatMessageCell(frame: CGRect(x: 0, y: 0, width: 320, height: 60))
@@ -200,7 +200,7 @@ struct ChatColumnCellAuthorGutterTests {
     private func incomingGroupMessage() -> ChatMessage {
         ChatMessage(
             id: "1",
-            text: "hi",
+            text: "hi there",
             sender: .other,
             actions: [.reply],
             author: ChatAuthor(id: UserID(), name: "KT"),
@@ -209,63 +209,71 @@ struct ChatColumnCellAuthorGutterTests {
     }
 
     /// The strip the face sits in: the row's own margin plus the gutter it gives up.
-    private var insideGutter: CGPoint {
+    private var insideStrip: CGPoint {
         CGPoint(x: ChatColumnCell.rowInset + ChatColumnCell.authorGutterWidth - 1, y: 30)
     }
 
-    private var beyondGutter: CGPoint {
+    private var beyondStrip: CGPoint {
         CGPoint(x: ChatColumnCell.rowInset + ChatColumnCell.authorGutterWidth + 1, y: 30)
     }
 
     @Test("A point in an attributed incoming row's gutter starts no reply swipe")
     func attributedIncoming_gutterIsExcluded() {
         let cell = cell(for: incomingGroupMessage())
-        #expect(cell.isInAuthorGutter(insideGutter))
-        #expect(cell.isInAuthorGutter(CGPoint(x: 0, y: 30)))
+        #expect(cell.allowsReplySwipe(at: insideStrip) == false)
+        #expect(cell.allowsReplySwipe(at: CGPoint(x: 0, y: 30)) == false)
     }
 
     @Test("The rest of an attributed incoming row still swipes")
     func attributedIncoming_bubbleSideIsIncluded() {
         let cell = cell(for: incomingGroupMessage())
-        #expect(cell.isInAuthorGutter(beyondGutter) == false)
-        #expect(cell.isInAuthorGutter(CGPoint(x: 200, y: 30)) == false)
+        #expect(cell.allowsReplySwipe(at: beyondStrip))
+        #expect(cell.allowsReplySwipe(at: CGPoint(x: 200, y: 30)))
     }
 
-    @Test("A row that draws no face but holds the gutter open excludes it too")
-    func attributedIncoming_midRunExcludesGutter() {
+    @Test("A row that draws no face but holds the gutter open excludes the strip too")
+    func attributedIncoming_midRunExcludesStrip() {
         // The middle of a run hides the avatar; the gutter is the transcript's, so the strip is
         // still the face's and still off limits.
         let message = ChatMessage(
             id: "1",
-            text: "hi",
+            text: "hi there",
             sender: .other,
             isContinuedByNext: true,
             actions: [.reply],
             author: ChatAuthor(id: UserID(), name: "KT"),
             isAttributedTranscript: true
         )
-        #expect(cell(for: message).isInAuthorGutter(insideGutter))
+        #expect(cell(for: message).allowsReplySwipe(at: insideStrip) == false)
     }
 
-    @Test("A DM row reserves no gutter, so its leading edge swipes")
-    func dm_hasNoGutter() {
-        let cell = cell(for: ChatMessage(id: "1", text: "hi", sender: .other, actions: [.reply]))
-        #expect(cell.isInAuthorGutter(insideGutter) == false)
+    @Test("A DM row swipes in the strip, because that is where its bubble starts")
+    func dmIncoming_bubbleFillsTheStrip() {
+        let cell = cell(for: ChatMessage(id: "1", text: "hi there", sender: .other, actions: [.reply]))
+        #expect(cell.allowsReplySwipe(at: insideStrip))
+        #expect(cell.allowsReplySwipe(at: beyondStrip))
     }
 
-    @Test("The viewer's own row in a group reserves no gutter")
-    func ownRowInGroup_hasNoGutter() {
-        let message = ChatMessage(
-            id: "1", text: "hi", sender: .me, actions: [.reply], isAttributedTranscript: true
-        )
-        #expect(cell(for: message).isInAuthorGutter(insideGutter) == false)
+    @Test("The strip beside the viewer's own bubble starts no reply swipe, DM or group")
+    func ownRow_excludesTheStrip() {
+        let dm = cell(for: ChatMessage(id: "1", text: "hi there", sender: .me, actions: [.reply]))
+        #expect(dm.allowsReplySwipe(at: insideStrip) == false)
+        #expect(dm.allowsReplySwipe(at: beyondStrip))
+
+        let group = cell(for: ChatMessage(
+            id: "1", text: "hi there", sender: .me, actions: [.reply], isAttributedTranscript: true
+        ))
+        #expect(group.allowsReplySwipe(at: insideStrip) == false)
     }
 
-    @Test("Reuse clears the gutter")
-    func reuse_clearsTheGutter() {
+    @Test("The rule follows the bubble when a recycled cell is reconfigured")
+    func reuse_followsTheNewBubble() {
         let cell = cell(for: incomingGroupMessage())
+        #expect(cell.allowsReplySwipe(at: insideStrip) == false)
         cell.prepareForReuse()
-        #expect(cell.isInAuthorGutter(insideGutter) == false)
+        cell.configure(with: ChatMessage(id: "2", text: "hi there", sender: .other, actions: [.reply]), maxWidth: 250)
+        cell.layoutIfNeeded()
+        #expect(cell.allowsReplySwipe(at: insideStrip))
     }
 }
 
