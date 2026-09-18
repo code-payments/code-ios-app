@@ -34,8 +34,8 @@ final class ChatSwipeToReply: NSObject {
     let recognizer = UIPanGestureRecognizer()
 
     /// The row a drag from this point may reply to, or nil where no reply starts — a row that
-    /// offers no Reply, and the author gutter, whose face is its own target. The transcript answers
-    /// this; the gesture does not know what a message is.
+    /// offers no Reply, and the strip at the row's leading edge wherever the bubble isn't. The
+    /// transcript answers this; the gesture does not know what a message is.
     var rowForSwipe: ((CGPoint) -> (cell: ChatColumnCell, stableID: String)?)?
     /// Whether the transcript is busy — mid-update, or showing a context menu.
     var isBlocked: (() -> Bool)?
