@@ -67,15 +67,18 @@ class AccountManager {
             keyAccount: keyAccount
         )
 
-        upsert(keyAccount: keyAccount)
+        upsert(keyAccount: keyAccount, userID: userID)
     }
     
-    func upsert(keyAccount: KeyAccount) {
+    /// - Parameter userID: the account's user ID, when the caller knows it. `nil` leaves any
+    ///   ID already stored for this account in place, so re-seeing an account never clears it.
+    func upsert(keyAccount: KeyAccount, userID: UserID? = nil) {
         let key = keyAccount.ownerPublicKey.base58
         
         let newDescription = AccountDescription(
             account: keyAccount,
-            creationDate: Date()
+            creationDate: Date(),
+            userID: userID
         )
         
         if var historicalAccounts = Keychain.historicalAccounts {
@@ -83,6 +86,9 @@ class AccountManager {
                 logger.debug("Upsert historical account", metadata: ["owner": "\(oldDescription.account.ownerPublicKey)"])
                 oldDescription.lastSeen = .now
                 oldDescription.deletionDate = nil // Undelete
+                if let userID {
+                    oldDescription.userID = userID
+                }
                 historicalAccounts[key] = oldDescription
             } else {
                 historicalAccounts[key] = newDescription
@@ -164,14 +170,20 @@ struct AccountDescription: Codable, Hashable, Equatable, Sendable {
     let creationDate: Date
     var deletionDate: Date?
     var lastSeen: Date
+
+    /// The Flipcash user ID for this account. Storing it is what lets a relaunch rebuild a
+    /// ``UserAccount`` locally instead of calling `login(owner:)` before the tabs can appear.
+    /// `nil` on entries written before it was stored, and on mocks.
+    var userID: UserID?
     
     // MARK: - Init -
     
-    fileprivate init(account: KeyAccount, creationDate: Date, deletionDate: Date? = nil) {
+    fileprivate init(account: KeyAccount, creationDate: Date, deletionDate: Date? = nil, userID: UserID? = nil) {
         self.account = account
         self.creationDate = creationDate
         self.deletionDate = deletionDate
         self.lastSeen = .now
+        self.userID = userID
     }
     
     // MARK: - Hashable & Equatable -
