@@ -111,21 +111,45 @@ final class SessionAuthenticator {
             )
 
             self.completeLogin(with: initializedAccount)
-        } didFindRecentAccount: { [weak self] keyAccount in
+        } didFindRecentAccount: { [weak self] description in
+            guard let self else { return }
+
+            // A stored user ID is only ever written after `login` and `createAccounts` have
+            // both succeeded, so it is proof the account exists on the server and its accounts
+            // are created. Everything needed to build the session is already on the device,
+            // and the tabs appear without waiting for a request. `refreshRecentAccount` redoes
+            // the login afterwards; ``checkForUnusableAccount`` covers an account the server
+            // has since disowned, both on login and every 30s.
+            if let userID = description.userID {
+                let account = InitializedAccount(
+                    keyAccount: description.account,
+                    userID: userID
+                )
+
+                accountManager.set(keyAccount: description.account, userID: userID)
+                completeLogin(with: account)
+                Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
+
+                Task { await self.refreshRecentAccount(description.account) }
+                return
+            }
+
+            // Entries written before the user ID was stored have no way back to a
+            // ``UserAccount`` but the server, so they still wait for it. One successful
+            // launch backfills the ID and this branch stops being reached.
             Task {
                 do {
-                    if let account = try await self?.initialize(using: keyAccount.mnemonic, isRegistration: false) {
-                        self?.completeLogin(with: account)
-                        Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
-                    }
+                    let account = try await self.initialize(using: description.account.mnemonic, isRegistration: false)
+                    self.completeLogin(with: account)
+                    Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
                 } catch {
-                    self?.logout()
+                    self.logout()
                 }
             }
         }
     }
     
-    private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (KeyAccount) -> Void) {
+    private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (AccountDescription) -> Void) {
         logger.info("initializeState called", metadata: ["count": "\(count)"])
         
         let userAccount = accountManager.fetchCurrentUserAccount()
@@ -134,8 +158,13 @@ final class SessionAuthenticator {
             
             // Inserting a new version of this key account
             // will update the `lastSeen` date and the
-            // device name that is currently using it.
-            accountManager.upsert(keyAccount: userAccount.keyAccount)
+            // device name that is currently using it. Passing the user ID also backfills
+            // it onto entries stored before it was kept, which is what moves an account
+            // off the blocking branch below.
+            accountManager.upsert(
+                keyAccount: userAccount.keyAccount,
+                userID: userAccount.userID
+            )
             
         } else {
             // Auto-attempt historical login only when wasLoggedIn is true.
@@ -148,7 +177,7 @@ final class SessionAuthenticator {
                 : nil
 
             if let recentAccount {
-                didFindRecentAccount(recentAccount.account)
+                didFindRecentAccount(recentAccount)
             } else {
                 state = .loggedOut
 
@@ -298,7 +327,22 @@ final class SessionAuthenticator {
         defer {
             loginButtonState = .normal
         }
-        
+
+        do {
+            return try await authenticate(using: mnemonic, isRegistration: isRegistration)
+        } catch {
+            ErrorReporting.captureError(
+                error,
+                reason: isRegistration ? "Failed to register" : "Failed to login"
+            )
+            throw error
+        }
+    }
+
+    /// Registers or logs the owner in and makes sure its accounts exist, without touching
+    /// ``loginButtonState`` or reporting the failure. ``initialize`` adds both for a login
+    /// the user is watching; ``refreshRecentAccount`` wants neither.
+    private func authenticate(using mnemonic: MnemonicPhrase, isRegistration: Bool) async throws -> InitializedAccount {
         let derivedKey: DerivedKey = .derive(
             using: .primary(),
             mnemonic: mnemonic
@@ -315,44 +359,59 @@ final class SessionAuthenticator {
             timeAuthority: .usdcAuthority
         )
         
+        let userID: UserID
+
+        // Register/login first: the OCP antispam guard for createAccounts
+        // requires the owner to already exist as a Flipcash user.
+        if isRegistration {
+            userID = try await flipClient.register(owner: keyAccount.owner)
+        } else {
+            userID = try await flipClient.login(owner: keyAccount.owner)
+        }
+
+        // No-op when accounts already exist.
+        try await client.createAccounts(
+            owner: cluster.authority.keyPair,
+            mint: .usdf, // USDF is the foundation mint
+            cluster: cluster,
+            kind: .primary,
+            derivationIndex: 0
+        )
+
+        accountManager.set(
+            keyAccount: keyAccount,
+            userID: userID
+        )
+
+        logger.debug("Owner", metadata: ["owner": "\(keyAccount.ownerPublicKey)"])
+
+        return InitializedAccount(
+            keyAccount: keyAccount,
+            userID: userID
+        )
+    }
+
+    /// Redoes, once the tabs are already up, the login the fast launch path skipped: it
+    /// refreshes the stored user ID and recreates accounts an interrupted launch left
+    /// missing.
+    ///
+    /// Only a denied login ends the session. The blocking path this replaces logged out on
+    /// any thrown error, which meant a returning user lost their session to a failed
+    /// request; here that case is a warning and the next launch tries again.
+    private func refreshRecentAccount(_ keyAccount: KeyAccount) async {
         do {
-            let userID: UserID
-
-            // Register/login first: the OCP antispam guard for createAccounts
-            // requires the owner to already exist as a Flipcash user.
-            if isRegistration {
-                userID = try await flipClient.register(owner: keyAccount.owner)
-            } else {
-                userID = try await flipClient.login(owner: keyAccount.owner)
-            }
-
-            // No-op when accounts already exist.
-            try await client.createAccounts(
-                owner: cluster.authority.keyPair,
-                mint: .usdf, // USDF is the foundation mint
-                cluster: cluster,
-                kind: .primary,
-                derivationIndex: 0
+            _ = try await authenticate(using: keyAccount.mnemonic, isRegistration: false)
+        } catch ErrorLoginAccount.denied {
+            logger.error(
+                "Login denied for a stored account, logging out",
+                metadata: ["owner": "\(keyAccount.ownerPublicKey)"]
             )
-
-            accountManager.set(
-                keyAccount: keyAccount,
-                userID: userID
-            )
-            
-            logger.debug("Owner", metadata: ["owner": "\(keyAccount.ownerPublicKey)"])
-
-            return InitializedAccount(
-                keyAccount: keyAccount,
-                userID: userID
-            )
-            
+            logout()
         } catch {
-            ErrorReporting.captureError(
-                error,
-                reason: isRegistration ? "Failed to register" : "Failed to login"
+            logger.warning(
+                "Background account refresh failed",
+                metadata: ["error": "\(error)"]
             )
-            throw error
         }
     }
     
