@@ -40,6 +40,68 @@ extension ConversationRosterSummary {
     }
 }
 
+/// The signed-in user's per-viewer state for a chat — currently just mute status. See
+/// `chat.v1.ViewerState`.
+public struct ConversationViewerState: Hashable, Sendable {
+
+    /// Present iff the chat is muted for the viewer. Muted pushes are still delivered (so the
+    /// client can store the message) but flagged for the client to suppress the notification.
+    public let mute: ConversationMuteState?
+
+    /// Opaque version, advanced by exactly one on every real change. Compared like
+    /// ``ConversationRosterSummary/version``: apply the greater value and drop the rest — delivery
+    /// order does not matter, and there is no delta to fetch, only a refetch.
+    public let version: UInt64
+
+    public init(mute: ConversationMuteState? = nil, version: UInt64 = 0) {
+        self.mute = mute
+        self.version = version
+    }
+}
+
+extension ConversationViewerState {
+    public init(_ proto: Flipcash_Chat_V1_ViewerState) {
+        self.init(
+            mute: (proto.hasSettings && proto.settings.hasMute) ? ConversationMuteState(proto.settings.mute) : nil,
+            version: proto.version
+        )
+    }
+}
+
+/// Whether, and until when, the signed-in user has muted a chat. See `chat.v1.MuteState`.
+public enum ConversationMuteState: Hashable, Sendable {
+    /// Muted until this date, after which the mute lapses client-side. Nothing is sent when it
+    /// does, so the client owns the countdown.
+    case until(Date)
+    /// Muted forever, until explicitly unmuted.
+    case forever
+}
+
+extension ConversationMuteState {
+    /// Falls back to `.forever` when `duration` is unset — defensive only: the server never sends
+    /// a `MuteState` without one, since its presence on `Settings.mute` is itself the mute signal.
+    init(_ proto: Flipcash_Chat_V1_MuteState) {
+        switch proto.duration {
+        case .until(let timestamp):
+            self = .until(timestamp.date)
+        case .forever, nil:
+            self = .forever
+        }
+    }
+
+    /// Builds the wire form for `MuteChatRequest.mute`.
+    var proto: Flipcash_Chat_V1_MuteState {
+        .with {
+            switch self {
+            case .until(let date):
+                $0.until = .init(date: date)
+            case .forever:
+                $0.forever = .init()
+            }
+        }
+    }
+}
+
 /// Requirements a user must satisfy to participate in a group chat. Only
 /// ever set for group chats; unset means the chat has no participation
 /// requirements. See `chat.v1.Rules`.

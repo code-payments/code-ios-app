@@ -36,7 +36,7 @@ final class ChatMessagingService: Sendable {
     /// Fetches the newest `pageSize` messages (descending on the wire — without
     /// an explicit order the server defaults to ascending and a long chat's
     /// first page would be its OLDEST messages), returned oldest-first.
-    func getMessages(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<[ConversationMessage], ErrorGetMessages>) -> Void) {
+    func getMessages(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, viewMode: ConversationViewMode = .full, completion: @Sendable @escaping (Result<[ConversationMessage], ErrorGetMessages>) -> Void) {
         let request = Flipcash_Messaging_V1_GetMessagesRequest.with {
             $0.chatID = conversationID.proto
             $0.options = .with {
@@ -46,6 +46,7 @@ final class ChatMessagingService: Sendable {
                     $0.pagingToken = .with { $0.value = pagingToken }
                 }
             }
+            $0.viewMode = viewMode.proto
             $0.auth = owner.authFor(message: $0)
         }
 
@@ -82,12 +83,14 @@ final class ChatMessagingService: Sendable {
         owner: KeyPair,
         conversationID: ConversationID,
         afterSequence: UInt64,
+        viewMode: ConversationViewMode = .full,
         onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void,
         completion: @Sendable @escaping (Result<UInt64, ErrorGetDelta>) -> Void
     ) {
         let request = Flipcash_Messaging_V1_GetDeltaRequest.with {
             $0.chatID = conversationID.proto
             $0.afterSequence = afterSequence
+            $0.viewMode = viewMode.proto
             $0.auth = owner.authFor(message: $0)
         }
 

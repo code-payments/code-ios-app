@@ -239,6 +239,12 @@ public actor EventStreamer {
         case .invalidTimestamp:
             logger.warning("Event stream rejected timestamp, reconnecting")
             reconnect()
+        case .notFound, .streamExpired:
+            // Neither names a client mistake worth stopping for: the stream's target chat/cursor
+            // is gone or its session lapsed, and a fresh connect re-establishes both, same as an
+            // invalid timestamp.
+            logger.warning("Event stream reported \(error.code), reconnecting")
+            reconnect()
         case .UNRECOGNIZED:
             logger.warning("Event stream returned an unrecognized error code")
             reconnect()

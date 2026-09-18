@@ -60,9 +60,10 @@ final class ChatService: Sendable {
         }
     }
 
-    func getChat(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<Conversation, ErrorGetChat>) -> Void) {
+    func getChat(owner: KeyPair, conversationID: ConversationID, viewMode: ConversationViewMode = .full, completion: @Sendable @escaping (Result<Conversation, ErrorGetChat>) -> Void) {
         let request = Flipcash_Chat_V1_GetChatRequest.with {
             $0.chatID = conversationID.proto
+            $0.viewMode = viewMode.proto
             $0.auth = owner.authFor(message: $0)
         }
 
@@ -221,6 +222,55 @@ final class ChatService: Sendable {
             }
         }
     }
+
+    func muteChat(owner: KeyPair, conversationID: ConversationID, mute: ConversationMuteState, completion: @Sendable @escaping (Result<ConversationViewerState, ErrorMuteChat>) -> Void) {
+        let request = Flipcash_Chat_V1_MuteChatRequest.with {
+            $0.chatID = conversationID.proto
+            $0.mute = mute.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.muteChat(request, options: .unaryDefault)
+                let error = ErrorMuteChat(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasViewerState else {
+                    logger.error("Failed to mute chat")
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(ConversationViewerState(response.viewerState))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    func unmuteChat(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<ConversationViewerState, ErrorUnmuteChat>) -> Void) {
+        let request = Flipcash_Chat_V1_UnmuteChatRequest.with {
+            $0.chatID = conversationID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.unmuteChat(request, options: .unaryDefault)
+                let error = ErrorUnmuteChat(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasViewerState else {
+                    logger.error("Failed to unmute chat")
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(ConversationViewerState(response.viewerState))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -283,6 +333,26 @@ public enum ErrorJoinChat: Int, Error {
 }
 
 public enum ErrorLeaveChat: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorMuteChat: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorUnmuteChat: Int, Error {
     case ok
     case denied
     case notFound
@@ -374,6 +444,28 @@ extension ErrorJoinChat: ServerError, TransportClassifiableError {
 }
 
 extension ErrorLeaveChat: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorMuteChat: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorUnmuteChat: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
