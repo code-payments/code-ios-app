@@ -18,6 +18,8 @@ struct GroupInviteSheet: View {
 
     @Binding var isPresented: Bool
 
+    @Environment(ConversationController.self) private var conversationController
+
     /// How long the copy row stays on its checkmark before reverting — the beat the tip-card link
     /// row holds.
     private static let confirmationDuration: Duration = .seconds(1.5)
@@ -26,6 +28,16 @@ struct GroupInviteSheet: View {
 
     private var url: URL {
         .groupChatInvite(for: conversationID)
+    }
+
+    /// The group's own title, which names it in the shared message.
+    ///
+    /// Read from the record rather than through `displayName(for:)`: that resolves an untitled chat
+    /// to a counterpart's name or to "Flipcash User", and a group invited to under either of those
+    /// would be worse than one invited to with no name at all. Nil shares the bare link — see
+    /// ``GroupInviteShareItem``.
+    private var title: String? {
+        conversationController.conversation(withID: conversationID)?.title
     }
 
     var body: some View {
@@ -39,7 +51,9 @@ struct GroupInviteSheet: View {
                         title: "Send Invite Link",
                         accessibilityIdentifier: "group-invite-send"
                     ) {
-                        ShareSheet.present(activityItems: [url]) { _ in }
+                        ShareSheet.present(
+                            activityItem: GroupInviteShareItem(url: url, title: title)
+                        ) { _ in }
                     }
 
                     ChatActionRow(
