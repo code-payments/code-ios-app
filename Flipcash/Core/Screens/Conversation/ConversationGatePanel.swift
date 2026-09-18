@@ -21,10 +21,10 @@ struct ConversationGatePanel: View {
     /// shows the composer instead.
     let presentation: ConversationGatePresentation
 
-    /// Ticker for the requirement's mint, once resolved. Nil for a requirement that names no mint —
-    /// it applies across every holding — and until the metadata lookup lands, so the copy drops the
-    /// "of $X" clause rather than printing a placeholder.
-    let symbol: String?
+    /// Display name of the requirement's mint, once resolved. Nil for a requirement that names no
+    /// mint — it applies across every holding — and until the metadata lookup lands, so the copy
+    /// drops the "of X" clause rather than printing a placeholder.
+    let mintName: String?
 
     /// Opens the buy flow for the requirement's mint, or add-cash when the requirement spans every
     /// mint. Never called for ``ConversationGateRequirement/staff``, which has no button.
@@ -93,12 +93,12 @@ struct ConversationGatePanel: View {
     /// dollar one.
     ///
     /// Every requirement is denominated in dollars, so a dollar-token rule is already fully stated
-    /// by the amount — spelling the token out as well reads as "$100 of $USDF". A rule naming any
+    /// by the amount — spelling the token out as well says the same thing twice. A rule naming any
     /// other token genuinely needs it: the same $100 is a different quantity of each.
     private func requirementAmount(_ amount: FiatAmount, mint: PublicKey?) -> String {
         let formatted = amount.formattedDroppingZeroFraction()
-        guard mint != .usdf, let symbol else { return formatted }
-        return "\(formatted) of $\(symbol)"
+        guard mint != .usdf, let mintName else { return formatted }
+        return "\(formatted) of \(mintName)"
     }
 
     @ViewBuilder private var callToAction: some View {
@@ -134,8 +134,8 @@ struct ConversationGatePanel: View {
     /// buys the right thing, it just can't say which.
     private func addFundsTitle(mint: PublicKey?) -> String {
         guard let mint, mint != .usdf else { return "Add Cash" }
-        guard let symbol else { return "Buy More" }
-        return "Buy More $\(symbol)"
+        guard let mintName else { return "Buy More" }
+        return "Buy More \(mintName)"
     }
 
     /// Node 10125:19197 — a 356pt card in a 402pt frame, 12pt above its contents and 6pt around

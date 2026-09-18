@@ -70,7 +70,7 @@ struct ConversationScreen: View {
     @State private var coordinator: ConversationLoadCoordinator?
     /// Tickers for the mints the gate's copy names, resolved from mint metadata. Empty until they
     /// land, and for every ungated chat.
-    @State private var mintSymbols: [PublicKey: String] = [:]
+    @State private var mintNames: [PublicKey: String] = [:]
     /// Whether a `JoinChat` is in flight, so the gate panel's button stops taking taps. The join has
     /// no other UI state — it either seats membership, which re-resolves the gate, or it alerts.
     @State private var isJoiningChat = false
@@ -375,10 +375,10 @@ struct ConversationScreen: View {
         switch gateVerdicts.headline {
         case .minimumBalance(let amount, let mint):
             // A dollar-token rule is already fully stated by its dollar amount; naming the token
-            // as well reads as "$100 of $USDF". Any other token genuinely needs naming, because
+            // as well says the same thing twice. Any other token genuinely needs naming, because
             // the same $100 is a different quantity of each.
-            let symbol = mint == .usdf ? nil : headlineMint.flatMap { mintSymbols[$0] }
-            let holding = symbol.map { "\(amount.formattedDroppingZeroFraction()) of $\($0)" }
+            let name = mint == .usdf ? nil : headlineMint.flatMap { mintNames[$0] }
+            let holding = name.map { "\(amount.formattedDroppingZeroFraction()) of \($0)" }
                 ?? amount.formattedDroppingZeroFraction()
             return "Balance Requirement:\n\(holding)"
         case .staff:
@@ -416,7 +416,7 @@ struct ConversationScreen: View {
     }
 
     /// Ticker for the requirement the panel names, once its metadata lands.
-    private var gateSymbol: String? { gateMint.flatMap { mintSymbols[$0] } }
+    private var gateMintName: String? { gateMint.flatMap { mintNames[$0] } }
 
     private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
         switch requirement {
@@ -475,7 +475,7 @@ struct ConversationScreen: View {
             // which is why this reads `withholdsTranscript` and not `obscuresTranscript`: a chat
             // whose rules haven't landed yet is blurred without yet refusing anything.
             showsGatePlaceholder: gate.withholdsTranscript && (coordinator?.items.isEmpty ?? true),
-            gateSymbol: gateSymbol,
+            gateMintName: gateMintName,
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,
             isJoiningChat: isJoiningChat,
@@ -536,15 +536,15 @@ struct ConversationScreen: View {
         // Name the gate's requirement in the token it asks for. The mint may be one the user holds
         // nothing of, so the local store can miss and the fetch is what fills it.
         .task(id: gateMints) {
-            var symbols: [PublicKey: String] = [:]
+            var names: [PublicKey: String] = [:]
             for mint in gateMints {
                 if let stored = session.storedMintMetadata(for: mint) {
-                    symbols[mint] = stored.symbol
-                } else if let fetched = try? await session.fetchMintMetadata(mint: mint).symbol {
-                    symbols[mint] = fetched
+                    names[mint] = stored.name
+                } else if let fetched = try? await session.fetchMintMetadata(mint: mint).name {
+                    names[mint] = fetched
                 }
             }
-            mintSymbols = symbols
+            mintNames = names
         }
         // Read what the device already knows about this chat's senders, for the ones its own roster
         // leaves out. One read per open: the local cache is not moving under an open transcript.

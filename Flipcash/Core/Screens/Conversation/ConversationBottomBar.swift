@@ -62,8 +62,9 @@ struct ConversationBottomBar: View {
     /// Whether the chat's participation rules leave this user anything to type. Anything but
     /// ``ConversationGatePresentation/open`` replaces the whole composer with the gate panel.
     var gate: ConversationGatePresentation = .open
-    /// Ticker for the mint the gate's requirement names, once resolved. See ``ConversationGatePanel``.
-    var gateSymbol: String? = nil
+    /// Display name of the mint the gate's requirement names, once resolved. See
+    /// ``ConversationGatePanel``.
+    var gateMintName: String? = nil
     /// Opens the buy or add-cash flow from the gate panel's CTA.
     var onGateAddFunds: () -> Void = {}
     /// Joins the chat from the gate panel's Join button.
@@ -85,7 +86,7 @@ struct ConversationBottomBar: View {
         case .join, .blocked, .readOnly:
             ConversationGatePanel(
                 presentation: gate,
-                symbol: gateSymbol,
+                mintName: gateMintName,
                 onAddFunds: onGateAddFunds,
                 onJoin: onGateJoin,
                 isJoining: isJoiningChat

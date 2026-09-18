@@ -71,11 +71,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Whether the chat's participation rules leave this user anything to type, and whether they
     /// may read at all. Drives the gate panel in place of the bar and the blur over the transcript.
     let gate: ConversationGatePresentation
-    /// Ticker for the mint the gate's requirement names, once resolved.
     /// Whether the gate's decorative shapes are drawn behind the blur — see
     /// ``GatePreviewPlaceholder``. Set for a chat the viewer cannot read and has no history of.
     let showsGatePlaceholder: Bool
-    let gateSymbol: String?
+    /// Display name of the mint the gate's requirement names, once resolved.
+    let gateMintName: String?
     /// Opens the buy or add-cash flow from the gate panel's CTA.
     let onGateAddFunds: () -> Void
     /// Joins the chat from the gate panel's Join button.
@@ -211,7 +211,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 isTipDm: isTipDm,
                 startChattingFee: startChattingFee,
                 gate: gate,
-                gateSymbol: gateSymbol,
+                gateMintName: gateMintName,
                 onGateAddFunds: onGateAddFunds,
                 onGateJoin: onGateJoin,
                 isJoiningChat: isJoiningChat
