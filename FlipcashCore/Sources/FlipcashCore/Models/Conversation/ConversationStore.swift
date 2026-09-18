@@ -334,6 +334,9 @@ public struct ConversationStore: Sendable {
         case .rosterChanged(let conversationID, let updates):
             applyRosterUpdates(updates, in: conversationID)
             return .none
+        case .viewerStateChanged(let conversationID, let viewerState):
+            applyViewerStateChanged(viewerState, in: conversationID)
+            return .none
         }
     }
 
@@ -476,6 +479,15 @@ public struct ConversationStore: Sendable {
             }
             conversations[index].rosterSummary = update.rosterSummary
         }
+    }
+
+    /// Apply a viewer-state update convergently: only if the incoming version is greater than the
+    /// cached one, mirroring `applyRosterUpdates` — delivery order and re-delivery don't matter.
+    /// No-ops for a chat the store doesn't hold.
+    public mutating func applyViewerStateChanged(_ viewerState: ConversationViewerState, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard viewerState.version > (conversations[index].viewerState?.version ?? 0) else { return }
+        conversations[index].viewerState = viewerState
     }
 
     private mutating func upsert(_ conversation: Conversation) {

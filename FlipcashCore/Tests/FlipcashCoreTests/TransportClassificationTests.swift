@@ -81,6 +81,9 @@ struct TransportClassificationTests {
     @Test func errorStartChat() { assertClassifies(ErrorStartChat.self) }
     @Test func errorJoinChat() { assertClassifies(ErrorJoinChat.self) }
     @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }
+    @Test func errorMuteChat() { assertClassifies(ErrorMuteChat.self) }
+    @Test func errorUnmuteChat() { assertClassifies(ErrorUnmuteChat.self) }
+    @Test func errorReport() { assertClassifies(ErrorReport.self) }
 
     // In-band outcomes fall outside the generic four-case contract.
     @Test("Explicit server outcomes never retry")

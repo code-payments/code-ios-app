@@ -28,9 +28,25 @@ extension FlipClient {
         return all
     }
 
-    public func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
+    public func getChat(owner: KeyPair, conversationID: ConversationID, viewMode: ConversationViewMode = .full) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
-            chatService.getChat(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+            chatService.getChat(owner: owner, conversationID: conversationID, viewMode: viewMode) { c.resume(with: $0) }
+        }
+    }
+
+    /// Mutes `conversationID` for `owner` until `mute` lapses (or forever). Returns the resulting
+    /// viewer state, including the version stamp so a caller applying it locally can compare against
+    /// the same greater-value-wins rule as a stream-delivered `ConversationStreamEvent.viewerStateChanged`.
+    public func muteChat(owner: KeyPair, conversationID: ConversationID, mute: ConversationMuteState) async throws -> ConversationViewerState {
+        try await withCheckedThrowingContinuation { c in
+            chatService.muteChat(owner: owner, conversationID: conversationID, mute: mute) { c.resume(with: $0) }
+        }
+    }
+
+    /// Unmutes `conversationID` for `owner`. Returns the resulting viewer state.
+    public func unmuteChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState {
+        try await withCheckedThrowingContinuation { c in
+            chatService.unmuteChat(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
         }
     }
 
@@ -81,9 +97,9 @@ extension FlipClient {
         }
     }
 
-    public func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
+    public func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?, viewMode: ConversationViewMode = .full) async throws -> [ConversationMessage] {
         try await withCheckedThrowingContinuation { c in
-            chatMessagingService.getMessages(owner: owner, conversationID: conversationID, pagingToken: before?.pagingToken) { c.resume(with: $0) }
+            chatMessagingService.getMessages(owner: owner, conversationID: conversationID, pagingToken: before?.pagingToken, viewMode: viewMode) { c.resume(with: $0) }
         }
     }
 
@@ -94,10 +110,11 @@ extension FlipClient {
         owner: KeyPair,
         conversationID: ConversationID,
         afterSequence: UInt64,
+        viewMode: ConversationViewMode = .full,
         onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
     ) async throws -> UInt64 {
         try await withCheckedThrowingContinuation { c in
-            chatMessagingService.getDelta(owner: owner, conversationID: conversationID, afterSequence: afterSequence, onBatch: onBatch) { c.resume(with: $0) }
+            chatMessagingService.getDelta(owner: owner, conversationID: conversationID, afterSequence: afterSequence, viewMode: viewMode, onBatch: onBatch) { c.resume(with: $0) }
         }
     }
 

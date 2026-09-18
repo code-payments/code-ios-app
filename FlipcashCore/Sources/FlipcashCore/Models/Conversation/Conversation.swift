@@ -45,7 +45,11 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// group chats; `nil` means the chat has no participation requirements.
     public var rules: ConversationRules?
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil) {
+    /// The signed-in user's per-viewer state for this chat (currently just mute status), when the
+    /// server has reported one. See ``ConversationViewerState``.
+    public var viewerState: ConversationViewerState?
+
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -57,6 +61,7 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.picture = picture
         self.rosterSummary = rosterSummary
         self.rules = rules
+        self.viewerState = viewerState
     }
 }
 
@@ -91,6 +96,39 @@ extension ConversationType {
     }
 }
 
+/// How much of a message's content a read should return. See `messaging.v1.ViewMode`.
+public enum ConversationViewMode: Sendable {
+    /// Full content or nothing: never returns a redacted message.
+    case full
+    /// The most the viewer's standing allows — a mix of full and redacted messages within the same
+    /// page/stream, `redacted` set on each message that came back that way.
+    case fullOrRedacted
+    /// Redacted content, always — the mode to use whenever the client intends to render the chat
+    /// blurred regardless of whether the viewer could read it in full.
+    case redacted
+}
+
+extension ConversationViewMode {
+    var proto: Flipcash_Messaging_V1_ViewMode {
+        switch self {
+        case .full:           .full
+        case .fullOrRedacted: .fullOrRedacted
+        case .redacted:       .redacted
+        }
+    }
+
+    init(_ proto: Flipcash_Messaging_V1_ViewMode) {
+        switch proto {
+        case .fullOrRedacted:
+            self = .fullOrRedacted
+        case .redacted:
+            self = .redacted
+        case .full, .UNRECOGNIZED:
+            self = .full
+        }
+    }
+}
+
 extension Conversation {
     public init(_ proto: Flipcash_Chat_V1_Metadata) {
         self.id = ConversationID(proto.chatID)
@@ -106,6 +144,7 @@ extension Conversation {
         self.picture = proto.hasPicture ? ProfilePicture(proto.picture) : nil
         self.rosterSummary = ConversationRosterSummary(proto.rosterSummary)
         self.rules = proto.hasRules ? ConversationRules(proto.rules) : nil
+        self.viewerState = proto.hasViewerState ? ConversationViewerState(proto.viewerState) : nil
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.

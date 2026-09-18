@@ -79,6 +79,10 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// loaded from the server, the stream, or the cache. Mutable so the store can carry it onto the
     /// confirmed server copy during reconciliation without rebuilding the whole value.
     public var clientMessageID: UUID?
+    /// Whether the server returned this message under a redacted `ViewMode` rather than its full
+    /// content — the request asked to render the chat blurred/placeholder-only, not that the server
+    /// withheld something unrelated. `false` for every message fetched under the default `.full` mode.
+    public let redacted: Bool
 
     public init(
         id: MessageID,
@@ -91,7 +95,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         lastEditedTs: Date? = nil,
         repliedTo: MessageID? = nil,
         status: SendStatus = .sent,
-        clientMessageID: UUID? = nil
+        clientMessageID: UUID? = nil,
+        redacted: Bool = false
     ) {
         self.id = id
         self.senderID = senderID
@@ -104,6 +109,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.repliedTo = repliedTo
         self.status = status
         self.clientMessageID = clientMessageID
+        self.redacted = redacted
     }
 }
 
@@ -135,7 +141,8 @@ extension ConversationMessage {
             lastEditedTs: lastEditedTs,
             repliedTo: repliedTo,
             status: status,
-            clientMessageID: clientMessageID
+            clientMessageID: clientMessageID,
+            redacted: redacted
         )
     }
 }
@@ -202,5 +209,6 @@ extension ConversationMessage {
         self.repliedTo = repliedTo
         self.status = .sent
         self.clientMessageID = nil
+        self.redacted = proto.redacted
     }
 }

@@ -37,6 +37,10 @@ public enum ConversationStreamEvent: Sendable {
     /// `RosterSummary.version` (a greater version wins, drop-if-not-greater), so delivery order
     /// doesn't matter.
     case rosterChanged(conversationID: ConversationID, updates: [DecodedRosterUpdate])
+
+    /// The signed-in user's viewer state changed (currently: mute status). Compared like
+    /// `rosterChanged` — apply by ``ConversationViewerState/version``, greater wins, drop the rest.
+    case viewerStateChanged(conversationID: ConversationID, viewerState: ConversationViewerState)
 }
 
 /// One durable event in a chat's log: a contiguous run of mutations delivered atomically. `sequence`
@@ -133,6 +137,9 @@ extension ConversationStreamEvent {
                 events.append(.metadataRefresh(Conversation(refresh.metadata)))
             case .lastActivityChanged(let changed):
                 events.append(.lastActivityChanged(conversationID: conversationID, date: changed.newLastActivity.date))
+            case .viewerStateChanged(let changed):
+                guard changed.hasViewerState else { break }
+                events.append(.viewerStateChanged(conversationID: conversationID, viewerState: ConversationViewerState(changed.viewerState)))
             case nil:
                 break
             }
