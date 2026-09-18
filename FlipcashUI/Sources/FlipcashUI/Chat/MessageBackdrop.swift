@@ -28,20 +28,6 @@ final class MessageBackdrop {
     /// Matches the fade UIKit uses for its own dimming when no animator is supplied.
     private static let fallbackDuration: TimeInterval = 0.2
 
-    /// Stands in for the dimming UIKit lays over the screen while a context menu is up, which goes
-    /// with the menu — measured on the same patch of empty transcript, rgb 23 under the menu against
-    /// 44 after it. Set well below the value that matches the menu exactly: matching it left an edit
-    /// as dark as the menu, which is heavier than Android's frosting of the same screen, and the
-    /// menu's own dimming isn't ours to lighten to meet it.
-    private static let heldDimAlpha: CGFloat = 0.2
-
-    /// How much of the material's blur is used. A `UIBlurEffect` has no radius to set — every style
-    /// is the same radius under a different tint — so the effect is applied through an animator that
-    /// is paused part-way, which is the only handle on its strength. At full strength the transcript
-    /// smears into flat colour; Android frosts the same screen at a 25dp radius and reads far softer,
-    /// and this is matched to that.
-    private static let blurFraction: CGFloat = 0.4
-
     /// Called when the held blur is tapped — the way out of an edit, as tapping outside the message
     /// is in WhatsApp. Never fires while a context menu owns the screen: the menu's own container
     /// sits above the blur and takes those taps.
@@ -50,11 +36,9 @@ final class MessageBackdrop {
     /// Whether the blur is being kept past the menu that raised it.
     private(set) var isHeld = false
 
-    private let effect = UIBlurEffect(style: .systemUltraThinMaterialDark)
     private var effectView: UIVisualEffectView?
-    /// Holds the blur at `blurFraction`. Never played out — it is a dial, not an animation — but it
-    /// has to be kept alive and stopped by hand, since a property animator left active when it
-    /// deallocates traps.
+    /// Holds the blur at ``ChatBackdrop/blurFraction``, and is stopped by hand in `dismiss` and
+    /// `release` — see ``ChatBackdrop/frost(_:)``.
     private var blurStrength: UIViewPropertyAnimator?
     private var spotlight: UIView?
     /// Replaces the menu's dimming once the menu is gone. Lives inside the blur, so it is clipped
@@ -81,12 +65,9 @@ final class MessageBackdrop {
         host.addSubview(blur)
         effectView = blur
 
-        // Applied part-way and left there, so the material never reaches full strength. Its duration
-        // is never played out; the fade is the view's own alpha, which is also what a partly-applied
-        // effect leaves available to animate.
-        let strength = UIViewPropertyAnimator(duration: 1, curve: .linear) { blur.effect = self.effect }
-        strength.fractionComplete = Self.blurFraction
-        blurStrength = strength
+        // The fade is the view's own alpha, which is also what a partly-applied effect leaves
+        // available to animate.
+        blurStrength = ChatBackdrop.frost(blur)
 
         let fadeIn = { blur.alpha = 1 }
         if let animator {
@@ -124,7 +105,7 @@ final class MessageBackdrop {
         dim.isUserInteractionEnabled = false
         blur.contentView.addSubview(dim)
         self.dim = dim
-        UIView.animate(withDuration: Self.fallbackDuration) { dim.alpha = Self.heldDimAlpha }
+        UIView.animate(withDuration: Self.fallbackDuration) { dim.alpha = ChatBackdrop.dimAlpha }
 
         let clip = UIView()
         clip.clipsToBounds = true

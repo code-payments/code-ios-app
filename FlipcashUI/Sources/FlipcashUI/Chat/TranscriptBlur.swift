@@ -17,10 +17,10 @@ import UIKit
 /// being excluded — the title, the picture and the member count all stay readable above a blurred
 /// transcript, which is what the design shows.
 ///
-/// Full material strength, unlike `MessageBackdrop`, which pauses a property animator part-way to
-/// keep the transcript legible under an edit. Legibility is the opposite of the requirement here:
-/// these are messages the user has no right to read, so the effect is applied outright and the
-/// animator trick — and the deallocation trap that comes with keeping one paused — is not needed.
+/// The frosting itself is ``ChatBackdrop``'s, the same one a long press puts behind a lifted
+/// message, including its dim: this blur stands alone with no context menu above it, so nothing
+/// else is darkening the screen, and the material on its own lifts a near-black transcript's blacks
+/// instead of hiding them.
 @MainActor
 final class TranscriptBlur {
 
@@ -33,7 +33,13 @@ final class TranscriptBlur {
     /// see what is underneath, so the transition is free.
     private static let revealDuration: TimeInterval = 0.25
 
-    private let effectView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+    private let effectView = UIVisualEffectView(effect: nil)
+    /// Layered in the effect view's content view, so it fades with the blur and needs no separate
+    /// animation of its own.
+    private let dim = UIView()
+    /// Holds the material at ``ChatBackdrop/blurFraction``. Kept for the life of the screen, and
+    /// stopped below before it deallocates — see ``ChatBackdrop/frost(_:)``.
+    private var strength: UIViewPropertyAnimator?
 
     /// The blur itself, so anything meant to be seen *through* it can be layered directly beneath.
     var view: UIView { effectView }
@@ -67,13 +73,31 @@ final class TranscriptBlur {
         // Takes the touches that would otherwise reach the transcript: a blurred view that still
         // scrolls reads as broken, and every fetch behind it is one the server would deny anyway.
         effectView.isUserInteractionEnabled = true
+
+        dim.translatesAutoresizingMaskIntoConstraints = false
+        dim.backgroundColor = .black
+        dim.alpha = ChatBackdrop.dimAlpha
+        dim.isUserInteractionEnabled = false
+        effectView.contentView.addSubview(dim)
+
         host.insertSubview(effectView, belowSubview: sibling)
         NSLayoutConstraint.activate([
             effectView.topAnchor.constraint(equalTo: host.topAnchor),
             effectView.leadingAnchor.constraint(equalTo: host.leadingAnchor),
             effectView.trailingAnchor.constraint(equalTo: host.trailingAnchor),
             effectView.bottomAnchor.constraint(equalTo: host.bottomAnchor),
+
+            dim.topAnchor.constraint(equalTo: effectView.contentView.topAnchor),
+            dim.leadingAnchor.constraint(equalTo: effectView.contentView.leadingAnchor),
+            dim.trailingAnchor.constraint(equalTo: effectView.contentView.trailingAnchor),
+            dim.bottomAnchor.constraint(equalTo: effectView.contentView.bottomAnchor),
         ])
+
+        strength = ChatBackdrop.frost(effectView)
+    }
+
+    isolated deinit {
+        strength?.stopAnimation(true)
     }
 }
 #endif
