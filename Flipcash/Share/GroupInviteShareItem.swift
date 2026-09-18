@@ -21,6 +21,8 @@ final class GroupInviteShareItem: NSObject, UIActivityItemSource {
 
     private let content: String
     private let invitation: String?
+    private let name: String?
+    private let icon: UIImage?
 
     // MARK: - Init -
 
@@ -29,18 +31,24 @@ final class GroupInviteShareItem: NSObject, UIActivityItemSource {
     ///   - title: the group's name, or nil while it has none. Without one there is nothing to name,
     ///     so the share falls back to the bare link rather than a sentence with a hole in it —
     ///     the rule Android's invite follows.
-    init(url: URL, title: String?) {
-        self.url = url
+    ///   - icon: the group's picture, for the share sheet's own preview card. Nil when the group
+    ///     has none or its avatar hasn't loaded; the card then carries the name alone.
+    init(url: URL, title: String?, icon: UIImage? = nil) {
+        self.url  = url
+        self.icon = icon
 
-        let invitation: String?
-        if let name = title?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
-            invitation = "Join \(name) on Flipcash and let's chat"
+        let name: String?
+        if let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
+            name = trimmed
         } else {
-            invitation = nil
+            name = nil
         }
 
+        let invitation = name.map { "Join \($0) on Flipcash and let's chat" }
+
+        self.name       = name
         self.invitation = invitation
-        self.content = invitation.map { "\($0)\n\n\(url.absoluteString)" } ?? url.absoluteString
+        self.content    = invitation.map { "\($0)\n\n\(url.absoluteString)" } ?? url.absoluteString
 
         super.init()
     }
@@ -75,11 +83,16 @@ final class GroupInviteShareItem: NSObject, UIActivityItemSource {
         }
     }
 
+    /// The card at the top of the share sheet, which the sender sees and the recipient never does.
+    ///
+    /// It names the group rather than repeating the invitation: the sentence already sits in the
+    /// message below, and the card's job is to confirm *which* group is about to be handed out.
     func activityViewControllerLinkMetadata(_ activityViewController: UIActivityViewController) -> LPLinkMetadata? {
         let metadata = LPLinkMetadata()
         metadata.originalURL = url
         metadata.url = url
-        metadata.title = invitation ?? "Invite to Join Group"
+        metadata.title = name ?? "Invite to Join Group"
+        metadata.iconProvider = icon.map { NSItemProvider(object: $0) }
         return metadata
     }
 }

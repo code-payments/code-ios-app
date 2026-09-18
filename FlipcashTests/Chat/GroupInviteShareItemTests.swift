@@ -5,6 +5,7 @@
 
 import Testing
 import UIKit
+import LinkPresentation
 import Foundation
 @testable import Flipcash
 
@@ -16,8 +17,12 @@ struct GroupInviteShareItemTests {
 
     private let url = URL(string: "https://app.flipcash.com/chat/6f9619ff-8b86-d011-b42d-00c04fc964ff")!
 
-    private func item(title: String?) -> GroupInviteShareItem {
-        GroupInviteShareItem(url: url, title: title)
+    private func item(title: String?, icon: UIImage? = nil) -> GroupInviteShareItem {
+        GroupInviteShareItem(url: url, title: title, icon: icon)
+    }
+
+    private func metadata(_ item: GroupInviteShareItem) -> LPLinkMetadata? {
+        item.activityViewControllerLinkMetadata(UIActivityViewController(activityItems: [item], applicationActivities: nil))
     }
 
     private func sharedText(_ item: GroupInviteShareItem, to activityType: UIActivity.ActivityType? = nil) -> Any? {
@@ -63,5 +68,21 @@ struct GroupInviteShareItemTests {
         #expect(item(title: "Pizza Club").activityViewController(controller, subjectForActivityType: nil)
             == "Join Pizza Club on Flipcash and let's chat")
         #expect(item(title: nil).activityViewController(controller, subjectForActivityType: nil) == "")
+    }
+
+    @Test("The share sheet's own card names the group, without the sentence")
+    func metadataTitleIsTheGroupName() {
+        // The invitation already sits in the message below; the card's job is to say which group
+        // is about to be handed out.
+        #expect(metadata(item(title: "  Pizza Club\n"))?.title == "Pizza Club")
+        #expect(metadata(item(title: nil))?.title == "Invite to Join Group")
+    }
+
+    @Test("The group's picture becomes the card's icon, and nothing stands in when there is none")
+    func metadataCarriesTheGroupIcon() {
+        let icon = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { _ in }
+
+        #expect(metadata(item(title: "Pizza Club", icon: icon))?.iconProvider != nil)
+        #expect(metadata(item(title: "Pizza Club"))?.iconProvider == nil)
     }
 }

@@ -19,6 +19,7 @@ struct GroupInviteSheet: View {
     @Binding var isPresented: Bool
 
     @Environment(ConversationController.self) private var conversationController
+    @Environment(SessionContainer.self) private var sessionContainer
 
     /// How long the copy row stays on its checkmark before reverting — the beat the tip-card link
     /// row holds.
@@ -37,7 +38,22 @@ struct GroupInviteSheet: View {
     /// would be worse than one invited to with no name at all. Nil shares the bare link — see
     /// ``GroupInviteShareItem``.
     private var title: String? {
-        conversationController.conversation(withID: conversationID)?.title
+        conversation?.title
+    }
+
+    private var conversation: Conversation? {
+        conversationController.conversation(withID: conversationID)
+    }
+
+    /// The group's picture for the share sheet's own preview card.
+    ///
+    /// Decoded at the tap rather than in a computed property, so a thumbnail isn't re-decoded on
+    /// every render of a sheet that shows it nowhere. Nil while the avatar hasn't loaded or the
+    /// group has none — the card then carries the name alone.
+    private func icon() -> UIImage? {
+        sessionContainer.profileAvatars
+            .data(for: .chat(conversationID))
+            .flatMap(UIImage.init(data:))
     }
 
     var body: some View {
@@ -52,7 +68,7 @@ struct GroupInviteSheet: View {
                         accessibilityIdentifier: "group-invite-send"
                     ) {
                         ShareSheet.present(
-                            activityItem: GroupInviteShareItem(url: url, title: title)
+                            activityItem: GroupInviteShareItem(url: url, title: title, icon: icon())
                         ) { _ in }
                     }
 
@@ -67,6 +83,12 @@ struct GroupInviteSheet: View {
             .padding(.horizontal, 16)
             .padding(.top, 20)
             .padding(.bottom, bottomPadding)
+        }
+        .task {
+            // Idempotent: the store returns without a round trip once the bytes are in memory or
+            // on disk. Loading here rather than relying on the presenting screen keeps the preview
+            // card's icon independent of which screen opened the sheet.
+            await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
         }
     }
 
