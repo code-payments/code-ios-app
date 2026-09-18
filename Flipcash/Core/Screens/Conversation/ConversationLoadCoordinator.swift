@@ -49,10 +49,15 @@ final class ConversationLoadCoordinator {
     private let knownAuthors: KnownAuthorDirectory
     /// Fills a link card in. Read-only by construction — see ``LinkCardResolver``.
     private let linkCards: LinkCardResolver
+    /// The answers already in hand, so first paint draws them — see ``LinkCardMemo``.
+    private let cardMemo: LinkCardMemo
 
     /// What the resolver has answered so far, keyed the way it memoizes. Carried into `Inputs` so
     /// mapping stays pure, and observation-ignored for the same reason `capabilityClock` is: the
     /// resolution task advances it and re-maps explicitly, rather than through the observation arm.
+    ///
+    /// Seeded from ``LinkCardMemo`` rather than starting empty, so a chat opened again paints the
+    /// cards it already has answers for instead of flashing them unresolved for a hop.
     @ObservationIgnored private var cardStates: [String: LinkCard.State] = [:]
     /// Lookups already in flight, so a re-map mid-resolution does not ask a second time.
     @ObservationIgnored private var cardsInFlight: Set<String> = []
@@ -90,6 +95,7 @@ final class ConversationLoadCoordinator {
         session: Session,
         knownAuthors: KnownAuthorDirectory,
         linkCards: LinkCardResolver,
+        linkCardMemo: LinkCardMemo,
         profileCard: @escaping @MainActor () -> ChatProfileCard?
     ) {
         self.conversationID = conversationID
@@ -97,6 +103,8 @@ final class ConversationLoadCoordinator {
         self.session = session
         self.knownAuthors = knownAuthors
         self.linkCards = linkCards
+        self.cardMemo = linkCardMemo
+        self.cardStates = linkCardMemo.states
         self.profileCard = profileCard
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
 
@@ -188,15 +196,43 @@ final class ConversationLoadCoordinator {
 
         cardsInFlight.formUnion(seen)
         Task { [weak self, linkCards] in
-            var states: [String: LinkCard.State] = [:]
-            for card in pending {
-                states[card.resolutionKey] = await linkCards.resolve(card).state
+            await Self.land(pending, through: linkCards) { [weak self] key, state in
+                self?.landCardState(state, for: key)
             }
-            guard let self else { return }
-            self.cardsInFlight.subtract(seen)
-            self.cardStates.merge(states) { _, new in new }
-            self.refresh(with: self.currentInputs())
         }
+    }
+
+    // One query per card, all of them at once, and each answer drawn the moment it arrives.
+    //
+    // Both halves matter. Asking in sequence made a transcript's cards wait on each other, so the
+    // last card stayed blank for the sum of every lookup ahead of it; landing the batch in one go
+    // then held every answer hostage to the slowest of them. Android issues its queries the same
+    // way, one `async` each, and reads them back per card.
+    //
+    // A failed lookup comes back unresolved and is landed like any other answer — that is what
+    // stops a scrolling transcript from asking again on every tick.
+    static func land(
+        _ cards: [LinkCard],
+        through resolver: LinkCardResolver,
+        onAnswer: @escaping @MainActor (String, LinkCard.State) -> Void
+    ) async {
+        await withTaskGroup(of: (String, LinkCard.State).self) { group in
+            for card in cards {
+                group.addTask { (card.resolutionKey, await resolver.resolve(card).state) }
+            }
+            for await (key, state) in group {
+                await onAnswer(key, state)
+            }
+        }
+    }
+
+    // Where every answer lands, whichever asked for it: into the working copy the mapping reads,
+    // into the container's memo so the next open of this chat starts from it, and then a re-map.
+    private func landCardState(_ state: LinkCard.State, for key: String) {
+        cardsInFlight.remove(key)
+        cardStates[key] = state
+        cardMemo.record(state, for: key)
+        refresh(with: currentInputs())
     }
 
     // Re-asks for a card the moment its claim settles on this device. `receiveCashLink` names the
@@ -258,19 +294,14 @@ final class ConversationLoadCoordinator {
         let pending = cards.filter { !cardsInFlight.contains(LinkCard.cash($0).resolutionKey) }
         guard !pending.isEmpty else { return }
 
-        let keys = Set(pending.map { LinkCard.cash($0).resolutionKey })
-        cardsInFlight.formUnion(keys)
+        cardsInFlight.formUnion(pending.map { LinkCard.cash($0).resolutionKey })
 
-        var states: [String: LinkCard.State] = [:]
         for cash in pending {
             await linkCards.invalidateCash(entropy: cash.entropy)
-            let card = LinkCard.cash(cash)
-            states[card.resolutionKey] = await linkCards.resolve(card).state
         }
-
-        cardsInFlight.subtract(keys)
-        cardStates.merge(states) { _, new in new }
-        refresh(with: currentInputs())
+        await Self.land(pending.map { LinkCard.cash($0) }, through: linkCards) { [weak self] key, state in
+            self?.landCardState(state, for: key)
+        }
     }
 
     // The cash cards the landed transcript draws, one per link — the same link quoted twice is one

@@ -470,6 +470,10 @@ final class SessionContainer {
     /// conversations is looked up once, and holding a `GiftCardAccountReading` rather than the
     /// `Client` it was built from — rendering a card must never reach a path that claims it.
     let linkCardResolver: LinkCardResolver
+    /// What the resolver has already answered, on the main actor — see ``LinkCardMemo``. Scoped
+    /// beside the resolver because it remembers the same answers; a transcript seeds its first
+    /// paint from this so a chat opened again does not flash an unresolved card it already knows.
+    let linkCardMemo = LinkCardMemo()
 
     /// Lazy so it can capture the container it reads its dependencies from;
     /// observation-ignored because `TipFlow` is itself observable and the
