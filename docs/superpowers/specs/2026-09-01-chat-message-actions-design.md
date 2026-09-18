@@ -52,12 +52,21 @@ itself has already happened, which invites someone to delete a payment out of th
 transcript and leave the money moved. Today these rows return no menu at all
 (`ChatViewController.swift:519`); they will return a Reply-only menu.
 
-**The edit window is a policy value, defaulting to none.** WhatsApp cuts editing off
-after fifteen minutes. Our contract has `CANNOT_EDIT` but never documents what triggers
-it, so a client-side window would be a guess: too long and we offer an action that
-fails, too short and we hide one that would have worked. `MessagePolicy` carries an
-optional `editWindow` that is `nil` today. If the backend documents a window it becomes a
-constant.
+**The edit window is a policy value.** WhatsApp cuts editing off after fifteen minutes.
+Our contract has `CANNOT_EDIT` but never documents what triggers it, so a client-side
+window is a guess: too long and we offer an action that fails, too short and we hide one
+that would have worked. `MessagePolicy` carries an optional `editWindow`.
+
+*Superseded (2026-09-18).* This section originally said the window defaults to none, and
+that a constant waits on the backend documenting one. `UserFlags` now carries
+`message_edit_window` and `message_delete_window`, and where the server sends neither,
+both clients substitute 15 minutes and 48 hours rather than leaving the action open — the
+rejected affordance is judged the worse of the two failures. The constants are
+`MessagePolicy.fallbackEditWindow` / `fallbackDeleteWindow` here and
+`MessagePolicy.FallbackEditWindow` / `FallbackDeleteWindow` on Android, maintained in
+parallel with nothing enforcing the match. They remain a product choice rather than a
+figure the contract supplies, and no observation of a non-staff account on a current
+build exists yet to say how often the fallback is what a user actually gets.
 
 **Reply is started from the context menu and from a swipe.** The swipe is the gesture
 people actually reach for. Its cost is a pan recognizer that has to coexist with the
