@@ -139,16 +139,18 @@ struct GroupPushRoutingTests {
         #expect(presentation.replacesComposer)
     }
 
-    @Test("An unjoined group whose bar the viewer clears lands on the join, transcript unblurred")
+    @Test("An unjoined group whose bar the viewer clears offers the join, still blurred")
     func unjoinedAndClearLandsOnJoin() throws {
         let requirement = MinimumBalanceRequirement(amount: .usd(100), mints: [.usdf])
         let rules = ConversationRules(listener: [.minimumBalance(requirement)])
         let session = StubHoldings(balances: [.usdf: try holding(usd: 150)])
         let gate = conversationGate(session: session, rules: rules, rates: [:])
 
+        // Clearing the bar changes what the panel offers, not what the viewer can read:
+        // joining is what unblurs.
         let presentation = conversationGatePresentation(gate, isMember: false)
         #expect(presentation == .join(.minimumBalance(amount: .usd(100), mint: .usdf)))
-        #expect(presentation.obscuresTranscript == false)
+        #expect(presentation.obscuresTranscript)
         #expect(presentation.replacesComposer)
     }
 }

@@ -268,13 +268,29 @@ struct ConversationGateTests {
         #expect(presentation.replacesComposer)
     }
 
-    @Test("Only an unreadable or unknown transcript is blurred and frozen")
-    func presentation_obscuresTranscript_onlyWhenUnreadable() {
+    @Test("Membership is what unblurs the transcript, not eligibility")
+    func presentation_obscuresTranscript_untilJoined() {
         #expect(ConversationGatePresentation.open.obscuresTranscript == false)
-        #expect(ConversationGatePresentation.join(nil).obscuresTranscript == false)
         #expect(ConversationGatePresentation.readOnly(.staff).obscuresTranscript == false)
+        #expect(ConversationGatePresentation.join(nil).obscuresTranscript)
         #expect(ConversationGatePresentation.blocked(.staff).obscuresTranscript)
         #expect(ConversationGatePresentation.undetermined.obscuresTranscript)
+    }
+
+    @Test("Satisfying the rules changes the button, not the blur")
+    func presentation_eligibleNonMember_stillBlurred() {
+        let eligible = conversationGatePresentation(.open, isMember: false)
+        let refused = conversationGatePresentation(
+            ConversationGate(
+                listener: .unsatisfied(unmet: [.staff], primary: .staff),
+                speaker: .unsatisfied(unmet: [.staff], primary: .staff),
+                headline: .staff
+            ),
+            isMember: false
+        )
+        #expect(eligible == .join(nil))
+        #expect(eligible.obscuresTranscript)
+        #expect(refused.obscuresTranscript)
     }
 
     // MARK: - Rules that haven't arrived
@@ -286,12 +302,12 @@ struct ConversationGateTests {
         #expect(gate.replacesComposer)
     }
 
-    @Test("The placeholder shapes stand in for withheld messages, so only a refusal draws them")
-    func presentation_withholdsTranscript_onlyWhenBlocked() {
+    @Test("The placeholder shapes stand in for a transcript that exists and is withheld")
+    func presentation_withholdsTranscript_whenMessagesAreKeptBack() {
         #expect(ConversationGatePresentation.blocked(.staff).withholdsTranscript)
+        #expect(ConversationGatePresentation.join(nil).withholdsTranscript)
         #expect(ConversationGatePresentation.undetermined.withholdsTranscript == false)
         #expect(ConversationGatePresentation.open.withholdsTranscript == false)
-        #expect(ConversationGatePresentation.join(nil).withholdsTranscript == false)
         #expect(ConversationGatePresentation.readOnly(.staff).withholdsTranscript == false)
     }
 

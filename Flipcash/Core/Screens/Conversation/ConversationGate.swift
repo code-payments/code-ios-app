@@ -207,9 +207,16 @@ enum ConversationGatePresentation: Equatable {
     /// showing the thing being withheld. Withholding has to be immediate;
     /// revealing is the part that can wait for an answer.
     case undetermined
-    /// Rules met but not yet a member: a readable transcript with Join Chat in
+    /// Rules met but not yet a member: a blurred transcript with Join Chat in
     /// place of the composer, carrying the chat's stated requirement to restate
-    /// what joining costs (node 10125:19102).
+    /// what joining costs (node 10125:19102 for the panel's copy).
+    ///
+    /// The transcript is withheld here even though the listener rules are
+    /// satisfied, because joining is what unblurs: satisfying a chat's rules
+    /// earns the right to join it, not the right to read it from outside.
+    /// Eligibility decides what the button offers — Join Chat here, a buy in
+    /// ``blocked`` — never whether the messages are legible. Android draws the
+    /// same line.
     case join(ConversationGateRequirement?)
     /// Listener rules unmet: blurred transcript, the requirement named, and a
     /// CTA when the requirement has one (node 10125:19153).
@@ -220,28 +227,29 @@ enum ConversationGatePresentation: Equatable {
 
     /// Whether the transcript is blurred and its messages left unfetched.
     ///
-    /// ``blocked`` and ``undetermined``: a transcript the rules forbid, and one
-    /// whose rules haven't arrived. Not ``join`` — listener rules gate *reading*,
-    /// so anyone who satisfies them may read whether or not they have joined,
-    /// which is why the design shows a qualified non-member the real transcript
-    /// with Join Chat under it.
+    /// Every state a non-member can be in: ``blocked`` refuses them, ``join``
+    /// has not been accepted yet, and ``undetermined`` hasn't said. Membership
+    /// is the line, not eligibility — see ``join``. ``readOnly`` is not here
+    /// because that user has already joined; they just can't send.
     var obscuresTranscript: Bool {
         switch self {
-        case .open, .join, .readOnly:  return false
-        case .blocked, .undetermined:  return true
+        case .open, .readOnly:                return false
+        case .join, .blocked, .undetermined:  return true
         }
     }
 
-    /// Whether the blur is covering a refusal rather than an unanswered question.
+    /// Whether the blur is covering messages the viewer is being kept from,
+    /// rather than an unanswered question.
     ///
-    /// The gate placeholder's shapes stand in for messages the viewer is not
-    /// allowed to see, which is a claim only ``blocked`` can make. Under
-    /// ``undetermined`` nothing is known to be withheld yet, so the blur covers
-    /// an empty screen and says nothing about why.
+    /// The gate placeholder's shapes stand in for a transcript that exists and
+    /// is being withheld, which ``blocked`` and ``join`` can both claim: the
+    /// chat is real and its messages are not this viewer's to read yet. Under
+    /// ``undetermined`` nothing is known to be withheld, so the blur covers an
+    /// empty screen and says nothing about why.
     var withholdsTranscript: Bool {
         switch self {
-        case .open, .join, .readOnly, .undetermined:  return false
-        case .blocked:                                return true
+        case .open, .readOnly, .undetermined:  return false
+        case .join, .blocked:                  return true
         }
     }
 
@@ -266,6 +274,7 @@ func conversationGatePresentation(_ gate: ConversationGate, isMember: Bool) -> C
     case .unsatisfied(_, let primary):
         return .blocked(primary)
     case .satisfied:
+        // Satisfying the rules earns the join, not the transcript — `.join` blurs.
         guard isMember else { return .join(gate.headline) }
         switch gate.speaker {
         case .unsatisfied(_, let primary):  return .readOnly(primary)
