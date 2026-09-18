@@ -35,6 +35,11 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         didSet { bubble.onLinkCardTap = onLinkCardTap }
     }
 
+    /// Where the bubble's card looks its link up. Set before ``configure(with:maxWidth:authorImageData:)``.
+    weak var linkCardSource: (any LinkCardSource)? {
+        didSet { bubble.linkCardSource = linkCardSource }
+    }
+
     var bubbleView: LinkableBubbleView { bubble }
 
     /// Forwarded from the bubble's quote panel: the stable id of the row to jump to.

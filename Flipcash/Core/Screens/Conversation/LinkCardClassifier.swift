@@ -63,13 +63,13 @@ nonisolated struct LinkCardClassifier {
         switch route.path {
         case .cash:
             guard let entropy = route.fragments[.entropy]?.value, !entropy.isEmpty else { return nil }
-            return .cash(LinkCard.Cash(url: target, entropy: entropy, range: link.range, state: .unresolved))
+            return .cash(LinkCard.Cash(url: target, entropy: entropy, range: link.range))
 
         case .token(let mint):
             // A mint the server has never heard of is a card that never fills in, not a rejected
             // one: `Route` already proved the address is well-formed base58, and whether it names
             // anything is a question only the lookup can answer.
-            return .token(LinkCard.Token(url: target, mint: mint, range: link.range, state: .unresolved))
+            return .token(LinkCard.Token(url: target, mint: mint, range: link.range))
 
         case .login, .verifyEmail, .chat, .chatSendCash, .tip, .username,
              .give, .balance, .discover, .unknown:

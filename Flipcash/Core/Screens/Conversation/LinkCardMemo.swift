@@ -8,10 +8,9 @@ import FlipcashCore
 
 /// What the resolver has already answered about a link, readable without awaiting it.
 ///
-/// ``LinkCardResolver`` memoizes for the whole session, but its cache lives behind an actor, and a
-/// transcript maps synchronously and paints what it mapped. So a chat opened a second time asked
-/// for an answer it already held and could not have it in time: the card painted unresolved, the
-/// actor answered a hop later, and the reader saw a blank white ticket turn claimed under them.
+/// ``LinkCardResolver`` memoizes for the whole session, but its queries live behind an actor, and a
+/// card view paints the moment it is configured. So a link looked at once already had an answer the
+/// card could not have in time: it would shimmer its way to a value it was holding all along.
 ///
 /// This is the same answers on the main actor, where first paint can read them. The resolver stays
 /// the one thing that *makes* an answer; this only remembers what came back, so the two cannot
@@ -32,5 +31,13 @@ final class LinkCardMemo {
     /// stale, so the newest answer is the only one worth keeping.
     func record(_ state: LinkCard.State, for key: String) {
         states[key] = state
+    }
+
+    /// Drops what is held about `key`, so the next look finds nothing and asks again.
+    ///
+    /// Paired with ``LinkCardResolver/invalidateCash(entropy:)`` — forgetting on one side alone
+    /// would leave the two disagreeing about the link.
+    func forget(_ key: String) {
+        states[key] = nil
     }
 }

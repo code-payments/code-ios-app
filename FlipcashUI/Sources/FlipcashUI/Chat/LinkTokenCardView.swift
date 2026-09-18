@@ -40,6 +40,10 @@ final class LinkTokenCardView: UIView {
     private static let watermarkShare: CGFloat = 213.0 / 224.0
 
     private let gradient = CAGradientLayer()
+    /// Sweeps the bill itself, which is the one part of this card that really is a placeholder:
+    /// unresolved, the gradient is the neutral row colour standing in for branding nobody has
+    /// fetched. Above the gradient and below everything else, so the address is never swept.
+    private let surfaceShimmer = LinkTokenCardView.makeShimmer()
     private let watermark = UILabel()
     private let coinIcon = UIImageView()
     private let nameLabel = UILabel()
@@ -62,6 +66,8 @@ final class LinkTokenCardView: UIView {
         gradient.startPoint = CGPoint(x: 0, y: 0.5)
         gradient.endPoint = CGPoint(x: 1, y: 0.5)
         layer.insertSublayer(gradient, at: 0)
+
+        addSubview(surfaceShimmer)
 
         watermark.text = "$"
         watermark.textColor = .white
@@ -96,6 +102,8 @@ final class LinkTokenCardView: UIView {
         gradient.frame = bounds
         CATransaction.commit()
 
+        surfaceShimmer.frame = bounds
+
         watermark.font = .default(size: (height * Self.watermarkShare).rounded(), weight: .bold)
         let unbounded = CGFloat.greatestFiniteMagnitude
         let watermarkSize = watermark.sizeThatFits(CGSize(width: unbounded, height: unbounded))
@@ -122,12 +130,19 @@ final class LinkTokenCardView: UIView {
     func prepareForReuse() {
         coinIcon.kf.cancelDownloadTask()
         coinIcon.image = nil
+        surfaceShimmer.setShimmering(false)
     }
 
-    /// Draws `token`. An unresolved mint — including one the lookup failed, timed out or never ran
-    /// on — is the same card in the neutral row colour, naming the address instead of the token.
-    func configure(with token: LinkCard.Token) {
-        switch token.state {
+    /// Draws `token` in `state`. An unresolved mint — including one the lookup failed, timed out or
+    /// never ran on — is the same card in the neutral row colour, naming the address instead of the
+    /// token.
+    ///
+    /// - Parameter loading: whether the lookup is still out. Sweeps the bill; the address does not
+    ///   shimmer, because it is already correct.
+    func configure(with token: LinkCard.Token, state: LinkCard.Token.State, loading: Bool) {
+        surfaceShimmer.setShimmering(loading)
+
+        switch state {
         case .unresolved:
             gradient.colors = [UIColor(Color.backgroundRow).cgColor, UIColor(Color.backgroundRow).cgColor]
             watermark.isHidden = true
@@ -147,6 +162,12 @@ final class LinkTokenCardView: UIView {
             nameLabel.text = value.name
         }
         setNeedsLayout()
+    }
+
+    /// White at a tenth, because it sweeps over a ground that is dark when the card has resolved
+    /// and light when it has not — an opacity low enough to read as a pass either way.
+    private static func makeShimmer() -> LinkCardShimmerView {
+        LinkCardShimmerView(ground: nil, highlight: UIColor.white.withAlphaComponent(0.10))
     }
 
     /// A gradient needs two ends. One colour is doubled rather than blended toward anything, and no

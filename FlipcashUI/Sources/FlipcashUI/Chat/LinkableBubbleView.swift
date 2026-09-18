@@ -28,6 +28,10 @@ public final class LinkableBubbleView: UIView {
     /// transcript it is landing in.
     var onLinkCardTap: ((LinkCard) -> Void)?
 
+    /// Where the card in this bubble looks its link up. Set before ``configure(with:)``, because
+    /// that is when the card subscribes.
+    weak var linkCardSource: (any LinkCardSource)?
+
     /// The card this bubble is currently drawing. The card is drawn in place of its URL, so the
     /// body no longer carries a span to tap — without this a link-only message would render
     /// something that goes nowhere.
@@ -222,7 +226,7 @@ public final class LinkableBubbleView: UIView {
         if let card = message.linkPreview?.card {
             cardView.isHidden = false
             self.card = card
-            cardView.configure(with: card)
+            cardView.configure(with: card, source: linkCardSource)
             NSLayoutConstraint.deactivate(cardCollapse)
             NSLayoutConstraint.activate(cardSides)
         } else {

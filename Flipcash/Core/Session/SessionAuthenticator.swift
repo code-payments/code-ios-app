@@ -474,6 +474,14 @@ final class SessionContainer {
     /// beside the resolver because it remembers the same answers; a transcript seeds its first
     /// paint from this so a chat opened again does not flash an unresolved card it already knows.
     let linkCardMemo = LinkCardMemo()
+    /// What a link card in a transcript asks for its contents — see ``LinkCardFeed``. Lazy so it
+    /// can read the resolver and memo built alongside it; container-scoped for the same reason they
+    /// are, so a card recycled mid-lookup does not take the answer with it.
+    @ObservationIgnored private(set) lazy var linkCardFeed = LinkCardFeed(
+        resolver: linkCardResolver,
+        memo: linkCardMemo,
+        claims: session.cashLinkClaims
+    )
 
     /// Lazy so it can capture the container it reads its dependencies from;
     /// observation-ignored because `TipFlow` is itself observable and the

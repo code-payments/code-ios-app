@@ -413,6 +413,7 @@ struct ConversationScreen: View {
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
             onLinkCardTap: openLinkCard,
+            linkCardSource: sessionContainer.linkCardFeed,
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
             onAuthorTap: openAuthorProfile,
@@ -887,8 +888,6 @@ struct ConversationScreen: View {
                 controller: conversationController,
                 session: session,
                 knownAuthors: sessionContainer.knownAuthors,
-                linkCards: sessionContainer.linkCardResolver,
-                linkCardMemo: sessionContainer.linkCardMemo,
                 // `profileAvatars` is captured directly so the coordinator retains
                 // one small store, not the whole session container.
                 profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, profileAvatars = sessionContainer.profileAvatars] in
