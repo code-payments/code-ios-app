@@ -922,28 +922,66 @@ final class ConversationController {
     }
 
     /// The feed row's last-message line: the typing indicator while the
-    /// counterpart types, the message text, or the cash summary. `currencyName`
-    /// resolves a mint to its display name; nil — or the reserve, whose formatted
-    /// amount already names itself — drops the "of …" suffix.
+    /// counterpart types, the message text, or the cash summary, attributed to
+    /// whoever wrote it. `currencyName` resolves a mint to its display name; nil —
+    /// or the reserve, whose formatted amount already names itself — drops the
+    /// "of …" suffix.
     func lastMessagePreview(for conversation: Conversation, currencyName: (PublicKey) -> String?) -> String? {
         if isCounterpartTyping(in: conversation.id) {
             return "Typing…"
         }
         guard let message = conversation.lastMessage else { return nil }
+        let isFromSelf = message.isFromSelf(selfUserID)
+        let senderName = groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf)
+
         switch message.content {
         case .text(let text):
-            return text
+            // A bare prefix says less than no line at all, so an empty body previews as nothing.
+            guard !text.isEmpty else { return nil }
+            if isFromSelf { return "You: \(text)" }
+            guard let senderName else { return text }
+            return "\(senderName): \(text)"
+
         case .cash(let amount):
-            let verb = message.isFromSelf(selfUserID) ? "You sent" : "You received"
             let formatted = amount.nativeAmount.formatted()
             // The reserve would read "$1.00 of Dollars" — the amount alone already says it.
-            guard amount.mint != .usdf, let name = currencyName(amount.mint) else {
-                return "\(verb) \(formatted)"
+            let label: String
+            if amount.mint != .usdf, let name = currencyName(amount.mint) {
+                label = "\(formatted) of \(name)"
+            } else {
+                label = formatted
             }
-            return "\(verb) \(formatted) of \(name)"
+            let isTip = message.cashAction == .tipped
+            if let senderName {
+                return isTip ? "\(senderName) tipped \(label)" : "\(senderName) sent \(label)"
+            }
+            if isFromSelf {
+                return isTip ? "You tipped \(label)" : "You sent \(label)"
+            }
+            // "You received" holds only where the cash came to the viewer. In a group it went to
+            // the chat and the viewer may have got none of it, so the amount stands on its own.
+            return conversation.type == .group ? label : "You received \(label)"
+
         case .deleted:
             return nil
         }
+    }
+
+    /// The name a group row attributes its last message to, or `nil` when it should carry no
+    /// attribution: the viewer's own message is covered by "You", a DM's other party is what the
+    /// row is already titled after, and a sender the feed's roster subset omits has no name to
+    /// print — this list fetches no profiles, so leaving the body unattributed is the honest
+    /// fallback.
+    private func groupSenderName(
+        for message: ConversationMessage,
+        in conversation: Conversation,
+        isFromSelf: Bool
+    ) -> String? {
+        guard conversation.type == .group, !isFromSelf, let senderID = message.senderID else {
+            return nil
+        }
+        let name = conversation.members.first { $0.userID == senderID }?.displayName
+        return (name?.isEmpty ?? true) ? nil : name
     }
 
     func displayName(forConversationID conversationID: ConversationID) -> String {
