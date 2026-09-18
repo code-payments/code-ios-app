@@ -910,10 +910,41 @@ struct ConversationControllerTests {
 
     // MARK: - Last-message preview -
 
-    private func cashConversation(mint: PublicKey, from sender: UserID?) -> Conversation {
+    private func member(_ userID: UserID, named name: String) -> ConversationMember {
+        ConversationMember(userID: userID, displayName: name)
+    }
+
+    private func textConversation(
+        _ text: String,
+        from sender: UserID?,
+        type: ConversationType = .contactDm,
+        members: [ConversationMember] = []
+    ) -> Conversation {
         Conversation(
             id: ConversationID.test(1),
-            members: [],
+            members: members,
+            lastMessage: ConversationMessage(
+                id: MessageID(value: 1),
+                senderID: sender,
+                content: .text(text),
+                date: Date(timeIntervalSince1970: 1),
+                unreadSeq: 1
+            ),
+            lastActivity: Date(timeIntervalSince1970: 1),
+            type: type
+        )
+    }
+
+    private func cashConversation(
+        mint: PublicKey,
+        from sender: UserID?,
+        action: CashAction = .sent,
+        type: ConversationType = .contactDm,
+        members: [ConversationMember] = []
+    ) -> Conversation {
+        Conversation(
+            id: ConversationID.test(1),
+            members: members,
             lastMessage: ConversationMessage(
                 id: MessageID(value: 1),
                 senderID: sender,
@@ -922,10 +953,12 @@ struct ConversationControllerTests {
                     nativeAmount: FiatAmount(value: 1, currency: .usd),
                     currencyRate: Rate(fx: 1, currency: .usd)
                 )),
+                cashAction: action,
                 date: Date(timeIntervalSince1970: 1),
                 unreadSeq: 1
             ),
-            lastActivity: Date(timeIntervalSince1970: 1)
+            lastActivity: Date(timeIntervalSince1970: 1),
+            type: type
         )
     }
 
@@ -941,6 +974,94 @@ struct ConversationControllerTests {
         let controller = makeController(MockConversations())
         let preview = controller.lastMessagePreview(for: cashConversation(mint: .jeffy, from: nil)) { _ in "Jeffy" }
         #expect(preview == "You received $1.00 of Jeffy")
+    }
+
+    @Test("the viewer's own message is prefixed with You, in a DM as in a group")
+    func textPreviewPrefixesSelf() {
+        let me = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+
+        #expect(controller.lastMessagePreview(for: textConversation("gm", from: me)) { _ in nil } == "You: gm")
+        #expect(
+            controller.lastMessagePreview(
+                for: textConversation("gm", from: me, type: .group, members: [member(me, named: "Me")])
+            ) { _ in nil } == "You: gm"
+        )
+    }
+
+    @Test("a DM is not prefixed with the counterpart's name, which the row is already titled after")
+    func textPreviewLeavesDMUnprefixed() {
+        let them = UUID()
+        let controller = makeController(MockConversations())
+        let conversation = textConversation("gm", from: them, members: [member(them, named: "Alice")])
+
+        #expect(controller.lastMessagePreview(for: conversation) { _ in nil } == "gm")
+    }
+
+    @Test("another member's message in a group is prefixed with their name")
+    func textPreviewPrefixesGroupSender() {
+        let them = UUID()
+        let controller = makeController(MockConversations())
+        let conversation = textConversation("gm", from: them, type: .group, members: [member(them, named: "Alice")])
+
+        #expect(controller.lastMessagePreview(for: conversation) { _ in nil } == "Alice: gm")
+    }
+
+    @Test("a group message from someone the roster subset omits goes unattributed")
+    func textPreviewLeavesUnknownGroupSenderUnprefixed() {
+        let controller = makeController(MockConversations())
+        let conversation = textConversation("gm", from: UUID(), type: .group, members: [])
+
+        #expect(controller.lastMessagePreview(for: conversation) { _ in nil } == "gm")
+    }
+
+    @Test("an empty body has nothing to preview, rather than a bare prefix")
+    func textPreviewSkipsEmptyBody() {
+        let me = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+
+        #expect(controller.lastMessagePreview(for: textConversation("", from: me)) { _ in nil } == nil)
+    }
+
+    @Test("the viewer's own cash reads as sent or tipped, not as a You prefix")
+    func cashPreviewNamesSelfAction() {
+        let me = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+
+        #expect(
+            controller.lastMessagePreview(for: cashConversation(mint: .usdf, from: me)) { _ in nil }
+                == "You sent $1.00"
+        )
+        #expect(
+            controller.lastMessagePreview(for: cashConversation(mint: .usdf, from: me, action: .tipped)) { _ in nil }
+                == "You tipped $1.00"
+        )
+    }
+
+    @Test("a group member's cash is attributed to them, with the tip verb they used")
+    func cashPreviewAttributesGroupSender() {
+        let them = UUID()
+        let controller = makeController(MockConversations())
+        let members = [member(them, named: "Alice")]
+
+        #expect(
+            controller.lastMessagePreview(
+                for: cashConversation(mint: .jeffy, from: them, type: .group, members: members)
+            ) { _ in "Jeffy" } == "Alice sent $1.00 of Jeffy"
+        )
+        #expect(
+            controller.lastMessagePreview(
+                for: cashConversation(mint: .jeffy, from: them, action: .tipped, type: .group, members: members)
+            ) { _ in "Jeffy" } == "Alice tipped $1.00 of Jeffy"
+        )
+    }
+
+    @Test("cash in a group is never reported as received by the viewer, who may have got none of it")
+    func cashPreviewDoesNotClaimGroupCash() {
+        let controller = makeController(MockConversations())
+        let conversation = cashConversation(mint: .jeffy, from: UUID(), type: .group, members: [])
+
+        #expect(controller.lastMessagePreview(for: conversation) { _ in "Jeffy" } == "$1.00 of Jeffy")
     }
 
     // MARK: - DB-backed transcript (no in-memory hold) -
