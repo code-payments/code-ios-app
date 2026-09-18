@@ -29,8 +29,10 @@ struct GroupInviteSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Background(color: .backgroundMain) {
+        PartialSheet(background: .backgroundMain) {
+            VStack(spacing: 20) {
+                header
+
                 VStack(spacing: 12) {
                     ChatActionRow(
                         icon: .asset(.at),
@@ -46,20 +48,36 @@ struct GroupInviteSheet: View {
                         accessibilityIdentifier: "group-invite-copy",
                         action: copy
                     )
-
-                    Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
             }
-            .navigationTitle("Invite to Join Group")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    CloseButton(binding: $isPresented)
-                }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+            .padding(.bottom, bottomPadding)
+        }
+    }
+
+    /// The sheet's own title bar. ``PartialSheet`` takes its height from the content it wraps, so
+    /// there is no navigation bar to hang the title and close button on — and a `NavigationStack`
+    /// here would report a full-screen height and defeat the wrap.
+    private var header: some View {
+        ZStack {
+            Text("Invite to Join Group")
+                .font(.appBarButton)
+                .foregroundStyle(Color.textMain)
+
+            HStack {
+                Spacer()
+                CloseButton(binding: $isPresented)
+                    .foregroundStyle(Color.textMain)
             }
         }
+    }
+
+    /// The design's 16 under the last row, less whatever the sheet already holds back for the home
+    /// indicator — stacking the two would triple the design's gap.
+    private var bottomPadding: CGFloat {
+        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
+        return max(0, 16 - reserved)
     }
 
     private func copy() {
