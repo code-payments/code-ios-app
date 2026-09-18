@@ -53,10 +53,14 @@ final class GatePreviewPlaceholder {
 
     /// Adds the shapes to `host`, pinned to its edges and layered directly under `sibling` — the
     /// blur, which is the only reason they are legible as chat at all. Called once, while the
-    /// screen is being built; the shapes start hidden.
+    /// screen is being built.
+    ///
+    /// Takes its opacity from ``isShown`` for the same reason ``TranscriptBlur`` does: the gate is
+    /// assigned before the view loads, so a chat that opens already gated would otherwise blur an
+    /// empty screen with the shapes zeroed out underneath it.
     func install(in host: UIView, below sibling: UIView) {
         container.translatesAutoresizingMaskIntoConstraints = false
-        container.alpha = 0
+        container.alpha = isShown ? 1 : 0
         // Purely decorative, so it never takes a touch that the transcript or the gate panel
         // behind it would have handled.
         container.isUserInteractionEnabled = false

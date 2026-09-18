@@ -62,7 +62,7 @@ struct ConversationGatePanel: View {
     /// rules still shows the panel to a non-member, with Join Chat and nothing above it.
     private var requirement: ConversationGateRequirement? {
         switch presentation {
-        case .open:                      nil
+        case .open, .undetermined:       nil
         case .join(let requirement):     requirement
         case .blocked(let requirement):  requirement
         case .readOnly(let requirement): requirement
@@ -75,28 +75,44 @@ struct ConversationGatePanel: View {
     private var sentence: String? {
         guard let requirement else { return nil }
         switch requirement {
-        case .minimumBalance(let amount, _):
-            let holding = symbol.map { "\(amount.formattedDroppingZeroFraction()) of $\($0)" }
-                ?? amount.formattedDroppingZeroFraction()
+        case .minimumBalance(let amount, let mint):
+            let holding = requirementAmount(amount, mint: mint)
             switch presentation {
-            case .readOnly:                 return "Minimum Balance to Send Messages: \(holding)"
-            case .open, .join, .blocked:    return "Minimum Balance: \(holding)"
+            case .readOnly:                               return "Minimum Balance to Send Messages: \(holding)"
+            case .open, .undetermined, .join, .blocked:   return "Minimum Balance: \(holding)"
             }
         case .staff:
             switch presentation {
-            case .readOnly:                 return "Only Flipcash staff can send messages here"
-            case .open, .join, .blocked:    return "This chat is for Flipcash staff"
+            case .readOnly:                               return "Only Flipcash staff can send messages here"
+            case .open, .undetermined, .join, .blocked:   return "This chat is for Flipcash staff"
             }
         }
     }
 
+    /// The requirement's amount, naming the token it has to be held in unless that token is the
+    /// dollar one.
+    ///
+    /// Every requirement is denominated in dollars, so a dollar-token rule is already fully stated
+    /// by the amount — spelling the token out as well reads as "$100 of $USDF". A rule naming any
+    /// other token genuinely needs it: the same $100 is a different quantity of each.
+    private func requirementAmount(_ amount: FiatAmount, mint: PublicKey?) -> String {
+        let formatted = amount.formattedDroppingZeroFraction()
+        guard mint != .usdf, let symbol else { return formatted }
+        return "\(formatted) of $\(symbol)"
+    }
+
     @ViewBuilder private var callToAction: some View {
         switch presentation {
-        case .open:
+        case .open, .undetermined:
             EmptyView()
 
         case .join:
-            Button("Join Chat", action: onJoin)
+            // The spinner is the whole of the in-flight state. There is no success hold to sit
+            // through: `join` seats membership from the reply it gets back, so the gate has already
+            // resolved to the composer by the time the call returns.
+            Button(action: onJoin) {
+                ButtonStateLabel("Join Chat", state: isJoining ? .loading : .normal)
+            }
                 .buttonStyle(.filled)
                 .disabled(isJoining)
 
@@ -113,11 +129,11 @@ struct ConversationGatePanel: View {
     }
 
     /// Names the action in the token the chat asks for. A requirement spanning every mint is
-    /// satisfied by any holding, so it sends the user to add cash instead of to one token's buy
-    /// flow; a named mint whose metadata hasn't arrived yet still buys the right thing, it just
-    /// can't say which.
+    /// satisfied by any holding, and a dollar-token one by adding cash, so both send the user to
+    /// add cash rather than to a buy flow; a named mint whose metadata hasn't arrived yet still
+    /// buys the right thing, it just can't say which.
     private func addFundsTitle(mint: PublicKey?) -> String {
-        guard mint != nil else { return "Add Cash" }
+        guard let mint, mint != .usdf else { return "Add Cash" }
         guard let symbol else { return "Buy More" }
         return "Buy More $\(symbol)"
     }

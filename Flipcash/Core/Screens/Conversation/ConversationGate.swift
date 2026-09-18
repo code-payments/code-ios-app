@@ -197,6 +197,16 @@ private func verdict(for unmet: [ConversationGateRequirement]) -> ConversationGa
 enum ConversationGatePresentation: Equatable {
     /// Nothing gated — the ordinary composer.
     case open
+    /// The chat's rules aren't known yet, because its metadata hasn't arrived.
+    ///
+    /// Distinct from ``open``, which is a chat that has told us it gates
+    /// nothing. A chat reached by link or push is not in the store until
+    /// `GetChat` returns, and treating that absence as "no rules" hands a
+    /// readable transcript and a working composer to someone who may be
+    /// entitled to neither, then takes both back when the metadata lands —
+    /// showing the thing being withheld. Withholding has to be immediate;
+    /// revealing is the part that can wait for an answer.
+    case undetermined
     /// Rules met but not yet a member: a readable transcript with Join Chat in
     /// place of the composer, carrying the chat's stated requirement to restate
     /// what joining costs (node 10125:19102).
@@ -210,21 +220,36 @@ enum ConversationGatePresentation: Equatable {
 
     /// Whether the transcript is blurred and its messages left unfetched.
     ///
-    /// Only ``blocked``. Listener rules gate *reading*, so anyone who satisfies
-    /// them may read whether or not they have joined — which is why the design
-    /// shows a qualified non-member the real transcript with Join Chat under it.
+    /// ``blocked`` and ``undetermined``: a transcript the rules forbid, and one
+    /// whose rules haven't arrived. Not ``join`` — listener rules gate *reading*,
+    /// so anyone who satisfies them may read whether or not they have joined,
+    /// which is why the design shows a qualified non-member the real transcript
+    /// with Join Chat under it.
     var obscuresTranscript: Bool {
         switch self {
         case .open, .join, .readOnly:  return false
-        case .blocked:                 return true
+        case .blocked, .undetermined:  return true
+        }
+    }
+
+    /// Whether the blur is covering a refusal rather than an unanswered question.
+    ///
+    /// The gate placeholder's shapes stand in for messages the viewer is not
+    /// allowed to see, which is a claim only ``blocked`` can make. Under
+    /// ``undetermined`` nothing is known to be withheld yet, so the blur covers
+    /// an empty screen and says nothing about why.
+    var withholdsTranscript: Bool {
+        switch self {
+        case .open, .join, .readOnly, .undetermined:  return false
+        case .blocked:                                return true
         }
     }
 
     /// Whether the composer is replaced by a gate panel.
     var replacesComposer: Bool {
         switch self {
-        case .open:                       return false
-        case .join, .blocked, .readOnly:  return true
+        case .open:                                      return false
+        case .join, .blocked, .readOnly, .undetermined:  return true
         }
     }
 }

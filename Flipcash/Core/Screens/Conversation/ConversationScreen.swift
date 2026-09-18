@@ -235,8 +235,28 @@ struct ConversationScreen: View {
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
     private var gate: ConversationGatePresentation {
-        guard let conversation = groupConversation else { return .open }
+        guard let conversation = groupConversation else {
+            return awaitingMetadata ? .undetermined : .open
+        }
         return conversationGatePresentation(gateVerdicts, isMember: conversationController.isMember(of: conversation))
+    }
+
+    /// Whether this chat's rules are simply unknown, rather than absent.
+    ///
+    /// A chat opened by its id — every invite link and every group push — is not in the store until
+    /// `GetChat` lands, and ``groupConversation`` is nil for the whole of that round trip. Reading
+    /// that nil as "not a group, so nothing to gate" is what would draw a readable transcript and a
+    /// live composer over a chat the viewer may not be allowed to read at all. A tip DM is excluded
+    /// because its chat genuinely does not exist yet: nothing is being withheld, and the first tip
+    /// is what creates it.
+    private var awaitingMetadata: Bool {
+        guard let conversationID else { return false }
+        switch context {
+        case .tipDM:
+            return false
+        case .existing:
+            return conversationController.conversation(withID: conversationID) == nil
+        }
     }
 
     /// The rule verdicts behind ``gate``, kept separately because the head card states the chat's
@@ -353,8 +373,11 @@ struct ConversationScreen: View {
     /// the label rather than wherever the card's width falls, as the design breaks it.
     private var groupCardRequirement: String? {
         switch gateVerdicts.headline {
-        case .minimumBalance(let amount, _):
-            let symbol = headlineMint.flatMap { mintSymbols[$0] }
+        case .minimumBalance(let amount, let mint):
+            // A dollar-token rule is already fully stated by its dollar amount; naming the token
+            // as well reads as "$100 of $USDF". Any other token genuinely needs naming, because
+            // the same $100 is a different quantity of each.
+            let symbol = mint == .usdf ? nil : headlineMint.flatMap { mintSymbols[$0] }
             let holding = symbol.map { "\(amount.formattedDroppingZeroFraction()) of $\($0)" }
                 ?? amount.formattedDroppingZeroFraction()
             return "Balance Requirement:\n\(holding)"
@@ -369,7 +392,7 @@ struct ConversationScreen: View {
     /// across every holding, so there is no single token to buy.
     private var gateMint: PublicKey? {
         switch gate {
-        case .open:                         return nil
+        case .open, .undetermined:          return nil
         case .join(let requirement):        return requirement.flatMap(Self.mint(of:))
         case .blocked(let requirement):     return Self.mint(of: requirement)
         case .readOnly(let requirement):    return Self.mint(of: requirement)
@@ -448,8 +471,10 @@ struct ConversationScreen: View {
             startChattingFee: startChattingFee,
             gate: gate,
             // The contract has no non-member read, so a gated chat the viewer has no history of has
-            // nothing under its blur. The shapes stand in for what they are not allowed to see.
-            showsGatePlaceholder: gate.obscuresTranscript && (coordinator?.items.isEmpty ?? true),
+            // nothing under its blur. The shapes stand in for what they are not allowed to see —
+            // which is why this reads `withholdsTranscript` and not `obscuresTranscript`: a chat
+            // whose rules haven't landed yet is blurred without yet refusing anything.
+            showsGatePlaceholder: gate.withholdsTranscript && (coordinator?.items.isEmpty ?? true),
             gateSymbol: gateSymbol,
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,
@@ -822,11 +847,12 @@ struct ConversationScreen: View {
         }
     }
 
-    /// The gate panel's CTA: buys the mint the requirement names, or opens add-cash when the
-    /// requirement spans every holding and so has no one token to buy. Both routes leave the chat on
-    /// the stack, so satisfying the requirement returns to an ungated screen.
+    /// The gate panel's CTA: buys the mint the requirement names, or opens add-cash when there is no
+    /// one token to buy — a requirement spanning every holding, and a dollar-token one, which is
+    /// satisfied by adding cash rather than by swapping into the thing the cash already is. Both
+    /// routes leave the chat on the stack, so satisfying the requirement returns to an ungated screen.
     private func addFunds() {
-        guard let gateMint else {
+        guard let gateMint, gateMint != .usdf else {
             router.presentAddMoney(.general, source: .chat)
             return
         }

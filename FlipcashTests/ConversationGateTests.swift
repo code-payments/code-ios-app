@@ -268,12 +268,31 @@ struct ConversationGateTests {
         #expect(presentation.replacesComposer)
     }
 
-    @Test("Only a failing listener gate blurs and freezes the transcript")
+    @Test("Only an unreadable or unknown transcript is blurred and frozen")
     func presentation_obscuresTranscript_onlyWhenUnreadable() {
         #expect(ConversationGatePresentation.open.obscuresTranscript == false)
         #expect(ConversationGatePresentation.join(nil).obscuresTranscript == false)
         #expect(ConversationGatePresentation.readOnly(.staff).obscuresTranscript == false)
         #expect(ConversationGatePresentation.blocked(.staff).obscuresTranscript)
+        #expect(ConversationGatePresentation.undetermined.obscuresTranscript)
+    }
+
+    // MARK: - Rules that haven't arrived
+
+    @Test("A chat whose rules haven't arrived is covered, not opened")
+    func presentation_undetermined_coversEverything() {
+        let gate = ConversationGatePresentation.undetermined
+        #expect(gate.obscuresTranscript)
+        #expect(gate.replacesComposer)
+    }
+
+    @Test("The placeholder shapes stand in for withheld messages, so only a refusal draws them")
+    func presentation_withholdsTranscript_onlyWhenBlocked() {
+        #expect(ConversationGatePresentation.blocked(.staff).withholdsTranscript)
+        #expect(ConversationGatePresentation.undetermined.withholdsTranscript == false)
+        #expect(ConversationGatePresentation.open.withholdsTranscript == false)
+        #expect(ConversationGatePresentation.join(nil).withholdsTranscript == false)
+        #expect(ConversationGatePresentation.readOnly(.staff).withholdsTranscript == false)
     }
 
     @Test("The stated requirement is the chat's own rule, not something the user is short of")

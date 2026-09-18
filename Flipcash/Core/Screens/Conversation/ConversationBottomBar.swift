@@ -75,7 +75,14 @@ struct ConversationBottomBar: View {
         // The gate panel takes the bar whole rather than sitting inside it: none of the composer's
         // springs key on state a gated user can change, and the surface underneath is the same slab
         // either way, so the bar still reads as the bottom of the screen.
-        if gate.replacesComposer {
+        switch gate {
+        case .undetermined:
+            // Nothing is drawn at all until the rules land. A composer would be an affordance the
+            // server may refuse, and a panel would have to name a requirement we haven't been told.
+            // The bar arriving with the metadata is the honest version of both.
+            EmptyView()
+
+        case .join, .blocked, .readOnly:
             ConversationGatePanel(
                 presentation: gate,
                 symbol: gateSymbol,
@@ -84,7 +91,8 @@ struct ConversationBottomBar: View {
                 isJoining: isJoiningChat
             )
                 .modifier(BarSurfaceBackground())
-        } else {
+
+        case .open:
             composerBar
         }
     }
