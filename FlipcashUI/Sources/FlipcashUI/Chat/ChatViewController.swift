@@ -59,6 +59,10 @@ public final class ChatViewController: UICollectionViewController {
     /// chat's own in a group. The owner opens that subject's profile; nil disables the tap.
     public var onProfileTap: (() -> Void)?
 
+    /// Called when the user taps the group card's "Invite People To Join"; the owner hands out the
+    /// chat's invite link. nil leaves the card without the offer.
+    public var onGroupInvite: (() -> Void)?
+
     /// Called when the user taps an author's face in the gutter; the argument is that author's user
     /// id. Never fires in a DM, where no row draws one.
     public var onAuthorTap: ((UserID) -> Void)?
@@ -391,7 +395,8 @@ public final class ChatViewController: UICollectionViewController {
             )
         case .groupCard(let card):
             let cardTap: (() -> Void)? = onProfileTap == nil ? nil : { [weak self] in self?.onProfileTap?() }
-            (cell as! ChatGroupCardCell).configure(with: card, onTap: cardTap)
+            let invite: (() -> Void)? = onGroupInvite == nil ? nil : { [weak self] in self?.onGroupInvite?() }
+            (cell as! ChatGroupCardCell).configure(with: card, onTap: cardTap, onInvite: invite)
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .message(let message):

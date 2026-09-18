@@ -30,11 +30,17 @@ public struct ChatGroupCard: Hashable, Sendable, Codable {
     /// a member too (node 10125:19256).
     public var requirement: String?
 
-    public init(title: String, avatarID: String, imageData: Data? = nil, blurhash: String? = nil, requirement: String? = nil) {
+    /// Whether the card offers "Invite People To Join" under the requirement (node 10127:118280).
+    /// Set for a group the viewer is a member of that no one else has joined yet: a link is the only
+    /// way into a group, so an empty one needs its own way to hand that link out.
+    public var showsInvite: Bool
+
+    public init(title: String, avatarID: String, imageData: Data? = nil, blurhash: String? = nil, requirement: String? = nil, showsInvite: Bool = false) {
         self.title = title
         self.avatarID = avatarID
         self.imageData = imageData
         self.blurhash = blurhash
         self.requirement = requirement
+        self.showsInvite = showsInvite
     }
 }

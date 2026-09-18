@@ -12,15 +12,20 @@ import FlipcashUI
 /// A group chat's own profile — its picture, title, size and entry rule — reached by tapping the
 /// chat's head card or its navigation title, the way a DM's title opens the counterpart's profile.
 ///
-/// Read-only. Every action the design hangs here (node 10127:116723's invite link, and leave/mute)
-/// needs a membership RPC the contract does not carry yet, so the screen states what the chat is
-/// rather than offering buttons that cannot do anything.
+/// It carries the two actions a member has over a group: handing out the invite link, and leaving.
+/// The head card offers the invite as well, but only while the group is still empty (node
+/// 10127:118280), so once anyone else has joined this is the only way to the link.
 struct ChatProfileScreen: View {
 
     let conversationID: ConversationID
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(AppRouter.self) private var router
+
+    @State private var isInviting = false
+    @State private var isLeaving = false
+    @State private var dialogItem: DialogItem?
 
     private var conversation: Conversation? {
         conversationController.conversation(withID: conversationID)
@@ -35,6 +40,14 @@ struct ChatProfileScreen: View {
 
     private var title: String {
         conversation.map { conversationController.displayName(for: $0) } ?? ""
+    }
+
+    /// Whether the viewer belongs to this group. Both actions are a member's: someone reading a
+    /// gated preview through an invite link has nothing to hand out and nothing to leave. Read from
+    /// the roster rather than the gate — satisfying the balance rule is not membership.
+    private var isMember: Bool {
+        guard let conversation, conversation.type == .group else { return false }
+        return conversationController.isMember(of: conversation)
     }
 
     var body: some View {
@@ -64,14 +77,85 @@ struct ChatProfileScreen: View {
                     }
                 }
 
+                if isMember {
+                    VStack(spacing: 0) {
+                        Row(insets: rowInsets, accessory: .chevron) {
+                            Image(systemName: "person.badge.plus")
+                                .frame(minWidth: 45)
+                            Text("Invite People To Join")
+                                .foregroundStyle(.textMain)
+                        } action: {
+                            isInviting = true
+                        }
+                        .accessibilityIdentifier("chat-profile-invite")
+
+                        Row(
+                            insets: rowInsets,
+                            disabled: isLeaving,
+                            accessory: isLeaving ? .loader(.textMain) : .chevron
+                        ) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .frame(minWidth: 45)
+                            Text("Leave Group")
+                                .foregroundStyle(.textMain)
+                        } action: {
+                            dialogItem = leaveDialog()
+                        }
+                        .accessibilityIdentifier("chat-profile-leave")
+                    }
+                    .font(.appDisplayXS)
+                    .padding(.top, 24)
+                }
+
                 Spacer()
             }
             .padding(.horizontal, 20)
         }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
+        .dialog(item: $dialogItem)
+        .sheet(isPresented: $isInviting) {
+            GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting)
+        }
         .task {
             await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
+        }
+    }
+
+    private var rowInsets: EdgeInsets {
+        .init(top: 25, leading: 0, bottom: 25, trailing: 0)
+    }
+
+    private func leaveDialog() -> DialogItem {
+        .alert(
+            title: "Leave \(title)?",
+            subtitle: "You won't receive messages from this group any more. You can join again with an invite link"
+        ) {
+            DialogAction.destructive("Leave") {
+                Task { await leave() }
+            }
+            DialogAction.cancel()
+        }
+    }
+
+    /// Leaves, then unwinds to the chat list.
+    ///
+    /// Popping one screen would land on the chat the user just left, which the store still holds —
+    /// so they'd be looking at the gated preview of a group they had chosen to be done with, with
+    /// Join Chat offering to undo it. The chat list is this stack's root, and it no longer lists
+    /// the group, so unwinding there is the same as popping both screens.
+    private func leave() async {
+        isLeaving = true
+        defer { isLeaving = false }
+        do {
+            try await conversationController.leave(conversationID: conversationID)
+            router.popToRoot()
+        } catch {
+            sessionContainer.session.dialogItem = .error(
+                title: "Something Went Wrong",
+                subtitle: "We were unable to leave this group. Please try again"
+            )
+            ErrorReporting.captureError(error, reason: "Failed to leave group")
         }
     }
 }

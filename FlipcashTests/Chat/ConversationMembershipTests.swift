@@ -106,6 +106,47 @@ struct ConversationMembershipTests {
         #expect(controller.joinedGroups.map(\.id) == [.test(1)])
     }
 
+    // MARK: - Hydration by id
+
+    @Test("A chat hydrated by its id records no membership, in the store or the cache")
+    func hydrationByIDRecordsNoMembership() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        // Reachable by `GetChat` and absent from the group feed: an invite link or a push tap into
+        // a group this device has never synced.
+        mock.feed = [group(9, lastActivity: 50)]
+        let controller = makeController(mock, database: database)
+
+        let hydrated = try #require(await controller.hydratedConversation(withID: .test(9)))
+
+        // `GetChat` returns the chat, not the caller's relationship to it, so there is nothing here
+        // to record. Writing the absence as a negative is the trap: it would gate a member whose
+        // feed has not landed yet, and it would outlive the round trip that could correct it.
+        // Membership is a positive set precisely so an unanswered question stays unanswered.
+        #expect(!controller.isMember(of: hydrated))
+        #expect(try database.getGroupMemberships().isEmpty)
+    }
+
+    @Test("The group feed, not the hydration, answers membership for a chat opened by id")
+    func groupFeedAnswersForAHydratedChat() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        mock.feed = [group(9, lastActivity: 50)]
+        let controller = makeController(mock, database: database)
+        _ = await controller.hydratedConversation(withID: .test(9))
+
+        // The viewer was already in this group — joined on another device, or reinstalled. The
+        // hydration could not say so; the feed can, and does, without the screen asking again.
+        mock.groupFeed = [group(9, lastActivity: 50)]
+        await controller.loadGroupFeed()
+
+        let hydrated = try #require(controller.conversation(withID: .test(9)))
+        #expect(controller.isMember(of: hydrated))
+        #expect(try database.getGroupMemberships() == [.test(9)])
+    }
+
     // MARK: - Join and leave
 
     @Test("A join seats membership, metadata, and the cache")
@@ -174,6 +215,23 @@ struct ConversationMembershipTests {
             try await controller.leave(conversationID: .test(1))
         }
         #expect(controller.joinedGroups.map(\.id) == [.test(1)])
+    }
+
+    @Test("A leave the server has no record of still clears membership")
+    func notFoundLeaveClearsMembership() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        mock.groupFeed = [group(1, lastActivity: 100)]
+        mock.leaveError = ErrorLeaveChat.notFound
+        let controller = makeController(mock, database: database)
+        try await controller.join(conversationID: .test(1))
+
+        try await controller.leave(conversationID: .test(1))
+
+        // The server holds no membership to remove, so the local flag is the stale one.
+        #expect(controller.joinedGroups.isEmpty)
+        #expect(try database.getGroupMemberships().isEmpty)
     }
 
     @Test("A DM is a member chat without ever joining")

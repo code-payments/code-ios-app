@@ -160,7 +160,12 @@ nonisolated extension Route {
                 guard components.count > 1 else {
                     return nil
                 }
-                guard let id = ConversationID(base64URLEncoded: components[1]) else {
+                // A group's id is a 16-byte UUID and travels as the dashed form
+                // an invite link carries; a DM's is a 32-byte hash with no UUID
+                // form, so it stays base64url. Both are in circulation.
+                guard let id = ConversationID(uuidString: components[1])
+                        ?? ConversationID(base64URLEncoded: components[1])
+                else {
                     return nil
                 }
                 // `/chat/{id}/send` opens the Send Cash sheet over the chat.

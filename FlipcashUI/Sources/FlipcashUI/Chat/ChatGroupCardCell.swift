@@ -17,9 +17,9 @@ public final class ChatGroupCardCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatGroupCardCell"
 
-    public func configure(with card: ChatGroupCard, onTap: (() -> Void)? = nil) {
+    public func configure(with card: ChatGroupCard, onTap: (() -> Void)? = nil, onInvite: (() -> Void)? = nil) {
         contentConfiguration = UIHostingConfiguration {
-            GroupCardView(card: card, onTap: onTap)
+            GroupCardView(card: card, onTap: onTap, onInvite: onInvite)
         }
         .margins(.all, 0)
     }
@@ -31,8 +31,34 @@ private struct GroupCardView: View {
     let card: ChatGroupCard
     /// Opens the chat's own profile; nil leaves the card inert.
     var onTap: (() -> Void)?
+    /// Hands out the chat's invite link. Drawn only when the card asks for it.
+    var onInvite: (() -> Void)?
 
     var body: some View {
+        VStack(spacing: Layout.inviteGap) {
+            cardBody
+
+            if card.showsInvite, let onInvite {
+                Button(action: onInvite) {
+                    Text("Invite People To Join")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textAction)
+                        .padding(.horizontal, Layout.invitePadding)
+                        .frame(height: Layout.inviteHeight)
+                        .background(Color.action, in: .capsule)
+                        .contentShape(.capsule)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("group-card-invite")
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+    }
+
+    /// The bordered card itself: everything the group states about itself. The invite button sits
+    /// outside it — it is an action the viewer takes, not a fact about the chat (node 10127:118280).
+    private var cardBody: some View {
         VStack(spacing: 0) {
             header
 
@@ -55,8 +81,6 @@ private struct GroupCardView: View {
             RoundedRectangle(cornerRadius: Layout.radius, style: .continuous)
                 .strokeBorder(Color.white.opacity(Layout.borderOpacity))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 8)
         .accessibilityElement(children: .combine)
     }
 
@@ -108,6 +132,9 @@ private struct GroupCardView: View {
         static let horizontalPadding: CGFloat = 12
         static let titleGap: CGFloat = 13
         static let requirementGap: CGFloat = 11
+        static let inviteGap: CGFloat = 12
+        static let inviteHeight: CGFloat = 44
+        static let invitePadding: CGFloat = 24
     }
 }
 
@@ -119,6 +146,12 @@ private struct GroupCardView: View {
             requirement: "Balance Requirement:\n$100.00 of $BadBoys"
         ), onTap: {})
         GroupCardView(card: ChatGroupCard(title: "Flipcash Staff", avatarID: "staff"))
+        GroupCardView(card: ChatGroupCard(
+            title: "BadBoys",
+            avatarID: "badboys",
+            requirement: "Balance Requirement:\n$100.00 of $BadBoys",
+            showsInvite: true
+        ), onTap: {}, onInvite: {})
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.backgroundMain)

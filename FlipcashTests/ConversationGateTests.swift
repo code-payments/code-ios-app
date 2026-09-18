@@ -268,12 +268,47 @@ struct ConversationGateTests {
         #expect(presentation.replacesComposer)
     }
 
-    @Test("Only a failing listener gate blurs and freezes the transcript")
-    func presentation_obscuresTranscript_onlyWhenUnreadable() {
+    @Test("Membership is what unblurs the transcript, not eligibility")
+    func presentation_obscuresTranscript_untilJoined() {
         #expect(ConversationGatePresentation.open.obscuresTranscript == false)
-        #expect(ConversationGatePresentation.join(nil).obscuresTranscript == false)
         #expect(ConversationGatePresentation.readOnly(.staff).obscuresTranscript == false)
+        #expect(ConversationGatePresentation.join(nil).obscuresTranscript)
         #expect(ConversationGatePresentation.blocked(.staff).obscuresTranscript)
+        #expect(ConversationGatePresentation.undetermined.obscuresTranscript)
+    }
+
+    @Test("Satisfying the rules changes the button, not the blur")
+    func presentation_eligibleNonMember_stillBlurred() {
+        let eligible = conversationGatePresentation(.open, isMember: false)
+        let refused = conversationGatePresentation(
+            ConversationGate(
+                listener: .unsatisfied(unmet: [.staff], primary: .staff),
+                speaker: .unsatisfied(unmet: [.staff], primary: .staff),
+                headline: .staff
+            ),
+            isMember: false
+        )
+        #expect(eligible == .join(nil))
+        #expect(eligible.obscuresTranscript)
+        #expect(refused.obscuresTranscript)
+    }
+
+    // MARK: - Rules that haven't arrived
+
+    @Test("A chat whose rules haven't arrived is covered, not opened")
+    func presentation_undetermined_coversEverything() {
+        let gate = ConversationGatePresentation.undetermined
+        #expect(gate.obscuresTranscript)
+        #expect(gate.replacesComposer)
+    }
+
+    @Test("The placeholder shapes stand in for a transcript that exists and is withheld")
+    func presentation_withholdsTranscript_whenMessagesAreKeptBack() {
+        #expect(ConversationGatePresentation.blocked(.staff).withholdsTranscript)
+        #expect(ConversationGatePresentation.join(nil).withholdsTranscript)
+        #expect(ConversationGatePresentation.undetermined.withholdsTranscript == false)
+        #expect(ConversationGatePresentation.open.withholdsTranscript == false)
+        #expect(ConversationGatePresentation.readOnly(.staff).withholdsTranscript == false)
     }
 
     @Test("The stated requirement is the chat's own rule, not something the user is short of")

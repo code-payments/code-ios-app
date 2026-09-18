@@ -34,6 +34,27 @@ extension URL {
         return URL(string: "\(host)/\(userID.uuidString.lowercased())")!
     }
 
+    /// The invite link for a group chat — the only way into one, since a group
+    /// is not otherwise discoverable.
+    ///
+    /// There is no RPC that mints or resolves one: the link is built from the
+    /// chat's own id, whose group form is a UUID, and `Route` parses it back.
+    /// `app.flipcash.com` is covered by the associated-domains entitlement, so
+    /// the link opens the app rather than the web page when it is installed.
+    nonisolated static func groupChatInvite(for conversationID: ConversationID) -> URL {
+        URL(string: "https://app.flipcash.com/chat/\(conversationID.linkPathComponent)")!
+    }
+
+    /// The in-app link a chat opens through, for the push tap that has no `target_url` to follow.
+    ///
+    /// The same id an invite link carries, routed the same way, so a group the user has not joined
+    /// lands on the gated screen from either entry point. `sendCash` picks the notification action's
+    /// destination instead of the transcript.
+    nonisolated static func chatDeepLink(for conversationID: ConversationID, sendCash: Bool = false) -> URL {
+        let base = "flipcash://chat/\(conversationID.linkPathComponent)"
+        return URL(string: sendCash ? "\(base)/send" : base)!
+    }
+
     static var privacyPolicy: URL {
         URL(string: "https://www.flipcash.com/privacy")!
     }

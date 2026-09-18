@@ -628,10 +628,31 @@ final class ConversationController {
         refreshFeedPreview(for: conversationID)
     }
 
+    /// Seats a group the signed-in user just created, so its screen and the Chats list have it
+    /// without waiting for the next feed fetch.
+    ///
+    /// Separate from ``join(conversationID:)`` because there is nothing to join: `StartChat` returns
+    /// the creator already seated, and the metadata it returns is the same shape `joinChat` gives
+    /// back, so everything after the RPC is identical.
+    func seatCreatedGroup(_ conversation: Conversation) {
+        store.apply(.metadataRefresh(conversation))
+        store.setMembership(true, in: conversation.id)
+        persistConversation(conversation)
+        persistMembership(true, in: conversation.id)
+        refreshFeedPreview(for: conversation.id)
+    }
+
     /// Leaves a group. The chat stays in the store — the screen the user left from is still on top and
     /// needs it to render the gate — but drops out of ``joinedGroups``, so it leaves the Chats list.
+    ///
+    /// `notFound` counts as having left. It means the server holds no membership to remove, so the
+    /// local flag is the stale one and clearing it is what reconciles the two; throwing would leave
+    /// the user in a chat the server says they are not in.
     func leave(conversationID: ConversationID) async throws {
-        try await membership.leaveChat(owner: owner, conversationID: conversationID)
+        do {
+            try await membership.leaveChat(owner: owner, conversationID: conversationID)
+        } catch ErrorLeaveChat.notFound {
+        }
         store.setMembership(false, in: conversationID)
         persistMembership(false, in: conversationID)
     }

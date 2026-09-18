@@ -39,8 +39,30 @@ public struct ConversationID: Hashable, Sendable, CustomStringConvertible {
         self.data = data
     }
 
+    /// Decodes the dashed-UUID form a group chat's id takes in an invite link.
+    /// Fails unless `string` is a well-formed UUID: `common.v1.ChatId.value` is
+    /// 16 bytes for a group, so only a group id has this form.
+    public init?(uuidString: String) {
+        guard let uuid = UUID(uuidString: uuidString) else { return nil }
+        self.data = uuid.data
+    }
+
     public var proto: Flipcash_Common_V1_ChatId {
         .with { $0.value = data }
+    }
+
+    /// The dashed-UUID text form of a group chat's 16-byte id, or nil for a DM's
+    /// 32-byte id, which is a hash and has no UUID form.
+    public var uuidString: String? {
+        guard let uuid = try? UUID(data: data) else { return nil }
+        return uuid.uuidString.lowercased()
+    }
+
+    /// The `{id}` segment of a `/chat/{id}` link: the dashed UUID for a group,
+    /// the base64url form for a DM. One accessor so a link is built the same way
+    /// everywhere it is built, and ``Route`` has one inverse to parse.
+    public var linkPathComponent: String {
+        uuidString ?? base64URLEncoded
     }
 
     /// The base64url form the server uses in `/chat/{chatId}` deep links —

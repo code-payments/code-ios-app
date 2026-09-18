@@ -23,7 +23,7 @@ nonisolated struct EnterAmountCalculator {
 
     var currency: CurrencyCode {
         switch mode {
-        case .currency, .buy, .sell, .convert, .withdraw, .addMoney, .minimumTip:
+        case .currency, .buy, .sell, .convert, .withdraw, .addMoney, .minimumTip, .balanceRequirement:
             selectedCurrency
         }
     }
@@ -52,6 +52,9 @@ nonisolated struct EnterAmountCalculator {
         case .minimumTip:
             // Not a transaction — the only bound is the minimum, which the
             // screen states itself.
+            return nil
+        case .balanceRequirement:
+            // Not a transaction — nothing moves, so no send limit bounds it.
             return nil
         }
     }

@@ -58,6 +58,12 @@ public final class ChatScreenViewController: UIViewController {
     public var isTranscriptObscured = false {
         didSet { transcriptBlur.isShown = isTranscriptObscured }
     }
+
+    /// Whether to draw the gate's decorative shapes behind the blur — set when the chat is
+    /// obscured and there is nothing real under it. See ``GatePreviewPlaceholder``.
+    public var showsGatePlaceholder = false {
+        didSet { gatePlaceholder.isShown = showsGatePlaceholder }
+    }
     private var didFocusComposer = false
     /// Whether the composer held the keyboard when the current context menu opened, and so should get
     /// it back when that menu goes. Cleared by `dismissKeyboard()` so an action handing off to a sheet
@@ -67,6 +73,9 @@ public final class ChatScreenViewController: UIViewController {
     private let backdrop = MessageBackdrop()
     /// The blur over a transcript the user is not allowed to read. See `TranscriptBlur`.
     private let transcriptBlur = TranscriptBlur()
+    /// The decorative shapes the blur softens when there is no transcript to soften. See
+    /// `GatePreviewPlaceholder`.
+    private let gatePlaceholder = GatePreviewPlaceholder()
     /// The row floated above a held blur, while an edit is open on it.
     private var editedStableID: String?
     /// Deferred attempts left at floating the edited message's copy. The menu's dismissal
@@ -153,6 +162,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onProfileTap = newValue }
     }
 
+    /// Forwards the group head card's invite tap from the transcript to the owner.
+    public var onGroupInvite: (() -> Void)? {
+        get { transcript.onGroupInvite }
+        set { transcript.onGroupInvite = newValue }
+    }
+
     /// Forwards gutter-avatar taps from the transcript to the owner — see
     /// ``ChatViewController/onAuthorTap``.
     public var onAuthorTap: ((UserID) -> Void)? {
@@ -195,6 +210,8 @@ public final class ChatScreenViewController: UIViewController {
         // Above the transcript and below the bar clip, so the gate panel naming the unmet
         // requirement stays sharp over the transcript it is talking about.
         transcriptBlur.install(in: view, below: barClip)
+        // Under the blur, so the shapes are only ever seen through it.
+        gatePlaceholder.install(in: view, below: transcriptBlur.view)
 
         barHeightConstraint = constraints.height
         barClipHeightConstraint = constraints.clipHeight

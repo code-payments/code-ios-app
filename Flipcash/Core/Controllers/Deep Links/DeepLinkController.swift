@@ -186,13 +186,26 @@ struct DeepLinkAction {
     private static func routeChat(_ conversationID: ConversationID, in container: SessionContainer) async {
         let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
 
-        switch conversation?.type {
-        case .tipDm, .group:
-            container.appRouter.navigate(to: .tipConversation(conversationID))
-        case .contactDm, nil:
+        guard let destination = chatDestination(for: conversation?.type, conversationID: conversationID) else {
             logger.info("Ignoring non-tip chat deeplink", metadata: [
                 "conversationID": "\(conversationID)",
             ])
+            return
+        }
+
+        container.appRouter.navigate(to: destination)
+    }
+
+    /// The screen a chat id opens, or nil when it isn't one the app surfaces.
+    ///
+    /// A group routes to the same transcript a tip DM does whether or not the viewer is a member:
+    /// the screen gates itself, so an invite link and a push tap land on one destination.
+    static func chatDestination(for type: ConversationType?, conversationID: ConversationID) -> AppRouter.Destination? {
+        switch type {
+        case .tipDm, .group:
+            return .tipConversation(conversationID)
+        case .contactDm, nil:
+            return nil
         }
     }
 

@@ -164,6 +164,9 @@ final class ChatService: Sendable {
                 }
                 await MainActor.run { completion(.success(Conversation(response.chat))) }
             } catch let error as RPCError {
+                // The six StartChat results all arrive as `.ok`-shaped responses, so a transport
+                // status is the one failure whose cause isn't in the result — name its code.
+                logger.error("Failed to start chat at the transport", metadata: ["code": "\(error.code)"])
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
                 await MainActor.run { completion(.failure(.unknown)) }

@@ -220,17 +220,20 @@ extension EnterAmountView {
         /// Setting the minimum tip another user must pay to DM you. Not a
         /// transaction, so no send limit applies.
         case minimumTip
+        /// Setting the balance a member has to hold to get into a group. Not a
+        /// transaction either — nothing moves — so no send limit applies.
+        case balanceRequirement
 
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip:
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip, .balanceRequirement:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
 
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip: return .number("0")
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip, .balanceRequirement: return .number("0")
             }
         }
 
@@ -243,12 +246,13 @@ extension EnterAmountView {
             case .convert:  return "Next"
             case .addMoney: return "Add Money"
             case .minimumTip: return "Save"
+            case .balanceRequirement: return "Done"
             }
         }
 
         fileprivate var buttonStyle: CodeButton.Style {
             switch self {
-            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip: return .filled
+            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip, .balanceRequirement: return .filled
             }
         }
     }

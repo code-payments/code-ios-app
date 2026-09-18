@@ -70,12 +70,15 @@ struct ConversationScreen: View {
     @State private var coordinator: ConversationLoadCoordinator?
     /// Tickers for the mints the gate's copy names, resolved from mint metadata. Empty until they
     /// land, and for every ungated chat.
-    @State private var mintSymbols: [PublicKey: String] = [:]
+    @State private var mintNames: [PublicKey: String] = [:]
     /// Whether a `JoinChat` is in flight, so the gate panel's button stops taking taps. The join has
     /// no other UI state — it either seats membership, which re-resolves the gate, or it alerts.
     @State private var isJoiningChat = false
     /// Memoizes the head-carded transcript — see ``TranscriptHead``.
     @State private var transcriptHead = TranscriptHead()
+    /// Whether the invite sheet is up. A link is the only way into a group, so the empty group's
+    /// card hands one out (node 10127:118280).
+    @State private var isInviting = false
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -232,8 +235,28 @@ struct ConversationScreen: View {
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
     private var gate: ConversationGatePresentation {
-        guard let conversation = groupConversation else { return .open }
+        guard let conversation = groupConversation else {
+            return awaitingMetadata ? .undetermined : .open
+        }
         return conversationGatePresentation(gateVerdicts, isMember: conversationController.isMember(of: conversation))
+    }
+
+    /// Whether this chat's rules are simply unknown, rather than absent.
+    ///
+    /// A chat opened by its id — every invite link and every group push — is not in the store until
+    /// `GetChat` lands, and ``groupConversation`` is nil for the whole of that round trip. Reading
+    /// that nil as "not a group, so nothing to gate" is what would draw a readable transcript and a
+    /// live composer over a chat the viewer may not be allowed to read at all. A tip DM is excluded
+    /// because its chat genuinely does not exist yet: nothing is being withheld, and the first tip
+    /// is what creates it.
+    private var awaitingMetadata: Bool {
+        guard let conversationID else { return false }
+        switch context {
+        case .tipDM:
+            return false
+        case .existing:
+            return conversationController.conversation(withID: conversationID) == nil
+        }
     }
 
     /// The rule verdicts behind ``gate``, kept separately because the head card states the chat's
@@ -328,8 +351,20 @@ struct ConversationScreen: View {
             avatarID: group.id.description,
             imageData: groupAvatarSubject.flatMap { sessionContainer.profileAvatars.data(for: $0) },
             blurhash: group.picture?.thumbnailBlurhash,
-            requirement: groupCardRequirement
+            requirement: groupCardRequirement,
+            showsInvite: showsGroupInvite
         )
+    }
+
+    /// Whether the head card offers the invite link: a group the viewer belongs to that nobody else
+    /// has joined. Once someone else is in, the invite lives on the chat's profile instead, so it
+    /// stops competing with the transcript (node 10127:118280).
+    ///
+    /// Counted from ``ConversationRosterSummary/memberCount`` for the reason ``titleSubtitle`` is —
+    /// an embedded roster is a subset.
+    private var showsGroupInvite: Bool {
+        guard let group = groupConversation else { return false }
+        return conversationController.isMember(of: group) && group.rosterSummary.memberCount <= 1
     }
 
     /// The chat's entry rule as the card states it (node 10125:19164), or nil when the chat states
@@ -338,9 +373,12 @@ struct ConversationScreen: View {
     /// the label rather than wherever the card's width falls, as the design breaks it.
     private var groupCardRequirement: String? {
         switch gateVerdicts.headline {
-        case .minimumBalance(let amount, _):
-            let symbol = headlineMint.flatMap { mintSymbols[$0] }
-            let holding = symbol.map { "\(amount.formattedDroppingZeroFraction()) of $\($0)" }
+        case .minimumBalance(let amount, let mint):
+            // A dollar-token rule is already fully stated by its dollar amount; naming the token
+            // as well says the same thing twice. Any other token genuinely needs naming, because
+            // the same $100 is a different quantity of each.
+            let name = mint == .usdf ? nil : headlineMint.flatMap { mintNames[$0] }
+            let holding = name.map { "\(amount.formattedDroppingZeroFraction()) of \($0)" }
                 ?? amount.formattedDroppingZeroFraction()
             return "Balance Requirement:\n\(holding)"
         case .staff:
@@ -354,7 +392,7 @@ struct ConversationScreen: View {
     /// across every holding, so there is no single token to buy.
     private var gateMint: PublicKey? {
         switch gate {
-        case .open:                         return nil
+        case .open, .undetermined:          return nil
         case .join(let requirement):        return requirement.flatMap(Self.mint(of:))
         case .blocked(let requirement):     return Self.mint(of: requirement)
         case .readOnly(let requirement):    return Self.mint(of: requirement)
@@ -378,7 +416,7 @@ struct ConversationScreen: View {
     }
 
     /// Ticker for the requirement the panel names, once its metadata lands.
-    private var gateSymbol: String? { gateMint.flatMap { mintSymbols[$0] } }
+    private var gateMintName: String? { gateMint.flatMap { mintNames[$0] } }
 
     private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
         switch requirement {
@@ -416,6 +454,7 @@ struct ConversationScreen: View {
             linkCardSource: sessionContainer.linkCardFeed,
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
+            onGroupInvite: { isInviting = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
@@ -432,7 +471,12 @@ struct ConversationScreen: View {
             isTipDm: tipCounterpart != nil,
             startChattingFee: startChattingFee,
             gate: gate,
-            gateSymbol: gateSymbol,
+            // The contract has no non-member read, so a gated chat the viewer has no history of has
+            // nothing under its blur. The shapes stand in for what they are not allowed to see —
+            // which is why this reads `withholdsTranscript` and not `obscuresTranscript`: a chat
+            // whose rules haven't landed yet is blurred without yet refusing anything.
+            showsGatePlaceholder: gate.withholdsTranscript && (coordinator?.items.isEmpty ?? true),
+            gateMintName: gateMintName,
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,
             isJoiningChat: isJoiningChat,
@@ -493,15 +537,15 @@ struct ConversationScreen: View {
         // Name the gate's requirement in the token it asks for. The mint may be one the user holds
         // nothing of, so the local store can miss and the fetch is what fills it.
         .task(id: gateMints) {
-            var symbols: [PublicKey: String] = [:]
+            var names: [PublicKey: String] = [:]
             for mint in gateMints {
                 if let stored = session.storedMintMetadata(for: mint) {
-                    symbols[mint] = stored.symbol
-                } else if let fetched = try? await session.fetchMintMetadata(mint: mint).symbol {
-                    symbols[mint] = fetched
+                    names[mint] = stored.name
+                } else if let fetched = try? await session.fetchMintMetadata(mint: mint).name {
+                    names[mint] = fetched
                 }
             }
-            mintSymbols = symbols
+            mintNames = names
         }
         // Read what the device already knows about this chat's senders, for the ones its own roster
         // leaves out. One read per open: the local cache is not moving under an open transcript.
@@ -545,6 +589,11 @@ struct ConversationScreen: View {
         }
         .sheet(item: $startChattingRequest) { request in
             StartChattingSheet(target: request.target, fee: request.fee)
+        }
+        .sheet(isPresented: $isInviting) {
+            if let conversationID {
+                GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting)
+            }
         }
         .background {
             // Measure the bar width so the centered title item can be sized to
@@ -799,11 +848,12 @@ struct ConversationScreen: View {
         }
     }
 
-    /// The gate panel's CTA: buys the mint the requirement names, or opens add-cash when the
-    /// requirement spans every holding and so has no one token to buy. Both routes leave the chat on
-    /// the stack, so satisfying the requirement returns to an ungated screen.
+    /// The gate panel's CTA: buys the mint the requirement names, or opens add-cash when there is no
+    /// one token to buy — a requirement spanning every holding, and a dollar-token one, which is
+    /// satisfied by adding cash rather than by swapping into the thing the cash already is. Both
+    /// routes leave the chat on the stack, so satisfying the requirement returns to an ungated screen.
     private func addFunds() {
-        guard let gateMint else {
+        guard let gateMint, gateMint != .usdf else {
             router.presentAddMoney(.general, source: .chat)
             return
         }

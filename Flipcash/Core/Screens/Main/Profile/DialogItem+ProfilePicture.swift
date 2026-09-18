@@ -16,7 +16,8 @@ extension DialogItem {
         )
     }
 
-    /// Returns the dialog explaining why a profile picture didn't upload.
+    /// Returns the dialog explaining why an uploaded image was refused — the profile picture and
+    /// a group chat's, which fail the same ways and read the same to the user.
     static func profilePictureFailed(_ error: ErrorBlob) -> DialogItem {
         switch error {
         case .rejected(.moderation):
