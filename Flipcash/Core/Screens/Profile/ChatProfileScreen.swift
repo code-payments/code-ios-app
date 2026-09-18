@@ -21,7 +21,7 @@ struct ChatProfileScreen: View {
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
-    @Environment(\.dismiss) private var dismiss
+    @Environment(AppRouter.self) private var router
 
     @State private var isInviting = false
     @State private var isLeaving = false
@@ -138,14 +138,18 @@ struct ChatProfileScreen: View {
         }
     }
 
-    /// Leaves, then pops back to the chat the user left from. The conversation stays in the store,
-    /// so what they land on is the same gated preview a non-member sees.
+    /// Leaves, then unwinds to the chat list.
+    ///
+    /// Popping one screen would land on the chat the user just left, which the store still holds —
+    /// so they'd be looking at the gated preview of a group they had chosen to be done with, with
+    /// Join Chat offering to undo it. The chat list is this stack's root, and it no longer lists
+    /// the group, so unwinding there is the same as popping both screens.
     private func leave() async {
         isLeaving = true
         defer { isLeaving = false }
         do {
             try await conversationController.leave(conversationID: conversationID)
-            dismiss()
+            router.popToRoot()
         } catch {
             sessionContainer.session.dialogItem = .error(
                 title: "Something Went Wrong",
