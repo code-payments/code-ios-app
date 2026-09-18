@@ -130,6 +130,59 @@ struct ChatLinkMessageCellTests {
         #expect(measure(recycled, width: 320) == expected)
     }
 
+    /// A recycled cell carries the previous row's layout into the next measurement: a non-scrolling
+    /// `UITextView` derives its intrinsic height from the width it was last laid out at, not from
+    /// the width being asked about. Measured straight after a narrow row, it reports the wrap it had
+    /// there, and the transcript lays the row out that much too tall.
+    @Test("A cell measured once at a narrow width measures the next row at the width being asked about")
+    func narrowThenWide_measuresAtTheWidthAsked() {
+        let carded = cardedMessage(text: "\(Self.cashLink) Check out Jeffy")
+        let fresh = makeCell()
+        fresh.configure(with: carded, maxWidth: 313)
+        let expected = measure(fresh, width: 402)
+
+        let recycled = makeCell()
+        recycled.configure(with: carded, maxWidth: 90)
+        _ = measure(recycled, width: 120)
+        recycled.prepareForReuse()
+        recycled.configure(with: carded, maxWidth: 313)
+
+        #expect(measure(recycled, width: 402) == expected)
+    }
+
+    /// The transcript lays a row out at an estimated height before it has measured it. The card's
+    /// proportions and its pins to the bubble's sides are all required, so a row held shorter than
+    /// its content has only one place to give: the bubble's width. It collapses, the text view's
+    /// container keeps that width, and the next measurement wraps a single line into three.
+    @Test("A row laid out shorter than its content does not narrow the bubble into the next measurement")
+    func undersizedRow_doesNotNarrowTheBubble() {
+        let cell = ChatLinkMessageCell(frame: CGRect(x: 0, y: 0, width: 402, height: 56))
+        cell.configure(with: cardedMessage(text: "\(Self.cashLink) Check out Jeffy"), maxWidth: 313.56)
+        let natural = measure(cell, width: 402)
+
+        cell.frame = CGRect(x: 0, y: 0, width: 402, height: 56)
+        cell.layoutIfNeeded()
+
+        #expect(measure(cell, width: 402) == natural)
+    }
+
+    /// The transcript can hold a row at a height its content no longer wants — a receipt that
+    /// cleared, a card that shrank — until the layout re-measures. The bubble is the lowest-hugging
+    /// view in the column, so a column stretched to fill the row used to hand it all of that
+    /// surplus and draw its chrome tall around unchanged text.
+    @Test("A row held taller than its content leaves the bubble at its own height")
+    func oversizedRow_doesNotStretchTheBubble() {
+        let cell = makeCell()
+        cell.configure(with: cardedMessage(text: "\(Self.cashLink) enjoy"), maxWidth: 250)
+        let natural = measure(cell, width: 320)
+
+        cell.frame = CGRect(x: 0, y: 0, width: 320, height: natural + 40)
+        cell.layoutIfNeeded()
+
+        let bubble = cell.descendants(of: LinkableBubbleView.self).first
+        #expect((bubble?.bounds.height ?? 0) <= natural, "bubble was \(bubble?.bounds ?? .zero)")
+    }
+
     @Test("A message with no card leaves the bubble sized by its text")
     func uncardedMessage_leavesTheBubbleToItsText() {
         let cell = makeCell()

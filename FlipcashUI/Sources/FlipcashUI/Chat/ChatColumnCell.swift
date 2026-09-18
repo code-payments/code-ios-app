@@ -117,16 +117,38 @@ public class ChatColumnCell: UICollectionViewCell {
 
         let leading = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Self.rowInset)
         columnLeading = leading
+        // The column sits at the top and never stretches past its content. The row's height is the
+        // layout's to decide, and it can hold a row at a height the content no longer wants — a
+        // receipt that cleared, a card that shrank — until it re-measures. A bottom pinned `equalTo`
+        // would pass that surplus into the stack, whose `.fill` distribution gives it to the
+        // lowest-hugging arranged subview: the bubble, which would draw its chrome tall around
+        // unchanged text. Held at `lessThanOrEqualTo`, the surplus falls below the column as
+        // transparent row instead. Nothing pulls the column down to meet it: this is the only
+        // constraint the row's height needs, since it is what stops the fitting height
+        // `preferredLayoutAttributesFitting` asks for from shrinking past the content, and at 749 it
+        // still outranks the `.fittingSizeLevel` that measurement asks with.
+        //
+        // The other direction is why it is not required. The transcript lays a row out at an
+        // estimated height before it has measured it, and that estimate is shorter than a row with a
+        // card. Required, the limit would have to be met, and the card's proportions and its pins to
+        // the bubble's sides are required too — leaving the bubble's width as the only thing the
+        // solver can take. It would collapse the bubble, and the text view's container would carry
+        // that width into the next measurement and wrap one line into three. Below the width
+        // constraint's own priority, a row that is too short simply overflows.
+        let columnBottom = column.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor)
+        columnBottom.priority = .defaultHigh - 1
         NSLayoutConstraint.activate([
             leading,
             column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -Self.rowInset),
             column.topAnchor.constraint(equalTo: contentView.topAnchor),
-            column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            columnBottom,
             // Leading and bottom only, with the view's own size constraints doing the rest: an
             // avatar pinned top as well would set a floor on the row's fitting height, and
-            // `preferredLayoutAttributesFitting` would grow every short bubble to the gutter.
+            // `preferredLayoutAttributesFitting` would grow every short bubble to the gutter. Its
+            // bottom follows the column rather than the row, so an oversized row leaves the face
+            // beside the last bubble instead of dropping it into the space below.
             authorAvatar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Self.rowInset),
-            authorAvatar.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            authorAvatar.bottomAnchor.constraint(equalTo: column.bottomAnchor),
         ])
     }
 
