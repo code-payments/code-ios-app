@@ -119,6 +119,10 @@ struct MessageCapabilityTests {
 
     @Test("Flags that carry no windows fall back to 15 minutes and 48 hours")
     func unsetFlagsFallBackToTheAgreedWindows() {
+        // Both numbers are maintained by hand against Android `MessagePolicy.FallbackEditWindow` /
+        // `FallbackDeleteWindow`. Nothing checks the two repos against each other, so this pins the
+        // iOS side: a change here fails until someone states the new value, which is the prompt to
+        // go and change Android too.
         let policy = MessagePolicy(userFlags: nil)
         #expect(policy.editWindow == 900)
         #expect(policy.deleteWindow == 172_800)

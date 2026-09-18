@@ -28,9 +28,7 @@ public struct MessagePolicy: Hashable, Sendable {
     /// reversal: the previous rule defaulted to `nil` on the grounds that a client-side window
     /// would only hide an action the server would have accepted. It can now do exactly that — a
     /// message past the fallback loses Edit even where the server would have taken the request.
-    /// We accept that because an affordance the server *will* reject is the worse failure, and
-    /// because the fallback matches Android's, so the two clients offer the same rows for the
-    /// same message.
+    /// We accept that because an affordance the server *will* reject is the worse failure.
     public let editWindow: TimeInterval?
 
     /// How long after sending a message stays deletable, or `nil` for no limit. Same source and
@@ -39,12 +37,22 @@ public struct MessagePolicy: Hashable, Sendable {
 
     public let deletedPresentation: DeletedMessagePresentation
 
-    /// The window applied when the server sends no edit window. Kept in step with Android's
-    /// constant of the same value so both clients gate identically.
+    /// The window applied when the server sends no edit window.
+    ///
+    /// Maintained in parallel with Android `MessagePolicy.FallbackEditWindow`
+    /// (`apps/flipcash/shared/chat/.../MessageCapability.kt`). The two must move together or the
+    /// clients offer different rows for the same message; nothing enforces it, so changing one
+    /// means changing the other in the same release. An earlier version of this comment claimed
+    /// the match already held — Android had no such constant until it was added to settle this.
+    ///
+    /// The value is a product choice, not a figure the contract supplies: `message_edit_window`
+    /// documents what it means but never what an absent field implies. Replace it the moment the
+    /// server does specify one.
     public static let fallbackEditWindow: TimeInterval = 900       // 15 minutes
 
-    /// The window applied when the server sends no delete window. Kept in step with Android's
-    /// constant of the same value so both clients gate identically.
+    /// The window applied when the server sends no delete window. Same parallel-maintenance duty
+    /// and same provenance as ``fallbackEditWindow``; Android holds it as
+    /// `MessagePolicy.FallbackDeleteWindow`.
     public static let fallbackDeleteWindow: TimeInterval = 172_800 // 48 hours
 
     public init(
