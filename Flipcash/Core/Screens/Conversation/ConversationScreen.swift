@@ -358,8 +358,7 @@ struct ConversationScreen: View {
             imageData: groupAvatarSubject.flatMap { sessionContainer.profileAvatars.data(for: $0) },
             blurhash: group.picture?.thumbnailBlurhash,
             requirement: groupCardRequirement,
-            showsInvite: showsGroupInvite,
-            mute: group.viewerState?.mute
+            showsInvite: showsGroupInvite
         )
     }
 
@@ -1010,9 +1009,6 @@ struct ConversationScreen: View {
         profileAvatars: ProfileAvatarStore,
         fallbackCounterpart: ConversationMember? = nil
     ) -> ChatProfileCard {
-        // Carried on the card rather than read where it's drawn: the cell lives in FlipcashUI and is
-        // configured from this struct, so the mute has to travel with the rest of the card's facts.
-        let mute = controller.conversation(withID: conversationID)?.viewerState?.mute
         if let conversation = controller.conversation(withID: conversationID),
            conversation.type == .tipDm {
             let counterpart = conversation.counterpart(excluding: controller.selfUserID)
@@ -1021,8 +1017,7 @@ struct ConversationScreen: View {
                 avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
                 imageData: profileAvatars.data(for: counterpart?.userID),
                 blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
-                counterpart: Self.tipDMCounterpart(counterpart),
-                mute: mute
+                counterpart: Self.tipDMCounterpart(counterpart)
             )
         }
         // No conversation record yet — the same card, from the cached profile.
@@ -1032,8 +1027,7 @@ struct ConversationScreen: View {
                 avatarID: counterpart.userID?.uuidString ?? conversationID.description,
                 imageData: profileAvatars.data(for: counterpart.userID),
                 blurhash: counterpart.profilePicture?.thumbnailBlurhash,
-                counterpart: Self.tipDMCounterpart(counterpart),
-                mute: mute
+                counterpart: Self.tipDMCounterpart(counterpart)
             )
         }
         if let contact = context.resolvedContact(in: directory) {
@@ -1041,16 +1035,14 @@ struct ConversationScreen: View {
                 name: contact.displayName,
                 avatarID: contact.contactId,
                 imageData: contact.imageData,
-                counterpart: .contact(phone: contact.nationalPhone),
-                mute: mute
+                counterpart: .contact(phone: contact.nationalPhone)
             )
         }
         return ChatProfileCard(
             name: controller.displayName(forConversationID: conversationID),
             avatarID: conversationID.description,
             imageData: nil,
-            counterpart: .unknown,
-            mute: mute
+            counterpart: .unknown
         )
     }
 

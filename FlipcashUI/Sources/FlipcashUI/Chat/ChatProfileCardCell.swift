@@ -80,9 +80,6 @@ private struct ProfileCardView: View {
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
                     .lineLimit(1)
-                // Before the chevron, not after it: the chevron says the card opens something, and
-                // a disclosure indicator that isn't last stops reading as one.
-                MuteBell(card.mute)
                 if onProfileTap != nil {
                     Image(systemName: "chevron.right")
                         .font(.caption2)

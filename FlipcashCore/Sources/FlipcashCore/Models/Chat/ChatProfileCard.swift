@@ -21,11 +21,6 @@ public struct ChatProfileCard: Hashable, Sendable, Codable {
     public var blurhash: String?
     public var counterpart: Counterpart
 
-    /// The viewer's mute on this chat, or nil when it is audible — the card reports it beside the
-    /// name. The mute itself rather than a muted flag, because a timed one lapses with nothing sent
-    /// from the server and the card would otherwise keep reporting it. See `MuteBell`.
-    public var mute: ConversationMuteState?
-
     /// What the card's subtitle line says about the counterpart, and whether it
     /// offers a contact action.
     public enum Counterpart: Hashable, Sendable, Codable {
@@ -41,12 +36,11 @@ public struct ChatProfileCard: Hashable, Sendable, Codable {
         case none
     }
 
-    public init(name: String, avatarID: String, imageData: Data?, blurhash: String? = nil, counterpart: Counterpart, mute: ConversationMuteState? = nil) {
+    public init(name: String, avatarID: String, imageData: Data?, blurhash: String? = nil, counterpart: Counterpart) {
         self.name = name
         self.avatarID = avatarID
         self.imageData = imageData
         self.blurhash = blurhash
         self.counterpart = counterpart
-        self.mute = mute
     }
 }

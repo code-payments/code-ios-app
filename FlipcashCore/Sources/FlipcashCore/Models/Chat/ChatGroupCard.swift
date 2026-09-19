@@ -35,18 +35,12 @@ public struct ChatGroupCard: Hashable, Sendable, Codable {
     /// way into a group, so an empty one needs its own way to hand that link out.
     public var showsInvite: Bool
 
-    /// The viewer's mute on this chat, or nil when it is audible — the card reports it beside the
-    /// title. The mute itself rather than a muted flag, because a timed one lapses with nothing sent
-    /// from the server and the card would otherwise keep reporting it. See `MuteBell`.
-    public var mute: ConversationMuteState?
-
-    public init(title: String, avatarID: String, imageData: Data? = nil, blurhash: String? = nil, requirement: String? = nil, showsInvite: Bool = false, mute: ConversationMuteState? = nil) {
+    public init(title: String, avatarID: String, imageData: Data? = nil, blurhash: String? = nil, requirement: String? = nil, showsInvite: Bool = false) {
         self.title = title
         self.avatarID = avatarID
         self.imageData = imageData
         self.blurhash = blurhash
         self.requirement = requirement
         self.showsInvite = showsInvite
-        self.mute = mute
     }
 }
