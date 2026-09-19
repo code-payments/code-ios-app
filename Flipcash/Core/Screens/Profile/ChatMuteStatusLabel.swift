@@ -53,22 +53,27 @@ struct ChatMuteStatusLabel: View {
     }
 
     var body: some View {
-        if let text {
-            HStack(spacing: 4) {
-                Image(systemName: "bell.slash")
-                Text(text)
-            }
-            .font(.appTextSmall)
-            .foregroundStyle(.textSecondary)
-            .accessibilityIdentifier("chat-mute-status")
-            // Drop the label the moment a timed mute lapses. Re-run whenever the expiry changes, so
-            // muting again while the screen is open re-arms it; cancelled with the screen.
-            .task(id: muteExpiry) {
-                guard let muteExpiry, muteExpiry > .now else { return }
-                try? await Task.sleep(for: .seconds(muteExpiry.timeIntervalSinceNow))
-                guard !Task.isCancelled else { return }
-                now = .now
-            }
+        HStack(spacing: 4) {
+            Image(systemName: "bell.slash")
+            // The fallback never shows — it is there so the line claims its height whether or not
+            // the chat is muted. Without it the row block below jumps up the moment a mute lapses
+            // or is cleared, which reads as the screen re-laying itself out rather than one fact
+            // going away.
+            Text(text ?? "Muted")
+        }
+        .font(.appTextSmall)
+        .foregroundStyle(.textSecondary)
+        .opacity(text == nil ? 0 : 1)
+        .animation(.easeInOut(duration: 0.25), value: text)
+        .accessibilityHidden(text == nil)
+        .accessibilityIdentifier("chat-mute-status")
+        // Drop the label the moment a timed mute lapses. Re-run whenever the expiry changes, so
+        // muting again while the screen is open re-arms it; cancelled with the screen.
+        .task(id: muteExpiry) {
+            guard let muteExpiry, muteExpiry > .now else { return }
+            try? await Task.sleep(for: .seconds(muteExpiry.timeIntervalSinceNow))
+            guard !Task.isCancelled else { return }
+            now = .now
         }
     }
 }
