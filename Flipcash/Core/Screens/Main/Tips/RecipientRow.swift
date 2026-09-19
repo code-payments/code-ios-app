@@ -86,7 +86,7 @@ struct RecipientRowBody<Trailing: View>: View {
                     }
                 }
                 if subtitle != nil || mute != nil {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 0) {
                         if let subtitle {
                             Text(subtitle)
                                 .font(.appTextSmall)
@@ -98,8 +98,12 @@ struct RecipientRowBody<Trailing: View>: View {
                         // Trailing, against the row's edge rather than beside the preview: the mute
                         // belongs to the chat, not to the message the preview quotes, and a preview
                         // runs to whatever length it runs to.
-                        Spacer(minLength: 12)
-                        MuteBell(mute)
+                        //
+                        // Nothing reserved for it: an audible chat draws no bell, and a minimum
+                        // length or stack spacing held for one would shorten every preview in the
+                        // list. The bell brings its own gap when it appears.
+                        Spacer(minLength: 0)
+                        MuteBell(mute, leadingGap: 12)
                     }
                 }
             }
