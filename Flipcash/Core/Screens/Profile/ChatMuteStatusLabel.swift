@@ -15,8 +15,12 @@ import FlipcashUI
 ///
 /// Stating the deadline is what makes a timed mute trustworthy: without it a timed mute can't be
 /// told apart from an indefinite one, and the user has no way to know when the chat comes back.
-/// It sits here rather than on ``ChatMuteRow`` because the row has no room for it and because the
-/// mute is a fact about the chat, like the member count it follows.
+/// It sits here rather than on ``ChatMuteRow`` because the row has no room for it.
+///
+/// Drawn as a chip rather than as another line of secondary text: the lines above it are the chat's
+/// own identity — its name, its size, when someone joined — and this is the viewer's setting. Given
+/// their styling it read as a fourth fact about the chat, and on a counterpart's profile it was the
+/// fourth such line in a row. The fill gives it its own ground instead.
 struct ChatMuteStatusLabel: View {
 
     let conversationID: ConversationID
@@ -61,8 +65,8 @@ struct ChatMuteStatusLabel: View {
             // going away.
             Text(text ?? "Muted")
         }
-        .font(.appTextSmall)
-        .foregroundStyle(.textSecondary)
+        .chip(.standard)
+        .padding(.top, 3)
         .opacity(text == nil ? 0 : 1)
         .animation(.easeInOut(duration: 0.25), value: text)
         .accessibilityHidden(text == nil)
