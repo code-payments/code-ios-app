@@ -29,7 +29,7 @@ struct ConversationMutationTests {
         let mock = MockConversations()
         let database = try Database.makeTemp().database
         let controller = ConversationController(
-            fetching: mock, membership: mock, messaging: mock, streaming: mock,
+            fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
             contactNaming: MockDMContactNaming(),
             database: database,
             owner: .generate()!, selfUserID: selfUserID,

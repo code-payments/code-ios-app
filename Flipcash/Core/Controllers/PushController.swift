@@ -298,17 +298,22 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
             NotificationCenter.default.post(name: .pushNotificationWillPresent, object: nil)
         }
 
-        // Stay silent for the conversation the user is already reading; other
-        // chats and every non-chat push still present normally.
-        if let conversationID = NotificationPayload.chatID(userInfo),
-           isViewingConversation?(conversationID) == true {
-            logger.info("Suppressing chat push for the open conversation", metadata: [
-                "conversationID": "\(conversationID)",
-            ])
-            return []
+        // Stay silent for a muted chat and for the conversation the user is already reading; other
+        // chats and every non-chat push still present normally. Everything above this point has
+        // already run — the push is stored and counted either way, only the banner is withheld.
+        let decision = NotificationPayload.presentationDecision(userInfo) { conversationID in
+            isViewingConversation?(conversationID) == true
         }
-
-        return [.badge, .list, .sound, .banner]
+        switch decision {
+        case .present:
+            break
+        case .suppressedMuted, .suppressedOpenConversation:
+            logger.info("Suppressing chat push", metadata: [
+                "reason": "\(decision)",
+                "conversationID": "\(NotificationPayload.chatID(userInfo).map { "\($0)" } ?? "none")",
+            ])
+        }
+        return decision.options
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {

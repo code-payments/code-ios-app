@@ -172,6 +172,10 @@ private struct TipConversationRow: View {
             session.balance(for: $0)?.name
         }
         let hasUnread = conversation.hasUnread(for: conversationController.selfUserID)
+        // Read once, for the label only — the bell keeps its own clock. A label can't: VoiceOver
+        // reads it when it lands on the row, and this view redraws on store changes rather than at
+        // the instant a timed mute lapses, so it can be a moment stale.
+        let isMuted = conversation.isMuted(at: .now)
 
         RecipientRowScaffold(
             avatarID: conversation.type == .group
@@ -182,7 +186,8 @@ private struct TipConversationRow: View {
             imageData: sessionContainer.profileAvatars.data(for: avatarSubject),
             blurhash: avatarPicture?.thumbnailBlurhash,
             accessoryPlacement: .titleLine,
-            accessibilityLabel: hasUnread ? "\(title), unread messages" : title,
+            mute: conversation.viewerState?.mute,
+            accessibilityLabel: accessibilityLabel(title: title, hasUnread: hasUnread, isMuted: isMuted),
             onTap: onTap
         ) {
             RecipientRowAccessory(
@@ -194,5 +199,12 @@ private struct TipConversationRow: View {
         .task(id: avatarSubject) {
             await sessionContainer.profileAvatars.load(avatarSubject, picture: avatarPicture)
         }
+    }
+
+    /// The row reads as one element, so the bell's own label is discarded — it has to be said here.
+    private func accessibilityLabel(title: String, hasUnread: Bool, isMuted: Bool) -> String {
+        [title, hasUnread ? "unread messages" : nil, isMuted ? "muted" : nil]
+            .compactMap { $0 }
+            .joined(separator: ", ")
     }
 }

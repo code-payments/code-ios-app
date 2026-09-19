@@ -64,8 +64,11 @@ public enum NotificationPayload {
     /// Whether the recipient had the chat muted when a CHAT push was sent. The push is still
     /// delivered so the client can store the message, but the client must not present a
     /// notification for it. `false` when the push isn't a chat message or carries no chat metadata
-    /// (system messages, or a legacy server that omits it) — scaffolded here only; no caller wires
-    /// this into notification presentation yet.
+    /// (system messages, or a legacy server that omits it).
+    ///
+    /// Both presentation paths read this: the app's foreground delegate via
+    /// ``presentationDecision(_:isViewingConversation:)``, and the notification service extension,
+    /// which has no access to local state and so has nothing else to read.
     public static func isMuted(_ userInfo: [AnyHashable: Any]) -> Bool {
         guard let payload = decode(userInfo), payload.category == .chat, payload.hasChatMetadata else {
             return false

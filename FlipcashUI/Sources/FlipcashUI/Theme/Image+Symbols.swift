@@ -65,6 +65,11 @@ public enum SystemSymbol: String {
     case touchID = "touchid"
     case faceID = "faceid"
     case trophy = "trophy.fill"
+
+    /// Timed mute, indefinite mute, and the unmute that clears either — on the mute picker.
+    case clock = "clock"
+    case bellSlash = "bell.slash"
+    case bell = "bell"
     
     case chevronDown = "chevron.down"
     case chevronRight = "chevron.right"

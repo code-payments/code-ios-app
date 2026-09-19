@@ -178,6 +178,15 @@ extension Conversation {
         guard let read = selfReadPointer(for: selfUserID) else { return true }
         return read < lastMessage.id
     }
+
+    /// Whether the signed-in user has this chat muted as of `date`.
+    ///
+    /// Unread state is deliberately independent of this: a muted chat still accrues unread
+    /// messages and still counts toward the Chats badge. Muting silences the notification, not the
+    /// message.
+    public func isMuted(at date: Date = .now) -> Bool {
+        viewerState?.isMuted(at: date) ?? false
+    }
 }
 
 /// A member's READ watermark paired with the time they last advanced it. Drives

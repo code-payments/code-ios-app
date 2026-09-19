@@ -42,7 +42,7 @@ extension ConversationRosterSummary {
 
 /// The signed-in user's per-viewer state for a chat — currently just mute status. See
 /// `chat.v1.ViewerState`.
-public struct ConversationViewerState: Hashable, Sendable {
+public struct ConversationViewerState: Hashable, Codable, Sendable {
 
     /// Present iff the chat is muted for the viewer. Muted pushes are still delivered (so the
     /// client can store the message) but flagged for the client to suppress the notification.
@@ -68,8 +68,18 @@ extension ConversationViewerState {
     }
 }
 
+extension ConversationViewerState {
+    /// Whether the viewer has this chat muted as of `date`.
+    ///
+    /// Computed on every read rather than stored: a timed mute lapses with no server signal, so a
+    /// cached boolean would keep a chat silent after its mute expired.
+    public func isMuted(at date: Date = .now) -> Bool {
+        mute?.isActive(at: date) ?? false
+    }
+}
+
 /// Whether, and until when, the signed-in user has muted a chat. See `chat.v1.MuteState`.
-public enum ConversationMuteState: Hashable, Sendable {
+public enum ConversationMuteState: Hashable, Codable, Sendable {
     /// Muted until this date, after which the mute lapses client-side. Nothing is sent when it
     /// does, so the client owns the countdown.
     case until(Date)
@@ -86,6 +96,17 @@ extension ConversationMuteState {
             self = .until(timestamp.date)
         case .forever, nil:
             self = .forever
+        }
+    }
+
+    /// Whether the mute is still in force as of `date`. A ``until(_:)`` mute in the past has
+    /// lapsed; the server sends nothing when it does, so the client owns the comparison.
+    public func isActive(at date: Date = .now) -> Bool {
+        switch self {
+        case .until(let expiry):
+            return expiry > date
+        case .forever:
+            return true
         }
     }
 

@@ -12,9 +12,9 @@ import FlipcashUI
 /// A group chat's own profile — its picture, title, size and entry rule — reached by tapping the
 /// chat's head card or its navigation title, the way a DM's title opens the counterpart's profile.
 ///
-/// It carries the two actions a member has over a group: handing out the invite link, and leaving.
-/// The head card offers the invite as well, but only while the group is still empty (node
-/// 10127:118280), so once anyone else has joined this is the only way to the link.
+/// It carries the actions a member has over a group: handing out the invite link, silencing its
+/// notifications, and leaving. The head card offers the invite as well, but only while the group is
+/// still empty (node 10127:118280), so once anyone else has joined this is the only way to the link.
 struct ChatProfileScreen: View {
 
     let conversationID: ConversationID
@@ -75,6 +75,8 @@ struct ChatProfileScreen: View {
                             .font(.appTextSmall)
                             .foregroundStyle(.textSecondary)
                     }
+
+                    ChatMuteStatusLabel(conversationID: conversationID)
                 }
 
                 if isMember {
@@ -88,6 +90,8 @@ struct ChatProfileScreen: View {
                             isInviting = true
                         }
                         .accessibilityIdentifier("chat-profile-invite")
+
+                        ChatMuteRow(conversationID: conversationID, insets: rowInsets)
 
                         Row(
                             insets: rowInsets,

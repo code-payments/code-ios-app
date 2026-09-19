@@ -18,7 +18,7 @@ struct MessageLoaderRevealTests {
     /// The same construction `MessageLoaderTests` uses — four mocks over a real temp database.
     private func makeController(_ database: Database) -> ConversationController {
         ConversationController(
-            fetching: MockConversations(), membership: MockConversations(), messaging: MockConversations(), streaming: MockConversations(),
+            fetching: MockConversations(), membership: MockConversations(), viewerSettings: MockConversations(), messaging: MockConversations(), streaming: MockConversations(),
             contactNaming: MockDMContactNaming(),
             database: database,
             owner: .generate()!, selfUserID: UUID(),

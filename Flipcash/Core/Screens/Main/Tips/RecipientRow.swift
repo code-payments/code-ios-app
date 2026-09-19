@@ -27,6 +27,9 @@ struct RecipientRowScaffold<Trailing: View>: View {
     let imageData: Data?
     var blurhash: String? = nil
     var accessoryPlacement: RecipientRowAccessoryPlacement = .trailingColumn
+    /// The viewer's mute on this chat, drawn at the end of the subtitle line. The mute rather than a
+    /// muted flag — ``MuteBell`` owns the countdown, because a timed one lapses with nothing sent.
+    var mute: ConversationMuteState? = nil
     let accessibilityLabel: String
     let onTap: () -> Void
     @ViewBuilder let trailing: Trailing
@@ -39,7 +42,8 @@ struct RecipientRowScaffold<Trailing: View>: View {
                 subtitle: subtitle,
                 imageData: imageData,
                 blurhash: blurhash,
-                accessoryPlacement: accessoryPlacement
+                accessoryPlacement: accessoryPlacement,
+                mute: mute
             ) {
                 trailing
             }
@@ -58,6 +62,7 @@ struct RecipientRowBody<Trailing: View>: View {
     let imageData: Data?
     var blurhash: String? = nil
     var accessoryPlacement: RecipientRowAccessoryPlacement = .trailingColumn
+    var mute: ConversationMuteState? = nil
     @ViewBuilder let trailing: Trailing
 
     var body: some View {
@@ -80,13 +85,26 @@ struct RecipientRowBody<Trailing: View>: View {
                         trailing
                     }
                 }
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .lineLimit(1)
-                        .contentTransition(.opacity)
-                        .transition(.opacity)
+                if subtitle != nil || mute != nil {
+                    HStack(spacing: 0) {
+                        if let subtitle {
+                            Text(subtitle)
+                                .font(.appTextSmall)
+                                .foregroundStyle(Color.textSecondary)
+                                .lineLimit(1)
+                                .contentTransition(.opacity)
+                                .transition(.opacity)
+                        }
+                        // Trailing, against the row's edge rather than beside the preview: the mute
+                        // belongs to the chat, not to the message the preview quotes, and a preview
+                        // runs to whatever length it runs to.
+                        //
+                        // Nothing reserved for it: an audible chat draws no bell, and a minimum
+                        // length or stack spacing held for one would shorten every preview in the
+                        // list. The bell brings its own gap when it appears.
+                        Spacer(minLength: 0)
+                        MuteBell(mute, leadingGap: 12)
+                    }
                 }
             }
             // Cross-fade the subtitle when it changes — notably the "Typing…" ⇄ last-message swap, but
