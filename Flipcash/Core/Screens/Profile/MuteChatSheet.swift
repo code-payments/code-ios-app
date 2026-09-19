@@ -84,6 +84,12 @@ struct MuteChatSheet: View {
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)
+                    // The only flexible row in this stack, so a height proposal short of what the
+                    // content needs lands here -- and a `Text` answers that by dropping lines and
+                    // ellipsizing. `PartialSheet` opens at the full screen height and corrects to
+                    // its measured height, and the row count changes with the unmute row, so short
+                    // proposals do happen. `fixedSize` makes the wrapped height a floor instead.
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity)
 
                 VStack(spacing: 12) {
