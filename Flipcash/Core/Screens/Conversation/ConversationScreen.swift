@@ -273,6 +273,12 @@ struct ConversationScreen: View {
 
     /// This chat when it is a group, else nil — the single test every group surface on this screen
     /// branches on, so none of them can disagree about what a group is.
+    /// The viewer's mute on this chat, or nil while it is audible or before the chat exists locally.
+    private var viewerMute: ConversationMuteState? {
+        guard let conversationID else { return nil }
+        return conversationController.conversation(withID: conversationID)?.viewerState?.mute
+    }
+
     private var groupConversation: Conversation? {
         guard let conversationID,
               let conversation = conversationController.conversation(withID: conversationID),
@@ -352,7 +358,8 @@ struct ConversationScreen: View {
             imageData: groupAvatarSubject.flatMap { sessionContainer.profileAvatars.data(for: $0) },
             blurhash: group.picture?.thumbnailBlurhash,
             requirement: groupCardRequirement,
-            showsInvite: showsGroupInvite
+            showsInvite: showsGroupInvite,
+            mute: group.viewerState?.mute
         )
     }
 
@@ -528,6 +535,7 @@ struct ConversationScreen: View {
                         blurhash: groupConversation.map { $0.picture?.thumbnailBlurhash }
                             ?? tipCounterpart?.profilePicture?.thumbnailBlurhash,
                         width: max(navBarWidth - Self.titleSideInset * 2, 0),
+                        mute: viewerMute,
                         onTap: titleTapAction,
                         opensProfile: profileTapAction != nil
                     )
@@ -1002,6 +1010,9 @@ struct ConversationScreen: View {
         profileAvatars: ProfileAvatarStore,
         fallbackCounterpart: ConversationMember? = nil
     ) -> ChatProfileCard {
+        // Carried on the card rather than read where it's drawn: the cell lives in FlipcashUI and is
+        // configured from this struct, so the mute has to travel with the rest of the card's facts.
+        let mute = controller.conversation(withID: conversationID)?.viewerState?.mute
         if let conversation = controller.conversation(withID: conversationID),
            conversation.type == .tipDm {
             let counterpart = conversation.counterpart(excluding: controller.selfUserID)
@@ -1010,7 +1021,8 @@ struct ConversationScreen: View {
                 avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
                 imageData: profileAvatars.data(for: counterpart?.userID),
                 blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
-                counterpart: Self.tipDMCounterpart(counterpart)
+                counterpart: Self.tipDMCounterpart(counterpart),
+                mute: mute
             )
         }
         // No conversation record yet — the same card, from the cached profile.
@@ -1020,7 +1032,8 @@ struct ConversationScreen: View {
                 avatarID: counterpart.userID?.uuidString ?? conversationID.description,
                 imageData: profileAvatars.data(for: counterpart.userID),
                 blurhash: counterpart.profilePicture?.thumbnailBlurhash,
-                counterpart: Self.tipDMCounterpart(counterpart)
+                counterpart: Self.tipDMCounterpart(counterpart),
+                mute: mute
             )
         }
         if let contact = context.resolvedContact(in: directory) {
@@ -1028,14 +1041,16 @@ struct ConversationScreen: View {
                 name: contact.displayName,
                 avatarID: contact.contactId,
                 imageData: contact.imageData,
-                counterpart: .contact(phone: contact.nationalPhone)
+                counterpart: .contact(phone: contact.nationalPhone),
+                mute: mute
             )
         }
         return ChatProfileCard(
             name: controller.displayName(forConversationID: conversationID),
             avatarID: conversationID.description,
             imageData: nil,
-            counterpart: .unknown
+            counterpart: .unknown,
+            mute: mute
         )
     }
 
@@ -1058,6 +1073,7 @@ private struct ConversationTitleItem: View {
     let imageData: Data?
     let blurhash: String?
     let width: CGFloat
+    var mute: ConversationMuteState? = nil
     let onTap: (() -> Void)?
     let opensProfile: Bool
 
@@ -1069,13 +1085,21 @@ private struct ConversationTitleItem: View {
             conversationID: conversationID,
             imageData: imageData,
             blurhash: blurhash,
-            width: width
+            width: width,
+            mute: mute
         )
         if let onTap {
             let hint = opensProfile ? "Opens profile" : (contact != nil ? "Opens contact card" : "Adds to Contacts")
             Button(action: onTap) { label }
                 .buttonStyle(.plain)
-                .accessibilityLabel(subtitle.map { "\(title), \($0)" } ?? title)
+                // The button reads as one element, so the bell's own label is discarded. Read from
+                // the mute here rather than kept as a flag, and a moment stale at the instant a
+                // timed one lapses — this redraws on store changes, not on the bell's clock.
+                .accessibilityLabel(
+                    [title, subtitle, mute?.isActive() == true ? "muted" : nil]
+                        .compactMap { $0 }
+                        .joined(separator: ", ")
+                )
                 .accessibilityHint(hint)
         } else {
             label
@@ -1092,6 +1116,7 @@ private struct ConversationTitleLabel: View {
     let imageData: Data?
     let blurhash: String?
     let width: CGFloat
+    var mute: ConversationMuteState? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1106,10 +1131,13 @@ private struct ConversationTitleLabel: View {
             // The 44pt avatar already sets the bar's height, so the second line costs nothing and a
             // titled-only DM keeps the layout it has (nodes 10125:19191-19194).
             VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .font(.appBarButton)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(title)
+                        .font(.appBarButton)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
+                    MuteBell(mute)
+                }
                 if let subtitle {
                     Text(subtitle)
                         .font(.default(size: 13, weight: .medium))
