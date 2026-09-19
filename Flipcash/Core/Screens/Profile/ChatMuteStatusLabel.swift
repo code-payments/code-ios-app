@@ -37,6 +37,13 @@ struct ChatMuteStatusLabel: View {
     /// label; it has to notice on its own. See ``muteExpiry``.
     @State private var now = Date.now
 
+    /// What the chip last said, so a fade-out goes quiet on its own wording.
+    ///
+    /// The text is nil the instant a mute is cleared, but the chip is still on screen fading. Drawn
+    /// straight from a placeholder it would change what it said on the way out, which reads as a
+    /// correction rather than a dismissal.
+    @State private var lastText = "Muted"
+
     private var conversation: Conversation? {
         conversationController.conversation(withID: conversationID)
     }
@@ -63,13 +70,17 @@ struct ChatMuteStatusLabel: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "bell.slash")
-            // The fallback never shows — it is there so the line claims its height whether or not
-            // the chat is muted. Without it the row block below jumps up the moment a mute lapses
-            // or is cleared, which reads as the screen re-laying itself out rather than one fact
-            // going away.
-            Text(text ?? "Muted")
+            // Drawn even when there is no mute, so the line claims its height either way — without
+            // it the row block below jumps up the moment a mute lapses or is cleared, which reads
+            // as the screen re-laying itself out rather than one fact going away. Invisible except
+            // during a fade-out, which is the one moment the fallback is what the user sees.
+            Text(text ?? lastText)
         }
         .chip(.tinted(.warning, on: .warningSecondary))
+        // The chip takes its new width at once, inside the spring below. Geometry interpolates and
+        // glyphs don't: the fill grew from the old string's width while the new string was already
+        // drawn in full, so the text sat outside the capsule for the length of the animation.
+        .animation(nil, value: text)
         .padding(.top, 3)
         .opacity(text == nil ? 0 : 1)
         .scaleEffect(text == nil ? 0.85 : 1)
@@ -85,6 +96,9 @@ struct ChatMuteStatusLabel: View {
         )
         .accessibilityHidden(text == nil)
         .accessibilityIdentifier("chat-mute-status")
+        .onChange(of: text) { _, text in
+            if let text { lastText = text }
+        }
         // Drop the label the moment a timed mute lapses. Re-run whenever the expiry changes, so
         // muting again while the screen is open re-arms it; cancelled with the screen.
         .task(id: muteExpiry) {

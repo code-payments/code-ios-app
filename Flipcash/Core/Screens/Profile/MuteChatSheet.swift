@@ -51,14 +51,25 @@ struct MuteChatSheet: View {
 
     @State private var isWorking = false
 
+    /// The unmute row's presence, fixed for the dismissal by ``apply(_:)``.
+    ///
+    /// Nil while the sheet is idle, so a mute that lapses under an open sheet still drops the row.
+    /// Applying a choice pins it, because the store converges before the sheet finishes animating
+    /// away: read live, the list gained or lost its first row on the way out.
+    @State private var pinnedOffersUnmute: Bool?
+
     private var isMuted: Bool {
         conversationController.conversation(withID: conversationID)?.isMuted(at: .now) ?? false
     }
 
-    /// The rows to draw. Unmuting leads when there is a mute to clear, and is left off entirely when
-    /// there isn't — on an audible chat it is a row that would do nothing.
+    /// Whether to offer the unmute at all — on an audible chat it is a row that would do nothing.
+    private var offersUnmute: Bool {
+        pinnedOffersUnmute ?? isMuted
+    }
+
+    /// The rows to draw, unmuting first when it is offered.
     private var options: [(title: String, option: Option)] {
-        isMuted ? [("Never", .never)] + Self.durations : Self.durations
+        offersUnmute ? [("Never", .never)] + Self.durations : Self.durations
     }
 
     var body: some View {
@@ -69,7 +80,7 @@ struct MuteChatSheet: View {
                 // What muting does and doesn't do, the way WhatsApp captions the same sheet. Worth
                 // saying here because the answer isn't obvious and is easy to get wrong: a muted
                 // chat still delivers, still stores, and still counts unread.
-                Text("You'll still receive messages and see unread counts. Only notifications are silenced.")
+                Text("You'll still receive messages and see unread counts. Only notifications are silenced")
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)
@@ -137,6 +148,7 @@ struct MuteChatSheet: View {
     /// rather than carried as a duration: the server stores an instant, and the client owns the
     /// countdown against it.
     private func apply(_ option: Option) async {
+        pinnedOffersUnmute = offersUnmute
         isWorking = true
         defer { isWorking = false }
         do {
