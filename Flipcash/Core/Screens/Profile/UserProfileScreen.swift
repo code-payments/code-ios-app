@@ -85,6 +85,10 @@ private struct UserProfileContent: View {
                             .font(.appTextSmall)
                             .foregroundStyle(.textSecondary)
                     }
+
+                    if let conversationID {
+                        ChatMuteStatusLabel(conversationID: conversationID)
+                    }
                 }
 
                 VStack(spacing: 0) {

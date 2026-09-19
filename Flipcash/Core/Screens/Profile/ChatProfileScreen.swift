@@ -75,6 +75,8 @@ struct ChatProfileScreen: View {
                             .font(.appTextSmall)
                             .foregroundStyle(.textSecondary)
                     }
+
+                    ChatMuteStatusLabel(conversationID: conversationID)
                 }
 
                 if isMember {
