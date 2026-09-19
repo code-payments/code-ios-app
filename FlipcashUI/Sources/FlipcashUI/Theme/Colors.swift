@@ -22,6 +22,10 @@ extension ShapeStyle where Self == Color {
     public static var textSuccess: Color                 { Color(r: 73 , g: 213, b: 23) }
     public static var textWarning: Color                 { Color(r: 255, g: 243, b: 131) }
     public static var warning: Color                     { Color(r: 255, g: 169, b: 57)  }
+    /// The ground `warning` sits on when it labels a state rather than raising an alarm — amber at
+    /// a tenth of its strength over ``backgroundMain``, baked flat the way the sentiment pair
+    /// secondaries are. Only true against the main background; it is not a general wash.
+    public static var warningSecondary: Color            { Color(r: 48,  g: 39,  b: 29)  }
 
     public static var action: Color                      { Color.white }
     public static var actionDisabled: Color              { Color(r: 30,  g: 30,  b: 30) }

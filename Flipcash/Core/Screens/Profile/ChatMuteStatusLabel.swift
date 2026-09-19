@@ -21,6 +21,10 @@ import FlipcashUI
 /// own identity — its name, its size, when someone joined — and this is the viewer's setting. Given
 /// their styling it read as a fourth fact about the chat, and on a counterpart's profile it was the
 /// fourth such line in a row. The fill gives it its own ground instead.
+///
+/// Amber, because a mute is the one thing on the screen that will stop being true on its own, and
+/// the colour is what separates it from the settled facts above. Tinted rather than solid so it
+/// stays under the title — see ``ChipStyle/tinted(_:on:)``.
 struct ChatMuteStatusLabel: View {
 
     let conversationID: ConversationID
@@ -65,7 +69,7 @@ struct ChatMuteStatusLabel: View {
             // going away.
             Text(text ?? "Muted")
         }
-        .chip(.standard)
+        .chip(.tinted(.warning, on: .warningSecondary))
         .padding(.top, 3)
         .opacity(text == nil ? 0 : 1)
         .scaleEffect(text == nil ? 0.85 : 1)
