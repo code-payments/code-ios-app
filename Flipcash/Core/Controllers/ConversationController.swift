@@ -1073,6 +1073,22 @@ final class ConversationController {
         )
     }
 
+    /// The tip DM with `userID`, or nil when the viewer has none — what the counterpart's profile
+    /// asks so it knows whether there is a chat to mute.
+    ///
+    /// Matched against the roster rather than through `counterpart(excluding:)`, which falls back to
+    /// the first member and would answer a malformed single-member chat with the viewer themselves.
+    /// Hidden chats are excluded: a blocked counterpart's DM is off the feed, and muting a chat the
+    /// user can't see is not a control worth offering.
+    func tipDM(withUserID userID: UserID) -> Conversation? {
+        guard userID != selfUserID else { return nil }
+        return conversations.first { conversation in
+            conversation.type == .tipDm
+                && !conversation.isHidden
+                && conversation.members.contains { $0.userID == userID }
+        }
+    }
+
     private func contactName(for conversationID: ConversationID) -> String? {
         guard let name = contactNaming.contactDisplayName(forDMChat: conversationID),
               !name.isEmpty else {

@@ -9,7 +9,12 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The counterpart's Flipcash profile with a Block action, reached from a tip DM.
+/// The counterpart's Flipcash profile, carrying the actions the viewer has over the person rather
+/// than over one chat: muting the DM with them, and blocking them outright.
+///
+/// Reached from a tip DM's title and from a face in a group transcript. Both land here because both
+/// are the same question — who is this — so the actions are the person's either way: Block already
+/// works on the person globally, and the mute row silences the DM with them when one exists.
 struct UserProfileScreen: View {
     let userID: UserID
 
@@ -20,6 +25,9 @@ struct UserProfileScreen: View {
     var body: some View {
         let seed = sessionContainer.conversationController.counterpartSeed(forUserID: userID)
         UserProfileContent(
+            // Nil until a tip creates the chat server-side, and re-read on every pass, so a DM that
+            // appears while the screen is open brings its mute row with it.
+            conversationID: sessionContainer.conversationController.tipDM(withUserID: userID)?.id,
             model: UserProfileViewModel(
                 userID: userID,
                 flipClient: sessionContainer.flipClient,
@@ -35,10 +43,14 @@ struct UserProfileScreen: View {
 }
 
 private struct UserProfileContent: View {
+    /// The DM to mute, or nil when there is no chat with this person yet.
+    let conversationID: ConversationID?
+
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
 
-    init(model: UserProfileViewModel) {
+    init(conversationID: ConversationID?, model: UserProfileViewModel) {
+        self.conversationID = conversationID
         _model = State(initialValue: model)
     }
 
@@ -75,18 +87,26 @@ private struct UserProfileContent: View {
                     }
                 }
 
-                Row(insets: .init(top: 25, leading: 0, bottom: 25, trailing: 0)) {
-                    Image(systemName: "nosign")
-                        .frame(minWidth: 45)
-                    Text("Block")
-                        .foregroundStyle(.textMain)
-                    Spacer()
-                    // Secondary (alpha-white) chevron, matching the profile card.
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.textSecondary)
-                } action: {
-                    dialogItem = blockDialog()
+                VStack(spacing: 0) {
+                    // Mute sits above Block the way it sits above Leave on a group: the reversible
+                    // action first, the one that ends the relationship last.
+                    if let conversationID {
+                        ChatMuteRow(conversationID: conversationID, insets: rowInsets, chevron: .secondary)
+                    }
+
+                    Row(insets: rowInsets) {
+                        Image(systemName: "nosign")
+                            .frame(minWidth: 45)
+                        Text("Block")
+                            .foregroundStyle(.textMain)
+                        Spacer()
+                        // Secondary (alpha-white) chevron, matching the profile card.
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.textSecondary)
+                    } action: {
+                        dialogItem = blockDialog()
+                    }
                 }
                 .font(.appDisplayXS)
                 .padding(.top, 24)
@@ -99,6 +119,10 @@ private struct UserProfileContent: View {
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialogItem)
         .task { await model.loadProfile() }
+    }
+
+    private var rowInsets: EdgeInsets {
+        .init(top: 25, leading: 0, bottom: 25, trailing: 0)
     }
 
     private func blockDialog() -> DialogItem {
