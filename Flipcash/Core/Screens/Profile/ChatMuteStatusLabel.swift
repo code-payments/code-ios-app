@@ -68,7 +68,17 @@ struct ChatMuteStatusLabel: View {
         .chip(.standard)
         .padding(.top, 3)
         .opacity(text == nil ? 0 : 1)
-        .animation(.easeInOut(duration: 0.25), value: text)
+        .scaleEffect(text == nil ? 0.85 : 1)
+        // Springs in and fades out. Arriving is the event worth seeing — the user just chose it —
+        // so it gets the overshoot; going away is either their unmute or a deadline passing, and
+        // neither wants drawing attention to. Read against the new state, so each direction picks
+        // its own curve.
+        .animation(
+            text == nil
+                ? .easeOut(duration: 0.2)
+                : .spring(response: 0.34, dampingFraction: 0.62),
+            value: text
+        )
         .accessibilityHidden(text == nil)
         .accessibilityIdentifier("chat-mute-status")
         // Drop the label the moment a timed mute lapses. Re-run whenever the expiry changes, so
