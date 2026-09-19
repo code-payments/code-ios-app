@@ -98,7 +98,8 @@ nonisolated extension Database {
                     memberCount: row[c.rosterMemberCount],
                     version: row[c.rosterVersion]
                 ),
-                rules: conversationRules(from: row)
+                rules: conversationRules(from: row),
+                viewerState: conversationViewerState(from: row)
             )
         }
     }
@@ -386,6 +387,7 @@ nonisolated extension Database {
                 c.rosterMemberCount <- conversation.rosterSummary.memberCount,
                 c.rosterVersion     <- conversation.rosterSummary.version,
                 c.rules             <- conversation.rules.flatMap { try? JSONEncoder().encode($0) },
+                c.viewerState       <- conversation.viewerState.flatMap { try? JSONEncoder().encode($0) },
                 onConflictOf: c.id
             )
         )
@@ -525,6 +527,17 @@ nonisolated extension Database {
         let c = ConversationTable()
         guard let data = row[c.rules] else { return nil }
         return try? JSONDecoder().decode(ConversationRules.self, from: data)
+    }
+
+    /// Returns nil when the chat carries no viewer state, and also when the
+    /// stored JSON doesn't decode. Degrading to "nothing known" is safe: it
+    /// renders as unmuted for the moment it takes the next metadata fetch to
+    /// replace it, and notification suppression reads the push payload rather
+    /// than this.
+    private func conversationViewerState(from row: RowIterator.Element) -> ConversationViewerState? {
+        let c = ConversationTable()
+        guard let data = row[c.viewerState] else { return nil }
+        return try? JSONDecoder().decode(ConversationViewerState.self, from: data)
     }
 
     /// Returns nil unless both rendition columns are present — the pair is

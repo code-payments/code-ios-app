@@ -273,6 +273,12 @@ nonisolated public struct ConversationTable: Sendable {
     // FlipcashAPI, so the proto can't be stored; ConversationRules is Codable
     // for exactly this.
     public let rules             = Expression <Data?>  ("rules")
+    // The signed-in viewer's per-chat state (currently mute) as JSON, same
+    // reason as `rules`. The whole struct is stored, version included, so a
+    // cold-start reload can't beat a fresher stream update; the mute is stored
+    // as its until-timestamp, never as a computed muted boolean, because a
+    // timed mute lapses with no server signal.
+    public let viewerState       = Expression <Data?>  ("viewerState")
 }
 
 // The group chats the signed-in user has joined. Its own table rather than a
@@ -562,6 +568,7 @@ nonisolated extension Database {
                 t.column(conversationTable.rosterMemberCount, defaultValue: 0)
                 t.column(conversationTable.rosterVersion, defaultValue: 0)
                 t.column(conversationTable.rules)
+                t.column(conversationTable.viewerState)
             })
         }
 

@@ -134,6 +134,7 @@ final class ConversationController {
 
     @ObservationIgnored private let fetching: any ConversationFetching
     @ObservationIgnored private let membership: any ConversationMembership
+    @ObservationIgnored private let viewerSettings: any ConversationViewerSettings
     @ObservationIgnored let messaging: any ConversationMessaging
     @ObservationIgnored private let streaming: any ConversationEventStreaming
     @ObservationIgnored private let contactNaming: any DMContactNaming
@@ -173,6 +174,7 @@ final class ConversationController {
     init(
         fetching: any ConversationFetching,
         membership: any ConversationMembership,
+        viewerSettings: any ConversationViewerSettings,
         messaging: any ConversationMessaging,
         streaming: any ConversationEventStreaming,
         contactNaming: any DMContactNaming,
@@ -186,6 +188,7 @@ final class ConversationController {
     ) {
         self.fetching = fetching
         self.membership = membership
+        self.viewerSettings = viewerSettings
         self.messaging = messaging
         self.streaming = streaming
         self.contactNaming = contactNaming
@@ -503,6 +506,11 @@ final class ConversationController {
         case .typingChanged:
             // A typing event for an unknown conversation isn't worth a metadata fetch — it's transient.
             return
+        case .viewerStateChanged:
+            // Mute is the viewer's own state, and only a chat they are in can carry it — so an
+            // unknown chat here means the feed hasn't landed, and the feed will bring the state
+            // with it. Nothing to fetch.
+            return
         }
         guard !store.conversations.contains(where: { $0.id == conversationID }),
               !hydratingConversationIDs.contains(conversationID) else {
@@ -655,6 +663,11 @@ final class ConversationController {
         }
         store.setMembership(false, in: conversationID)
         persistMembership(false, in: conversationID)
+        // The server clears mute on leave, so the cached state is stale the moment the leave lands.
+        // Dropping it locally keeps a rejoin from showing the old mute, and discards the version
+        // with it so the rejoined chat's updates aren't swallowed as stale.
+        store.clearViewerState(in: conversationID)
+        persistConversation(conversationID)
     }
 
     /// Records the signed-in user's own join or leave when a roster update names them, so a membership
@@ -690,6 +703,37 @@ final class ConversationController {
         persist(operation: "set-group-membership") {
             try database.setGroupMembership(isMember, for: conversationID)
         }
+    }
+
+    // MARK: - Mute
+
+    /// Whether the chat is muted right now.
+    ///
+    /// Takes `date` so the caller can drive the recomputation: a timed mute lapses with no server
+    /// signal, so there is no event to invalidate a cached answer and nothing may store one.
+    func isMuted(conversationID: ConversationID, at date: Date = .now) -> Bool {
+        conversation(withID: conversationID)?.isMuted(at: date) ?? false
+    }
+
+    /// Mutes a chat until `mute` lapses, or forever, seating the viewer state the server returns.
+    /// Throws so the caller can surface the failure; nothing local moves unless the server accepted it.
+    func mute(conversationID: ConversationID, _ mute: ConversationMuteState) async throws {
+        let viewerState = try await viewerSettings.muteChat(owner: owner, conversationID: conversationID, mute: mute)
+        applyViewerState(viewerState, in: conversationID)
+    }
+
+    /// Unmutes a chat. Its own RPC, not a mute of zero duration.
+    func unmute(conversationID: ConversationID) async throws {
+        let viewerState = try await viewerSettings.unmuteChat(owner: owner, conversationID: conversationID)
+        applyViewerState(viewerState, in: conversationID)
+    }
+
+    /// Seats a viewer state the RPC returned through the same version comparison a streamed
+    /// `viewerStateChanged` goes through, so a response overtaken by the stream loses rather than
+    /// reinstating the state it already replaced.
+    private func applyViewerState(_ viewerState: ConversationViewerState, in conversationID: ConversationID) {
+        store.applyViewerStateChanged(viewerState, in: conversationID)
+        persistConversation(conversationID)
     }
 
     // MARK: - Backfill
@@ -814,6 +858,10 @@ final class ConversationController {
             // `applyRosterMembership`, which persists it itself.
             persistConversation(conversationID)
             refreshFeedPreview(for: conversationID)
+        case .viewerStateChanged(let conversationID, _):
+            // Mute is cached so a chat restored cold renders muted rather than flickering unmuted
+            // until the next metadata fetch — the same reason the roster summary is cached.
+            persistConversation(conversationID)
         case .typingChanged:
             break
         }
@@ -1023,6 +1071,22 @@ final class ConversationController {
             imageData: nil,
             blurhash: member?.profilePicture?.thumbnailBlurhash
         )
+    }
+
+    /// The tip DM with `userID`, or nil when the viewer has none — what the counterpart's profile
+    /// asks so it knows whether there is a chat to mute.
+    ///
+    /// Matched against the roster rather than through `counterpart(excluding:)`, which falls back to
+    /// the first member and would answer a malformed single-member chat with the viewer themselves.
+    /// Hidden chats are excluded: a blocked counterpart's DM is off the feed, and muting a chat the
+    /// user can't see is not a control worth offering.
+    func tipDM(withUserID userID: UserID) -> Conversation? {
+        guard userID != selfUserID else { return nil }
+        return conversations.first { conversation in
+            conversation.type == .tipDm
+                && !conversation.isHidden
+                && conversation.members.contains { $0.userID == userID }
+        }
     }
 
     private func contactName(for conversationID: ConversationID) -> String? {

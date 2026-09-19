@@ -15,7 +15,7 @@ struct MessageLoaderTests {
 
     private func makeController(_ database: Database) -> ConversationController {
         ConversationController(
-            fetching: MockConversations(), membership: MockConversations(), messaging: MockConversations(), streaming: MockConversations(),
+            fetching: MockConversations(), membership: MockConversations(), viewerSettings: MockConversations(), messaging: MockConversations(), streaming: MockConversations(),
             contactNaming: MockDMContactNaming(),
             database: database,
             owner: .generate()!, selfUserID: UUID(),

@@ -31,7 +31,7 @@ struct ConversationControllerTests {
         incomingTypingExpiry: Duration = .seconds(10)
     ) -> ConversationController {
         ConversationController(
-            fetching: mock, membership: mock, messaging: mock, streaming: mock,
+            fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
             contactNaming: naming,
             database: database ?? (try! Database.makeTemp().database),
             owner: .generate()!, selfUserID: selfUserID,
