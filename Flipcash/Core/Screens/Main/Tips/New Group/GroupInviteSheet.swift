@@ -103,8 +103,7 @@ struct GroupInviteSheet: View {
 
             HStack {
                 Spacer()
-                CloseButton(binding: $isPresented)
-                    .foregroundStyle(Color.textMain)
+                CloseButton(style: .glass, binding: $isPresented)
             }
         }
     }
