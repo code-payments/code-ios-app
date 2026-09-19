@@ -9,7 +9,7 @@ import SwiftUI
 /// fill draws.
 ///
 /// A struct of statics rather than an enum so a caller can name a colour the theme doesn't have a
-/// chip token for. ``tinted(_:)`` is one line where a case would have been a new name, a new colour
+/// chip token for. ``tinted(_:on:)`` is one line where a case would have been a new name, a new colour
 /// constant, and a switch arm in two places — all for a single use.
 public struct ChipStyle {
 
