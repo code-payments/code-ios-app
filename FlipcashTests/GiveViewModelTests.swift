@@ -348,10 +348,16 @@ struct GiveViewModelTests {
 
     // MARK: - Init resolution Tests
 
+    // `SessionContainer.Holding(...)` rather than `.init(...)` in these `holdings:` literals.
+    // Swift 6.1 — what CI's Xcode builds — cannot resolve `.makeLaunchpad` and an arithmetic
+    // quark literal through an inferred array element; it defaults the product to `Int` and
+    // reports it against `UInt64`. Naming the type gives the arguments a concrete contextual
+    // type and the file compiles on both toolchains.
+
     @Test("Init with no mint and a stored selection resolves to the stored mint")
     func testInit_NoMint_HonorsStoredSelection() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
                 quarks: 1_000_000_000_000
             ),
@@ -370,11 +376,11 @@ struct GiveViewModelTests {
         // Jeffy has 100× the holding in quarks → 100× the USDF-equivalent,
         // putting Jeffy first in the `usdf`-desc sort.
         let container = try SessionContainer.makeTest(holdings: [
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 100_000 * 10_000_000_000),
                 quarks: 10_000_000_000_000
             ),
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .usdcAuthority, supplyFromBonding: 100_000 * 10_000_000_000),
                 quarks: 100_000_000_000
             ),
@@ -418,11 +424,11 @@ struct GiveViewModelTests {
     @Test("Init with a mint resolves to that mint even if a different one is stored")
     func testInit_WithMint_OverridesStoredSelection() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
                 quarks: 1_000_000_000_000
             ),
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .usdcAuthority, supplyFromBonding: 10_000 * 10_000_000_000),
                 quarks: 1_000_000_000_000
             ),
@@ -438,8 +444,8 @@ struct GiveViewModelTests {
     @Test("Init with no mint and no prior selection prefers a community currency over USDF")
     func testInit_NoMint_NoSelection_SkipsUSDF() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
                 quarks: 1_000_000_000_000
             ),
@@ -455,8 +461,8 @@ struct GiveViewModelTests {
     @Test("Init with a stale USDF global selection still resolves to a community currency")
     func testInit_NoMint_StaleUSDFSelection_SkipsUSDF() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 100_000_000_000),
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000_000),
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
                 quarks: 1_000_000_000_000
             ),
@@ -474,7 +480,7 @@ struct GiveViewModelTests {
     @Test("Over-balance bonded entry fires 'Short' dialog with a real shortfall")
     func giveAction_overBalanceBonded_firesShortDialogWithRealShortfall() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(
                     address: .jeffy,
                     supplyFromBonding: 1_000_000 * 10_000_000_000
@@ -514,7 +520,7 @@ struct GiveViewModelTests {
     @Test("Dollars give computes a 1:1 bill amount without a bonding supply")
     func prepareSubmission_usdf_succeedsWithoutSupply() async throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000), // $30
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000), // $30
         ])
         container.ratesController.configureTestRates(
             balanceCurrency: .usd,
