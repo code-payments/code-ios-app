@@ -244,7 +244,7 @@ class Session {
     /// card it is still drawing as claimable.
     @ObservationIgnored let cashLinkClaims = CashLinkClaimLog()
 
-    @ObservationIgnored private var poller: Poller!
+    @ObservationIgnored private var poller: Poller?
 
     @ObservationIgnored private var scanOperation: ScanCashOperation?
     @ObservationIgnored private var sendOperation: SendCashOperation?
@@ -489,6 +489,12 @@ class Session {
     // MARK: - Lifecycle -
     
     func didBecomeActive() {
+        // Re-arm the poller `didEnterBackground` stopped. Guarded because scenePhase → active
+        // fires repeatedly — including once at launch, after `init` has already registered it.
+        if poller == nil {
+            registerPoller()
+        }
+
         ratesController.ensureStreamConnected()
         // Anything that landed while backgrounded — a tip received, a deposit
         // that settled — is only in the local DB once history is pulled, and
@@ -506,11 +512,26 @@ class Session {
             dismissCashBill(style: .slide)
         }
 
+        // Stop the poller before anything else gets a chance to start another tick. Every tick
+        // writes the App Group store, and a write still in flight when iOS suspends us is a
+        // `0xdead10cc` kill. This only stops new ticks; `drainPoller()` waits for the current one.
+        poller?.cancel()
+
         // Drop the live rate/reserve stream — nothing consumes it in the
         // background and iOS suspends the socket anyway. `didBecomeActive`
         // re-establishes it on return, keeping the lifecycle symmetric and
         // avoiding reconnect churn during the grace window.
         ratesController.stopStreaming()
+    }
+
+    /// Waits for a poller tick that was already running when ``didEnterBackground()`` cancelled it.
+    ///
+    /// Call inside a background-task assertion, before closing the store: cancellation cannot
+    /// interrupt the tick, because the limits fetch ignores it and no suspension point separates
+    /// that fetch's return from the synchronous write that follows.
+    func drainPoller() async {
+        await poller?.waitUntilFinished()
+        poller = nil
     }
     
     // MARK: - Balance -
