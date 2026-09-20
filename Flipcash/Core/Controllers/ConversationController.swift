@@ -66,6 +66,8 @@ final class ConversationController {
             let hidden = conversation.counterpart(excluding: selfUserID)?.userID.map(blocked.contains) ?? false
             if conversation.isHidden != hidden {
                 store.setHidden(hidden, in: conversation.id)
+                // Blocking someone drops the draft aimed at them along with their chat.
+                if hidden { chatDrafts?.remove(for: conversation.id) }
             }
         }
     }
@@ -162,6 +164,15 @@ final class ConversationController {
     /// because the screen awaits it before marking read.
     @ObservationIgnored private var messageLoadsInFlight: Set<ConversationID> = []
     @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
+
+    /// The session's chat drafts, wired by `SessionContainer` after construction — the controller
+    /// is built before the container has finished assembling, and the tests build it without one.
+    @ObservationIgnored var chatDrafts: ChatDraftStore? {
+        didSet { failedSends = chatDrafts.map(FailedSendDrafts.init(store:)) }
+    }
+
+    /// Keeps the words of a send that failed — see ``FailedSendDrafts``.
+    @ObservationIgnored private var failedSends: FailedSendDrafts?
     /// The receive-side analytics concern (cumulative counters + received events),
     /// owned by its own unit. Exposed so `SessionContainer` can wire its rate lookup.
     @ObservationIgnored let receipts: ConversationReceiptReporter
@@ -668,6 +679,7 @@ final class ConversationController {
         // with it so the rejoined chat's updates aren't swallowed as stale.
         store.clearViewerState(in: conversationID)
         persistConversation(conversationID)
+        chatDrafts?.remove(for: conversationID)
     }
 
     /// Records the signed-in user's own join or leave when a roster update names them, so a membership
@@ -1336,7 +1348,12 @@ final class ConversationController {
     /// server: on success it reconciles to the confirmed message, on failure it stays in the
     /// transcript as `.failed` (never silently dropped).
     @discardableResult
-    func send(_ text: String, to conversationID: ConversationID, repliedTo: MessageID? = nil) async -> Bool {
+    func send(
+        _ text: String,
+        to conversationID: ConversationID,
+        repliedTo: MessageID? = nil,
+        restoringOnFailure draft: ChatDraft? = nil
+    ) async -> Bool {
         let clientMessageID = UUID()
         let pending = ConversationMessage(
             id: .unassigned,
@@ -1351,6 +1368,12 @@ final class ConversationController {
         let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
         store.insertPending(pending, anchoredTo: anchor, into: conversationID)
         receiptSettle.hold(clientMessageID.uuidString)
+        // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
+        // untrimmed text and the reply strip's author and snippet, and it has already cleared both
+        // by the time a failure comes back.
+        if let draft {
+            failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
+        }
         return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
     }
 
@@ -1392,10 +1415,16 @@ final class ConversationController {
             store.advanceLastActivity(to: message.date, in: conversationID)
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
+            // Outside the `ok` branch: the message reached the server either way, so a draft put
+            // back by an earlier failure has been sent and must not be restored again.
+            failedSends?.didSucceed(clientMessageID: clientMessageID)
             Analytics.sentMessage(chatType: chatType)
             return true
         } catch {
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
+            // `.failed` is memory-only here — the schema has no send-status column — so the words
+            // go back to the draft store, which is the only thing that survives leaving the chat.
+            failedSends?.didFail(clientMessageID: clientMessageID)
             logger.error("Failed to send conversation message", metadata: [
                 "conversationID": "\(conversationID)",
                 "error": "\(error)",

@@ -88,6 +88,36 @@ final class ComposerModel {
         }
     }
 
+    /// What is worth persisting for this chat. While an edit occupies the field that is the
+    /// new-message draft the edit displaced, never the edit body — leaving mid-edit must not
+    /// overwrite your own words with someone else's message.
+    ///
+    /// Whether it is stored at all is the draft store's call; this only says what it holds.
+    var persistableDraft: ChatDraft {
+        switch mode {
+        case .new:
+            ChatDraft(text: draft, replyTarget: nil)
+        case .replying(let target):
+            ChatDraft(text: draft, replyTarget: ChatDraft.ReplyTarget(target))
+        case .editing:
+            ChatDraft(text: stashedDraft, replyTarget: nil)
+        }
+    }
+
+    /// Puts a stored draft back into an untouched composer. Silent by design: the text and the
+    /// strip come back, focus and the keyboard do not — the keyboard opens only for post-tip
+    /// navigation, and a restored draft must not change that.
+    ///
+    /// Refused once anything has been typed or an edit has begun, so a restore that arrives late
+    /// cannot overwrite what the user is already writing.
+    func restore(_ stored: ChatDraft) {
+        guard case .new = mode, draft.isEmpty else { return }
+        draft = stored.text
+        if let target = stored.replyTarget {
+            mode = .replying(to: ReplyTarget(target))
+        }
+    }
+
     /// Switches the field to editing an existing message, stashing whatever was being written.
     func beginEditing(messageID: MessageID, stableID: String, currentText: String) {
         if case .new = mode {

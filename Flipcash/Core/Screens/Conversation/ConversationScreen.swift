@@ -60,8 +60,12 @@ struct ConversationScreen: View {
     @Environment(PushController.self) private var pushController
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var didInitialRead = false
+    /// The chat whose stored draft has been put back, which is also what permits saving: an empty
+    /// composer must not delete a stored draft in the frame before the restore runs.
+    @State private var restoredDraftID: ConversationID?
     @State private var barModel = ConversationBarModel()
     @State private var composer = ComposerModel()
     @State private var navBarWidth: CGFloat = 0
@@ -660,14 +664,26 @@ struct ConversationScreen: View {
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
             syncCoordinator(conversationID)
+            restoreDraft(conversationID)
         }
         // A matched contact's chat is created mid-screen on the first payment,
         // flipping the ID from nil to the new conversation; track it live.
         .onChange(of: conversationID) { _, id in
             setVisibleConversation(id, source: "onChange")
             syncCoordinator(id)
+            restoreDraft(id)
+        }
+        .onChange(of: composer.draft) { _, _ in saveDraft() }
+        // Mode rather than `replyTarget` alone: it also covers the edit transitions, where what is
+        // worth saving swaps between the field and the draft the edit displaced.
+        .onChange(of: composer.mode) { _, _ in saveDraft() }
+        // Neither a pop nor a background kill guarantees a later callback, so both write through
+        // rather than waiting out the debounce.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { saveDraft(flushing: true) }
         }
         .onDisappear {
+            saveDraft(flushing: true)
             // The composer's focus `onChange` can't fire once unmounted, so stop typing here.
             if let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
@@ -695,6 +711,25 @@ struct ConversationScreen: View {
             activity.isEligibleForHandoff = true
             activity.isEligibleForPrediction = true
         }
+    }
+
+    /// Puts the chat's stored draft back into an untouched composer, once per chat id.
+    ///
+    /// Silent by design: nothing here touches focus, so a restored draft does not bring the
+    /// keyboard up — that is still `openKeyboard`'s alone, set only by the post-tip entry.
+    private func restoreDraft(_ id: ConversationID?) {
+        guard let id, restoredDraftID != id else { return }
+        restoredDraftID = id
+        guard let stored = sessionContainer.chatDrafts.draft(for: id) else { return }
+        composer.restore(stored)
+    }
+
+    /// Records what the composer is holding. Gated on the restore having run for this chat, so the
+    /// empty field the screen starts with cannot delete the draft it is about to be given.
+    private func saveDraft(flushing: Bool = false) {
+        guard let conversationID, restoredDraftID == conversationID else { return }
+        sessionContainer.chatDrafts.save(composer.persistableDraft, for: conversationID)
+        if flushing { sessionContainer.chatDrafts.flush() }
     }
 
     /// Marks this conversation as the one on screen — the gate for foreground-banner suppression and

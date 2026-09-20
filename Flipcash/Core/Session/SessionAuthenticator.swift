@@ -476,6 +476,9 @@ final class SessionAuthenticator {
             container.usdcSweepOperation.cancel()
             container.conversationController.stop()
             container.chatSpotlightIndexer.stop()
+            // Half-written messages are this account's; the next one on the device must not find
+            // them. Covers the account switch too, which comes through here.
+            container.chatDrafts.removeAll()
             QuickActionsController.clear()
         }
 
@@ -554,6 +557,11 @@ final class SessionContainer {
     /// resets it when a new creation starts.
     let currencyCreation = CurrencyCreationState()
 
+    /// Every chat's half-written message. Session-scoped for the same reason `currencyCreation`
+    /// is — `ConversationScreen`'s `@State` dies with any pop — and disk-backed on top, because a
+    /// background app killed under memory pressure is indistinguishable from walking out and back.
+    let chatDrafts: ChatDraftStore
+
     init(
         session: Session,
         database: Database,
@@ -620,6 +628,9 @@ final class SessionContainer {
 
         self.quickActionsController = QuickActionsController()
 
+        let chatDrafts = ChatDraftStore(directory: .applicationSupportDirectory)
+        self.chatDrafts = chatDrafts
+
         let conversationController = ConversationController(
             fetching: flipClient,
             membership: flipClient,
@@ -648,6 +659,9 @@ final class SessionContainer {
                 rates: ratesController?.cachedRates ?? [:]
             ).listener.isSatisfied
         }
+        // Wired before `start()`: leaving or blocking a chat drops its draft, and a send that fails
+        // puts its text back — none of which the controller can do before it has the store.
+        conversationController.chatDrafts = chatDrafts
         conversationController.start()
         self.conversationController = conversationController
 

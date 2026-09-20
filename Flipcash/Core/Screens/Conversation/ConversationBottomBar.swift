@@ -406,14 +406,27 @@ struct ConversationComposer: View {
         switch composer.mode {
         case .new:
             guard let text = composer.submission else { return }
+            // Snapshotted before the field is emptied: a send that fails has no persisted record on
+            // this platform, so this is the only copy of the words left to put back.
+            let draft = composer.persistableDraft
             composer.clear()
             isFocused = true
-            Task { await conversationController.send(text, to: conversationID) }
+            Task { await conversationController.send(text, to: conversationID, restoringOnFailure: draft) }
         case .replying(let target):
             guard let text = composer.submission else { return }
+            // The strip travels with the text. Restoring the words alone would downgrade a reply to
+            // a loose message, which is the wrong-context send this is here to prevent.
+            let draft = composer.persistableDraft
             composer.clear()
             isFocused = true
-            Task { await conversationController.send(text, to: conversationID, repliedTo: target.messageID) }
+            Task {
+                await conversationController.send(
+                    text,
+                    to: conversationID,
+                    repliedTo: target.messageID,
+                    restoringOnFailure: draft
+                )
+            }
         case .editing(let messageID, _):
             // Confirming an edit that changed nothing leaves edit mode rather than round-tripping
             // the same text — the button is always there to be pressed.

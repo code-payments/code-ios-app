@@ -62,3 +62,13 @@ jobs:
           xcodebuild test -scheme FlipcashCoreVectors-Package \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -quiet
+
+      # The app target's own vector suites — chat drafts and link detection — assert against types
+      # only the app has, so they cannot move into either package above. Heavier than the two
+      # package schemes because it builds the app, and the first time this target runs in CI.
+      - name: App vectors
+        run: |
+          xcodebuild test -scheme Flipcash \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:FlipcashTests \
+            -quiet

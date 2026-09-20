@@ -150,4 +150,100 @@ struct ComposerModelTests {
         #expect(composer.replyTarget == nil)
         #expect(composer.draft.isEmpty)
     }
+
+    // MARK: - Draft persistence
+
+    @Test("A new-message composer persists its own text")
+    func persistableDraft_new() {
+        let composer = ComposerModel()
+        composer.draft = "see you at 5 "
+        #expect(composer.persistableDraft.text == "see you at 5 ")
+        #expect(composer.persistableDraft.replyTarget == nil)
+    }
+
+    @Test("A replying composer persists the strip alongside the text")
+    func persistableDraft_replying() {
+        let composer = ComposerModel()
+        composer.beginReplying(to: replyTarget)
+        composer.draft = "on my way"
+
+        let draft = composer.persistableDraft
+        #expect(draft.text == "on my way")
+        #expect(draft.replyTarget?.stableID == replyTarget.stableID)
+        #expect(draft.replyTarget?.authorName == replyTarget.authorName)
+        #expect(draft.replyTarget?.snippet == replyTarget.snippet)
+    }
+
+    @Test("An edit in progress persists the draft it displaced, not the edit body")
+    func persistableDraft_editing_isTheStash() {
+        let composer = ComposerModel()
+        composer.draft = "half a thought"
+        composer.beginEditing(messageID: MessageID(value: 3), stableID: "3", currentText: "an older message")
+
+        #expect(composer.persistableDraft.text == "half a thought")
+    }
+
+    @Test("An edit typed into further still persists only the stash")
+    func persistableDraft_editing_ignoresEditedText() {
+        let composer = ComposerModel()
+        composer.draft = "half a thought"
+        composer.beginEditing(messageID: MessageID(value: 3), stableID: "3", currentText: "an older message")
+        composer.draft = "an older message, revised"
+
+        #expect(composer.persistableDraft.text == "half a thought")
+    }
+
+    @Test("An edit that displaced nothing persists nothing")
+    func persistableDraft_editing_withEmptyComposer() {
+        let composer = ComposerModel()
+        composer.beginEditing(messageID: MessageID(value: 3), stableID: "3", currentText: "an older message")
+
+        #expect(composer.persistableDraft.text.isEmpty)
+        #expect(composer.persistableDraft.replyTarget == nil)
+    }
+
+    @Test("Restoring puts the text back verbatim")
+    func restore_text() {
+        let composer = ComposerModel()
+        composer.restore(ChatDraft(text: "  thinking about it  ", replyTarget: nil))
+        #expect(composer.draft == "  thinking about it  ")
+        #expect(composer.mode == .new)
+    }
+
+    @Test("Restoring a reply target re-aims the composer")
+    func restore_replyTarget() throws {
+        let composer = ComposerModel()
+        composer.restore(ChatDraft(text: "", replyTarget: ChatDraft.ReplyTarget(replyTarget)))
+
+        let restored = try #require(composer.replyTarget)
+        #expect(restored == replyTarget)
+    }
+
+    @Test("Restoring never overwrites something already being typed")
+    func restore_doesNotClobberAnEditedComposer() {
+        let composer = ComposerModel()
+        composer.draft = "already typing"
+        composer.restore(ChatDraft(text: "stale", replyTarget: nil))
+        #expect(composer.draft == "already typing")
+    }
+
+    @Test("Restoring never interrupts an edit")
+    func restore_doesNotInterruptAnEdit() {
+        let composer = ComposerModel()
+        composer.beginEditing(messageID: MessageID(value: 3), stableID: "3", currentText: "an older message")
+        composer.restore(ChatDraft(text: "stale", replyTarget: nil))
+        #expect(composer.draft == "an older message")
+        #expect(composer.isEditing)
+    }
+
+    @Test("A cleared composer persists nothing")
+    func persistableDraft_afterClear() {
+        let composer = ComposerModel()
+        composer.beginReplying(to: replyTarget)
+        composer.draft = "on my way"
+        composer.clear()
+
+        #expect(composer.persistableDraft.text.isEmpty)
+        #expect(composer.persistableDraft.replyTarget == nil)
+    }
 }
