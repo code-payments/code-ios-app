@@ -42,6 +42,21 @@ private struct ScanScreenContent: View {
         CameraPrompt(status: cameraAuthorizer.status, cameraEnabled: preferences.cameraEnabled)
     }
     
+    /// The gap the gallery button keeps above the tab bar — the same margin the
+    /// legacy pill keeps below itself, so the two read as one stack of floating
+    /// controls rather than two unrelated ones.
+    private static let tabBarGap: CGFloat = 8
+
+    /// How far the gallery button sits off the bottom. Mirrors `WalletScreen`: the
+    /// iOS 26 tab bar sits in the safe area, so the gap is the whole inset there;
+    /// the legacy pill floats over the content and has to be cleared on top of it.
+    private static var tabBarClearance: CGFloat {
+        if #available(iOS 26, *) {
+            return tabBarGap
+        }
+        return tabBarGap + HomeTabView.legacyPillClearance
+    }
+
     private let sessionContainer: SessionContainer
 
     // MARK: - Init -
@@ -82,10 +97,8 @@ private struct ScanScreenContent: View {
                 // whether or not the camera is available, so the glyph outlives the viewport.
                 GalleryScanButton(selection: $pickedItem)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    // `HomeTabBar.height` is the floating pill; 16pt clears it, and the
-                    // 20pt leading inset matches the pill's own margin.
-                    .padding(.leading, 20)
-                    .padding(.bottom, HomeTabBar.height + 16)
+                    .padding(.leading, HomeTabView.tabBarHorizontalInset)
+                    .padding(.bottom, Self.tabBarClearance)
                     .zIndex(2)
                     .transition(.opacity)
             }

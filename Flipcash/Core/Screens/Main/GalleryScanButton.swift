@@ -10,6 +10,9 @@ import FlipcashUI
 
 /// The Scan tab's gallery entry point: a photo glyph that opens the system picker.
 ///
+/// A Liquid Glass circle the height of the tab bar, so the two read as one row of
+/// controls — ``ScanScreen`` lines its leading edge up with the bar's.
+///
 /// `PhotosPicker` is out of process, so tapping this never prompts for anything. Only the
 /// recent-photo thumbnail needs library access, which is why it is drawn when access
 /// happens to exist and never asked for — see ``GalleryThumbnail``.
@@ -18,7 +21,9 @@ struct GalleryScanButton: View {
     /// Matches `HomeTabBar.iconSize`, so the glyph reads as the same weight of control as a
     /// tab icon.
     private static let glyphSize: CGFloat = 32
-    private static let tapTargetSize: CGFloat = 44
+
+    /// The glass circle, sized to the tab bar's capsule so the two sit on one line.
+    static var surfaceSize: CGFloat { HomeTabBar.height }
 
     @Binding var selection: PhotosPickerItem?
 
@@ -36,7 +41,7 @@ struct GalleryScanButton: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: Self.glyphSize, height: Self.glyphSize)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipShape(Circle())
                 } else {
                     Image(systemName: "photo.on.rectangle")
                         .font(.system(size: 24, weight: .regular))
@@ -44,9 +49,10 @@ struct GalleryScanButton: View {
                         .frame(width: Self.glyphSize, height: Self.glyphSize)
                 }
             }
-            .frame(width: Self.tapTargetSize, height: Self.tapTargetSize)
-            .contentShape(Rectangle())
+            .frame(width: Self.surfaceSize, height: Self.surfaceSize)
+            .contentShape(Circle())
         }
+        .capsuleGlassBackground()
         .accessibilityLabel(Text("Scan a code from a photo"))
         .task {
             await thumbnail.loadIfAlreadyAuthorized()
