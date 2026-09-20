@@ -144,14 +144,9 @@ class CodeExtractor: CameraSessionExtractor {
     /// Internal for the same reason as ``withLuminanceSample(from:_:)``: the tests drive it
     /// with synthesized images.
     ///
-    /// The conversion is done by hand rather than by drawing into a `CGColorSpaceCreateDeviceGray`
-    /// context, because that applies a gamma-aware conversion whose rounding differs from
-    /// Android's. Both platforms use the integer BT.601 form so that one fixture image
-    /// decodes the same way on both.
+    /// One crop, one renderer. A search that walks a ladder of crops should hold a
+    /// ``StillImageLuminanceRenderer`` instead and reuse its buffer — see ``GalleryScanner``.
     ///
-    /// `renderedSide` is the longest side of the output, so a small crop is scaled up to
-    /// give the fixed-scale scanner something big enough to read. The shorter side keeps
-    /// the crop's aspect ratio.
     /// `nonisolated` because the gallery search that calls this runs off the main actor,
     /// and the target isolates every declaration to it by default.
     nonisolated static func luminanceSample(
@@ -159,74 +154,16 @@ class CodeExtractor: CameraSessionExtractor {
         crop: CGRect,
         renderedSide: CGFloat
     ) -> Sample? {
-        let clamped = crop.intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
-
-        guard
-            clamped.width >= 1,
-            clamped.height >= 1,
-            let cropped = image.cropping(to: clamped)
-        else {
-            return nil
-        }
-
-        let longestSide = max(clamped.width, clamped.height)
-        let scale = renderedSide / longestSide
-        let width = max(Int((clamped.width * scale).rounded()), 1)
-        let height = max(Int((clamped.height * scale).rounded()), 1)
-
-        // Drawn as RGBA rather than grey so the luma weights below are ours, not
-        // CoreGraphics'. `noneSkipLast` keeps it 4 bytes per pixel with no premultiplication
-        // to undo.
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
-
-        let drawn: Bool = pixels.withUnsafeMutableBytes { raw in
-            guard
-                let base = raw.baseAddress,
-                let context = CGContext(
-                    data: base,
-                    width: width,
-                    height: height,
-                    bitsPerComponent: 8,
-                    bytesPerRow: width * 4,
-                    space: CGColorSpaceCreateDeviceRGB(),
-                    bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-                )
-            else {
-                return false
-            }
-
-            context.interpolationQuality = .high
-            context.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
-            return true
-        }
-
-        guard drawn else {
-            return nil
-        }
-
-        var luminance = Data(count: width * height)
-        luminance.withUnsafeMutableBytes { destination in
-            guard let destination = destination.bindMemory(to: UInt8.self).baseAddress else {
-                return
-            }
-            for index in 0..<(width * height) {
-                let offset = index * 4
-                let red = Int(pixels[offset])
-                let green = Int(pixels[offset + 1])
-                let blue = Int(pixels[offset + 2])
-                // BT.601, integer form. Mirrors `KikCodeScanTest.renderFrame` on Android.
-                destination[index] = UInt8((77 * red + 150 * green + 29 * blue) >> 8)
-            }
-        }
-
-        return Sample(width: width, height: height, data: luminance)
+        StillImageLuminanceRenderer().sample(from: image, crop: crop, renderedSide: renderedSide)
     }
 }
 
 // MARK: - Sample -
 
 extension CodeExtractor {
-    struct Sample {
+    /// `nonisolated` so it can cross actors: the camera builds one on the capture queue and
+    /// the gallery search builds hundreds off the main actor.
+    nonisolated struct Sample {
         let width: Int
         let height: Int
         let data: Data
