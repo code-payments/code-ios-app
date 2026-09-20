@@ -12,6 +12,13 @@ import FlipcashStore
 
 extension SessionContainer {
 
+    /// One seeded balance: the mint's metadata and the quarks held in it.
+    ///
+    /// Spell this type out at the call site rather than writing `.init(...)`. Swift 6.1 — what
+    /// CI's Xcode builds, one minor version behind a current dev machine — cannot resolve
+    /// `.makeLaunchpad` and an arithmetic quark literal through an inferred array element: it
+    /// defaults the product to `Int` and reports it against `UInt64`, and the failed binding
+    /// then poisons every later use of the container.
     struct Holding {
         let mint: MintMetadata
         let quarks: UInt64

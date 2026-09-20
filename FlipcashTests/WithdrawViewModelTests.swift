@@ -308,7 +308,7 @@ struct WithdrawViewModelTests {
     private func makeBondedSetup(withdrawalFeeQuarks: UInt64 = 0) throws -> (WithdrawViewModel, ExchangedBalance) {
         let mint: PublicKey = .jeffy
         let container = try SessionContainer.makeTest(holdings: [
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(
                     address: mint,
                     supplyFromBonding: 1_000_000 * 10_000_000_000

@@ -53,8 +53,8 @@ struct ConvertAmountViewModelTests {
     @Test("Converting the whole Dollars balance drops the entry to what the on-top fee leaves")
     func wholeDollarsBalance_isCorrected() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 10_000_000), // $10.00
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 10_000_000), // $10.00
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
         let usdf = try #require(container.session.balance(for: .usdf))
         let viewModel = Self.makeViewModel(source: usdf, container: container)
@@ -69,8 +69,8 @@ struct ConvertAmountViewModelTests {
     @Test("A Dollars entry with room for its fee is left exactly as typed")
     func dollarsEntryWithRoom_isLeftAlone() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 10_000_000), // $10.00
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 10_000_000), // $10.00
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
         let usdf = try #require(container.session.balance(for: .usdf))
         let viewModel = Self.makeViewModel(source: usdf, container: container)
@@ -84,8 +84,8 @@ struct ConvertAmountViewModelTests {
     @Test("The corrected entry clears the gate that the uncorrected one failed")
     func correctedEntry_passesTheAffordabilityGate() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 10_000_000), // $10.00
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 10_000_000), // $10.00
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
         let usdf = try #require(container.session.balance(for: .usdf))
         let viewModel = Self.makeViewModel(source: usdf, container: container)
@@ -108,8 +108,8 @@ struct ConvertAmountViewModelTests {
     @Test("Converting a whole token balance is left alone — its fee comes out of the entry")
     func wholeTokenBalance_isLeftAlone() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
-            .init(mint: .usdf, quarks: 10_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 10_000_000),
         ])
         let jeffy = try #require(container.session.balance(for: .jeffy))
         let rate = container.ratesController.rateForBalanceCurrency()

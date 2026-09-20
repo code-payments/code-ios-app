@@ -70,7 +70,7 @@ struct Regression_native_amount_mismatch {
         let liveSupply: UInt64 = 1_500_000 * 10_000_000_000
 
         let sessionContainer = try SessionContainer.makeTest(holdings: [
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: liveSupply),
                 quarks: 100 * 10_000_000_000
             ),
@@ -183,7 +183,7 @@ struct Regression_native_amount_mismatch {
     func scenarioE_convertPrepareSubmissionReturnsNilWhenNoPin() async throws {
         // Live rate + live metadata supply are present; no pinned proof is.
         let sessionContainer = try SessionContainer.makeTest(holdings: [
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 1_000_000 * 10_000_000_000),
                 quarks: 100 * 10_000_000_000
             ),

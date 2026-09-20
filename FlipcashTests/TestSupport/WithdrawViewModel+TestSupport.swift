@@ -124,7 +124,7 @@ enum WithdrawViewModelTestHelpers {
         withdrawalFeeQuarks: UInt64 = 0
     ) throws -> (container: SessionContainer, balance: ExchangedBalance) {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: MintMetadata.usdf, quarks: quarks)
+            SessionContainer.Holding(mint: MintMetadata.usdf, quarks: quarks)
         ])
         if withdrawalFeeQuarks > 0 {
             container.session.userFlags = UserFlags(

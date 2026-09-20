@@ -26,8 +26,8 @@ struct SessionBalanceOrderTests {
     private static func makeContainer(dadCashQuarks: UInt64) throws -> SessionContainer {
         try SessionContainer.makeTest(holdings: [
             // Reserves sit at exactly 1.000000 — six decimals, no curve.
-            .init(mint: .usdf, quarks: 1_000_000),
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 1_000_000),
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(
                     address: .jeffy,
                     name: "Dad Cash",

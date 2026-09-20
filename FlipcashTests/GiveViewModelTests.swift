@@ -348,12 +348,6 @@ struct GiveViewModelTests {
 
     // MARK: - Init resolution Tests
 
-    // `SessionContainer.Holding(...)` rather than `.init(...)` in these `holdings:` literals.
-    // Swift 6.1 — what CI's Xcode builds — cannot resolve `.makeLaunchpad` and an arithmetic
-    // quark literal through an inferred array element; it defaults the product to `Int` and
-    // reports it against `UInt64`. Naming the type gives the arguments a concrete contextual
-    // type and the file compiles on both toolchains.
-
     @Test("Init with no mint and a stored selection resolves to the stored mint")
     func testInit_NoMint_HonorsStoredSelection() throws {
         let container = try SessionContainer.makeTest(holdings: [

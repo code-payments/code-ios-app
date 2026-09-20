@@ -62,7 +62,7 @@ struct Regression_69f39bbb {
         let bondedQuarks: UInt64 = 100 * 10_000_000_000
 
         let sessionContainer = try SessionContainer.makeTest(holdings: [
-            .init(
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: supply),
                 quarks: bondedQuarks
             )

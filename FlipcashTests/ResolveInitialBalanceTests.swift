@@ -15,7 +15,7 @@ struct ResolveInitialBalanceTests {
     @Test("A Dollars-only account resolves to Dollars")
     func dollarsOnly_withDollars_resolvesToUSDF() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 25_000_000), // $25
+            SessionContainer.Holding(mint: .usdf, quarks: 25_000_000), // $25
         ])
         container.ratesController.selectedTokenMint = nil
 
@@ -30,7 +30,7 @@ struct ResolveInitialBalanceTests {
     @Test("Dollars that displays as $0.00 can't fund anything, so it resolves to nothing")
     func dollarsDust_resolvesToNil() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 1_000), // $0.001
+            SessionContainer.Holding(mint: .usdf, quarks: 1_000), // $0.001
         ])
         container.ratesController.selectedTokenMint = nil
 
@@ -89,8 +89,8 @@ struct ResolveInitialBalanceTests {
     /// $100k of Dollars — which sorts first — alongside a funded community currency.
     private func makeMixedContainer() throws -> SessionContainer {
         try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 100_000_000_000),
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000_000),
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(
                     address: .jeffy,
                     supplyFromBonding: 1_000_000 * 10_000_000_000
