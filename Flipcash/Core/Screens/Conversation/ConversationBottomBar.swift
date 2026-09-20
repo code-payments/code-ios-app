@@ -189,14 +189,11 @@ private struct ComposerReplyReveal: View {
 
     /// The strip's own height. Measured rather than declared: a snippet that wraps to a second line
     /// makes the sheet taller, and the clip has to know by how much.
-    @State private var naturalHeight: CGFloat = 0
-    /// Whether the strip is standing at its full height, 0 or 1 — never anything between.
     ///
-    /// Kept as a factor of `naturalHeight` rather than a height switched on `target` because the
-    /// strip has to mount before it can be measured: on a first reply it comes up at zero height,
-    /// reports what it wants, and only then takes it. The bar's host reads that second step as the
-    /// opening, so nothing depends on the two landing in one transaction.
-    @State private var progress: CGFloat = 0
+    /// Kept across replies. The strip mounts before it can be measured — on the first reply it comes
+    /// up at zero height, reports what it wants, and only then takes it — and the bar's host reads
+    /// that second step as the opening.
+    @State private var naturalHeight: CGFloat = 0
     /// The last target seen, kept after the target clears. A strip that unmounts on the way out has
     /// nothing to draw while it collapses, and the sheet slides back under the field empty.
     @State private var retained: ComposerModel.ReplyTarget?
@@ -209,17 +206,31 @@ private struct ComposerReplyReveal: View {
     /// and 1 and flickers.
     @State private var contentOpacity: CGFloat = 1
 
+    /// What the strip draws: the live target while a reply is open, and the one it is closing over
+    /// afterwards.
+    ///
+    /// Reading `target` first, rather than the retained copy alone, is what makes the sheet
+    /// self-correcting — whether it is open is derived from the target on every update instead of
+    /// being latched by a transition. A reply that arrives with no transition to catch opens like
+    /// any other: a draft restored into the composer is aimed before the bar is on screen, and the
+    /// gate keeps the bar unmounted until the chat's rules land, so the target can change while
+    /// there is no `onChange` to fire and be in place before `onAppear` would set anything. Latched,
+    /// a missed transition was also unrecoverable: `ReplyTarget` is `Equatable`, so aiming at the
+    /// same message again is not a change and `onChange` never fires for it twice.
+    private var shown: ComposerModel.ReplyTarget? { target ?? retained }
+
     /// How much height the strip is asking the bar for. Zero until it has been measured, and held at
     /// full height right through the exit — the clip closes over the quote, so there has to be a
     /// quote there to close over.
-    private var revealHeight: CGFloat { naturalHeight * progress }
+    private var revealHeight: CGFloat { shown == nil ? 0 : naturalHeight }
 
     var body: some View {
         Group {
-            if let retained {
-                ComposerReplyStrip(target: retained, onDismiss: onDismiss)
+            if let shown {
+                ComposerReplyStrip(target: shown, onDismiss: onDismiss)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { measured in
-                        measure(measured)
+                        guard naturalHeight != measured else { return }
+                        naturalHeight = measured
                     }
             }
         }
@@ -243,15 +254,15 @@ private struct ComposerReplyReveal: View {
         // instead of unmounting it does not work; the strip's own `children: .contain` container
         // survives an ancestor's `accessibilityHidden`.
         //
+        // Giving the height back is the same step, since `shown` goes with the retained copy:
+        // any earlier and the bar would shrink out from under a clip that is still closing, and show
+        // a band of the screen behind it above the composer.
+        //
         // `.task(id:)` cancels on the next change, so replying again mid-collapse keeps its strip.
         .task(id: target) {
             guard target == nil, retained != nil else { return }
             try? await Task.sleep(for: .seconds(ChatMotion.replySurface.duration))
             retained = nil
-            // Only now does the bar stop needing the strip's height. Giving it back any earlier
-            // would shrink the bar out from under a clip that is still closing, and show a band of
-            // the screen behind it above the composer.
-            progress = 0
             // Back to opaque with nothing mounted, so the next reply starts from a clean state
             // rather than fading in from wherever the last exit left it.
             contentOpacity = 1
@@ -261,39 +272,19 @@ private struct ComposerReplyReveal: View {
                 close()
                 return
             }
+            // Only for the exit: `shown` already draws the live target. This is the copy the clip
+            // closes over once the target is gone.
             retained = newValue
-            // Open from here only when a previous reply already measured the strip. On the first one
-            // the height is still unknown, and `measure(_:)` opens as soon as it arrives.
-            if naturalHeight > 0 { open() }
+            // Only ever a correction: a reply started while the last one was still fading out. A
+            // fresh reply already has this at 1, so nothing animates.
+            withAnimation(ChatMotion.replySurface.animation) { contentOpacity = 1 }
         }
-        .onAppear {
-            retained = target
-            // Already replying when the bar appears — there is no arrival to animate.
-            progress = target == nil ? 0 : 1
-            contentOpacity = 1
-        }
-    }
-
-    /// Take the strip's measured height, and open the sheet if it was waiting on this measurement.
-    ///
-    /// A height that changes while the sheet is open is a real change — a one-line snippet replaced
-    /// by a two-line one — so it moves the top edge on the same curve rather than stepping it.
-    private func measure(_ measured: CGFloat) {
-        guard naturalHeight != measured else { return }
-        let wasUnmeasured = naturalHeight == 0
-        naturalHeight = measured
-        if wasUnmeasured, target != nil { open() }
-    }
-
-    private func open() {
-        progress = 1
-        // Only ever a correction: a reply started while the last one was still fading out. A fresh
-        // reply already has this at 1, so nothing animates.
-        withAnimation(ChatMotion.replySurface.animation) { contentOpacity = 1 }
+        // Same copy, for a bar that mounts with a reply already open.
+        .onAppear { retained = target }
     }
 
     /// The quote dissolves; its height stays. The clip is what closes over it, and it needs
-    /// something to close over — `progress` goes back to zero once that has finished.
+    /// something to close over — the height goes back with the retained copy above.
     private func close() {
         withAnimation(ChatMotion.replySurface.animation) { contentOpacity = 0 }
     }
