@@ -14,10 +14,14 @@ import Testing
 /// cost of a small fixed-interval sleep. Tests are short-lived; the cost is
 /// negligible. Failure records a `Testing` issue at the call site and throws
 /// `WaitForStateTimeout` so callers can fail fast.
+///
+/// The deadline is wall time, so it has to hold on CI's shared runner, where
+/// parallel simulator clones stretch work that is instant on a dev machine
+/// into tens of seconds. It only bounds how long a *failing* wait takes.
 @MainActor
 func waitUntil<Object: AnyObject>(
     _ object: Object,
-    timeout: Duration = .seconds(10),
+    timeout: Duration = .seconds(30),
     pollInterval: Duration = .milliseconds(5),
     sourceLocation: SourceLocation = #_sourceLocation,
     matches predicate: @MainActor (Object) -> Bool

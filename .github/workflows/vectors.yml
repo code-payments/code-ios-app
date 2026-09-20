@@ -68,7 +68,8 @@ jobs:
       # package schemes because it builds the app, and the first time this target runs in CI.
       - name: App vectors
         run: |
+          # No -quiet: it suppresses test-failure diagnostics, leaving only
+          # "Test case ... failed" with no assertion text to act on.
           xcodebuild test -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
-            -only-testing:FlipcashTests \
-            -quiet
+            -only-testing:FlipcashTests
