@@ -476,9 +476,6 @@ final class SessionAuthenticator {
             container.usdcSweepOperation.cancel()
             container.conversationController.stop()
             container.chatSpotlightIndexer.stop()
-            // Half-written messages are this account's; the next one on the device must not find
-            // them. Covers the account switch too, which comes through here.
-            container.chatDrafts.removeAll()
             QuickActionsController.clear()
         }
 
@@ -560,6 +557,9 @@ final class SessionContainer {
     /// Every chat's half-written message. Session-scoped for the same reason `currencyCreation`
     /// is — `ConversationScreen`'s `@State` dies with any pop — and disk-backed on top, because a
     /// background app killed under memory pressure is indistinguishable from walking out and back.
+    ///
+    /// Owner-scoped on disk, so logout leaves it alone: the next account cannot read this one's
+    /// file, and coming back to this one is meant to find its drafts where the database is.
     let chatDrafts: ChatDraftStore
 
     init(
@@ -628,7 +628,10 @@ final class SessionContainer {
 
         self.quickActionsController = QuickActionsController()
 
-        let chatDrafts = ChatDraftStore(directory: .applicationSupportDirectory)
+        let chatDrafts = ChatDraftStore(
+            directory: .applicationSupportDirectory,
+            owner: owner.publicKey
+        )
         self.chatDrafts = chatDrafts
 
         let conversationController = ConversationController(

@@ -17,11 +17,13 @@ import FlipcashCore
 @Suite("Failed send drafts")
 struct FailedSendDraftsTests {
 
+    private let owner = try! PublicKey(Data(repeating: 7, count: 32))
+
     private func makeStore() throws -> ChatDraftStore {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("failed-sends-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return ChatDraftStore(directory: directory)
+        return ChatDraftStore(directory: directory, owner: owner)
     }
 
     private let conversationID = ConversationID(data: Data(repeating: 1, count: 32))

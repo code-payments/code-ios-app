@@ -21,6 +21,8 @@ import FlipcashCore
 @Suite("Chat draft vectors")
 struct ChatDraftVectorTests {
 
+    private let owner = try! PublicKey(Data(repeating: 7, count: 32))
+
     private final class BundleToken {}
 
     struct Target: Decodable, Equatable {
@@ -78,7 +80,7 @@ struct ChatDraftVectorTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         for (index, vector) in try loadFixture().vectors.enumerated() {
-            let store = ChatDraftStore(directory: directory)
+            let store = ChatDraftStore(directory: directory, owner: owner)
             let conversationID = ConversationID(data: Data(repeating: UInt8(index), count: 32))
             let composer = ComposerModel()
 
@@ -112,7 +114,7 @@ struct ChatDraftVectorTests {
                 }
             }
 
-            let actual = ChatDraftStore(directory: directory).draft(for: conversationID)
+            let actual = ChatDraftStore(directory: directory, owner: owner).draft(for: conversationID)
 
             guard let expected = vector.draft else {
                 #expect(actual == nil, "vector `\(vector.name)`: \(vector.note)")

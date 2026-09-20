@@ -19,6 +19,11 @@ import FlipcashCore
 /// destructive by design, and every other thing in it can be re-fetched from sync. A draft cannot.
 /// Deliberately outside the App Group container too — the notification extensions have no use for
 /// drafts, and staying out keeps them clear of `StoreLocation`'s move-and-version machinery.
+///
+/// One file per owner, named the way `StoreLocation.files(owner:)` names the SQLite store, because
+/// one Application Support directory serves every account on the device. Scoping is what keeps
+/// accounts apart; nothing erases the file on logout, for the same reason nothing erases the
+/// database — switching back to an account is meant to find it as you left it.
 @MainActor
 @Observable
 final class ChatDraftStore {
@@ -36,7 +41,6 @@ final class ChatDraftStore {
     }
 
     private static let version = 1
-    private static let fileName = "drafts.json"
 
     /// Long enough to keep a write off the keystroke path, short enough that an unclean kill
     /// between two keystrokes loses at most a word.
@@ -48,8 +52,8 @@ final class ChatDraftStore {
 
     /// Loads the session's drafts. A file that cannot be read is treated as no drafts: the words are
     /// gone either way, and refusing to start the session over them would be worse.
-    init(directory: URL) {
-        self.url = directory.appendingPathComponent(Self.fileName)
+    init(directory: URL, owner: PublicKey) {
+        self.url = directory.appendingPathComponent("flipcash-\(owner.base58)-drafts.json")
         guard
             let data = try? Data(contentsOf: url),
             let file = try? JSONDecoder().decode(File.self, from: data),
@@ -82,15 +86,6 @@ final class ChatDraftStore {
     func remove(for conversationID: ConversationID) {
         guard rows.removeValue(forKey: Self.key(conversationID)) != nil else { return }
         scheduleWrite()
-    }
-
-    /// Drops every draft, and the file with them. Logout and account switch, where leaving one
-    /// account's half-written messages on disk for the next one would be the bug.
-    func removeAll() {
-        pendingWrite?.cancel()
-        pendingWrite = nil
-        rows = [:]
-        try? FileManager.default.removeItem(at: url)
     }
 
     /// Writes now rather than on the debounce — the screen going away, and the app backgrounding,
