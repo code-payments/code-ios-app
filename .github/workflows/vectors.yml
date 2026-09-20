@@ -24,7 +24,9 @@ jobs:
   vectors:
     name: Vectors
     runs-on: macos-15
-    timeout-minutes: 30
+    # The app build and its 1664 tests took 22 of the previous 30 on a quiet
+    # run, which leaves nothing for a slow runner.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -66,10 +68,20 @@ jobs:
       # The app target's own vector suites — chat drafts and link detection — assert against types
       # only the app has, so they cannot move into either package above. Heavier than the two
       # package schemes because it builds the app, and the first time this target runs in CI.
+      # Split so the two failure classes are separable and each stays legible:
+      # the build runs -quiet (unquieted it prints every compile command, which
+      # on its own pushed this job past its timeout), while the test run does
+      # not, because -quiet there reduces a failure to "Test case ... failed"
+      # with no assertion text to act on.
+      - name: App vectors (build)
+        run: |
+          xcodebuild build-for-testing -scheme Flipcash \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:FlipcashTests \
+            -quiet
+
       - name: App vectors
         run: |
-          # No -quiet: it suppresses test-failure diagnostics, leaving only
-          # "Test case ... failed" with no assertion text to act on.
-          xcodebuild test -scheme Flipcash \
+          xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -only-testing:FlipcashTests
