@@ -443,15 +443,18 @@ struct ConversationScreen: View {
         return conversationController.lastConfirmedMessage(for: conversationID)
     }
 
-    var body: some View {
-        // The UIKit transcript hosts the bar internally and owns all keyboard handling, so there's
-        // no SwiftUI `.safeAreaInset` bar here.
-        //
-        // The gate is resolved once here and passed down. It has to be: the transcript calls
-        // `onReachTop` on every scroll frame it spends near the top, and reading `gate` re-evaluates
-        // the chat's rules against the balance and the rate table each time.
-        let gate = self.gate
-        let pagesHistory = chatExists && !gate.obscuresTranscript
+    /// The transcript and its bar, configured from this screen's state.
+    ///
+    /// Split out of `body` so the argument list and the modifier chain below it are two expressions
+    /// rather than one. Together they are more than the type checker will finish — it gives up on
+    /// CI, where it is working against a tighter budget than on a dev machine.
+    ///
+    /// `gate` is passed in rather than read here so it stays resolved once per `body`, and so the
+    /// closures below keep capturing the same value they always did.
+    private func transcript(
+        gate: ConversationGatePresentation,
+        pagesHistory: Bool
+    ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
             items: transcriptItems,
             // Paging history for a chat the server hasn't created yet fetches
@@ -492,6 +495,34 @@ struct ConversationScreen: View {
             isJoiningChat: isJoiningChat,
             authorAvatars: authorAvatars
         )
+    }
+
+    var body: some View {
+        // The UIKit transcript hosts the bar internally and owns all keyboard handling, so there's
+        // no SwiftUI `.safeAreaInset` bar here.
+        //
+        // The gate is resolved once here and passed down. It has to be: the transcript calls
+        // `onReachTop` on every scroll frame it spends near the top, and reading `gate` re-evaluates
+        // the chat's rules against the balance and the rate table each time.
+        let gate = self.gate
+        let pagesHistory = chatExists && !gate.obscuresTranscript
+        // Stages, rather than one chain. A getter is a single type-check budget however many
+        // statements it holds, and this chain is more than the compiler will finish inside one —
+        // it gives up on CI, where the budget is tighter than on a dev machine. A function each
+        // gives them a budget each.
+        return lifecycle(
+            presentation(
+                loads(
+                    chrome(transcript(gate: gate, pagesHistory: pagesHistory))
+                )
+            ),
+            gate: gate
+        )
+    }
+
+    /// Framing, background, and the navigation bar's own contents.
+    private func chrome(_ content: some View) -> some View {
+        content
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
         // what lets the iOS 26 toolbar scroll-edge effect materialize. The collection view keeps a
@@ -545,6 +576,11 @@ struct ConversationScreen: View {
                 }
             }
         }
+    }
+
+    /// The fetches the transcript needs: gate token names, sender names, and avatars.
+    private func loads(_ content: some View) -> some View {
+        content
         // Name the gate's requirement in the token it asks for. The mint may be one the user holds
         // nothing of, so the local store can miss and the fetch is what fills it.
         .task(id: gateMints) {
@@ -594,6 +630,11 @@ struct ConversationScreen: View {
                 picture: tipCounterpart?.profilePicture
             )
         }
+    }
+
+    /// What this screen puts on top of itself, and the measurement the title bar needs.
+    private func presentation(_ content: some View) -> some View {
+        content
         .sheet(item: $presentedCard) { card in
             ContactCardView(card: card)
                 .ignoresSafeArea()
@@ -628,6 +669,14 @@ struct ConversationScreen: View {
         // Keyed on existence, not just the ID: a matched contact's chat ID is
         // pre-assigned, and fetching messages for a chat the server hasn't
         // created yet error-reports. Fires when the chat materializes.
+    }
+
+    /// Opening, closing, and everything that has to be written down before either —
+    /// read watermarks, the draft, and the donated activity.
+    ///
+    /// Takes `gate` rather than reading it, so these closures capture the value `body` resolved.
+    private func lifecycle(_ content: some View, gate: ConversationGatePresentation) -> some View {
+        content
         .task(id: chatExists ? conversationID : nil) {
             guard chatExists, let conversationID else { return }
             // Ensure the conversation metadata is in the store before the title, tip styling, and Send
