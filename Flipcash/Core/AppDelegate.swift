@@ -129,7 +129,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.session.didEnterBackground()
             container.preferences.appDidEnterBackground()
             sessionContainer?.pushController.clearBadgeCount()
-            closeDatabase()
+            shutDownForBackground()
         case .active:
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
@@ -148,35 +148,50 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    /// Checkpoints and closes the store on the way to the background.
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+
+    private func endBackgroundTask() {
+        guard backgroundTaskID != .invalid else {
+            return
+        }
+
+        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+        backgroundTaskID = .invalid
+    }
+
+    /// Drains in-flight session work and closes the store on the way to the background.
     ///
     /// `.active` has no counterpart on purpose: the connections reopen on the first
     /// read after the app comes back, so a return that never happens costs nothing and
     /// a close that lands at an awkward moment repairs itself.
     ///
-    /// The background-task assertion covers the checkpoint, which is file I/O
-    /// proportional to the write-ahead log. Being suspended partway through it leaves
-    /// the log on disk for the next launch to replay rather than damaging the store, so
-    /// the assertion buys a faster next launch, not correctness.
-    private func closeDatabase() {
-        guard let database = sessionContainer?.database else {
+    /// The assertion covers the drain as well as the checkpoint, and the drain is the part
+    /// that matters for correctness. `didEnterBackground` has already cancelled the poller,
+    /// but a tick that was mid-flight keeps its SQLite write lock until it returns — and being
+    /// suspended holding a lock on the App Group store is a `0xdead10cc` kill, not a slow
+    /// next launch.
+    ///
+    /// Draining before the checkpoint is also what makes the checkpoint stick: `Database.writer`
+    /// reopens the store on next access, so a tick landing after the close re-dirties the WAL.
+    private func shutDownForBackground() {
+        guard let sessionContainer else {
             return
         }
 
-        var identifier = UIBackgroundTaskIdentifier.invalid
-        identifier = UIApplication.shared.beginBackgroundTask(withName: "database.close") {
-            UIApplication.shared.endBackgroundTask(identifier)
-            identifier = .invalid
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "database.close") { [weak self] in
+            MainActor.assumeIsolated { self?.endBackgroundTask() }
         }
 
-        do {
-            try database.close()
-        } catch {
-            logger.error("Failed to close the database", metadata: ["error": "\(error)"])
-        }
+        Task { @MainActor [weak self] in
+            defer { self?.endBackgroundTask() }
 
-        if identifier != .invalid {
-            UIApplication.shared.endBackgroundTask(identifier)
+            await sessionContainer.session.drainPoller()
+
+            do {
+                try sessionContainer.database.close()
+            } catch {
+                logger.error("Failed to close the database", metadata: ["error": "\(error)"])
+            }
         }
     }
 
