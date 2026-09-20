@@ -193,6 +193,32 @@ struct ComposerModelTests {
         #expect(composer.persistableDraft.text == "half a thought")
     }
 
+    @Test("Beginning an edit while replying stashes the text the reply was carrying")
+    func persistableDraft_replyThenEdit_keepsTheText() {
+        let composer = ComposerModel()
+        composer.beginReplying(to: replyTarget)
+        composer.draft = "half a thought"
+        composer.beginEditing(messageID: MessageID(value: 3), stableID: "3", currentText: "an older message")
+
+        // The strip goes with the field — the composer is single-mode — but the words in it are the
+        // user's own, and an edit must not consume them.
+        #expect(composer.persistableDraft.text == "half a thought")
+        #expect(composer.persistableDraft.replyTarget == nil)
+    }
+
+    @Test("Cancelling an edit that displaced a reply puts the text back without the strip")
+    func persistableDraft_replyThenEditCancelled_restoresTextOnly() {
+        let composer = ComposerModel()
+        composer.beginReplying(to: replyTarget)
+        composer.draft = "half a thought"
+        composer.beginEditing(messageID: MessageID(value: 3), stableID: "3", currentText: "an older message")
+        composer.endEditing()
+
+        #expect(composer.draft == "half a thought")
+        #expect(composer.mode == .new)
+        #expect(composer.persistableDraft.replyTarget == nil)
+    }
+
     @Test("An edit that displaced nothing persists nothing")
     func persistableDraft_editing_withEmptyComposer() {
         let composer = ComposerModel()

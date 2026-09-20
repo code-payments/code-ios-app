@@ -1,6 +1,6 @@
 {
   "algorithm": "chat-draft",
-  "note": "Chat composer drafts: a sequence of composer actions and the draft the store must hold afterwards. `draft` is null when no row should exist -- an empty draft and no draft are different states, and rule 2 is the difference. `type` sets the composer text absolutely; `leave` is the screen going away, which flushes. Text is stored verbatim, including whitespace; trimming happens at submit only. Behavior parity, not a computation with an external reference. The failed-send case is deliberately absent: it is the one behaviour the two platforms deliberately differ on.",
+  "note": "Chat composer drafts: a sequence of composer actions and the draft the store must hold afterwards. `draft` is null when no row should exist -- an empty draft and no draft are different states, and rule 2 is the difference. `type` sets the composer text absolutely; `leave` is the screen going away, which flushes. Text is stored verbatim, including whitespace; trimming happens at submit only. Behavior parity, not a computation with an external reference. The failed-send case is deliberately absent: it is the one behaviour the two platforms deliberately differ on. `replyTarget.messageId` is an opaque token -- carry it through, do not parse it.",
   "vectors": [
     {
       "name": "verbatim-trailing-space",
@@ -266,6 +266,67 @@
         "replyTarget": null
       },
       "note": "Same answer by the path both apps already implement: cancelling an edit puts the stashed draft back."
+    },
+    {
+      "name": "reply-then-edit-keeps-the-text-drops-the-strip",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "type",
+          "text": "half a thought"
+        },
+        {
+          "op": "edit",
+          "text": "an older message"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "half a thought",
+        "replyTarget": null
+      },
+      "note": "Rule 5 where reply and edit collide. Both composers are single-mode, so the edit takes the field and the strip goes with it -- but the words are the user's and are stashed like any other displaced draft. Losing them is the bug this vector exists to catch."
+    },
+    {
+      "name": "reply-then-edit-cancelled-restores-text-only",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "type",
+          "text": "half a thought"
+        },
+        {
+          "op": "edit",
+          "text": "an older message"
+        },
+        {
+          "op": "cancelEdit"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "half a thought",
+        "replyTarget": null
+      },
+      "note": "Cancelling puts the stash back, and the strip stays gone -- the edit dismissed it, which is not something cancel undoes."
     },
     {
       "name": "edit-with-nothing-stashed-is-no-draft",

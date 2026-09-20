@@ -119,8 +119,12 @@ final class ComposerModel {
     }
 
     /// Switches the field to editing an existing message, stashing whatever was being written.
+    ///
+    /// Stashed out of a reply as well as out of a new message. The field is single-mode, so the
+    /// strip goes when the edit takes it — but the words in the field are the user's own, and only
+    /// an edit already in progress has nothing of theirs left to displace.
     func beginEditing(messageID: MessageID, stableID: String, currentText: String) {
-        if case .new = mode {
+        if !isEditing {
             stashedDraft = draft
         }
         mode = .editing(messageID: messageID, stableID: stableID)
