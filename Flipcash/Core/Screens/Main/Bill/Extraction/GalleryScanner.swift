@@ -30,8 +30,15 @@ nonisolated struct GalleryScanner {
 
     /// Not `Equatable`: `ScannedCode` carries payload types that are not, and the one place
     /// that wants equality is a test asserting a non-code outcome, which pattern-matches.
+    /// Where in the ladder a Kik code turned up. The caller times the search; this says
+    /// what the time bought.
+    struct Match {
+        let tier: StillImageCodeSearch.Tier
+        let zoom: CGFloat
+    }
+
     enum Outcome {
-        case code(ScannedCode)
+        case code(ScannedCode, Match)
         case url(URL)
         case nothingFound
         /// The budget ran out, or the caller cancelled. Reported the same way as
@@ -82,8 +89,9 @@ nonisolated struct GalleryScanner {
                 logger.debug("Kik code found in still image", metadata: [
                     "crop": "\(candidate.rect)",
                     "zoom": "\(candidate.zoom)",
+                    "tier": "\(candidate.tier.rawValue)",
                 ])
-                return .code(code)
+                return .code(code, Match(tier: candidate.tier, zoom: candidate.zoom))
             }
         }
 

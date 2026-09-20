@@ -86,6 +86,20 @@ extension Analytics {
         case presented = "Tip Card Presented"
     }
 
+    enum GalleryScanEvent: String, AnalyticsEvent {
+        case picked       = "Gallery Scan: Image Picked"
+        case codeFound    = "Gallery Scan: Code Found"
+        case nothingFound = "Gallery Scan: Nothing Found"
+    }
+
+    /// Why a gallery scan came back with nothing. `cancelled` covers both the user tapping
+    /// Cancel and the budget running out, which are the same event from the search's side.
+    enum GalleryScanMiss: String {
+        case exhausted    = "Exhausted"
+        case cancelled    = "Cancelled"
+        case routeRefused = "Route Refused"
+    }
+
     enum PhoneEvent: String, AnalyticsEvent {
         case entered  = "Entered Phone Number"
         case verified = "Verified Phone Number"
@@ -166,6 +180,53 @@ extension Analytics {
             event: AccountEvent.createAccount,
             properties: [
                 .ownerPublicKey: owner.base58,
+            ]
+        )
+    }
+}
+
+// MARK: - Gallery Scan -
+
+extension Analytics {
+    /// A picked image is about to be searched.
+    static func galleryScanStarted() {
+        track(event: GalleryScanEvent.picked)
+    }
+
+    /// A Kik code was found, and how deep in the ladder it was. The tier and zoom are the
+    /// reason these events exist: the ladder's constants were inherited without ever being
+    /// measured, and a tier distribution is what would justify or shrink them.
+    static func galleryScanFoundCode(tier: String, zoom: Double, elapsed: TimeInterval) {
+        track(
+            event: GalleryScanEvent.codeFound,
+            properties: [
+                .type:    "Kik",
+                .tier:    tier,
+                .zoom:    zoom,
+                .elapsed: elapsed,
+            ]
+        )
+    }
+
+    /// A QR code was found. No tier: QR is a single pass over the whole image.
+    static func galleryScanFoundQR(elapsed: TimeInterval) {
+        track(
+            event: GalleryScanEvent.codeFound,
+            properties: [
+                .type:    "QR",
+                .elapsed: elapsed,
+            ]
+        )
+    }
+
+    /// Nothing usable was found, and how long that took. A search that ran out of ladder is
+    /// a different fact from one that ran out of time.
+    static func galleryScanFoundNothing(reason: GalleryScanMiss, elapsed: TimeInterval) {
+        track(
+            event: GalleryScanEvent.nothingFound,
+            properties: [
+                .state:   reason.rawValue,
+                .elapsed: elapsed,
             ]
         )
     }
@@ -477,6 +538,10 @@ extension Analytics {
         case chatType          = "Chat Type"
         case error             = "Error"
         case url               = "URL"
+
+        case tier              = "Tier"
+        case zoom              = "Zoom"
+        case elapsed           = "Elapsed"
 
         case title             = "Title"
         case message           = "Message"

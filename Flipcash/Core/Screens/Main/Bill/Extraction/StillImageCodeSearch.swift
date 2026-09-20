@@ -28,6 +28,17 @@ nonisolated enum StillImageCodeSearch {
         let rect: CGRect
         /// How much the crop is scaled up before scanning.
         let zoom: CGFloat
+        /// Which pass produced this crop.
+        let tier: Tier
+    }
+
+    /// The three passes, in the order they run. Carried on each candidate so a successful
+    /// scan can report how deep it had to go: the ladder's constants are inherited and
+    /// unmeasured, and that report is the measurement.
+    enum Tier: String {
+        case wholeImage
+        case quadrant
+        case window
     }
 
     /// A quadrant is not subdivided below this, because a code smaller than this in the
@@ -53,7 +64,7 @@ nonisolated enum StillImageCodeSearch {
     static func candidates(in size: CGSize) -> [Candidate] {
         let bounds = CGRect(origin: .zero, size: size)
 
-        var candidates: [Candidate] = [Candidate(rect: bounds, zoom: 1)]
+        var candidates: [Candidate] = [Candidate(rect: bounds, zoom: 1, tier: .wholeImage)]
         var seen: Set<String> = [key(for: candidates[0])]
 
         appendSubdivisions(of: bounds, to: &candidates, seen: &seen)
@@ -85,7 +96,7 @@ nonisolated enum StillImageCodeSearch {
                     height: halfHeight
                 )
 
-                append(quadrant, to: &candidates, seen: &seen)
+                append(quadrant, tier: .quadrant, to: &candidates, seen: &seen)
                 appendSubdivisions(of: quadrant, to: &candidates, seen: &seen)
             }
         }
@@ -106,6 +117,7 @@ nonisolated enum StillImageCodeSearch {
             while x + windowSize <= bounds.width {
                 append(
                     CGRect(x: x, y: y, width: windowSize, height: windowSize),
+                    tier: .window,
                     to: &candidates,
                     seen: &seen
                 )
@@ -121,13 +133,14 @@ nonisolated enum StillImageCodeSearch {
     /// crop-and-zoom pair already enumerated by an earlier tier.
     private static func append(
         _ rect: CGRect,
+        tier: Tier,
         to candidates: inout [Candidate],
         seen: inout Set<String>
     ) {
         let longestSide = max(rect.width, rect.height)
 
         for zoom in zoomLevels where longestSide * zoom <= maximumRenderedSide {
-            let candidate = Candidate(rect: rect, zoom: zoom)
+            let candidate = Candidate(rect: rect, zoom: zoom, tier: tier)
             let key = key(for: candidate)
 
             guard !seen.contains(key) else { continue }

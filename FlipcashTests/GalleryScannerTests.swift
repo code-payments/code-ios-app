@@ -74,7 +74,7 @@ struct GalleryScannerTests {
 
         let outcome = await GalleryScanner().scan(image)
 
-        guard case .code(let code) = outcome else {
+        guard case .code(let code, _) = outcome else {
             Issue.record("expected a code, got \(outcome)")
             return
         }

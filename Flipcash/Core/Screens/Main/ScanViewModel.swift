@@ -215,16 +215,30 @@ class ScanViewModel {
             return .nothingFound
         }
 
-        switch await GalleryScanner().scan(image) {
-        case .code(let code):
+        Analytics.galleryScanStarted()
+
+        let started = Date()
+        let outcome = await GalleryScanner().scan(image)
+        let elapsed = Date().timeIntervalSince(started)
+
+        switch outcome {
+        case .code(let code, let match):
+            Analytics.galleryScanFoundCode(
+                tier: match.tier.rawValue,
+                zoom: Double(match.zoom),
+                elapsed: elapsed
+            )
             return await handle(code)
 
         case .url(let url):
             guard Self.canScanQR(url: url) else {
+                Analytics.galleryScanFoundNothing(reason: .routeRefused, elapsed: elapsed)
                 // Deliberately indistinguishable from "nothing found". Someone who has been
                 // sent a login QR learns nothing about why it was refused.
                 return .nothingFound
             }
+
+            Analytics.galleryScanFoundQR(elapsed: elapsed)
 
             logger.debug("QR code scanned from still image", metadata: [
                 "url": "\(url.sanitizedForAnalytics)",
@@ -237,7 +251,12 @@ class ScanViewModel {
             )
             return .handled
 
-        case .nothingFound, .cancelled:
+        case .nothingFound:
+            Analytics.galleryScanFoundNothing(reason: .exhausted, elapsed: elapsed)
+            return .nothingFound
+
+        case .cancelled:
+            Analytics.galleryScanFoundNothing(reason: .cancelled, elapsed: elapsed)
             return .nothingFound
         }
     }
