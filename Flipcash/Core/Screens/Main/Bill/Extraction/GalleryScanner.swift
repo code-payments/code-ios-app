@@ -19,19 +19,26 @@ nonisolated private let logger = Logger(label: "flipcash.scan.gallery")
 /// The camera path in ``CodeExtractor`` sees a code because the user aimed at one. Here the
 /// image is whatever was picked, so the Kik search has to crop and scale its way across it
 /// — see ``StillImageCodeSearch``. QR needs none of that: `VNDetectBarcodesRequest` scales
-/// internally, which is why it is one pass at the end rather than a tier of its own.
+/// internally, which is why it is one pass rather than a tier of its own.
 ///
-/// Kik runs first, matching the camera's detector order in Android's
-/// `rememberMultiCodeAnalyzer` (`listOf(kikCodeAnalyzer, qrCodeAnalyzer)`).
+/// The order is: the whole image as a Kik code, then everything else at once. Tier 1 is a
+/// single crop and it is the one a screenshot of a bill hits, so it runs alone and a hit
+/// there costs nothing else. After that the remaining crops and the QR pass race, because
+/// the alternative — the full ladder, then QR — makes a picked QR wait out the entire
+/// budget for a pass that takes a fraction of a second.
 ///
 /// `nonisolated` because the target defaults to `@MainActor`, and a search that renders and
-/// decodes dozens of crops must not run there — see ``scan(_:budget:)``.
+/// decodes hundreds of crops must not run there — see ``scan(_:budget:)``.
 nonisolated struct GalleryScanner {
 
     /// Not `Equatable`: `ScannedCode` carries payload types that are not, and the one place
     /// that wants equality is a test asserting a non-code outcome, which pattern-matches.
     /// Where in the ladder a Kik code turned up. The caller times the search; this says
     /// what the time bought.
+    ///
+    /// Approximate past tier 1: the crops are searched in parallel, so this is the first
+    /// hit reported rather than strictly the shallowest. Close enough to tell a screenshot
+    /// from a photo of a screen across a room, which is what it is for.
     struct Match {
         let tier: StillImageCodeSearch.Tier
         let zoom: CGFloat
@@ -49,7 +56,18 @@ nonisolated struct GalleryScanner {
     /// How long the whole search may take. Long enough that no successful search has ever
     /// hit it, short enough that a photo of a wall gives up. A guess, not a measurement —
     /// see the spec's open decisions.
+    ///
+    /// It bounds the crops, not the QR pass, which is a single uninterruptible call.
     static let budget: TimeInterval = 8.0
+
+    /// How many crops are rendered at once.
+    ///
+    /// One short of the cores, so the main actor still has somewhere to draw the spinner
+    /// whose Cancel button ends this, and capped because each worker holds a render buffer
+    /// of up to 10 MB.
+    static var workerCount: Int {
+        min(max(ProcessInfo.processInfo.activeProcessorCount - 1, 1), 6)
+    }
 
     /// Searches `image`, giving up after `budget` seconds or on cancellation.
     ///
@@ -61,14 +79,105 @@ nonisolated struct GalleryScanner {
     func scan(_ image: CGImage, budget: TimeInterval = GalleryScanner.budget) async -> Outcome {
         let deadline = Date().addingTimeInterval(budget)
         let size = CGSize(width: image.width, height: image.height)
+        let candidates = StillImageCodeSearch.candidates(in: size)
 
-        var exhausted = true
+        let wholeImage = candidates.prefix { $0.tier == .wholeImage }
 
-        for candidate in StillImageCodeSearch.candidates(in: size) {
-            if Task.isCancelled || Date() >= deadline {
-                exhausted = false
-                break
+        switch Self.walk(Array(wholeImage), of: image, until: deadline) {
+        case .found(let code, let match):
+            return .code(code, match)
+        case .stopped:
+            return .cancelled
+        case .url, .nothing:
+            break
+        }
+
+        return await Self.race(
+            Array(candidates.dropFirst(wholeImage.count)),
+            in: image,
+            until: deadline
+        )
+    }
+
+    // MARK: - Search -
+
+    /// What one task came back with.
+    private enum Finding {
+        case found(ScannedCode, Match)
+        case url(URL)
+        /// Ran to the end and found nothing, which is an answer.
+        case nothing
+        /// Gave up on the deadline or on cancellation, so nothing found is not an answer.
+        case stopped
+    }
+
+    /// The remaining crops and the QR pass, running against each other, first answer wins.
+    ///
+    /// A picked image holds a Kik code or a QR, effectively never both, so which would win a
+    /// tie is not worth the wait it would cost to settle: awaiting the crops before reading
+    /// the QR result would hold every QR screenshot for the length of the ladder.
+    private static func race(
+        _ candidates: [StillImageCodeSearch.Candidate],
+        in image: CGImage,
+        until deadline: Date
+    ) async -> Outcome {
+        await withTaskGroup(of: Finding.self) { group in
+            group.addTask {
+                detectQR(in: image).map { Finding.url($0) } ?? .nothing
             }
+
+            let workers = workerCount
+            for stripe in 0..<workers {
+                group.addTask {
+                    walk(candidates, from: stripe, by: workers, of: image, until: deadline)
+                }
+            }
+
+            var stopped = false
+
+            for await finding in group {
+                switch finding {
+                case .found(let code, let match):
+                    group.cancelAll()
+                    return .code(code, match)
+                case .url(let url):
+                    group.cancelAll()
+                    return .url(url)
+                case .stopped:
+                    stopped = true
+                case .nothing:
+                    break
+                }
+            }
+
+            return stopped ? .cancelled : .nothingFound
+        }
+    }
+
+    /// Renders and decodes every `step`th candidate from `offset`.
+    ///
+    /// Striding rather than taking a contiguous slice each: the ladder is ordered cheapest
+    /// and likeliest first, and a worker given the tail of it would spend the whole budget
+    /// on the crops least likely to hold anything.
+    ///
+    /// One renderer for the whole walk, so the buffer is allocated once rather than per crop.
+    private static func walk(
+        _ candidates: [StillImageCodeSearch.Candidate],
+        from offset: Int = 0,
+        by step: Int = 1,
+        of image: CGImage,
+        until deadline: Date
+    ) -> Finding {
+        let renderer = StillImageLuminanceRenderer()
+        var index = offset
+
+        while index < candidates.count {
+            if Task.isCancelled || Date() >= deadline {
+                return .stopped
+            }
+
+            let candidate = candidates[index]
+            index += step
 
             let renderedSide = min(
                 max(candidate.rect.width, candidate.rect.height) * candidate.zoom,
@@ -76,7 +185,7 @@ nonisolated struct GalleryScanner {
             )
 
             guard
-                let sample = CodeExtractor.luminanceSample(
+                let sample = renderer.sample(
                     from: image,
                     crop: candidate.rect,
                     renderedSide: renderedSide
@@ -85,25 +194,17 @@ nonisolated struct GalleryScanner {
                 continue
             }
 
-            if let code = Self.decode(sample) {
+            if let code = decode(sample) {
                 logger.debug("Kik code found in still image", metadata: [
                     "crop": "\(candidate.rect)",
                     "zoom": "\(candidate.zoom)",
                     "tier": "\(candidate.tier.rawValue)",
                 ])
-                return .code(code, Match(tier: candidate.tier, zoom: candidate.zoom))
+                return .found(code, Match(tier: candidate.tier, zoom: candidate.zoom))
             }
         }
 
-        if Task.isCancelled {
-            return .cancelled
-        }
-
-        if let url = Self.detectQR(in: image) {
-            return .url(url)
-        }
-
-        return exhausted ? .nothingFound : .cancelled
+        return .nothing
     }
 
     // MARK: - Kik -

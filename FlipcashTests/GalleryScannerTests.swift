@@ -103,10 +103,10 @@ struct GalleryScannerTests {
 
     @Test("an image with no code reports nothing found")
     func emptyImageFindsNothing() async throws {
-        // Small on purpose: this asserts the outcome when the ladder runs out, so the ladder
-        // has to be able to run out inside the budget. A full-size photo yields hundreds of
-        // crops and gives up on the deadline instead, which is `.cancelled`.
-        let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 600, height: 450))
+        // Screenshot-sized rather than token-sized: the distinction between running out of
+        // crops and running out of time only means anything if a real image can run out of
+        // crops first, and 517 of them inside the budget is the claim being made.
+        let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 1179, height: 2556))
 
         let outcome = await GalleryScanner().scan(image)
 
@@ -118,9 +118,9 @@ struct GalleryScannerTests {
 
     @Test("the budget is respected when there is nothing to find")
     func budgetIsRespected() async throws {
-        // Large enough that the full ladder cannot finish in half a second, so the deadline
-        // is what ends the search rather than the ladder running out.
-        let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 3000, height: 2000))
+        // A full 12 MP frame, so the deadline is what ends the search rather than the ladder
+        // running out. Its 2338 crops take seconds even spread across every core.
+        let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 3024, height: 4032))
 
         let started = Date()
         let outcome = await GalleryScanner().scan(image, budget: 0.5)
@@ -148,20 +148,27 @@ struct GalleryScannerTests {
         }
     }
 
-    @Test("a QR code decodes without walking the Kik ladder")
+    @Test("a QR code decodes without waiting for the Kik ladder")
     func qrCodeDecodes() async throws {
+        // Deliberately large: the QR pass and the crops race, and on an image this size the
+        // crops take seconds. Timing it is the only way to tell a race from a queue — with
+        // the QR pass behind the ladder this would still return the right URL, just far
+        // later than anyone would hold a phone still for.
         let image = try Self.makeQRImage(
             string: "https://send.flipcash.com/c/#/e=abc",
-            size: CGSize(width: 800, height: 800)
+            size: CGSize(width: 2400, height: 2400)
         )
 
+        let started = Date()
         let outcome = await GalleryScanner().scan(image)
+        let elapsed = Date().timeIntervalSince(started)
 
         guard case .url(let url) = outcome else {
             Issue.record("expected a URL, got \(outcome)")
             return
         }
         #expect(url == URL(string: "https://send.flipcash.com/c/#/e=abc")!)
+        #expect(elapsed < 3, "QR took \(elapsed)s, which is the ladder's time, not the QR pass's")
     }
 
     @Test("the scanner reports a login URL and the allowlist refuses it")
