@@ -4,11 +4,13 @@
 //
 
 import CoreGraphics
+import CoreImage
 import SwiftUI
 import Testing
 import UIKit
 
 import CodeScanner
+import FlipcashCore
 @testable import Flipcash
 @testable import FlipcashUI
 
@@ -19,8 +21,14 @@ import CodeScanner
 @Suite("Gallery Scanner")
 struct GalleryScannerTests {
 
-    /// `kikCodeEncodeRemote` takes a 20-byte payload.
-    static let payload = Data((0..<20).map { UInt8(($0 &* 7 &+ 11) % 251) })
+    /// A real cash payload rather than 20 arbitrary bytes: `ScannedCode` dispatches on the
+    /// leading kind byte, so bytes that are not a cash or tip code decode from the image and
+    /// then fail to parse — indistinguishable, from the scanner's outside, from finding nothing.
+    static let payload = CashCode.Payload(
+        kind: .cash,
+        fiat: FiatAmount(value: 5, currency: .usd),
+        nonce: Data([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10])
+    ).encode()
 
     // MARK: - Luminance -
 
@@ -56,6 +64,122 @@ struct GalleryScannerTests {
         )
 
         #expect(sample.data.allSatisfy { $0 == 28 }, "expected BT.601 luma of 28 for pure blue")
+    }
+
+    // MARK: - Decoding -
+
+    @Test("a code filling the frame decodes on the first tier")
+    func fullFrameCodeDecodes() async throws {
+        let image = try Self.makeImage(size: CGSize(width: 1200, height: 1200), codeSide: 1000)
+
+        let outcome = await GalleryScanner().scan(image)
+
+        guard case .code(let code) = outcome else {
+            Issue.record("expected a code, got \(outcome)")
+            return
+        }
+
+        switch code {
+        case .cash, .tip:
+            break
+        }
+    }
+
+    @Test("a small off-centre code decodes from a later tier")
+    func smallOffCentreCodeDecodes() async throws {
+        let image = try Self.makeImage(
+            size: CGSize(width: 1600, height: 1200),
+            codeSide: 260,
+            origin: CGPoint(x: 120, y: 700)
+        )
+
+        let outcome = await GalleryScanner().scan(image)
+
+        guard case .code = outcome else {
+            Issue.record("expected a code, got \(outcome)")
+            return
+        }
+    }
+
+    @Test("an image with no code reports nothing found")
+    func emptyImageFindsNothing() async throws {
+        // Small on purpose: this asserts the outcome when the ladder runs out, so the ladder
+        // has to be able to run out inside the budget. A full-size photo yields hundreds of
+        // crops and gives up on the deadline instead, which is `.cancelled`.
+        let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 600, height: 450))
+
+        let outcome = await GalleryScanner().scan(image)
+
+        guard case .nothingFound = outcome else {
+            Issue.record("expected nothing found, got \(outcome)")
+            return
+        }
+    }
+
+    @Test("the budget is respected when there is nothing to find")
+    func budgetIsRespected() async throws {
+        // Large enough that the full ladder cannot finish in half a second, so the deadline
+        // is what ends the search rather than the ladder running out.
+        let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 3000, height: 2000))
+
+        let started = Date()
+        let outcome = await GalleryScanner().scan(image, budget: 0.5)
+        let elapsed = Date().timeIntervalSince(started)
+
+        guard case .cancelled = outcome else {
+            Issue.record("expected the budget to end the search, got \(outcome)")
+            return
+        }
+        // One crop may overrun the deadline, since the budget is checked between candidates
+        // rather than inside the native scanner. The margin is for that, not for slack.
+        #expect(elapsed < 2.0, "budget of 0.5s took \(elapsed)s")
+    }
+
+    @Test("a cancelled scan stops without a result")
+    func cancellationStopsTheSearch() async throws {
+        let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 2400, height: 1800))
+
+        let task = Task { await GalleryScanner().scan(image) }
+        task.cancel()
+
+        guard case .cancelled = await task.value else {
+            Issue.record("expected cancellation")
+            return
+        }
+    }
+
+    @Test("a QR code decodes without walking the Kik ladder")
+    func qrCodeDecodes() async throws {
+        let image = try Self.makeQRImage(
+            string: "https://send.flipcash.com/c/#/e=abc",
+            size: CGSize(width: 800, height: 800)
+        )
+
+        let outcome = await GalleryScanner().scan(image)
+
+        guard case .url(let url) = outcome else {
+            Issue.record("expected a URL, got \(outcome)")
+            return
+        }
+        #expect(url == URL(string: "https://send.flipcash.com/c/#/e=abc")!)
+    }
+
+    @Test("the scanner reports a login URL and the allowlist refuses it")
+    func loginQrIsRefusedByTheAllowlist() async throws {
+        // The scanner's job is to report what it saw; refusing it is `canScanQR`'s. Asserted
+        // as two steps because that separation is what lets one allowlist serve the camera,
+        // the gallery, and the share sheet.
+        let image = try Self.makeQRImage(
+            string: "https://send.flipcash.com/login/#/e=abc",
+            size: CGSize(width: 800, height: 800)
+        )
+
+        guard case .url(let url) = await GalleryScanner().scan(image) else {
+            Issue.record("expected the QR to decode")
+            return
+        }
+
+        #expect(ScanViewModel.canScanQR(url: url) == false)
     }
 
     // MARK: - Helpers -
@@ -108,6 +232,32 @@ struct GalleryScannerTests {
         }
 
         guard let cgImage = image.cgImage else {
+            throw Failure.renderFailed
+        }
+        return cgImage
+    }
+
+    /// A QR code rendered dark-on-light, which is the polarity `CIQRCodeGenerator`
+    /// produces and the polarity Vision expects.
+    static func makeQRImage(string: String, size: CGSize) throws -> CGImage {
+        guard
+            let filter = CIFilter(name: "CIQRCodeGenerator"),
+            let data = string.data(using: .utf8)
+        else {
+            throw Failure.renderFailed
+        }
+
+        filter.setValue(data, forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+
+        guard let output = filter.outputImage else {
+            throw Failure.renderFailed
+        }
+
+        let scale = min(size.width / output.extent.width, size.height / output.extent.height)
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+
+        guard let cgImage = CIContext().createCGImage(scaled, from: scaled.extent) else {
             throw Failure.renderFailed
         }
         return cgImage

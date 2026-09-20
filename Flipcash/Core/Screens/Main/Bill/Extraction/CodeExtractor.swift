@@ -152,7 +152,9 @@ class CodeExtractor: CameraSessionExtractor {
     /// `renderedSide` is the longest side of the output, so a small crop is scaled up to
     /// give the fixed-scale scanner something big enough to read. The shorter side keeps
     /// the crop's aspect ratio.
-    static func luminanceSample(
+    /// `nonisolated` because the gallery search that calls this runs off the main actor,
+    /// and the target isolates every declaration to it by default.
+    nonisolated static func luminanceSample(
         from image: CGImage,
         crop: CGRect,
         renderedSide: CGFloat
