@@ -78,9 +78,12 @@ struct ChatDraftStoreTests {
         let store = ChatDraftStore(directory: directory, owner: owner)
         store.save(ChatDraft(text: "on my way", replyTarget: nil), for: id)
 
-        try await Task.sleep(for: .milliseconds(900))
-
-        #expect(ChatDraftStore(directory: directory, owner: owner).draft(for: id)?.text == "on my way")
+        // Polled rather than slept past: the debounce is 300 ms of wall time
+        // plus however long the write waits to be scheduled, which on a loaded
+        // machine outruns any fixed multiple of the interval.
+        try await waitUntil(pollInterval: .milliseconds(25)) {
+            ChatDraftStore(directory: directory, owner: owner).draft(for: id)?.text == "on my way"
+        }
     }
 
     @Test("Text is stored verbatim, whitespace and all")

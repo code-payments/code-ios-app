@@ -42,4 +42,31 @@ func waitUntil<Object: AnyObject>(
     }
 }
 
+/// Polls `predicate` until it holds or the timeout elapses, for state that no
+/// object reference reaches — a file a debounced write puts on disk, say.
+///
+/// Use this instead of sleeping past the interval you are waiting on. A fixed
+/// sleep encodes an assumption about how promptly the work gets scheduled, and
+/// that assumption is what fails on CI's shared runner: a 300 ms debounce can
+/// land well after 900 ms of wall time there while landing in 5 ms locally.
+@MainActor
+func waitUntil(
+    timeout: Duration = .seconds(30),
+    pollInterval: Duration = .milliseconds(5),
+    sourceLocation: SourceLocation = #_sourceLocation,
+    _ predicate: @MainActor () throws -> Bool
+) async throws {
+    let deadline = ContinuousClock().now + timeout
+    while try !predicate() {
+        if ContinuousClock().now >= deadline {
+            Issue.record(
+                "waitUntil timed out after \(timeout).",
+                sourceLocation: sourceLocation
+            )
+            throw WaitForStateTimeout()
+        }
+        try await Task.sleep(for: pollInterval)
+    }
+}
+
 struct WaitForStateTimeout: Error {}
