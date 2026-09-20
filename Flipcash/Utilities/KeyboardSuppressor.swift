@@ -27,6 +27,12 @@ final class KeyboardSuppressor {
     private var observer: (any NSObjectProtocol)?
     private var expiry: Task<Void, Never>?
 
+    /// When the open window closes; `nil` when none is open. The window is
+    /// measured rather than inferred from `expiry` having fired, because a
+    /// task scheduled for `window` ms resumes late on a loaded machine, and a
+    /// keyboard raised after the window has elapsed is one to let through.
+    private var closesAt: ContinuousClock.Instant?
+
     /// - Parameters:
     ///   - windowMilliseconds: must outlast the scene activation that restores
     ///     the first responder, and close before anything the routing lands on
@@ -62,6 +68,8 @@ final class KeyboardSuppressor {
         lower()
         guard observer == nil else { return }
 
+        closesAt = ContinuousClock().now + .milliseconds(window)
+
         // Handled on the posting thread (UIKit posts keyboard notifications on
         // the main one) rather than hopped through a `Task`: a hop lands a
         // runloop late, by which point the keyboard has begun animating in.
@@ -70,7 +78,11 @@ final class KeyboardSuppressor {
             object: nil,
             queue: nil
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.lower() }
+            MainActor.assumeIsolated {
+                guard let self, let closesAt = self.closesAt,
+                      ContinuousClock().now < closesAt else { return }
+                self.lower()
+            }
         }
 
         expiry = Task { [weak self, window] in
@@ -86,5 +98,6 @@ final class KeyboardSuppressor {
         observer = nil
         expiry?.cancel()
         expiry = nil
+        closesAt = nil
     }
 }
