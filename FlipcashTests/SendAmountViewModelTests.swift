@@ -42,7 +42,7 @@ struct SendAmountViewModelTests {
     /// recipient resolve.
     static func makeFundedContainer() throws -> SessionContainer {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 100_000_000), // $100 USDF
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000), // $100 USDF
         ])
         container.ratesController.configureTestRates(rates: [.oneToOne])
         return container
@@ -84,8 +84,8 @@ struct SendAmountViewModelTests {
         // account — auto-picking it would open every send in Dollars, so the
         // resolver prefers the launchpad currency and keeps Dollars as a fallback.
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
                 quarks: 1_000_000_000_000
             ),
@@ -103,8 +103,8 @@ struct SendAmountViewModelTests {
         // `ensureValidTokenSelection` parks the global selection on the highest
         // balance, which is routinely USDF — that isn't an intentional Dollars pick.
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 100_000_000_000),
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000_000),
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
                 quarks: 1_000_000_000_000
             ),

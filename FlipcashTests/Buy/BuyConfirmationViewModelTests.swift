@@ -94,7 +94,7 @@ struct BuyConfirmationViewModelTests {
     @Test("An amount the balance can no longer cover surfaces the insufficient sheet, not a submit")
     func boundary_showsSheet() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
         let rate = container.ratesController.rateForBalanceCurrency()
         let jeffyBalance = try #require(container.session.balance(for: .jeffy))
@@ -120,7 +120,7 @@ struct BuyConfirmationViewModelTests {
     @Test("USDF payments buy the entered amount and add the 1% fee on top of the debit")
     func usdfVariant_feeOnTop() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
         ])
         let usdfBalance = try #require(container.session.balance(for: .usdf))
         let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .usdf))
@@ -140,7 +140,7 @@ struct BuyConfirmationViewModelTests {
     @Test("An underfunded USDF payment surfaces the insufficient sheet")
     func usdfUnderfunded_showsSheet() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 630_000), // $0.63
+            SessionContainer.Holding(mint: .usdf, quarks: 630_000), // $0.63
         ])
         let usdfBalance = try #require(container.session.balance(for: .usdf))
         let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .usdf))
@@ -166,7 +166,7 @@ struct BuyConfirmationViewModelTests {
     @Test("A rate drift between pin and Buy gates as insufficient instead of crashing")
     func rateDrift_boundaryGatesInsufficient() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ], currency: .cad, fx: 1.35)
         let rate = container.ratesController.rateForBalanceCurrency()
         let jeffyBalance = try #require(container.session.balance(for: .jeffy))
@@ -237,7 +237,7 @@ struct BuyConfirmationViewModelTests {
     @Test("A stale pin disables the Buy button")
     func stalePin_disables() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
         ])
         let usdfBalance = try #require(container.session.balance(for: .usdf))
 

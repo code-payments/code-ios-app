@@ -60,8 +60,12 @@ struct ConversationScreen: View {
     @Environment(PushController.self) private var pushController
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var didInitialRead = false
+    /// The chat whose stored draft has been put back, which is also what permits saving: an empty
+    /// composer must not delete a stored draft in the frame before the restore runs.
+    @State private var restoredDraftID: ConversationID?
     @State private var barModel = ConversationBarModel()
     @State private var composer = ComposerModel()
     @State private var navBarWidth: CGFloat = 0
@@ -439,15 +443,18 @@ struct ConversationScreen: View {
         return conversationController.lastConfirmedMessage(for: conversationID)
     }
 
-    var body: some View {
-        // The UIKit transcript hosts the bar internally and owns all keyboard handling, so there's
-        // no SwiftUI `.safeAreaInset` bar here.
-        //
-        // The gate is resolved once here and passed down. It has to be: the transcript calls
-        // `onReachTop` on every scroll frame it spends near the top, and reading `gate` re-evaluates
-        // the chat's rules against the balance and the rate table each time.
-        let gate = self.gate
-        let pagesHistory = chatExists && !gate.obscuresTranscript
+    /// The transcript and its bar, configured from this screen's state.
+    ///
+    /// Split out of `body` so the argument list and the modifier chain below it are two expressions
+    /// rather than one. Together they are more than the type checker will finish — it gives up on
+    /// CI, where it is working against a tighter budget than on a dev machine.
+    ///
+    /// `gate` is passed in rather than read here so it stays resolved once per `body`, and so the
+    /// closures below keep capturing the same value they always did.
+    private func transcript(
+        gate: ConversationGatePresentation,
+        pagesHistory: Bool
+    ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
             items: transcriptItems,
             // Paging history for a chat the server hasn't created yet fetches
@@ -488,6 +495,34 @@ struct ConversationScreen: View {
             isJoiningChat: isJoiningChat,
             authorAvatars: authorAvatars
         )
+    }
+
+    var body: some View {
+        // The UIKit transcript hosts the bar internally and owns all keyboard handling, so there's
+        // no SwiftUI `.safeAreaInset` bar here.
+        //
+        // The gate is resolved once here and passed down. It has to be: the transcript calls
+        // `onReachTop` on every scroll frame it spends near the top, and reading `gate` re-evaluates
+        // the chat's rules against the balance and the rate table each time.
+        let gate = self.gate
+        let pagesHistory = chatExists && !gate.obscuresTranscript
+        // Stages, rather than one chain. A getter is a single type-check budget however many
+        // statements it holds, and this chain is more than the compiler will finish inside one —
+        // it gives up on CI, where the budget is tighter than on a dev machine. A function each
+        // gives them a budget each.
+        return lifecycle(
+            presentation(
+                loads(
+                    chrome(transcript(gate: gate, pagesHistory: pagesHistory))
+                )
+            ),
+            gate: gate
+        )
+    }
+
+    /// Framing, background, and the navigation bar's own contents.
+    private func chrome(_ content: some View) -> some View {
+        content
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
         // what lets the iOS 26 toolbar scroll-edge effect materialize. The collection view keeps a
@@ -541,6 +576,11 @@ struct ConversationScreen: View {
                 }
             }
         }
+    }
+
+    /// The fetches the transcript needs: gate token names, sender names, and avatars.
+    private func loads(_ content: some View) -> some View {
+        content
         // Name the gate's requirement in the token it asks for. The mint may be one the user holds
         // nothing of, so the local store can miss and the fetch is what fills it.
         .task(id: gateMints) {
@@ -590,6 +630,11 @@ struct ConversationScreen: View {
                 picture: tipCounterpart?.profilePicture
             )
         }
+    }
+
+    /// What this screen puts on top of itself, and the measurement the title bar needs.
+    private func presentation(_ content: some View) -> some View {
+        content
         .sheet(item: $presentedCard) { card in
             ContactCardView(card: card)
                 .ignoresSafeArea()
@@ -624,6 +669,14 @@ struct ConversationScreen: View {
         // Keyed on existence, not just the ID: a matched contact's chat ID is
         // pre-assigned, and fetching messages for a chat the server hasn't
         // created yet error-reports. Fires when the chat materializes.
+    }
+
+    /// Opening, closing, and everything that has to be written down before either —
+    /// read watermarks, the draft, and the donated activity.
+    ///
+    /// Takes `gate` rather than reading it, so these closures capture the value `body` resolved.
+    private func lifecycle(_ content: some View, gate: ConversationGatePresentation) -> some View {
+        content
         .task(id: chatExists ? conversationID : nil) {
             guard chatExists, let conversationID else { return }
             // Ensure the conversation metadata is in the store before the title, tip styling, and Send
@@ -660,14 +713,26 @@ struct ConversationScreen: View {
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
             syncCoordinator(conversationID)
+            restoreDraft(conversationID)
         }
         // A matched contact's chat is created mid-screen on the first payment,
         // flipping the ID from nil to the new conversation; track it live.
         .onChange(of: conversationID) { _, id in
             setVisibleConversation(id, source: "onChange")
             syncCoordinator(id)
+            restoreDraft(id)
+        }
+        .onChange(of: composer.draft) { _, _ in saveDraft() }
+        // Mode rather than `replyTarget` alone: it also covers the edit transitions, where what is
+        // worth saving swaps between the field and the draft the edit displaced.
+        .onChange(of: composer.mode) { _, _ in saveDraft() }
+        // Neither a pop nor a background kill guarantees a later callback, so both write through
+        // rather than waiting out the debounce.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { saveDraft(flushing: true) }
         }
         .onDisappear {
+            saveDraft(flushing: true)
             // The composer's focus `onChange` can't fire once unmounted, so stop typing here.
             if let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
@@ -695,6 +760,25 @@ struct ConversationScreen: View {
             activity.isEligibleForHandoff = true
             activity.isEligibleForPrediction = true
         }
+    }
+
+    /// Puts the chat's stored draft back into an untouched composer, once per chat id.
+    ///
+    /// Silent by design: nothing here touches focus, so a restored draft does not bring the
+    /// keyboard up — that is still `openKeyboard`'s alone, set only by the post-tip entry.
+    private func restoreDraft(_ id: ConversationID?) {
+        guard let id, restoredDraftID != id else { return }
+        restoredDraftID = id
+        guard let stored = sessionContainer.chatDrafts.draft(for: id) else { return }
+        composer.restore(stored)
+    }
+
+    /// Records what the composer is holding. Gated on the restore having run for this chat, so the
+    /// empty field the screen starts with cannot delete the draft it is about to be given.
+    private func saveDraft(flushing: Bool = false) {
+        guard let conversationID, restoredDraftID == conversationID else { return }
+        sessionContainer.chatDrafts.save(composer.persistableDraft, for: conversationID)
+        if flushing { sessionContainer.chatDrafts.flush() }
     }
 
     /// Marks this conversation as the one on screen — the gate for foreground-banner suppression and

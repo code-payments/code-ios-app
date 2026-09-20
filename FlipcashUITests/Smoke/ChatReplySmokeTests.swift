@@ -104,6 +104,34 @@ final class ChatReplySmokeTests: BaseUITestCase {
         conversation.assertBubbleQuotes(original)
     }
 
+    /// A reply left half-written comes back with its strip, not only its words. The target is
+    /// persisted beside the text, so reopening the chat has to reopen the composer aimed at the
+    /// same message — a draft that returns without its strip would send as a new message.
+    func testLeavingMidReply_restoresTheStripWithTheDraft() throws {
+        try openConversation()
+
+        let original = Self.uniqueText("restored")
+        conversation.sendMessage(original, from: self)
+        conversation.assertMessageDelivered(original)
+
+        conversation.beginReply(to: original, from: self)
+
+        let draft = "half a thought"
+        waitUntilHittableAndTap(conversation.messageField)
+        conversation.messageField.typeText(draft)
+
+        leaveConversation()
+        try reopenConversation()
+
+        XCTAssertTrue(
+            conversation.draftValue.contains(draft),
+            "Expected the half-written reply back, got '\(conversation.draftValue)'"
+        )
+        conversation.assertReplyStripQuotes(original)
+
+        abandonDraft()
+    }
+
     /// The quote panel inside a reply is a button, and pressing it leaves the transcript on the
     /// conversation with both rows still rendered — the jump's landing, not its paging.
     func testTappingAQuote_staysOnTheOriginal() throws {
@@ -143,7 +171,7 @@ final class ChatReplySmokeTests: BaseUITestCase {
         chats.open(from: self)
 
         guard let row = chats.firstConversationRow(timeout: 30) else {
-            throw XCTSkip("The test account has no chat conversation — skipping the reply suite")
+            throw XCTSkip("The test account has no chat conversation — skipping the reply suite. On screen: [\(visibleText())]")
         }
         row.tap()
 
@@ -151,6 +179,46 @@ final class ChatReplySmokeTests: BaseUITestCase {
             conversation.messageField.waitForExistence(timeout: 30),
             "Expected the conversation's composer. On screen: [\(visibleText())]"
         )
+    }
+
+    /// Leaves the conversation the way a user does — the navigation bar's back button — and waits
+    /// for the composer to go with it.
+    private func leaveConversation() {
+        waitAndTap(app.navigationBars.buttons.firstMatch)
+        let gone = NSPredicate(format: "exists == false")
+        XCTAssertEqual(
+            XCTWaiter().wait(
+                for: [XCTNSPredicateExpectation(predicate: gone, object: conversation.messageField)],
+                timeout: 15
+            ),
+            .completed,
+            "Expected to leave the conversation. On screen: [\(visibleText())]"
+        )
+    }
+
+    /// Opens the same chat again from the list, so a persisted draft has to be read back off disk.
+    private func reopenConversation() throws {
+        let chats = TipsUIScreen(app: app)
+        guard let row = chats.firstConversationRow(timeout: 30) else {
+            throw XCTSkip("The chat list came back empty after leaving the conversation")
+        }
+        row.tap()
+
+        XCTAssertTrue(
+            conversation.messageField.waitForExistence(timeout: 30),
+            "Expected the conversation's composer on reopening. On screen: [\(visibleText())]"
+        )
+    }
+
+    /// Empties the composer before leaving, so a persisted draft does not hand the next run a chat
+    /// that is already aimed and already typed in.
+    private func abandonDraft() {
+        if conversation.cancelReplyButton.exists {
+            waitAndTap(conversation.cancelReplyButton)
+        }
+        waitUntilHittableAndTap(conversation.messageField)
+        let typed = conversation.draftValue
+        conversation.messageField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: typed.count))
     }
 
     /// A per-run body, so a bubble query can never match a message left behind by an earlier run.

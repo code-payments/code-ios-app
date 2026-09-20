@@ -469,12 +469,20 @@ public final class ChatScreenViewController: UIViewController {
         // whichever pass actually makes the bar taller after the target changed, not the target
         // change itself — and once that height is known, later ones are ordinary bar growth.
         if opensReply { replyStripHeight = 0 }
+        let isFirst = !didMeasureBar
+        didMeasureBar = true
         let previousClip = barClipHeightConstraint.constant
         let clipHeight: CGFloat
         let travels: Bool
         if replying {
             clipHeight = height
-            travels = replyStripHeight == 0 && clipHeight != previousClip
+            // Nothing to read the strip's height off on the very first measurement: the clip is
+            // still at its placeholder constant and the screen has never seen this bar without a
+            // strip. A restored draft is aimed before the bar is measured at all, so that is the
+            // pass it lands in — and a difference taken against the placeholder is not the strip.
+            // Left unknown, the close below keeps the clip at the bar's height until the strip
+            // unmounts and the bar measures short, which is late but never wrong.
+            travels = !isFirst && replyStripHeight == 0 && clipHeight != previousClip
             if travels { replyStripHeight = clipHeight - previousClip }
         } else {
             // Closing, the strip is still in the measurement and has to come back off it.
@@ -483,8 +491,6 @@ public final class ChatScreenViewController: UIViewController {
             if !closesReply { replyStripHeight = 0 }
         }
 
-        let isFirst = !didMeasureBar
-        didMeasureBar = true
         guard !isFirst, view.window != nil, travels else {
             guard barHeightConstraint.constant != height || barClipHeightConstraint.constant != clipHeight else { return }
             barHeightConstraint.constant = height

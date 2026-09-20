@@ -64,8 +64,8 @@ struct BuyPaymentCurrencyViewModelTests {
     @Test("The target currency never appears in the payment list")
     func targetRow_removed() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
         let viewModel = Self.makeViewModel(targetMint: .jeffy, container: container)
 
@@ -79,8 +79,8 @@ struct BuyPaymentCurrencyViewModelTests {
         // list — selecting it re-caps the entry, and the amount screen trims
         // anything the fee can't cover.
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
         let viewModel = Self.makeViewModel(container: container)
 
@@ -90,8 +90,8 @@ struct BuyPaymentCurrencyViewModelTests {
     @Test("A zero-value USDF balance is not offered as a payment source")
     func zeroValueUSDF_removed() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 0),
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 0),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
         let viewModel = Self.makeViewModel(container: container)
 
@@ -105,7 +105,7 @@ struct BuyPaymentCurrencyViewModelTests {
     @Test("USDF payment computes a balance-capped amount with no fee")
     func usdfCompute_capped() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
         ])
         let viewModel = Self.makeViewModel(container: container)
         let usdfBalance = try #require(container.session.balance(for: .usdf))
@@ -120,7 +120,7 @@ struct BuyPaymentCurrencyViewModelTests {
     @Test("USDF entered above the displayed balance is deliberately uncapped so the gate can surface the shortfall")
     func usdfCompute_aboveDisplayedBalance_uncapped() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 630_000), // $0.63
+            SessionContainer.Holding(mint: .usdf, quarks: 630_000), // $0.63
         ])
         let viewModel = Self.makeViewModel(container: container)
         let usdfBalance = try #require(container.session.balance(for: .usdf))
@@ -163,8 +163,8 @@ struct BuyPaymentCurrencyViewModelTests {
     @Test("Token payment grosses up by the pool fee and is deliberately uncapped")
     func tokenCompute_grossedUp() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
 
         let rate = container.ratesController.rateForBalanceCurrency()
@@ -194,7 +194,7 @@ struct BuyPaymentCurrencyViewModelTests {
     func tokenCompute_overTVL_returnsClampedQuote() async throws {
         let container = try await Self.makeContainer(
             holdings: [
-                .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.soleHolderSupply), quarks: Self.soleHolderSupply),
+                SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.soleHolderSupply), quarks: Self.soleHolderSupply),
             ],
             currency: .cad,
             fx: 1.37,
@@ -214,7 +214,7 @@ struct BuyPaymentCurrencyViewModelTests {
     @Test("A pin without reserve supply fails the token compute")
     func missingSupply_nilCompute() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
         ])
         let viewModel = Self.makeViewModel(container: container)
         let jeffyBalance = try #require(container.session.balance(for: .jeffy))

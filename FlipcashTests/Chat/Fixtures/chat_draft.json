@@ -1,0 +1,346 @@
+{
+  "algorithm": "chat-draft",
+  "note": "Chat composer drafts: a sequence of composer actions and the draft the store must hold afterwards. `draft` is null when no row should exist -- an empty draft and no draft are different states, and rule 2 is the difference. `type` sets the composer text absolutely; `leave` is the screen going away, which flushes. Text is stored verbatim, including whitespace; trimming happens at submit only. Behavior parity, not a computation with an external reference. The failed-send case is deliberately absent: it is the one behaviour the two platforms deliberately differ on. `replyTarget.messageId` is an opaque token -- carry it through, do not parse it.",
+  "vectors": [
+    {
+      "name": "verbatim-trailing-space",
+      "actions": [
+        {
+          "op": "type",
+          "text": "see you at 5 "
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "see you at 5 ",
+        "replyTarget": null
+      },
+      "note": "Rule 1. The trailing space is mid-sentence, not noise: trimming belongs at submit, which is where both apps already do it."
+    },
+    {
+      "name": "verbatim-leading-space",
+      "actions": [
+        {
+          "op": "type",
+          "text": "  thinking about it  "
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "  thinking about it  ",
+        "replyTarget": null
+      },
+      "note": "Rule 1 again, on the way back out: restore does not trim either."
+    },
+    {
+      "name": "whitespace-only-is-no-draft",
+      "actions": [
+        {
+          "op": "type",
+          "text": "   "
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": null,
+      "note": "Rule 2. Trims to empty with no reply target, so the row is removed rather than stored as whitespace."
+    },
+    {
+      "name": "cleared-after-typing-is-no-draft",
+      "actions": [
+        {
+          "op": "type",
+          "text": "never mind"
+        },
+        {
+          "op": "type",
+          "text": ""
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": null,
+      "note": "Rule 2's actual failure mode: without the delete, a chat typed in once and cleared restores an empty draft for ever."
+    },
+    {
+      "name": "bare-reply-target-is-a-draft",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "",
+        "replyTarget": {
+          "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+          "author": "Ana",
+          "snippet": "are we still on for 5?"
+        }
+      },
+      "note": "Rule 3. Aiming a reply and walking away is intent worth keeping, and dropping it is the wrong-context send this feature exists to prevent."
+    },
+    {
+      "name": "reply-target-with-text",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "type",
+          "text": "on my way"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "on my way",
+        "replyTarget": {
+          "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+          "author": "Ana",
+          "snippet": "are we still on for 5?"
+        }
+      },
+      "note": "The ordinary case: both halves come back together."
+    },
+    {
+      "name": "whitespace-with-reply-target-is-a-draft",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "type",
+          "text": "  "
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "  ",
+        "replyTarget": {
+          "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+          "author": "Ana",
+          "snippet": "are we still on for 5?"
+        }
+      },
+      "note": "Rule 2 needs BOTH halves empty. The strip is still aimed, so the row stays -- and rule 1 still stores the whitespace verbatim."
+    },
+    {
+      "name": "reply-target-cleared-leaves-the-text",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "type",
+          "text": "on my way"
+        },
+        {
+          "op": "reply",
+          "target": null
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "on my way",
+        "replyTarget": null
+      },
+      "note": "Dismissing the strip is not clearing the message."
+    },
+    {
+      "name": "send-clears",
+      "actions": [
+        {
+          "op": "type",
+          "text": "on my way"
+        },
+        {
+          "op": "send"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": null,
+      "note": "Rule 4. The text lives in the pending message the moment the field clears; a draft as well would duplicate it."
+    },
+    {
+      "name": "send-clears-the-reply-target-too",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "type",
+          "text": "yes"
+        },
+        {
+          "op": "send"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": null,
+      "note": "Rule 4 covers the whole draft, not just its text."
+    },
+    {
+      "name": "edit-persists-the-stash",
+      "actions": [
+        {
+          "op": "type",
+          "text": "half a thought"
+        },
+        {
+          "op": "edit",
+          "text": "an older message"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "half a thought",
+        "replyTarget": null
+      },
+      "note": "Rule 5. What is saved is the new-message draft the edit displaced, never the edit body -- leaving mid-edit must not overwrite your words with someone else's message."
+    },
+    {
+      "name": "edit-cancelled-restores-the-stash",
+      "actions": [
+        {
+          "op": "type",
+          "text": "half a thought"
+        },
+        {
+          "op": "edit",
+          "text": "an older message"
+        },
+        {
+          "op": "cancelEdit"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "half a thought",
+        "replyTarget": null
+      },
+      "note": "Same answer by the path both apps already implement: cancelling an edit puts the stashed draft back."
+    },
+    {
+      "name": "reply-then-edit-keeps-the-text-drops-the-strip",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "type",
+          "text": "half a thought"
+        },
+        {
+          "op": "edit",
+          "text": "an older message"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "half a thought",
+        "replyTarget": null
+      },
+      "note": "Rule 5 where reply and edit collide. Both composers are single-mode, so the edit takes the field and the strip goes with it -- but the words are the user's and are stashed like any other displaced draft. Losing them is the bug this vector exists to catch."
+    },
+    {
+      "name": "reply-then-edit-cancelled-restores-text-only",
+      "actions": [
+        {
+          "op": "reply",
+          "target": {
+            "messageId": "9f1a6d5f-7c8e-4b21-9f3e-2b0b4d1e9a0b",
+            "author": "Ana",
+            "snippet": "are we still on for 5?"
+          }
+        },
+        {
+          "op": "type",
+          "text": "half a thought"
+        },
+        {
+          "op": "edit",
+          "text": "an older message"
+        },
+        {
+          "op": "cancelEdit"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": {
+        "text": "half a thought",
+        "replyTarget": null
+      },
+      "note": "Cancelling puts the stash back, and the strip stays gone -- the edit dismissed it, which is not something cancel undoes."
+    },
+    {
+      "name": "edit-with-nothing-stashed-is-no-draft",
+      "actions": [
+        {
+          "op": "edit",
+          "text": "an older message"
+        },
+        {
+          "op": "leave"
+        }
+      ],
+      "draft": null,
+      "note": "Rule 5 with an empty composer: the edit displaced nothing, so there is nothing to persist."
+    }
+  ]
+}

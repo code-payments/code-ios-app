@@ -68,8 +68,8 @@ struct BuyAmountViewModelTests {
         // Dollars is the default source whenever it's spendable, whatever the
         // other holdings are worth.
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
-            .init(mint: .makeLaunchpad(address: .jeffy), quarks: 10_000_000_000), // 1 token ≈ $0.01
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy), quarks: 10_000_000_000), // 1 token ≈ $0.01
         ])
         let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
 
@@ -85,8 +85,8 @@ struct BuyAmountViewModelTests {
         // must fall back to the USDF balance.
         let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000 // ≈ $20 of curve value
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 5_000_000),
-            .init(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 5_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
         ])
         let viewModel = Self.makeViewModel(mint: .jeffy, container: container)
 
@@ -97,8 +97,8 @@ struct BuyAmountViewModelTests {
     func cap_followsSelectedPaymentSource() async throws {
         let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000 // ≈ $20 of curve value
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 5_000_000),
-            .init(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
+            SessionContainer.Holding(mint: .usdf, quarks: 5_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
         ])
         let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
 
@@ -115,8 +115,8 @@ struct BuyAmountViewModelTests {
     @Test("Without Dollars the largest eligible balance becomes the source")
     func defaultSource_fallsBackToLargestBalance() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy), quarks: 2_000 * 10_000_000_000),
-            .init(mint: .makeLaunchpad(address: .testMint(index: 1)), quarks: 10_000_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy), quarks: 2_000 * 10_000_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .testMint(index: 1)), quarks: 10_000_000_000),
         ])
         let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
 
@@ -139,7 +139,7 @@ struct BuyAmountViewModelTests {
         // eligible source — the flow never reaches the payment selector.
         let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
         ])
         let viewModel = Self.makeViewModel(mint: .jeffy, container: container)
 
@@ -162,7 +162,7 @@ struct BuyAmountViewModelTests {
     @Test("Next pushes the payment confirmation with the validated amount")
     func next_pushesPaymentConfirmation() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
         ])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
@@ -180,7 +180,7 @@ struct BuyAmountViewModelTests {
     @Test("An invalid entered amount does not push")
     func invalidAmount_noop() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
         ])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
@@ -196,7 +196,7 @@ struct BuyAmountViewModelTests {
     @Test("Entering beyond the cap disables Next; the cap itself is allowed")
     func overCap_disabled() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
         ])
         let viewModel = Self.makeViewModel(container: container)
 
@@ -209,7 +209,7 @@ struct BuyAmountViewModelTests {
     @Test("Paying the whole Dollars balance drops the entry to what the on-top fee leaves")
     func wholeDollarsBalance_isCorrected() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 10_000_000), // $10.00
+            SessionContainer.Holding(mint: .usdf, quarks: 10_000_000), // $10.00
         ])
         let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
         viewModel.enteredAmount = "10"
@@ -223,7 +223,7 @@ struct BuyAmountViewModelTests {
     @Test("A Dollars entry with room for its fee is left exactly as typed")
     func dollarsEntryWithRoom_isLeftAlone() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 10_000_000), // $10.00
+            SessionContainer.Holding(mint: .usdf, quarks: 10_000_000), // $10.00
         ])
         let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
         viewModel.enteredAmount = "5"
@@ -236,7 +236,7 @@ struct BuyAmountViewModelTests {
     @Test("Paying the whole token balance drops the entry to what the pool fee leaves")
     func wholeTokenBalance_isCorrected() async throws {
         let container = try await Self.makeContainer(holdings: [
-            .init(mint: .makeLaunchpad(address: .jeffy), quarks: 2_000 * 10_000_000_000), // ≈ $20
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy), quarks: 2_000 * 10_000_000_000), // ≈ $20
         ])
         let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
         let balance = viewModel.maxPossibleAmount.nativeAmount

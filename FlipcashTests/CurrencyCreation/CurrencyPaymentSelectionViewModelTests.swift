@@ -43,8 +43,8 @@ struct CurrencyPaymentSelectionViewModelTests {
     @Test("Zero-value balances are hidden from the list")
     func hidesZeroBalances() throws {
         let container = try Self.makeContainer(holdings: [
-            .init(mint: .usdf, quarks: 30_000_000),
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: 0),
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: 0),
         ])
         let viewModel = Self.makeViewModel(container: container)
 

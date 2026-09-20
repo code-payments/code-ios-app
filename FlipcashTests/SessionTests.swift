@@ -573,8 +573,8 @@ struct SessionBalancesUSDFInclusionTests {
     @Test("USDF appears in balances(for:) even with zero quarks — pins the WalletScreen normalization invariant")
     func balances_includesUSDF_atZero() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 0),
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 0),
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(
                     address: .jeffy,
                     supplyFromBonding: 1_000_000 * 10_000_000_000
@@ -597,8 +597,8 @@ struct FundableBalanceFilterTests {
     @Test("USDF at zero is dropped — the withdraw picker can't fund from $0.00")
     func withdrawable_dropsZeroUSDF() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 0),
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 0),
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(
                     address: .jeffy,
                     supplyFromBonding: 1_000_000 * 10_000_000_000
@@ -615,7 +615,7 @@ struct FundableBalanceFilterTests {
     @Test("USDF dust that displays as $0.00 is dropped")
     func withdrawable_dropsUSDFDust() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 1_000), // $0.001
+            SessionContainer.Holding(mint: .usdf, quarks: 1_000), // $0.001
         ])
 
         #expect(container.session.balances(for: .oneToOne).withdrawable().isEmpty)
@@ -624,7 +624,7 @@ struct FundableBalanceFilterTests {
     @Test("Funded USDF is kept")
     func withdrawable_keepsFundedUSDF() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 5 * 10_000_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 5 * 10_000_000_000),
         ])
 
         let mints = container.session.balances(for: .oneToOne).withdrawable().map(\.stored.mint)
@@ -759,7 +759,7 @@ struct SessionHasGiveableBalanceTests {
     @Test("Fresh account (USDF at zero) has no giveable balance")
     func freshAccount_hasNone() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 0),
+            SessionContainer.Holding(mint: .usdf, quarks: 0),
         ])
         #expect(container.session.hasGiveableBalance(for: .oneToOne) == false)
     }
@@ -767,7 +767,7 @@ struct SessionHasGiveableBalanceTests {
     @Test("USDF balance alone is giveable")
     func usdfOnly_isGiveable() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 5 * 10_000_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 5 * 10_000_000_000),
         ])
         #expect(container.session.hasGiveableBalance(for: .oneToOne) == true)
     }
@@ -775,7 +775,7 @@ struct SessionHasGiveableBalanceTests {
     @Test("USDF dust that displays as $0.00 is not giveable")
     func usdfDust_isNotGiveable() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 1_000), // $0.001
+            SessionContainer.Holding(mint: .usdf, quarks: 1_000), // $0.001
         ])
         #expect(container.session.hasGiveableBalance(for: .oneToOne) == false)
     }
@@ -783,8 +783,8 @@ struct SessionHasGiveableBalanceTests {
     @Test("A funded non-USDF balance is giveable")
     func fundedNonUSDF_isGiveable() throws {
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 0),
-            .init(
+            SessionContainer.Holding(mint: .usdf, quarks: 0),
+            SessionContainer.Holding(
                 mint: .makeLaunchpad(
                     address: .jeffy,
                     supplyFromBonding: 1_000_000 * 10_000_000_000
