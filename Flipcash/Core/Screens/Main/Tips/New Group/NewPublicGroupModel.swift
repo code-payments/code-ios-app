@@ -102,6 +102,16 @@ final class NewPublicGroupModel {
         self.minimumBalance = minimumBalance
     }
 
+    /// The requirement when it is not one of ``presets`` — what the form's fourth chip wears in
+    /// place of its ellipsis, and the only state that chip reads as selected.
+    ///
+    /// Nil while nothing is set and again the moment a preset is picked, so a custom amount
+    /// followed by a tap on $10 hands the chip back its ellipsis rather than leaving two chips lit.
+    var customMinimumBalance: FiatAmount? {
+        guard let minimumBalance, !Self.presets.contains(minimumBalance) else { return nil }
+        return minimumBalance
+    }
+
     /// The title as it would be submitted, or nil while the form holds nothing the server accepts.
     var validatedTitle: String? {
         validator.validate(title)

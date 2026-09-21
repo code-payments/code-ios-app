@@ -103,6 +103,57 @@ struct NewPublicGroupModelTests {
         return model
     }
 
+    // MARK: - The custom-amount chip -
+
+    @Test("The custom chip is unselected until a custom amount is set")
+    func customChipStartsUnselected() {
+        let model = NewPublicGroupModel()
+
+        #expect(model.customMinimumBalance == nil)
+    }
+
+    @Test("A preset leaves the custom chip unselected")
+    func presetLeavesCustomChipUnselected() {
+        let model = NewPublicGroupModel()
+
+        model.select(minimumBalance: .usd(10))
+
+        #expect(model.customMinimumBalance == nil)
+    }
+
+    @Test("An off-preset amount selects the custom chip")
+    func offPresetAmountSelectsCustomChip() {
+        let model = NewPublicGroupModel()
+
+        model.select(minimumBalance: .usd(37))
+
+        #expect(model.customMinimumBalance == .usd(37))
+    }
+
+    @Test("Tapping a preset after a custom amount hands the chip back its ellipsis")
+    func presetAfterCustomAmountClearsTheChip() {
+        let model = NewPublicGroupModel()
+        model.select(minimumBalance: .usd(37))
+
+        model.select(minimumBalance: .usd(10))
+
+        // Nil is what the chip draws its ellipsis for, so the two chips can't both read as
+        // selected.
+        #expect(model.customMinimumBalance == nil)
+        #expect(model.minimumBalance == .usd(10))
+    }
+
+    @Test("A custom amount typed to a preset's figure counts as that preset")
+    func customAmountMatchingAPresetSelectsThePreset() {
+        let model = NewPublicGroupModel()
+
+        // The sheet hands back USD, so an entry worth exactly $50 is the $50 preset — one chip
+        // lights, and it is that one.
+        model.select(minimumBalance: .usd(50))
+
+        #expect(model.customMinimumBalance == nil)
+    }
+
     // MARK: - The mint the form opens on -
 
     @Test("The mint the form opens on is seated but not counted as chosen")
