@@ -32,7 +32,7 @@ public class ChatColumnCell: UICollectionViewCell {
     /// The author's name above the first bubble of a run, in an attributed transcript. Hidden — and
     /// so collapsed out of the column — in every DM.
     private let authorName = UILabel()
-    /// The author's face in the leading gutter, beside the last bubble of a run. A sibling of the
+    /// The author's face in the leading gutter, beside the first bubble of a run. A sibling of the
     /// column rather than a child of it, so the gutter's width is a leading inset on the column and
     /// a tall avatar can't grow a short-bubble row. It travels with the column under a reply swipe.
     private let authorAvatar = ChatAuthorAvatarView()
@@ -139,13 +139,13 @@ public class ChatColumnCell: UICollectionViewCell {
             column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -Self.rowInset),
             column.topAnchor.constraint(equalTo: contentView.topAnchor),
             columnBottom,
-            // Leading and bottom only, with the view's own size constraints doing the rest: an
-            // avatar pinned top as well would set a floor on the row's fitting height, and
-            // `preferredLayoutAttributesFitting` would grow every short bubble to the gutter. Its
-            // bottom follows the column rather than the row, so an oversized row leaves the face
-            // beside the last bubble instead of dropping it into the space below.
+            // Leading and top only, with the view's own size constraints doing the rest: an avatar
+            // pinned at both ends would set a floor on the row's fitting height, and
+            // `preferredLayoutAttributesFitting` would grow every short bubble to the gutter. The
+            // top it follows is the content view's, not the column's, so the face lines up with the
+            // first bubble of the run rather than with the author name above it.
             authorAvatar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Self.rowInset),
-            authorAvatar.bottomAnchor.constraint(equalTo: column.bottomAnchor),
+            authorAvatar.topAnchor.constraint(equalTo: content.topAnchor),
         ])
     }
 
@@ -264,8 +264,8 @@ public class ChatColumnCell: UICollectionViewCell {
         updateAttribution(for: message, authorImageData: authorImageData)
     }
 
-    /// Names the author above the first bubble of their run and puts their face beside the last one,
-    /// the way Figma draws a group transcript. `message.author` is nil in every DM and on the
+    /// Names the author above the first bubble of their run and puts their face beside that same
+    /// bubble, the way Figma draws a group transcript. `message.author` is nil in every DM and on the
     /// viewer's own rows, which collapses both back to the plain layout.
     private func updateAttribution(for message: ChatMessage, authorImageData: Data?) {
         // The gutter belongs to the transcript, not to the rows that happen to draw a face: it is
@@ -290,9 +290,9 @@ public class ChatColumnCell: UICollectionViewCell {
         authorName.text = author.name
         authorName.isHidden = message.isContinuationFromPrevious || author.name.isEmpty
 
-        // The face closes it, so a run reads as one speaker with one avatar rather than a column of
-        // repeated thumbnails.
-        authorAvatar.isHidden = message.isContinuedByNext
+        // The face opens the run with the name, so a run reads as one speaker with one avatar rather
+        // than a column of repeated thumbnails.
+        authorAvatar.isHidden = message.isContinuationFromPrevious
         if !authorAvatar.isHidden {
             authorAvatar.configure(with: author, imageData: authorImageData)
         }
