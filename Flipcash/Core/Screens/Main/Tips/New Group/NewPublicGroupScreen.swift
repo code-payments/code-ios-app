@@ -362,7 +362,7 @@ struct NewPublicGroupScreen: View {
 
         case let blobError as ErrorBlob:
             logger.info("Group picture upload failed", metadata: ["error": "\(blobError)"])
-            ErrorReporting.captureError(blobError, reason: "Group picture upload failed")
+            ErrorReporting.captureError(blobError, reason: "Group picture upload failed", userFacing: true)
             dialog = .profilePictureFailed(blobError)
 
         case let encoderError as ImageEncoderError:
