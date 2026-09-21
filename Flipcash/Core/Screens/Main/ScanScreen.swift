@@ -5,6 +5,7 @@
 //  Created by Dima Bart on 2025-04-07.
 //
 
+import PhotosUI
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
@@ -26,12 +27,17 @@ struct ScanScreen: View {
 private struct ScanScreenContent: View {
 
     @Environment(Preferences.self) private var preferences
+    @Environment(BetaFlags.self) private var betaFlags
 
     @Bindable private var session: Session
 
     @State private var viewModel: ScanViewModel
 
     @State private var cameraAuthorizer = CameraAuthorizer()
+
+    @State private var pickedItem: PhotosPickerItem?
+    @State private var isScanningStillImage = false
+    @State private var scanTask: Task<ScanViewModel.StillImageOutcome, Never>?
 
     private var cameraPrompt: CameraPrompt? {
         CameraPrompt(status: cameraAuthorizer.status, cameraEnabled: preferences.cameraEnabled)
@@ -72,6 +78,19 @@ private struct ScanScreenContent: View {
                     .zIndex(1)
                     .transition(.opacity)
                 }
+
+                // Outside the `cameraPrompt` branch on purpose: a photo can be scanned
+                // whether or not the camera is available, so the glyph outlives the viewport.
+                GalleryScanButton(selection: $pickedItem)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    // `HomeTabBar.height` is the floating pill; 16pt clears it, and the
+                    // 20pt leading inset matches the pill's own margin.
+                    .padding(.leading, 20)
+                    .padding(.bottom, HomeTabBar.height + 16)
+                    .opacity(betaFlags.hasEnabled(.scanFromGallery) ? 1 : 0)
+                    .allowsHitTesting(betaFlags.hasEnabled(.scanFromGallery))
+                    .zIndex(2)
+                    .transition(.opacity)
             }
         }
         // Fill the tab's full width and height. The iOS 26 native `TabView` does
@@ -82,6 +101,18 @@ private struct ScanScreenContent: View {
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
+        .onChange(of: pickedItem) { _, item in
+            guard let item else { return }
+            Task { await scanPickedItem(item) }
+        }
+        .overlay {
+            if isScanningStillImage {
+                ScanningOverlay {
+                    scanTask?.cancel()
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: isScanningStillImage)
         .ignoresSafeArea(.keyboard)
         // Tells the app-root bill overlay the camera is behind it, so a grabbed
         // bill shows over the live camera without a scrim while the Scan tab is
@@ -109,6 +140,42 @@ private struct ScanScreenContent: View {
         }
     }
     
+    /// Loads the picked image and scans it, reporting the outcome through the app's dialog.
+    ///
+    /// The overlay is blocking for the length of the search, so the idle timer goes with it:
+    /// there is nothing to touch while the ladder runs, and the screen dimming mid-search
+    /// would read as the app having stalled.
+    private func scanPickedItem(_ item: PhotosPickerItem) async {
+        isScanningStillImage = true
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer {
+            isScanningStillImage = false
+            scanTask = nil
+            pickedItem = nil
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+
+        guard
+            let data = try? await item.loadTransferable(type: Data.self),
+            let image = UIImage(data: data)?.cgImage
+        else {
+            session.dialogItem = .noCodeFound
+            return
+        }
+
+        let task = Task { await viewModel.scanStillImage(image) }
+        scanTask = task
+
+        switch await task.value {
+        case .handled:
+            break
+        case .nothingFound:
+            session.dialogItem = .noCodeFound
+        case .cashCodeNotLive:
+            session.dialogItem = .cashCodeNotLive
+        }
+    }
+
     private func performCameraPromptAction(_ prompt: CameraPrompt) {
         switch prompt {
         case .requestPermission:
@@ -122,4 +189,53 @@ private struct ScanScreenContent: View {
         }
     }
 
+}
+
+/// A blocking, cancellable overlay for the duration of a still-image search.
+///
+/// Blocking on purpose: the search can take seconds, and a half-scanned photo is not a
+/// state worth showing. Cancellable for the same reason.
+private struct ScanningOverlay: View {
+
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.6).ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.white)
+
+                Text("Looking for a code\u{2026}")
+                    .foregroundStyle(.white)
+
+                Button("Cancel", action: onCancel)
+                    .foregroundStyle(.white)
+            }
+        }
+        .transition(.opacity)
+    }
+}
+
+// MARK: - Dialogs -
+
+private extension DialogItem {
+
+    /// Also what a refused route reports. Someone who has been sent a login QR learns
+    /// nothing from this about why it was refused, which is the point.
+    static var noCodeFound: DialogItem {
+        .info(
+            title: "No Code Found",
+            subtitle: "We couldn't find a code in that photo."
+        )
+    }
+
+    static var cashCodeNotLive: DialogItem {
+        .info(
+            title: "Cash Code Isn't Live",
+            subtitle: "That cash code isn't live any more. Ask them to show it on their screen while you scan."
+        )
+    }
 }

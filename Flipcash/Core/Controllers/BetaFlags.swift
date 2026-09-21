@@ -179,6 +179,7 @@ extension BetaFlags {
         case enableCoinbase
         case walletDepositArrival
         case glassReplyQuote
+        case scanFromGallery
 
         var id: String {
             localizedTitle
@@ -194,6 +195,8 @@ extension BetaFlags {
                 return "Show deposits arriving in the wallet"
             case .glassReplyQuote:
                 return "Glass reply quote"
+            case .scanFromGallery:
+                return "Scan from gallery"
             }
         }
 
@@ -207,6 +210,8 @@ extension BetaFlags {
                 return "If enabled, Put in Wallet opens the wallet and shows the balance rising and any new card arriving. If disabled, the bill is dismissed where it stands"
             case .glassReplyQuote:
                 return "If enabled, the quote above the composer is Liquid Glass floating clear of the bar. If disabled, it is an opaque panel on the bar's own surface"
+            case .scanFromGallery:
+                return "If enabled, the Scan tab shows a button for picking a photo from your library and scanning the code in it"
             }
         }
 
@@ -217,6 +222,7 @@ extension BetaFlags {
             case .enableCoinbase:       return .developer
             case .walletDepositArrival: return .developer
             case .glassReplyQuote:      return .developer
+            case .scanFromGallery:      return .developer
             }
         }
 
@@ -228,6 +234,7 @@ extension BetaFlags {
             case .enableCoinbase:       return false
             case .walletDepositArrival: return true
             case .glassReplyQuote:      return true
+            case .scanFromGallery:      return false
             }
         }
     }

@@ -138,12 +138,32 @@ class CodeExtractor: CameraSessionExtractor {
         }
         return data
     }
+
+    /// Renders a crop of a still image into the tightly packed buffer `kikCodeScan` reads.
+    ///
+    /// Internal for the same reason as ``withLuminanceSample(from:_:)``: the tests drive it
+    /// with synthesized images.
+    ///
+    /// One crop, one renderer. A search that walks a ladder of crops should hold a
+    /// ``StillImageLuminanceRenderer`` instead and reuse its buffer — see ``GalleryScanner``.
+    ///
+    /// `nonisolated` because the gallery search that calls this runs off the main actor,
+    /// and the target isolates every declaration to it by default.
+    nonisolated static func luminanceSample(
+        from image: CGImage,
+        crop: CGRect,
+        renderedSide: CGFloat
+    ) -> Sample? {
+        StillImageLuminanceRenderer().sample(from: image, crop: crop, renderedSide: renderedSide)
+    }
 }
 
 // MARK: - Sample -
 
 extension CodeExtractor {
-    struct Sample {
+    /// `nonisolated` so it can cross actors: the camera builds one on the capture queue and
+    /// the gallery search builds hundreds off the main actor.
+    nonisolated struct Sample {
         let width: Int
         let height: Int
         let data: Data

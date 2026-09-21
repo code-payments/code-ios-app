@@ -5,6 +5,7 @@
 //  Created by Dima Bart on 2025-04-08.
 //
 
+import CoreGraphics
 import Foundation
 import FlipcashUI
 import FlipcashCore
@@ -131,8 +132,13 @@ class ScanViewModel {
     // MARK: - QR Scanning -
 
     /// Returns whether a URL is eligible for QR code scanning.
-    /// Allowlist: only `.cash` and `.token` may be scanned. Every other route —
-    /// including security-sensitive ones like `.login` and `.verifyEmail` — is blocked.
+    ///
+    /// An allowlist: `.cash`, `.token`, `.tip`, and `.username` may be scanned, and every
+    /// other route is refused by name — including the security-sensitive `.login` and
+    /// `.verifyEmail`. A new `Route.Path` case is refused until someone adds it here.
+    ///
+    /// Every entry point answers to this, not just the camera: a gallery image is one the
+    /// user chose, and a shared image is one somebody else sent them.
     nonisolated static func canScanQR(url: URL) -> Bool {
         guard let route = Route(url: url) else {
             return false
@@ -187,5 +193,104 @@ class ScanViewModel {
             object: nil,
             userInfo: ["url": url]
         )
+    }
+    // MARK: - Still Images -
+
+    /// What a still-image scan ended up doing, for the UI to report.
+    enum StillImageOutcome: Equatable {
+        case handled
+        case nothingFound
+        /// A cash code decoded, but the giver's device is not streaming. Almost always a
+        /// screenshot of a bill that is no longer on anyone's screen.
+        case cashCodeNotLive
+    }
+
+    /// Scans a picked or shared image and routes whatever it finds the way the camera would.
+    ///
+    /// The camera's dedup does not apply. `scannedQRCodes` and `scannedRendezvous` exist
+    /// because a capture session sees the same code sixty times a second; picking the same
+    /// image twice is a deliberate act and has to scan twice.
+    func scanStillImage(_ image: CGImage) async -> StillImageOutcome {
+        guard !session.isShowingBill, !session.isProcessingScan else {
+            return .nothingFound
+        }
+
+        Analytics.galleryScanStarted()
+
+        let started = Date()
+        let outcome = await GalleryScanner().scan(image)
+        let elapsed = Date().timeIntervalSince(started)
+
+        switch outcome {
+        case .code(let code, let match):
+            Analytics.galleryScanFoundCode(
+                tier: match.tier.rawValue,
+                zoom: Double(match.zoom),
+                elapsed: elapsed
+            )
+            return await handle(code)
+
+        case .url(let url):
+            guard Self.canScanQR(url: url) else {
+                Analytics.galleryScanFoundNothing(reason: .routeRefused, elapsed: elapsed)
+                // Deliberately indistinguishable from "nothing found". Someone who has been
+                // sent a login QR learns nothing about why it was refused.
+                return .nothingFound
+            }
+
+            Analytics.galleryScanFoundQR(elapsed: elapsed)
+
+            logger.debug("QR code scanned from still image", metadata: [
+                "url": "\(url.sanitizedForAnalytics)",
+            ])
+
+            NotificationCenter.default.post(
+                name: .qrDeepLinkReceived,
+                object: nil,
+                userInfo: ["url": url]
+            )
+            return .handled
+
+        case .nothingFound:
+            Analytics.galleryScanFoundNothing(reason: .exhausted, elapsed: elapsed)
+            return .nothingFound
+
+        case .cancelled:
+            Analytics.galleryScanFoundNothing(reason: .cancelled, elapsed: elapsed)
+            return .nothingFound
+        }
+    }
+
+    private func handle(_ code: ScannedCode) async -> StillImageOutcome {
+        switch code {
+        case .tip(let payload):
+            Analytics.track(event: Analytics.TipCardEvent.scanned)
+            tipFlow.begin(userID: payload.userID)
+            return .handled
+
+        case .cash(let payload):
+            // Checked again here, not only on the way in: the search takes seconds, and a
+            // camera scan that starts inside that window makes `receiveCash` return on its
+            // own `scanOperation == nil` guard without ever calling the completion — the one
+            // path that would leave this continuation suspended, and the overlay with it.
+            guard !session.isProcessingScan else {
+                return .nothingFound
+            }
+
+            return await withCheckedContinuation { continuation in
+                session.receiveCash(payload) { result in
+                    switch result {
+                    case .success:
+                        continuation.resume(returning: .handled)
+                    case .noStream:
+                        // The one thing a still image genuinely cannot do. Its own message,
+                        // because the generic failure reads as a bug.
+                        continuation.resume(returning: .cashCodeNotLive)
+                    case .failed:
+                        continuation.resume(returning: .nothingFound)
+                    }
+                }
+            }
+        }
     }
 }
