@@ -226,9 +226,26 @@ public struct ConversationMember: Hashable, Sendable, Identifiable {
     /// conversation and needs no separate profile fetch.
     public var username: Username?
 
+    /// When this member most recently joined the chat (a rejoin carries the rejoin time, not the
+    /// original one). Set for a group's members on a `Chat.GetRoster` page and on
+    /// `RosterUpdate.MemberJoined` — the two carriers a client builds its member list from. `nil` on
+    /// `Metadata.members` (which carries only the viewer's own entry) and for every DM participant,
+    /// whose roster is fixed at creation.
+    public var joinedAt: Date?
+
+    /// The roster version at which this member most recently joined — equal to
+    /// ``ConversationRosterSummary/version`` at the moment of that join. Zero for a member joined at
+    /// the chat's creation and for every DM participant.
+    ///
+    /// This is the merge key a client must use when reconciling a `Chat.GetRoster` page against what
+    /// the event stream has already told it: keep the entry with the greater `version` so a page that
+    /// trails the stream (see the `GetRoster` staleness contract) cannot resurrect a member the stream
+    /// has already removed. Set wherever ``joinedAt`` is.
+    public var version: UInt64
+
     public var id: String { userID?.uuidString ?? displayName }
 
-    public init(userID: UserID?, displayName: String, phoneE164: String? = nil, readPointer: MessageID? = nil, readPointerTimestamp: Date? = nil, profilePicture: ProfilePicture? = nil, username: Username? = nil) {
+    public init(userID: UserID?, displayName: String, phoneE164: String? = nil, readPointer: MessageID? = nil, readPointerTimestamp: Date? = nil, profilePicture: ProfilePicture? = nil, username: Username? = nil, joinedAt: Date? = nil, version: UInt64 = 0) {
         self.userID = userID
         self.displayName = displayName
         self.phoneE164 = phoneE164
@@ -236,6 +253,8 @@ public struct ConversationMember: Hashable, Sendable, Identifiable {
         self.readPointerTimestamp = readPointerTimestamp
         self.profilePicture = profilePicture
         self.username = username
+        self.joinedAt = joinedAt
+        self.version = version
     }
 
     /// The member's phone number formatted for display, used as a conversation
@@ -272,5 +291,7 @@ extension ConversationMember {
         self.username = proto.userProfile.hasUsername
             ? Username(proto.userProfile.username)
             : nil
+        self.joinedAt = proto.hasJoinedAt ? proto.joinedAt.date : nil
+        self.version = proto.version
     }
 }

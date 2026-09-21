@@ -271,6 +271,104 @@ final class ChatService: Sendable {
             }
         }
     }
+
+    struct RosterFeedPage: Sendable {
+        let members: [ConversationMember]
+        let rosterSummary: ConversationRosterSummary
+        let pagingToken: Data
+        let hasMore: Bool
+    }
+
+    /// Pages a chat's roster, most recently joined first. Leave `pagingToken` `nil` on the first
+    /// call; on every later call pass back the previous page's `pagingToken` — it is opaque,
+    /// server-generated, and bound to `conversationID`. `pageSize` is capped at 100 server-side.
+    ///
+    /// A page may lag the returned `rosterSummary` for a large group (see `chat.v1.GetRoster`'s
+    /// staleness contract) — callers must merge each page against what the event stream has already
+    /// told them, by ``ConversationMember/version``, greater winning, rather than trusting a page to
+    /// be a complete, current snapshot.
+    func getRoster(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<RosterFeedPage, ErrorGetRoster>) -> Void) {
+        let request = Flipcash_Chat_V1_GetRosterRequest.with {
+            $0.chatID = conversationID.proto
+            $0.queryOptions = .with {
+                $0.pageSize = Int32(pageSize)
+                if let pagingToken {
+                    $0.pagingToken = .with { $0.value = pagingToken }
+                }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getRoster(request, options: .unaryDefault)
+                guard response.result == .ok else {
+                    logger.error("Failed to fetch roster")
+                    await MainActor.run { completion(.failure(ErrorGetRoster(response.result))) }
+                    return
+                }
+                guard response.hasRosterSummary else {
+                    logger.error("Failed to fetch roster")
+                    await MainActor.run { completion(.failure(.unknown)) }
+                    return
+                }
+                let page = RosterFeedPage(
+                    members: response.members.map(ConversationMember.init),
+                    rosterSummary: ConversationRosterSummary(response.rosterSummary),
+                    pagingToken: response.pagingToken.value,
+                    hasMore: response.hasMore_p
+                )
+                await MainActor.run { completion(.success(page)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Edits a group chat's title and/or picture. Every field is optional — only fields set on the
+    /// request change, atomically; a request that sets nothing is a no-op returning `.ok`. Only a
+    /// member the server permits to edit (``ConversationViewerState/canEdit``) may call this; anyone
+    /// else is `.denied`.
+    ///
+    /// `pictureBlobID`, when supplied, must already be `READY` (uploaded via `BlobService`) — this
+    /// call does not upload it, mirroring `startChat`'s `pictureBlobID` contract. On `.titleModerated`
+    /// the server also reports which category flagged the title, carried the same way
+    /// `ErrorStartChat.titleModerated` carries it.
+    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, pictureBlobID: BlobID?, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
+        let request = Flipcash_Chat_V1_EditChatRequest.with {
+            $0.chatID = conversationID.proto
+            if let title {
+                $0.title = .with { $0.value = title }
+            }
+            if let pictureBlobID {
+                $0.picture = .with { $0.blobID = .with { $0.value = pictureBlobID.data } }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.editChat(request, options: .unaryDefault)
+                guard response.result == .ok else {
+                    logger.error("Failed to edit chat")
+                    await MainActor.run { completion(.failure(ErrorEditChat(response.result, flaggedCategory: response.flaggedCategory))) }
+                    return
+                }
+                guard response.hasChat else {
+                    logger.error("Failed to edit chat")
+                    await MainActor.run { completion(.failure(.unknown)) }
+                    return
+                }
+                await MainActor.run { completion(.success(Conversation(response.chat))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -360,6 +458,35 @@ public enum ErrorUnmuteChat: Int, Error {
     case transportFailure = -2
     case cancelled = -3
     case rejected = -4
+}
+
+/// No `.ok` case: a success response resolves to `RosterFeedPage` in `ChatService.getRoster`'s `Result`,
+/// it never reaches this type. Mapped explicitly from `GetRosterResponse.Result` — see
+/// `ErrorGetRoster.init(_:)` — rather than via positional `rawValue:`, per this repo's convention for
+/// a new result enum (`ErrorStartChat`, `ErrorEditChat`).
+public enum ErrorGetRoster: Error, Sendable, Equatable {
+    case denied
+    case notFound
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
+}
+
+/// No `.ok` case, and modelled on `ErrorStartChat` for the same reason: `.titleModerated` carries the
+/// `flaggedCategory` the server reports for it. Mapped explicitly from `EditChatResponse.Result` — see
+/// `ErrorEditChat.init(_:flaggedCategory:)` — never via positional `rawValue:`, since
+/// `EditChatResponse.Result` has five cases against this file's usual three and a coincidental
+/// positional match would silently break the day a case is inserted upstream.
+public enum ErrorEditChat: Error, Sendable, Equatable {
+    case denied
+    case notFound
+    case titleModerated(Flipcash_Moderation_V1_FlaggedCategory)
+    case pictureBlobNotAccepted
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
 }
 
 extension ErrorGetDmChatFeed: ServerError, TransportClassifiableError {
@@ -472,6 +599,70 @@ extension ErrorUnmuteChat: ServerError, TransportClassifiableError {
         case .cancelled: .info
         case .denied, .notFound: .info
         case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetRoster: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetRoster {
+    /// Maps a non-`.ok` `GetRosterResponse.Result` to its domain error. Pure and synchronous so the
+    /// mapping is unit-testable without a live RPC, and total over the proto enum (`.ok` and
+    /// `.UNRECOGNIZED` both fold to `.unknown`) even though callers only reach this once they've
+    /// confirmed `result != .ok`.
+    init(_ result: Flipcash_Chat_V1_GetRosterResponse.Result) {
+        switch result {
+        case .ok:
+            self = .unknown
+        case .denied:
+            self = .denied
+        case .notFound:
+            self = .notFound
+        case .UNRECOGNIZED:
+            self = .unknown
+        }
+    }
+}
+
+extension ErrorEditChat: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorEditChat {
+    /// Maps a non-`.ok` `EditChatResponse.Result` to its domain error, carrying `flaggedCategory`
+    /// through on `.titleModerated` the same way `ErrorStartChat.init(_:flaggedCategory:)` does.
+    /// Pure, synchronous, and total over the proto enum; callers only reach this once they've
+    /// confirmed `result != .ok`.
+    init(_ result: Flipcash_Chat_V1_EditChatResponse.Result, flaggedCategory: Flipcash_Moderation_V1_FlaggedCategory) {
+        switch result {
+        case .ok:
+            self = .unknown
+        case .denied:
+            self = .denied
+        case .notFound:
+            self = .notFound
+        case .titleModerated:
+            self = .titleModerated(flaggedCategory)
+        case .pictureBlobNotAccepted:
+            self = .pictureBlobNotAccepted
+        case .UNRECOGNIZED:
+            self = .unknown
         }
     }
 }

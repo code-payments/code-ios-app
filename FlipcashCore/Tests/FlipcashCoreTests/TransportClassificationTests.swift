@@ -83,6 +83,8 @@ struct TransportClassificationTests {
     @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }
     @Test func errorMuteChat() { assertClassifies(ErrorMuteChat.self) }
     @Test func errorUnmuteChat() { assertClassifies(ErrorUnmuteChat.self) }
+    @Test func errorGetRoster() { assertClassifies(ErrorGetRoster.self) }
+    @Test func errorEditChat() { assertClassifies(ErrorEditChat.self) }
     @Test func errorReport() { assertClassifies(ErrorReport.self) }
 
     // In-band outcomes fall outside the generic four-case contract.
@@ -114,6 +116,36 @@ struct TransportClassificationTests {
         #expect(ErrorStartChat(.pictureBlobNotAccepted, flaggedCategory: .nsfw) == .pictureBlobNotAccepted)
         #expect(ErrorStartChat(.invalidRules, flaggedCategory: .nsfw) == .invalidRules)
         #expect(ErrorStartChat(.rulesNotSatisfied, flaggedCategory: .nsfw) == .rulesNotSatisfied)
+    }
+
+    // `ErrorEditChat` carries the same kind of payload on `.titleModerated`, mapped explicitly from
+    // `EditChatResponse.Result` rather than by positional `rawValue:` — this result enum has five
+    // cases against this file's usual three, so a coincidental positional match would silently break
+    // the day a case is inserted upstream.
+    @Test("ErrorEditChat.titleModerated carries the flagged category from a TITLE_MODERATED response")
+    func errorEditChatTitleModeratedCarriesCategory() {
+        let error = ErrorEditChat(.titleModerated, flaggedCategory: .nsfw)
+        guard case .titleModerated(let category) = error else {
+            Issue.record("Expected .titleModerated, got \(error)")
+            return
+        }
+        #expect(category == .nsfw)
+        #expect(error.reportingLevel == .info)
+        #expect(!error.isRetryable)
+
+        // Every other result maps to its payload-less case, unaffected by the category argument.
+        #expect(ErrorEditChat(.denied, flaggedCategory: .nsfw) == .denied)
+        #expect(ErrorEditChat(.notFound, flaggedCategory: .nsfw) == .notFound)
+        #expect(ErrorEditChat(.pictureBlobNotAccepted, flaggedCategory: .nsfw) == .pictureBlobNotAccepted)
+    }
+
+    // `ErrorGetRoster` has no payload-carrying case, but it's still mapped explicitly from
+    // `GetRosterResponse.Result` rather than by positional `rawValue:`, per this file's convention
+    // for a freshly introduced result enum.
+    @Test("ErrorGetRoster maps GetRosterResponse.Result explicitly")
+    func errorGetRosterMapsResult() {
+        #expect(ErrorGetRoster(.denied) == .denied)
+        #expect(ErrorGetRoster(.notFound) == .notFound)
     }
 
     // MARK: - Tier 2: associated-value errors that capture the transport error -

@@ -38,9 +38,19 @@ public enum ConversationStreamEvent: Sendable {
     /// doesn't matter.
     case rosterChanged(conversationID: ConversationID, updates: [DecodedRosterUpdate])
 
-    /// The signed-in user's viewer state changed (currently: mute status). Compared like
-    /// `rosterChanged` — apply by ``ConversationViewerState/version``, greater wins, drop the rest.
+    /// The signed-in user's viewer state changed (currently: mute status, permissions). Compared
+    /// like `rosterChanged` — apply by ``ConversationViewerState/version``, greater wins, drop the
+    /// rest.
     case viewerStateChanged(conversationID: ConversationID, viewerState: ConversationViewerState)
+
+    /// A group chat's title changed (via `Chat.EditChat`), including on the editor's other devices.
+    /// Best-effort and applied as received, with no version to compare — a client that suspects a
+    /// miss refetches the chat via `Chat.GetChat`.
+    case titleChanged(conversationID: ConversationID, title: String)
+
+    /// A group chat's picture changed (via `Chat.EditChat`), including on the editor's other
+    /// devices. Best-effort and applied as received, like ``titleChanged``.
+    case pictureChanged(conversationID: ConversationID, picture: ProfilePicture)
 }
 
 /// One durable event in a chat's log: a contiguous run of mutations delivered atomically. `sequence`
@@ -140,6 +150,13 @@ extension ConversationStreamEvent {
             case .viewerStateChanged(let changed):
                 guard changed.hasViewerState else { break }
                 events.append(.viewerStateChanged(conversationID: conversationID, viewerState: ConversationViewerState(changed.viewerState)))
+            case .titleChanged(let changed):
+                events.append(.titleChanged(conversationID: conversationID, title: changed.newTitle))
+            case .pictureChanged(let changed):
+                // `ProfilePicture.init?` fails without an original rendition — required on the
+                // wire, but treated the same as an absent picture rather than force-unwrapped.
+                guard changed.hasNewPicture, let picture = ProfilePicture(changed.newPicture) else { break }
+                events.append(.pictureChanged(conversationID: conversationID, picture: picture))
             case nil:
                 break
             }

@@ -97,6 +97,55 @@ extension FlipClient {
         }
     }
 
+    /// Represents one paged read of a chat's roster: the members returned, most recently joined
+    /// first, and the roster summary as of that page's read.
+    ///
+    /// This is a single pinned read, not a merged view — a large group's roster can page from an
+    /// index that trails the event stream (see `chat.v1.GetRoster`'s staleness contract), so the
+    /// caller must reconcile `members` against whatever it already holds from the stream, by
+    /// ``ConversationMember/version``, greater winning, rather than trusting this to be current or
+    /// complete on its own.
+    public struct RosterPage: Sendable {
+        public let members: [ConversationMember]
+        public let rosterSummary: ConversationRosterSummary
+    }
+
+    /// Pages a chat's roster to exhaustion against a single pinned read. The caller must already be
+    /// consuming its `subscribeConversationStream` events — as with `getDmChatFeed`/
+    /// `getGroupChatFeed` — and must merge the result against them by ``ConversationMember/version``
+    /// rather than treating it as an authoritative snapshot; see ``RosterPage``.
+    public func getRoster(owner: KeyPair, conversationID: ConversationID) async throws -> RosterPage {
+        var members: [ConversationMember] = []
+        var rosterSummary = ConversationRosterSummary(memberCount: 0, version: 0)
+        var pagingToken: Data?
+
+        while true {
+            let page = try await withCheckedThrowingContinuation { c in
+                chatService.getRoster(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
+            }
+            members.append(contentsOf: page.members)
+            rosterSummary = page.rosterSummary
+            if !page.hasMore { break }
+            pagingToken = page.pagingToken
+        }
+
+        return RosterPage(members: members, rosterSummary: rosterSummary)
+    }
+
+    /// Edits a group chat's title and/or picture; every parameter left `nil` leaves that field
+    /// unchanged, and passing both `nil` is a no-op that still returns the current metadata. Only a
+    /// member with ``ConversationViewerState/canEdit`` may call this.
+    ///
+    /// `pictureBlobID` must already be `READY` (uploaded via `BlobService`) — this call does not
+    /// upload it. Real changes also arrive on the event stream as `MetadataUpdate.titleChanged`/
+    /// `.pictureChanged` for the chat's other members (and the caller's other devices); this call's
+    /// return value is only this device's confirmation.
+    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, pictureBlobID: BlobID?) async throws -> Conversation {
+        try await withCheckedThrowingContinuation { c in
+            chatService.editChat(owner: owner, conversationID: conversationID, title: title, pictureBlobID: pictureBlobID) { c.resume(with: $0) }
+        }
+    }
+
     public func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?, viewMode: ConversationViewMode = .full) async throws -> [ConversationMessage] {
         try await withCheckedThrowingContinuation { c in
             chatMessagingService.getMessages(owner: owner, conversationID: conversationID, pagingToken: before?.pagingToken, viewMode: viewMode) { c.resume(with: $0) }

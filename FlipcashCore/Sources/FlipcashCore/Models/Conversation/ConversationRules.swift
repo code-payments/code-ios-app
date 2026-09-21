@@ -48,13 +48,22 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
     /// client can store the message) but flagged for the client to suppress the notification.
     public let mute: ConversationMuteState?
 
+    /// Whether the viewer may call `Chat.EditChat` on this chat. `false` for every DM and for a
+    /// group member the server does not permit to edit it.
+    ///
+    /// Server-computed from the viewer's standing and the chat's rules and never derivable
+    /// client-side: show an edit affordance if and only if this is `true`. Defaults to `false`, so
+    /// an unset permission always means not permitted.
+    public let canEdit: Bool
+
     /// Opaque version, advanced by exactly one on every real change. Compared like
     /// ``ConversationRosterSummary/version``: apply the greater value and drop the rest — delivery
     /// order does not matter, and there is no delta to fetch, only a refetch.
     public let version: UInt64
 
-    public init(mute: ConversationMuteState? = nil, version: UInt64 = 0) {
+    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0) {
         self.mute = mute
+        self.canEdit = canEdit
         self.version = version
     }
 }
@@ -63,6 +72,7 @@ extension ConversationViewerState {
     public init(_ proto: Flipcash_Chat_V1_ViewerState) {
         self.init(
             mute: (proto.hasSettings && proto.settings.hasMute) ? ConversationMuteState(proto.settings.mute) : nil,
+            canEdit: proto.hasPermissions ? proto.permissions.canEdit : false,
             version: proto.version
         )
     }
