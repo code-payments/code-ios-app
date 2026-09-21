@@ -57,8 +57,18 @@ nonisolated struct GalleryScanner {
     /// hit it, short enough that a photo of a wall gives up. A guess, not a measurement —
     /// see the spec's open decisions.
     ///
-    /// It bounds the crops, not the QR pass, which is a single uninterruptible call.
+    /// It bounds the crops. The QR pass is a single uninterruptible call that runs outside
+    /// it, which is why that pass reads a downscaled copy — see ``maximumQRSide``.
     static let budget: TimeInterval = 8.0
+
+    /// The longest side the QR pass sees.
+    ///
+    /// Both detectors scale internally, but from whatever they are handed: on a 12 MP frame
+    /// that cost is seconds, and `race` cannot return until the pass finishes, so it lands
+    /// outside the deadline ``walk(_:from:by:of:until:)`` honours. A 0.5s budget measured
+    /// 21s that way. Matching the ladder's own cap keeps a picked QR readable — a code too
+    /// small to survive this is also too small for the ladder to have found.
+    static let maximumQRSide: CGFloat = StillImageCodeSearch.maximumRenderedSide
 
     /// How many crops are rendered at once.
     ///
@@ -231,8 +241,38 @@ nonisolated struct GalleryScanner {
     /// Route eligibility is not decided here — that is ``ScanViewModel/canScanQR(url:)``,
     /// so the gallery, the camera, and the share sheet all answer to one allowlist.
     private static func detectQR(in image: CGImage) -> URL? {
-        let payloads = visionPayloads(in: image) ?? detectorPayloads(in: image)
+        let scaled = downscaled(image, to: maximumQRSide)
+        let payloads = visionPayloads(in: scaled) ?? detectorPayloads(in: scaled)
         return payloads.lazy.compactMap { URL(string: $0) }.first
+    }
+
+    /// `image` with its longest side brought down to `maximumSide`, or `image` itself when it
+    /// already fits or cannot be redrawn — a QR pass over the full frame is slow, not wrong.
+    private static func downscaled(_ image: CGImage, to maximumSide: CGFloat) -> CGImage {
+        let longest = CGFloat(max(image.width, image.height))
+        guard longest > maximumSide else { return image }
+
+        let scale = maximumSide / longest
+        let width = Int((CGFloat(image.width) * scale).rounded())
+        let height = Int((CGFloat(image.height) * scale).rounded())
+
+        guard
+            let context = CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        else {
+            return image
+        }
+
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage() ?? image
     }
 
     /// Vision's read, or `nil` when Vision could not run at all — an empty array means it
