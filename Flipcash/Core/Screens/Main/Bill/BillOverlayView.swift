@@ -28,7 +28,6 @@ struct BillOverlayView: View {
 private struct BillOverlayContent: View {
 
     @Environment(AppRouter.self) private var router
-    @Environment(BetaFlags.self) private var betaFlags
 
     @Bindable private var session: Session
     private let sessionContainer: SessionContainer
@@ -238,14 +237,11 @@ private struct BillOverlayContent: View {
     /// comes forward, where the balance is seen to rise.
     ///
     /// Only a scanned grab arms a deposit, so a claimed cash link takes the
-    /// plain dismissal here, as does any receive with
-    /// ``BetaFlags/Option/walletDepositArrival`` off. The single gate is here
-    /// because everything downstream hangs off the release: an unreleased
-    /// deposit is discarded by `dismissCashBill`, and the wallet only plays one
-    /// it has been released.
+    /// plain dismissal here. The single gate is here because everything
+    /// downstream hangs off the release: an unreleased deposit is discarded by
+    /// `dismissCashBill`, and the wallet only plays one it has been released.
     private func putInWallet() {
-        guard betaFlags.hasEnabled(.walletDepositArrival),
-              session.walletDeposit.isArmed else {
+        guard session.walletDeposit.isArmed else {
             session.dismissCashBill(style: .slide)
             return
         }
