@@ -177,7 +177,6 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
-        case scanFromGallery
 
         var id: String {
             localizedTitle
@@ -189,8 +188,6 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
-            case .scanFromGallery:
-                return "Scan from gallery"
             }
         }
 
@@ -200,17 +197,14 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
-            case .scanFromGallery:
-                return "If enabled, the Scan tab shows a button for picking a photo from your library and scanning the code in it"
             }
         }
 
         /// Which Settings surface exposes this flag's toggle.
         var availability: Availability {
             switch self {
-            case .vibrateOnScan:   return .developer
-            case .enableCoinbase:  return .developer
-            case .scanFromGallery: return .developer
+            case .vibrateOnScan:  return .developer
+            case .enableCoinbase: return .developer
             }
         }
 
@@ -218,9 +212,8 @@ extension BetaFlags {
         /// that ships on but keeps its off switch while it settles.
         var isOnByDefault: Bool {
             switch self {
-            case .vibrateOnScan:   return false
-            case .enableCoinbase:  return false
-            case .scanFromGallery: return false
+            case .vibrateOnScan:  return false
+            case .enableCoinbase: return false
             }
         }
     }
