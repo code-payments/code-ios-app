@@ -133,14 +133,18 @@ class ScanViewModel {
 
     /// Returns whether a URL is eligible for QR code scanning.
     ///
-    /// An allowlist: `.cash`, `.token`, `.tip`, and `.username` may be scanned, and every
-    /// other route is refused by name — including the security-sensitive `.login` and
+    /// Two gates. The host comes first: a QR code is read off whatever the camera is pointed at,
+    /// so nothing vouched for its host, and `Route` matches on path alone — ungated, a Discord
+    /// invite scans as a handle and a stranger's `/c/#/e=…` scans as a cash link.
+    ///
+    /// Then the route: an allowlist of `.cash`, `.token`, `.tip`, and `.username`, with every
+    /// other route refused by name — including the security-sensitive `.login` and
     /// `.verifyEmail`. A new `Route.Path` case is refused until someone adds it here.
     ///
     /// Every entry point answers to this, not just the camera: a gallery image is one the
     /// user chose, and a shared image is one somebody else sent them.
     nonisolated static func canScanQR(url: URL) -> Bool {
-        guard let route = Route(url: url) else {
+        guard Route.isFlipcashLink(url), let route = Route(url: url) else {
             return false
         }
 
