@@ -23,7 +23,9 @@ struct RecipientRowScaffold<Trailing: View>: View {
 
     let avatarID: String
     let title: String
-    let subtitle: String?
+    /// The preview line. Attributed so a caller can style part of it — the
+    /// empty-chat placeholder is italic while a real preview is not.
+    let subtitle: AttributedString?
     let imageData: Data?
     var blurhash: String? = nil
     var accessoryPlacement: RecipientRowAccessoryPlacement = .trailingColumn
@@ -58,7 +60,7 @@ struct RecipientRowBody<Trailing: View>: View {
 
     let avatarID: String
     let title: String
-    let subtitle: String?
+    let subtitle: AttributedString?
     let imageData: Data?
     var blurhash: String? = nil
     var accessoryPlacement: RecipientRowAccessoryPlacement = .trailingColumn

@@ -168,9 +168,7 @@ private struct TipConversationRow: View {
     var body: some View {
         let counterpart = conversation.counterpart(excluding: conversationController.selfUserID)
         let title = conversationController.displayName(for: conversation)
-        let subtitle = conversationController.lastMessagePreview(for: conversation) {
-            session.balance(for: $0)?.name
-        }
+        let subtitle = self.subtitle
         let hasUnread = conversation.hasUnread(for: conversationController.selfUserID)
         // Read once, for the label only — the bell keeps its own clock. A label can't: VoiceOver
         // reads it when it lands on the row, and this view redraws on store changes rather than at
@@ -199,6 +197,22 @@ private struct TipConversationRow: View {
         .task(id: avatarSubject) {
             await sessionContainer.profileAvatars.load(avatarSubject, picture: avatarPicture)
         }
+    }
+
+    /// The preview line: the last message, or an italic "Nothing yet" for a chat with no message
+    /// at all. A group is created empty, and a blank line there reads as a row still loading.
+    /// Only a chat that never had a message gets the placeholder — a last message the preview
+    /// declines to quote (a tombstone, an empty body) is not nothing, so it leaves the line off.
+    private var subtitle: AttributedString? {
+        if let preview = conversationController.lastMessagePreview(for: conversation, currencyName: {
+            session.balance(for: $0)?.name
+        }) {
+            return AttributedString(preview)
+        }
+        guard conversation.lastMessage == nil else { return nil }
+        var placeholder = AttributedString("Nothing yet")
+        placeholder.inlinePresentationIntent = .emphasized
+        return placeholder
     }
 
     /// The row reads as one element, so the bell's own label is discarded — it has to be said here.
