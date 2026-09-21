@@ -835,6 +835,12 @@ struct ConversationScreen: View {
             composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
         case .delete:
             confirmDelete(message.id)
+        case .report:
+            // Unreachable today: `orderedActions` does not offer Report yet, because the reason
+            // sheet needs a vocabulary that `SharedCoreKit` does not ship until 0.8.0. The
+            // capability, its window and its menu placement are all in place; the row and this
+            // arm land together with the sheet.
+            break
         }
     }
 

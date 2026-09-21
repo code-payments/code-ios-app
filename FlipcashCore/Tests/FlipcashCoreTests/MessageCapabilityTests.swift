@@ -38,9 +38,9 @@ struct MessageCapabilityTests {
         #expect(resolve(text("hi", from: me, eventSequence: 0)).isEmpty)
     }
 
-    @Test("Someone else's text can only be copied")
-    func otherPersonsTextIsCopyOnly() {
-        #expect(resolve(text("hi", from: them)) == [.copy, .reply])
+    @Test("Someone else's text can be copied, replied to, and reported")
+    func otherPersonsTextIsReportable() {
+        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report])
     }
 
     @Test("A tombstone offers nothing")
@@ -53,14 +53,22 @@ struct MessageCapabilityTests {
         #expect(resolve(tombstone).isEmpty)
     }
 
-    @Test("A cash message offers Reply and nothing else")
-    func cashMessageOffersReplyOnly() {
-        let cash = ConversationMessage(
-            id: MessageID(value: 3), senderID: me,
+    @Test("My own cash message offers Reply and nothing else")
+    func ownCashMessageOffersReplyOnly() {
+        #expect(resolve(cash(from: me)) == [.reply])
+    }
+
+    @Test("Someone else's cash message can be reported — a payment is a thing a person did to you")
+    func otherPersonsCashIsReportable() {
+        #expect(resolve(cash(from: them)) == [.reply, .report])
+    }
+
+    private func cash(from sender: UUID) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: 3), senderID: sender,
             content: .cash(ExchangedFiat(nativeAmount: .usd(20), rate: .oneToOne)),
             cashAction: .sent, date: now, unreadSeq: 1, eventSequence: 2
         )
-        #expect(resolve(cash) == [.reply])
     }
 
     // MARK: - Windows -
@@ -107,6 +115,18 @@ struct MessageCapabilityTests {
         let policy = windows(edit: 900, delete: 172_800)
         #expect(resolve(text("hi", from: me, sentAgo: 900.001), policy: policy) == [.copy, .reply, .delete])
         #expect(resolve(text("hi", from: me, sentAgo: 172_800.001), policy: policy) == [.copy, .reply])
+    }
+
+    @Test("Report has no window — it is a limit on mutating a message, and reporting mutates nothing")
+    func reportIsNeverWindowed() {
+        #expect(MessagePolicy.default.window(for: .report) == nil)
+        #expect(windows(edit: 60, delete: 60).window(for: .report) == nil)
+        // The consequence that matters: a windowed `.report` would arm a timer on every incoming
+        // message in the transcript, since every one of them resolves it.
+        #expect(MessageCapability.nextExpiry(
+            among: [text("hi", from: them, sentAgo: 10_000_000)],
+            in: nil, as: me, policy: windows(edit: 60, delete: 60), now: now
+        ) == nil)
     }
 
     @Test("A nil window never lapses")
@@ -211,6 +231,7 @@ struct MessageCapabilityTests {
     @Test("Messages with nothing to lose contribute no deadline")
     func nonExpiringMessagesScheduleNothing() {
         let policy = windows(edit: 900, delete: 172_800)
+        // `theirs` resolves `.report`, which has no window, so it still contributes nothing.
         let theirs = text("hi", from: them)
         let unconfirmed = text("hi", from: me, eventSequence: 0)
         #expect(MessageCapability.nextExpiry(

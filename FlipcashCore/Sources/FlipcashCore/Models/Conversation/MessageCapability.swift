@@ -14,6 +14,7 @@ public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable
     case reply
     case edit
     case delete
+    case report
 }
 
 extension MessageCapability {
@@ -25,14 +26,17 @@ extension MessageCapability {
         case .reply:  "Reply"
         case .edit:   "Edit"
         case .delete: "Delete"
+        case .report: "Report"
         }
     }
 
     /// Whether the menu should render this row in its destructive style.
     public var isDestructive: Bool {
         switch self {
-        case .copy, .reply, .edit: false
-        case .delete:              true
+        // Report is not destructive, though a reviewer will expect it to be: nothing is destroyed
+        // and nothing is irreversible from the reporter's side. The red row belongs to delete.
+        case .copy, .reply, .edit, .report: false
+        case .delete:                       true
         }
     }
 }
@@ -41,6 +45,17 @@ extension MessageCapability {
 
     /// The capabilities `selfUserID` has over `message`. Pure — the same inputs always give the same
     /// answer, which is what lets the transcript mapper run off the main actor.
+    ///
+    /// Reporting follows one rule, held in step with Android's `resolveCapabilities`: anything a
+    /// participant sent can be reported; anything that no longer exists, or that you sent, cannot.
+    ///
+    /// | Message | Report? |
+    /// |---|---|
+    /// | Another participant's text | yes |
+    /// | Another participant's cash | yes |
+    /// | Own message, confirmed | no |
+    /// | Own message, unconfirmed | no |
+    /// | A tombstone | no |
     ///
     /// `conversation` is accepted but unread today: it is the seam a group-chat permissions model
     /// plugs into (an admin deleting another member's message, a read-only channel), and taking it
@@ -63,14 +78,15 @@ extension MessageCapability {
         case .cash:
             // Reply is a cash message's only capability: there is no text to copy, the server
             // authored it so there is nothing to edit, and delete is deliberately withheld from
-            // a payment record.
-            return [.reply]
+            // a payment record. Someone else's payment is still reportable — a payment is a thing
+            // a person did to you.
+            return message.isFromSelf(selfUserID) ? [.reply] : [.reply, .report]
         case .text:
             break
         }
 
         guard message.isFromSelf(selfUserID) else {
-            return [.copy, .reply]
+            return [.copy, .reply, .report]
         }
 
         // An unconfirmed message has no `eventSequence` to send as `expected_event_sequence`, so no

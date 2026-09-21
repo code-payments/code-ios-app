@@ -300,7 +300,11 @@ extension ChatItem {
 
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
     /// must not shuffle its rows between renders of the same message.
+    ///
+    /// Report goes last: it is the rarest row and the only one that never appears on your own
+    /// message, so the menu reads "yours ends with delete, theirs ends with report".
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
+        // `.report` is deliberately absent until the reason sheet lands — see `handleMessageAction`.
         [.copy, .reply, .edit, .delete].filter(capabilities.contains)
     }
 
