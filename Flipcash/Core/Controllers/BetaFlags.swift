@@ -177,8 +177,6 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
-        case walletDepositArrival
-        case glassReplyQuote
         case scanFromGallery
 
         var id: String {
@@ -191,10 +189,6 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
-            case .walletDepositArrival:
-                return "Show deposits arriving in the wallet"
-            case .glassReplyQuote:
-                return "Glass reply quote"
             case .scanFromGallery:
                 return "Scan from gallery"
             }
@@ -206,10 +200,6 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
-            case .walletDepositArrival:
-                return "If enabled, Put in Wallet opens the wallet and shows the balance rising and any new card arriving. If disabled, the bill is dismissed where it stands"
-            case .glassReplyQuote:
-                return "If enabled, the quote above the composer is Liquid Glass floating clear of the bar. If disabled, it is an opaque panel on the bar's own surface"
             case .scanFromGallery:
                 return "If enabled, the Scan tab shows a button for picking a photo from your library and scanning the code in it"
             }
@@ -218,11 +208,9 @@ extension BetaFlags {
         /// Which Settings surface exposes this flag's toggle.
         var availability: Availability {
             switch self {
-            case .vibrateOnScan:        return .developer
-            case .enableCoinbase:       return .developer
-            case .walletDepositArrival: return .developer
-            case .glassReplyQuote:      return .developer
-            case .scanFromGallery:      return .developer
+            case .vibrateOnScan:   return .developer
+            case .enableCoinbase:  return .developer
+            case .scanFromGallery: return .developer
             }
         }
 
@@ -230,11 +218,9 @@ extension BetaFlags {
         /// that ships on but keeps its off switch while it settles.
         var isOnByDefault: Bool {
             switch self {
-            case .vibrateOnScan:        return false
-            case .enableCoinbase:       return false
-            case .walletDepositArrival: return true
-            case .glassReplyQuote:      return true
-            case .scanFromGallery:      return false
+            case .vibrateOnScan:   return false
+            case .enableCoinbase:  return false
+            case .scanFromGallery: return false
             }
         }
     }

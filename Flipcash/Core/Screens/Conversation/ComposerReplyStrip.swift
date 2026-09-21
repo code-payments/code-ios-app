@@ -15,37 +15,14 @@ import FlipcashUI
 ///
 /// The quote carries the reply's elevation, because the bar cannot. The bar's slab has to stay the
 /// chat background to match the keyboard it sits on — see `BarSurfaceBackground` — so the ground
-/// that sets a reply apart is drawn here, inset from the bar's edges, in one of two ``Style``s.
+/// that sets a reply apart is drawn here, inset from the bar's edges, in Liquid Glass.
 ///
 /// The colour is the person's, not the surface's — `ComplementaryPalette` derives it from their user
 /// id, so the same person is the same colour here, inside a sent bubble, and on Android.
 struct ComposerReplyStrip: View {
 
-    /// The container the quote is drawn in.
-    ///
-    /// Both keep the bar's slab flat, so neither draws a line against the keyboard, and both take
-    /// `BarMetrics.cornerRadius` — the field's and the Send Cash button's — so the quote is the same
-    /// shape as everything else on the bar. What differs is the material, and so what the quote
-    /// reads as: part of the bar, or something floating over it.
-    enum Style {
-        /// An opaque card over the transcript, one step up from the chat background. The
-        /// conservative reading of WhatsApp, minus its slab: the bar's surface stops at the composer
-        /// row, so the card is what the reply adds.
-        case panel
-        /// Liquid Glass floating clear of the bar, sampling the transcript behind it. Falls back to
-        /// an ultra-thin material below iOS 26.
-        case glass
-    }
-
     let target: ComposerModel.ReplyTarget
     let onDismiss: () -> Void
-
-    /// Prototype switch, read from the shared instance rather than the environment: the bar is
-    /// hosted inside a `UIHostingController`, which does not inherit the app's SwiftUI environment.
-    /// `BetaFlags` is `@Observable`, so reading it in `body` still re-renders on the toggle.
-    private var style: Style {
-        BetaFlags.shared.hasEnabled(.glassReplyQuote) ? .glass : .panel
-    }
 
     /// Wider than the 4pt a blockquote rule usually takes, because the quote's corner radius is the
     /// bar's 14: the leading edge is straight for only `contentHeight - 14 * 2` of its run, and the
@@ -118,10 +95,10 @@ struct ComposerReplyStrip: View {
         // centred inside `contentHeight` — leaving the rule a fraction short at both ends.
         // ``QuoteGround`` rounds off the two corners it passes.
         .overlay(alignment: .leading) {
-            QuoteRule(color: rule, style: style)
+            QuoteRule(color: rule)
                 .frame(width: Self.ruleWidth)
         }
-        .modifier(QuoteGround(style: style))
+        .modifier(QuoteGround())
         .padding(.horizontal, Self.inset)
         // One margin all the way round: the quote sits ``inset`` from the bar's top edge and the same
         // distance off the controls below. The bar already pads its own row, so only the remainder is
@@ -178,47 +155,34 @@ struct ComposerReplyStrip: View {
 }
 
 /// The author's colour down the quote's leading edge, in the same material as the ground behind it:
-/// a solid fill on the opaque card, tinted Liquid Glass on the glass. A solid bar over glass reads as
-/// a sticker stuck to the surface rather than as part of it.
+/// tinted Liquid Glass. A solid bar over glass reads as a sticker stuck to the surface rather than
+/// as part of it.
 private struct QuoteRule: View {
 
     let color: Color
-    let style: ComposerReplyStrip.Style
 
-    @ViewBuilder
     var body: some View {
-        switch style {
-        case .panel:
-            Rectangle().fill(color)
-        case .glass:
-            // Square-cornered: ``QuoteGround``'s clip rounds the two corners this rule passes.
-            Color.clear.glassBackground(cornerRadius: 0, tint: color)
-        }
+        // Square-cornered: ``QuoteGround``'s clip rounds the two corners this rule passes.
+        Color.clear.glassBackground(cornerRadius: 0, tint: color)
     }
 }
 
-/// What the quote sits on. One radius — the bar's — and two materials.
+/// What the quote sits on: Liquid Glass at the bar's radius, so the quote is the same shape as the
+/// field and the Send Cash button, and the bar's slab stays flat against the keyboard.
 ///
 /// The clip goes on the content and the ground goes behind it, rather than one clip over both. Both
 /// halves need that. The author's rule runs flush to the leading edge and squares off the two
 /// corners it passes unless something rounds it, and `glassEffect` draws its specular edge outside
 /// its own bounds and loses it to a clip — so the rule is clipped, the ground is not, and the rule
-/// can sit on the edge in either style.
+/// can sit on the edge.
 private struct QuoteGround: ViewModifier {
-
-    let style: ComposerReplyStrip.Style
 
     private static let shape = RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
 
-    @ViewBuilder
     func body(content: Content) -> some View {
-        let quote = content.clipShape(Self.shape)
-        switch style {
-        case .panel:
-            quote.background(Color.backgroundSecondary, in: Self.shape)
-        case .glass:
-            // The background form, not the wrapping one: the glass has to stay outside the clip.
-            quote.glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
-        }
+        // The background form, not the wrapping one: the glass has to stay outside the clip.
+        content
+            .clipShape(Self.shape)
+            .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
     }
 }

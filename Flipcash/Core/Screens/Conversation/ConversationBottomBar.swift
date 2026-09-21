@@ -471,7 +471,7 @@ private struct CancelEditButton: View {
 /// read as one surface. Lifting the slab to `backgroundSecondary` (37,37,38) for a reply drew a hard
 /// horizontal line across the screen at the keyboard's top edge — not a gap in the bleed, which
 /// already runs past the safe area, but a colour step against a system surface we cannot repaint. So
-/// the elevation a reply needs goes on the quote instead; see ``ComposerReplyStrip/Style``.
+/// the elevation a reply needs goes on the quote instead; see ``ComposerReplyStrip``.
 private struct BarSurfaceBackground: ViewModifier {
 
     /// How far the surface paints below the bar's own bottom edge.
