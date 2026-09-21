@@ -68,12 +68,13 @@ struct StillImageLuminanceRendererTests {
     }
 
     static func handWrittenLuminance(rgba: [UInt8], count: Int) -> [UInt8] {
-        (0..<count).map { index in
+        (0..<count).map { index -> UInt8 in
             let offset = index * 4
             let red = Int(rgba[offset])
             let green = Int(rgba[offset + 1])
             let blue = Int(rgba[offset + 2])
-            return UInt8((77 * red + 150 * green + 29 * blue) >> 8)
+            let weighted: Int = 77 * red + 150 * green + 29 * blue
+            return UInt8(weighted >> 8)
         }
     }
 
