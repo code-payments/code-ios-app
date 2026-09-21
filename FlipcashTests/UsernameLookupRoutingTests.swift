@@ -79,6 +79,40 @@ struct UsernameLookupRoutingTests {
         #expect(ConversationContext.existing(chatID).resolvedContact(in: [contact]) != nil)
     }
 
+    // MARK: - Back stack -
+
+    @Test("The chat list is not a fixed number of screens below the lookup")
+    func backStack_routeInHasNoFixedDepth() {
+        // The lookup was pushed straight off the chat list until the New Chat
+        // picker went in between (#790). A screen that assumed the depth it had
+        // then is a screen that stops unwinding the moment the route changes.
+        let router = AppRouter()
+        router.activeTabStack = .tips
+
+        router.push(.newChat)
+        router.push(.usernameLookup)
+
+        #expect(router[.tips].count == 2)
+    }
+
+    @Test("Back from a chat opened by handle lands on the chat list")
+    func backStack_rewriteLeavesOnlyTheChat() {
+        let router = AppRouter()
+        router.activeTabStack = .tips
+        router.push(.newChat)
+        router.push(.usernameLookup)
+
+        let chat = AppRouter.Destination.tipConversationForUser(UUID())
+        let depthWithChat = router[.tips].count + 1
+        router.push(chat)
+        #expect(router[.tips].count == depthWithChat)
+
+        // What the screen does once the push has started: neither the picker
+        // nor the lookup is somewhere Back belongs, and the list is the root.
+        router.setPath([chat], on: .tips)
+        #expect(router[.tips].count == 1)
+    }
+
     // MARK: - Counterpart -
 
     @Test("The fetched profile supplies the name and handle the chat shows")
