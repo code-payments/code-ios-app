@@ -337,6 +337,12 @@ public struct ConversationStore: Sendable {
         case .viewerStateChanged(let conversationID, let viewerState):
             applyViewerStateChanged(viewerState, in: conversationID)
             return .none
+        case .titleChanged(let conversationID, let title):
+            applyTitleChanged(title, in: conversationID)
+            return .none
+        case .pictureChanged(let conversationID, let picture):
+            applyPictureChanged(picture, in: conversationID)
+            return .none
         }
     }
 
@@ -488,6 +494,23 @@ public struct ConversationStore: Sendable {
         guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
         guard viewerState.version > (conversations[index].viewerState?.version ?? 0) else { return }
         conversations[index].viewerState = viewerState
+    }
+
+    /// Apply a title change delivered via `MetadataUpdate.TitleChanged`. Best-effort and applied as
+    /// received — the update carries no version to compare, unlike ``applyRosterUpdates(_:in:)`` and
+    /// ``applyViewerStateChanged(_:in:)`` — so a delayed or reordered delivery can in principle
+    /// overwrite a newer title with an older one until the next full refresh corrects it. No-ops for
+    /// a chat the store doesn't hold.
+    public mutating func applyTitleChanged(_ title: String, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        conversations[index].title = title
+    }
+
+    /// Apply a picture change delivered via `MetadataUpdate.PictureChanged`. Same best-effort,
+    /// no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the store doesn't hold.
+    public mutating func applyPictureChanged(_ picture: ProfilePicture, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        conversations[index].picture = picture
     }
 
     /// Drops the cached viewer state for a chat the signed-in user just left.

@@ -367,6 +367,50 @@ struct ConversationModelMappingTests {
         #expect(member.formattedPhoneNumber == nil)
     }
 
+    @Test("Member maps joinedAt and version, the GetRoster merge key")
+    func memberMapsJoinedAtAndVersion() {
+        let joinedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = UUID().data }
+            $0.joinedAt = .init(date: joinedAt)
+            $0.version = 5
+        }
+
+        let member = ConversationMember(proto)
+        #expect(member.joinedAt == joinedAt)
+        #expect(member.version == 5)
+    }
+
+    @Test("Member without joinedAt/version maps to nil/zero (a DM participant, or a member joined at creation)")
+    func memberWithoutJoinedAtOrVersion() {
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = UUID().data }
+        }
+
+        let member = ConversationMember(proto)
+        #expect(member.joinedAt == nil)
+        #expect(member.version == 0)
+    }
+
+    @Test("ViewerState maps permissions.canEdit")
+    func viewerStateMapsCanEdit() {
+        let proto = Flipcash_Chat_V1_ViewerState.with {
+            $0.version = 2
+            $0.permissions = .with { $0.canEdit = true }
+        }
+
+        #expect(ConversationViewerState(proto).canEdit)
+    }
+
+    @Test("ViewerState without permissions defaults canEdit to false (never derivable client-side)")
+    func viewerStateWithoutPermissionsDefaultsCanEditFalse() {
+        let proto = Flipcash_Chat_V1_ViewerState.with {
+            $0.version = 2
+        }
+
+        #expect(ConversationViewerState(proto).canEdit == false)
+    }
+
     @Test("counterpartReadReceipt returns the other member's pointer and read time")
     func counterpartReadReceiptReturnsOtherMember() {
         let me = UUID()
