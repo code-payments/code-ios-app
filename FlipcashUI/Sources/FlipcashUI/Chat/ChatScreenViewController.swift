@@ -36,6 +36,21 @@ public final class ChatScreenViewController: UIViewController {
     /// to the bottom of a box that clips it, the bar's frame can jump to the strip's full height
     /// while the box uncovers it, and the composer row does not move at all.
     private let barClip = UIView()
+    /// Carries the bar's surface on below the clip, so the keyboard has the bar behind it rather
+    /// than the transcript.
+    ///
+    /// The keyboard's top corners are rounded, and what shows through them is whatever the app draws
+    /// behind the keyboard. That is the transcript, which reaches the bottom of the screen — so a
+    /// bubble scrolled under the bar left a hard-edged wedge of itself at each bottom corner of the
+    /// bar, about 24×25pt on an iPhone 16 Pro, invisible against a dark bubble and obvious behind a
+    /// photo avatar. The bar cannot fill them itself: it sits on ``barClip``'s bottom edge and the
+    /// clip cuts everything below it.
+    ///
+    /// Tied to the clip's bottom rather than given a height, so it is exactly the region the bar has
+    /// been lifted off the screen bottom — the whole keyboard when one is up, nothing at all when the
+    /// keyboard is down and the bar is already on the bottom edge. Nothing else can see it: every
+    /// point it covers is a point the keyboard is covering.
+    private let keyboardCornerCover = UIView()
     /// The bar's height is driven by its *measured* SwiftUI height, so the frame matches its
     /// content exactly — a hosting controller's intrinsic size mis-measures multiline growth and
     /// lets the composer overflow below its frame, under the keyboard. Always applied unanimated.
@@ -355,6 +370,7 @@ public final class ChatScreenViewController: UIViewController {
         barClip.translatesAutoresizingMaskIntoConstraints = false
         barClip.clipsToBounds = true
         view.addSubview(barClip)
+        addKeyboardCornerCover(below: barClip)
         bar.translatesAutoresizingMaskIntoConstraints = false
         barClip.addSubview(bar)
         controller?.didMove(toParent: self)
@@ -375,6 +391,21 @@ public final class ChatScreenViewController: UIViewController {
             heightConstraint,
         ])
         return (heightConstraint, clipHeightConstraint, bottomConstraint)
+    }
+
+    /// Fills the gap the keyboard's rounded corners open up behind the bar — see
+    /// ``keyboardCornerCover``.
+    private func addKeyboardCornerCover(below clip: UIView) {
+        keyboardCornerCover.translatesAutoresizingMaskIntoConstraints = false
+        keyboardCornerCover.backgroundColor = UIColor(Color.backgroundMain)
+        keyboardCornerCover.isUserInteractionEnabled = false
+        view.insertSubview(keyboardCornerCover, belowSubview: clip)
+        NSLayoutConstraint.activate([
+            keyboardCornerCover.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            keyboardCornerCover.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            keyboardCornerCover.topAnchor.constraint(equalTo: clip.bottomAnchor),
+            keyboardCornerCover.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
     }
 
     /// Drops the composer's focus as the app leaves the foreground.
@@ -413,8 +444,15 @@ public final class ChatScreenViewController: UIViewController {
         // screens use — a UIKit scroll view the modifier cannot reach has to set it itself. Without
         // it the transcript is cut at a hard line where the bar's background ends; with it the
         // transcript blurs progressively as it passes under the bar, as the Chats list does.
+        //
+        // The bottom edge is the composer's, and it softens the same way. It has to carry the
+        // dissolve on its own now: the bar's surface finishes ramping to opaque in the margin above
+        // the controls, because the field is glass and samples whatever the surface still lets
+        // through — see `BarSurface.fadeHeight`. Both edge regions follow the scroll view's adjusted
+        // inset, so this one tracks the keyboard without being told about it.
         if #available(iOS 26.0, *) {
             transcript.collectionView.topEdgeEffect.style = .soft
+            transcript.collectionView.bottomEdgeEffect.style = .soft
         }
     }
 
