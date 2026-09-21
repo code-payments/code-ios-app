@@ -180,6 +180,35 @@ struct TransportClassificationTests {
         #expect(ErrorBlob.network(URLError(code)).reportingLevel == expected)
     }
 
+    /// Regression 6ab124d: a `-1200` TLS failure carries its real cause in the
+    /// underlying Secure Transport code, so the envelope alone cannot classify
+    /// it. A severed connection is network weather; a trust failure wearing the
+    /// same envelope is not, and an absent or unrecognized code stays reportable
+    /// rather than defaulting into silence.
+    ///
+    /// The key is spelled out here rather than shared with the implementation on
+    /// purpose — it is CFNetwork SPI, and a test that reused the same constant
+    /// would still pass if that constant were wrong.
+    @Test("secureConnectionFailed splits on the underlying Secure Transport code",
+          arguments: [
+              // errSSLClosedNoNotify / errSSLClosedAbort — connection torn down.
+              (streamCode: Int?(-9816), expected: ErrorReportingLevel.suppressed),
+              (streamCode: Int?(-9806), expected: .suppressed),
+              // errSSLXCertChainInvalid / errSSLCertExpired — genuine trust failures.
+              (streamCode: Int?(-9807), expected: .error),
+              (streamCode: Int?(-9814), expected: .error),
+              // Unrecognized, and absent entirely: both stay reportable.
+              (streamCode: Int?(-9999), expected: .error),
+              (streamCode: Int?.none, expected: .error),
+          ] as [(streamCode: Int?, expected: ErrorReportingLevel)])
+    func secureConnectionFailedClassification(streamCode: Int?, expected: ErrorReportingLevel) {
+        let userInfo: [String: Any] = streamCode.map { ["_kCFStreamErrorCodeKey": $0] } ?? [:]
+        let error = URLError(.secureConnectionFailed, userInfo: userInfo)
+        #expect(error.reportingLevel == expected)
+        // Must hold through the wrapper the blob upload leg actually throws.
+        #expect(ErrorBlob.network(error).reportingLevel == expected)
+    }
+
     @Test("ErrorSwap classifies grpcStatus by transience; grpcError always reports")
     func errorSwapClassification() {
         #expect(ErrorSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)

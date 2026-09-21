@@ -186,7 +186,7 @@ struct ProfilePhotoScreen: View {
             buttonState = .normal
             guard !Task.isCancelled else { return }
             logger.info("Profile picture upload failed", metadata: ["error": "\(error)"])
-            ErrorReporting.captureError(error, reason: "Profile picture upload failed")
+            ErrorReporting.captureError(error, reason: "Profile picture upload failed", userFacing: true)
             dialog = .profilePictureFailed(error)
 
         } catch let error as ImageEncoderError {
