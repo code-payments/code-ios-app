@@ -108,7 +108,11 @@ struct GalleryScannerTests {
         // crops first, and 517 of them inside the budget is the claim being made.
         let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 1179, height: 2556))
 
-        let outcome = await GalleryScanner().scan(image)
+        // Explicit and generous rather than the shipping budget: the claim is that the ladder
+        // ends on its own, and leaving it on the default turns the result into a statement
+        // about how fast the machine is. On CI the default expires first and this reads
+        // `.cancelled` — the one outcome the test exists to tell apart from `.nothingFound`.
+        let outcome = await GalleryScanner().scan(image, budget: 120)
 
         guard case .nothingFound = outcome else {
             Issue.record("expected nothing found, got \(outcome)")

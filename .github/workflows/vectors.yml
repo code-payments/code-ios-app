@@ -84,4 +84,17 @@ jobs:
         run: |
           xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
-            -only-testing:FlipcashTests
+            -only-testing:FlipcashTests \
+            -resultBundlePath "${{ runner.temp }}/AppVectors.xcresult"
+
+      # Dropping -quiet above was meant to leave assertion text in the log, but it does not:
+      # Swift Testing's Issue.record messages reach the result bundle and nowhere else, so a
+      # failure here otherwise has to be reconstructed from "Test case ... failed" lines.
+      # Four GalleryScannerTests failures were triaged that way and one stayed unexplained.
+      - name: App vectors result bundle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-vectors-xcresult
+          path: ${{ runner.temp }}/AppVectors.xcresult
+          retention-days: 7
