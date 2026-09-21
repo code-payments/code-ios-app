@@ -474,23 +474,13 @@ private struct CancelEditButton: View {
 /// the elevation a reply needs goes on the quote instead; see ``ComposerReplyStrip``.
 private struct BarSurfaceBackground: ViewModifier {
 
-    /// How far the surface paints below the bar's own bottom edge.
-    ///
-    /// The keyboard's top corners are rounded, and what shows through them is whatever sits behind
-    /// the keyboard — which left a hard-edged notch of chat background at each bottom corner of the
-    /// bar, about 24×25pt on an iPhone 16 Pro. Painting past the bar's edge fills them. Everywhere
-    /// else this is hidden by the keyboard, or by the home-indicator area when the keyboard is down,
-    /// so overshooting the radius costs nothing.
-    private static let keyboardCornerBleed: CGFloat = 32
-
     func body(content: Content) -> some View {
-        // Top-aligned so the negative padding hangs the extra height below the bar rather than
-        // splitting it, which would paint over the transcript.
+        // Nothing the bar paints below its own bottom edge survives: it is pinned to the bottom of a
+        // box that clips, so the surface can only ever be as tall as the bar. The strip behind the
+        // keyboard's rounded corners is painted by the screen instead — see
+        // `ChatScreenViewController.keyboardCornerCover`.
         content.background(alignment: .top) {
             BarSurface.restingFade
-            // Absorbed by the fade's opaque tail, so the dissolve at the top edge keeps its height
-            // whatever the bleed is.
-            .padding(.bottom, -Self.keyboardCornerBleed)
             // Scope the safe-area bleed to the bottom edge only. The bar is a measured,
             // keyboard-guide-pinned hosted view; an all-edges ignore makes the bar read as
             // extending to the screen bottom, which collapses the scroll-content inset by the
@@ -504,20 +494,27 @@ private struct BarSurfaceBackground: ViewModifier {
 ///
 /// The slab is not a slab at its top edge: it ramps from the chat background up to nothing over
 /// ``fadeHeight``, so a message scrolling under the bar dissolves into it rather than meeting a hard
-/// line. Opaque instead, the bar reads as a toolbar bolted across the transcript.
+/// line. Opaque instead, the bar reads as a toolbar bolted across the transcript. The ramp lives
+/// entirely in the bar's margin above its controls — see ``fadeHeight``.
 ///
 /// One paint, in every state — see `BarSurfaceBackground` for why a reply may not change it. It is
 /// painted in two places: the bar draws it, and the screen paints the same colour below the bar so
 /// it reaches the bottom of the display. See `BarSurfaceFloor`.
 enum BarSurface {
 
-    /// How far the resting surface takes to ramp from nothing to the chat background — half the
-    /// resting bar, which is where the proportional gradient this replaces put the boundary.
+    /// How far the resting surface takes to ramp from nothing to the chat background: the bar's own
+    /// margin above its controls, so the slab is at full opacity by the time the controls start.
+    ///
+    /// It has to end there. The field is Liquid Glass and glass samples what is behind it, so a
+    /// surface still part-transparent at the field's top edge hands the glass the transcript instead
+    /// of the slab and a bubble scrolling under the bar shows *through* the field. At the 33pt this
+    /// replaces (half the resting bar) the ramp crossed the field's top edge by 25pt, which is most
+    /// of the field's height: a coloured bubble read straight through the placeholder.
     ///
     /// Fixed rather than a fraction of the bar, because a fraction ties the dissolve to the draft: a
     /// four-line message doubled the fade and softened the transcript twice as far up the screen,
     /// for no reason a reader can see.
-    static let fadeHeight: CGFloat = 33
+    static let fadeHeight: CGFloat = BarMetrics.contentPadding
 
     /// The composer at rest: clear at the top edge, chat background below it. The flexible tail is
     /// what lets the slab bleed past the safe area without stretching the ramp.
