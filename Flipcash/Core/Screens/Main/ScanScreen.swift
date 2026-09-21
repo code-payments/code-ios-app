@@ -27,7 +27,6 @@ struct ScanScreen: View {
 private struct ScanScreenContent: View {
 
     @Environment(Preferences.self) private var preferences
-    @Environment(BetaFlags.self) private var betaFlags
 
     @Bindable private var session: Session
 
@@ -87,8 +86,6 @@ private struct ScanScreenContent: View {
                     // 20pt leading inset matches the pill's own margin.
                     .padding(.leading, 20)
                     .padding(.bottom, HomeTabBar.height + 16)
-                    .opacity(betaFlags.hasEnabled(.scanFromGallery) ? 1 : 0)
-                    .allowsHitTesting(betaFlags.hasEnabled(.scanFromGallery))
                     .zIndex(2)
                     .transition(.opacity)
             }
