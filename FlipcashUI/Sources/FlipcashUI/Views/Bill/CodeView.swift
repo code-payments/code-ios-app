@@ -36,6 +36,22 @@ public struct CodeView: View {
     }
 }
 
+extension CodeView {
+
+    /// The same figure as a standalone SVG document, for export.
+    ///
+    /// Here rather than in the app target so that nothing outside this package reaches
+    /// `SharedCoreKit` directly. An app-target package reference resolves shared core under
+    /// identity `flipcash-shared-core-spm`, while `FLIPCASH_SHARED_CORE_LOCAL` resolves it under
+    /// `spm`, and a graph holding both fails to resolve at all. See `FlipcashCore/Package.swift`.
+    ///
+    /// - Parameter background: the surface color the code sits on, or `nil` for a transparent
+    ///   document. Codes are light-on-dark, so a transparent export is invisible on light surfaces.
+    public static func svg(data: Data, dimension: CGFloat, background: String?) -> String {
+        KikCode.svg(payload: data, dimension: Double(dimension), background: background)
+    }
+}
+
 // MARK: - Code Figure -
 
 /// One half of a code, laid out square and centred in whatever rect it is handed.
