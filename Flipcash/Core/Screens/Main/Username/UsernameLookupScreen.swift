@@ -24,11 +24,12 @@ private let logger = Logger(label: "flipcash.username-lookup")
 /// verification screens use (`PhoneVerificationViewModel.swift:320-329`), and so
 /// is the push.
 ///
-/// This screen then drops out from under the chat, since a chat's Back belongs
-/// on the chat list. It goes while the push is still animating: the removal is a
-/// whole-path rewrite, which remounts the chat, and a freshly-mounted chat
-/// settles its layout a beat after it appears. Under the transition that settle
-/// is hidden — the same way it is on every other push into a chat.
+/// The route in then drops out from under the chat — this screen and the New
+/// Chat picker above the list — since a chat's Back belongs on the chat list. It
+/// goes while the push is still animating: the removal is a whole-path rewrite,
+/// which remounts the chat, and a freshly-mounted chat settles its layout a beat
+/// after it appears. Under the transition that settle is hidden — the same way
+/// it is on every other push into a chat.
 struct UsernameLookupScreen: View {
 
     @Environment(Container.self) private var container
@@ -158,6 +159,12 @@ struct UsernameLookupScreen: View {
                 lookupTask = nil
 
                 let chat = AppRouter.Destination.tipConversationForUser(userID)
+
+                // Measured rather than assumed: this screen is reached through
+                // the New Chat picker today and was reached straight off the
+                // chat list before it, so a fixed depth silently stops matching
+                // the moment a screen is added to or removed from the route.
+                let depthWithChat = router[.tips].count + 1
                 router.push(chat)
 
                 // Well inside the push transition, so the remounted chat settles
@@ -169,7 +176,7 @@ struct UsernameLookupScreen: View {
 
                 // Unless they went back while it landed: the lookup left with
                 // them, and rewriting the path would drag the chat back.
-                guard router[.tips].count == 2 else { return }
+                guard router[.tips].count == depthWithChat else { return }
 
                 // Unanimated, because nothing is arriving — only the entry
                 // underneath is leaving. Animated, SwiftUI stages the remount as
