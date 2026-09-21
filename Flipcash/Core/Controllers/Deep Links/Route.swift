@@ -96,6 +96,44 @@ nonisolated extension Route {
     }
 }
 
+// MARK: - Hosts -
+
+nonisolated extension Route {
+
+    /// The union of the hosts the two apps claim — iOS's associated-domains entitlement and
+    /// Android's manifest intent filters. `www.flipcash.com` is Android-only for routing and is
+    /// here anyway: whether a link *is* a Flipcash link is not a question about which app opens
+    /// it, and the cross-platform fixture has to agree on one answer.
+    static let flipcashHosts: Set<String> = [
+        "app.flipcash.com",
+        "send.flipcash.com",
+        "flipcash.com",
+        "www.flipcash.com",
+        "jump.flipcash.com",
+    ]
+
+    /// Whether `url` is one of ours: the custom scheme, or an exact match on ``flipcashHosts``.
+    ///
+    /// ``Path/parse(path:scheme:)`` matches on path alone, which is right for the URLs it normally
+    /// sees — they arrived through the associated-domains entitlement, so the host was already
+    /// vouched for. A URL lifted out of message text or read off a scanned QR code arrived through
+    /// nothing, and `discord.gg/<invite>` has the same shape as `flipcash.com/<handle>`: ungated,
+    /// the invite opens a tipcard and never opens Discord. `Route` is not widened to fix that — its
+    /// rules are right for routing — so callers holding a URL from one of those sources ask this
+    /// first.
+    ///
+    /// Exact match, not a suffix: `send.flipcash.com.evil.com` is not a host listed here.
+    static func isFlipcashLink(_ url: URL) -> Bool {
+        if url.scheme?.lowercased() == Path.customScheme {
+            return true
+        }
+        guard let host = url.host()?.lowercased() else {
+            return false
+        }
+        return flipcashHosts.contains(host)
+    }
+}
+
 // MARK: - Path -
 
 nonisolated extension Route {
@@ -131,7 +169,9 @@ nonisolated extension Route {
         /// Host-agnostic by design: `app.flipcash.com/<handle>` and
         /// `flipcash.com/<handle>` are the same link, and which hosts reach the
         /// app at all is the associated-domains entitlement's decision, not
-        /// this parser's.
+        /// this parser's. A caller whose URL did not come from the entitlement
+        /// — chat text, a scanned QR — gates on ``Route/isFlipcashLink(_:)``
+        /// first, because to this parser `discord.gg/<invite>` is a handle.
         static func parse(path: String, scheme: String?) -> Path? {
             guard let url = URL(string: path.trimmingCharacters(in: .init(charactersIn: "/"))) else {
                 return nil

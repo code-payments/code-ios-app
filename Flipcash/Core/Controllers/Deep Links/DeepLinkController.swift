@@ -79,6 +79,15 @@ final class DeepLinkController {
             return handle(open: jumpURL)
         }
         
+        // Not every URL that reaches here came through the associated-domains entitlement: a
+        // tapped chat link and a scanned QR code both arrive at this method, and `Route` matches
+        // on path alone, so `discord.gg/<invite>` would name a tipcard and `<anything>/login#e=…`
+        // an account switch. Only our own hosts get to name an action; everything else resolves to
+        // nil, which is what tells the chat screen to open the link externally instead.
+        guard Route.isFlipcashLink(url) else {
+            return nil
+        }
+
         // Resume handling URLs
         
         guard let route = Route(url: url) else {

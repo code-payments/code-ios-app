@@ -29,6 +29,49 @@ struct DeepLinkControllerTests {
         #expect(makeController().open(URL(string: "https://apple.com")!) == false)
     }
 
+    /// `Route` matches on path alone, so a foreign host's path can read as one of ours —
+    /// `discord.gg/<invite>` as a handle, `evil.com/c/#/e=…` as a cash link. Chat text and scanned
+    /// QR codes both arrive here, and neither came through the associated-domains entitlement.
+    ///
+    /// Asserted on `handle(open:)` rather than `open(_:)` so nothing executes: `.login` on a
+    /// logged-out session switches the account to whatever seed the link carried, which is the
+    /// reason this gate exists and not something to run in a test.
+    @Test("A foreign host names no action, however much its path looks like one of ours",
+          arguments: [
+              "https://discord.gg/rattlepokemon",
+              "https://t.me/somechannel",
+              "https://github.com/flipcash",
+              "https://example.com/3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+              "https://evil.com/c/#/e=HQPkfAZjgpGGANQfUNPKvW",
+              "https://evil.com/login#e=HQPkfAZjgpGGANQfUNPKvW",
+              "https://send.flipcash.com.evil.com/c/#/e=HQPkfAZjgpGGANQfUNPKvW",
+          ])
+    func foreignHost_namesNoAction(urlString: String) {
+        #expect(makeController().handle(open: URL(string: urlString)!) == nil)
+    }
+
+    /// A jump wrapper is one of ours; the host it points at still has to be.
+    @Test("A jump wrapper cannot smuggle a foreign host past the gate")
+    func jumpWrapper_doesNotLaunderAForeignHost() throws {
+        let inner = "https://send.flipcash.com.evil.com/c/#/e=HQPkfAZjgpGGANQfUNPKvW"
+        let wrapper = "https://jump.flipcash.com/#source=" + inner.addingPercentEncoding(
+            withAllowedCharacters: .alphanumerics
+        )!
+
+        #expect(makeController().handle(open: try #require(URL(string: wrapper))) == nil)
+    }
+
+    @Test("The hosts the app claims still name an action",
+          arguments: [
+              "https://send.flipcash.com/c/#/e=HQPkfAZjgpGGANQfUNPKvW",
+              "https://app.flipcash.com/token/54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25",
+              "https://flipcash.com/brandon",
+              "https://flipcash.com/3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+          ])
+    func claimedHost_namesAnAction(urlString: String) {
+        #expect(makeController().handle(open: URL(string: urlString)!) != nil)
+    }
+
     @Test("A duplicate in-flight open is reported handled without re-processing")
     func duplicateInFlightOpen_isDeduped() {
         let controller = makeController()

@@ -81,7 +81,7 @@ import FlipcashCore
     }
 
     @Test func theHostAllowlistMatchesTheCrossPlatformFixture() throws {
-        #expect(Set(try loadFixture().cardHosts) == LinkCardClassifier.cardHosts)
+        #expect(Set(try loadFixture().cardHosts) == Route.flipcashHosts)
     }
 }
 

@@ -16,12 +16,12 @@ import FlipcashCore
 /// gate. `Route` classifies the target by path alone, so gating the redirector instead would let
 /// the wrapper pick the host behind it and put a branded card in front of it.
 ///
-/// **Host.** ``cardHosts`` is checked against whatever the unwrap produced, on an exact match.
-/// `Route.Path.parse` matches on path alone — deliberately, and its own doc comment says so,
+/// **Host.** ``Route/flipcashHosts`` is checked against whatever the unwrap produced, on an exact
+/// match. `Route.Path.parse` matches on path alone — deliberately, and its own doc comment says so,
 /// because every URL it normally sees arrived through the associated-domains entitlement. Message
 /// text arrived through nothing, so on its own `Route` would parse
-/// `send.flipcash.com.evil.com/c/#/e=…` as `.cash`. `Route` is not widened for this: its rules are
-/// right for routing, and a chat-rendering problem should not change where a tapped link goes.
+/// `send.flipcash.com.evil.com/c/#/e=…` as `.cash`. The same gate stands in front of the tap
+/// (``DeepLinkController``) and the QR scanner, so a card and a tap agree on which links are ours.
 ///
 /// **Route.** Whatever survives the host gate goes to the real parser. No second path parser is
 /// written.
@@ -31,18 +31,6 @@ import FlipcashCore
 /// `.verifyEmail` in particular carry the account seed and a verification secret, and a card with a
 /// tap target in front of either is a phishing aid.
 nonisolated struct LinkCardClassifier {
-
-    /// The union of the hosts the two apps claim — iOS's associated-domains entitlement and
-    /// Android's manifest intent filters. `www.flipcash.com` is Android-only for routing and is
-    /// here anyway: whether a link *is* a Flipcash link is not a question about which app opens
-    /// it, and the cross-platform fixture has to agree on one answer.
-    static let cardHosts: Set<String> = [
-        "app.flipcash.com",
-        "send.flipcash.com",
-        "flipcash.com",
-        "www.flipcash.com",
-        "jump.flipcash.com",
-    ]
 
     /// The first card-eligible link wins; at most one card per message.
     ///
@@ -57,7 +45,7 @@ nonisolated struct LinkCardClassifier {
     private func classify(_ link: DetectedLink) -> LinkCard? {
         let target = Route.unwrappingJump(link.url) ?? link.url
 
-        guard let host = target.host()?.lowercased(), Self.cardHosts.contains(host) else { return nil }
+        guard let host = target.host()?.lowercased(), Route.flipcashHosts.contains(host) else { return nil }
         guard let route = Route(url: target) else { return nil }
 
         switch route.path {
