@@ -17,11 +17,11 @@ import FlipcashUI
 /// worth resolved at store time — so a requirement stored in USD needs no rate to enforce and
 /// cannot drift with one. The single conversion is the one applied here, at the moment the amount
 /// is set, which is where Android puts it too.
+///
+/// Opens on an empty keypad every time. The chip row is what a requirement already set is read
+/// off; seeding the field from it only means the first digit typed lands after a figure the user
+/// didn't enter.
 struct MinimumBalanceAmountSheet: View {
-
-    /// The requirement the form already holds, in USD, so reopening the sheet starts on it rather
-    /// than empty.
-    let initialAmount: FiatAmount?
 
     @Binding var isPresented: Bool
 
@@ -68,7 +68,6 @@ struct MinimumBalanceAmountSheet: View {
                 }
             }
         }
-        .onAppear(perform: seed)
     }
 
     /// The entry restated in USD, or nil while the field holds nothing the requirement can be set
@@ -89,19 +88,5 @@ struct MinimumBalanceAmountSheet: View {
         guard let amount else { return }
         onSelect(amount)
         isPresented = false
-    }
-
-    /// Starts the field on the requirement already set, restated in the currency being entered.
-    ///
-    /// Seeded on appear rather than in `init`, which has no rates to convert with. A requirement
-    /// whose currency has no rate seeds nothing rather than a figure in the wrong denomination.
-    private func seed() {
-        guard let initialAmount,
-              let native = initialAmount.converted(to: currency, rates: ratesController.cachedRates),
-              native.isPositive else { return }
-        enteredAmount = validator.string(
-            from: native.value,
-            fractionDigits: currency.maximumFractionDigits
-        )
     }
 }

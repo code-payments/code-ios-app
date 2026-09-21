@@ -108,10 +108,7 @@ struct NewPublicGroupScreen: View {
             }
         }
         .sheet(isPresented: $isEnteringCustomAmount) {
-            MinimumBalanceAmountSheet(
-                initialAmount: model.minimumBalance,
-                isPresented: $isEnteringCustomAmount
-            ) { amount in
+            MinimumBalanceAmountSheet(isPresented: $isEnteringCustomAmount) { amount in
                 model.select(minimumBalance: amount)
             }
         }
@@ -237,29 +234,22 @@ struct NewPublicGroupScreen: View {
             // The fourth slot is the keypad's, and a custom amount has nowhere else to show, so
             // it takes this chip's face — the ellipsis is what an unused slot looks like. Same
             // rule Android's chip row follows.
-            AmountPresetButton(isSelected: customAmount != nil) {
+            AmountPresetButton(isSelected: model.customMinimumBalance != nil) {
                 isTitleFocused = false
                 isEnteringCustomAmount = true
             } label: {
-                if let customAmount {
-                    Text(customAmount.formattedDroppingZeroFraction())
+                if let custom = model.customMinimumBalance {
+                    Text(custom.formattedDroppingZeroFraction())
                 } else {
                     Image.system(.ellipsis)
                 }
             }
             .accessibilityLabel(
-                customAmount.map { "Custom amount, \($0.formattedDroppingZeroFraction())" } ?? "Custom amount"
+                model.customMinimumBalance.map { "Custom amount, \($0.formattedDroppingZeroFraction())" }
+                    ?? "Custom amount"
             )
             .accessibilityIdentifier("new-group-custom-amount-button")
         }
-    }
-
-    /// The requirement when it is not one of the presets — what the fourth chip shows in place of
-    /// its ellipsis.
-    private var customAmount: FiatAmount? {
-        guard let amount = model.minimumBalance,
-              !NewPublicGroupModel.presets.contains(amount) else { return nil }
-        return amount
     }
 
     /// Shown only once the limit is close enough to explain a disabled Create.
