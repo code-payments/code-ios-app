@@ -10,8 +10,8 @@ import FlipcashUI
 
 /// The Scan tab's gallery entry point: a photo glyph that opens the system picker.
 ///
-/// A Liquid Glass circle the height of the tab bar, so the two read as one row of
-/// controls — ``ScanScreen`` lines its leading edge up with the bar's.
+/// A Liquid Glass circle in the scanner's top-trailing corner, clear of both the
+/// viewfinder and the tab bar.
 ///
 /// `PhotosPicker` is out of process, so tapping this never prompts for anything. Only the
 /// recent-photo thumbnail needs library access, which is why it is drawn when access
@@ -22,8 +22,9 @@ struct GalleryScanButton: View {
     /// tab icon.
     private static let glyphSize: CGFloat = 32
 
-    /// The glass circle, sized to the tab bar's capsule so the two sit on one line.
-    static var surfaceSize: CGFloat { HomeTabBar.height }
+    /// The glass circle. Well above the 44pt minimum so it stays legible as a control
+    /// over a moving camera frame instead of reading as a status glyph.
+    private static let surfaceSize: CGFloat = 58
 
     @Binding var selection: PhotosPickerItem?
 

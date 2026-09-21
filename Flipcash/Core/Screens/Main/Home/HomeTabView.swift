@@ -236,19 +236,6 @@ struct HomeTabView: View {
     /// across device widths.
     private static let legacyPillHorizontalInset: CGFloat = 42
 
-    /// How far the tab bar's leading edge sits from the screen's, so a control
-    /// floating above the bar can line up with it — see ``ScanScreen``.
-    ///
-    /// The iOS 26 figure is measured off the rendered system bar (21–22pt on an
-    /// iPhone 17 Pro) rather than read from it: UIKit publishes no frame for the
-    /// floating tab bar, and the bar is laid out before any view we own exists.
-    static var tabBarHorizontalInset: CGFloat {
-        if #available(iOS 26, *) {
-            return 22
-        }
-        return legacyPillHorizontalInset
-    }
-
     /// The room the legacy pill occupies above the safe area. The pill is an
     /// overlay, so unlike the iOS 26 system bar it adds nothing to the safe
     /// area — a tab that scrolls under it has to inset for it itself.

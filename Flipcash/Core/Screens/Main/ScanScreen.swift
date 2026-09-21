@@ -42,20 +42,14 @@ private struct ScanScreenContent: View {
         CameraPrompt(status: cameraAuthorizer.status, cameraEnabled: preferences.cameraEnabled)
     }
     
-    /// The gap the gallery button keeps above the tab bar — the same margin the
-    /// legacy pill keeps below itself, so the two read as one stack of floating
-    /// controls rather than two unrelated ones.
-    private static let tabBarGap: CGFloat = 8
+    /// How far the gallery button sits in from the trailing edge — the same margin
+    /// the rest of the app's content uses.
+    private static let glyphTrailingMargin: CGFloat = 20
 
-    /// How far the gallery button sits off the bottom. Mirrors `WalletScreen`: the
-    /// iOS 26 tab bar sits in the safe area, so the gap is the whole inset there;
-    /// the legacy pill floats over the content and has to be cleared on top of it.
-    private static var tabBarClearance: CGFloat {
-        if #available(iOS 26, *) {
-            return tabBarGap
-        }
-        return tabBarGap + HomeTabView.legacyPillClearance
-    }
+    /// The gap between the top safe area and the gallery button. Measured from the
+    /// inset rather than the screen edge: the camera preview ignores the safe area
+    /// and runs under the status bar, but the button must stay clear of it.
+    private static let glyphTopGap: CGFloat = 12
 
     private let sessionContainer: SessionContainer
 
@@ -96,9 +90,9 @@ private struct ScanScreenContent: View {
                 // Outside the `cameraPrompt` branch on purpose: a photo can be scanned
                 // whether or not the camera is available, so the glyph outlives the viewport.
                 GalleryScanButton(selection: $pickedItem)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    .padding(.leading, HomeTabView.tabBarHorizontalInset)
-                    .padding(.bottom, Self.tabBarClearance)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(.trailing, Self.glyphTrailingMargin)
+                    .padding(.top, Self.glyphTopGap)
                     .zIndex(2)
                     .transition(.opacity)
             }
