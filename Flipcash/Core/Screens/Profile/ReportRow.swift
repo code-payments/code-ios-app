@@ -20,25 +20,17 @@ struct ReportRow: View {
 
     let target: ReportTarget
     let insets: EdgeInsets
-    var chevron: ChatMuteRow.Chevron = .standard
 
     @State private var isReporting = false
 
     var body: some View {
-        Row(insets: insets, accessory: chevron == .standard ? .chevron : nil) {
+        // No chevron: this row opens the reason flow as a cover rather than pushing a screen.
+        Row(insets: insets) {
             Image(systemName: "flag")
                 .frame(minWidth: 45)
             Text("Report")
                 .foregroundStyle(.textMain)
-
-            if chevron == .secondary {
-                // Nothing has claimed the slack, so the chevron needs the spacer the accessory
-                // would have brought.
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(.textSecondary)
-            }
+            Spacer()
         } action: {
             isReporting = true
         }

@@ -96,10 +96,10 @@ private struct UserProfileContent: View {
                     // one that asks someone else to look, then the one that ends the relationship.
                     // Same shape as a group's profile, where leaving holds the last place.
                     if let conversationID {
-                        ChatMuteRow(conversationID: conversationID, insets: rowInsets, chevron: .secondary)
+                        ChatMuteRow(conversationID: conversationID, insets: rowInsets)
                     }
 
-                    ReportRow(target: .user(model.userID), insets: rowInsets, chevron: .secondary)
+                    ReportRow(target: .user(model.userID), insets: rowInsets)
 
                     Row(insets: rowInsets) {
                         Image(systemName: "nosign")
@@ -107,10 +107,6 @@ private struct UserProfileContent: View {
                         Text("Block")
                             .foregroundStyle(.textMain)
                         Spacer()
-                        // Secondary (alpha-white) chevron, matching the profile card.
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.textSecondary)
                     } action: {
                         dialogItem = blockDialog()
                     }
