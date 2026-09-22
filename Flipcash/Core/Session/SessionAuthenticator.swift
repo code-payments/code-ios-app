@@ -540,12 +540,7 @@ final class SessionContainer {
         resolver: linkCardResolver,
         memo: linkCardMemo,
         claims: session.cashLinkClaims,
-        groups: GroupLinkPresenter(
-            session: session,
-            conversations: conversationController,
-            rates: ratesController,
-            avatars: profileAvatars
-        )
+        groups: GroupLinkPresenter(avatars: profileAvatars)
     )
 
     /// Lazy so it can capture the container it reads its dependencies from;

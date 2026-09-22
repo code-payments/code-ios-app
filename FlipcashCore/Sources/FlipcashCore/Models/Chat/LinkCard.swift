@@ -234,7 +234,6 @@ extension LinkCard {
             public let blurHash: String?
             /// The entry rule as the chat's own head card states it, or nil when it states none.
             public let requirement: String?
-            public let action: Action
 
             public init(
                 title: String,
@@ -242,8 +241,7 @@ extension LinkCard {
                 avatarID: String,
                 imageData: Data?,
                 blurHash: String?,
-                requirement: String?,
-                action: Action
+                requirement: String?
             ) {
                 self.title = title
                 self.memberCount = memberCount
@@ -251,24 +249,7 @@ extension LinkCard {
                 self.imageData = imageData
                 self.blurHash = blurHash
                 self.requirement = requirement
-                self.action = action
             }
-        }
-
-        /// What the card's button offers the viewer.
-        public enum Action: Hashable, Sendable, Codable {
-            /// Meets the rules and is not a member.
-            case join
-            /// Already a member.
-            case open
-            /// Short of a balance requirement in one named token.
-            case getToken(name: String)
-            /// Short of a requirement the dollar token or any holding satisfies, so there is no one
-            /// token to buy — the gate panel sends this viewer to add cash, and so does the card.
-            case addCash
-            /// Blocked with nothing the card can offer — a staff-only chat, or a token other than the
-            /// one the card names. The card states the rule and offers no button.
-            case none
         }
     }
 }

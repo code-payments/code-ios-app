@@ -11,15 +11,15 @@ import SwiftUI
 import FlipcashCore
 
 /// The group-invite card: the chat's picture, title, member count and entry rule, drawn in place of
-/// an `app.flipcash.com/chat/{id}` link, with the one thing the viewer can do about it.
+/// an `app.flipcash.com/chat/{id}` link, with a button into the chat.
 ///
 /// Built from the chat's public record only. The roster is private to members whatever the group's
 /// mode, so there are no member avatars here and no names.
 ///
 /// SwiftUI content hosted in a UIKit view, for the same reason as ``ChatGroupCardCell``: the picture
 /// is the same `ContactAvatarView` the chat's own head card draws. The content does not take touches.
-/// The whole card is one tap target, the row's, and the button is the label of what that tap does —
-/// every state routes through the chat link, whose screen offers the join or the buy itself.
+/// The whole card is one tap target, the row's, and the button is the label of what that tap does:
+/// it routes through the chat link, whose screen offers the join or the buy itself.
 final class LinkGroupCardView: UIView {
 
     private let content: any UIView & UIContentView
@@ -111,14 +111,10 @@ struct LinkGroupCardContent: View {
         static let buttonGap: CGFloat = 16
     }
 
-    /// Button labels, Title Case. The two marked provisional have no approved copy yet.
+    /// Button labels, Title Case.
     enum Copy {
-        static let join = "Join Group"
-        static let open = "Open Chat"
-        /// Provisional, not approved: the label for a viewer short of a named token.
-        static func getToken(_ name: String) -> String { "Get \(name)" }
-        /// Provisional, not approved: the label for a viewer short of a dollar requirement.
-        static let addCash = "Add Cash"
+        /// Every resolved card, whatever the viewer's membership or holdings.
+        static let start = "Start Chatting"
         static let unavailable = "Group Unavailable"
     }
 
@@ -196,19 +192,8 @@ struct LinkGroupCardContent: View {
             Button(Copy.unavailable) {}
                 .buttonStyle(.filled20Compact)
                 .disabled(true)
-        case .resolved(let group):
-            switch group.action {
-            case .join:
-                Button(Copy.join) {}.buttonStyle(.filledCompact)
-            case .open:
-                Button(Copy.open) {}.buttonStyle(.filled20Compact)
-            case .getToken(let name):
-                Button(Copy.getToken(name)) {}.buttonStyle(.filled20Compact)
-            case .addCash:
-                Button(Copy.addCash) {}.buttonStyle(.filled20Compact)
-            case .none:
-                EmptyView()
-            }
+        case .resolved:
+            Button(Copy.start) {}.buttonStyle(.filledCompact)
         }
     }
 

@@ -19,45 +19,31 @@ nonisolated struct GroupLinkFacts: Sendable, Equatable {
     let headlineMintName: String?
 }
 
-/// Turns what a group link's lookup fetched into what its card shows, against the viewer as they
-/// are right now. Main-actor because membership and holdings are.
+/// Turns what a group link's lookup fetched into what its card shows. Main-actor because the
+/// avatar store is.
 @MainActor
 protocol GroupLinkPresenting: AnyObject {
 
-    /// The card for `facts`, read against current membership, holdings and avatar bytes. Reads
-    /// observable state, so a caller wrapping it in `withObservationTracking` hears when the
-    /// answer would change.
+    /// The card for `facts`, with whatever picture bytes have loaded. Reads observable state, so a
+    /// caller wrapping it in `withObservationTracking` hears when the bytes land.
     func present(_ facts: GroupLinkFacts) -> LinkCard.Group.Resolved
 
     /// Fetches the chat's picture so a later ``present(_:)`` carries its bytes.
     func loadPicture(for facts: GroupLinkFacts) async
 }
 
-/// The app's ``GroupLinkPresenting``: the same gate, rules and membership the chat's own screen
-/// evaluates, so a card and the screen it opens cannot disagree about what the viewer may do.
+/// The app's ``GroupLinkPresenting``, reading picture bytes from the shared avatar store.
 @MainActor
 final class GroupLinkPresenter: GroupLinkPresenting {
 
-    private let session: Session
-    private let conversations: ConversationController
-    private let rates: RatesController
     private let avatars: ProfileAvatarStore
 
-    init(session: Session, conversations: ConversationController, rates: RatesController, avatars: ProfileAvatarStore) {
-        self.session = session
-        self.conversations = conversations
-        self.rates = rates
+    init(avatars: ProfileAvatarStore) {
         self.avatars = avatars
     }
 
     func present(_ facts: GroupLinkFacts) -> LinkCard.Group.Resolved {
-        let conversation = facts.conversation
-        return groupLinkCard(
-            facts,
-            gate: conversationGate(session: session, rules: conversation.rules, rates: rates.cachedRates),
-            isMember: conversations.isMember(of: conversation),
-            imageData: avatars.data(for: .chat(conversation.id))
-        )
+        groupLinkCard(facts, imageData: avatars.data(for: .chat(facts.conversation.id)))
     }
 
     func loadPicture(for facts: GroupLinkFacts) async {
@@ -65,50 +51,22 @@ final class GroupLinkPresenter: GroupLinkPresenting {
     }
 }
 
-/// The card's contents for a group, given the viewer's gate and membership.
+/// The card's contents for a group.
 ///
-/// The action follows ``conversationGatePresentation(_:isMember:)`` — the same mapping the chat's
-/// bottom panel draws from — rather than restating its rules: a member opens, an eligible
-/// non-member joins, a blocked one is offered the token the rule names. A rule with nothing to buy
-/// (staff only) offers nothing.
-func groupLinkCard(
-    _ facts: GroupLinkFacts,
-    gate: ConversationGate,
-    isMember: Bool,
-    imageData: Data?
-) -> LinkCard.Group.Resolved {
+/// The same for every viewer: the card states the chat's entry rule without judging the viewer
+/// against it, and its one button opens the chat, whose own screen offers the join or the buy.
+func groupLinkCard(_ facts: GroupLinkFacts, imageData: Data?) -> LinkCard.Group.Resolved {
     let conversation = facts.conversation
-
-    let action: LinkCard.Group.Action = switch conversationGatePresentation(gate, isMember: isMember) {
-    case .open, .readOnly:
-        .open
-    case .join:
-        .join
-    case .undetermined:
-        // Not produced for a chat whose rules are in hand, which a resolved lookup always has.
-        .none
-    case .blocked(.staff):
-        .none
-    case .blocked(.minimumBalance(_, let mint)) where mint == nil || mint == .usdf:
-        .addCash
-    case .blocked(.minimumBalance(_, let mint)):
-        // The lookup names the headline rule's token only. A viewer short of some other token is
-        // offered nothing rather than a button labelled with the wrong one.
-        if mint == gate.headline?.mint, let name = facts.headlineMintName {
-            .getToken(name: name)
-        } else {
-            .none
-        }
-    }
-
     return LinkCard.Group.Resolved(
         title: conversation.groupLinkTitle,
         memberCount: conversation.rosterSummary.peopleCount,
         avatarID: conversation.id.description,
         imageData: imageData,
         blurHash: conversation.picture?.thumbnailBlurhash,
-        requirement: groupRequirementLine(gate.headline, mintName: facts.headlineMintName),
-        action: action
+        requirement: groupRequirementLine(
+            headline(for: conversation.rules?.listener ?? []),
+            mintName: facts.headlineMintName
+        )
     )
 }
 

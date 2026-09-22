@@ -16,7 +16,6 @@ enum LinkGroupCardSamples {
     static let blurHash = "LGF5]+Yk^6#M@-5c,1J5@[or[Q6."
 
     static func resolved(
-        action: LinkCard.Group.Action,
         requirement: String? = "Balance Requirement:\n$100 of $BadBoys",
         blurHash: String? = Self.blurHash,
         title: String = "Ballers"
@@ -27,18 +26,16 @@ enum LinkGroupCardSamples {
             avatarID: "preview-group",
             imageData: nil,
             blurHash: blurHash,
-            requirement: requirement,
-            action: action
+            requirement: requirement
         ))
     }
 
     /// Every state, labelled, in the order the PR describes them.
     static let all: [(name: String, state: LinkCard.Group.State)] = [
-        ("Join", resolved(action: .join, requirement: nil)),
-        ("Open", resolved(action: .open)),
-        ("Get token (provisional)", resolved(action: .getToken(name: "$BadBoys"))),
+        ("No requirement", resolved(requirement: nil)),
+        ("Token requirement", resolved()),
         ("Unavailable", .unavailable),
-        ("No picture", resolved(action: .join, requirement: "Balance Requirement:\n$25", blurHash: nil)),
+        ("No picture", resolved(requirement: "Balance Requirement:\n$25", blurHash: nil)),
     ]
 
     /// The width the transcript gives a card on a 390pt-wide phone.
@@ -171,7 +168,7 @@ enum LinkGroupCardSamples {
 
 #Preview("Group card, accessibility XL") {
     ScrollView {
-        LinkGroupCardSamples.card(LinkGroupCardSamples.resolved(action: .getToken(name: "$BadBoys")))
+        LinkGroupCardSamples.card(LinkGroupCardSamples.resolved())
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
     }
@@ -180,12 +177,12 @@ enum LinkGroupCardSamples {
 }
 
 #Preview("Split message beside a cash card") {
-    LinkGroupCardSamples.transcriptController(group: LinkGroupCardSamples.resolved(action: .join))
+    LinkGroupCardSamples.transcriptController(group: LinkGroupCardSamples.resolved())
 }
 
 #Preview("Split message, accessibility XL") {
     LinkGroupCardSamples.transcriptController(
-        group: LinkGroupCardSamples.resolved(action: .getToken(name: "$BadBoys")),
+        group: LinkGroupCardSamples.resolved(),
         contentSize: .accessibilityExtraLarge
     )
 }

@@ -60,7 +60,7 @@ import FlipcashCore
     private final class UnusedGroups: GroupLinkPresenting {
         func present(_ facts: GroupLinkFacts) -> LinkCard.Group.Resolved {
             Issue.record("a group card was presented")
-            return LinkCard.Group.Resolved(title: "", memberCount: "", avatarID: "", imageData: nil, blurHash: nil, requirement: nil, action: .none)
+            return LinkCard.Group.Resolved(title: "", memberCount: "", avatarID: "", imageData: nil, blurHash: nil, requirement: nil)
         }
         func loadPicture(for facts: GroupLinkFacts) async {}
     }

@@ -35,10 +35,8 @@ final class LinkCardFeed: LinkCardSource {
 
     /// What each group link's lookup fetched, by resolution key.
     ///
-    /// Held as facts, not as a finished card, because a group card is the only one whose answer
-    /// depends on the reader: joining, or a balance crossing the rule, changes the button while the
-    /// chat's record stays put. ``known(_:)`` presents from here on every paint, so a card never
-    /// shows a membership the reader has since changed.
+    /// Held as facts, not as a finished card, because the picture's bytes land after the lookup
+    /// does. ``known(_:)`` presents from here on every paint, so a card shows them once they have.
     private var groupFacts: [String: GroupLinkFacts] = [:]
 
     /// Group keys whose presentation is being observed, so each is watched once however many rows
@@ -154,9 +152,8 @@ final class LinkCardFeed: LinkCardSource {
         Task { [groups] in await groups.loadPicture(for: facts) }
     }
 
-    // Re-presents a group card whenever what it reads moves — a join, a balance crossing the rule,
-    // the picture's bytes landing — and yields it to whoever is still listening. Re-arms once per
-    // change, and lapses once no row shows the link.
+    // Re-presents a group card when the picture's bytes land, and yields it to whoever is still
+    // listening. Re-arms once per change, and lapses once no row shows the link.
     private func observeGroup(_ key: String) {
         guard !observedGroups.contains(key), let facts = groupFacts[key] else { return }
         observedGroups.insert(key)
