@@ -66,27 +66,30 @@ struct ReportFlowScreen: View {
         // A half-written report is not something to lose to a stray downward drag.
         .interactiveDismissDisabled()
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: goBack) {
-                    // At the first step there is nothing to go back to, so the control leaves.
-                    Image(systemName: state.step == .reason ? "xmark" : "chevron.backward")
-                        .foregroundStyle(Color.textMain)
+            // Leaving and stepping back are different questions, so they get different corners.
+            // Every dismissal in this app is trailing; back is the only thing iOS puts leading.
+            if state.step == .details {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: goBackToReasons) {
+                        Image(systemName: "chevron.backward")
+                            .foregroundStyle(Color.textMain)
+                    }
+                    .accessibilityIdentifier("report-nav-back")
+                    .accessibilityLabel("Back")
                 }
-                .accessibilityIdentifier("report-nav-leading")
-                .accessibilityLabel(state.step == .reason ? "Close" : "Back")
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                CloseButton { dismiss() }
+                    .accessibilityIdentifier("report-nav-close")
             }
         }
         .dialog(item: $dialog)
     }
 
-    private func goBack() {
-        switch state.step {
-        case .reason:
-            dismiss()
-        case .details:
-            direction = .backward
-            withAnimation { state.step = .reason }
-        }
+    private func goBackToReasons() {
+        direction = .backward
+        withAnimation { state.step = .reason }
     }
 
     /// The button at the bottom of the reasons: a second, deliberate press on a pick already made.
