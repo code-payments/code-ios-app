@@ -86,10 +86,10 @@ public enum SystemSymbol: String {
     case trash = "trash"
     case flag = "flag"
 
-    /// The two rows of the group edit list. Paired deliberately: the design supplies a glyph for
-    /// the picture row only, so the name row borrows a symbol of the same family and weight rather
-    /// than sitting next to an asset it cannot match.
-    case photoCircle = "photo.circle"
+    /// The two rows of the group edit list, matched to the glyphs Android uses for the same rows
+    /// (`Icons.Outlined.Image` and `Icons.Outlined.TextFields`) so the screen reads the same on
+    /// both platforms.
+    case photo = "photo"
     case textformat = "textformat"
     /// The bare glyph, for a confirm affordance that carries its own backing shape.
     case checkmark = "checkmark"

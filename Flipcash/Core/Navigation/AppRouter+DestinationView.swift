@@ -211,8 +211,8 @@ struct DestinationView: View {
             )
             .id(conversationID)
 
-        case .editGroupIcon(let conversationID):
-            EditGroupIconScreen(conversationID: conversationID)
+        case .editGroupPicture(let conversationID):
+            EditGroupPictureScreen(conversationID: conversationID)
                 .id(conversationID)
         }
     }

@@ -55,6 +55,11 @@ struct EditGroupNameScreen: View {
 
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
+                Text("What's the group name?")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                    .padding(.top, 20)
+
                 TextField("Group Name", text: $model.title)
                     .font(.appDisplayMedium)
                     .foregroundStyle(Color.textMain)
@@ -63,11 +68,6 @@ struct EditGroupNameScreen: View {
                     .onSubmit(submit)
                     .padding(.top, 32)
                     .disabled(isSubmitting)
-
-                Text("This is how the group appears to everyone in it")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .padding(.top, 8)
 
                 Spacer()
 
@@ -90,8 +90,9 @@ struct EditGroupNameScreen: View {
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .navigationTitle("Name")
-        .toolbarTitleDisplayMode(.inline)
+        // The heading above the field is the screen's title, the way ``ProfileNameScreen`` asks for
+        // a display name; a bar title on top of it would ask twice.
+        .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
         .onAppear { isNameFocused = true }
         // Leaving the screen abandons the submission: its only continuation is a pop off a stack
@@ -99,10 +100,16 @@ struct EditGroupNameScreen: View {
         .onDisappear { submitTask?.cancel() }
     }
 
+    /// Save proposes; the dialog commits. Nothing is sent until the user confirms, so the whole
+    /// group sees a new name only on a second, deliberate tap.
     private func submit() {
         guard model.canSaveTitle(currentTitle: conversation?.title), !isSubmitting else { return }
 
         isNameFocused = false
+        dialog = .confirmGroupChange(.name) { save() }
+    }
+
+    private func save() {
         buttonState = .loading
 
         submitTask = Task {

@@ -1,5 +1,5 @@
 //
-//  EditGroupIconScreen.swift
+//  EditGroupPictureScreen.swift
 //  Flipcash
 //
 
@@ -8,11 +8,11 @@ import UniformTypeIdentifiers
 import FlipcashCore
 import FlipcashUI
 
-private let logger = Logger(label: "flipcash.edit-group-icon")
+private let logger = Logger(label: "flipcash.edit-group-picture")
 
-/// Replaces a group's picture. The Icon row's destination (node 10187:110373), drawn the way
+/// Replaces a group's picture. The Picture row's destination (node 10187:110373), drawn the way
 /// ``ProfilePhotoScreen`` draws the profile photo: the picture itself is the picker.
-struct EditGroupIconScreen: View {
+struct EditGroupPictureScreen: View {
 
     let conversationID: ConversationID
 
@@ -34,7 +34,7 @@ struct EditGroupIconScreen: View {
     /// The picture already on the group, so the screen opens on what it is about to replace rather
     /// than on an empty circle. Drawn but never submitted — Save stays shut until a new one is
     /// picked.
-    @State private var currentIcon: UIImage?
+    @State private var currentPicture: UIImage?
 
     private static let avatarSize: CGFloat = 158
     private static let plusSize: CGFloat = 64
@@ -55,14 +55,14 @@ struct EditGroupIconScreen: View {
                     Button("Choose File", systemImage: "folder") { isShowingFilePicker = true }
                 } label: {
                     CircleImage(
-                        image: model.picture ?? currentIcon,
+                        image: model.picture ?? currentPicture,
                         size: Self.avatarSize,
                         plusSize: Self.plusSize
                     )
                 }
                 .menuIndicator(.hidden)
                 .disabled(isSubmitting)
-                .accessibilityIdentifier("edit-group-icon-picker")
+                .accessibilityIdentifier("edit-group-picture-picker")
 
                 if let title = conversation?.title {
                     Text(title)
@@ -81,13 +81,13 @@ struct EditGroupIconScreen: View {
                 // The checkmark hold keeps the picture selected, so the button needs the state to
                 // stay shut against a second submission.
                 .disabled(!model.canSavePicture || !buttonState.isNormal || isSubmitting)
-                .accessibilityIdentifier("edit-group-icon-save-button")
+                .accessibilityIdentifier("edit-group-picture-save-button")
                 .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .navigationTitle("Icon")
+        .navigationTitle("Picture")
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
         .fullScreenCover(isPresented: $isShowingPhotoPicker) {
@@ -106,7 +106,7 @@ struct EditGroupIconScreen: View {
         // Keyed on the blob so a picture that changes underneath — including the one this screen
         // just saved — is what the circle ends up drawing.
         .task(id: conversation?.picture?.thumbnailBlobID) {
-            currentIcon = await ProfilePictureLoader.thumbnail(
+            currentPicture = await ProfilePictureLoader.thumbnail(
                 for: conversation?.picture,
                 using: container.flipClient,
                 owner: sessionContainer.session.ownerKeyPair
@@ -115,9 +115,15 @@ struct EditGroupIconScreen: View {
         .onDisappear { submitTask?.cancel() }
     }
 
+    /// Save proposes; the dialog commits. Nothing is uploaded or sent until the user confirms, so
+    /// the whole group sees a new picture only on a second, deliberate tap.
     private func submit() {
         guard model.canSavePicture, !isSubmitting else { return }
 
+        dialog = .confirmGroupChange(.picture) { save() }
+    }
+
+    private func save() {
         buttonState = .loading
 
         submitTask = Task {
@@ -191,8 +197,8 @@ struct EditGroupIconScreen: View {
             dialog = .imageProcessingFailed
 
         default:
-            logger.error("Failed to edit group icon", metadata: ["error": "\(error)"])
-            ErrorReporting.captureError(error, reason: "Failed to edit group icon")
+            logger.error("Failed to edit group picture", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error, reason: "Failed to edit group picture")
             dialog = .error(
                 title: "Couldn't Save This Photo",
                 subtitle: "Try again"
@@ -203,7 +209,7 @@ struct EditGroupIconScreen: View {
     private func handleFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
-            logger.info("Group icon file import failed", metadata: ["error": "\(error)"])
+            logger.info("Group picture file import failed", metadata: ["error": "\(error)"])
             return
 
         case .success(let urls):

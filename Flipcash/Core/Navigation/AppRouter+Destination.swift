@@ -114,8 +114,8 @@ extension AppRouter {
         case editGroup(ConversationID)
         /// Renaming a group, pushed from the Name row of `editGroup`.
         case editGroupName(ConversationID)
-        /// Replacing a group's picture, pushed from the Icon row of `editGroup`.
-        case editGroupIcon(ConversationID)
+        /// Replacing a group's picture, pushed from the Picture row of `editGroup`.
+        case editGroupPicture(ConversationID)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -140,7 +140,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
                  .tipConversation, .tipConversationWithKeyboard, .tipConversationForUser,
                  .userProfile, .chatProfile,
-                 .editGroup, .editGroupName, .editGroupIcon:
+                 .editGroup, .editGroupName, .editGroupPicture:
                 return .tips
             }
         }
@@ -192,7 +192,7 @@ extension AppRouter {
             case .chatProfile:                  "chatProfile"
             case .editGroup:                    "editGroup"
             case .editGroupName:                "editGroupName"
-            case .editGroupIcon:                "editGroupIcon"
+            case .editGroupPicture:             "editGroupPicture"
             }
         }
 
@@ -217,7 +217,7 @@ extension AppRouter {
                  .chatProfile(let conversationID),
                  .editGroup(let conversationID),
                  .editGroupName(let conversationID),
-                 .editGroupIcon(let conversationID):
+                 .editGroupPicture(let conversationID):
                 return conversationID.description
             case .userProfile(let userID),
                  .tipConversationForUser(let userID):

@@ -12,7 +12,8 @@ import FlipcashUI
 /// The design draws four rows — Icon, Membership Card, Description and Social Links — but only the
 /// first has contract support: `EditChatRequest` carries a title and a picture and nothing else, so
 /// the other three would be rows that cannot save. Name is the counterpart the design omits, styled
-/// to match Icon.
+/// to match. The design's "Icon" is called Picture here, matching both the contract's
+/// `EditChatRequest.picture` and the row Android ships.
 struct EditGroupScreen: View {
 
     let conversationID: ConversationID
@@ -28,19 +29,17 @@ struct EditGroupScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 Row(insets: rowInsets, accessory: .chevron) {
-                    Image.system(.photoCircle)
-                        .font(.system(size: 26))
-                        .frame(width: 26, height: 26)
-                    Text("Icon")
+                    Image.system(.photo)
+                        .frame(minWidth: 45)
+                    Text("Picture")
                 } action: {
-                    router.push(.editGroupIcon(conversationID))
+                    router.push(.editGroupPicture(conversationID))
                 }
-                .accessibilityIdentifier("edit-group-icon")
+                .accessibilityIdentifier("edit-group-picture")
 
                 Row(insets: rowInsets, accessory: .chevron) {
                     Image.system(.textformat)
-                        .font(.system(size: 26))
-                        .frame(width: 26, height: 26)
+                        .frame(minWidth: 45)
                     Text("Name")
                 } action: {
                     router.push(.editGroupName(conversationID))
@@ -62,9 +61,10 @@ struct EditGroupScreen: View {
         }
     }
 
-    /// The design's ~24pt vertical rhythm. Leading inset is zero because the row's own icon starts
-    /// the content; the 20pt screen padding is what holds it off the edge.
+    /// The 25pt vertical rhythm every other list in the app uses, near enough to the design's ~24pt
+    /// that matching the app is the better trade. Leading inset is zero because the row's own icon
+    /// column starts the content; the 20pt screen padding holds it off the edge.
     private var rowInsets: EdgeInsets {
-        .init(top: 24, leading: 0, bottom: 24, trailing: 0)
+        .init(top: 25, leading: 0, bottom: 25, trailing: 0)
     }
 }
