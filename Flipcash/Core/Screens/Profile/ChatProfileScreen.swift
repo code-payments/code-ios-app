@@ -50,6 +50,15 @@ struct ChatProfileScreen: View {
         return conversationController.isMember(of: conversation)
     }
 
+    /// Whether to offer the overflow menu at all: it holds Edit and nothing else, so with the edit
+    /// permission withheld there is no menu to draw.
+    ///
+    /// Reads ``Conversation/canEdit`` — the server's answer — and nothing beside it. Membership and
+    /// creator identity are deliberately not consulted; see that property.
+    private var canEdit: Bool {
+        conversation?.canEdit ?? false
+    }
+
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 16) {
@@ -125,6 +134,26 @@ struct ChatProfileScreen: View {
         }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            if canEdit {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            router.push(.editGroup(conversationID))
+                        } label: {
+                            Label {
+                                Text("Edit")
+                            } icon: {
+                                Image.system(.pencil)
+                            }
+                        }
+                    } label: {
+                        Image.system(.ellipsis)
+                    }
+                    .accessibilityIdentifier("chat-profile-overflow")
+                }
+            }
+        }
         .dialog(item: $dialogItem)
         .sheet(isPresented: $isInviting) {
             GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting)

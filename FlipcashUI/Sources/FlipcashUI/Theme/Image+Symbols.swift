@@ -85,6 +85,12 @@ public enum SystemSymbol: String {
     case pencil = "pencil"
     case trash = "trash"
     case flag = "flag"
+
+    /// The two rows of the group edit list. Paired deliberately: the design supplies a glyph for
+    /// the picture row only, so the name row borrows a symbol of the same family and weight rather
+    /// than sitting next to an asset it cannot match.
+    case photoCircle = "photo.circle"
+    case textformat = "textformat"
     /// The bare glyph, for a confirm affordance that carries its own backing shape.
     case checkmark = "checkmark"
     

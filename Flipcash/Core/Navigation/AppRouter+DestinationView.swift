@@ -15,6 +15,7 @@ struct DestinationView: View {
 
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(ConversationController.self) private var conversationController
 
     let destination: AppRouter.Destination
 
@@ -195,6 +196,23 @@ struct DestinationView: View {
 
         case .chatProfile(let conversationID):
             ChatProfileScreen(conversationID: conversationID)
+                .id(conversationID)
+
+        case .editGroup(let conversationID):
+            EditGroupScreen(conversationID: conversationID)
+                .id(conversationID)
+
+        case .editGroupName(let conversationID):
+            // Seeded here, like `.changeDisplayName` above, so the field opens on the name it is
+            // about to replace instead of animating it in over the push.
+            EditGroupNameScreen(
+                conversationID: conversationID,
+                currentTitle: conversationController.conversation(withID: conversationID)?.title ?? ""
+            )
+            .id(conversationID)
+
+        case .editGroupIcon(let conversationID):
+            EditGroupIconScreen(conversationID: conversationID)
                 .id(conversationID)
         }
     }
