@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 import SwiftUI
 import FlipcashCore
 import FlipcashStore
@@ -32,6 +33,10 @@ final class ConversationController {
     /// DM conversations, most-recent activity first.
     var conversations: [Conversation] { store.conversations }
     private(set) var isLoadingFeed = false
+
+    /// Whether the feed's contents are known: seeded from a non-empty cache, or answered by the
+    /// server once. Until then an empty feed means not yet loaded, not no chats.
+    private(set) var hasResolvedFeed = false
 
     /// The `stableID` of a just-sent optimistic message whose receipt is currently held back so it can
     /// cross-fade onto a settled bubble; the transcript mapping suppresses that row's receipt while set.
@@ -143,6 +148,9 @@ final class ConversationController {
     @ObservationIgnored let database: Database
     @ObservationIgnored let owner: KeyPair
     @ObservationIgnored private var startTask: Task<Void, Never>?
+    /// The cache read's result, held for `hydrateIfReady()`; set off the main actor.
+    @ObservationIgnored private let finishedCache = OSAllocatedUnfairLock<ConversationCache?>(initialState: nil)
+    @ObservationIgnored private var hasAppliedCache = false
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var connectionStateTask: Task<Void, Never>?
     /// Whether the event stream has been seen `.live` at least once. The first
@@ -222,22 +230,56 @@ final class ConversationController {
     /// animation-suppressed so on-screen surfaces don't play insertion
     /// transitions for cached history.
     func hydrateFromDatabase() async {
-        do {
+        await hydrateFromDatabase(loading: loadCache(), unlessApplied: false)
+    }
+
+    /// Seeds the store from the cache read `start()` began, if that read has already finished. Never
+    /// waits on it. Lets a screen that is about to draw take the cache in the same frame, rather than
+    /// after the main actor has worked through the rest of launch.
+    func hydrateIfReady() {
+        guard !hasAppliedCache, let cache = finishedCache.withLock({ $0 }) else { return }
+        applyCache(cache)
+    }
+
+    private typealias ConversationCache = (conversations: [Conversation], cursors: [ConversationID: UInt64], joinedGroups: Set<ConversationID>)
+
+    /// Starts the cache read off the main actor, so it doesn't wait for the main thread to come free.
+    private func loadCache() -> Task<ConversationCache, Error> {
+        Task.detached { [database, finishedCache] in
             let cache = try await database.loadConversationCache()
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                // Memberships seed ahead of the feed guard: they live in their own table, and a group
-                // the user has joined must not sit blurred behind its own gate for as long as the group
-                // feed takes to land — or for the whole session, offline.
-                store.seedMemberships(cache.joinedGroups)
-                guard !cache.conversations.isEmpty else { return }
-                store.setFeed(cache.conversations)
-                store.seedAppliedCursors(cache.cursors)
-            }
+            finishedCache.withLock { $0 = cache }
+            return cache
+        }
+    }
+
+    /// `unlessApplied` skips a cache `hydrateIfReady()` already took, so launch doesn't apply it twice.
+    private func hydrateFromDatabase(loading load: Task<ConversationCache, Error>, unlessApplied: Bool) async {
+        do {
+            let cache = try await load.value
+            if unlessApplied, hasAppliedCache { return }
+            applyCache(cache)
         } catch {
             logger.error("Failed to load conversation cache", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to load conversation cache")
+        }
+    }
+
+    private func applyCache(_ cache: ConversationCache) {
+        hasAppliedCache = true
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            // Memberships seed ahead of the feed guard: they live in their own table, and a group
+            // the user has joined must not sit blurred behind its own gate for as long as the group
+            // feed takes to land — or for the whole session, offline.
+            store.seedMemberships(cache.joinedGroups)
+            guard !cache.conversations.isEmpty else { return }
+            store.setFeed(cache.conversations)
+            store.seedAppliedCursors(cache.cursors)
+        }
+        // An empty cache proves nothing — a fresh login has one — so that case waits for the feed.
+        if !cache.conversations.isEmpty {
+            hasResolvedFeed = true
         }
     }
 
@@ -247,8 +289,12 @@ final class ConversationController {
     /// feed — in that order so live events aren't lost mid-load. Idempotent.
     func start() {
         guard startTask == nil else { return }
+        // The read starts here rather than inside the task: at launch the main actor is busy building
+        // the tab UI, and a read queued behind that lands after the Chats tab has drawn empty. The
+        // Chats screen picks the result up through `hydrateIfReady()` as it appears.
+        let cache = loadCache()
         startTask = Task {
-            await hydrateFromDatabase()
+            await hydrateFromDatabase(loading: cache, unlessApplied: true)
             await openStream()
             await loadFeed()
         }
@@ -561,7 +607,10 @@ final class ConversationController {
 
     private func loadFeeds() async -> [Conversation] {
         isLoadingFeed = true
-        defer { isLoadingFeed = false }
+        defer {
+            isLoadingFeed = false
+            hasResolvedFeed = true
+        }
         // Both DM feeds load concurrently and apply independently, so one
         // type's failure doesn't drop the other's conversations.
         async let contact = loadFeed(type: .contactDm)

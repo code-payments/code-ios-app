@@ -878,6 +878,65 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2])
     }
 
+    @Test("a non-empty cache resolves the feed on hydration")
+    func hydrate_cachedConversation_resolvesFeed() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(
+            Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))
+        )
+        let controller = makeController(MockConversations(), database: database)
+        #expect(!controller.hasResolvedFeed)
+
+        await controller.hydrateFromDatabase()
+
+        #expect(controller.hasResolvedFeed)
+    }
+
+    @Test("an empty cache leaves the feed unresolved until the server answers")
+    func hydrate_emptyCache_waitsForFeed() async {
+        let controller = makeController(MockConversations())
+
+        await controller.hydrateFromDatabase()
+        #expect(!controller.hasResolvedFeed)
+
+        await controller.loadFeed()
+        #expect(controller.hasResolvedFeed)
+    }
+
+    @Test("hydrateIfReady does nothing before a cache read has finished")
+    func hydrateIfReady_noRead_isNoOp() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(
+            Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))
+        )
+        let controller = makeController(MockConversations(), database: database)
+
+        controller.hydrateIfReady()
+
+        #expect(controller.conversations.isEmpty)
+        #expect(!controller.hasResolvedFeed)
+    }
+
+    @Test("hydrateIfReady does not lay an applied cache back over the server's feed")
+    func hydrateIfReady_afterFeed_keepsServerFeed() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(
+            Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))
+        )
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(2), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200))]
+        let controller = makeController(mock, database: database)
+        await controller.hydrateFromDatabase()
+        await controller.loadFeed()
+
+        controller.hydrateIfReady()
+
+        #expect(controller.conversations.map(\.id) == [ConversationID.test(2)])
+    }
+
     @Test("loadFeed, loadMessages, and markRead persist — a fresh controller rehydrates the same state")
     func persistsAcrossControllers() async throws {
         let (database, url) = try Database.makeTemp()

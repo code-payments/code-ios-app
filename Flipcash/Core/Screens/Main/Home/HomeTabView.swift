@@ -7,7 +7,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The post-login root. Hosts the four tabs, launches on Wallet, and owns the
+/// The post-login root. Hosts the four tabs, opens on the tab it is given, and owns the
 /// app-level `router.rootSheet` host so `router.present(_:)` works from any tab.
 ///
 /// On iOS 26 the tabs live in a native `TabView`, which renders the system
@@ -24,17 +24,20 @@ struct HomeTabView: View {
     @Environment(Container.self) private var container
     @Environment(BetaFlags.self) private var betaFlags
 
-    @State private var selection: HomeTab = .initial
+    @State private var selection: HomeTab
 
     /// Whether Chat has been selected yet. Gates its first build; see
     /// ``tabContent(for:)``.
-    @State private var hasOpenedChat = false
+    @State private var hasOpenedChat: Bool
 
     /// The You tab's icon, once the profile has a picture. Owned here rather
     /// than by either bar, because both bars want the same download.
     @State private var profilePhoto = TabBarProfilePhoto()
 
-    init() {
+    init(initialTab: HomeTab = .initial) {
+        _selection = State(initialValue: initialTab)
+        _hasOpenedChat = State(initialValue: initialTab == .chat)
+
         // Color the tab glyphs per state: selected white, the rest secondary.
         // The iOS 26 tab bar ignores UITabBar.unselectedItemTintColor, so drive
         // it through a full item appearance instead. A transparent background
@@ -283,11 +286,10 @@ struct HomeTabView: View {
             WalletScreen(onScanTipCard: { selection = .scan })
                 .environment(cardExpansion)
         case .chat:
-            // Building the conversation list cost 300–550 ms on the launch that
-            // lands on Wallet, after first paint, which is the jank right as the
-            // wallet appears. Deferring it to the first selection moves that off
-            // the launch; `selection` alone answers the frame Chat is tapped, so
-            // there is nothing to see in between.
+            // Building the conversation list costs 300–550 ms, so when the app
+            // launches on another tab it waits for the first selection rather
+            // than janking that tab's first paint; `selection` alone answers the
+            // frame Chat is tapped, so there is nothing to see in between.
             //
             // It stays built afterwards, unlike Scan. Scan is gated so it *does*
             // tear down; Chat holds state worth keeping — scroll position, a
