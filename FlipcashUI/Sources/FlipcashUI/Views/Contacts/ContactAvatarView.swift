@@ -170,13 +170,19 @@ public struct PeopleSilhouette: View {
     }
 }
 
+public extension Color {
+    /// The top stop of ``LinearGradient/avatarPlaceholder``: what an avatar with no picture shows
+    /// first, and so what a group invite card tints its band with when the chat has no picture.
+    nonisolated static let avatarPlaceholderTop = Color(red: 0.25, green: 0.25, blue: 0.25)
+}
+
 public extension LinearGradient {
     /// The dark vertical gradient behind contact avatar placeholders and the
     /// people glyphs composed from them (e.g. the "Add More Contacts" footer
     /// icon), so both stay in sync.
     static let avatarPlaceholder = LinearGradient(
         stops: [
-            Gradient.Stop(color: Color(red: 0.25, green: 0.25, blue: 0.25), location: 0.00),
+            Gradient.Stop(color: .avatarPlaceholderTop, location: 0.00),
             Gradient.Stop(color: Color(red: 0.13, green: 0.13, blue: 0.13), location: 1.00),
         ],
         startPoint: UnitPoint(x: 0.5, y: 0),

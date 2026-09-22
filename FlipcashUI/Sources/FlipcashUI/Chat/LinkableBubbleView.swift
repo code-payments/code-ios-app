@@ -234,6 +234,9 @@ public final class LinkableBubbleView: UIView {
         } else {
             cardView.isHidden = true
             self.card = nil
+            // Drops the last card's subscription and any group card's hold on the slot's height,
+            // which would fight the collapse below.
+            cardView.prepareForReuse()
             NSLayoutConstraint.deactivate(cardSides)
             NSLayoutConstraint.activate(cardCollapse)
         }

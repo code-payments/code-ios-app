@@ -44,11 +44,25 @@ import FlipcashCore
                 mintLookup: { _ in
                     Issue.record("the mint lookup was called")
                     throw CancellationError()
+                },
+                groupLookup: { _ in
+                    Issue.record("the group lookup was called")
+                    throw CancellationError()
                 }
             ),
             memo: memo,
-            claims: claims
+            claims: claims,
+            groups: UnusedGroups()
         )
+    }
+
+    /// These tests show cash cards only.
+    private final class UnusedGroups: GroupLinkPresenting {
+        func present(_ facts: GroupLinkFacts) -> LinkCard.Group.Resolved {
+            Issue.record("a group card was presented")
+            return LinkCard.Group.Resolved(title: "", memberCount: "", avatarID: "", imageData: nil, blurHash: nil, requirement: nil, action: .none)
+        }
+        func loadPicture(for facts: GroupLinkFacts) async {}
     }
 
     /// What the card view does: subscribe, and paint whatever arrives.

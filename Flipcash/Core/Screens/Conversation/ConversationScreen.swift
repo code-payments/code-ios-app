@@ -316,8 +316,7 @@ struct ConversationScreen: View {
     /// From ``ConversationRosterSummary/memberCount``, not `members.count`: the roster a large group
     /// embeds is only a subset, so counting it would under-report the chat.
     private var titleSubtitle: String? {
-        guard let count = groupConversation?.rosterSummary.memberCount else { return nil }
-        return count == 1 ? "1 person" : "\(count) people"
+        groupConversation?.rosterSummary.peopleCount
     }
 
     /// The group's own picture, fetched under the chat's access context rather than any member's.
@@ -383,20 +382,7 @@ struct ConversationScreen: View {
     /// advertised listener rule rather than anything the gate found unmet. The line is broken after
     /// the label rather than wherever the card's width falls, as the design breaks it.
     private var groupCardRequirement: String? {
-        switch gateVerdicts.headline {
-        case .minimumBalance(let amount, let mint):
-            // A dollar-token rule is already fully stated by its dollar amount; naming the token
-            // as well says the same thing twice. Any other token genuinely needs naming, because
-            // the same $100 is a different quantity of each.
-            let name = mint == .usdf ? nil : headlineMint.flatMap { mintNames[$0] }
-            let holding = name.map { "\(amount.formattedDroppingZeroFraction()) of \($0)" }
-                ?? amount.formattedDroppingZeroFraction()
-            return "Balance Requirement:\n\(holding)"
-        case .staff:
-            return "This chat is for Flipcash staff"
-        case nil:
-            return nil
-        }
+        groupRequirementLine(gateVerdicts.headline, mintName: headlineMint.flatMap { mintNames[$0] })
     }
 
     /// The mint the gate's requirement names, when it names one. A requirement with no mint applies
@@ -1025,16 +1011,18 @@ struct ConversationScreen: View {
         UIApplication.shared.open(url)
     }
 
-    /// Where a tapped link card lands, which is not the same place for both kinds.
+    /// Where a tapped link card lands, which is not the same place for every kind.
     ///
     /// A cash card goes out through the deep-link path its URL would have taken — claiming is that
-    /// path's job and the card has no part in it. A token card pushes onto this chat's own stack,
+    /// path's job and the card has no part in it. So does a group card, whichever button it shows:
+    /// the `.chat` route opens the chat, and the chat's own gate offers the join or the buy, so the
+    /// card never joins from the transcript. A token card pushes onto this chat's own stack,
     /// the way `openCurrencyInfo` does for a cash message, rather than through the deep-link
     /// handler: `.token` there resets the balance tab and walks the reader out of the conversation
     /// they were reading.
     private func openLinkCard(_ card: LinkCard) {
         switch card {
-        case .cash:
+        case .cash, .group:
             openLink(card.url)
         case .token(let token):
             router.push(.currencyInfo(token.mint))

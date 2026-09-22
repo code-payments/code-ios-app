@@ -17,12 +17,14 @@ public enum LinkCard: Hashable, Sendable, Codable {
 
     case cash(Cash)
     case token(Token)
+    case group(Group)
 
     /// The URL the card stands for, jump wrapper already unwrapped. Tapping the card opens this.
     public var url: URL {
         switch self {
         case .cash(let cash): cash.url
         case .token(let token): token.url
+        case .group(let group): group.url
         }
     }
 
@@ -35,23 +37,26 @@ public enum LinkCard: Hashable, Sendable, Codable {
         switch self {
         case .cash(let cash): cash.range
         case .token(let token): token.range
+        case .group(let group): group.range
         }
     }
 
-    /// How far a card's lookup got, kept per kind so the two cannot be handed to each other.
+    /// How far a card's lookup got, kept per kind so no kind can be handed another's answer.
     ///
     /// It does not live on the card. A card is the link's identity — url, entropy or mint, span —
     /// and the view resolves it, so a lookup landing cannot change what the transcript diffed.
     public enum State: Hashable, Sendable, Codable {
         case cash(Cash.State)
         case token(Token.State)
+        case group(Group.State)
 
-        /// Whether the lookup came back with something. A failure of any kind is `unresolved`,
-        /// which is the one answer not worth remembering — the next look asks again.
+        /// Whether the lookup came back with something. A failure of any kind is `unresolved` (or
+        /// `unavailable` for a group), which is the one answer not worth remembering — the next
+        /// look asks again.
         public var isResolved: Bool {
             switch self {
-            case .cash(.resolved), .token(.resolved):     true
-            case .cash(.unresolved), .token(.unresolved): false
+            case .cash(.resolved), .token(.resolved), .group(.resolved):  true
+            case .cash(.unresolved), .token(.unresolved), .group(.unavailable): false
             }
         }
     }
@@ -180,6 +185,94 @@ public enum LinkCard: Hashable, Sendable, Codable {
     }
 }
 
+// MARK: - Group -
+
+extension LinkCard {
+
+    /// A group chat's invite link, `app.flipcash.com/chat/{uuid}`.
+    public struct Group: Hashable, Sendable, Codable {
+
+        public let url: URL
+        /// The chat id's bytes. Stored raw because `ConversationID` is not `Codable`.
+        public let chatIDData: Data
+        /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
+        public let location: Int
+        public let length: Int
+
+        public var range: NSRange { NSRange(location: location, length: length) }
+
+        /// The chat the link invites to.
+        public var chatID: ConversationID { ConversationID(data: chatIDData) }
+
+        public init(url: URL, chatID: ConversationID, range: NSRange) {
+            self.url = url
+            self.chatIDData = chatID.data
+            self.location = range.location
+            self.length = range.length
+        }
+
+        public enum State: Hashable, Sendable, Codable {
+            /// No group to show: the lookup failed, or the chat is gone. Not remembered, so the
+            /// next appearance asks again.
+            case unavailable
+            case resolved(Resolved)
+        }
+
+        /// The card's contents, already worded for display.
+        ///
+        /// Built from the chat's public record only — title, picture, member count, rules — and
+        /// never from its roster, which is private to members whatever the group's mode.
+        public struct Resolved: Hashable, Sendable, Codable {
+            public let title: String
+            /// "1 person" / "12 people".
+            public let memberCount: String
+            /// Stable identity for the avatar (monogram colour and image cache key).
+            public let avatarID: String
+            /// The chat picture's thumbnail bytes, once loaded.
+            public let imageData: Data?
+            /// The chat picture's BlurHash: the avatar's preview and the band's tint.
+            public let blurHash: String?
+            /// The entry rule as the chat's own head card states it, or nil when it states none.
+            public let requirement: String?
+            public let action: Action
+
+            public init(
+                title: String,
+                memberCount: String,
+                avatarID: String,
+                imageData: Data?,
+                blurHash: String?,
+                requirement: String?,
+                action: Action
+            ) {
+                self.title = title
+                self.memberCount = memberCount
+                self.avatarID = avatarID
+                self.imageData = imageData
+                self.blurHash = blurHash
+                self.requirement = requirement
+                self.action = action
+            }
+        }
+
+        /// What the card's button offers the viewer.
+        public enum Action: Hashable, Sendable, Codable {
+            /// Meets the rules and is not a member.
+            case join
+            /// Already a member.
+            case open
+            /// Short of a balance requirement in one named token.
+            case getToken(name: String)
+            /// Short of a requirement the dollar token or any holding satisfies, so there is no one
+            /// token to buy — the gate panel sends this viewer to add cash, and so does the card.
+            case addCash
+            /// Blocked with nothing the card can offer — a staff-only chat, or a token other than the
+            /// one the card names. The card states the rule and offers no button.
+            case none
+        }
+    }
+}
+
 // MARK: - The span the card takes -
 
 nonisolated extension LinkCard {
@@ -190,6 +283,7 @@ nonisolated extension LinkCard {
         switch self {
         case .cash(let cash):   .cash(Cash(url: cash.url, entropy: cash.entropy, range: range))
         case .token(let token): .token(Token(url: token.url, mint: token.mint, range: range))
+        case .group(let group): .group(Group(url: group.url, chatID: group.chatID, range: range))
         }
     }
 }

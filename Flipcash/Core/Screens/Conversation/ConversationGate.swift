@@ -143,7 +143,7 @@ func conversationGate(
 
 /// The listener rule worth stating on the panel: the first minimum balance,
 /// since it is the one with a number in it, falling back to the first rule.
-private func headline(for rules: [ConversationListenerRule]) -> ConversationGateRequirement? {
+nonisolated func headline(for rules: [ConversationListenerRule]) -> ConversationGateRequirement? {
     let requirements = rules.map { rule -> ConversationGateRequirement in
         switch rule {
         case .staff:
@@ -280,5 +280,35 @@ func conversationGatePresentation(_ gate: ConversationGate, isMember: Bool) -> C
         case .unsatisfied(_, let primary):  return .readOnly(primary)
         case .satisfied:                    return .open
         }
+    }
+}
+
+/// The chat's entry rule as its head card states it (node 10125:19164), or nil when it states none.
+///
+/// States the rule whether or not the viewer satisfies it. The line is broken after the label
+/// rather than wherever the card's width falls, as the design breaks it. A dollar-token rule is
+/// already fully stated by its dollar amount, so naming the token too says the same thing twice;
+/// any other token genuinely needs naming, because the same $100 is a different quantity of each.
+/// Shared by the head card and the group invite link card so the two word a rule identically.
+func groupRequirementLine(_ headline: ConversationGateRequirement?, mintName: String?) -> String? {
+    switch headline {
+    case .minimumBalance(let amount, let mint):
+        let name = mint == .usdf ? nil : mintName
+        let holding = name.map { "\(amount.formattedDroppingZeroFraction()) of \($0)" }
+            ?? amount.formattedDroppingZeroFraction()
+        return "Balance Requirement:\n\(holding)"
+    case .staff:
+        return "This chat is for Flipcash staff"
+    case nil:
+        return nil
+    }
+}
+
+extension ConversationRosterSummary {
+
+    /// "1 person" / "12 people", from ``memberCount`` rather than a roster's length — a large
+    /// group embeds only a subset of its roster, so counting that would under-report the chat.
+    var peopleCount: String {
+        memberCount == 1 ? "1 person" : "\(memberCount) people"
     }
 }

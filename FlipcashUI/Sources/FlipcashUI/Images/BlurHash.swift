@@ -3,6 +3,7 @@
 //  FlipcashUI
 //
 
+import SwiftUI
 import UIKit
 
 /// Decoder for [BlurHash](https://blurha.sh) strings — the compact, blurred image preview that
@@ -42,6 +43,43 @@ nonisolated public enum BlurHash {
         }
 
         return composeImage(width: width, height: height, numCompX: numCompX, numCompY: numCompY, colors: colors)
+    }
+
+    /// An sRGB colour as the three bytes a BlurHash stores it in.
+    public struct RGB: Equatable, Sendable {
+        public let red: UInt8
+        public let green: UInt8
+        public let blue: UInt8
+
+        public init(red: UInt8, green: UInt8, blue: UInt8) {
+            self.red = red
+            self.green = green
+            self.blue = blue
+        }
+
+        /// The colour as a SwiftUI `Color` in the sRGB space.
+        public var color: Color {
+            Color(.sRGB, red: Double(red) / 255, green: Double(green) / 255, blue: Double(blue) / 255)
+        }
+    }
+
+    /// The image's average colour, read from the hash's DC component without decoding the image,
+    /// or nil when `hash` is malformed by the same rules `decode` applies.
+    ///
+    /// Cross-platform: `test-vectors/blurhash_average.json`.
+    public static func averageColor(blurHash hash: String?) -> RGB? {
+        guard let hash, hash.count >= 6 else { return nil }
+
+        let chars = Array(hash)
+        guard chars.allSatisfy({ alphabetIndex[$0] != nil }) else { return nil }
+
+        guard let sizeFlag = decode83(chars, 0, 1) else { return nil }
+        let numCompX = sizeFlag % 9 + 1
+        let numCompY = sizeFlag / 9 + 1
+        guard chars.count == 4 + 2 * numCompX * numCompY else { return nil }
+
+        guard let dc = decode83(chars, 2, 6) else { return nil }
+        return RGB(red: UInt8(dc >> 16 & 255), green: UInt8(dc >> 8 & 255), blue: UInt8(dc & 255))
     }
 
     private static func decode83(_ chars: [Character], _ from: Int, _ to: Int) -> Int? {

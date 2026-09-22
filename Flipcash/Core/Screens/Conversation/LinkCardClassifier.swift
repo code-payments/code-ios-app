@@ -26,7 +26,7 @@ import FlipcashCore
 /// **Route.** Whatever survives the host gate goes to the real parser. No second path parser is
 /// written.
 ///
-/// Two paths become cards: `.cash` and `.token`. The rest are refused by name rather than by a
+/// Three paths become cards: `.cash`, `.token`, and `.chat` (a group invite). The rest are refused by name rather than by a
 /// `default`, so a new route has to be ruled on here instead of inheriting a card. `.login` and
 /// `.verifyEmail` in particular carry the account seed and a verification secret, and a card with a
 /// tap target in front of either is a phishing aid.
@@ -59,7 +59,12 @@ nonisolated struct LinkCardClassifier {
             // anything is a question only the lookup can answer.
             return .token(LinkCard.Token(url: target, mint: mint, range: link.range))
 
-        case .login, .verifyEmail, .chat, .chatSendCash, .tip, .username,
+        case .chat(let chatID):
+            // A group invite. Whether the id names a group this viewer can see is, as with a mint,
+            // a question for the lookup; a chat that turns out not to exist renders unavailable.
+            return .group(LinkCard.Group(url: target, chatID: chatID, range: link.range))
+
+        case .login, .verifyEmail, .chatSendCash, .tip, .username,
              .give, .balance, .discover, .unknown:
             return nil
         }

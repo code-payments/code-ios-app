@@ -34,8 +34,7 @@ struct ChatProfileScreen: View {
     /// "12 people", from ``ConversationRosterSummary/memberCount`` rather than `members.count` — a
     /// large group embeds only a subset of its roster, so counting it would under-report the chat.
     private var memberCount: String? {
-        guard let count = conversation?.rosterSummary.memberCount else { return nil }
-        return count == 1 ? "1 person" : "\(count) people"
+        conversation?.rosterSummary.peopleCount
     }
 
     private var title: String {

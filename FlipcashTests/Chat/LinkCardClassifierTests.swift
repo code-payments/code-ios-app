@@ -80,6 +80,32 @@ import FlipcashCore
         #expect(LinkCardClassifier().firstCard(in: [link]) == nil)
     }
 
+    /// Not in the canonical fixture yet: Android refuses `/chat/` links until it ships the group
+    /// card, and a shared vector would fail its copy until then.
+    @Test func aGroupInviteLinkBecomesAGroupCard() throws {
+        let text = "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162"
+        let url = try #require(URL(string: text))
+        let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
+
+        let card = try #require(LinkCardClassifier().firstCard(in: [link]))
+        guard case .group(let group) = card else {
+            Issue.record("expected a group card, got \(card.kindName)")
+            return
+        }
+        #expect(group.chatID == ConversationID(uuidString: "6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162"))
+        #expect(group.url == url)
+        #expect(group.range == link.range)
+    }
+
+    /// The Send Cash sheet over a chat opens a payment, not a group, so it stays a plain link.
+    @Test func aChatSendCashLinkStaysALink() throws {
+        let text = "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162/send"
+        let url = try #require(URL(string: text))
+        let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
+
+        #expect(LinkCardClassifier().firstCard(in: [link]) == nil)
+    }
+
     @Test func theHostAllowlistMatchesTheCrossPlatformFixture() throws {
         #expect(Set(try loadFixture().cardHosts) == Route.flipcashHosts)
     }
@@ -91,6 +117,7 @@ private extension LinkCard {
         switch self {
         case .cash: "cash"
         case .token: "token"
+        case .group: "group"
         }
     }
 }
