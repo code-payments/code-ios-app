@@ -90,11 +90,12 @@ struct ChatProfileScreen: View {
 
                 VStack(spacing: 0) {
                     if isMember {
-                        Row(insets: rowInsets, accessory: .chevron) {
+                        Row(insets: rowInsets) {
                             Image(systemName: "person.badge.plus")
                                 .frame(minWidth: 45)
                             Text("Invite People To Join")
                                 .foregroundStyle(.textMain)
+                            Spacer()
                         } action: {
                             isInviting = true
                         }
@@ -113,12 +114,16 @@ struct ChatProfileScreen: View {
                         Row(
                             insets: rowInsets,
                             disabled: isLeaving,
-                            accessory: isLeaving ? .loader(.textMain) : .chevron
+                            accessory: isLeaving ? .loader(.textMain) : nil
                         ) {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
                                 .frame(minWidth: 45)
                             Text("Leave Group")
                                 .foregroundStyle(.textMain)
+                            // Only while idle: the loader accessory brings its own spacer.
+                            if !isLeaving {
+                                Spacer()
+                            }
                         } action: {
                             dialogItem = leaveDialog()
                         }
