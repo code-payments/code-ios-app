@@ -116,6 +116,24 @@ extension ChatItem {
             message.repliedTo == nil && isEmojiOnlyBody(message)
         }
 
+        // Each message's rows, worked out up front because a neighbour's first and last rows decide
+        // whether a bubble here joins it. One row for most messages; a message with a link card is
+        // split around it.
+        let layouts = messages.map { message in
+            switch message.content {
+            case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard))
+            case .cash, .deleted: [RowLayout(part: nil, text: nil, preview: nil)]
+            }
+        }
+        // A card row breaks the bubble run the way bare emoji do, so what faces a neighbour is the
+        // row at that end of the message, not the message as a whole.
+        func startsBare(_ index: Int) -> Bool {
+            rendersBare(messages[index]) || layouts[index].first?.part == .card
+        }
+        func endsBare(_ index: Int) -> Bool {
+            rendersBare(messages[index]) || layouts[index].last?.part == .card
+        }
+
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -144,20 +162,17 @@ extension ChatItem {
                 $0.senderID == message.senderID && !separates($0, from: message)
             } ?? false
 
-            // The bubble run, which is not the author run. A bubble stacked above a bare emoji would
-            // otherwise flatten its inner corner to `BubbleBackgroundView.groupedRadius` and take
-            // the tight row gap, pointing at a bubble that is not there — while the name and the
-            // gutter face stay where they are.
-            let isBare = rendersBare(message)
-            let joinsBubbleAbove = groupedAbove && !isBare && !(previous.map(rendersBare) ?? false)
-            let joinsBubbleBelow = groupedBelow && !isBare && !(next.map(rendersBare) ?? false)
+            // The bubble run, which is not the author run. A bubble stacked above a bare emoji or a
+            // card would otherwise flatten its inner corner to `BubbleBackgroundView.groupedRadius`
+            // and take the tight row gap, pointing at a bubble that is not there — while the name and
+            // the gutter face stay where they are.
+            let joinsBubbleAbove = groupedAbove && !startsBare(index) && !(previous != nil && endsBare(index - 1))
+            let joinsBubbleBelow = groupedBelow && !endsBare(index) && !(next != nil && startsBare(index + 1))
 
             let content: ChatMessage.Content
-            let linkPreview: LinkPreview?
             switch message.content {
             case .text(let text):
                 content = .text(text)
-                linkPreview = detectedLink(in: text, card: linkCard)
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
                 content = .cash(ChatCashContent(
@@ -167,14 +182,12 @@ extension ChatItem {
                     iconURL: branding.iconURL,
                     isTip: message.cashAction == .tipped
                 ))
-                linkPreview = nil
             case .deleted(let deletion):
                 content = .deleted(
                     deletion.deletedBy == selfUserID
                         ? "You deleted this message"
                         : "This message was deleted"
                 )
-                linkPreview = nil
             }
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean
@@ -209,28 +222,41 @@ extension ChatItem {
                 )
             }
 
-            items.append(.message(ChatMessage(
-                id: message.stableID,
-                content: content,
-                sender: isFromSelf ? .me : .other,
-                isContinuationFromPrevious: groupedAbove,
-                isContinuedByNext: groupedBelow,
-                joinsBubbleAbove: joinsBubbleAbove,
-                joinsBubbleBelow: joinsBubbleBelow,
-                isEmojiOnly: isEmojiOnlyBody(message),
-                receipt: receipt,
-                linkPreview: linkPreview,
-                isEdited: message.lastEditedTs != nil && !message.isDeleted,
-                actions: orderedActions(capabilities(message)),
-                quote: quote,
-                // The viewer's own rows are never attributed: the trailing edge already says who
-                // wrote them, and a name and avatar over them would read as a second speaker.
-                author: isFromSelf ? nil : author(message),
-                // Carried on every row of a group transcript, not just the ones that resolved an
-                // author, so the gutter the faces sit in is held open for all of them and the
-                // incoming bubbles share one leading edge.
-                isAttributedTranscript: namesAuthors
-            )))
+            // A split message reads as one: the quote heads its first row, the receipt and the
+            // "Edited" marker close its last, and every row between holds the author run and offers
+            // the whole message's menu.
+            let rows = layouts[index]
+            for (position, row) in rows.enumerated() {
+                let isFirst = position == 0
+                let isLast = position == rows.count - 1
+                let part = row.part.map {
+                    ChatMessagePart(messageID: message.stableID, kind: $0, messageText: row.messageText ?? "")
+                }
+                items.append(.message(ChatMessage(
+                    id: part?.rowID ?? message.stableID,
+                    content: row.text.map(ChatMessage.Content.text) ?? content,
+                    sender: isFromSelf ? .me : .other,
+                    isContinuationFromPrevious: isFirst ? groupedAbove : true,
+                    isContinuedByNext: isLast ? groupedBelow : true,
+                    // Inside a split message a text row always faces the card, which is bare.
+                    joinsBubbleAbove: isFirst && joinsBubbleAbove,
+                    joinsBubbleBelow: isLast && joinsBubbleBelow,
+                    isEmojiOnly: part == nil && isEmojiOnlyBody(message),
+                    receipt: isLast ? receipt : nil,
+                    linkPreview: row.preview,
+                    isEdited: isLast && message.lastEditedTs != nil && !message.isDeleted,
+                    actions: orderedActions(capabilities(message)),
+                    quote: isFirst ? quote : nil,
+                    // The viewer's own rows are never attributed: the trailing edge already says who
+                    // wrote them, and a name and avatar over them would read as a second speaker.
+                    author: isFromSelf ? nil : author(message),
+                    // Carried on every row of a group transcript, not just the ones that resolved an
+                    // author, so the gutter the faces sit in is held open for all of them and the
+                    // incoming bubbles share one leading edge.
+                    isAttributedTranscript: namesAuthors,
+                    part: part
+                )))
+            }
         }
         return items
     }
@@ -296,6 +322,84 @@ extension ChatItem {
     nonisolated static func flagImageName(for fiat: ExchangedFiat) -> String {
         let currency = fiat.nativeAmount.currency
         return currency.region?.rawValue ?? currency.rawValue.uppercased()
+    }
+
+    /// One row a message draws: the whole message, or one part of a message split around its card.
+    nonisolated struct RowLayout {
+        /// Nil for a row that is the whole message.
+        let part: ChatMessagePart.Kind?
+        /// The row's text, or nil to draw the message's own content.
+        let text: String?
+        let preview: LinkPreview?
+        /// The whole message's text, for a split row's Copy.
+        var messageText: String? = nil
+    }
+
+    /// The rows a text message draws, in the order the sender wrote them: the text before the
+    /// carded link, the card, and the text after it, each skipped when it would hold nothing but
+    /// whitespace. A message with no card is one row, as it always was.
+    ///
+    /// The whitespace between the link and the text on either side goes with the link — it was the
+    /// gap around a word that now has a row of its own. Every other link stays in whichever text row
+    /// it fell in, underlined, with its span moved into that row's frame.
+    ///
+    /// A card whose span does not fit the text — a stale preview — is dropped rather than split, and
+    /// the message renders as text with its links underlined.
+    nonisolated static func rows(for text: String, preview: LinkPreview?) -> [RowLayout] {
+        guard let preview, let card = preview.card else {
+            return [RowLayout(part: nil, text: nil, preview: preview)]
+        }
+        let body = text as NSString
+        let link = card.range
+        guard link.location >= 0, link.length > 0, NSMaxRange(link) <= body.length else {
+            return [RowLayout(part: nil, text: nil, preview: LinkPreview(links: preview.links, card: nil))]
+        }
+
+        func isGap(_ index: Int) -> Bool {
+            guard let scalar = Unicode.Scalar(body.character(at: index)) else { return false }
+            return CharacterSet.whitespacesAndNewlines.contains(scalar)
+        }
+        var leadingEnd = link.location
+        while leadingEnd > 0, isGap(leadingEnd - 1) { leadingEnd -= 1 }
+        var trailingStart = NSMaxRange(link)
+        while trailingStart < body.length, isGap(trailingStart) { trailingStart += 1 }
+
+        // The links inside `span`, re-based to its start. A row with no link keeps no preview, so it
+        // takes the plain text cell.
+        func textRow(_ kind: ChatMessagePart.Kind, _ span: NSRange) -> RowLayout? {
+            guard span.length > 0 else { return nil }
+            let links = preview.links.compactMap { detected -> DetectedLink? in
+                guard detected.location >= span.location,
+                      NSMaxRange(detected.range) <= NSMaxRange(span) else { return nil }
+                return DetectedLink(
+                    range: NSRange(location: detected.location - span.location, length: detected.length),
+                    url: detected.url
+                )
+            }
+            return RowLayout(
+                part: kind,
+                text: body.substring(with: span),
+                preview: links.isEmpty ? nil : LinkPreview(links: links),
+                messageText: text
+            )
+        }
+
+        let cardSpan = NSRange(location: 0, length: link.length)
+        let cardLink = preview.links.first { $0.range == link }
+            .map { DetectedLink(range: cardSpan, url: $0.url) }
+            ?? DetectedLink(range: cardSpan, url: card.url)
+        let cardRow = RowLayout(
+            part: .card,
+            text: body.substring(with: link),
+            preview: LinkPreview(links: [cardLink], card: card.relocated(to: cardSpan)),
+            messageText: text
+        )
+
+        return [
+            textRow(.leadingText, NSRange(location: 0, length: leadingEnd)),
+            cardRow,
+            textRow(.trailingText, NSRange(location: trailingStart, length: body.length - trailingStart)),
+        ].compactMap { $0 }
     }
 
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu

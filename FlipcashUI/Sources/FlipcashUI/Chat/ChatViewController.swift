@@ -247,7 +247,7 @@ public final class ChatViewController: UICollectionViewController {
                   case .message(let message) = self.items[indexPath.item],
                   message.actions.contains(.reply)
             else { return nil }
-            return (cell, message.id)
+            return (cell, message.messageID)
         }
         swipeToReply.onTrigger = { [weak self] stableID in
             self?.onMessageAction?(stableID, .reply)
@@ -497,7 +497,7 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Scrolls the given row into view, or waits for the update that brings it in.
     public func scrollToMessage(id: String) {
-        guard items.contains(where: { $0.differenceIdentifier.hasSuffix(":\(id)") }) else {
+        guard items.contains(where: { $0.messageID == id }) else {
             pendingScrollTargetID = id
             return
         }
@@ -512,7 +512,7 @@ public final class ChatViewController: UICollectionViewController {
     @discardableResult
     private func performPendingScrollIfLanded() -> Bool {
         guard let target = pendingScrollTargetID,
-              items.contains(where: { $0.differenceIdentifier.hasSuffix(":\(target)") }) else { return false }
+              items.contains(where: { $0.messageID == target }) else { return false }
         pendingScrollTargetID = nil
         needsInitialScroll = false
         scrollToRow(id: target, animated: false)
@@ -522,7 +522,7 @@ public final class ChatViewController: UICollectionViewController {
     /// Centers a row that is already in `items` and flashes it, so the jump lands on a message the
     /// eye can pick out of the transcript rather than on an unmarked one in the middle of the screen.
     private func scrollToRow(id: String, animated: Bool) {
-        guard let index = items.firstIndex(where: { $0.differenceIdentifier.hasSuffix(":\(id)") }) else { return }
+        guard let index = items.firstIndex(where: { $0.messageID == id }) else { return }
         let indexPath = IndexPath(item: index, section: 0)
         positionClaim += 1
         guard animated else {
@@ -552,7 +552,7 @@ public final class ChatViewController: UICollectionViewController {
         let now = CACurrentMediaTime()
         attention = (id: stableID, startedAt: now)
         collectionView.layoutIfNeeded()
-        bubbleCell(forStableID: stableID)?.flashAttention(startedAt: now)
+        for cell in bubbleCells(forStableID: stableID) { cell.flashAttention(startedAt: now) }
     }
 
     /// Lights a cell that has just been displayed if it carries the row a jump is pointing at.
@@ -564,7 +564,7 @@ public final class ChatViewController: UICollectionViewController {
     private func reattachAttention(to cell: UICollectionViewCell, at indexPath: IndexPath) {
         guard let attention,
               items.indices.contains(indexPath.item),
-              items[indexPath.item].id == attention.id else { return }
+              items[indexPath.item].messageID == attention.id else { return }
         guard CACurrentMediaTime() - attention.startedAt < ChatMotion.attentionDuration else {
             self.attention = nil
             return
@@ -824,8 +824,9 @@ extension ChatViewController {
               case .message(let message) = items[indexPath.item],
               !message.actions.isEmpty else { return nil }
 
-        let body: String? = if case .text(let text) = message.content { text } else { nil }
-        let rowID = message.id
+        // A split row copies the whole message, not the piece of it the row happens to draw.
+        let body: String? = if case .text(let text) = message.content { message.part?.messageText ?? text } else { nil }
+        let rowID = message.messageID
         let handler = onMessageAction
 
         let children = message.actions.map { action in
@@ -944,9 +945,19 @@ extension ChatViewController {
         return space.convert(bubble.bounds, from: bubble)
     }
 
+    /// The on-screen cell drawing the first row of the message with `stableID` — the row a split
+    /// message's quote heads, and the one an edit spotlights.
     private func bubbleCell(forStableID stableID: String) -> BubbleCarrying? {
-        guard let item = items.firstIndex(where: { $0.id == stableID }) else { return nil }
+        guard let item = items.firstIndex(where: { $0.messageID == stableID }) else { return nil }
         return collectionView.cellForItem(at: IndexPath(item: item, section: 0)) as? BubbleCarrying
+    }
+
+    /// Every on-screen cell drawing a row of the message with `stableID`, so a jump lights the whole
+    /// of a message that was split around its card.
+    private func bubbleCells(forStableID stableID: String) -> [BubbleCarrying] {
+        items.indices
+            .filter { items[$0].messageID == stableID }
+            .compactMap { collectionView.cellForItem(at: IndexPath(item: $0, section: 0)) as? BubbleCarrying }
     }
 
     /// Builds the lift preview from the bubble alone, clipped to its shape. Without it UIKit lifts the

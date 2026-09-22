@@ -38,6 +38,20 @@ struct ChatLinkMessageCellTests {
 
     private static let cashLink = "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
 
+    /// A text row whose link is underlined inline — the bubble rows around a card, or any message
+    /// with no card.
+    private func linkRow(text: String) -> ChatMessage {
+        ChatMessage(
+            id: "1",
+            text: text,
+            sender: .me,
+            linkPreview: LinkPreview(links: [
+                DetectedLink(range: NSRange(location: 0, length: (Self.cashLink as NSString).length), url: url(Self.cashLink)),
+            ])
+        )
+    }
+
+    /// The row the transcript gives a carded link: the link on its own, drawn as the card.
     private func cardedMessage(text: String) -> ChatMessage {
         let link = DetectedLink(
             range: NSRange(location: 0, length: (Self.cashLink as NSString).length),
@@ -85,22 +99,21 @@ struct ChatLinkMessageCellTests {
         #expect(chrome(cell)?.isDrawingBubble == false)
     }
 
-    @Test("Text alongside the card keeps the bubble, and keeps the card inside its padding")
-    func cardedMessageWithText_keepsTheBubble() {
-        let maxWidth: CGFloat = 250
+    @Test("A text row with a link keeps the bubble and draws no card")
+    func linkRow_keepsTheBubble() {
         let cell = makeCell()
-        cell.configure(with: cardedMessage(text: "\(Self.cashLink) enjoy"), maxWidth: maxWidth)
-        #expect(layOut(cell).width < maxWidth)
+        cell.configure(with: linkRow(text: "\(Self.cashLink) enjoy"), maxWidth: 250)
+        #expect(layOut(cell) == .zero)
         #expect(chrome(cell)?.isDrawingBubble == true)
     }
 
-    @Test("A cell recycled from a bare card to a carded message puts the bubble back")
-    func reusedCell_bareToCarded_restoresTheBubble() {
+    @Test("A cell recycled from a card row to a text row puts the bubble back")
+    func reusedCell_cardToText_restoresTheBubble() {
         let cell = makeCell()
         cell.configure(with: cardedMessage(text: Self.cashLink), maxWidth: 250)
         cell.layoutIfNeeded()
-        cell.configure(with: cardedMessage(text: "\(Self.cashLink) enjoy"), maxWidth: 250)
-        #expect(layOut(cell).width < 250)
+        cell.configure(with: linkRow(text: "\(Self.cashLink) enjoy"), maxWidth: 250)
+        #expect(layOut(cell) == .zero)
         #expect(chrome(cell)?.isDrawingBubble == true)
     }
 
@@ -114,9 +127,9 @@ struct ChatLinkMessageCellTests {
         ).height
     }
 
-    @Test("A cell recycled from a bare card measures the next row at its own geometry, not the bare one")
-    func reusedCell_bareToCarded_measuresAtTheRestoredGeometry() {
-        let carded = cardedMessage(text: "\(Self.cashLink) enjoy")
+    @Test("A cell recycled from a card row measures the next row at its own geometry, not the card's")
+    func reusedCell_cardToText_measuresAtTheRestoredGeometry() {
+        let carded = linkRow(text: "\(Self.cashLink) enjoy")
         let fresh = makeCell()
         fresh.configure(with: carded, maxWidth: 250)
         let expected = measure(fresh, width: 320)
@@ -136,7 +149,7 @@ struct ChatLinkMessageCellTests {
     /// there, and the transcript lays the row out that much too tall.
     @Test("A cell measured once at a narrow width measures the next row at the width being asked about")
     func narrowThenWide_measuresAtTheWidthAsked() {
-        let carded = cardedMessage(text: "\(Self.cashLink) Check out Jeffy")
+        let carded = linkRow(text: "\(Self.cashLink) Check out Jeffy")
         let fresh = makeCell()
         fresh.configure(with: carded, maxWidth: 313)
         let expected = measure(fresh, width: 402)
@@ -151,13 +164,13 @@ struct ChatLinkMessageCellTests {
     }
 
     /// The transcript lays a row out at an estimated height before it has measured it. The card's
-    /// proportions and its pins to the bubble's sides are all required, so a row held shorter than
-    /// its content has only one place to give: the bubble's width. It collapses, the text view's
-    /// container keeps that width, and the next measurement wraps a single line into three.
+    /// proportions and its pins to the row's sides are all required, so a row held shorter than
+    /// its content has only one place to give: the row's width. It must not keep that collapse into
+    /// the next measurement.
     @Test("A row laid out shorter than its content does not narrow the bubble into the next measurement")
     func undersizedRow_doesNotNarrowTheBubble() {
         let cell = ChatLinkMessageCell(frame: CGRect(x: 0, y: 0, width: 402, height: 56))
-        cell.configure(with: cardedMessage(text: "\(Self.cashLink) Check out Jeffy"), maxWidth: 313.56)
+        cell.configure(with: cardedMessage(text: Self.cashLink), maxWidth: 313.56)
         let natural = measure(cell, width: 402)
 
         cell.frame = CGRect(x: 0, y: 0, width: 402, height: 56)
@@ -173,7 +186,7 @@ struct ChatLinkMessageCellTests {
     @Test("A row held taller than its content leaves the bubble at its own height")
     func oversizedRow_doesNotStretchTheBubble() {
         let cell = makeCell()
-        cell.configure(with: cardedMessage(text: "\(Self.cashLink) enjoy"), maxWidth: 250)
+        cell.configure(with: linkRow(text: "\(Self.cashLink) enjoy"), maxWidth: 250)
         let natural = measure(cell, width: 320)
 
         cell.frame = CGRect(x: 0, y: 0, width: 320, height: natural + 40)

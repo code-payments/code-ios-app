@@ -18,11 +18,10 @@ public final class ChatLinkMessageCell: ChatColumnCell {
 
     private let bubble = LinkableBubbleView()
     private var bubbleMaxWidthConstraint: NSLayoutConstraint!
-    /// Holds a carded bubble open at the transcript's full bubble width. The card is pinned to the
-    /// bubble's sides and takes its width from the bubble, and the bubble takes its width from its
-    /// text — so a message that was nothing but the link, whose text the card replaced, would
-    /// otherwise collapse the bubble to its padding and the card to nothing with it. Not required,
-    /// so the `<=` above still wins on a narrow transcript.
+    /// Holds a card row open at the transcript's full bubble width. The card is pinned to the row's
+    /// sides and takes its width from the row, and a card row has no text to widen it — so without
+    /// this the card would collapse to nothing. Not required, so the `<=` above still wins on a
+    /// narrow transcript.
     private var bubbleCardWidthConstraint: NSLayoutConstraint!
 
     /// Called when the user taps a URL in the bubble.
@@ -77,7 +76,12 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         bubbleCardWidthConstraint.constant = maxWidth
         bubbleCardWidthConstraint.isActive = message.linkPreview?.card != nil
         bubble.configure(with: message)
-        updateColumn(for: message, authorImageData: authorImageData)
+        // A card row has no bubble to hold "Edited", so it goes on the metadata line with the receipt.
+        updateColumn(
+            for: message,
+            authorImageData: authorImageData,
+            showsEditedMarker: message.rendersAsBareLinkCard && ChatBubbleView.showsEditedMarker(for: message)
+        )
         // A failed row's whole column is the retry target (ChatColumnCell); disable the bubble's own
         // text-view link taps so a tap on a failed message retries the send rather than opening the URL.
         bubble.isUserInteractionEnabled = !message.isFailed

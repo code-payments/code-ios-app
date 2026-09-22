@@ -32,4 +32,13 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
         case .groupCard: "group-card"
         }
     }
+
+    /// The id of the message this row draws some or all of, or nil for a row that is not a message.
+    /// A message split around its link card spans several rows that all answer the same here.
+    public var messageID: String? {
+        switch self {
+        case .message(let message): message.messageID
+        case .dateSeparator, .typingIndicator, .profileCard, .groupCard: nil
+        }
+    }
 }

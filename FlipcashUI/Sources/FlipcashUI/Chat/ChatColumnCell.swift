@@ -250,7 +250,7 @@ public class ChatColumnCell: UICollectionViewCell {
         let isInPlaceUpdate = currentMessageID == message.id
         currentMessageID = message.id
         // A failed row is the only interactive/red one — every signal keys off that single condition.
-        retryID = message.isFailed ? message.id : nil
+        retryID = message.isFailed ? message.messageID : nil
         retryTap?.isEnabled = message.isFailed
         receipt.setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
         editedMarker.isHidden = !showsEditedMarker
