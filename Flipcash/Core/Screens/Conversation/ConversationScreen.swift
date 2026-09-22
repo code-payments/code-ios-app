@@ -1014,16 +1014,18 @@ struct ConversationScreen: View {
     /// Where a tapped link card lands, which is not the same place for every kind.
     ///
     /// A cash card goes out through the deep-link path its URL would have taken — claiming is that
-    /// path's job and the card has no part in it. So does a group card, whichever button it shows:
-    /// the `.chat` route opens the chat, and the chat's own gate offers the join or the buy, so the
-    /// card never joins from the transcript. A token card pushes onto this chat's own stack,
-    /// the way `openCurrencyInfo` does for a cash message, rather than through the deep-link
-    /// handler: `.token` there resets the balance tab and walks the reader out of the conversation
-    /// they were reading.
+    /// path's job and the card has no part in it. A group card and a token card push onto this
+    /// chat's own stack instead, so back returns to the conversation that held the link: the
+    /// deep-link handler's `.chat` and `.token` routes both replace the stack. The pushed group
+    /// screen gates itself, offering the join or the buy, so the card never joins from here.
     private func openLinkCard(_ card: LinkCard) {
         switch card {
-        case .cash, .group:
+        case .cash:
             openLink(card.url)
+        case .group(let group):
+            // A link to the chat already on screen has nowhere to go.
+            guard group.chatID != conversationID else { return }
+            router.push(.tipConversation(group.chatID))
         case .token(let token):
             router.push(.currencyInfo(token.mint))
         }
