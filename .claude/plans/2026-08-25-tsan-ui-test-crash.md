@@ -7,6 +7,7 @@ resolved 2026-09-22)
 > `e10472dd` finished on a single host process with no TSan output at all. Everything below is kept
 > as the record of what the abort was and how it was diagnosed; it no longer describes the current
 > runtime. See [The abort no longer reproduces](#the-abort-no-longer-reproduces-2026-09-22).
+> Step 6a of the release skill is a hard gate again as of the same date.
 
 **Symptom:** any authenticated `FlipcashUITests` run under the `AllTargets` plan loses the app
 within seconds. XCUITest reports `Failed to get matching snapshots: Lost connection to the
@@ -178,6 +179,10 @@ runs both plans.
 
 ### Amended: what the release checklist does with `Sanitizers`
 
+> **No longer in force (2026-09-22).** The inconclusive rule below was deleted from step 6a when
+> the plan started passing; it is kept here as the record of a decision, not as guidance. Do not
+> apply it. A `Sanitizers` run that does not exit 0 now stops the release.
+
 The change above assumed `Sanitizers` would pass. It does not, and it cannot be made to — no
 narrower scope finishes. Three options were on the table: drop the plan, narrow it to whatever
 still completes, or keep it and stop treating the abort as a failure.
@@ -261,8 +266,9 @@ about behaviour passes:
   against the ladder.
 
 Both feed the scanner a deliberately large frame — 3024x4032 and 2400x2400 — precisely so the
-work is CPU-bound, and TSan's instrumentation stretches it past bounds of 2s and 3s. Fixing or
-excluding them is a separate task.
+work is CPU-bound, and TSan's instrumentation stretches it past bounds of 2s and 3s. Fixed the
+same day in `b05cb270` (#829) by asserting the outcome instead of the clock; see
+[What this changed](#what-this-changed).
 
 ### `recorded an issue` does not detect a real failure in `FlipcashTests`
 
@@ -291,22 +297,34 @@ after 600.0 seconds`. Subtract that and the test phase is the same order as run 
 Post-run diagnostics collection, not TSan — worth knowing before reading a twelve-minute run as a
 hang.
 
-### What this changes, and what is holding it
+### What this changed
 
-Step 6a of [the release skill](../skills/release/SKILL.md) should go back to being a hard gate, and
-the inconclusive branch should be deleted there and in
+Step 6a of [the release skill](../skills/release/SKILL.md) is a hard gate again, and the
+inconclusive branch is gone from it and marked out of force in
 [Amended](#amended-what-the-release-checklist-does-with-sanitizers) above. The three counts stay
-useful as the way to report a run — A for races, B for failures that actually ran, C for Swift
-Testing issues recorded — they just stop having an "inconclusive" verdict to reach.
+as the way to report a run — A for races, B for tests reported failed, C for Swift Testing issues
+recorded — they just no longer have an "inconclusive" verdict to reach.
 
-**Not done yet.** Hardening the gate while `budgetIsRespected()` and `qrCodeDecodes()` fail would
-block every release on them, so it waits on the task covering those two. As of 2026-09-22 that has
-not landed: both deadline assertions are unchanged at `e10472dd`
-(`FlipcashTests/GalleryScannerTests.swift:139` and `:175`), no commit touches that file after
-`6599c10a` on any local or remote ref, and there is no open PR. Step 6a stays as written until
-then, where `B > 0` already stops the release for these two — so nothing is being waved through in
-the meantime.
+`GalleryScannerTests` was the thing holding it. Both deadline assertions were replaced with
+outcome assertions in `b05cb270` (#829) — `budgetIsRespected()` now asserts only `.cancelled`, and
+`qrCodeDecodes()` scans the larger frame on the same 0.5s budget and asserts `.url`, so TSan
+changes how long they take and not what they claim.
 
+The run at `b05cb270`, same simulator, is the one that closed it:
+
+```
+** TEST SUCCEEDED **   exit 0
+2760 tests: 2755 passed, 0 failed, 5 skipped, 90.5s
+A = 0   B = 0   C = 0
+one host pid: iPhone 17 - Flipcash (72940)
+```
+
+Step 6a is a hard gate again and the inconclusive branch is gone from it. The gate is now "exit 0,
+or stop" rather than a verdict assembled from the counts, which closes a hole the count-only form
+would have had: an abort produces `A = 0`, `C = 0` and a `B` made entirely of `(0.000 seconds)`
+casualties, so a gate reading only the counts would have passed the very failure this doc is
+about. B also no longer filters out zero-duration failures — that filter existed to screen out
+casualties, and with the abort gone it would only hide a real test that fails fast.
 
 ## One failure the crash was hiding
 
