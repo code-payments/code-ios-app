@@ -837,7 +837,7 @@ extension ChatViewController {
                 switch action {
                 case .copy:
                     if let body { UIPasteboard.general.string = body }
-                case .reply, .edit, .delete:
+                case .reply, .edit, .delete, .report:
                     handler?(rowID, action)
                 }
             }
@@ -1025,6 +1025,7 @@ private extension MessageCapability {
         case .reply:  .replyArrow
         case .edit:   .pencil
         case .delete: .trash
+        case .report: .flag
         }
     }
 }

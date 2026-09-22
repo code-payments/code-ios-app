@@ -6,7 +6,6 @@
 import SwiftUI
 import UIKit
 import FlipcashUI
-import SharedCoreKit
 
 /// Writes a tip code out as a file for the You tab's "Download As" sheet.
 ///
@@ -73,7 +72,7 @@ enum TipCardExport {
     // MARK: - Rendering -
 
     private static func svg(codeData: Data) -> String {
-        KikCode.svg(payload: codeData, dimension: dimension, background: backgroundHex)
+        CodeView.svg(data: codeData, dimension: dimension, background: backgroundHex)
     }
 
     @MainActor

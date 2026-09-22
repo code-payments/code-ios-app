@@ -1159,9 +1159,11 @@ final class ConversationController {
             case .conflict: "Message Changed"
             case .failure:
                 switch action {
-                case .edit:         "Couldn't Edit Message"
-                case .delete:       "Couldn't Delete Message"
-                case .copy, .reply: "Something Went Wrong"
+                case .edit:   "Couldn't Edit Message"
+                case .delete: "Couldn't Delete Message"
+                // Neither of these mutates the transcript, so neither can raise a mutation alert.
+                // Report files straight from its sheet and reports its own outcome there.
+                case .copy, .reply, .report: "Something Went Wrong"
                 }
             }
         }

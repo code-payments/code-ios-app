@@ -83,11 +83,17 @@ public struct MessagePolicy: Hashable, Sendable {
     }
 
     /// The window governing `capability`, or `nil` when it never lapses.
+    ///
+    /// Reporting has no window on purpose. The edit and delete windows exist because the server
+    /// enforces them; nothing in the contract limits how old a reportable message may be. It also
+    /// matters mechanically: ``MessageCapability/nextExpiry(among:in:as:policy:now:)`` walks every
+    /// resolved capability and skips the ones with no window, so a windowed `.report` would arm a
+    /// timer on every incoming message in the transcript.
     public func window(for capability: MessageCapability) -> TimeInterval? {
         switch capability {
-        case .edit:         editWindow
-        case .delete:       deleteWindow
-        case .copy, .reply: nil
+        case .edit:                  editWindow
+        case .delete:                deleteWindow
+        case .copy, .reply, .report: nil
         }
     }
 
