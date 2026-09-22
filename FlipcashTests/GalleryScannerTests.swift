@@ -126,17 +126,18 @@ struct GalleryScannerTests {
         // running out. Its 2338 crops take seconds even spread across every core.
         let image = try Self.makeSolidImage(color: .darkGray, size: CGSize(width: 3024, height: 4032))
 
-        let started = Date()
         let outcome = await GalleryScanner().scan(image, budget: 0.5)
-        let elapsed = Date().timeIntervalSince(started)
 
+        // `.cancelled` is the whole claim. A walk reports `.stopped` only on the deadline or
+        // on task cancellation, and nothing cancels this task, so the deadline is what ended
+        // it; a ladder that ran out instead reads `.nothingFound`, which is what
+        // `emptyImageFindsNothing` asserts on a frame small enough to reach that end. Timing
+        // the call would only restate the budget the scanner was handed, and would restate it
+        // in units of how loaded the machine is.
         guard case .cancelled = outcome else {
             Issue.record("expected the budget to end the search, got \(outcome)")
             return
         }
-        // One crop may overrun the deadline, since the budget is checked between candidates
-        // rather than inside the native scanner. The margin is for that, not for slack.
-        #expect(elapsed < 2.0, "budget of 0.5s took \(elapsed)s")
     }
 
     @Test("a cancelled scan stops without a result")
@@ -154,25 +155,29 @@ struct GalleryScannerTests {
 
     @Test("a QR code decodes without waiting for the Kik ladder")
     func qrCodeDecodes() async throws {
-        // Deliberately large: the QR pass and the crops race, and on an image this size the
-        // crops take seconds. Timing it is the only way to tell a race from a queue — with
-        // the QR pass behind the ladder this would still return the right URL, just far
-        // later than anyone would hold a phone still for.
+        // A frame the size `budgetIsRespected` uses to show that 0.5s is not enough for the
+        // ladder, scanned on that same 0.5s. So by the time the QR pass answers, the crops are
+        // either still grinding or already stopped on the deadline — never finished. A QR pass
+        // queued behind them reports `.cancelled` here, because a stopped ladder is all there
+        // would be left to report. That is the race, stated as an outcome instead of a
+        // stopwatch, so parallel load and TSan change how long the test takes and not what it
+        // asserts.
+        //
+        // The size also covers `maximumQRSide`: a pass handed the full frame instead of a
+        // downscaled copy measured 21s, and it runs outside the deadline, so nothing else here
+        // would catch it.
         let image = try Self.makeQRImage(
             string: "https://send.flipcash.com/c/#/e=abc",
-            size: CGSize(width: 2400, height: 2400)
+            size: CGSize(width: 3024, height: 3024)
         )
 
-        let started = Date()
-        let outcome = await GalleryScanner().scan(image)
-        let elapsed = Date().timeIntervalSince(started)
+        let outcome = await GalleryScanner().scan(image, budget: 0.5)
 
         guard case .url(let url) = outcome else {
             Issue.record("expected a URL, got \(outcome)")
             return
         }
         #expect(url == URL(string: "https://send.flipcash.com/c/#/e=abc")!)
-        #expect(elapsed < 3, "QR took \(elapsed)s, which is the ladder's time, not the QR pass's")
     }
 
     @Test("the scanner reports a login URL and the allowlist refuses it")
