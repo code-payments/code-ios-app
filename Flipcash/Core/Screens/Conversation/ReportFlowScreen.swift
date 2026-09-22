@@ -66,9 +66,17 @@ struct ReportFlowScreen: View {
         // A half-written report is not something to lose to a stray downward drag.
         .interactiveDismissDisabled()
         .toolbar {
-            // Leaving and stepping back are different questions, so they get different corners.
-            // Every dismissal in this app is trailing; back is the only thing iOS puts leading.
-            if state.step == .details {
+            // One control per step, in the corner iOS puts it: dismissal trailing, back leading.
+            // Past the reasons the only way out is back through them, so the details a person has
+            // typed cannot be dropped by a control sitting next to the keyboard.
+            switch state.step {
+            case .reason:
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton { dismiss() }
+                        .accessibilityIdentifier("report-nav-close")
+                }
+
+            case .details:
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: goBackToReasons) {
                         Image(systemName: "chevron.backward")
@@ -77,11 +85,6 @@ struct ReportFlowScreen: View {
                     .accessibilityIdentifier("report-nav-back")
                     .accessibilityLabel("Back")
                 }
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                CloseButton { dismiss() }
-                    .accessibilityIdentifier("report-nav-close")
             }
         }
         .dialog(item: $dialog)
