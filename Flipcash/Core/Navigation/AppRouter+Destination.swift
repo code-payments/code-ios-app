@@ -109,6 +109,13 @@ extension AppRouter {
         case userProfile(UserID)
         /// A group chat's own profile, pushed from its head card or its navigation title.
         case chatProfile(ConversationID)
+        /// What an editor can change about a group, pushed from the chat profile's overflow menu.
+        /// Only reachable while ``Conversation/canEdit`` holds.
+        case editGroup(ConversationID)
+        /// Renaming a group, pushed from the Name row of `editGroup`.
+        case editGroupName(ConversationID)
+        /// Replacing a group's picture, pushed from the Picture row of `editGroup`.
+        case editGroupPicture(ConversationID)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -132,7 +139,8 @@ extension AppRouter {
                 return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
                  .tipConversation, .tipConversationWithKeyboard, .tipConversationForUser,
-                 .userProfile, .chatProfile:
+                 .userProfile, .chatProfile,
+                 .editGroup, .editGroupName, .editGroupPicture:
                 return .tips
             }
         }
@@ -182,6 +190,9 @@ extension AppRouter {
             case .tipConversationForUser:       "tipConversationForUser"
             case .userProfile:                  "userProfile"
             case .chatProfile:                  "chatProfile"
+            case .editGroup:                    "editGroup"
+            case .editGroupName:                "editGroupName"
+            case .editGroupPicture:             "editGroupPicture"
             }
         }
 
@@ -203,7 +214,10 @@ extension AppRouter {
                 return activity.id.base58
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID),
-                 .chatProfile(let conversationID):
+                 .chatProfile(let conversationID),
+                 .editGroup(let conversationID),
+                 .editGroupName(let conversationID),
+                 .editGroupPicture(let conversationID):
                 return conversationID.description
             case .userProfile(let userID),
                  .tipConversationForUser(let userID):

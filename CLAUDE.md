@@ -94,7 +94,7 @@ it before touching the relevant area.
 - **Exhaustive switches** — Prefer `switch` over `if case` for enums so the compiler flags new cases.
 - **Modernize incrementally** — Use modern Swift/SwiftUI APIs in net-new/isolated code; don't refactor working code just to modernize. One observation system per class.
 - **Generated protos** — `FlipcashAPI` only re-exports the published contract packages; there is no generated code to edit here. Change the wrapping service files instead.
-- **Database schema** — Bump `SQLiteVersion` in Info.plist on every schema change (no migrations; DB is rebuilt from server).
+- **Database schema** — Bump `Database.schemaVersion` on every change to what the store *writes*, including the encoding of a persisted blob (no migrations; DB is rebuilt from server).
 - **Logging** — Message string is a constant; every variable goes in structured `metadata`. Never log proto blobs whole.
 - **Error reporting** — Call `ErrorReporting.captureError(...)` unconditionally; classify via `ServerError.reportingLevel`, never gate at the call site. Best-effort chatter never reports.
 - **Form validation** — Validate free-form input through the `Validator` family and submit the validator's `Output`, never inline regex/trim; keypad amounts parse only via `AmountValidator`.

@@ -666,6 +666,28 @@ final class ConversationController {
         refreshFeedPreview(for: conversation.id)
     }
 
+    /// Seats the metadata `EditChat` returns for a chat the signed-in user just edited, so its
+    /// profile and the Chats list show the new title or picture without waiting for anything else.
+    ///
+    /// Applies the two fields through the very mutators the `titleChanged` / `pictureChanged` stream
+    /// events apply — deliberately, rather than `.metadataRefresh`. Two reasons, both load-bearing:
+    ///
+    /// - `.metadataRefresh` upserts the whole conversation, replacing the held row outright. The
+    ///   edit response carries chat metadata, not the locally-held membership flag, viewer state or
+    ///   roster, so a wholesale replace would drop them.
+    /// - Both mutators are last-write-wins assignments, so when the server's own echo of this edit
+    ///   arrives on the stream it re-applies identical values. The local apply and the echo are the
+    ///   same write, which is what keeps an edit from landing twice.
+    func applyEdit(_ conversation: Conversation) {
+        if let title = conversation.title {
+            store.applyTitleChanged(title, in: conversation.id)
+        }
+        if let picture = conversation.picture {
+            store.applyPictureChanged(picture, in: conversation.id)
+        }
+        persistConversation(conversation.id)
+    }
+
     /// Leaves a group. The chat stays in the store — the screen the user left from is still on top and
     /// needs it to render the gate — but drops out of ``joinedGroups``, so it leaves the Chats list.
     ///

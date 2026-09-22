@@ -88,6 +88,20 @@ extension ConversationViewerState {
     }
 }
 
+extension Conversation {
+    /// Whether the signed-in viewer may edit this chat's title or picture — the one gate an edit
+    /// affordance may turn on.
+    ///
+    /// Forwards ``ConversationViewerState/canEdit`` and nothing else. Membership, creator identity
+    /// and chat kind are deliberately *not* consulted: the server computes this from the viewer's
+    /// standing against the chat's rules, and any client-side conjunct would either grant an
+    /// affordance the server will deny or hide one it would have allowed. Absent viewer state means
+    /// not permitted.
+    public var canEdit: Bool {
+        viewerState?.canEdit ?? false
+    }
+}
+
 /// Whether, and until when, the signed-in user has muted a chat. See `chat.v1.MuteState`.
 public enum ConversationMuteState: Hashable, Codable, Sendable {
     /// Muted until this date, after which the mute lapses client-side. Nothing is sent when it

@@ -85,6 +85,12 @@ public enum SystemSymbol: String {
     case pencil = "pencil"
     case trash = "trash"
     case flag = "flag"
+
+    /// The two rows of the group edit list, matched to the glyphs Android uses for the same rows
+    /// (`Icons.Outlined.Image` and `Icons.Outlined.TextFields`) so the screen reads the same on
+    /// both platforms.
+    case photo = "photo"
+    case textformat = "textformat"
     /// The bare glyph, for a confirm affordance that carries its own backing shape.
     case checkmark = "checkmark"
     
