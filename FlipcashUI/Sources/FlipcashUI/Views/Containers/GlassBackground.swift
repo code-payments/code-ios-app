@@ -35,8 +35,7 @@ extension View {
     }
 
     /// The app's glass surface clipped to a capsule, for a control whose shape is
-    /// fully rounded — the floating tab bar, and the Scan tab's gallery button that
-    /// sits beside it.
+    /// fully rounded — the floating tab bar and the Scan tab's gallery button.
     @ViewBuilder
     public func capsuleGlassBackground() -> some View {
         if #available(iOS 26, *) {
