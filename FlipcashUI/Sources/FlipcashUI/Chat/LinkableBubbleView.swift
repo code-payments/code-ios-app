@@ -32,9 +32,16 @@ public final class LinkableBubbleView: UIView {
     /// that is when the card subscribes.
     weak var linkCardSource: (any LinkCardSource)?
 
+    /// Called when the card's height changes after the bubble was configured, as a group card's
+    /// does when its lookup lands.
+    var onCardHeightChange: (() -> Void)?
+
     /// The card this row is currently drawing. The card is drawn in place of its URL, so the row
     /// has no text span to tap — without this it would render something that goes nowhere.
     private var card: LinkCard?
+
+    /// The whole-card tap. Off for a group card, which takes taps only on its button.
+    private lazy var cardTap = UITapGestureRecognizer(target: self, action: #selector(cardTapped))
 
     private(set) var quotePanel = ChatQuotePanelView()
 
@@ -121,7 +128,9 @@ public final class LinkableBubbleView: UIView {
         addSubview(quotePanel)
 
         cardView.translatesAutoresizingMaskIntoConstraints = false
-        cardView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(cardTapped)))
+        cardView.addGestureRecognizer(cardTap)
+        cardView.onGroupStart = { [weak self] in self?.cardTapped() }
+        cardView.onHeightChange = { [weak self] in self?.onCardHeightChange?() }
         addSubview(cardView)
 
         textTopToBubble = textView.topAnchor.constraint(equalTo: topAnchor, constant: Self.bodyPadding)
@@ -193,8 +202,8 @@ public final class LinkableBubbleView: UIView {
     /// Flashes the bubble's ground to point the eye at this message after a jump.
     func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
 
-    /// Hands the tapped card to the owner. The card itself stays inert so there is one way in, not
-    /// two.
+    /// Hands the tapped card to the owner. A cash or token card is inert and the whole card is the
+    /// tap target; a group card takes taps only on its button, which lands here too.
     @objc func cardTapped() {
         card.map { onLinkCardTap?($0) }
     }
@@ -228,6 +237,10 @@ public final class LinkableBubbleView: UIView {
         if bare, let card = message.linkPreview?.card {
             cardView.isHidden = false
             self.card = card
+            cardTap.isEnabled = switch card {
+            case .group:        false
+            case .cash, .token: true
+            }
             cardView.configure(with: card, source: linkCardSource)
             NSLayoutConstraint.deactivate(cardCollapse)
             NSLayoutConstraint.activate(cardSides)

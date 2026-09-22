@@ -50,6 +50,13 @@ final class LinkCardView: UIView {
     /// another link's row.
     private var subscription: Task<Void, Never>?
 
+    /// Called when a group card's "Start Chatting" button is tapped.
+    var onGroupStart: (() -> Void)?
+
+    /// Called when an answer arriving after ``configure(with:source:)`` changes the card's height,
+    /// so the row holding it can be measured again. Only a group card's height follows its content.
+    var onHeightChange: (() -> Void)?
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         setUp()
@@ -73,6 +80,8 @@ final class LinkCardView: UIView {
 
         groupView.translatesAutoresizingMaskIntoConstraints = false
         groupView.isHidden = true
+        groupView.onStart = { [weak self] in self?.onGroupStart?() }
+        groupView.onHeightChange = { [weak self] in self?.onHeightChange?() }
         addSubview(groupView)
         groupBottom = groupView.bottomAnchor.constraint(equalTo: bottomAnchor)
         NSLayoutConstraint.activate([
@@ -139,7 +148,7 @@ final class LinkCardView: UIView {
         subscription = Task { [weak self] in
             for await state in states {
                 guard let self, !Task.isCancelled else { return }
-                show(card, state: state, loading: false)
+                if show(card, state: state, loading: false) { onHeightChange?() }
             }
         }
     }
@@ -147,25 +156,29 @@ final class LinkCardView: UIView {
     /// Hands `state` to the view for `card`'s kind. A state of another kind, or none at all, is
     /// the unresolved card: the source keys each kind separately, so this is unreachable, and
     /// drawing the link's own identity is the right answer if it ever is reached.
-    private func show(_ card: LinkCard, state: LinkCard.State?, loading: Bool) {
+    /// - Returns: whether the card's height may have changed.
+    @discardableResult
+    private func show(_ card: LinkCard, state: LinkCard.State?, loading: Bool) -> Bool {
         switch card {
         case .cash:
             cashView.isHidden = false
             tokenView.isHidden = true
             setGroupShown(false)
             cashView.configure(with: Self.cashState(state), loading: loading)
+            return false
 
         case .token(let token):
             cashView.isHidden = true
             tokenView.isHidden = false
             setGroupShown(false)
             tokenView.configure(with: token, state: Self.tokenState(state), loading: loading)
+            return false
 
         case .group:
             cashView.isHidden = true
             tokenView.isHidden = true
             setGroupShown(true)
-            groupView.configure(with: Self.groupState(state), loading: loading)
+            return groupView.configure(with: Self.groupState(state), loading: loading)
         }
     }
 

@@ -17,12 +17,25 @@ import FlipcashCore
 /// mode, so there are no member avatars here and no names.
 ///
 /// SwiftUI content hosted in a UIKit view, for the same reason as ``ChatGroupCardCell``: the picture
-/// is the same `ContactAvatarView` the chat's own head card draws. The content does not take touches.
-/// The whole card is one tap target, the row's, and the button is the label of what that tap does:
-/// it routes through the chat link, whose screen offers the join or the buy itself.
+/// is the same `ContactAvatarView` the chat's own head card draws. Only the button takes a tap; it
+/// routes through the chat link, whose screen offers the join or the buy itself.
 final class LinkGroupCardView: UIView {
 
+    /// Called when the "Start Chatting" button is tapped.
+    var onStart: (() -> Void)?
+
+    /// Called when the content's height at the card's width changes, so the row can be measured
+    /// again.
+    var onHeightChange: (() -> Void)?
+
+    /// What the card last drew, so a repeat of it is not reported as a change.
+    private var shown: (state: LinkCard.Group.State?, loading: Bool)?
+
     private let content: any UIView & UIContentView
+    /// The content's height at the card's actual width. The hosting view's own intrinsic height is
+    /// worked out at its ideal width, where a wrapped requirement line fits on one line, so the row
+    /// came up a line short and the card spilled over its neighbours.
+    private var fittedHeight: NSLayoutConstraint!
     private let shimmer = LinkCardShimmerView(
         ground: UIColor(Color.backgroundRow),
         highlight: UIColor.white.withAlphaComponent(0.06)
@@ -43,11 +56,8 @@ final class LinkGroupCardView: UIView {
 
     private func setUp() {
         backgroundColor = .clear
-        isAccessibilityElement = true
-        accessibilityTraits = .button
 
         content.translatesAutoresizingMaskIntoConstraints = false
-        content.isUserInteractionEnabled = false
         addSubview(content)
 
         shimmer.translatesAutoresizingMaskIntoConstraints = false
@@ -63,17 +73,49 @@ final class LinkGroupCardView: UIView {
                 view.trailingAnchor.constraint(equalTo: trailingAnchor),
             ])
         }
+        fittedHeight = content.heightAnchor.constraint(equalToConstant: 0)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if fit() { onHeightChange?() }
+    }
+
+    /// Pins the content to its height at the current width. Off while the shimmer stands alone,
+    /// which takes the card's minimum height instead.
+    /// - Returns: whether the pinned height changed.
+    @discardableResult
+    private func fit() -> Bool {
+        guard !content.isHidden, bounds.width > 0 else {
+            fittedHeight.isActive = false
+            return false
+        }
+        let height = content.systemLayoutSizeFitting(
+            CGSize(width: bounds.width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height.rounded(.up)
+        guard !fittedHeight.isActive || abs(fittedHeight.constant - height) > 0.5 else { return false }
+        fittedHeight.constant = height
+        fittedHeight.isActive = true
+        return true
     }
 
     func prepareForReuse() {
         shimmer.setShimmering(false)
+        shown = nil
     }
 
     /// Draws `state`; nil while the lookup has not answered.
     ///
     /// - Parameter loading: whether the lookup is still out. A card with nothing to say yet is the
     ///   shimmer on its own, at the card's minimum height.
-    func configure(with state: LinkCard.Group.State?, loading: Bool) {
+    /// - Returns: whether this changed what the card draws, and with it the card's height.
+    @discardableResult
+    func configure(with state: LinkCard.Group.State?, loading: Bool) -> Bool {
+        if let shown, shown.state == state, shown.loading == loading { return false }
+        shown = (state, loading)
+
         let showsShimmer = loading && state == nil
         shimmer.isHidden = !showsShimmer
         shimmer.setShimmering(showsShimmer)
@@ -81,12 +123,12 @@ final class LinkGroupCardView: UIView {
 
         let display = state ?? .unavailable
         content.configuration = UIHostingConfiguration {
-            LinkGroupCardContent(state: display)
+            LinkGroupCardContent(state: display) { [weak self] in self?.onStart?() }
         }
         .margins(.all, 0)
 
-        accessibilityLabel = LinkGroupCardContent.accessibilityLabel(for: display)
-        invalidateIntrinsicContentSize()
+        fit()
+        return true
     }
 }
 
@@ -95,6 +137,7 @@ final class LinkGroupCardView: UIView {
 struct LinkGroupCardContent: View {
 
     let state: LinkCard.Group.State
+    var onStart: () -> Void = {}
 
     /// Values this card adds to the head card's ``GroupCardView/Layout``. Named so Android can copy
     /// them one for one.
@@ -142,6 +185,9 @@ struct LinkGroupCardContent: View {
             if case .resolved(let group) = state {
                 text(for: group)
                     .padding(.horizontal, GroupCardView.Layout.horizontalPadding)
+                    // Measured at its ideal height whatever the row proposes: under a short
+                    // proposal `Text` drops the requirement's second line for an ellipsis.
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: Layout.buttonGap)
@@ -160,16 +206,11 @@ struct LinkGroupCardContent: View {
 
     private func text(for group: LinkCard.Group.Resolved) -> some View {
         VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                Text(group.title)
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(Color.textSecondary)
-            }
-            .padding(.top, GroupCardView.Layout.titleGap)
+            Text(group.title)
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+                .padding(.top, GroupCardView.Layout.titleGap)
 
             Text(group.memberCount)
                 .font(.default(size: 13, weight: .medium))
@@ -193,7 +234,7 @@ struct LinkGroupCardContent: View {
                 .buttonStyle(.filled20Compact)
                 .disabled(true)
         case .resolved:
-            Button(Copy.start) {}.buttonStyle(.filledCompact)
+            Button(Copy.start, action: onStart).buttonStyle(.filledCompact)
         }
     }
 
@@ -205,17 +246,6 @@ struct LinkGroupCardContent: View {
             return .avatarPlaceholderTop
         }
         return average.color
-    }
-
-    static func accessibilityLabel(for state: LinkCard.Group.State) -> String {
-        switch state {
-        case .unavailable:
-            return Copy.unavailable
-        case .resolved(let group):
-            return [group.title, group.memberCount, group.requirement?.replacingOccurrences(of: "\n", with: " ")]
-                .compactMap { $0 }
-                .joined(separator: ", ")
-        }
     }
 }
 #endif

@@ -60,6 +60,9 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         bubbleMaxWidthConstraint.isActive = true
         bubbleCardWidthConstraint = bubble.widthAnchor.constraint(equalToConstant: 280)
         bubbleCardWidthConstraint.priority = .defaultHigh
+        // The transcript self-sizes on invalidation, so a card that grows after its lookup lands
+        // re-measures its row instead of spilling over its neighbours until it scrolls back in.
+        bubble.onCardHeightChange = { [weak self] in self?.contentView.invalidateIntrinsicContentSize() }
     }
 
     @available(*, unavailable)
