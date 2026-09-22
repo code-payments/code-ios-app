@@ -83,6 +83,7 @@ struct ConversationScreen: View {
     /// Whether the invite sheet is up. A link is the only way into a group, so the empty group's
     /// card hands one out (node 10127:118280).
     @State private var isInviting = false
+    @State private var messageReport: MessageReportRequest?
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -647,6 +648,13 @@ struct ConversationScreen: View {
                 GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting)
             }
         }
+        .fullScreenCover(item: $messageReport) { report in
+            NavigationStack {
+                ReportFlowScreen(
+                    target: .message(chatID: report.chatID, messageID: report.messageID)
+                )
+            }
+        }
         .background {
             // Measure the bar width so the centered title item can be sized to
             // (almost) fill it — the system toolbar won't honor maxWidth on a
@@ -836,12 +844,21 @@ struct ConversationScreen: View {
         case .delete:
             confirmDelete(message.id)
         case .report:
-            // Unreachable today: `orderedActions` does not offer Report yet, because the reason
-            // sheet needs a vocabulary that `SharedCoreKit` does not ship until 0.8.0. The
-            // capability, its window and its menu placement are all in place; the row and this
-            // arm land together with the sheet.
-            break
+            // A report names the message, not the chat and not the writer: a chat-level report from
+            // here would name a DM id this client derived, and the server has never been told about
+            // that one.
+            guard let conversationID else { return }
+            messageReport = MessageReportRequest(id: stableID, chatID: conversationID, messageID: message.id)
         }
+    }
+
+    /// The message a report is being filed against, so the sheet can be presented by item rather
+    /// than from a loose boolean and a second piece of state that could disagree with it.
+    private struct MessageReportRequest: Identifiable {
+        /// The transcript row's stable id — already unique per row, and already a `String`.
+        let id: String
+        let chatID: ConversationID
+        let messageID: MessageID
     }
 
     /// The composer strip's preview of the message being answered — the same three-way split the

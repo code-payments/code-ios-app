@@ -92,11 +92,14 @@ private struct UserProfileContent: View {
                 }
 
                 VStack(spacing: 0) {
-                    // Mute sits above Block the way it sits above Leave on a group: the reversible
-                    // action first, the one that ends the relationship last.
+                    // Mute, then report, then block: the reversible and routine first, then the
+                    // one that asks someone else to look, then the one that ends the relationship.
+                    // Same shape as a group's profile, where leaving holds the last place.
                     if let conversationID {
                         ChatMuteRow(conversationID: conversationID, insets: rowInsets, chevron: .secondary)
                     }
+
+                    ReportRow(target: .user(model.userID), insets: rowInsets, chevron: .secondary)
 
                     Row(insets: rowInsets) {
                         Image(systemName: "nosign")
@@ -111,6 +114,7 @@ private struct UserProfileContent: View {
                     } action: {
                         dialogItem = blockDialog()
                     }
+                    .accessibilityIdentifier("chat-block")
                 }
                 .font(.appDisplayXS)
                 .padding(.top, 24)

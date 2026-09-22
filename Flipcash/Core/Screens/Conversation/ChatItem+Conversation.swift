@@ -304,8 +304,7 @@ extension ChatItem {
     /// Report goes last: it is the rarest row and the only one that never appears on your own
     /// message, so the menu reads "yours ends with delete, theirs ends with report".
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
-        // `.report` is deliberately absent until the reason sheet lands — see `handleMessageAction`.
-        [.copy, .reply, .edit, .delete].filter(capabilities.contains)
+        [.copy, .reply, .edit, .delete, .report].filter(capabilities.contains)
     }
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's

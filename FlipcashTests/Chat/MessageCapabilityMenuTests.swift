@@ -105,6 +105,40 @@ struct MessageCapabilityMenuTests {
         #expect(notified.map(\.1) == [.edit, .delete])
     }
 
+    @Test("Report renders last, and is not marked destructive")
+    func reportIsOfferedButNotDestructive() {
+        let controller = loadedController([
+            .message(ChatMessage(id: "1", text: "hi", sender: .other, actions: [.copy, .reply, .report]))
+        ])
+        #expect(titles(menu(controller, at: 0)) == ["Copy", "Reply", "Report"])
+
+        guard let report = menu(controller, at: 0)?.children
+            .compactMap({ $0 as? UIAction })
+            .first(where: { $0.title == "Report" }) else {
+            Issue.record("expected a Report action")
+            return
+        }
+        #expect(!report.attributes.contains(.destructive))
+    }
+
+    @Test("Report reports the row's id to the screen")
+    func reportNotifies() {
+        let controller = loadedController([
+            .message(ChatMessage(id: "row-9", text: "hi", sender: .other, actions: [.report]))
+        ])
+        var notified: [(String, MessageCapability)] = []
+        controller.onMessageAction = { notified.append(($0, $1)) }
+
+        guard let report = menu(controller, at: 0)?.children.first as? UIAction else {
+            Issue.record("expected a Report action")
+            return
+        }
+        report.performWithSender(nil, target: nil)
+
+        #expect(notified.map(\.0) == ["row-9"])
+        #expect(notified.map(\.1) == [.report])
+    }
+
     @Test("A deleted placeholder offers no menu")
     func tombstoneOffersNoMenu() {
         let controller = loadedController([

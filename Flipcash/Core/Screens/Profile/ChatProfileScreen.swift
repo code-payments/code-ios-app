@@ -79,8 +79,8 @@ struct ChatProfileScreen: View {
                     ChatMuteStatusLabel(conversationID: conversationID)
                 }
 
-                if isMember {
-                    VStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    if isMember {
                         Row(insets: rowInsets, accessory: .chevron) {
                             Image(systemName: "person.badge.plus")
                                 .frame(minWidth: 45)
@@ -92,7 +92,15 @@ struct ChatProfileScreen: View {
                         .accessibilityIdentifier("chat-profile-invite")
 
                         ChatMuteRow(conversationID: conversationID, insets: rowInsets)
+                    }
 
+                    // Outside the membership check, unlike every other row here. A non-member has
+                    // no link to hand out, nothing to leave, and no viewer state on a chat they are
+                    // not in — but a group you have already left is the one you are most likely to
+                    // report.
+                    ReportRow(target: .chat(conversationID), insets: rowInsets)
+
+                    if isMember {
                         Row(
                             insets: rowInsets,
                             disabled: isLeaving,
@@ -107,9 +115,9 @@ struct ChatProfileScreen: View {
                         }
                         .accessibilityIdentifier("chat-profile-leave")
                     }
-                    .font(.appDisplayXS)
-                    .padding(.top, 24)
                 }
+                .font(.appDisplayXS)
+                .padding(.top, 24)
 
                 Spacer()
             }
