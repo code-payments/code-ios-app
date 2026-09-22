@@ -22,36 +22,20 @@ import FlipcashUI
 /// grew was the muted one.
 struct ChatMuteRow: View {
 
-    /// How the trailing chevron draws. The two hosts style it differently and each is right on its
-    /// own screen, so the caller says which rather than one of them taking the other's look.
-    enum Chevron {
-        /// ``Row``'s own accessory chevron, matching the chat profile's other rows.
-        case standard
-        /// The smaller secondary chevron the user profile uses to match its profile card.
-        case secondary
-    }
-
     let conversationID: ConversationID
     let insets: EdgeInsets
-    var chevron: Chevron = .standard
 
     @State private var isPickingDuration = false
 
     var body: some View {
-        Row(insets: insets, accessory: chevron == .standard ? .chevron : nil) {
+        // No chevron: this row opens a sheet rather than pushing a screen. The spacer is the one
+        // the accessory would have brought, holding the label against the leading edge.
+        Row(insets: insets) {
             Image(systemName: "bell.slash")
                 .frame(minWidth: 45)
             Text("Mute Notifications")
                 .foregroundStyle(.textMain)
-
-            if chevron == .secondary {
-                // Nothing has claimed the slack, so the chevron needs the spacer the accessory
-                // would have brought.
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(.textSecondary)
-            }
+            Spacer()
         } action: {
             isPickingDuration = true
         }
