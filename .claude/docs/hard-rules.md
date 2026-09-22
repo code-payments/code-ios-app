@@ -69,11 +69,27 @@ app can fix itself belongs in the service files that wrap the generated code.
 
 ## Database Schema Changes
 
-**Bump `SQLiteVersion` in Info.plist on every schema change.** The app does not run migrations — when the version number increases, the database is deleted and rebuilt from server data on next login (`SessionAuthenticator.initializeDatabase`). This means:
+**Bump `Database.schemaVersion` on every change to what the store writes.** The app does not run
+migrations — when the version number increases, the database is deleted and rebuilt from server data
+on next login (`SessionAuthenticator.initializeDatabase`). This means:
 
 - Adding/removing tables or columns → bump version
 - Changing which table a query reads from → bump version if the old schema can't satisfy the new query
+- **Changing the encoding of a value already stored in a column → bump version.** The column's SQL
+  type is unchanged, so nothing about `Schema.swift` looks different, but rows written by an earlier
+  build no longer decode. Adding a non-optional property to a `Codable` struct persisted as a JSON
+  blob is the usual way in: the synthesized decoder throws `keyNotFound` on an older row, and because
+  these reads are `try?`, the whole value silently becomes `nil` — losing every *other* field in the
+  blob too, not just the new one.
 - No migration code needed, but all data must be recoverable from server
+
+The version lives in code, not `Info.plist`. It moved because the notification service extension needs
+the same number to decide whether the store on disk is one it understands, and an extension cannot read
+the app's `Info.plist`. Both targets link `FlipcashStore`, so they cannot disagree.
+
+Resist making a decoder tolerate the older shape (`decodeIfPresent`, a default value, a custom
+`init(from:)`). It preserves a stale value where the bump would fetch the correct one, and it is a
+migration in all but name — the thing this design exists to avoid.
 
 ## Logging: Variables Go in Metadata
 
