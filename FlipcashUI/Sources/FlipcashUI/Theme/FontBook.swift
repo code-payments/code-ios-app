@@ -68,7 +68,19 @@ extension UIFont {
     public static func `default`(size: CGFloat, weight: Weight = .regular) -> UIFont {
         UIFont(name: avenir(weight: weight), size: size)!
     }
-    
+
+    /// The app face at `weight`, slanted to stand in for an italic, which the bundled Avenir lacks.
+    public static func defaultOblique(size: CGFloat, weight: Weight = .regular) -> UIFont {
+        oblique(named: avenir(weight: weight), size: size)
+    }
+
+    fileprivate static func oblique(named name: String, size: CGFloat) -> UIFont {
+        // Skia's fake-italic skew, so the slant matches what Compose synthesizes on Android.
+        let skew = CGAffineTransform(a: 1, b: 0, c: 0.25, d: 1, tx: 0, ty: 0)
+        let descriptor = UIFont(name: name, size: size)!.fontDescriptor.withMatrix(skew)
+        return UIFont(descriptor: descriptor, size: size)
+    }
+
     private static func avenir(weight: Weight) -> String {
         switch weight {
         case .ultraLight, .thin, .light, .regular:
@@ -110,3 +122,19 @@ extension Font {
         }
     }
 }
+
+#if canImport(UIKit)
+
+extension Font {
+
+    /// ``UIFont/defaultOblique(size:weight:)`` for SwiftUI, scaled for `dynamicTypeSize` the way
+    /// ``Font/default(size:weight:)`` scales with the body text style.
+    public static func defaultOblique(size: CGFloat, weight: Weight = .regular, dynamicTypeSize: DynamicTypeSize) -> Font {
+        // A `Font` built from a `UIFont` doesn't track Dynamic Type, so the size is scaled here.
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        let scaledSize = UIFontMetrics(forTextStyle: .body).scaledValue(for: size, compatibleWith: traits)
+        return Font(UIFont.oblique(named: avenir(weight: weight), size: scaledSize))
+    }
+}
+
+#endif
