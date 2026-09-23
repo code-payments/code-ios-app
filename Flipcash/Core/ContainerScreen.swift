@@ -34,7 +34,7 @@ struct ContainerScreen: View {
 
                 case .loggedIn(let sessionContainer):
                     ZStack {
-                        HomeTabView()
+                        HomeTabView(initialTab: sessionAuthenticator.landingTab)
                             .modifier(OnrampHostModifier())
 
                         // Bills / tipcards render at the app root, over the tab bar,

@@ -29,7 +29,11 @@ struct TipConversationsScreen: View {
 
         Background(color: .backgroundMain) {
             if conversations.isEmpty {
-                NoChatsView()
+                // Blank until the feed is known, so a cold launch onto this tab doesn't flash "No
+                // Chats Yet" in the moment before the cache hydrates.
+                if conversationController.hasResolvedFeed {
+                    NoChatsView()
+                }
             } else {
                 List {
                     ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
@@ -51,6 +55,11 @@ struct TipConversationsScreen: View {
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
             }
+        }
+        // Takes a finished cache read before the first frame, instead of drawing empty until launch
+        // work lets the controller's own hydration run.
+        .onAppear {
+            conversationController.hydrateIfReady()
         }
         // Every counterpart, not just the rows on screen. A row's own `.task` fires when the row is
         // built, which in a `List` is when it scrolls into view — so without this the avatar below
