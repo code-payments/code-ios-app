@@ -70,7 +70,7 @@ nonisolated extension NSNotification.Name {
     static let pushDeepLinkReceived         = Notification.Name("com.code.pushDeepLinkReceived")
     static let qrDeepLinkReceived          = Notification.Name("com.code.qrDeepLinkReceived")
     static let shortcutDeepLinkReceived    = Notification.Name("com.code.shortcutDeepLinkReceived")
-    static let launchDeepLinkReceived      = Notification.Name("com.code.launchDeepLinkReceived")
+    static let sceneDeepLinkReceived       = Notification.Name("com.code.sceneDeepLinkReceived")
     static let messageNotificationReceived = Notification.Name("com.code.messageNotificationReceived")
     static let contactDidJoinReceived = Notification.Name("com.code.contactDidJoinReceived")
 }

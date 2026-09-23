@@ -35,8 +35,8 @@ final class DeepLinkController {
     func open(_ url: URL) -> Bool {
         // Drop duplicate deliveries: a second claim is rejected server-side as
         // stale state and surfaces as a false error after the first succeeded.
-        // A cold-launch link arrives twice — once from `SceneDelegate`, and
-        // again from SwiftUI's `onOpenURL` when it replays the link, which can
+        // A scene link can arrive twice — once from `SceneDelegate`, and
+        // again from SwiftUI's `onOpenURL` when it forwards the link, which can
         // land after the first action has finished — so the URL stays held for
         // `repeatWindow` past completion, not just while in flight.
         guard inFlightDeepLinks.insert(url).inserted else {

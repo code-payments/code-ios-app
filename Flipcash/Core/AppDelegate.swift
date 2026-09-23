@@ -109,7 +109,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleDeepLinkNotification(_:)),
-            name: .launchDeepLinkReceived,
+            name: .sceneDeepLinkReceived,
             object: nil
         )
 

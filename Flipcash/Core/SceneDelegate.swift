@@ -8,7 +8,7 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.scene-delegate")
 
-/// Bridges quick-action taps and cold-launch links into the existing deep-link
+/// Bridges quick-action taps and incoming links into the existing deep-link
 /// pipeline. SwiftUI's `App` lifecycle doesn't forward `UIApplicationShortcutItem`
 /// events to `AppDelegate`, so we receive them here, pull the embedded URL out
 /// of the shortcut's `userInfo`, and post the same notification the rest of the
@@ -20,26 +20,43 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if let shortcut = connectionOptions.shortcutItem {
             postDeepLink(for: shortcut)
         }
-        if let url = launchURL(from: connectionOptions) {
-            // SwiftUI is meant to replay a launching link through `onOpenURL`, but
-            // on device it can drop it: a Camera scan of a universal link opened
-            // the app with no `onOpenURL` call at all. Reading it here makes the
-            // link independent of that replay; `DeepLinkController` ignores the
-            // copy SwiftUI delivers when it does replay.
-            NotificationCenter.default.post(
-                name: .launchDeepLinkReceived,
-                object: nil,
-                userInfo: ["url": url]
-            )
-        }
-    }
-
-    /// The link that launched the scene: a universal link's web URL, or a custom-scheme URL.
-    private func launchURL(from connectionOptions: UIScene.ConnectionOptions) -> URL? {
         let webURL = connectionOptions.userActivities.first {
             $0.activityType == NSUserActivityTypeBrowsingWeb
         }?.webpageURL
-        return webURL ?? connectionOptions.urlContexts.first?.url
+        if let url = webURL ?? connectionOptions.urlContexts.first?.url {
+            postLink(url, source: "launch")
+        }
+    }
+
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = userActivity.webpageURL else {
+            return
+        }
+        postLink(url, source: "continue")
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        guard let url = URLContexts.first?.url else {
+            return
+        }
+        postLink(url, source: "openURL")
+    }
+
+    /// Posts a link iOS handed the scene into the deep-link pipeline.
+    ///
+    /// SwiftUI is meant to forward these through `onOpenURL`, but with this
+    /// delegate installed it can drop them on device: a Camera scan of a
+    /// universal link opened the app, cold or running, with no `onOpenURL`
+    /// call. `DeepLinkController` ignores the copy SwiftUI delivers when it
+    /// does forward one.
+    private func postLink(_ url: URL, source: String) {
+        logger.info("Scene received link", metadata: ["source": "\(source)"])
+        NotificationCenter.default.post(
+            name: .sceneDeepLinkReceived,
+            object: nil,
+            userInfo: ["url": url]
+        )
     }
 
     func windowScene(_ windowScene: UIWindowScene, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
