@@ -439,7 +439,7 @@ final class NotificationService: UNNotificationServiceExtension {
                 switch outcome {
                 case .wrote, .noStore, .busy:
                     // All three are ordinary. `noStore` is a user who has not finished login on a
-                    // build that owns the shared store; `busy` is the app holding the write lock,
+                    // build that owns the shared store; `busy` is the app holding the store's locks,
                     // which means the app is running and will fetch this itself.
                     ExtensionReporting.breadcrumb("store write: \(outcome)")
                 case .versionMismatch(let recorded):
