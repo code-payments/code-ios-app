@@ -38,12 +38,30 @@ struct BuyAmountScreen: View {
         )
         .id(mint)
     }
+
+    /// Unwinds a finished pushed buy back to the screen that launched it — the gated chat, a
+    /// pushed token screen, or the wallet — and closes the expanded card when the buy was launched
+    /// from one, which sits over the wallet's root.
+    static func finishPushedBuy(router: AppRouter, returningTo position: AppRouter.StackPosition?) {
+        guard let position else {
+            router.popToRoot()
+            router.dismissExpandedCard()
+            return
+        }
+        router.popTo(position)
+        if position.depth == 0 {
+            router.dismissExpandedCard()
+        }
+    }
 }
 
 private struct BuyAmountScreenContent: View {
 
     @State private var viewModel: BuyAmountViewModel
     @State private var isShowingPaymentPicker: Bool = false
+    /// Where the pushed buy flow was launched from, captured on first appearance so finishing
+    /// pops only the buy flow's own screens.
+    @State private var launchPosition: AppRouter.StackPosition?
 
     @Environment(AppRouter.self) private var router
     /// True when this is the root of a presented sheet; false when pushed onto a
@@ -109,12 +127,11 @@ private struct BuyAmountScreenContent: View {
             // fresh view identity per path value so init-seeded @State can't
             // survive a same-depth value swap (the DestinationView convention).
             BuyFlowDestinationView(path: path)
-                // The presented buy sheet dismisses itself; the pushed buy flow is
-                // pushed from a token's expanded card, so finishing pops back to
-                // the wallet and dismisses that card overlay.
+                // The presented buy sheet dismisses itself; the pushed buy flow
+                // returns to the screen that launched it.
                 .environment(\.dismissParentContainer, presentedAsSheetRoot
                     ? router.dismissSheet
-                    : { router.popToRoot(); router.dismissExpandedCard() })
+                    : { BuyAmountScreen.finishPushedBuy(router: router, returningTo: launchPosition) })
                 .id(path)
         }
         .sheet(isPresented: $isShowingPaymentPicker) {
@@ -128,6 +145,10 @@ private struct BuyAmountScreenContent: View {
             )
         }
         .dialog(item: $viewModel.dialogItem)
+        .onAppear {
+            guard !presentedAsSheetRoot, launchPosition == nil else { return }
+            launchPosition = router.positionBeneathTopmost()
+        }
     }
 
     /// "Buy with [currency ▾]" — the payment-source selector shown just above

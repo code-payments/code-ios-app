@@ -241,6 +241,24 @@ final class AppRouter {
         ])
     }
 
+    /// A position on a stack: the stack and how many destinations it held.
+    struct StackPosition: Equatable {
+        let stack: Stack
+        let depth: Int
+    }
+
+    /// The position just beneath the topmost stack's top destination — where a pushed flow whose
+    /// first screen is on top returns to when it finishes. `nil` when there is no topmost stack.
+    func positionBeneathTopmost() -> StackPosition? {
+        guard let stack = topmostStack else { return nil }
+        return StackPosition(stack: stack, depth: max(self[stack].count - 1, 0))
+    }
+
+    /// Pops `position.stack` back down to `position.depth`, leaving whatever sat beneath intact.
+    func popTo(_ position: StackPosition) {
+        popLast(self[position.stack].count - position.depth, on: position.stack)
+    }
+
     /// Replaces the entire path on `stack` with the given typed destinations.
     /// Used for cross-stack jumps like `navigate(to:)` where the leaf is set
     /// fresh.
