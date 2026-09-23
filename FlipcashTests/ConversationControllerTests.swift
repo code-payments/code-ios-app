@@ -144,28 +144,33 @@ struct ConversationControllerTests {
 
         mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: true)]))
         try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
-        let shownAt = ContinuousClock.now
 
-        // A refresh ~300ms in moves the deadline to ~800ms after the typist appeared.
-        try await Task.sleep(for: .milliseconds(300))
+        // The refresh only extends a live deadline, so it has to land well inside the
+        // 500ms window; 150ms leaves room for the sleep to overrun on a loaded runner.
+        try await Task.sleep(for: .milliseconds(150))
+        try #require(controller.isCounterpartTyping(in: .test(1)), "the typist must still be shown when the refresh is emitted")
+        let refreshedAt = ContinuousClock.now
         mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: true)]))
 
         try await waitUntil { !controller.isCounterpartTyping(in: .test(1)) }
-        // Load can only lengthen the observed lifetime, never shorten it; without the
-        // extension the typist clears at ~500ms.
-        #expect(shownAt.duration(to: ContinuousClock.now) >= .milliseconds(700))
+        // Measured from the refresh, not from when the typist appeared: load can only
+        // lengthen the observed lifetime. Without the extension the original deadline
+        // lands ~350ms after the refresh.
+        #expect(refreshedAt.duration(to: ContinuousClock.now) >= .milliseconds(400))
     }
 
     @Test("a STOPPED never overtakes an in-flight earlier send")
     func typingSendsStayOrdered() async throws {
         let mock = MockConversations()
-        mock.typingDelays = [.started: .milliseconds(200)]
+        mock.holdTyping(.started)
         let controller = makeController(mock)
 
         controller.draftDidChange("h", in: .test(1))
-        // Wait for the STARTED to enter the (slow) transport before clearing the draft.
+        // The gate parks the STARTED in the transport, so clearing the draft queues
+        // the STOPPED behind a send that is provably still in flight.
         try await waitUntil { mock.typingCallsBegun == 1 }
         controller.draftDidChange("", in: .test(1))
+        mock.releaseTyping(.started)
 
         try await waitUntil { mock.typingCalls.count == 2 }
         #expect(mock.typingCalls.map(\.state) == [.started, .stopped])
@@ -174,20 +179,22 @@ struct ConversationControllerTests {
     @Test("a rapid stop-then-restart coalesces to the latest state")
     func typingBurstCoalesces() async throws {
         let mock = MockConversations()
-        mock.typingDelays = [.started: .milliseconds(200)]
+        mock.holdTyping(.started)
         let controller = makeController(mock)
 
         controller.draftDidChange("h", in: .test(1))
         try await waitUntil { mock.typingCallsBegun == 1 }
-        // While the STARTED is still in flight: clear (queues STOPPED) then type
+        // With the STARTED parked in the transport: clear (queues STOPPED) then type
         // again. States are absolute, so the queued STOPPED is superseded — the
         // wire only ever needs the latest state.
         controller.draftDidChange("", in: .test(1))
         controller.draftDidChange("i", in: .test(1))
+        // The restart queues its STARTED from a main-actor task enqueued above; yielding
+        // runs it before the release below lets the drain pick the next state up.
+        await Task.yield()
+        mock.releaseTyping(.started)
 
         try await waitUntil { mock.typingCalls.count == 2 }
-        // Give any extra (non-coalesced) sends time to land before pinning the sequence.
-        try await Task.sleep(for: .milliseconds(250))
         #expect(mock.typingCalls.map(\.state) == [.started, .started])
     }
 
