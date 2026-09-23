@@ -35,6 +35,12 @@ struct UserProfileChatActionsTests {
         #expect(!origin.showsChatActions(profileUserID: me, selfUserID: me))
     }
 
+    @Test("Only a profile opened from the DM offers muting it")
+    func mute_showsOnlyFromDirectMessage() {
+        #expect(UserProfileOrigin.directMessage.showsMute)
+        #expect(!UserProfileOrigin.groupMember.showsMute)
+    }
+
     // MARK: - Destinations -
 
     @Test("The origin is part of the profile destination's identity but not its log keys")

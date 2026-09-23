@@ -13,8 +13,8 @@ import FlipcashUI
 /// than over one chat: muting the DM with them, and blocking them outright.
 ///
 /// Reached from a tip DM's title and from a face in a group transcript. Both land here because both
-/// are the same question — who is this — so the actions are the person's either way: Block already
-/// works on the person globally, and the mute row silences the DM with them when one exists.
+/// are the same question — who is this — so Block works on the person either way. The mute row
+/// silences the DM with them, so it shows only when the profile was opened from that DM.
 struct UserProfileScreen: View {
     let userID: UserID
     let origin: UserProfileOrigin
@@ -28,7 +28,9 @@ struct UserProfileScreen: View {
         UserProfileContent(
             // Nil until a tip creates the chat server-side, and re-read on every pass, so a DM that
             // appears while the screen is open brings its mute row with it.
-            conversationID: sessionContainer.conversationController.tipDM(withUserID: userID)?.id,
+            conversationID: origin.showsMute
+                ? sessionContainer.conversationController.tipDM(withUserID: userID)?.id
+                : nil,
             showsChatActions: origin.showsChatActions(
                 profileUserID: userID,
                 selfUserID: sessionContainer.conversationController.selfUserID
@@ -48,7 +50,8 @@ struct UserProfileScreen: View {
 }
 
 private struct UserProfileContent: View {
-    /// The DM to mute, or nil when there is no chat with this person yet.
+    /// The DM to mute, or nil when there is no chat with this person yet or the profile wasn't
+    /// opened from it.
     let conversationID: ConversationID?
     /// Whether to offer Message and Send Cash — see ``UserProfileOrigin/showsChatActions(profileUserID:selfUserID:)``.
     let showsChatActions: Bool
@@ -195,6 +198,15 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .directMessage: return false
         case .groupMember:   return true
+        }
+    }
+
+    /// Whether the profile offers muting the DM with this person: only from that DM, since from a
+    /// group the row would read as muting the group.
+    var showsMute: Bool {
+        switch self {
+        case .directMessage: return true
+        case .groupMember:   return false
         }
     }
 }
