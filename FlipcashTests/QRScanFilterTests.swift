@@ -12,12 +12,14 @@ struct QRScanFilterTests {
         URL(string: "flipcash://token/54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")!,
         URL(string: "https://flipcash.com/brandon")!,
         URL(string: "https://flipcash.com/3f2504e0-4f89-41d3-9a0c-0305e82c3301")!,
+        URL(string: "https://app.flipcash.com/chat/52fba6a9-3940-899e-af16-eddf7c6364b2")!,
     ]
 
     static let blockedURLs: [URL] = [
         URL(string: "https://app.flipcash.com/login#e=HQPkfAZjgpGGANQfUNPKvW")!,
         URL(string: "https://app.flipcash.com/verify?code=123&email=test@example.com")!,
         URL(string: "https://google.com")!,
+        URL(string: "https://app.flipcash.com/chat/52fba6a9-3940-899e-af16-eddf7c6364b2/send")!,
         // A QR code is read off whatever the camera is pointed at, so its host is nobody's
         // promise. `Route` matches on path alone: ungated, a Discord invite scans as a handle
         // and an attacker's `/c/#/e=…` scans as a cash link.

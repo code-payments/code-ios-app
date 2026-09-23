@@ -137,8 +137,8 @@ class ScanViewModel {
     /// so nothing vouched for its host, and `Route` matches on path alone — ungated, a Discord
     /// invite scans as a handle and a stranger's `/c/#/e=…` scans as a cash link.
     ///
-    /// Then the route: an allowlist of `.cash`, `.token`, `.tip`, and `.username`, with every
-    /// other route refused by name — including the security-sensitive `.login` and
+    /// Then the route: an allowlist of `.cash`, `.token`, `.tip`, `.username`, and `.chat`, with
+    /// every other route refused by name — including the security-sensitive `.login` and
     /// `.verifyEmail`. A new `Route.Path` case is refused until someone adds it here.
     ///
     /// Every entry point answers to this, not just the camera: a gallery image is one the
@@ -153,7 +153,11 @@ class ScanViewModel {
         // a printed handle QR scans where the user id one already does.
         case .cash, .token, .tip, .username:
             return true
-        case .login, .verifyEmail, .chat, .chatSendCash, .give, .balance, .discover, .unknown:
+        // A group's invite link is printed as a QR; opening it lands on the
+        // transcript, which gates the join itself.
+        case .chat:
+            return true
+        case .login, .verifyEmail, .chatSendCash, .give, .balance, .discover, .unknown:
             return false
         }
     }
