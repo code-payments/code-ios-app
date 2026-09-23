@@ -157,6 +157,7 @@ private struct TipConversationRow: View {
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(Session.self) private var session
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// What the row's avatar is of: the chat itself for a group, whose roster subset has no single
     /// face to stand for it, and the counterpart for a DM.
@@ -220,7 +221,8 @@ private struct TipConversationRow: View {
         }
         guard conversation.lastMessage == nil else { return nil }
         var placeholder = AttributedString("Nothing yet")
-        placeholder.inlinePresentationIntent = .emphasized
+        // Not an emphasis intent: the bundled Avenir has no italic, so asking for one renders upright.
+        placeholder.font = .defaultOblique(size: 14, weight: .bold, dynamicTypeSize: dynamicTypeSize)
         return placeholder
     }
 
