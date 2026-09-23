@@ -37,7 +37,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     }
 
     /// The most typists a group's typing indicator draws; the newest win.
-    public static let maxTypingAvatars = 10
+    public static let maxTypingAvatars = 3
 
     /// The id of the message this row draws some or all of, or nil for a row that is not a message.
     /// A message split around its link card spans several rows that all answer the same here.

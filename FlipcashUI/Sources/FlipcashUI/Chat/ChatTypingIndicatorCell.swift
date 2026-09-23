@@ -35,12 +35,15 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
 
     private static let dotSize: CGFloat = 7
 
-    // Android's `staticGrid.x8` / `staticGrid.x4` (the fixed 5pt grid) and `grid.x2` on a phone.
-    private static let avatarSize: CGFloat = 40
-    private static let avatarOverlap: CGFloat = 20
-    private static let avatarRowGap: CGFloat = 10
-    /// Android pads the avatar row 4dp above and below.
-    private static let avatarRowInset: CGFloat = 4
+    // Android's `TypingIndicator`: the transcript's 24pt sender avatar, overlapping by 8, with a 4pt
+    // gap to the bubble and a 2pt ring cut out of each avatar beneath another.
+    private static let avatarSize = ChatAuthorAvatarView.size
+    private static let avatarOverlap: CGFloat = 8
+    private static let avatarGap: CGFloat = 4
+    private static let avatarRing: CGFloat = 2
+    private static let avatarStep = avatarSize - avatarOverlap
+    /// How small an avatar is as it starts to grow in, or finishes shrinking out.
+    private static let avatarEnterScale: CGFloat = 0.4
 
     private let bubble = BubbleBackgroundView()
     private let dotsRow = UIStackView()
@@ -48,9 +51,14 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
 
     private let avatarRow = UIView()
     private var avatarRowWidth: NSLayoutConstraint!
-    private var avatarRowHeight: NSLayoutConstraint!
-    /// The avatars on screen, oldest typist first — the order they are drawn left to right.
-    private var avatars: [(id: UserID, view: ChatAuthorAvatarView)] = []
+    /// Every avatar drawn, including ones still animating out after their typist left.
+    private var entries: [AvatarEntry] = []
+    /// The number of avatars the row's width is sized for, animated so the bubble slides.
+    private var count = Spring(0)
+    private var displayLink: CADisplayLink?
+    private var lastTick: CFTimeInterval?
+    /// False until the first configure after a dequeue, which draws its avatars in place.
+    private var hasConfigured = false
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -79,13 +87,11 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
             return dot
         }
 
-        // Overlapping avatars draw past each other's bounds, and one fading out draws past the row's.
+        // A shrinking avatar draws past the row's animated width.
         avatarRow.clipsToBounds = false
         avatarRow.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(avatarRow)
         avatarRowWidth = avatarRow.widthAnchor.constraint(equalToConstant: 0)
-        // The row only claims height while it holds avatars, so a DM's cell stays the bubble's height.
-        avatarRowHeight = contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 0)
 
         let trailing = bubble.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -12)
         trailing.priority = .defaultHigh
@@ -94,10 +100,8 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
             avatarRow.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
             avatarRow.heightAnchor.constraint(equalToConstant: Self.avatarSize),
             avatarRowWidth,
-            avatarRowHeight,
-            bubble.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor),
-            bubble.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor),
-            bubble.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            bubble.topAnchor.constraint(equalTo: contentView.topAnchor),
+            bubble.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             bubble.leadingAnchor.constraint(equalTo: avatarRow.trailingAnchor),
             trailing,
             // The bubble's own padding matches a text bubble's 12/9, plus the dot row's inner 6 vertical.
@@ -116,105 +120,221 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
 
     public override func prepareForReuse() {
         super.prepareForReuse()
-        avatars.forEach { $0.view.removeFromSuperview() }
-        avatars = []
-        applyRowSize(count: 0)
+        stopAvatarMotion()
+        entries.forEach { $0.view.removeFromSuperview() }
+        entries = []
+        count = Spring(0)
+        hasConfigured = false
+        layoutAvatars()
     }
 
-    /// Draws `typists` as overlapping avatars ahead of the dots, oldest first, reading their pictures
-    /// out of `imageData`. An empty list draws the dots alone. A reconfigure of the same cell animates
-    /// the avatars that joined or left and the row's width; the first configure after a dequeue
-    /// snaps, since the row itself is animating in.
+    /// Draws the newest ``ChatItem/maxTypingAvatars`` of `typists` as an overlapping stack ahead of
+    /// the dots, oldest at the back on the left and newest on top at the right, reading pictures out
+    /// of `imageData`. An empty list draws the dots alone. Once the cell has been configured, a
+    /// typist joining grows in from its left edge, one leaving shrinks out beneath the others as they
+    /// slide over it, and the bubble slides with the stack's width.
     public func configure(typists: [ChatAuthor], imageData: [UserID: Data]) {
-        let animated = window != nil && !avatars.isEmpty
+        let animated = hasConfigured && window != nil && !UIAccessibility.isReduceMotionEnabled
+        hasConfigured = true
         let shown = Array(typists.suffix(ChatItem.maxTypingAvatars))
-        let keep = Set(shown.map(\.id))
+        let shownIDs = Set(shown.map(\.id))
 
-        let leaving = avatars.filter { !keep.contains($0.id) }
-        var existing: [UserID: ChatAuthorAvatarView] = [:]
-        for avatar in avatars where keep.contains(avatar.id) {
-            existing[avatar.id] = avatar.view
-        }
-
-        var joining: [ChatAuthorAvatarView] = []
-        avatars = shown.map { author in
-            let view: ChatAuthorAvatarView
-            if let kept = existing[author.id] {
-                view = kept
+        for (index, author) in shown.enumerated() {
+            let slot = CGFloat(index)
+            let entry: AvatarEntry
+            if let existing = entries.first(where: { $0.id == author.id && !$0.isLeaving }) {
+                entry = existing
             } else {
-                view = ChatAuthorAvatarView(size: Self.avatarSize, fallback: .personGlyph)
-                view.translatesAutoresizingMaskIntoConstraints = true
-                self.avatarRow.addSubview(view)
-                joining.append(view)
+                let view = ChatAuthorAvatarView(frame: .zero)
+                // Grows from and shrinks to its left edge, as Android's `TransformOrigin(0, 0.5)`.
+                view.layer.anchorPoint = CGPoint(x: 0, y: 0.5)
+                avatarRow.addSubview(view)
+                entry = AvatarEntry(id: author.id, view: view, slot: Spring(slot), presence: Spring(animated ? 0 : 1))
+                entries.append(entry)
             }
-            view.configure(with: author, imageData: imageData[author.id])
-            return (id: author.id, view: view)
+            entry.view.configure(with: author, imageData: imageData[author.id])
+            entry.slot.target = slot
+            entry.presence.target = 1
         }
+        for entry in entries where !entry.isLeaving && !shownIDs.contains(entry.id) {
+            entry.isLeaving = true
+            entry.presence.target = 0
+        }
+        count.target = CGFloat(shown.count)
 
-        // New avatars start where they will land, so they only fade and grow in place.
-        for (index, avatar) in avatars.enumerated() {
-            // The earlier typist sits on top, as Android's `zIndex = count - index` does.
-            avatar.view.layer.zPosition = CGFloat(avatars.count - index)
-            if joining.contains(where: { $0 === avatar.view }) {
-                avatar.view.frame = Self.avatarFrame(at: index)
-                if animated {
-                    avatar.view.alpha = 0
-                    avatar.view.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
-                }
-            }
+        if animated {
+            startAvatarMotion()
+        } else {
+            stopAvatarMotion()
+            entries.forEach { $0.settle() }
+            count.settle()
+            layoutAvatars()
         }
-
-        let layout = {
-            for (index, avatar) in self.avatars.enumerated() {
-                avatar.view.bounds.size = CGSize(width: Self.avatarSize, height: Self.avatarSize)
-                avatar.view.center = CGPoint(
-                    x: Self.avatarFrame(at: index).midX,
-                    y: Self.avatarSize / 2
-                )
-                avatar.view.alpha = 1
-                avatar.view.transform = .identity
-            }
-            for avatar in leaving {
-                avatar.view.alpha = 0
-                avatar.view.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
-            }
-            self.applyRowSize(count: self.avatars.count)
-            self.contentView.layoutIfNeeded()
-        }
-
-        guard animated else {
-            leaving.forEach { $0.view.removeFromSuperview() }
-            UIView.performWithoutAnimation(layout)
-            return
-        }
-        UIView.animate(
-            withDuration: 0.35,
-            delay: 0,
-            usingSpringWithDamping: 1,
-            initialSpringVelocity: 0,
-            options: [.beginFromCurrentState, .allowUserInteraction],
-            animations: layout,
-            completion: { _ in leaving.forEach { $0.view.removeFromSuperview() } }
-        )
     }
 
-    private static func avatarFrame(at index: Int) -> CGRect {
-        CGRect(
-            x: CGFloat(index) * (avatarSize - avatarOverlap),
-            y: 0,
-            width: avatarSize,
-            height: avatarSize
-        )
+    // MARK: - Avatar motion
+
+    /// One avatar in the stack, kept after its typist leaves until it has animated out.
+    private final class AvatarEntry {
+        let id: UserID
+        let view: ChatAuthorAvatarView
+        let ring = CALayer()
+        /// The avatar's horizontal place in the stack, in steps from the left.
+        var slot: Spring
+        /// 0 while absent, 1 once fully in: drives the avatar's alpha, scale and the ring it cuts.
+        var presence: Spring
+        var isLeaving = false
+
+        init(id: UserID, view: ChatAuthorAvatarView, slot: Spring, presence: Spring) {
+            self.id = id
+            self.view = view
+            self.slot = slot
+            self.presence = presence
+            view.layer.mask = ring
+        }
+
+        /// Later slots draw on top, and a leaving avatar beneath everything, so the ones that close
+        /// the gap slide over it.
+        var z: CGFloat { isLeaving ? -1 : slot.value }
+
+        var scale: CGFloat {
+            ChatTypingIndicatorCell.avatarEnterScale + (1 - ChatTypingIndicatorCell.avatarEnterScale) * presence.value
+        }
+
+        var isSettled: Bool { slot.isSettled && presence.isSettled }
+
+        func settle() {
+            slot.settle()
+            presence.settle()
+        }
     }
 
-    private func applyRowSize(count: Int) {
-        guard count > 0 else {
-            avatarRowWidth.constant = 0
-            avatarRowHeight.constant = 0
+    /// A critically damped spring at Compose's `StiffnessMediumLow`, the `AvatarMotion` Android uses.
+    private struct Spring {
+        private static let stiffness: CGFloat = 400
+
+        var value: CGFloat
+        var target: CGFloat
+        private var velocity: CGFloat = 0
+
+        init(_ value: CGFloat) {
+            self.value = value
+            self.target = value
+        }
+
+        var isSettled: Bool { abs(value - target) < 0.001 && abs(velocity) < 0.01 }
+
+        mutating func settle() {
+            value = target
+            velocity = 0
+        }
+
+        mutating func step(by elapsed: CFTimeInterval) {
+            // Small fixed substeps keep the integration stable through a dropped frame.
+            var remaining = CGFloat(min(elapsed, 1.0 / 15))
+            while remaining > 0 {
+                let dt = min(remaining, 1.0 / 240)
+                let acceleration = -Self.stiffness * (value - target) - 2 * Self.stiffness.squareRoot() * velocity
+                velocity += acceleration * dt
+                value += velocity * dt
+                remaining -= dt
+            }
+            if isSettled { settle() }
+        }
+    }
+
+    private func startAvatarMotion() {
+        guard displayLink == nil else { return }
+        lastTick = nil
+        let link = CADisplayLink(target: self, selector: #selector(stepAvatarMotion(_:)))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    private func stopAvatarMotion() {
+        displayLink?.invalidate()
+        displayLink = nil
+        lastTick = nil
+    }
+
+    @objc private func stepAvatarMotion(_ link: CADisplayLink) {
+        let elapsed = lastTick.map { link.timestamp - $0 } ?? link.duration
+        lastTick = link.timestamp
+        for entry in entries {
+            entry.slot.step(by: elapsed)
+            entry.presence.step(by: elapsed)
+        }
+        count.step(by: elapsed)
+
+        for entry in entries where entry.isLeaving && entry.presence.isSettled {
+            entry.view.removeFromSuperview()
+        }
+        entries.removeAll { $0.isLeaving && $0.presence.isSettled }
+        layoutAvatars()
+
+        if count.isSettled, entries.allSatisfy(\.isSettled) {
+            stopAvatarMotion()
+        }
+    }
+
+    /// Places every avatar and the row's width from the springs' current values, and recuts the
+    /// rings each avatar shows where the ones above it sit.
+    private func layoutAvatars() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+
+        for entry in entries {
+            entry.view.bounds = CGRect(x: 0, y: 0, width: Self.avatarSize, height: Self.avatarSize)
+            entry.view.center = CGPoint(x: entry.slot.value * Self.avatarStep, y: Self.avatarSize / 2)
+            entry.view.transform = CGAffineTransform(scaleX: entry.scale, y: entry.scale)
+            entry.view.alpha = entry.presence.value
+            entry.view.layer.zPosition = entry.z
+            cutRings(in: entry)
+        }
+
+        // n avatars are n steps plus one overlap wide; the gap to the bubble grows in with the first
+        // avatar, so the dots never jump.
+        let count = max(count.value, 0)
+        avatarRowWidth.constant = count * Self.avatarStep + (Self.avatarOverlap + Self.avatarGap) * min(count, 1)
+        contentView.layoutIfNeeded()
+    }
+
+    /// Masks `entry` with a transparent ring wherever an avatar above it sits, faded by that avatar's
+    /// presence, so overlapping faces stay apart over any background. Worked in the avatar's unscaled
+    /// space, which is scaled about its left edge.
+    private func cutRings(in entry: AvatarEntry) {
+        let above = entries.filter { $0 !== entry && $0.z > entry.z && $0.presence.value > 0 }
+        let size = CGSize(width: Self.avatarSize, height: Self.avatarSize)
+        entry.ring.frame = CGRect(origin: .zero, size: size)
+        guard !above.isEmpty else {
+            entry.ring.contents = nil
+            entry.ring.backgroundColor = UIColor.black.cgColor
             return
         }
-        avatarRowWidth.constant = Self.avatarSize + CGFloat(count - 1) * (Self.avatarSize - Self.avatarOverlap) + Self.avatarRowGap
-        avatarRowHeight.constant = Self.avatarSize + 2 * Self.avatarRowInset
+        let radius = Self.avatarSize / 2
+        let format = UIGraphicsImageRendererFormat.preferred()
+        format.opaque = false
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            let cg = context.cgContext
+            cg.setFillColor(UIColor.black.cgColor)
+            cg.fill(CGRect(origin: .zero, size: size))
+            cg.setBlendMode(.destinationOut)
+            for other in above {
+                let centerX = (other.slot.value - entry.slot.value) * Self.avatarStep + radius * other.scale
+                let cutRadius = (radius * other.scale + Self.avatarRing) / entry.scale
+                let center = CGPoint(x: centerX / entry.scale, y: radius)
+                cg.setFillColor(UIColor(white: 0, alpha: min(max(other.presence.value, 0), 1)).cgColor)
+                cg.fillEllipse(in: CGRect(
+                    x: center.x - cutRadius,
+                    y: center.y - cutRadius,
+                    width: cutRadius * 2,
+                    height: cutRadius * 2
+                ))
+            }
+        }
+        entry.ring.backgroundColor = nil
+        entry.ring.contents = image.cgImage
     }
 
     @objc private func restartAnimationIfVisible() {
@@ -251,6 +371,15 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
     /// Stop the dot wave — the cell is leaving the screen.
     public func stopAnimating() {
         dots.forEach { $0.layer.removeAnimation(forKey: "typingWave") }
+        // Nothing is left to watch the avatars settle, so land them.
+        if displayLink != nil {
+            stopAvatarMotion()
+            entries.filter(\.isLeaving).forEach { $0.view.removeFromSuperview() }
+            entries.removeAll(where: \.isLeaving)
+            entries.forEach { $0.settle() }
+            count.settle()
+            layoutAvatars()
+        }
     }
 }
 #endif

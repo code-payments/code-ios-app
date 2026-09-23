@@ -121,11 +121,11 @@ struct ConversationTypingIndicatorTests {
         #expect(coordinator.attributedMembers.isEmpty)
     }
 
-    @Test("A group with more typists than the cap keeps the newest ten")
-    func typingRow_overCap_keepsNewestTen() async throws {
+    @Test("A group with more typists than the cap keeps the newest three")
+    func typingRow_overCap_keepsNewestThree() async throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
-        let typists = (0..<12).map { _ in UUID() }
+        let typists = (0..<5).map { _ in UUID() }
         let group = conversation(.group, members: typists.enumerated().map {
             ConversationMember(userID: $0.element, displayName: "Typist \($0.offset)")
         })
@@ -138,7 +138,7 @@ struct ConversationTypingIndicatorTests {
         }
         try await waitUntil { typingRow(coordinator)?.first?.id == typists[2] }
 
-        #expect(ChatItem.maxTypingAvatars == 10)
-        #expect(typingRow(coordinator)?.map(\.id) == Array(typists.suffix(10)))
+        #expect(ChatItem.maxTypingAvatars == 3)
+        #expect(typingRow(coordinator)?.map(\.id) == Array(typists.suffix(3)))
     }
 }

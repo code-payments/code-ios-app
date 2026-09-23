@@ -10,8 +10,7 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
-/// The 24pt circle in the leading gutter of an attributed transcript row, drawn in UIKit. The
-/// typing indicator draws larger ones with a person glyph as the fallback.
+/// The 24pt circle in the leading gutter of an attributed transcript row, drawn in UIKit.
 ///
 /// Deliberately not a `UIHostingController` around ``ContactAvatarView``: the transcript recycles
 /// its cells, and hosting a SwiftUI view per recycled row costs a view-controller adoption on every
@@ -23,25 +22,14 @@ final class ChatAuthorAvatarView: UIView {
     /// Figma sizes the gutter circle at 24pt (nodes 10125:19169-19184).
     static let size: CGFloat = 24
 
-    /// What stands in for a picture the author does not have.
-    enum Fallback {
-        /// The author's initials, or the bare gradient when the name has none.
-        case monogram
-        /// A white person glyph, whatever the name.
-        case personGlyph
-    }
-
-    private let fallback: Fallback
     private let imageView = UIImageView()
     private let monogram = UILabel()
-    private let personGlyph = UIImageView(image: UIImage(systemName: "person.fill"))
     private let gradient = CAGradientLayer()
 
-    init(size: CGFloat = ChatAuthorAvatarView.size, fallback: Fallback = .monogram) {
-        self.fallback = fallback
-        super.init(frame: .zero)
+    override init(frame: CGRect) {
+        super.init(frame: frame)
 
-        layer.cornerRadius = size / 2
+        layer.cornerRadius = Self.size / 2
         layer.masksToBounds = true
 
         // The same two stops as `LinearGradient.avatarPlaceholder`, so a monogram in the transcript
@@ -55,17 +43,11 @@ final class ChatAuthorAvatarView: UIView {
         layer.addSublayer(gradient)
 
         // Scales the 44pt avatar's 16pt monogram down to this size, the way `ContactAvatarView` does.
-        monogram.font = .default(size: size * 16 / 44, weight: .bold)
+        monogram.font = .default(size: Self.size * 16 / 44, weight: .bold)
         monogram.textColor = UIColor(Color.textMain)
         monogram.textAlignment = .center
         monogram.translatesAutoresizingMaskIntoConstraints = false
         addSubview(monogram)
-
-        personGlyph.tintColor = .white
-        personGlyph.contentMode = .scaleAspectFit
-        personGlyph.isHidden = true
-        personGlyph.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(personGlyph)
 
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
@@ -73,13 +55,8 @@ final class ChatAuthorAvatarView: UIView {
         addSubview(imageView)
 
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: size),
-            heightAnchor.constraint(equalToConstant: size),
-            // Android pads its Person icon 5dp inside the circle.
-            personGlyph.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 5),
-            personGlyph.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -5),
-            personGlyph.topAnchor.constraint(equalTo: topAnchor, constant: 5),
-            personGlyph.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
+            widthAnchor.constraint(equalToConstant: Self.size),
+            heightAnchor.constraint(equalToConstant: Self.size),
             monogram.centerXAnchor.constraint(equalTo: centerXAnchor),
             monogram.centerYAnchor.constraint(equalTo: centerYAnchor),
             imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -111,19 +88,13 @@ final class ChatAuthorAvatarView: UIView {
         } else {
             imageView.image = BlurHashCache.shared.image(for: author.blurhash)
         }
-        switch fallback {
-        case .monogram:
-            switch ContactAvatarView.monogram(for: author.name) {
-            case .initials(let text):
-                monogram.text = text
-            case .placeholder:
-                // No letters to work with — the gradient alone stands in, rather than the people glyph
-                // the full-size avatar draws, which is illegible at 24pt.
-                monogram.text = nil
-            }
-        case .personGlyph:
+        switch ContactAvatarView.monogram(for: author.name) {
+        case .initials(let text):
+            monogram.text = text
+        case .placeholder:
+            // No letters to work with — the gradient alone stands in, rather than the people glyph
+            // the full-size avatar draws, which is illegible at 24pt.
             monogram.text = nil
-            personGlyph.isHidden = imageView.image != nil
         }
         isAccessibilityElement = true
         accessibilityTraits = .image
@@ -134,7 +105,6 @@ final class ChatAuthorAvatarView: UIView {
     func reset() {
         imageView.image = nil
         monogram.text = nil
-        personGlyph.isHidden = true
         accessibilityLabel = nil
     }
 }
