@@ -24,8 +24,8 @@ struct MessageCapabilityTests {
         )
     }
 
-    private func resolve(_ message: ConversationMessage, policy: MessagePolicy = .default) -> Set<MessageCapability> {
-        MessageCapability.resolve(for: message, in: nil, as: me, policy: policy, now: now)
+    private func resolve(_ message: ConversationMessage, isMember: Bool = true, policy: MessagePolicy = .default) -> Set<MessageCapability> {
+        MessageCapability.resolve(for: message, in: nil, as: me, isMember: isMember, policy: policy, now: now)
     }
 
     @Test("My own confirmed text can be copied, edited, and deleted")
@@ -61,6 +61,16 @@ struct MessageCapabilityTests {
     @Test("Someone else's cash message can be reported — a payment is a thing a person did to you")
     func otherPersonsCashIsReportable() {
         #expect(resolve(cash(from: them)) == [.reply, .report])
+    }
+
+    @Test("A non-member reading a group can copy and report someone's text, but not reply")
+    func nonMemberCannotReplyToText() {
+        #expect(resolve(text("hi", from: them), isMember: false) == [.copy, .report])
+    }
+
+    @Test("A non-member reading a group can report a payment, but not reply to it")
+    func nonMemberCannotReplyToCash() {
+        #expect(resolve(cash(from: them), isMember: false) == [.report])
     }
 
     private func cash(from sender: UUID) -> ConversationMessage {
