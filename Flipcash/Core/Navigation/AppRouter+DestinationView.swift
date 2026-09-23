@@ -190,8 +190,13 @@ struct DestinationView: View {
             ConversationScreen(context: .tipDM(counterpart: userID))
                 .id(userID)
 
-        case .userProfile(let userID):
-            UserProfileScreen(userID: userID)
+        case .tipConversationForUserSendingCash(let userID):
+            // The profile's Send Cash: the same chat, with the send started on open.
+            ConversationScreen(context: .tipDM(counterpart: userID), startSendCash: true)
+                .id(userID)
+
+        case .userProfile(let userID, let origin):
+            UserProfileScreen(userID: userID, origin: origin)
                 .id(userID)
 
         case .chatProfile(let conversationID):

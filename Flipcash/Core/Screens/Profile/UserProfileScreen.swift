@@ -13,10 +13,11 @@ import FlipcashUI
 /// than over one chat: muting the DM with them, and blocking them outright.
 ///
 /// Reached from a tip DM's title and from a face in a group transcript. Both land here because both
-/// are the same question — who is this — so the actions are the person's either way: Block already
-/// works on the person globally, and the mute row silences the DM with them when one exists.
+/// are the same question — who is this — so Block works on the person either way. The mute row
+/// silences the DM with them, so it shows only when the profile was opened from that DM.
 struct UserProfileScreen: View {
     let userID: UserID
+    let origin: UserProfileOrigin
 
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(BlocklistController.self) private var blocklistController
@@ -27,7 +28,13 @@ struct UserProfileScreen: View {
         UserProfileContent(
             // Nil until a tip creates the chat server-side, and re-read on every pass, so a DM that
             // appears while the screen is open brings its mute row with it.
-            conversationID: sessionContainer.conversationController.tipDM(withUserID: userID)?.id,
+            conversationID: origin.showsMute
+                ? sessionContainer.conversationController.tipDM(withUserID: userID)?.id
+                : nil,
+            showsChatActions: origin.showsChatActions(
+                profileUserID: userID,
+                selfUserID: sessionContainer.conversationController.selfUserID
+            ),
             model: UserProfileViewModel(
                 userID: userID,
                 flipClient: sessionContainer.flipClient,
@@ -43,14 +50,21 @@ struct UserProfileScreen: View {
 }
 
 private struct UserProfileContent: View {
-    /// The DM to mute, or nil when there is no chat with this person yet.
+    /// The DM to mute, or nil when there is no chat with this person yet or the profile wasn't
+    /// opened from it.
     let conversationID: ConversationID?
+    /// Whether to offer Message and Send Cash — see ``UserProfileOrigin/showsChatActions(profileUserID:selfUserID:)``.
+    let showsChatActions: Bool
+
+    @Environment(AppRouter.self) private var router
+    @Environment(RatesController.self) private var ratesController
 
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
 
-    init(conversationID: ConversationID?, model: UserProfileViewModel) {
+    init(conversationID: ConversationID?, showsChatActions: Bool, model: UserProfileViewModel) {
         self.conversationID = conversationID
+        self.showsChatActions = showsChatActions
         _model = State(initialValue: model)
     }
 
@@ -66,54 +80,82 @@ private struct UserProfileContent: View {
                 )
                 .padding(.top, 40)
 
-                // The handle and join date read as a block under the name, so
-                // they group tighter than the screen's other spacing (node
-                // 9443:8928).
-                VStack(spacing: 5) {
-                    Text(model.displayName)
-                        .font(.appDisplaySmall)
-                        .foregroundStyle(.textMain)
-
-                    if let handle = model.handle {
-                        Text(handle)
-                            .font(.appTextSmall)
-                            .foregroundStyle(.textSecondary)
-                    }
-
-                    if let joined = model.joinedText {
-                        Text(joined)
-                            .font(.appTextSmall)
-                            .foregroundStyle(.textSecondary)
-                    }
-
-                    if let conversationID {
-                        ChatMuteStatusLabel(conversationID: conversationID)
-                    }
-                }
-
                 VStack(spacing: 0) {
-                    // Mute, then report, then block: the reversible and routine first, then the
-                    // one that asks someone else to look, then the one that ends the relationship.
-                    // Same shape as a group's profile, where leaving holds the last place.
-                    if let conversationID {
-                        ChatMuteRow(conversationID: conversationID, insets: rowInsets)
-                    }
-
-                    ReportRow(target: .user(model.userID), insets: rowInsets)
-
-                    Row(insets: rowInsets) {
-                        Image(systemName: "nosign")
-                            .frame(minWidth: 45)
-                        Text("Block")
+                    // The handle and join date read as a block under the name, so
+                    // they group tighter than the screen's other spacing (node
+                    // 9443:8928).
+                    VStack(spacing: 5) {
+                        Text(model.displayName)
+                            .font(.appDisplaySmall)
                             .foregroundStyle(.textMain)
-                        Spacer()
-                    } action: {
-                        dialogItem = blockDialog()
+
+                        if let handle = model.handle {
+                            Text(handle)
+                                .font(.appTextSmall)
+                                .foregroundStyle(.textSecondary)
+                        }
+
+                        if let joined = model.joinedText {
+                            Text(joined)
+                                .font(.appTextSmall)
+                                .foregroundStyle(.textSecondary)
+                        }
+
+                        if let conversationID {
+                            ChatMuteStatusLabel(conversationID: conversationID)
+                        }
                     }
-                    .accessibilityIdentifier("chat-block")
+
+                    if showsChatActions {
+                        // Centered between the join date and the first row's text, 25pt each side;
+                        // the row's own top inset supplies the lower 25.
+                        HStack(spacing: 0) {
+                            ProfileActionButton(title: "Message") {
+                                Image(systemName: "bubble.left.fill")
+                                    .font(.appTextLarge)
+                            } action: {
+                                router.push(.tipConversationForUser(model.userID))
+                            }
+                            .accessibilityIdentifier("profile-message")
+
+                            // Hidden for now; the destination and `startSendCash` stay wired, so
+                            // bringing it back is uncommenting this.
+                            // ProfileActionButton(title: "Send Cash") {
+                            //     // The chat's collapsed Send Cash style, so € and ¥ read the same here.
+                            //     Text(ratesController.balanceCurrency.compactSymbol)
+                            //         .font(.appTextXL)
+                            // } action: {
+                            //     router.push(.tipConversationForUserSendingCash(model.userID))
+                            // }
+                            // .accessibilityIdentifier("profile-send-cash")
+                        }
+                        .padding(.top, 25)
+                    }
+
+                    VStack(spacing: 0) {
+                        // Mute, then report, then block: the reversible and routine first, then the
+                        // one that asks someone else to look, then the one that ends the relationship.
+                        // Same shape as a group's profile, where leaving holds the last place.
+                        if let conversationID {
+                            ChatMuteRow(conversationID: conversationID, insets: rowInsets)
+                        }
+
+                        ReportRow(target: .user(model.userID), insets: rowInsets)
+
+                        Row(insets: rowInsets) {
+                            Image(systemName: "nosign")
+                                .frame(minWidth: 45)
+                            Text("Block")
+                                .foregroundStyle(.textMain)
+                            Spacer()
+                        } action: {
+                            dialogItem = blockDialog()
+                        }
+                        .accessibilityIdentifier("chat-block")
+                    }
+                    .font(.appDisplayXS)
+                    .padding(.top, showsChatActions ? 0 : 40)
                 }
-                .font(.appDisplayXS)
-                .padding(.top, 24)
 
                 Spacer()
             }
@@ -139,6 +181,65 @@ private struct UserProfileContent: View {
             }
             DialogAction.cancel()
         }
+    }
+}
+
+/// Where a person's profile was opened from.
+nonisolated enum UserProfileOrigin: Hashable {
+    /// The title or card of the DM with this person.
+    case directMessage
+    /// Their face in a group transcript.
+    case groupMember
+
+    /// Whether the profile offers Message and Send Cash: not from the DM they would lead back
+    /// into, and never on the viewer's own profile.
+    func showsChatActions(profileUserID: UserID, selfUserID: UserID) -> Bool {
+        guard profileUserID != selfUserID else { return false }
+        switch self {
+        case .directMessage: return false
+        case .groupMember:   return true
+        }
+    }
+
+    /// Whether the profile offers muting the DM with this person: only from that DM, since from a
+    /// group the row would read as muting the group.
+    var showsMute: Bool {
+        switch self {
+        case .directMessage: return true
+        case .groupMember:   return false
+        }
+    }
+}
+
+/// A round, borderless icon over its label — one of the profile's Message / Send Cash pair.
+private struct ProfileActionButton<Glyph: View>: View {
+    let title: String
+    @ViewBuilder let glyph: Glyph
+    let action: () -> Void
+
+    private var diameter: CGFloat { 45 }
+    /// The column each button owns, so the pair keeps fixed centers when Send Cash returns.
+    private var columnWidth: CGFloat { 100 }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                glyph
+                    .foregroundStyle(.textMain)
+                    .frame(width: diameter, height: diameter)
+                    .background(Circle().fill(.backgroundSecondary))
+
+                Text(title)
+                    .font(.appTextSmall)
+                    .foregroundStyle(.textSecondary)
+            }
+            .frame(width: columnWidth)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(.isButton)
     }
 }
 

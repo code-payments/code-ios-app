@@ -52,6 +52,10 @@ struct ConversationScreen: View {
     /// post-tip navigation; every other entry point opens keyboard-closed.
     var openKeyboard: Bool = false
 
+    /// Start Send Cash once on open, as though its button had been tapped. Set only by the
+    /// profile's Send Cash; every other entry point waits for the tap.
+    var startSendCash: Bool = false
+
     @Environment(ConversationController.self) private var conversationController
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
@@ -84,6 +88,9 @@ struct ConversationScreen: View {
     /// card hands one out (node 10127:118280).
     @State private var isInviting = false
     @State private var messageReport: MessageReportRequest?
+    /// Whether `startSendCash` has been acted on, so a re-render or a return from the sheet it
+    /// opened doesn't start it again.
+    @State private var didStartSendCash = false
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -194,13 +201,13 @@ struct ConversationScreen: View {
             return { router.push(.chatProfile(group.id)) }
         }
         guard let userID = tipCounterpart?.userID else { return nil }
-        return { router.push(.userProfile(userID)) }
+        return { router.push(.userProfile(userID, origin: .directMessage)) }
     }
 
     /// Tapping a face in the gutter opens that person's profile — the same screen the counterpart's
     /// own card opens in a DM.
     private func openAuthorProfile(_ userID: UserID) {
-        router.push(.userProfile(userID))
+        router.push(.userProfile(userID, origin: .groupMember))
     }
 
     /// Tapping the title opens the counterpart's contact card: their address-book
@@ -716,6 +723,11 @@ struct ConversationScreen: View {
             syncCoordinator(id)
             restoreDraft(id)
         }
+        .onChange(of: isReadyToStartSendCash, initial: true) { _, ready in
+            guard ready else { return }
+            didStartSendCash = true
+            sendCash()
+        }
         .onChange(of: composer.draft) { _, _ in saveDraft() }
         // Mode rather than `replyTarget` alone: it also covers the edit transitions, where what is
         // worth saving swaps between the field and the draft the edit displaced.
@@ -894,6 +906,13 @@ struct ConversationScreen: View {
             }
             DialogAction.cancel()
         }
+    }
+
+    /// Whether the open-time Send Cash can run and take the branch a tap would. Before the chat
+    /// exists that waits on the fee: `sendCash()` falls through to the amount screen without it.
+    private var isReadyToStartSendCash: Bool {
+        startSendCash && !didStartSendCash && sendTarget != nil
+            && (chatExists || startChattingFee != nil)
     }
 
     private func sendCash() {
