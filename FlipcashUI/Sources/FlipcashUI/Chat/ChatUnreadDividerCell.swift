@@ -20,7 +20,7 @@ public final class ChatUnreadDividerCell: UICollectionViewCell {
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
-        label.font = .default(size: 12)
+        label.font = .appTextCaption
         label.textColor = UIColor(Color.textSecondary)
         label.textAlignment = .center
         label.setContentHuggingPriority(.required, for: .horizontal)
