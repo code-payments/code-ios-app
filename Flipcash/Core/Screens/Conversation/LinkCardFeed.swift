@@ -31,6 +31,17 @@ final class LinkCardFeed: LinkCardSource {
     private let resolver: LinkCardResolver
     private let memo: LinkCardMemo
     private let claims: CashLinkClaimLog
+    private let groups: any GroupLinkPresenting
+
+    /// What each group link's lookup fetched, by resolution key.
+    ///
+    /// Held as facts, not as a finished card, because the picture's bytes land after the lookup
+    /// does. ``known(_:)`` presents from here on every paint, so a card shows them once they have.
+    private var groupFacts: [String: GroupLinkFacts] = [:]
+
+    /// Group keys whose presentation is being observed, so each is watched once however many rows
+    /// show it.
+    private var observedGroups: Set<String> = []
 
     /// Who is listening to each key. A link quoted by two rows has two continuations and one query.
     private var listeners: [String: [UUID: AsyncStream<LinkCard.State>.Continuation]] = [:]
@@ -51,10 +62,11 @@ final class LinkCardFeed: LinkCardSource {
     private var claimRefreshTask: Task<Void, Never>?
     private var foregroundTask: Task<Void, Never>?
 
-    init(resolver: LinkCardResolver, memo: LinkCardMemo, claims: CashLinkClaimLog) {
+    init(resolver: LinkCardResolver, memo: LinkCardMemo, claims: CashLinkClaimLog, groups: any GroupLinkPresenting) {
         self.resolver = resolver
         self.memo = memo
         self.claims = claims
+        self.groups = groups
         observeSettledClaims()
         startClaimableRefresh()
     }
@@ -67,7 +79,12 @@ final class LinkCardFeed: LinkCardSource {
     // MARK: - LinkCardSource -
 
     func known(_ card: LinkCard) -> LinkCard.State? {
-        memo.states[card.resolutionKey]
+        switch card {
+        case .cash, .token:
+            memo.states[card.resolutionKey]
+        case .group:
+            groupFacts[card.resolutionKey].map { .group(.resolved(groups.present($0))) }
+        }
     }
 
     func states(for card: LinkCard) -> AsyncStream<LinkCard.State> {
@@ -93,22 +110,66 @@ final class LinkCardFeed: LinkCardSource {
     private func ask(_ card: LinkCard) {
         let key = card.resolutionKey
         let generation = generations[key, default: 0]
-        Task { [resolver] in
-            let state = await resolver.resolve(card)
-            deliver(state, for: key, generation: generation)
+        switch card {
+        case .cash, .token:
+            Task { [resolver] in
+                let state = await resolver.resolve(card)
+                deliver(state, for: key, generation: generation)
+            }
+        case .group(let group):
+            Task { [resolver] in
+                let facts = await resolver.group(group.chatID)
+                deliverGroup(facts, for: key)
+            }
         }
     }
 
-    // Where every answer lands: into the memo, so the next card to show this link paints it without
-    // shimmering, and out to whoever is listening. Only a resolved answer is remembered — a failure
-    // is forgotten so the next appearance asks again, which is what Android does and the reason
-    // neither platform leaves a card dead for the visit after one bad moment offline.
+    // Where every cash and token answer lands: into the memo, so the next card to show this link
+    // paints it without shimmering, and out to whoever is listening. Only a resolved answer is
+    // remembered — a failure is forgotten so the next appearance asks again, which is what Android
+    // does and the reason neither platform leaves a card dead for the visit after one bad moment
+    // offline.
     private func deliver(_ state: LinkCard.State, for key: String, generation: Int) {
         guard generation == generations[key, default: 0] else { return }
         if state.isResolved {
             memo.record(state, for: key)
         }
         listeners[key]?.values.forEach { $0.yield(state) }
+    }
+
+    // A group's facts land here rather than in the memo, and are presented per listener. A failed
+    // lookup is forgotten like any other: the card shows unavailable, and the next appearance asks
+    // again.
+    private func deliverGroup(_ facts: GroupLinkFacts?, for key: String) {
+        guard let facts else {
+            listeners[key]?.values.forEach { $0.yield(.group(.unavailable)) }
+            return
+        }
+        groupFacts[key] = facts
+        let card = groups.present(facts)
+        listeners[key]?.values.forEach { $0.yield(.group(.resolved(card))) }
+        observeGroup(key)
+        Task { [groups] in await groups.loadPicture(for: facts) }
+    }
+
+    // Re-presents a group card when the picture's bytes land, and yields it to whoever is still
+    // listening. Re-arms once per change, and lapses once no row shows the link.
+    private func observeGroup(_ key: String) {
+        guard !observedGroups.contains(key), let facts = groupFacts[key] else { return }
+        observedGroups.insert(key)
+
+        withObservationTracking {
+            _ = groups.present(facts)
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.observedGroups.remove(key)
+                guard self.listeners[key] != nil, let facts = self.groupFacts[key] else { return }
+                let card = self.groups.present(facts)
+                self.listeners[key]?.values.forEach { $0.yield(.group(.resolved(card))) }
+                self.observeGroup(key)
+            }
+        }
     }
 
     private func unsubscribe(_ id: UUID, from key: String) {

@@ -72,6 +72,14 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// row of one, including the viewer's own and a row whose sender no roster can name, so the
     /// avatar gutter is a property of the transcript rather than of whichever rows drew a face.
     public let isAttributedTranscript: Bool
+    /// Which piece of its message this row draws, for a message split into rows around its link
+    /// card, or nil for a row that is the whole of its message.
+    public let part: ChatMessagePart?
+
+    /// The id of the message this row draws some or all of. Every action that means the message
+    /// rather than the row — the menu, a reply swipe, retry, a jump to a quoted original — goes by
+    /// this, so a split message answers the same from any of its rows.
+    public var messageID: String { part?.messageID ?? id }
 
     /// Whether this row draws as bare, enlarged emoji instead of a bubble: an emoji-only text body
     /// with nothing else in the bubble to hold. A reply's quote panel and a link row's preview both
@@ -86,14 +94,12 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
 
     /// Whether this row draws as the link card on its own, with no bubble behind it.
     ///
-    /// The card is already a surface with its own fill and its own rounded shape, so a bubble
-    /// behind it draws a second, slightly larger card around the first. A quote and the "Edited"
-    /// marker belong to the message rather than to the link, and either one keeps the chrome — as
-    /// does anything the sender wrote around the link.
+    /// The card is already a surface with its own rounded shape, so a bubble behind it would draw
+    /// a second, slightly larger card around the first. The transcript gives a carded link a row of
+    /// its own and the sender's words the rows around it, so a row that carries a card is the card —
+    /// a reply or an edited message included, whose quote and "Edited" marker stand outside it.
     public var rendersAsBareLinkCard: Bool {
-        guard case .text(let text) = content, let card = linkPreview?.card else { return false }
-        guard quote == nil, !isEdited else { return false }
-        return LinkCard.isTheWholeBody(card.range, of: text)
+        linkPreview?.card != nil
     }
 
     public init(
@@ -111,7 +117,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         actions: [MessageCapability] = [],
         quote: ChatQuote? = nil,
         author: ChatAuthor? = nil,
-        isAttributedTranscript: Bool = false
+        isAttributedTranscript: Bool = false,
+        part: ChatMessagePart? = nil
     ) {
         self.id = id
         self.content = content
@@ -128,6 +135,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.quote = quote
         self.author = author
         self.isAttributedTranscript = isAttributedTranscript
+        self.part = part
     }
 
     /// Convenience for text rows.
@@ -146,7 +154,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         actions: [MessageCapability] = [],
         quote: ChatQuote? = nil,
         author: ChatAuthor? = nil,
-        isAttributedTranscript: Bool = false
+        isAttributedTranscript: Bool = false,
+        part: ChatMessagePart? = nil
     ) {
         self.init(
             id: id,
@@ -163,9 +172,36 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             actions: actions,
             quote: quote,
             author: author,
-            isAttributedTranscript: isAttributedTranscript
+            isAttributedTranscript: isAttributedTranscript,
+            part: part
         )
     }
+}
+
+/// One row of a message the transcript split around its link card: the text before the link, the
+/// card, or the text after it.
+public struct ChatMessagePart: Hashable, Sendable, Codable {
+
+    public enum Kind: String, Hashable, Sendable, Codable {
+        case leadingText
+        case card
+        case trailingText
+    }
+
+    /// The stable id of the message the row belongs to.
+    public let messageID: String
+    public let kind: Kind
+    /// The message's whole text, so Copy from any of its rows copies what the sender wrote.
+    public let messageText: String
+
+    public init(messageID: String, kind: Kind, messageText: String) {
+        self.messageID = messageID
+        self.kind = kind
+        self.messageText = messageText
+    }
+
+    /// The row's id: the message's, qualified by the part, so every row of one message is unique.
+    public var rowID: String { "\(messageID)#\(kind.rawValue)" }
 }
 
 /// The writer of an incoming row in a transcript that names its authors — a group chat. Display

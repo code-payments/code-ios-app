@@ -17,17 +17,19 @@ public enum LinkCard: Hashable, Sendable, Codable {
 
     case cash(Cash)
     case token(Token)
+    case group(Group)
 
     /// The URL the card stands for, jump wrapper already unwrapped. Tapping the card opens this.
     public var url: URL {
         switch self {
         case .cash(let cash): cash.url
         case .token(let token): token.url
+        case .group(let group): group.url
         }
     }
 
-    /// The span in the message text the card was built from. The bubble cuts this out of the body,
-    /// so the card is the link rather than an ornament above it.
+    /// The span in the message text the card was built from. The transcript splits the message
+    /// around it, so the card is the link rather than an ornament beside it.
     ///
     /// It is the *detected* span, not a search for `url`: a jump-wrapped link's text is the
     /// wrapper and its `url` is the target, so matching on the URL would leave the wrapper behind.
@@ -35,23 +37,26 @@ public enum LinkCard: Hashable, Sendable, Codable {
         switch self {
         case .cash(let cash): cash.range
         case .token(let token): token.range
+        case .group(let group): group.range
         }
     }
 
-    /// How far a card's lookup got, kept per kind so the two cannot be handed to each other.
+    /// How far a card's lookup got, kept per kind so no kind can be handed another's answer.
     ///
     /// It does not live on the card. A card is the link's identity — url, entropy or mint, span —
     /// and the view resolves it, so a lookup landing cannot change what the transcript diffed.
     public enum State: Hashable, Sendable, Codable {
         case cash(Cash.State)
         case token(Token.State)
+        case group(Group.State)
 
-        /// Whether the lookup came back with something. A failure of any kind is `unresolved`,
-        /// which is the one answer not worth remembering — the next look asks again.
+        /// Whether the lookup came back with something. A failure of any kind is `unresolved` (or
+        /// `unavailable` for a group), which is the one answer not worth remembering — the next
+        /// look asks again.
         public var isResolved: Bool {
             switch self {
-            case .cash(.resolved), .token(.resolved):     true
-            case .cash(.unresolved), .token(.unresolved): false
+            case .cash(.resolved), .token(.resolved), .group(.resolved):  true
+            case .cash(.unresolved), .token(.unresolved), .group(.unavailable): false
             }
         }
     }
@@ -180,43 +185,86 @@ public enum LinkCard: Hashable, Sendable, Codable {
     }
 }
 
+// MARK: - Group -
+
+extension LinkCard {
+
+    /// A group chat's invite link, `app.flipcash.com/chat/{uuid}`.
+    public struct Group: Hashable, Sendable, Codable {
+
+        public let url: URL
+        /// The chat id's bytes. Stored raw because `ConversationID` is not `Codable`.
+        public let chatIDData: Data
+        /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
+        public let location: Int
+        public let length: Int
+
+        public var range: NSRange { NSRange(location: location, length: length) }
+
+        /// The chat the link invites to.
+        public var chatID: ConversationID { ConversationID(data: chatIDData) }
+
+        public init(url: URL, chatID: ConversationID, range: NSRange) {
+            self.url = url
+            self.chatIDData = chatID.data
+            self.location = range.location
+            self.length = range.length
+        }
+
+        public enum State: Hashable, Sendable, Codable {
+            /// No group to show: the lookup failed, or the chat is gone. Not remembered, so the
+            /// next appearance asks again.
+            case unavailable
+            case resolved(Resolved)
+        }
+
+        /// The card's contents, already worded for display.
+        ///
+        /// Built from the chat's public record only — title, picture, member count, rules — and
+        /// never from its roster, which is private to members whatever the group's mode.
+        public struct Resolved: Hashable, Sendable, Codable {
+            public let title: String
+            /// "1 person" / "12 people".
+            public let memberCount: String
+            /// Stable identity for the avatar (monogram colour and image cache key).
+            public let avatarID: String
+            /// The chat picture's thumbnail bytes, once loaded.
+            public let imageData: Data?
+            /// The chat picture's BlurHash: the avatar's preview and the band's tint.
+            public let blurHash: String?
+            /// The entry rule as the chat's own head card states it, or nil when it states none.
+            public let requirement: String?
+
+            public init(
+                title: String,
+                memberCount: String,
+                avatarID: String,
+                imageData: Data?,
+                blurHash: String?,
+                requirement: String?
+            ) {
+                self.title = title
+                self.memberCount = memberCount
+                self.avatarID = avatarID
+                self.imageData = imageData
+                self.blurHash = blurHash
+                self.requirement = requirement
+            }
+        }
+    }
+}
+
 // MARK: - The span the card takes -
 
 nonisolated extension LinkCard {
 
-    /// The span to remove for a carded link, the gap it leaves included, or nil if `text` cannot
-    /// hold the span — a row carrying a stale preview should keep its text rather than trap.
-    ///
-    /// Cutting a word out of a sentence otherwise strands both of its spaces: "check example.com
-    /// out" would render as "check  out". So the whitespace after the link goes with it when the
-    /// link sits between two, and the whitespace before it goes when the link ends the message.
-    /// The separator is whatever was there, which is how a link alone on its line takes the line
-    /// with it rather than leaving a blank one.
-    public static func cutRange(for link: NSRange, in text: NSString) -> NSRange? {
-        guard link.length > 0, link.location >= 0 else { return nil }
-        var start = link.location
-        var end = link.location + link.length
-        guard end <= text.length else { return nil }
-
-        let whitespace = CharacterSet.whitespacesAndNewlines
-        func isGap(_ index: Int) -> Bool {
-            guard let scalar = Unicode.Scalar(text.character(at: index)) else { return false }
-            return whitespace.contains(scalar)
+    /// The same card over `range` — for the row that draws the card alone, whose text is the link
+    /// and nothing else.
+    public func relocated(to range: NSRange) -> LinkCard {
+        switch self {
+        case .cash(let cash):   .cash(Cash(url: cash.url, entropy: cash.entropy, range: range))
+        case .token(let token): .token(Token(url: token.url, mint: token.mint, range: range))
+        case .group(let group): .group(Group(url: group.url, chatID: group.chatID, range: range))
         }
-
-        if end < text.length, isGap(end), start == 0 || isGap(start - 1) {
-            end += 1
-        } else if start > 0, end == text.length, isGap(start - 1) {
-            start -= 1
-        }
-        return NSRange(location: start, length: end - start)
-    }
-
-    /// Whether the card's link is the whole of `text` — nothing the sender wrote survives the cut.
-    /// A stale span that ``cutRange(for:in:)`` refuses leaves the text intact, so it answers false.
-    public static func isTheWholeBody(_ link: NSRange, of text: String) -> Bool {
-        let text = text as NSString
-        guard let cut = cutRange(for: link, in: text) else { return false }
-        return cut.length >= text.length
     }
 }

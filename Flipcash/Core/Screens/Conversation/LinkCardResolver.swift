@@ -13,9 +13,10 @@ import FlipcashCore
 /// already makes exactly this fetch before it moves any funds. So there is no proto change and no
 /// backend work here; there is a fetch and a hard stop. Nothing on this path may call
 /// `receiveCashLink`, because that claims the link, and a card that claims what it renders would
-/// empty a link by scrolling past it. A token card asks `GetMint` for branding and nothing else.
+/// empty a link by scrolling past it. A token card asks `GetMint` for branding and nothing else. A
+/// group card asks `GetChat` for the chat's public record, redacted, and never joins.
 ///
-/// The two kinds memoize in separate maps so an entropy and a mint address cannot collide on one
+/// The kinds memoize in separate maps so an entropy and a mint address cannot collide on one
 /// key, and each kind's lookup is the only thing that can write its own side.
 ///
 /// Failure of any kind — offline, timeout, malformed entropy, an unknown mint, a kill switch —
@@ -27,6 +28,7 @@ actor LinkCardResolver {
 
     private let cashLookup: @Sendable (String) async throws -> LinkCard.Cash.Resolved
     private let mintLookup: @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved
+    private let groupLookup: @Sendable (ConversationID) async throws -> GroupLinkFacts
 
     /// The query per key, not the answer.
     ///
@@ -41,21 +43,45 @@ actor LinkCardResolver {
     /// still finishes for whoever asks next.
     private var cashQueries: [String: Task<LinkCard.Cash.State, Never>] = [:]
     private var tokenQueries: [PublicKey: Task<LinkCard.Token.State, Never>] = [:]
+    private var groupQueries: [ConversationID: Task<GroupLinkFacts?, Never>] = [:]
 
     init(
         cashLookup: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved,
-        mintLookup: @escaping @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved
+        mintLookup: @escaping @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved,
+        groupLookup: @escaping @Sendable (ConversationID) async throws -> GroupLinkFacts
     ) {
         self.cashLookup = cashLookup
         self.mintLookup = mintLookup
+        self.groupLookup = groupLookup
     }
 
-    /// How far `card`'s lookup got: resolved, or unresolved if it failed.
+    /// How far a cash or token card's lookup got: resolved, or unresolved if it failed.
+    ///
+    /// A group card is not answered here. What it shows depends on who is looking — membership and
+    /// holdings, both main-actor state — so ``LinkCardFeed`` presents it from ``group(_:)`` instead.
     func resolve(_ card: LinkCard) async -> LinkCard.State {
         switch card {
-        case .cash(let cash):   .cash(await cashState(for: cash.entropy))
-        case .token(let token): .token(await tokenState(for: token.mint))
+        case .cash(let cash):   return .cash(await cashState(for: cash.entropy))
+        case .token(let token): return .token(await tokenState(for: token.mint))
+        case .group:
+            assertionFailure("A group card resolves through group(_:), not resolve(_:)")
+            return .group(.unavailable)
         }
+    }
+
+    /// The group's public record, or nil if the lookup failed or the chat is gone.
+    func group(_ chatID: ConversationID) async -> GroupLinkFacts? {
+        if let query = groupQueries[chatID] { return await query.value }
+
+        let lookup = groupLookup
+        let query = Task<GroupLinkFacts?, Never> {
+            try? await lookup(chatID)
+        }
+        groupQueries[chatID] = query
+
+        let facts = await query.value
+        if facts == nil, groupQueries[chatID] == query { groupQueries[chatID] = nil }
+        return facts
     }
 
     /// Forgets what a cash link's lookup answered, so the next ask goes back to the server.
@@ -113,6 +139,7 @@ nonisolated extension LinkCard {
         switch self {
         case .cash(let cash): Self.cashKey(entropy: cash.entropy)
         case .token(let token): "token:\(token.mint.base58)"
+        case .group(let group): "group:\(group.chatID.description)"
         }
     }
 
@@ -138,6 +165,18 @@ nonisolated protocol MintMetadataReading: Sendable {
 }
 
 extension Client: MintMetadataReading {}
+
+/// The one call a group card needs: a chat's public record. Read-only like the others — a card
+/// renders, it does not join — and asked with a view mode, so the card's read can be redacted.
+nonisolated protocol GroupChatReading: Sendable {
+    func getChat(owner: KeyPair, conversationID: ConversationID, viewMode: ConversationViewMode) async throws -> Conversation
+}
+
+extension FlipClient: GroupChatReading {}
+
+/// A chat id that names something other than a group. An invite link only ever names a group, so
+/// anything else has no card to show.
+private struct NotAGroup: Error {}
 
 extension LinkCardResolver {
 
@@ -185,6 +224,34 @@ extension LinkCardResolver {
                 tokenName: mint.name,
                 iconURL: mint.imageURL
             )
+        }
+    }
+
+    /// The group query itself: `GetChat`, redacted, plus the name of the token its entry rule is
+    /// held in.
+    ///
+    /// Redacted because the card shows no message, so none is fetched. The gating check for this
+    /// card: the `GetChat` contract returns a group's record — title, picture, rules, roster
+    /// summary — to every registered user whatever the mode, and the `.chat` deep link already
+    /// reads it this way for a non-member.
+    ///
+    /// A rule naming a token whose metadata cannot be fetched fails the lookup, as a cash card
+    /// with no mint metadata does: a card that states a requirement in a token it cannot name
+    /// says less than no card.
+    static func groupLookup(
+        chats: any GroupChatReading,
+        mints: any MintMetadataReading,
+        viewer: KeyPair
+    ) -> @Sendable (ConversationID) async throws -> GroupLinkFacts {
+        { chatID in
+            let conversation = try await chats.getChat(owner: viewer, conversationID: chatID, viewMode: .redacted)
+            guard conversation.type == .group else { throw NotAGroup() }
+
+            var mintName: String?
+            if let mint = headline(for: conversation.rules?.listener ?? [])?.mint, mint != .usdf {
+                mintName = try await mints.fetchMint(mint: mint).name
+            }
+            return GroupLinkFacts(conversation: conversation, headlineMintName: mintName)
         }
     }
 

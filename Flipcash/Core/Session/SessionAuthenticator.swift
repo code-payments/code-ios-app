@@ -539,7 +539,8 @@ final class SessionContainer {
     @ObservationIgnored private(set) lazy var linkCardFeed = LinkCardFeed(
         resolver: linkCardResolver,
         memo: linkCardMemo,
-        claims: session.cashLinkClaims
+        claims: session.cashLinkClaims,
+        groups: GroupLinkPresenter(avatars: profileAvatars)
     )
 
     /// Lazy so it can capture the container it reads its dependencies from;
@@ -597,7 +598,8 @@ final class SessionContainer {
 
         self.linkCardResolver = LinkCardResolver(
             cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
-            mintLookup: LinkCardResolver.mintLookup(reader: client)
+            mintLookup: LinkCardResolver.mintLookup(reader: client),
+            groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner)
         )
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {

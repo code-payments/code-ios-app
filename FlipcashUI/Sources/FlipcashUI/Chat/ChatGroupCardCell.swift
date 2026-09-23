@@ -26,7 +26,7 @@ public final class ChatGroupCardCell: UICollectionViewCell {
 }
 
 /// The card body, per node 10125:19157.
-private struct GroupCardView: View {
+struct GroupCardView: View {
 
     let card: ChatGroupCard
     /// Opens the chat's own profile; nil leaves the card inert.
@@ -121,7 +121,8 @@ private struct GroupCardView: View {
 
     /// Node 10125:19157 — a 210×228 card, its column starting 31pt down, 13pt under the 80pt
     /// picture and the requirement line centred at 177pt.
-    private enum Layout {
+    /// Internal so the group invite link card sizes itself from the same values.
+    enum Layout {
         static let width: CGFloat = 210
         static let minHeight: CGFloat = 228
         static let radius: CGFloat = 12

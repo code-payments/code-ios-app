@@ -1,0 +1,89 @@
+{
+  "algorithm": "blurhash-average-color",
+  "note": "The DC component of a BlurHash: characters 2-5 as base-83 -> 0xRRGGBB, sRGB bytes, no linearisation. `average` is null when the hash is malformed (shorter than 6, a character outside the alphabet, or a length other than 4 + 2*nx*ny for the size flag in character 0). Reference: gen_blurhash_average.py.",
+  "vectors": [
+    {
+      "name": "reference-1",
+      "blurHash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+      "average": {
+        "red": 151,
+        "green": 150,
+        "blue": 149
+      }
+    },
+    {
+      "name": "reference-2",
+      "blurHash": "LGF5]+Yk^6#M@-5c,1J5@[or[Q6.",
+      "average": {
+        "red": 131,
+        "green": 126,
+        "blue": 152
+      }
+    },
+    {
+      "name": "reference-3",
+      "blurHash": "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+      "average": {
+        "red": 221,
+        "green": 217,
+        "blue": 213
+      }
+    },
+    {
+      "name": "reference-4",
+      "blurHash": "LKO2?U%2Tw=w]~RBVZRi};RPxuwH",
+      "average": {
+        "red": 209,
+        "green": 178,
+        "blue": 163
+      }
+    },
+    {
+      "name": "one-component-black",
+      "blurHash": "000000",
+      "average": {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+      }
+    },
+    {
+      "name": "one-component-white",
+      "blurHash": "00TSUA",
+      "average": {
+        "red": 255,
+        "green": 255,
+        "blue": 255
+      }
+    },
+    {
+      "name": "one-component-mixed",
+      "blurHash": "006wgO",
+      "average": {
+        "red": 58,
+        "green": 127,
+        "blue": 194
+      }
+    },
+    {
+      "name": "empty",
+      "blurHash": "",
+      "average": null
+    },
+    {
+      "name": "too-short",
+      "blurHash": "LEHV6",
+      "average": null
+    },
+    {
+      "name": "length-disagrees-with-size-flag",
+      "blurHash": "LEHV6nWB2yk8pyo0adR*.7kCMdn",
+      "average": null
+    },
+    {
+      "name": "out-of-alphabet",
+      "blurHash": "LEHV6nWB2yk8pyo0adR*.7kCMdéj",
+      "average": null
+    }
+  ]
+}
