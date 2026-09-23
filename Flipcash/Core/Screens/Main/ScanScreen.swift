@@ -42,6 +42,15 @@ private struct ScanScreenContent: View {
         CameraPrompt(status: cameraAuthorizer.status, cameraEnabled: preferences.cameraEnabled)
     }
     
+    /// How far the gallery button sits in from the trailing edge — the same margin
+    /// the rest of the app's content uses.
+    private static let glyphTrailingMargin: CGFloat = 20
+
+    /// The gap between the top safe area and the gallery button. Measured from the
+    /// inset rather than the screen edge: the camera preview ignores the safe area
+    /// and runs under the status bar, but the button must stay clear of it.
+    private static let glyphTopGap: CGFloat = 12
+
     private let sessionContainer: SessionContainer
 
     // MARK: - Init -
@@ -81,11 +90,9 @@ private struct ScanScreenContent: View {
                 // Outside the `cameraPrompt` branch on purpose: a photo can be scanned
                 // whether or not the camera is available, so the glyph outlives the viewport.
                 GalleryScanButton(selection: $pickedItem)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    // `HomeTabBar.height` is the floating pill; 16pt clears it, and the
-                    // 20pt leading inset matches the pill's own margin.
-                    .padding(.leading, 20)
-                    .padding(.bottom, HomeTabBar.height + 16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(.trailing, Self.glyphTrailingMargin)
+                    .padding(.top, Self.glyphTopGap)
                     .zIndex(2)
                     .transition(.opacity)
             }
