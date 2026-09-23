@@ -242,7 +242,8 @@ nonisolated struct GalleryScanner {
     /// so the gallery, the camera, and the share sheet all answer to one allowlist.
     private static func detectQR(in image: CGImage) -> URL? {
         let scaled = downscaled(image, to: maximumQRSide)
-        let payloads = visionPayloads(in: scaled) ?? detectorPayloads(in: scaled)
+        let vision = visionPayloads(in: scaled) ?? []
+        let payloads = vision.isEmpty ? detectorPayloads(in: scaled) : vision
         return payloads.lazy.compactMap { URL(string: $0) }.first
     }
 
@@ -275,8 +276,11 @@ nonisolated struct GalleryScanner {
         return context.makeImage() ?? image
     }
 
-    /// Vision's read, or `nil` when Vision could not run at all — an empty array means it
-    /// ran and saw no QR, which is an answer and needs no second opinion.
+    /// Vision's read, or `nil` when Vision could not run at all.
+    ///
+    /// An empty array is not the second opinion it looks like: where Vision has no inference
+    /// context it can return successfully having seen nothing, rather than throwing. So empty
+    /// is treated the same as `nil` by the caller and falls through to ``detectorPayloads(in:)``.
     private static func visionPayloads(in image: CGImage) -> [String]? {
         let request = VNDetectBarcodesRequest()
         request.symbologies = [.qr]
@@ -291,9 +295,14 @@ nonisolated struct GalleryScanner {
         return (request.results ?? []).compactMap { $0.payloadStringValue }
     }
 
-    /// The fallback for when Vision cannot start: weaker on codes that are small or at an
-    /// angle, but it needs no inference context, which is the one thing Vision cannot get on
-    /// the simulator. Without it every QR test here would be testing the failure path.
+    /// The fallback for when Vision cannot start, or starts and reads nothing: weaker on codes
+    /// that are small or at an angle, but it needs no inference context, which is the one thing
+    /// Vision cannot get on the simulator. Without it every QR test here would be testing the
+    /// failure path.
+    ///
+    /// Reached on any empty Vision read, including a genuine one over an image holding no QR.
+    /// That costs a second pass on the no-QR path, which is free in practice: it runs inside
+    /// ``race(_:in:until:)`` against the crop ladder, and the ladder outlasts it by seconds.
     private static func detectorPayloads(in image: CGImage) -> [String] {
         let detector = CIDetector(
             ofType: CIDetectorTypeQRCode,

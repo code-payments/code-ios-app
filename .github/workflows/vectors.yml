@@ -65,12 +65,12 @@ jobs:
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -quiet
 
-      # The app target's own vector suites — chat drafts and link detection — assert against types
+      # The app target's own vector suites -- chat drafts and link detection -- assert against types
       # only the app has, so they cannot move into either package above. Heavier than the two
-      # package schemes because it builds the app, and the first time this target runs in CI.
+      # package schemes because it builds the app.
       # Split so the two failure classes are separable and each stays legible:
       # the build runs -quiet (unquieted it prints every compile command, which
-      # on its own pushed this job past its timeout), while the test run does
+      # on its own pushed this job past its timeout), while the test runs do
       # not, because -quiet there reduces a failure to "Test case ... failed"
       # with no assertion text to act on.
       - name: App vectors (build)
@@ -80,21 +80,47 @@ jobs:
             -only-testing:FlipcashTests \
             -quiet
 
+      # Two runs of the one built target, because they answer different questions.
+      #
+      # This is the gate: the two suites that read the synced copies of
+      # `chat_draft.json` and `link_detection.json`. Those fixtures are canonical and
+      # code-android-app asserts against the same ones, so a failure here is contract
+      # drift between the platforms -- exactly what this job exists to stop.
       - name: App vectors
         run: |
           xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
-            -only-testing:FlipcashTests \
+            -only-testing:FlipcashTests/ChatDraftVectorTests \
+            -only-testing:FlipcashTests/LinkCardClassifierTests \
             -resultBundlePath "${{ runner.temp }}/AppVectors.xcresult"
 
-      # Dropping -quiet above was meant to leave assertion text in the log, but it does not:
+      # The rest of the target reports but does not gate. It holds timing-sensitive
+      # suites -- typing coalescence, the stress suites, the debounce tests -- that are
+      # marginal on a shared runner: of eight runs before this split, five failed on one
+      # of them and it was a different one almost every time. None of them can show
+      # cross-platform drift, so blocking on them stopped merges without protecting the
+      # contract. Read the result bundle when this step is red; it is real signal, just
+      # not a reason to hold a PR.
+      - name: App suite (advisory)
+        id: app_suite
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -scheme Flipcash \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:FlipcashTests \
+            -resultBundlePath "${{ runner.temp }}/AppSuite.xcresult"
+
       # Swift Testing's Issue.record messages reach the result bundle and nowhere else, so a
-      # failure here otherwise has to be reconstructed from "Test case ... failed" lines.
-      # Four GalleryScannerTests failures were triaged that way and one stayed unexplained.
-      - name: App vectors result bundle
-        if: failure()
+      # failure otherwise has to be reconstructed from "Test case ... failed" lines. Four
+      # GalleryScannerTests failures were triaged that way and one stayed unexplained.
+      # Uploaded for the advisory step too, which by design leaves the job green.
+      - name: App result bundles
+        if: failure() || steps.app_suite.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: app-vectors-xcresult
-          path: ${{ runner.temp }}/AppVectors.xcresult
+          path: |
+            ${{ runner.temp }}/AppVectors.xcresult
+            ${{ runner.temp }}/AppSuite.xcresult
+          if-no-files-found: ignore
           retention-days: 7

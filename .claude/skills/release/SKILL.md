@@ -117,7 +117,7 @@ The `AllTargets` test plan already includes UI tests. Do NOT run UI tests separa
 
 **Any `AllTargets` failure → STOP.** This is the release gate.
 
-### 6a. Thread Sanitizer (advisory, not a blocker)
+### 6a. Thread Sanitizer
 
 ```bash
 xcodebuild test -scheme Flipcash \
@@ -126,45 +126,39 @@ xcodebuild test -scheme Flipcash \
 ```
 
 `Sanitizers` covers `FlipcashTests` + `FlipcashCoreTests` only; TSan cannot run against the UI
-tests. **Expect this to exit 65 with hundreds of failures — that is the current known state, not a
-regression.** The TSan runtime re-enters its own interceptors from `DoReset` and aborts the host
-partway through, and xcodebuild marks everything in flight as failed. Neither target completes
-alone, so there is no narrower scope to fall back to. Full evidence in
-`.claude/plans/2026-08-25-tsan-ui-test-crash.md`.
+tests.
 
-Do not read the failure count — it is 1100–1400 on a healthy-as-it-gets run. Classify with these
-three numbers instead:
+**Any failure → STOP.** The plan must exit 0. This is a release gate, the same as step 6.
+
+Report the outcome with three counts, which say what kind of failure you are looking at:
 
 ```bash
 grep -c 'WARNING: ThreadSanitizer: data race' /tmp/sanitizers.log   # A: races reported
-grep ' failed on ' /tmp/sanitizers.log | grep -vc '(0.000 seconds)' # B: failures that actually ran
-grep -c 'recorded an issue' /tmp/sanitizers.log                     # C: Swift Testing failures
+grep -c ' failed on ' /tmp/sanitizers.log                           # B: tests reported failed
+grep -c 'recorded an issue' /tmp/sanitizers.log                     # C: Swift Testing issues
 ```
 
-- **A > 0 → STOP.** A data race is a genuine finding; triage before shipping.
-- **B > 0 or C > 0 → STOP.** Something failed on its own merits rather than as an abort casualty.
-- **A, B and C all 0 → continue the release**, whatever the exit code and failure count. If the run
-  exited non-zero, record it as "TSan inconclusive (known runtime abort)" in the release thread so
-  the skipped coverage is on the record.
-- **A, B, C all 0 *and* exit 0 → the runtime is fixed.** Tell the user: step 6a should go back to
-  being a hard gate, and the inconclusive branch should be deleted here and in the plan doc.
+- **A > 0** — a data race, the finding this step exists for. Triage before shipping.
+- **B > 0 or C > 0** — a test failed. Fix it or exclude it deliberately; don't wave it through.
+- **All three 0 but a non-zero exit** — nothing failed on its own merits, so the host died instead.
+  Count host pids; more than one means the runner restarted mid-run:
 
-C is the one that carries the weight: every test target here is Swift Testing (the codebase has no
-`import XCTest`), so a genuine failure always records an issue no matter how fast it failed. B is a
-backstop for anything that reports through the XCTest bridge instead. Don't substitute `grep
-'error:'` for either — several parameterized test names contain the literal `error:expected:`, and
-they match while passing.
+  ```bash
+  grep -oE 'iPhone 17 - Flipcash \([0-9]+\)' /tmp/sanitizers.log | sort -u
+  ```
 
-Deliberately not part of the test: the `ThreadSanitizer:DEADLYSIGNAL` banner. It reaches the
-xcodebuild log in most runs but went missing in two of the seven recorded in the plan doc, while
-the host still died and restarted. If you want to confirm an abort happened, count host pids —
-more than one means the runner died and restarted:
+  That is the TSan runtime abort described in
+  `.claude/plans/2026-08-25-tsan-ui-test-crash.md` coming back. It was last seen on 2026-08-25 and
+  gone by 2026-09-22. Its signature is a large `B` where every failure sits at `(0.000 seconds)` —
+  casualties xcodebuild marked as failed because they were in flight when the host went down.
+  Still a STOP: keep the log and reopen that plan doc.
 
-```bash
-grep -oE 'iPhone 17 - Flipcash \([0-9]+\)' /tmp/sanitizers.log | sort -u
-```
-
-(That only reports pids while `FlipcashTests` is in scope, which it is for the plan as run above.)
+B is the count that matters for `FlipcashTests`. xcodebuild streams that target through the XCTest
+bridge (`Test case '<name>' failed on '<device>' (15.475 seconds)`), which never prints `recorded
+an issue` even though the target is Swift Testing throughout — a 2026-09-22 run with two genuine
+failures read `C = 0`. C covers `FlipcashCoreTests`, which emits Swift Testing's own reporter
+output instead. Neither is redundant, and don't substitute `grep 'error:'` for either: several
+parameterized test names contain the literal `error:expected:`, and they match while passing.
 
 ### 7. Generate changelog
 Use the Agent tool with `model: "haiku"`. Pass the commit list with this prompt:

@@ -1,6 +1,13 @@
 # TSan aborts the app under test — analysis
 
-**Date:** 2026-08-25 (amended same day — the scope is wider than the original title implied)
+**Date:** 2026-08-25 (amended same day — the scope is wider than the original title implied;
+resolved 2026-09-22)
+
+> **Status (2026-09-22): the abort no longer reproduces.** Two independent `Sanitizers` runs at
+> `e10472dd` finished on a single host process with no TSan output at all. Everything below is kept
+> as the record of what the abort was and how it was diagnosed; it no longer describes the current
+> runtime. See [The abort no longer reproduces](#the-abort-no-longer-reproduces-2026-09-22).
+> Step 6a of the release skill is a hard gate again as of the same date.
 
 **Symptom:** any authenticated `FlipcashUITests` run under the `AllTargets` plan loses the app
 within seconds. XCUITest reports `Failed to get matching snapshots: Lost connection to the
@@ -172,6 +179,10 @@ runs both plans.
 
 ### Amended: what the release checklist does with `Sanitizers`
 
+> **No longer in force (2026-09-22).** The inconclusive rule below was deleted from step 6a when
+> the plan started passing; it is kept here as the record of a decision, not as guidance. Do not
+> apply it. A `Sanitizers` run that does not exit 0 now stops the release.
+
 The change above assumed `Sanitizers` would pass. It does not, and it cannot be made to — no
 narrower scope finishes. Three options were on the table: drop the plan, narrow it to whatever
 still completes, or keep it and stop treating the abort as a failure.
@@ -198,6 +209,123 @@ commands.
 Revisit when a newer Xcode ships a fixed TSan runtime: if `Sanitizers` starts passing end to end,
 restore it as a hard gate and delete the inconclusive branch.
 
+**That happened on 2026-09-22** — see [The abort no longer reproduces](#the-abort-no-longer-reproduces-2026-09-22)
+for the evidence, and for why the gate has not been hardened yet.
+
+## The abort no longer reproduces (2026-09-22)
+
+The `Sanitizers` plan now completes. Two independent runs at `e10472dd`, both
+`-destination 'platform=iOS Simulator,name=iPhone 17'` against iOS 27.0, agree on every number the
+diagnosis above turned on:
+
+(Numbered separately from the seven aborting runs above: these are run A, reported by the person
+who spotted the change, and run B, an independent re-run from a clean worktree.)
+
+| | run A | run B |
+|---|---|---|
+| tests total | 2760 | 2760 |
+| passed / failed / skipped | 2753 / 2 / 5 | 2753 / 2 / 5 |
+| `ThreadSanitizer` anywhere in the log | 0 | 0 |
+| `ThreadSanitizer:DEADLYSIGNAL` | 0 | 0 |
+| `nested bug in the same thread` | 0 | 0 |
+| failures at `(0.000 seconds)` | 0 | 0 |
+| distinct host pids | 1 | 1 (`iPhone 17 - Flipcash (8142)`) |
+
+Run B's totals are read from the `.xcresult` rather than the streamed log: `totalTestCount` 2760,
+`passedTests` 2753, `failedTests` 2, `skippedTests` 5. Suite counts are left out of the table
+because they depend on how you ask: the same `.xcresult` reports 370 suites directly under the two
+bundles and 381 counting nested ones, while the streamed log shows 249 `Test suite '…' started`
+lines for `FlipcashTests` alongside Swift Testing's own "132 suites" for `FlipcashCoreTests`. The
+test counts are the ones to compare between runs.
+
+One host pid is the load-bearing number. All seven runs in
+[The unit targets abort too](#the-unit-targets-abort-too) lost the host mid-run and restarted it,
+and two of them dropped the banner while still aborting — so the pid count is what that section
+said to trust, and it now says the runner survived.
+
+TSan was genuinely on. `FlipcashTests/Sanitizers.xctestplan` still carries
+`"threadSanitizerEnabled": true` in `defaultOptions`, and `testTargets` still lists both
+`FlipcashTests` and `FlipcashCoreTests`. Zero `ThreadSanitizer` matches is an instrumented run with
+nothing to report, not a missing runtime: the same grep returned the banner on five of the seven
+2026-08-25 runs.
+
+No data race was reported. That was true of the aborting runs too, but it now means something —
+the run reached the end instead of dying around test 575, so the roughly 2200 tests that used to
+get no TSan coverage at all were covered this time.
+
+### The exit code is still 65, for a different reason
+
+Both runs exit 65, and both fail exactly two tests, on a wall-clock deadline while the assertion
+about behaviour passes:
+
+- `GalleryScannerTests/budgetIsRespected()` — `Expectation failed: elapsed < 2.0`,
+  `elapsed → 13.849`. The `guard case .cancelled` ahead of it did not fire, so the budget did end
+  the search.
+- `GalleryScannerTests/qrCodeDecodes()` — `Expectation failed: elapsed < 3`, `elapsed → 13.834`.
+  The `guard case .url` and the `url ==` expectation both passed, so the QR pass did win the race
+  against the ladder.
+
+Both feed the scanner a deliberately large frame — 3024x4032 and 2400x2400 — precisely so the
+work is CPU-bound, and TSan's instrumentation stretches it past bounds of 2s and 3s. Fixed the
+same day in `b05cb270` (#829) by asserting the outcome instead of the clock; see
+[What this changed](#what-this-changed).
+
+### `recorded an issue` does not detect a real failure in `FlipcashTests`
+
+Count C from [the release skill](../skills/release/SKILL.md)'s step 6a reads **0** on this run,
+with two genuinely failing tests in it. The skill calls C "the one that carries the weight", on the
+grounds that every target here is Swift Testing so a real failure always records an issue. That
+does not hold for `FlipcashTests` as xcodebuild streams it.
+
+The two targets report through different formatters in the same log. `FlipcashCoreTests` emits
+Swift Testing's own output (`◇`/`✔`, ending `Test run with 1022 tests in 132 suites passed`).
+`FlipcashTests` emits the XCTest bridge form, `Test case '<name>' failed on '<device>' (15.475
+seconds)`, which never contains the phrase. All six `issue` matches in run B's 44,782-line log are
+unrelated: `CLANG_UNDEFINED_BEHAVIOR_SANITIZER_TRAP_ON_SECURITY_ISSUES` build settings and
+`CMSIssuerAndSerialNumber.swift` filenames.
+
+Count B caught both (`B = 2`), which is what it is there for, so the classification still reaches
+the right verdict and the 2026-08-25 conclusion is unaffected — that rested on every failure
+sitting at `(0.000 seconds)`, which is B. But for `FlipcashTests` B is the primary signal rather
+than the backstop the skill describes, and the wording should be corrected when step 6a is revised.
+
+### An unrelated 600-second tail
+
+Run B reported `687.292 elapsed -- Testing started completed`, most of it after the tests had
+finished: `IDETestOperationsObserverDebug: Failure collecting diagnostics from simulator: Timed out
+after 600.0 seconds`. Subtract that and the test phase is the same order as run A's 73.9 seconds.
+Post-run diagnostics collection, not TSan — worth knowing before reading a twelve-minute run as a
+hang.
+
+### What this changed
+
+Step 6a of [the release skill](../skills/release/SKILL.md) is a hard gate again, and the
+inconclusive branch is gone from it and marked out of force in
+[Amended](#amended-what-the-release-checklist-does-with-sanitizers) above. The three counts stay
+as the way to report a run — A for races, B for tests reported failed, C for Swift Testing issues
+recorded — they just no longer have an "inconclusive" verdict to reach.
+
+`GalleryScannerTests` was the thing holding it. Both deadline assertions were replaced with
+outcome assertions in `b05cb270` (#829) — `budgetIsRespected()` now asserts only `.cancelled`, and
+`qrCodeDecodes()` scans the larger frame on the same 0.5s budget and asserts `.url`, so TSan
+changes how long they take and not what they claim.
+
+The run at `b05cb270`, same simulator, is the one that closed it:
+
+```
+** TEST SUCCEEDED **   exit 0
+2760 tests: 2755 passed, 0 failed, 5 skipped, 90.5s
+A = 0   B = 0   C = 0
+one host pid: iPhone 17 - Flipcash (72940)
+```
+
+Step 6a is a hard gate again and the inconclusive branch is gone from it. The gate is now "exit 0,
+or stop" rather than a verdict assembled from the counts, which closes a hole the count-only form
+would have had: an abort produces `A = 0`, `C = 0` and a `B` made entirely of `(0.000 seconds)`
+casualties, so a gate reading only the counts would have passed the very failure this doc is
+about. B also no longer filters out zero-duration failures — that filter existed to screen out
+casualties, and with the abort gone it would only hide a real test that fails fast.
+
 ## One failure the crash was hiding
 
 With the app surviving, `CurrencySelectionSmokeTests` failed three runs in a row at
@@ -210,6 +338,10 @@ tab bar, whichever lands first, which keeps the already-granted case as fast as 
 to TSan; it was simply unreachable while the app died first.
 
 ## Reproducing
+
+> **Superseded 2026-09-22.** The abort no longer reproduces, so the recipe below no longer produces
+> it. The classification commands are still how to read a `Sanitizers` run, and the pid count is
+> still how to tell a surviving runner from a restarted one — they now return the clean values.
 
 The unit-target abort needs no setup — run the plan and read the classification:
 
