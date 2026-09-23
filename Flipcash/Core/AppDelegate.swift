@@ -106,6 +106,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             object: nil
         )
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDeepLinkNotification(_:)),
+            name: .sceneDeepLinkReceived,
+            object: nil
+        )
+
         return true
     }
 

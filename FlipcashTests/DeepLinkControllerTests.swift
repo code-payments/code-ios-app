@@ -80,4 +80,24 @@ struct DeepLinkControllerTests {
         _ = controller.open(URL(string: "https://apple.com")!)
         #expect(controller.open(URL(string: "https://apple.com")!) == true)
     }
+
+    // `https://apple.com` names no action, so a processed open returns false and a deduped one
+    // returns true — the return value tells the two apart.
+    @Test("A repeat that lands after the first action finished is still deduped within the window")
+    func repeatAfterCompletion_isDedupedWithinWindow() async throws {
+        let controller = DeepLinkController(sessionAuthenticator: sessionAuthenticator, repeatWindow: .seconds(60))
+        let url = URL(string: "https://apple.com")!
+        _ = controller.open(url)
+        // Let the first open's task run to completion before the repeat arrives.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(controller.open(url) == true)
+    }
+
+    @Test("The same URL is processed again once the window has passed")
+    func repeatAfterWindow_isProcessed() async throws {
+        let controller = DeepLinkController(sessionAuthenticator: sessionAuthenticator, repeatWindow: .milliseconds(1))
+        let url = URL(string: "https://apple.com")!
+        _ = controller.open(url)
+        try await waitUntil { controller.open(url) == false }
+    }
 }

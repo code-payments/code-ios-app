@@ -17,21 +17,28 @@ final class DeepLinkController {
 
     private var inFlightDeepLinks: Set<URL> = []
 
+    /// How long a URL stays deduped after its action finishes.
+    private let repeatWindow: Duration
+
     // MARK: - Init -
 
-    init(sessionAuthenticator: SessionAuthenticator) {
+    init(sessionAuthenticator: SessionAuthenticator, repeatWindow: Duration = .seconds(5)) {
         self.sessionAuthenticator = sessionAuthenticator
+        self.repeatWindow = repeatWindow
     }
 
     // MARK: - Open -
 
-    /// The canonical deep-link entry: dedups concurrent opens of the same URL, records analytics, and
-    /// executes the parsed action. Returns false when the URL parses to no action.
+    /// The canonical deep-link entry: dedups opens of the same URL within a short window, records
+    /// analytics, and executes the parsed action. Returns false when the URL parses to no action.
     @discardableResult
     func open(_ url: URL) -> Bool {
-        // Drop duplicate in-flight deliveries: a concurrent second claim is
-        // rejected server-side as stale state and surfaces as a false error
-        // after the first claim has already succeeded.
+        // Drop duplicate deliveries: a second claim is rejected server-side as
+        // stale state and surfaces as a false error after the first succeeded.
+        // A scene link can arrive twice — once from `SceneDelegate`, and
+        // again from SwiftUI's `onOpenURL` when it forwards the link, which can
+        // land after the first action has finished — so the URL stays held for
+        // `repeatWindow` past completion, not just while in flight.
         guard inFlightDeepLinks.insert(url).inserted else {
             logger.info("Ignoring duplicate deep link", metadata: ["url": "\(url.sanitizedForAnalytics)"])
             return true
@@ -56,8 +63,9 @@ final class DeepLinkController {
         }
 
         Task {
-            defer { self.inFlightDeepLinks.remove(url) }
-            try await action?.executeAction()
+            try? await action?.executeAction()
+            try? await Task.sleep(for: repeatWindow)
+            self.inFlightDeepLinks.remove(url)
         }
 
         return action != nil
