@@ -77,7 +77,7 @@ struct ChatTranscriptDiffFuzzTests {
             case .separator(let id):
                 .dateSeparator(id: "sep\(id)", text: "Day \(id)")
             case .typing:
-                .typingIndicator
+                .typingIndicator(typists: [])
             }
         }
     }

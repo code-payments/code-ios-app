@@ -64,7 +64,7 @@ struct ChatChangesetFlatteningTests {
     func updateDeleteAndInsert_mergesIntoOneBatch() throws {
         // The typing indicator clears (delete), the reply lands (insert), and the previous row's
         // grouping flips (update) — three DifferenceKit stages in one push.
-        let before = [message("a", sender: .other), .typingIndicator]
+        let before = [message("a", sender: .other), .typingIndicator(typists: [])]
         let after = [
             message("a", sender: .other, continuedByNext: true),
             message("b", sender: .other, continuationFromPrevious: true),
@@ -79,13 +79,13 @@ struct ChatChangesetFlatteningTests {
         #expect(batch.changeset.elementInserted == [ElementPath(element: 1, section: 0)])
         #expect(batch.changeset.elementMoved.isEmpty)
         #expect(batch.changeset.data == after)
-        #expect(batch.reconfigureData == [after[0], .typingIndicator])
+        #expect(batch.reconfigureData == [after[0], .typingIndicator(typists: [])])
     }
 
     @Test("A pure delete + insert pair merges with no reconfigure data")
     func deleteAndInsert_mergesWithoutReconfigureData() throws {
         // The pre-existing behavior (typing indicator swaps for a message with no other change).
-        let before = [message("a", sender: .other), .typingIndicator]
+        let before = [message("a", sender: .other), .typingIndicator(typists: [])]
         let after = [message("a", sender: .other), message("b", sender: .other)]
 
         let batch = try #require(StagedChangeset(source: before, target: after).singleBatch())

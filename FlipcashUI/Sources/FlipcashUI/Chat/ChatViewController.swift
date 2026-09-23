@@ -77,16 +77,23 @@ public final class ChatViewController: UICollectionViewController {
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
-    /// Avatar bytes for the transcript's authors, keyed by user id. Empty in a DM, where no row is
-    /// attributed. The owner fills it as pictures download; rows already on screen pick the new
-    /// bytes up without a diff, since nothing about the message itself changed.
+    /// Avatar bytes for the transcript's authors and typists, keyed by user id. Empty in a DM, where
+    /// no row is attributed. The owner fills it as pictures download; rows already on screen pick the
+    /// new bytes up without a diff, since nothing about the row itself changed.
     public var authorAvatars: [UserID: Data] = [:] {
         didSet {
             guard authorAvatars != oldValue, isViewLoaded else { return }
             for cell in collectionView.visibleCells {
                 guard let indexPath = collectionView.indexPath(for: cell),
-                      let message = message(at: indexPath) else { continue }
-                configure(cell, with: message)
+                      items.indices.contains(indexPath.item) else { continue }
+                switch items[indexPath.item] {
+                case .message(let message):
+                    configure(cell, with: message)
+                case .typingIndicator(let typists):
+                    (cell as? ChatTypingIndicatorCell)?.configure(typists: typists, imageData: authorAvatars)
+                case .dateSeparator, .profileCard, .groupCard:
+                    continue
+                }
             }
         }
     }
@@ -384,8 +391,8 @@ public final class ChatViewController: UICollectionViewController {
         // there, and a reconfigure can never land on a cell of a different class (UIKit forbids that).
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: item.cellReuseIdentifier, for: indexPath)
         switch item {
-        case .typingIndicator:
-            break
+        case .typingIndicator(let typists):
+            (cell as! ChatTypingIndicatorCell).configure(typists: typists, imageData: authorAvatars)
         case .profileCard(let card):
             let profileTap: (() -> Void)? = onProfileTap == nil ? nil : { [weak self] in self?.onProfileTap?() }
             (cell as! ChatProfileCardCell).configure(

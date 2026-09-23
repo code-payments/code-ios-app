@@ -26,13 +26,13 @@ final class ConversationLoadCoordinator {
     private(set) var headsHistory = false
 
     /// The people the landed transcript attributes its rows to, in the order the window first shows
-    /// them. The view fetches their avatars from this: the mapped rows carry only a BlurHash —
+    /// them, then the group's typists the rows leave out. The view fetches their avatars from this: the mapped rows carry only a BlurHash —
     /// thumbnail bytes must not ride in ``Inputs``, which is compared on every observation tick, nor
     /// into the app-group cache the rows are written to in the clear.
     private(set) var attributedMembers: [ConversationMember] = []
 
-    /// The window's senders that neither the chat's roster nor the local cache could name, in the
-    /// order the window first shows them. The view resolves these over the network — the transcript
+    /// The window's senders and typists that neither the chat's roster nor the local cache could
+    /// name, in the order the window first shows them. The view resolves these over the network — the transcript
     /// itself never blocks on it, and a sender that lands is attributed by the next re-map.
     private(set) var unattributedSenders: [UserID] = []
 
@@ -210,7 +210,9 @@ final class ConversationLoadCoordinator {
             counterpartPointer: read?.pointer,
             counterpartReadDate: read?.date,
             suppressReceiptFor: controller.settlingSendID,
-            isTyping: controller.isCounterpartTyping(in: conversationID),
+            // Capped here rather than in `map`, so a typist the row will never draw is neither
+            // compared on every tick nor sent off to have their picture fetched.
+            typists: Array(controller.typists(in: conversationID).suffix(ChatItem.maxTypingAvatars)),
             profileCard: headsHistory ? profileCard() : nil,
             branding: branding,
             conversation: conversation,
@@ -267,8 +269,13 @@ final class ConversationLoadCoordinator {
             // here touches the network, and an answer landing cannot re-diff this window.
             linkCard: { links in classifier.firstCard(in: links) }
         )
-        if inputs.isTyping {
-            items.append(.typingIndicator)
+        if !inputs.typists.isEmpty {
+            // Only a group draws faces ahead of the dots; a DM's bubble stays as it was. A typist no
+            // roster can name still gets a face, the placeholder one.
+            let typists = inputs.namesAuthors
+                ? inputs.typists.map { authors[$0] ?? ChatAuthor(id: $0, name: "") }
+                : []
+            items.append(.typingIndicator(typists: typists))
         }
         if let card = inputs.profileCard {
             items.insert(.profileCard(card), at: 0)
@@ -283,6 +290,7 @@ final class ConversationLoadCoordinator {
     /// what the transcript is attributing. Everyone it leaves out — the subset a large group embeds
     /// leaves plenty — falls through to whatever the device knows about them from elsewhere. The
     /// senders neither source covers come back in `unnamed`, for the view to fetch.
+    /// The group's typists follow the window's senders, so their pictures are fetched too.
     /// Both are empty for every transcript that does not attribute its rows.
     nonisolated private static func attribution(in inputs: Inputs) -> (members: [ConversationMember], unnamed: [UserID]) {
         guard inputs.namesAuthors else { return ([], []) }
@@ -296,8 +304,8 @@ final class ConversationLoadCoordinator {
         var seen: Set<UserID> = []
         var members: [ConversationMember] = []
         var unnamed: [UserID] = []
-        for message in inputs.messages {
-            guard let senderID = message.senderID, seen.insert(senderID).inserted else { continue }
+        for senderID in inputs.messages.compactMap(\.senderID) + inputs.typists {
+            guard seen.insert(senderID).inserted else { continue }
             // The viewer's own rows are never attributed, so their id is not worth a round trip.
             guard senderID != inputs.selfUserID else { continue }
             guard let member = roster[senderID] ?? inputs.knownAuthors.membersByUserID[senderID] else {
@@ -337,7 +345,8 @@ final class ConversationLoadCoordinator {
         var counterpartPointer: MessageID?
         var counterpartReadDate: Date?
         var suppressReceiptFor: String?
-        var isTyping: Bool
+        /// The other members typing, oldest first, capped at ``ChatItem/maxTypingAvatars``.
+        var typists: [UserID]
         var profileCard: ChatProfileCard?
         var branding: [PublicKey: Branding]
         var conversation: Conversation?

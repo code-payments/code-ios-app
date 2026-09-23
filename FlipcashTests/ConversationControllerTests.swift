@@ -159,6 +159,48 @@ struct ConversationControllerTests {
         #expect(refreshedAt.duration(to: ContinuousClock.now) >= .milliseconds(400))
     }
 
+    @Test("typists list oldest to newest, and a heartbeat keeps a typist's place")
+    func typists_heartbeatFromOldest_keepsStartOrder() async throws {
+        let a = UUID(), b = UUID(), c = UUID()
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        for (index, typist) in [a, b, c].enumerated() {
+            mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: typist, isActive: true)]))
+            try await waitUntil { controller.typists(in: .test(1)).count == index + 1 }
+        }
+        #expect(controller.typists(in: .test(1)) == [a, b, c])
+
+        // A STILL from the oldest typist extends their deadline without moving them to the back.
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: a, isActive: true)]))
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: b, isActive: false)]))
+        try await waitUntil { controller.typists(in: .test(1)).count == 2 }
+        #expect(controller.typists(in: .test(1)) == [a, c])
+        #expect(controller.typists(in: .test(2)).isEmpty)
+    }
+
+    @Test("an expired typist drops out of the ordered list")
+    func typists_staleTypist_dropsOut() async throws {
+        let a = UUID(), b = UUID()
+        let mock = MockConversations()
+        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(300))
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: a, isActive: true)]))
+        try await waitUntil { controller.typists(in: .test(1)) == [a] }
+        try await Task.sleep(for: .milliseconds(150))
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: b, isActive: true)]))
+        try await waitUntil { controller.typists(in: .test(1)) == [a, b] }
+
+        // `a` lapses first; `b` started later, so outlives it.
+        try await waitUntil { controller.typists(in: .test(1)) == [b] }
+        try await waitUntil { controller.typists(in: .test(1)).isEmpty }
+        #expect(!controller.isCounterpartTyping(in: .test(1)))
+    }
+
     @Test("a STOPPED never overtakes an in-flight earlier send")
     func typingSendsStayOrdered() async throws {
         let mock = MockConversations()

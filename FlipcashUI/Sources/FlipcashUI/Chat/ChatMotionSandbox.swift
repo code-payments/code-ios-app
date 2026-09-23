@@ -193,7 +193,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
     private func items(appending tail: [ChatMessage], typing: Bool = false) -> [ChatItem] {
         var items = Self.grouped(base + tail).map { ChatItem.message($0) }
         if typing {
-            items.append(.typingIndicator)
+            items.append(.typingIndicator(typists: []))
         }
         return items
     }

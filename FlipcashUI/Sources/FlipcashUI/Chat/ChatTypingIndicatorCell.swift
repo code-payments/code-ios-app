@@ -7,10 +7,12 @@
 
 #if canImport(UIKit)
 import UIKit
+import FlipcashCore
 
 /// Three dots in a leading incoming bubble, shown while the counterpart is typing. The bubble reuses
 /// the shared `BubbleBackgroundView` chrome (incoming fill + hairline + 12pt radius), and the dots run
 /// a repeating iMessage-style opacity wave — each brightens to `peakOpacity` in turn and settles back.
+/// In a group, the typists' avatars overlap in a row ahead of the bubble.
 public final class ChatTypingIndicatorCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatTypingIndicatorCell"
@@ -33,9 +35,22 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
 
     private static let dotSize: CGFloat = 7
 
+    // Android's `staticGrid.x8` / `staticGrid.x4` (the fixed 5pt grid) and `grid.x2` on a phone.
+    private static let avatarSize: CGFloat = 40
+    private static let avatarOverlap: CGFloat = 20
+    private static let avatarRowGap: CGFloat = 10
+    /// Android pads the avatar row 4dp above and below.
+    private static let avatarRowInset: CGFloat = 4
+
     private let bubble = BubbleBackgroundView()
     private let dotsRow = UIStackView()
     private var dots: [UIView] = []
+
+    private let avatarRow = UIView()
+    private var avatarRowWidth: NSLayoutConstraint!
+    private var avatarRowHeight: NSLayoutConstraint!
+    /// The avatars on screen, oldest typist first — the order they are drawn left to right.
+    private var avatars: [(id: UserID, view: ChatAuthorAvatarView)] = []
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -64,12 +79,26 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
             return dot
         }
 
+        // Overlapping avatars draw past each other's bounds, and one fading out draws past the row's.
+        avatarRow.clipsToBounds = false
+        avatarRow.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(avatarRow)
+        avatarRowWidth = avatarRow.widthAnchor.constraint(equalToConstant: 0)
+        // The row only claims height while it holds avatars, so a DM's cell stays the bubble's height.
+        avatarRowHeight = contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 0)
+
         let trailing = bubble.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -12)
         trailing.priority = .defaultHigh
         NSLayoutConstraint.activate([
-            bubble.topAnchor.constraint(equalTo: contentView.topAnchor),
-            bubble.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            bubble.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            avatarRow.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            avatarRow.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            avatarRow.heightAnchor.constraint(equalToConstant: Self.avatarSize),
+            avatarRowWidth,
+            avatarRowHeight,
+            bubble.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor),
+            bubble.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor),
+            bubble.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            bubble.leadingAnchor.constraint(equalTo: avatarRow.trailingAnchor),
             trailing,
             // The bubble's own padding matches a text bubble's 12/9, plus the dot row's inner 6 vertical.
             dotsRow.leadingAnchor.constraint(equalTo: bubble.leadingAnchor, constant: 12),
@@ -84,6 +113,109 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
 
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    public override func prepareForReuse() {
+        super.prepareForReuse()
+        avatars.forEach { $0.view.removeFromSuperview() }
+        avatars = []
+        applyRowSize(count: 0)
+    }
+
+    /// Draws `typists` as overlapping avatars ahead of the dots, oldest first, reading their pictures
+    /// out of `imageData`. An empty list draws the dots alone. A reconfigure of the same cell animates
+    /// the avatars that joined or left and the row's width; the first configure after a dequeue
+    /// snaps, since the row itself is animating in.
+    public func configure(typists: [ChatAuthor], imageData: [UserID: Data]) {
+        let animated = window != nil && !avatars.isEmpty
+        let shown = Array(typists.suffix(ChatItem.maxTypingAvatars))
+        let keep = Set(shown.map(\.id))
+
+        let leaving = avatars.filter { !keep.contains($0.id) }
+        var existing: [UserID: ChatAuthorAvatarView] = [:]
+        for avatar in avatars where keep.contains(avatar.id) {
+            existing[avatar.id] = avatar.view
+        }
+
+        var joining: [ChatAuthorAvatarView] = []
+        avatars = shown.map { author in
+            let view: ChatAuthorAvatarView
+            if let kept = existing[author.id] {
+                view = kept
+            } else {
+                view = ChatAuthorAvatarView(size: Self.avatarSize, fallback: .personGlyph)
+                view.translatesAutoresizingMaskIntoConstraints = true
+                self.avatarRow.addSubview(view)
+                joining.append(view)
+            }
+            view.configure(with: author, imageData: imageData[author.id])
+            return (id: author.id, view: view)
+        }
+
+        // New avatars start where they will land, so they only fade and grow in place.
+        for (index, avatar) in avatars.enumerated() {
+            // The earlier typist sits on top, as Android's `zIndex = count - index` does.
+            avatar.view.layer.zPosition = CGFloat(avatars.count - index)
+            if joining.contains(where: { $0 === avatar.view }) {
+                avatar.view.frame = Self.avatarFrame(at: index)
+                if animated {
+                    avatar.view.alpha = 0
+                    avatar.view.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
+                }
+            }
+        }
+
+        let layout = {
+            for (index, avatar) in self.avatars.enumerated() {
+                avatar.view.bounds.size = CGSize(width: Self.avatarSize, height: Self.avatarSize)
+                avatar.view.center = CGPoint(
+                    x: Self.avatarFrame(at: index).midX,
+                    y: Self.avatarSize / 2
+                )
+                avatar.view.alpha = 1
+                avatar.view.transform = .identity
+            }
+            for avatar in leaving {
+                avatar.view.alpha = 0
+                avatar.view.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
+            }
+            self.applyRowSize(count: self.avatars.count)
+            self.contentView.layoutIfNeeded()
+        }
+
+        guard animated else {
+            leaving.forEach { $0.view.removeFromSuperview() }
+            UIView.performWithoutAnimation(layout)
+            return
+        }
+        UIView.animate(
+            withDuration: 0.35,
+            delay: 0,
+            usingSpringWithDamping: 1,
+            initialSpringVelocity: 0,
+            options: [.beginFromCurrentState, .allowUserInteraction],
+            animations: layout,
+            completion: { _ in leaving.forEach { $0.view.removeFromSuperview() } }
+        )
+    }
+
+    private static func avatarFrame(at index: Int) -> CGRect {
+        CGRect(
+            x: CGFloat(index) * (avatarSize - avatarOverlap),
+            y: 0,
+            width: avatarSize,
+            height: avatarSize
+        )
+    }
+
+    private func applyRowSize(count: Int) {
+        guard count > 0 else {
+            avatarRowWidth.constant = 0
+            avatarRowHeight.constant = 0
+            return
+        }
+        avatarRowWidth.constant = Self.avatarSize + CGFloat(count - 1) * (Self.avatarSize - Self.avatarOverlap) + Self.avatarRowGap
+        avatarRowHeight.constant = Self.avatarSize + 2 * Self.avatarRowInset
+    }
 
     @objc private func restartAnimationIfVisible() {
         if window != nil { startAnimating() }
