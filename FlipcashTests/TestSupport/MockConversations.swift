@@ -62,7 +62,8 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     private var _markedRead: [MessageID] = []
     private var _typingCalls: [TypingCall] = []
     private var _typingCallsBegun = 0
-    private var _typingDelays: [TypingState: Duration] = [:]
+    private var _heldTypingStates: Set<TypingState> = []
+    private var _typingGateWaiters: [TypingState: [CheckedContinuation<Void, Never>]] = [:]
     private var _deltaBatches: [DeltaBatch] = []
     private var _deltaHead: UInt64 = 0
     private var _deltaError: Error?
@@ -159,14 +160,35 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     }
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
     var typingCalls: [TypingCall] { lock.withLock { _typingCalls } }
-    /// Number of `notifyIsTyping` calls entered, counted before any artificial delay —
-    /// the awaitable signal that a send is in flight.
+    /// Number of `notifyIsTyping` calls entered, counted before the gate — the
+    /// awaitable signal that a send is in flight.
     var typingCallsBegun: Int { lock.withLock { _typingCallsBegun } }
-    /// Per-state artificial transport latency for `notifyIsTyping`; the call is
-    /// recorded after the delay, so `typingCalls` reflects wire-arrival order.
-    var typingDelays: [TypingState: Duration] {
-        get { lock.withLock { _typingDelays } }
-        set { lock.withLock { _typingDelays = newValue } }
+    /// Parks every `notifyIsTyping` for `state` inside the transport until
+    /// `releaseTyping(_:)`, so a test can queue further sends while the first is
+    /// provably still in flight. Opt-in: ungated states are unaffected.
+    func holdTyping(_ state: TypingState) {
+        lock.withLock { _ = _heldTypingStates.insert(state) }
+    }
+
+    /// Opens the gate for `state` and leaves it open, so later sends of that state
+    /// pass straight through.
+    func releaseTyping(_ state: TypingState) {
+        let waiters = lock.withLock {
+            _heldTypingStates.remove(state)
+            return _typingGateWaiters.removeValue(forKey: state) ?? []
+        }
+        for waiter in waiters { waiter.resume() }
+    }
+
+    private func awaitTypingGate(for state: TypingState) async {
+        await withCheckedContinuation { continuation in
+            let parked = lock.withLock { () -> Bool in
+                guard _heldTypingStates.contains(state) else { return false }
+                _typingGateWaiters[state, default: []].append(continuation)
+                return true
+            }
+            if !parked { continuation.resume() }
+        }
     }
     /// Batches `getDelta` delivers to `onBatch`, in order.
     var deltaBatches: [DeltaBatch] {
@@ -312,9 +334,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
 
     func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws {
         lock.withLock { _typingCallsBegun += 1 }
-        if let delay = typingDelays[state] {
-            try? await Task.sleep(for: delay)
-        }
+        await awaitTypingGate(for: state)
         lock.withLock { _typingCalls.append(TypingCall(conversationID: conversationID, state: state)) }
     }
 
