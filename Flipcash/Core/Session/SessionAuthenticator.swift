@@ -661,13 +661,13 @@ final class SessionContainer {
         // nothing to fetch — `GetMessages`, `GetDelta` and `AdvancePointer` all answer `DENIED`.
         // Evaluating the gate here keeps those round trips, and the reports they'd produce, off the
         // wire. Wired before `start()` so the cache-seeded feed is already gated.
-        conversationController.canReadConversation = { [weak session, weak ratesController] conversation in
-            guard let session else { return true }
+        conversationController.gateConversation = { [weak session, weak ratesController] conversation in
+            guard let session else { return .open }
             return conversationGate(
                 session: session,
                 rules: conversation.rules,
                 rates: ratesController?.cachedRates ?? [:]
-            ).listener.isSatisfied
+            )
         }
         // Wired before `start()`: leaving or blocking a chat drops its draft, and a send that fails
         // puts its text back — none of which the controller can do before it has the store.

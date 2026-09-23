@@ -63,10 +63,27 @@ extension MessageCapability {
     /// transcript can paint before the conversation record is loaded, and a message's own
     /// capabilities do not depend on it in a direct message.
     ///
+    /// `isMember` is false for a non-member reading a group they have not joined. They get no Reply:
+    /// the Join panel stands where the composer would, so there is nothing to reply with.
+    ///
     /// `now` is a parameter rather than `Date.now` so the result stays a function of its inputs.
     public static func resolve(
         for message: ConversationMessage,
         in conversation: Conversation?,
+        as selfUserID: UserID,
+        isMember: Bool,
+        policy: MessagePolicy,
+        now: Date
+    ) -> Set<MessageCapability> {
+        var capabilities = memberCapabilities(for: message, as: selfUserID, policy: policy, now: now)
+        if !isMember {
+            capabilities.remove(.reply)
+        }
+        return capabilities
+    }
+
+    private static func memberCapabilities(
+        for message: ConversationMessage,
         as selfUserID: UserID,
         policy: MessagePolicy,
         now: Date
@@ -118,7 +135,7 @@ extension MessageCapability {
     /// The earliest instant after `now` at which some message in `messages` loses a capability, or
     /// `nil` when none of them will ever change again.
     ///
-    /// Eligibility runs through ``resolve(for:in:as:policy:now:)`` rather than re-deriving it, so a
+    /// Eligibility runs through ``resolve(for:in:as:isMember:policy:now:)`` rather than re-deriving it, so a
     /// message that has no windowed capability to lose — someone else's, a tombstone, an
     /// unconfirmed send — contributes no deadline and the two stay in step by construction.
     public static func nextExpiry(
@@ -130,7 +147,8 @@ extension MessageCapability {
     ) -> Date? {
         var earliest: Date?
         for message in messages {
-            let capabilities = resolve(for: message, in: conversation, as: selfUserID, policy: policy, now: now)
+            // Membership only takes Reply away, and Reply has no window, so it cannot move a deadline.
+            let capabilities = resolve(for: message, in: conversation, as: selfUserID, isMember: true, policy: policy, now: now)
             for capability in capabilities {
                 guard let window = policy.window(for: capability) else { continue }
                 let expiry = message.date.addingTimeInterval(window)

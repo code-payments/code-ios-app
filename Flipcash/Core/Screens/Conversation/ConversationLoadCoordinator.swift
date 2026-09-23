@@ -214,6 +214,8 @@ final class ConversationLoadCoordinator {
             profileCard: headsHistory ? profileCard() : nil,
             branding: branding,
             conversation: conversation,
+            // A chat whose record hasn't landed yet has no gate to read, so it keeps the member menu.
+            isMember: conversation.map(controller.isMember(of:)) ?? true,
             counterpartName: counterpartName,
             quotedMessages: quotedMessages,
             // Read live, so the windows take effect on the same re-map that lands the flags fetch.
@@ -249,6 +251,7 @@ final class ConversationLoadCoordinator {
                     for: message,
                     in: inputs.conversation,
                     as: inputs.selfUserID,
+                    isMember: inputs.isMember,
                     policy: inputs.policy,
                     now: inputs.now
                 )
@@ -338,6 +341,8 @@ final class ConversationLoadCoordinator {
         var profileCard: ChatProfileCard?
         var branding: [PublicKey: Branding]
         var conversation: Conversation?
+        /// False for a non-member reading a group they have not joined, who is offered no Reply.
+        var isMember: Bool
         /// The counterpart's display name, for a quote whose original they wrote.
         var counterpartName: String
         /// Every message quoted by a reply in the window, pre-resolved so `map` stays pure. Keyed
