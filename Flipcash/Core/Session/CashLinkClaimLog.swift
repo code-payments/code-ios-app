@@ -21,8 +21,15 @@ final class CashLinkClaimLog {
 
     private(set) var settled: Set<String> = []
 
-    /// Records that a claim of `entropy` reached an end — collected, already collected, or expired.
-    func record(entropy: String) {
+    /// The settled links whose claim moved the money here — a subset of ``settled``.
+    private(set) var collected: Set<String> = []
+
+    /// Records that a claim of `entropy` reached an end: `collected` when this device took the cash,
+    /// false when the link turned out already collected or expired.
+    func record(entropy: String, collected: Bool) {
+        if collected {
+            self.collected.insert(entropy)
+        }
         settled.insert(entropy)
     }
 }
