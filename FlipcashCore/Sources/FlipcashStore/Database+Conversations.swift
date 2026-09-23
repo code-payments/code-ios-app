@@ -240,6 +240,20 @@ nonisolated extension Database {
         )
     }
 
+    /// The oldest stored message id after `after` that someone other than `selfUserID` sent, deleted
+    /// or not, or nil when there is none — where the unread divider goes. A row with no sender counts
+    /// as someone else's.
+    public func firstInboundMessageID(conversationID: ConversationID, after: MessageID, excludingSender selfUserID: UUID) throws -> UInt64? {
+        let m = ConversationMessageTable()
+        return try reader.pluck(
+            m.table.filter(
+                m.conversationId == conversationID.data
+                    && m.id > after.value
+                    && (m.senderId == nil || m.senderId != selfUserID)
+            ).order(m.id.asc)
+        ).map { $0[m.id] }
+    }
+
     /// The newest stored message id at or below `through`, or nil when none is stored — the row the
     /// unread divider sits under when the READ pointer's own message is gone.
     public func newestMessageID(conversationID: ConversationID, through: MessageID) throws -> UInt64? {

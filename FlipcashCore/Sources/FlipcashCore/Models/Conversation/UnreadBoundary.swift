@@ -18,34 +18,41 @@ public enum UnreadBoundary: Hashable, Sendable {
     /// The viewer had read through `readThrough`, and `count` inbound messages followed it.
     case at(readThrough: MessageID, count: Int)
 
-    /// The boundary for a viewer whose stored READ pointer is `readPointer`, with `unreadCount`
-    /// answering how many inbound, non-deleted messages are stored after a given id.
+    /// The boundary for a viewer whose stored READ pointer is `readPointer`.
+    ///
+    /// `firstInbound` answers the oldest stored message after a given id that someone else sent,
+    /// deleted or not; `unreadCount` answers how many inbound, non-deleted messages are stored after
+    /// it. The resolved read-through sits just below that first inbound message, so the viewer's
+    /// own messages after the pointer fall above the divider. Those arise only when a send's pointer
+    /// update was lost, and the placement rule alone would find no gap for them. Android resolves it
+    /// the same way.
     ///
     /// A missing pointer resolves to `.none`, not to "everything is unread": a group's roster is
     /// paged, so the viewer's own member row can be absent, and treating that as a pointer of zero
     /// would head the whole transcript with the divider. This is deliberately not
     /// ``Conversation/hasUnread(for:)``, which counts a missing pointer as unread.
-    public static func resolve(readPointer: MessageID?, unreadCount: (MessageID) -> Int) -> UnreadBoundary {
-        guard let readPointer else { return .none }
+    public static func resolve(
+        readPointer: MessageID?,
+        firstInbound: (MessageID) -> MessageID?,
+        unreadCount: (MessageID) -> Int
+    ) -> UnreadBoundary {
+        guard let readPointer, let first = firstInbound(readPointer) else { return .none }
         let count = unreadCount(readPointer)
         guard count > 0 else { return .none }
-        return .at(readThrough: readPointer, count: count)
+        return .at(readThrough: MessageID(value: first.value - 1), count: count)
     }
 
-    /// The message the divider heads in `messages`, oldest first: the first message after the
-    /// read-through that someone else sent.
+    /// Whether the divider sits between two adjacent messages, `older` directly above `newer`.
     ///
     /// Compares ranges rather than matching the read-through message's id, so the divider still
-    /// lands when that message was deleted. Skips the viewer's own messages after the pointer, which
-    /// arise only when a send's pointer update was lost. Nil when `messages` starts after the
-    /// read-through, because the message the divider belongs above may not be loaded.
-    public func messageUnderDivider(in messages: [ConversationMessage], selfUserID: UserID) -> ConversationMessage? {
+    /// lands when that message was deleted or is outside the loaded window. Ids increase down the
+    /// transcript, so at most one adjacent pair answers true.
+    public func dividerBetween(newer: ConversationMessage, older: ConversationMessage, selfUserID: UserID) -> Bool {
         switch self {
         case .none:
-            return nil
+            return false
         case .at(let readThrough, _):
-            guard let oldest = messages.first, oldest.id <= readThrough else { return nil }
-            return messages.first { $0.id > readThrough && !$0.isFromSelf(selfUserID) }
+            return older.id <= readThrough && readThrough < newer.id && !newer.isFromSelf(selfUserID)
         }
     }
 

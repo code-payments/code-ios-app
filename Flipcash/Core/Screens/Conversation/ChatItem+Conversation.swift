@@ -106,9 +106,11 @@ extension ChatItem {
                 || !calendar.isDate(message.date, inSameDayAs: earlier.date)
         }
 
-        // The unread divider heads this message. Like a separator it ends the run above it: a
-        // bubble must not join one across the band.
-        let dividedStableID = unreadBoundary.messageUnderDivider(in: messages, selfUserID: selfUserID)?.stableID
+        // The unread divider heads `message` when the read-through falls between it and `earlier`.
+        // Like a separator it ends the run above it: a bubble must not join one across the divider.
+        func divides(_ message: ConversationMessage, from earlier: ConversationMessage) -> Bool {
+            unreadBoundary.dividerBetween(newer: message, older: earlier, selfUserID: selfUserID)
+        }
 
         // What breaks the bubble run: a text body of one to three emoji, on a row that is not a
         // reply — the quote panel lives inside the bubble and has no standalone layout. Narrower
@@ -153,7 +155,7 @@ extension ChatItem {
                 items.append(.dateSeparator(id: "sep-\(message.stableID)", text: message.date.formattedChatSeparator()))
             }
             // Below the date when both fall at one gap: the reader sees the day, then what is new.
-            let showsDivider = message.stableID == dividedStableID
+            let showsDivider = previous.map { divides(message, from: $0) } ?? false
             if showsDivider, let count = unreadBoundary.count {
                 items.append(.unreadDivider(count: count))
             }
@@ -171,7 +173,7 @@ extension ChatItem {
                 $0.senderID == message.senderID && !showsSeparator && !showsDivider
             } ?? false
             let groupedBelow = next.map {
-                $0.senderID == message.senderID && !separates($0, from: message) && $0.stableID != dividedStableID
+                $0.senderID == message.senderID && !separates($0, from: message) && !divides($0, from: message)
             } ?? false
 
             // The bubble run, which is not the author run. A bubble stacked above a bare emoji or a

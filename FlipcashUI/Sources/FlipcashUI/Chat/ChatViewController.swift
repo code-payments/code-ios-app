@@ -508,7 +508,10 @@ public final class ChatViewController: UICollectionViewController {
               let divider = items.firstIndex(where: { if case .unreadDivider = $0 { true } else { false } })
         else { return }
         hasPlacedUnreadDivider = true
-        let indexPath = IndexPath(item: divider, section: 0)
+        // A date on the same gap is drawn above the divider and goes up with it, so the reader
+        // lands on the day as well as the count.
+        let headsDivider = divider > 0 && { if case .dateSeparator = items[divider - 1] { true } else { false } }()
+        let indexPath = IndexPath(item: headsDivider ? divider - 1 : divider, section: 0)
         if isAboveVisibleArea(indexPath) {
             scrollToRowTop(indexPath)
             return

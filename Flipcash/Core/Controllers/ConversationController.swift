@@ -1321,9 +1321,16 @@ final class ConversationController {
     /// stored after it. Read once per visit, before ``markRead(conversationID:)`` advances the
     /// pointer — see ``UnreadBoundary``.
     func unreadBoundary(for conversationID: ConversationID) -> UnreadBoundary {
-        UnreadBoundary.resolve(readPointer: store.selfReadPointer(for: conversationID, selfUserID: selfUserID)) { readThrough in
-            (try? database.inboundMessageCount(conversationID: conversationID, after: readThrough, excludingSender: selfUserID)) ?? 0
-        }
+        UnreadBoundary.resolve(
+            readPointer: store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
+            firstInbound: { readPointer in
+                ((try? database.firstInboundMessageID(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? nil)
+                    .map(MessageID.init(value:))
+            },
+            unreadCount: { readPointer in
+                (try? database.inboundMessageCount(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? 0
+            }
+        )
     }
 
     /// The newest stored message id at or below `messageID`, or nil when none is stored.

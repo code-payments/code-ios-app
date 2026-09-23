@@ -10,36 +10,37 @@ import SwiftUI
 import UIKit
 import FlipcashCore
 
-/// The full-width "N Unread Messages" band above the first message the viewer had not read.
+/// The "N Unread Messages" caption between two hairlines, above the first message the viewer had
+/// not read.
 public final class ChatUnreadDividerCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatUnreadDividerCell"
 
-    private let band = UIView()
     private let label = UILabel()
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
-        // Android's `divider` token, white at 10%.
-        band.backgroundColor = UIColor.white.withAlphaComponent(0.1)
-        band.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(band)
-
-        label.font = .default(size: 12, weight: .bold)
+        label.font = .default(size: 12)
         label.textColor = UIColor(Color.textSecondary)
         label.textAlignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        band.addSubview(label)
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        let leading = Self.hairline()
+        let trailing = Self.hairline()
+        let row = UIStackView(arrangedSubviews: [leading, label, trailing])
+        row.axis = .horizontal
+        row.alignment = .center
+        row.spacing = 8
+        row.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(row)
 
         NSLayoutConstraint.activate([
-            band.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            band.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
-            band.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            band.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            label.topAnchor.constraint(equalTo: band.topAnchor, constant: 8),
-            label.bottomAnchor.constraint(equalTo: band.bottomAnchor, constant: -8),
-            label.leadingAnchor.constraint(equalTo: band.leadingAnchor, constant: 16),
-            label.trailingAnchor.constraint(equalTo: band.trailingAnchor, constant: -16),
+            leading.widthAnchor.constraint(equalTo: trailing.widthAnchor),
+            row.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            row.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            row.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            row.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
         ])
     }
 
@@ -48,6 +49,14 @@ public final class ChatUnreadDividerCell: UICollectionViewCell {
 
     public func configure(count: Int) {
         label.text = ChatItem.unreadDividerText(count: count)
+    }
+
+    /// Android's `divider` token, white at 10%, 1pt tall as `HorizontalDivider` draws it.
+    private static func hairline() -> UIView {
+        let line = UIView()
+        line.backgroundColor = UIColor.white.withAlphaComponent(0.1)
+        line.heightAnchor.constraint(equalToConstant: 1 / UITraitCollection.current.displayScale).isActive = true
+        return line
     }
 }
 #endif

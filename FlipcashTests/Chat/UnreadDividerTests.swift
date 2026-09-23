@@ -149,12 +149,31 @@ struct UnreadDividerTests {
     @Test("a missing pointer resolves to none without asking for a count")
     func missingPointer_isNone() {
         var asked = false
-        let boundary = UnreadBoundary.resolve(readPointer: nil) { _ in
-            asked = true
-            return 5
-        }
+        let boundary = UnreadBoundary.resolve(
+            readPointer: nil,
+            firstInbound: { _ in
+                asked = true
+                return MessageID(value: 2)
+            },
+            unreadCount: { _ in
+                asked = true
+                return 5
+            }
+        )
         #expect(boundary == .none)
         #expect(!asked)
+    }
+
+    @Test("the read-through resolves to just below the first message someone else sent after the pointer")
+    func ownMessageAfterPointer_movesReadThroughPastIt() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let messages = [message(1, fromSelf: false), message(2, fromSelf: true), message(3, fromSelf: false)]
+        let controller = try await hydratedController(messages: messages, pointer: 1, database: database)
+
+        // Android's resolution gives the same value for this row, which keeps the two platforms'
+        // placement identical.
+        #expect(controller.unreadBoundary(for: .test(1)) == .at(readThrough: MessageID(value: 2), count: 1))
     }
 
     @Test("a boundary resolved before markRead survives the pointer advancing")
