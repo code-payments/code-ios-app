@@ -44,8 +44,9 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Called when the user taps the card drawn in place of a link. The whole card goes back
     /// because the two kinds land in different places — a cash card opens its link, a token card
-    /// pushes that token onto this chat's own stack — and only the owner holds that stack.
-    public var onLinkCardTap: ((LinkCard) -> Void)?
+    /// pushes that token onto this chat's own stack — and only the owner holds that stack. Carries
+    /// the stable id of the message the card came on.
+    public var onLinkCardTap: ((LinkCard, String) -> Void)?
 
     /// Where a link card looks its link up. Each card subscribes for itself, so the transcript
     /// carries no resolution state and a lookup landing cannot change a row's diff.
@@ -427,7 +428,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
-            cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card) }
+            cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card, message.messageID) }
             cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
         case let cell as ChatMessageCell:
             cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)

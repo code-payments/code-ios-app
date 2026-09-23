@@ -166,7 +166,7 @@ import FlipcashCore
         defer { inbox.stop() }
         #expect(await settle { !inbox.states.isEmpty })
 
-        claims.record(entropy: "abc")
+        claims.record(entropy: "abc", collected: true)
 
         #expect(await settle { inbox.states.count == 2 })
         #expect(inbox.states.last == .cash(.resolved(Self.resolved("$15.00", claim: .claimed))))

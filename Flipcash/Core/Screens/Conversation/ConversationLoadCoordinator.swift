@@ -37,6 +37,10 @@ final class ConversationLoadCoordinator {
     private(set) var unattributedSenders: [UserID] = []
 
     let conversationID: ConversationID
+
+    /// Thanks the sender of a cash link the reader opens from this transcript, once it is collected.
+    let claimReplies: CashLinkClaimReplies
+
     private let controller: ConversationController
     private let session: Session
     /// Supplies the counterpart's profile card, resolved live — it runs inside the observation
@@ -77,6 +81,9 @@ final class ConversationLoadCoordinator {
         self.knownAuthors = knownAuthors
         self.profileCard = profileCard
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
+        self.claimReplies = CashLinkClaimReplies(claims: session.cashLinkClaims) { [controller] messageID in
+            Task { await controller.send(CashLinkClaimReplies.thanks, to: conversationID, repliedTo: messageID) }
+        }
 
         // First paint is synchronous so an open never flashes an empty transcript; every later
         // change maps off the main thread.

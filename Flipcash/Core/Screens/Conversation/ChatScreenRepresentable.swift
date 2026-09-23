@@ -29,9 +29,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
-    /// Fired when the user taps the card drawn in place of a link, with the whole card. The owner
-    /// decides where it lands, which differs by kind.
-    let onLinkCardTap: (LinkCard) -> Void
+    /// Fired when the user taps the card drawn in place of a link, with the whole card and the
+    /// stable id of the message it came on. The owner decides where it lands, which differs by kind.
+    let onLinkCardTap: (LinkCard, String) -> Void
     /// Where a link card looks its link up — see ``LinkCardFeed``. Container-scoped, so it outlives
     /// both this view and the rows that subscribe to it.
     let linkCardSource: any LinkCardSource

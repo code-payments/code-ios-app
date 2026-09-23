@@ -1620,7 +1620,7 @@ class Session {
                         "claimState": "\(giftCardAccountInfo.claimState)",
                         "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                     ])
-                    cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy)
+                    cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy, collected: false)
                     dialogItem = .error(title: "Cash Already Collected", subtitle: "This cash has already been collected, or was cancelled by the sender")
                     return
                 }
@@ -1722,7 +1722,7 @@ class Session {
 
                 updatePostTransaction()
 
-                cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy)
+                cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy, collected: true)
 
                 showCashBill(
                     .init(
@@ -1746,7 +1746,7 @@ class Session {
                 logger.info("Cash link already claimed (server race)", metadata: [
                     "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                 ])
-                cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy)
+                cashLinkClaims.record(entropy: mnemonic.base58EncodedEntropy, collected: false)
                 dialogItem = .error(title: "Cash Already Collected", subtitle: "This cash has already been collected, or was cancelled by the sender")
                 Analytics.transfer(
                     event: .receiveCashLink,

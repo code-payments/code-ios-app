@@ -1041,13 +1041,21 @@ struct ConversationScreen: View {
     /// Where a tapped link card lands, which is not the same place for every kind.
     ///
     /// A cash card goes out through the deep-link path its URL would have taken — claiming is that
-    /// path's job and the card has no part in it. A group card and a token card push onto this
-    /// chat's own stack instead, so back returns to the conversation that held the link: the
-    /// deep-link handler's `.chat` and `.token` routes both replace the stack. The pushed group
-    /// screen gates itself, offering the join or the buy, so the card never joins from here.
-    private func openLinkCard(_ card: LinkCard) {
+    /// path's job and the card has no part in it — unless the viewer has not joined the group. A
+    /// group card and a token card push onto this chat's own stack instead, so back returns to the
+    /// conversation that held the link: the deep-link handler's `.chat` and `.token` routes both
+    /// replace the stack. The pushed group screen gates itself, offering the join or the buy, so the
+    /// card never joins from here.
+    private func openLinkCard(_ card: LinkCard, messageStableID: String) {
         switch card {
-        case .cash:
+        case .cash(let cash):
+            // A non-member can read a group whose listener rules they meet, but the cash posted in
+            // it is for the people in it.
+            if case .join = gate {
+                session.dialogItem = .error(title: "Join to Collect", subtitle: "Join this chat to collect cash sent in it.")
+                return
+            }
+            noteCashLinkTap(entropy: cash.entropy, messageStableID: messageStableID)
             openLink(card.url)
         case .group(let group):
             // A link to the chat already on screen has nowhere to go.
@@ -1056,6 +1064,17 @@ struct ConversationScreen: View {
         case .token(let token):
             router.push(.currencyInfo(token.mint))
         }
+    }
+
+    /// Arms the thank-you for a voucher someone else sent, in a chat the viewer can post to. The
+    /// reply goes out only if the claim this tap starts collects — see ``CashLinkClaimReplies``.
+    private func noteCashLinkTap(entropy: String, messageStableID: String) {
+        guard !gate.replacesComposer,
+              let coordinator,
+              let message = coordinator.loader.messages.first(where: { $0.stableID == messageStableID }),
+              !message.isFromSelf(conversationController.selfUserID)
+        else { return }
+        coordinator.claimReplies.tapped(entropy: entropy, messageID: message.id)
     }
 
     /// Builds (or clears) the transcript loader/coordinator as the conversation id resolves — including
