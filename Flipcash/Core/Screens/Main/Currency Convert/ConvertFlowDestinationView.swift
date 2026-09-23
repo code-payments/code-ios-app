@@ -12,8 +12,6 @@ struct ConvertFlowDestinationView: View {
 
     let path: ConvertFlowPath
 
-    @Environment(AppRouter.self) private var router
-
     var body: some View {
         switch path {
         case .confirmation(let sourceMint, let destinationMint, let destinationName, let amount, let sellFeeBps, let pinnedState):
@@ -34,13 +32,6 @@ struct ConvertFlowDestinationView: View {
                 currencyName: destinationName,
                 amount: amount
             )
-            // A finished convert lands back on the Wallet, per design — pop the
-            // whole convert flow off the host stack and dismiss the token-info
-            // card overlay it launched from.
-            .environment(\.dismissParentContainer, {
-                router.popToRoot()
-                router.dismissExpandedCard()
-            })
         }
     }
 }
