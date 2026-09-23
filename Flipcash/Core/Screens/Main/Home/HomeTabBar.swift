@@ -117,17 +117,3 @@ struct HomeTabBar: View {
         }
     }
 }
-
-private extension View {
-    /// The app's Liquid Glass surface clipped to a capsule — Liquid Glass on
-    /// iOS 26, an ultra-thin material below (mirrors `glassBackground(cornerRadius:)`,
-    /// which only offers a rounded-rect).
-    @ViewBuilder
-    func capsuleGlassBackground() -> some View {
-        if #available(iOS 26, *) {
-            glassEffect(.regular.interactive(), in: Capsule())
-        } else {
-            background(.ultraThinMaterial, in: Capsule())
-        }
-    }
-}

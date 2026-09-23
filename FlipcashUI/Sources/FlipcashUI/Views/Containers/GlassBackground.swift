@@ -34,6 +34,17 @@ extension View {
         }
     }
 
+    /// The app's glass surface clipped to a capsule, for a control whose shape is
+    /// fully rounded — the floating tab bar and the Scan tab's gallery button.
+    @ViewBuilder
+    public func capsuleGlassBackground() -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            background(.ultraThinMaterial, in: Capsule())
+        }
+    }
+
     /// The glass surface as a background layer *behind* the content, rather than
     /// wrapping it. Use for a surface that hosts its own touch-tracking control
     /// (a text field): applying `glassEffect` to the control reparents its text
