@@ -242,7 +242,7 @@ final class AppRouter {
     }
 
     /// A position on a stack: the stack and how many destinations it held.
-    struct StackPosition: Equatable {
+    struct StackPosition: Hashable {
         let stack: Stack
         let depth: Int
     }

@@ -110,7 +110,8 @@ struct AddMoneyStartScreen: View {
     /// the Scan tab — it falls back to presenting the flow as its own sheet.
     private func startFlow(_ method: DepositMethod, using router: AppRouter) {
         if let stack = router.addMoneyPushStack {
-            dismissThenPush(AddMoneyFlowStep.method(method), onto: stack, using: router)
+            let origin = AppRouter.StackPosition(stack: stack, depth: router[stack].count)
+            dismissThenPush(PushedAddMoneyFlowStep(step: .method(method), launchedFrom: origin), onto: stack, using: router)
         } else {
             flowMethod = method
         }
@@ -138,6 +139,10 @@ struct AddMoneyStartScreen: View {
     /// still up), unwinds the verification steps, and pushes the deposit.
     private func startCoinbaseVerification(pushingOnto stack: AppRouter.Stack, using router: AppRouter) {
         let baseline = router[stack].count
+        let deposit = PushedAddMoneyFlowStep(
+            step: .method(.coinbase),
+            launchedFrom: AppRouter.StackPosition(stack: stack, depth: baseline)
+        )
         verificationCoordinator.runGated(
             for: session,
             bind: { vm in
@@ -156,7 +161,7 @@ struct AddMoneyStartScreen: View {
                 if case .addMoney? = router.presentedSheet {
                     // Already verified: the picker is still up. Dismiss it and
                     // push the deposit once it clears (same anti-flicker beat).
-                    dismissThenPush(AddMoneyFlowStep.method(.coinbase), onto: stack, using: router)
+                    dismissThenPush(deposit, onto: stack, using: router)
                 } else {
                     // Verified via the pushed steps: unwind them and push the
                     // deposit inline on the already-visible stack.
@@ -164,7 +169,7 @@ struct AddMoneyStartScreen: View {
                     if depth > baseline {
                         router.popLast(depth - baseline, on: stack)
                     }
-                    router.pushAny(AddMoneyFlowStep.method(.coinbase), on: stack)
+                    router.pushAny(deposit, on: stack)
                 }
             }
         )
@@ -273,6 +278,13 @@ enum AddMoneyFlowStep: Hashable {
     case otherWalletCurrencyList
     case otherWalletCurrencyAddress(PublicKey)
     case processing(AddMoneyProcessingInput)
+}
+
+/// A deposit step pushed onto an app stack, carrying where the flow was launched so finishing
+/// returns there rather than to the stack's root.
+struct PushedAddMoneyFlowStep: Hashable {
+    let step: AddMoneyFlowStep
+    let launchedFrom: AppRouter.StackPosition
 }
 
 /// Renders one deposit-flow step; `onStep` advances the hosting stack.

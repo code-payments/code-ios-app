@@ -230,8 +230,8 @@ extension View {
         // The Add Money deposit flow pushes onto whichever stack launched it
         // (wallet, settings, buy, chat, …) rather than opening its own sheet,
         // so every app stack registers its steps here.
-        .navigationDestination(for: AddMoneyFlowStep.self) { step in
-            AddMoneyFlowStepDestination(step: step)
+        .navigationDestination(for: PushedAddMoneyFlowStep.self) { pushed in
+            AddMoneyFlowStepDestination(pushed: pushed)
         }
         // The up-front debit-card verification (intro → phone → email) pushes
         // onto the same stack ahead of the deposit flow.
@@ -248,16 +248,17 @@ extension View {
 /// Advancing pushes the next step onto the same stack.
 private struct AddMoneyFlowStepDestination: View {
 
-    let step: AddMoneyFlowStep
+    let pushed: PushedAddMoneyFlowStep
 
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        AddMoneyFlowDestination(step: step, onStep: { router.pushAny($0) })
-            .environment(\.dismissParentContainer, {
-                // The flow is pushed onto the host stack, so finishing pops back
-                // to that stack's root, returning to where it was launched.
-                router.popToRoot()
-            })
+        let origin = pushed.launchedFrom
+        AddMoneyFlowDestination(step: pushed.step, onStep: {
+            router.pushAny(PushedAddMoneyFlowStep(step: $0, launchedFrom: origin), on: origin.stack)
+        })
+            // Pops only the flow's own steps: whatever launched it (a gated chat, a pushed
+            // screen) stays on the stack beneath.
+            .environment(\.dismissParentContainer, { router.popTo(origin) })
     }
 }
