@@ -6,6 +6,7 @@ New in this release — please exercise these end to end:
 • Report a message, a person, and a group
 • Mute a chat, then confirm it stays quiet
 • Scan a code from a photo already in your gallery
+• On the scanner, the gallery button sits at the top right on its glass surface
 • Send a cash link and a token link into a chat — both should appear as cards you can act on
 • Start typing in a chat, leave, and come back — the draft should still be there
 • Scan a tipcard — it should land in the chat, not a tip sheet
