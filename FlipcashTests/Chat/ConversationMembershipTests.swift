@@ -147,6 +147,48 @@ struct ConversationMembershipTests {
         #expect(try database.getGroupMemberships() == [.test(9)])
     }
 
+    // MARK: - Reading from outside
+
+    @Test("A non-member the listener rules admit reads the transcript without marking it read")
+    func eligibleNonMemberReadsWithoutAdvancingPointer() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        mock.feed = [group(9, lastActivity: 50)]
+        mock.messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("hi"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
+        ]
+        let controller = makeController(mock, database: database)
+        controller.gateConversation = { _ in
+            ConversationGate(listener: .satisfied, speaker: .satisfied, headline: .staff)
+        }
+        _ = await controller.hydratedConversation(withID: .test(9))
+        mock.clearLatestPageQueries()
+
+        await controller.loadMessages(for: .test(9))
+        await controller.markRead(conversationID: .test(9))
+
+        // `AdvancePointer` is a member's write, so reading from outside leaves the pointer where it is.
+        #expect(mock.latestPageQueries == [.test(9)])
+        #expect(mock.markedRead.isEmpty)
+    }
+
+    @Test("A non-member of a group with no listener rule fetches nothing")
+    func nonMemberOfUnruledGroupFetchesNothing() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        mock.feed = [group(9, lastActivity: 50)]
+        let controller = makeController(mock, database: database)
+        _ = await controller.hydratedConversation(withID: .test(9))
+        mock.clearLatestPageQueries()
+
+        await controller.loadMessages(for: .test(9))
+
+        // The contract gives this viewer no read, so the round trip would only come back DENIED.
+        #expect(mock.latestPageQueries.isEmpty)
+    }
+
     // MARK: - Join and leave
 
     @Test("A join seats membership, metadata, and the cache")

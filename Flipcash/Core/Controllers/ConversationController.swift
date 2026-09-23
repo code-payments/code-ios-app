@@ -124,19 +124,32 @@ final class ConversationController {
     /// which conversations are hidden from the feed.
     @ObservationIgnored var blockedUserIDs: () -> Set<UserID> = { [] }
 
-    /// Whether the signed-in user satisfies a conversation's listener rules — wired to the
-    /// participation gate at session setup. False only for a group chat the user may not read,
-    /// where `GetMessages`, `GetDelta` and `AdvancePointer` all answer `DENIED`; the default
-    /// admits everything, which is right for every DM and for a group with no rules.
-    @ObservationIgnored var canReadConversation: (Conversation) -> Bool = { _ in true }
+    /// A conversation's participation rules weighed against the signed-in user — wired to
+    /// ``conversationGate(session:rules:rates:)`` at session setup. The default gates nothing,
+    /// which is right for every DM and for a group with no rules.
+    @ObservationIgnored var gateConversation: (Conversation) -> ConversationGate = { _ in .open }
 
-    /// Whether the transcript for `conversationID` is worth a round trip. A conversation the feed
-    /// doesn't hold yet is assumed readable: its rules aren't known, and refusing to fetch would
-    /// leave it permanently empty. A group the user has not joined is not — the server answers
-    /// `DENIED` for a non-member whether or not the chat's rules are satisfied.
+    /// Whether the transcript for `conversationID` is worth a round trip: the same line the screen's
+    /// blur draws, so nothing is fetched that the screen would cover and nothing it shows goes
+    /// unfetched. `GetMessages` and `GetDelta` answer `DENIED` to anyone the gate obscures — a
+    /// viewer short of the listener rules, and a non-member of a group that states none. A
+    /// conversation the feed doesn't hold yet is assumed readable: its rules aren't known, and
+    /// refusing to fetch would leave it permanently empty.
     private func canRead(_ conversationID: ConversationID) -> Bool {
         guard let conversation = conversation(withID: conversationID) else { return true }
-        return store.isMember(of: conversation) && canReadConversation(conversation)
+        let presentation = conversationGatePresentation(
+            gateConversation(conversation),
+            isMember: store.isMember(of: conversation)
+        )
+        return !presentation.obscuresTranscript
+    }
+
+    /// Whether the user's read pointer in `conversationID` can move. `AdvancePointer` is a member's
+    /// write, so an eligible non-member reads the transcript without marking it read.
+    private func canAdvancePointer(_ conversationID: ConversationID) -> Bool {
+        guard canRead(conversationID) else { return false }
+        guard let conversation = conversation(withID: conversationID) else { return true }
+        return store.isMember(of: conversation)
     }
 
     @ObservationIgnored private let fetching: any ConversationFetching
@@ -1531,9 +1544,9 @@ final class ConversationController {
     }
 
     func markRead(conversationID: ConversationID) async {
-        // A pointer advance is denied for the same reason the fetch is, and a chat the user cannot
-        // read has nothing to mark.
-        guard canRead(conversationID) else { return }
+        // A pointer advance is denied to a non-member even when the fetch isn't, and a chat the user
+        // cannot read has nothing to mark.
+        guard canAdvancePointer(conversationID) else { return }
         guard let latestID = (try? database.newestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
         // Skip the round-trip when the server-known READ watermark already covers
         // the latest message. We advance the watermark locally after each success.

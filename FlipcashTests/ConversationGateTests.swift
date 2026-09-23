@@ -268,29 +268,95 @@ struct ConversationGateTests {
         #expect(presentation.replacesComposer)
     }
 
-    @Test("Membership is what unblurs the transcript, not eligibility")
-    func presentation_obscuresTranscript_untilJoined() {
+    @Test("Eligibility is what unblurs the transcript; a join is only needed to write")
+    func presentation_obscuresTranscript_unlessEligible() {
         #expect(ConversationGatePresentation.open.obscuresTranscript == false)
         #expect(ConversationGatePresentation.readOnly(.staff).obscuresTranscript == false)
+        #expect(ConversationGatePresentation.join(.staff).obscuresTranscript == false)
         #expect(ConversationGatePresentation.join(nil).obscuresTranscript)
         #expect(ConversationGatePresentation.blocked(.staff).obscuresTranscript)
         #expect(ConversationGatePresentation.undetermined.obscuresTranscript)
     }
 
-    @Test("Satisfying the rules changes the button, not the blur")
-    func presentation_eligibleNonMember_stillBlurred() {
-        let eligible = conversationGatePresentation(.open, isMember: false)
-        let refused = conversationGatePresentation(
-            ConversationGate(
-                listener: .unsatisfied(unmet: [.staff], primary: .staff),
-                speaker: .unsatisfied(unmet: [.staff], primary: .staff),
-                headline: .staff
-            ),
+    @Test("Every state but open takes the composer's place")
+    func presentation_replacesComposer_unlessOpen() {
+        #expect(ConversationGatePresentation.open.replacesComposer == false)
+        #expect(ConversationGatePresentation.readOnly(.staff).replacesComposer)
+        #expect(ConversationGatePresentation.join(.staff).replacesComposer)
+        #expect(ConversationGatePresentation.join(nil).replacesComposer)
+        #expect(ConversationGatePresentation.blocked(.staff).replacesComposer)
+        #expect(ConversationGatePresentation.undetermined.replacesComposer)
+    }
+
+    @Test("A non-member who satisfies the rules reads the transcript but still has to join to write")
+    func presentation_eligibleNonMember_readsButCannotWrite() {
+        let gate = ConversationGate(listener: .satisfied, speaker: .satisfied, headline: .staff)
+        let presentation = conversationGatePresentation(gate, isMember: false)
+        #expect(presentation == .join(.staff))
+        #expect(presentation.obscuresTranscript == false)
+        #expect(presentation.withholdsTranscript == false)
+        #expect(presentation.replacesComposer)
+    }
+
+    @Test("A non-member of a group with no listener rule is refused the read until they join")
+    func presentation_noListenerRule_nonMemberStaysBlurred() {
+        // The contract gives a non-member of such a group no read at all, so there is nothing to show.
+        let presentation = conversationGatePresentation(.open, isMember: false)
+        #expect(presentation == .join(nil))
+        #expect(presentation.obscuresTranscript)
+        #expect(presentation.withholdsTranscript)
+        #expect(presentation.replacesComposer)
+    }
+
+    @Test("A non-member short of the rules stays blurred")
+    func presentation_unsatisfiedNonMember_isObscured() {
+        let gate = ConversationGate(
+            listener: .unsatisfied(unmet: [.staff], primary: .staff),
+            speaker: .unsatisfied(unmet: [.staff], primary: .staff),
+            headline: .staff
+        )
+        let presentation = conversationGatePresentation(gate, isMember: false)
+        #expect(presentation == .blocked(.staff))
+        #expect(presentation.obscuresTranscript)
+        #expect(presentation.replacesComposer)
+    }
+
+    @Test("A balance that drops below the bar while the chat is open brings the blur back")
+    func presentation_satisfiedThenUnsatisfied_reobscures() throws {
+        let rules = ConversationRules(listener: [.minimumBalance(minimumBalance(100, mints: [.usdf]))])
+        let requirement = ConversationGateRequirement.minimumBalance(amount: .usd(100), mint: .usdf)
+
+        let before = conversationGatePresentation(
+            conversationGate(session: StubHoldings(balances: [.usdf: try holding(usd: 150)]), rules: rules, rates: noRates),
             isMember: false
         )
-        #expect(eligible == .join(nil))
-        #expect(eligible.obscuresTranscript)
-        #expect(refused.obscuresTranscript)
+        #expect(before == .join(requirement))
+        #expect(before.obscuresTranscript == false)
+
+        let after = conversationGatePresentation(
+            conversationGate(session: StubHoldings(balances: [.usdf: try holding(usd: 25)]), rules: rules, rates: noRates),
+            isMember: false
+        )
+        #expect(after == .blocked(requirement))
+        #expect(after.obscuresTranscript)
+    }
+
+    @Test("A verdict that guessed at a missing rate keeps a non-member's transcript covered")
+    func presentation_provisionalVerdict_isUndetermined() {
+        // No cached CAD rate, so the requirement can't be restated in USD and the gate counts it as
+        // met. Showing the transcript on that guess would blur it again once the rate lands.
+        let rules = ConversationRules(listener: [
+            .minimumBalance(MinimumBalanceRequirement(amount: FiatAmount(value: 100, currency: .cad), mints: [])),
+        ])
+        let gate = conversationGate(session: StubHoldings(), rules: rules, rates: noRates)
+        #expect(gate.listener == .satisfied)
+        #expect(gate.isProvisional)
+
+        let nonMember = conversationGatePresentation(gate, isMember: false)
+        #expect(nonMember == .undetermined)
+        #expect(nonMember.obscuresTranscript)
+        // A member already reads the chat, so the guess only decides their composer.
+        #expect(conversationGatePresentation(gate, isMember: true) == .open)
     }
 
     // MARK: - Rules that haven't arrived
@@ -306,6 +372,7 @@ struct ConversationGateTests {
     func presentation_withholdsTranscript_whenMessagesAreKeptBack() {
         #expect(ConversationGatePresentation.blocked(.staff).withholdsTranscript)
         #expect(ConversationGatePresentation.join(nil).withholdsTranscript)
+        #expect(ConversationGatePresentation.join(.staff).withholdsTranscript == false)
         #expect(ConversationGatePresentation.undetermined.withholdsTranscript == false)
         #expect(ConversationGatePresentation.open.withholdsTranscript == false)
         #expect(ConversationGatePresentation.readOnly(.staff).withholdsTranscript == false)

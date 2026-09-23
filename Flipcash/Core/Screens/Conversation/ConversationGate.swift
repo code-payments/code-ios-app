@@ -66,6 +66,10 @@ struct ConversationGate: Equatable {
     /// something the user is short of.
     var headline: ConversationGateRequirement?
 
+    /// Whether ``listener`` counts a requirement as met only because no cached rate could restate
+    /// it in USD. The verdict is then a guess, and a non-member's transcript waits for the real one.
+    var isProvisional = false
+
     /// No rules to satisfy — every DM, and a group that doesn't gate anything.
     static let open = ConversationGate(listener: .satisfied, speaker: .satisfied, headline: nil)
 
@@ -102,7 +106,9 @@ struct ConversationGate: Equatable {
 /// rules and denies every read. Fail-closed would blur a chat the user actually
 /// qualifies for on the strength of a number the client hasn't got — and if the
 /// rate table never carries that currency, permanently. The cost is one denied
-/// fetch on a race, which self-corrects on the next rate tick.
+/// fetch on a race, which self-corrects on the next rate tick. The gate is marked
+/// ``ConversationGate/isProvisional`` when this happens, so a non-member is not
+/// shown a transcript the real verdict might take back.
 @MainActor
 func conversationGate(
     session: some ConversationGateReading,
@@ -134,10 +140,18 @@ func conversationGate(
     // verdict as well, carrying both sets.
     let speaker = verdict(for: listenerUnmet + speakerUnmet)
 
+    let isProvisional = rules.listener.contains { rule in
+        switch rule {
+        case .staff:                            return false
+        case .minimumBalance(let requirement):  return requirement.amount.converted(to: .usd, rates: rates) == nil
+        }
+    }
+
     return ConversationGate(
         listener: listener,
         speaker: speaker,
-        headline: headline(for: rules.listener)
+        headline: headline(for: rules.listener),
+        isProvisional: isProvisional
     )
 }
 
@@ -197,7 +211,9 @@ private func verdict(for unmet: [ConversationGateRequirement]) -> ConversationGa
 enum ConversationGatePresentation: Equatable {
     /// Nothing gated — the ordinary composer.
     case open
-    /// The chat's rules aren't known yet, because its metadata hasn't arrived.
+    /// The chat's rules aren't known yet, because its metadata hasn't arrived —
+    /// or, for a non-member, whether they are met isn't, because a requirement
+    /// is in a currency with no cached rate (``ConversationGate/isProvisional``).
     ///
     /// Distinct from ``open``, which is a chat that has told us it gates
     /// nothing. A chat reached by link or push is not in the store until
@@ -207,16 +223,15 @@ enum ConversationGatePresentation: Equatable {
     /// showing the thing being withheld. Withholding has to be immediate;
     /// revealing is the part that can wait for an answer.
     case undetermined
-    /// Rules met but not yet a member: a blurred transcript with Join Chat in
+    /// Rules met but not yet a member: a readable transcript with Join Chat in
     /// place of the composer, carrying the chat's stated requirement to restate
     /// what joining costs (node 10125:19102 for the panel's copy).
     ///
-    /// The transcript is withheld here even though the listener rules are
-    /// satisfied, because joining is what unblurs: satisfying a chat's rules
-    /// earns the right to join it, not the right to read it from outside.
-    /// Eligibility decides what the button offers — Join Chat here, a buy in
-    /// ``blocked`` — never whether the messages are legible. Android draws the
-    /// same line.
+    /// Satisfying a group's listener rules is what the contract asks of a reader,
+    /// so the transcript is legible before the join; joining is what earns the
+    /// composer. A nil requirement is the exception: the chat states no listener
+    /// rule, and the contract gives a non-member of such a group no read at all,
+    /// so it stays blurred until the join. Android draws the same line.
     case join(ConversationGateRequirement?)
     /// Listener rules unmet: blurred transcript, the requirement named, and a
     /// CTA when the requirement has one (node 10125:19153).
@@ -227,14 +242,15 @@ enum ConversationGatePresentation: Equatable {
 
     /// Whether the transcript is blurred and its messages left unfetched.
     ///
-    /// Every state a non-member can be in: ``blocked`` refuses them, ``join``
-    /// has not been accepted yet, and ``undetermined`` hasn't said. Membership
-    /// is the line, not eligibility — see ``join``. ``readOnly`` is not here
-    /// because that user has already joined; they just can't send.
+    /// Eligibility is the line, not membership: ``blocked`` refuses the viewer,
+    /// and ``undetermined`` hasn't said whether it will. A ``join`` is readable
+    /// unless its chat states no listener rule — see ``join``. ``readOnly`` is
+    /// readable because that user has already joined; they just can't send.
     var obscuresTranscript: Bool {
         switch self {
-        case .open, .readOnly:                return false
-        case .join, .blocked, .undetermined:  return true
+        case .open, .readOnly:           return false
+        case .join(let requirement):     return requirement == nil
+        case .blocked, .undetermined:    return true
         }
     }
 
@@ -242,14 +258,15 @@ enum ConversationGatePresentation: Equatable {
     /// rather than an unanswered question.
     ///
     /// The gate placeholder's shapes stand in for a transcript that exists and
-    /// is being withheld, which ``blocked`` and ``join`` can both claim: the
-    /// chat is real and its messages are not this viewer's to read yet. Under
-    /// ``undetermined`` nothing is known to be withheld, so the blur covers an
-    /// empty screen and says nothing about why.
+    /// is being withheld, which ``blocked`` can claim, and a ``join`` whose chat
+    /// states no listener rule: the chat is real and its messages are not this
+    /// viewer's to read yet. Under ``undetermined`` nothing is known to be
+    /// withheld, so the blur covers an empty screen and says nothing about why.
     var withholdsTranscript: Bool {
         switch self {
         case .open, .readOnly, .undetermined:  return false
-        case .join, .blocked:                  return true
+        case .join(let requirement):           return requirement == nil
+        case .blocked:                         return true
         }
     }
 
@@ -274,8 +291,10 @@ func conversationGatePresentation(_ gate: ConversationGate, isMember: Bool) -> C
     case .unsatisfied(_, let primary):
         return .blocked(primary)
     case .satisfied:
-        // Satisfying the rules earns the join, not the transcript — `.join` blurs.
-        guard isMember else { return .join(gate.headline) }
+        // Satisfying the rules earns the transcript; joining earns the composer. A verdict that
+        // guessed at a missing rate stays undetermined, so the transcript is never shown and then
+        // taken back when the rate lands.
+        guard isMember else { return gate.isProvisional ? .undetermined : .join(gate.headline) }
         switch gate.speaker {
         case .unsatisfied(_, let primary):  return .readOnly(primary)
         case .satisfied:                    return .open

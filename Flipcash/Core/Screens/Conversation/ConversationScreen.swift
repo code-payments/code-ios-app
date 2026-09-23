@@ -471,8 +471,9 @@ struct ConversationScreen: View {
             isTipDm: tipCounterpart != nil,
             startChattingFee: startChattingFee,
             gate: gate,
-            // The contract has no non-member read, so a gated chat the viewer has no history of has
-            // nothing under its blur. The shapes stand in for what they are not allowed to see —
+            // A viewer the gate refuses is refused the read too, so a blocked chat they have no
+            // history of has nothing under its blur. The shapes stand in for what they are not
+            // allowed to see —
             // which is why this reads `withholdsTranscript` and not `obscuresTranscript`: a chat
             // whose rules haven't landed yet is blurred without yet refusing anything.
             showsGatePlaceholder: gate.withholdsTranscript && (coordinator?.items.isEmpty ?? true),
@@ -684,6 +685,13 @@ struct ConversationScreen: View {
             // catch-up alike — so a blocked chat stops here with its metadata and nothing else.
             guard !gate.obscuresTranscript else { return }
             await loadTranscript(for: conversationID)
+        }
+        .onChange(of: gate.obscuresTranscript) { _, obscures in
+            // The opening task read the gate it started with, which for a chat reached by link or
+            // push is `.undetermined`: a non-member the rules admit, or a balance that crosses the
+            // requirement mid-screen, lifts the blur without re-running it. A join loads for itself.
+            guard !obscures, !didInitialRead, !isJoiningChat, chatExists, let conversationID else { return }
+            Task { await loadTranscript(for: conversationID) }
         }
         .onChange(of: latestConfirmedMessage?.stableID) {
             // Fires on a live arrival or our own send. Marking read on our own send is intentional: it
