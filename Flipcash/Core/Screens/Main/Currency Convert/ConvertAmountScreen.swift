@@ -46,6 +46,9 @@ private struct ConvertAmountScreenContent: View {
 
     @State private var viewModel: ConvertAmountViewModel
     @State private var isShowingDestinationPicker = false
+    /// Where the convert flow was launched from, captured on first appearance so finishing pops
+    /// only the convert flow's own screens.
+    @State private var launchPosition: AppRouter.StackPosition?
 
     @Environment(AppRouter.self) private var router
 
@@ -81,6 +84,10 @@ private struct ConvertAmountScreenContent: View {
         .toolbarTitleDisplayMode(.inline)
         .navigationDestination(for: ConvertFlowPath.self) { path in
             ConvertFlowDestinationView(path: path)
+                // A finished convert returns to the screen that launched it.
+                .environment(\.dismissParentContainer, {
+                    router.finishPushedFlow(launchedFrom: launchPosition)
+                })
                 .id(path)
         }
         .dialog(item: $viewModel.dialogItem)
@@ -93,6 +100,10 @@ private struct ConvertAmountScreenContent: View {
                     isShowingDestinationPicker = false
                 }
             )
+        }
+        .onAppear {
+            guard launchPosition == nil else { return }
+            launchPosition = router.positionBeneathTopmost()
         }
     }
 

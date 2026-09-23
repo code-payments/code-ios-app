@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 import Testing
 import FlipcashCore
 @testable import Flipcash
@@ -91,10 +92,32 @@ struct AddMoneyRoutingTests {
 
         // Mirrors AddMoneyStartScreen.select(_:) for the buy entry.
         router.dismissSheet()
-        router.pushAny(AddMoneyFlowStep.method(.otherWallet))
+        router.pushAny(PushedAddMoneyFlowStep(
+            step: .method(.otherWallet),
+            launchedFrom: AppRouter.StackPosition(stack: .buy, depth: 0)
+        ))
 
         #expect(router.presentedSheets == [.give, .buy(.usdc)])
         #expect(router[.buy].count == 1, "The deposit flow step must land on the buy sheet's stack")
+    }
+
+    @Test("Finishing a deposit launched from a gated chat returns to the chat")
+    func finishDeposit_fromChat_returnsToChat() throws {
+        let router = AppRouter()
+        router.activeTabStack = .tips
+        router.push(.tipConversation(.test(1)))
+        router.presentAddMoney(.general, source: .chat)
+
+        // Mirrors AddMoneyStartScreen.startFlow(_:using:) and the steps it pushes.
+        let stack = try #require(router.addMoneyPushStack)
+        let origin = AppRouter.StackPosition(stack: stack, depth: router[stack].count)
+        router.dismissSheet()
+        router.pushAny(PushedAddMoneyFlowStep(step: .method(.phantom), launchedFrom: origin), on: stack)
+        router.pushAny(PushedAddMoneyFlowStep(step: .phantomAmount, launchedFrom: origin), on: stack)
+
+        router.popTo(origin)
+
+        #expect(router[.tips] == AppRouter.navigationPath(.tipConversation(.test(1))))
     }
 
     @Test("The deposit flow targets the sheet directly beneath the picker")
