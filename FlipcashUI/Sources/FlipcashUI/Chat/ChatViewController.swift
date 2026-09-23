@@ -123,6 +123,10 @@ public final class ChatViewController: UICollectionViewController {
     /// True until the first non-empty content has been scrolled to the bottom. The open is
     /// deferred to `viewDidLayoutSubviews` so it runs once the collection view has real bounds.
     private var needsInitialScroll = false
+    /// Set once the open has decided between the bottom and the unread divider. A later re-armed
+    /// open (a non-animated update) goes to the bottom as before, rather than back to the divider
+    /// the reader may already have scrolled past.
+    private var hasPlacedUnreadDivider = false
 
     /// A row asked for before it was in `items` — the loader's window has to move first. The next
     /// update carrying it performs the scroll.
@@ -230,6 +234,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatLinkMessageCell.self, forCellWithReuseIdentifier: ChatLinkMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
+        collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
         collectionView.register(ChatProfileCardCell.self, forCellWithReuseIdentifier: ChatProfileCardCell.reuseIdentifier)
         collectionView.register(ChatGroupCardCell.self, forCellWithReuseIdentifier: ChatGroupCardCell.reuseIdentifier)
@@ -400,6 +405,8 @@ public final class ChatViewController: UICollectionViewController {
             (cell as! ChatGroupCardCell).configure(with: card, onTap: cardTap, onInvite: invite)
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
+        case .unreadDivider(let count):
+            (cell as! ChatUnreadDividerCell).configure(count: count)
         case .message(let message):
             configure(cell, with: message)
         }
@@ -490,10 +497,36 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Open at the newest message once there is content and real bounds. Runs once — ChatLayout
     /// keeps it anchored afterwards.
+    ///
+    /// With an unread divider, the first open lands with the divider at the top of the visible area
+    /// instead, unless every unread message fits on screen from the bottom.
     private func performInitialScrollIfNeeded() {
         guard needsInitialScroll, !items.isEmpty, collectionView.bounds.height > 0 else { return }
         needsInitialScroll = false
         scrollToBottom(animated: false)
+        guard !hasPlacedUnreadDivider,
+              let divider = items.firstIndex(where: { if case .unreadDivider = $0 { true } else { false } })
+        else { return }
+        hasPlacedUnreadDivider = true
+        let indexPath = IndexPath(item: divider, section: 0)
+        if isAboveVisibleArea(indexPath) {
+            scrollToRowTop(indexPath)
+            return
+        }
+        // The rows under the divider may not have self-sized yet, so ask again once they have —
+        // queued behind `scrollToBottom`'s own re-anchor, and only if nothing has claimed the
+        // position since.
+        let claim = positionClaim
+        DispatchQueue.main.async { [weak self] in
+            guard let self, positionClaim == claim, isAboveVisibleArea(indexPath) else { return }
+            scrollToRowTop(indexPath)
+        }
+    }
+
+    /// Whether the row at `indexPath` starts above the top of the visible area.
+    private func isAboveVisibleArea(_ indexPath: IndexPath) -> Bool {
+        guard let frame = chatLayout.layoutAttributesForItem(at: indexPath)?.frame else { return false }
+        return frame.minY < chatLayout.visibleBounds.minY
     }
 
     /// Scrolls the given row into view, or waits for the update that brings it in.
@@ -538,6 +571,23 @@ public final class ChatViewController: UICollectionViewController {
         // settle, so the row is already lit when it arrives and there is no beat where the transcript
         // has stopped on a message that looks like every other one.
         flashAttention(forStableID: id)
+    }
+
+    /// Puts the top of the row at `indexPath` at the top of the visible area, without animating. The
+    /// top-aligned counterpart to ``scrollToRow(id:animated:)``'s centering, for a heading the reader
+    /// should read down from.
+    private func scrollToRowTop(_ indexPath: IndexPath) {
+        positionClaim += 1
+        let claim = positionClaim
+        // The reader is off the bottom now, so the keyboard must not pull them back down to it.
+        wasAtBottom = false
+        let snapshot = ChatLayoutPositionSnapshot(indexPath: indexPath, edge: .top)
+        chatLayout.restoreContentOffset(with: snapshot)
+        // Re-anchor once the rows above have self-sized, as `scrollToBottom` does for the bottom.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, positionClaim == claim else { return }
+            chatLayout.restoreContentOffset(with: snapshot)
+        }
     }
 
     /// Flashes the row with `stableID`, and holds it as the attention target for as long as the
@@ -729,7 +779,7 @@ extension ChatViewController: ChatLayoutDelegate {
 
         // Checked before the senders, as Android does: a separator is the heading for the run under
         // it, so it takes the same air on both sides whatever it happens to separate.
-        guard !isDateSeparator(at: indexPath), !isDateSeparator(at: below) else { return nil }
+        guard !isHeading(at: indexPath), !isHeading(at: below) else { return nil }
 
         // A pairing with no sender on one side is the profile card, which is not a bubble and keeps
         // the base spacing.
@@ -756,17 +806,21 @@ extension ChatViewController: ChatLayoutDelegate {
         return message
     }
 
-    /// Whether the row at `indexPath` is a day header. Bounds-checked; out of range is not one.
-    private func isDateSeparator(at indexPath: IndexPath) -> Bool {
-        guard items.indices.contains(indexPath.item),
-              case .dateSeparator = items[indexPath.item] else { return false }
-        return true
+    /// Whether the row at `indexPath` is a day header or the unread divider. Bounds-checked; out of
+    /// range is not one.
+    private func isHeading(at indexPath: IndexPath) -> Bool {
+        guard items.indices.contains(indexPath.item) else { return false }
+        switch items[indexPath.item] {
+        case .dateSeparator, .unreadDivider: return true
+        case .message, .typingIndicator, .profileCard, .groupCard: return false
+        }
     }
 
     /// Which side of the thread the row at `indexPath` belongs to, or nil for a row that belongs to
-    /// neither (a date separator, the profile or group card). The typing indicator counts as the counterpart:
-    /// it is an incoming bubble in everything but content, so it should arrive like one and should
-    /// not read as a change of speaker when it follows their message.
+    /// neither (a date separator, the unread divider, the profile or group card). The typing
+    /// indicator counts as the counterpart: it is an incoming bubble in everything but content, so it
+    /// should arrive like one and should not read as a change of speaker when it follows their
+    /// message.
     ///
     /// Bounds-checked, because the layout can ask mid-batch-update, where an index path may outrun
     /// `items`.
@@ -775,7 +829,7 @@ extension ChatViewController: ChatLayoutDelegate {
         switch items[indexPath.item] {
         case .message(let message): return message.sender
         case .typingIndicator: return .other
-        case .dateSeparator, .profileCard, .groupCard: return nil
+        case .dateSeparator, .unreadDivider, .profileCard, .groupCard: return nil
         }
     }
 }

@@ -225,6 +225,30 @@ nonisolated extension Database {
         return try reader.scalar(m.table.filter(m.conversationId == conversationID.data).count)
     }
 
+    /// The number of stored messages after `after` that someone other than `selfUserID` sent and
+    /// that are not deleted — the count the unread divider shows. A row with no sender counts as
+    /// someone else's. Index-backed by the composite `(conversationId, id)` primary key.
+    public func inboundMessageCount(conversationID: ConversationID, after: MessageID, excludingSender selfUserID: UUID) throws -> Int {
+        let m = ConversationMessageTable()
+        return try reader.scalar(
+            m.table.filter(
+                m.conversationId == conversationID.data
+                    && m.id > after.value
+                    && m.kind != 2
+                    && (m.senderId == nil || m.senderId != selfUserID)
+            ).count
+        )
+    }
+
+    /// The newest stored message id at or below `through`, or nil when none is stored — the row the
+    /// unread divider sits under when the READ pointer's own message is gone.
+    public func newestMessageID(conversationID: ConversationID, through: MessageID) throws -> UInt64? {
+        let m = ConversationMessageTable()
+        return try reader.pluck(
+            m.table.filter(m.conversationId == conversationID.data && m.id <= through.value).order(m.id.desc)
+        ).map { $0[m.id] }
+    }
+
     /// The oldest persisted message id for a conversation, or nil when none is cached — the anchor for
     /// paging genuinely older history from the server.
     public func oldestMessageID(conversationID: ConversationID) throws -> MessageID? {

@@ -35,11 +35,11 @@ struct NotificationTranscriptView: View {
                             case .dateSeparator(_, let text):
                                 NotificationDateSeparator(text: text)
                                     .transition(.opacity)
-                            case .typingIndicator, .profileCard, .groupCard:
-                                // Typing is live, ephemeral state and the profile card is
-                                // in-app chrome — neither belongs in a static notification
-                                // snapshot and the preview mapping never emits them. Handled
-                                // only for exhaustiveness.
+                            case .typingIndicator, .profileCard, .groupCard, .unreadDivider:
+                                // Typing is live, ephemeral state; the profile card and the
+                                // unread divider are in-app chrome — none belongs in a static
+                                // notification snapshot and the preview mapping never emits
+                                // them. Handled only for exhaustiveness.
                                 EmptyView()
                             }
                         }
