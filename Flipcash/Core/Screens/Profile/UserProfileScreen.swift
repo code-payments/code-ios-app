@@ -17,6 +17,7 @@ import FlipcashUI
 /// works on the person globally, and the mute row silences the DM with them when one exists.
 struct UserProfileScreen: View {
     let userID: UserID
+    let origin: UserProfileOrigin
 
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(BlocklistController.self) private var blocklistController
@@ -28,6 +29,10 @@ struct UserProfileScreen: View {
             // Nil until a tip creates the chat server-side, and re-read on every pass, so a DM that
             // appears while the screen is open brings its mute row with it.
             conversationID: sessionContainer.conversationController.tipDM(withUserID: userID)?.id,
+            showsChatActions: origin.showsChatActions(
+                profileUserID: userID,
+                selfUserID: sessionContainer.conversationController.selfUserID
+            ),
             model: UserProfileViewModel(
                 userID: userID,
                 flipClient: sessionContainer.flipClient,
@@ -45,12 +50,18 @@ struct UserProfileScreen: View {
 private struct UserProfileContent: View {
     /// The DM to mute, or nil when there is no chat with this person yet.
     let conversationID: ConversationID?
+    /// Whether to offer Message and Send Cash — see ``UserProfileOrigin/showsChatActions(profileUserID:selfUserID:)``.
+    let showsChatActions: Bool
+
+    @Environment(AppRouter.self) private var router
+    @Environment(RatesController.self) private var ratesController
 
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
 
-    init(conversationID: ConversationID?, model: UserProfileViewModel) {
+    init(conversationID: ConversationID?, showsChatActions: Bool, model: UserProfileViewModel) {
         self.conversationID = conversationID
+        self.showsChatActions = showsChatActions
         _model = State(initialValue: model)
     }
 
@@ -89,6 +100,28 @@ private struct UserProfileContent: View {
                     if let conversationID {
                         ChatMuteStatusLabel(conversationID: conversationID)
                     }
+                }
+
+                if showsChatActions {
+                    HStack(spacing: 0) {
+                        ProfileActionButton(title: "Message") {
+                            Image(systemName: "bubble.left.fill")
+                                .font(.appTextLarge)
+                        } action: {
+                            router.push(.tipConversationForUser(model.userID))
+                        }
+                        .accessibilityIdentifier("profile-message")
+
+                        ProfileActionButton(title: "Send Cash") {
+                            // The chat's collapsed Send Cash style, so € and ¥ read the same here.
+                            Text(ratesController.balanceCurrency.compactSymbol)
+                                .font(.appTextXL)
+                        } action: {
+                            router.push(.tipConversationForUserSendingCash(model.userID))
+                        }
+                        .accessibilityIdentifier("profile-send-cash")
+                    }
+                    .padding(.top, 8)
                 }
 
                 VStack(spacing: 0) {
@@ -139,6 +172,56 @@ private struct UserProfileContent: View {
             }
             DialogAction.cancel()
         }
+    }
+}
+
+/// Where a person's profile was opened from.
+nonisolated enum UserProfileOrigin: Hashable {
+    /// The title or card of the DM with this person.
+    case directMessage
+    /// Their face in a group transcript.
+    case groupMember
+
+    /// Whether the profile offers Message and Send Cash: not from the DM they would lead back
+    /// into, and never on the viewer's own profile.
+    func showsChatActions(profileUserID: UserID, selfUserID: UserID) -> Bool {
+        guard profileUserID != selfUserID else { return false }
+        switch self {
+        case .directMessage: return false
+        case .groupMember:   return true
+        }
+    }
+}
+
+/// A round, borderless icon over its label — one of the profile's Message / Send Cash pair.
+private struct ProfileActionButton<Glyph: View>: View {
+    let title: String
+    @ViewBuilder let glyph: Glyph
+    let action: () -> Void
+
+    private var diameter: CGFloat { 46 }
+    /// The column each button owns; two side by side put their centers this far apart.
+    private var columnWidth: CGFloat { 114 }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                glyph
+                    .foregroundStyle(.textMain)
+                    .frame(width: diameter, height: diameter)
+                    .background(Circle().fill(.backgroundSecondary))
+
+                Text(title)
+                    .font(.appTextCaption)
+                    .foregroundStyle(.textSecondary)
+            }
+            .frame(width: columnWidth)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(.isButton)
     }
 }
 
