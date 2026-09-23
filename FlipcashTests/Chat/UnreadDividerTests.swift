@@ -68,6 +68,11 @@ struct UnreadDividerTests {
             messages: [(1, false, false), (2, true, false), (3, false, false)],
             pointer: 1, dividerAbove: 3, count: 1
         ),
+        SharedCase(
+            name: "Nothing stored at or below read-through",
+            messages: [(3, false, false), (4, false, false)],
+            pointer: 1, dividerAbove: nil, count: 0
+        ),
     ]
 
     private let base = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 1_000_000))
@@ -158,6 +163,10 @@ struct UnreadDividerTests {
             unreadCount: { _ in
                 asked = true
                 return 5
+            },
+            hasStored: { _ in
+                asked = true
+                return true
             }
         )
         #expect(boundary == .none)

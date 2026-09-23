@@ -31,15 +31,22 @@ public enum UnreadBoundary: Hashable, Sendable {
     /// paged, so the viewer's own member row can be absent, and treating that as a pointer of zero
     /// would head the whole transcript with the divider. This is deliberately not
     /// ``Conversation/hasUnread(for:)``, which counts a missing pointer as unread.
+    ///
+    /// `hasStored` answers whether any message at or below a given id is stored. When none is, the
+    /// store has a gap below the unread run and can't know how many unread messages precede it, so
+    /// the boundary resolves to `.none` rather than a count that may be short.
     public static func resolve(
         readPointer: MessageID?,
         firstInbound: (MessageID) -> MessageID?,
-        unreadCount: (MessageID) -> Int
+        unreadCount: (MessageID) -> Int,
+        hasStored: (MessageID) -> Bool
     ) -> UnreadBoundary {
         guard let readPointer, let first = firstInbound(readPointer) else { return .none }
+        let readThrough = MessageID(value: first.value - 1)
+        guard hasStored(readThrough) else { return .none }
         let count = unreadCount(readPointer)
         guard count > 0 else { return .none }
-        return .at(readThrough: MessageID(value: first.value - 1), count: count)
+        return .at(readThrough: readThrough, count: count)
     }
 
     /// Whether the divider sits between two adjacent messages, `older` directly above `newer`.

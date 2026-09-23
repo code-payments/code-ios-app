@@ -1329,6 +1329,9 @@ final class ConversationController {
             },
             unreadCount: { readPointer in
                 (try? database.inboundMessageCount(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? 0
+            },
+            hasStored: { readThrough in
+                newestPersistedMessageID(through: readThrough, in: conversationID) != nil
             }
         )
     }
