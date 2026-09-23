@@ -1,5 +1,5 @@
 //
-//  BuyFlowDismissalTests.swift
+//  AppRouterPushedFlowTests.swift
 //  FlipcashTests
 //
 
@@ -9,11 +9,11 @@ import FlipcashCore
 @testable import Flipcash
 
 @MainActor
-@Suite("Buy Flow Dismissal")
-struct BuyFlowDismissalTests {
+@Suite("AppRouter Pushed Flow Finish")
+struct AppRouterPushedFlowTests {
 
     @Test("Finishing a buy launched from a gated chat returns to the chat")
-    func finishPushedBuy_fromChat_returnsToChat() {
+    func finishPushedFlow_fromChat_returnsToChat() {
         let router = AppRouter()
         router.activeTabStack = .tips
         router.push(.tipConversation(.test(1)))
@@ -21,33 +21,33 @@ struct BuyFlowDismissalTests {
         let launch = router.positionBeneathTopmost()
         router.pushAny(AppRouter.Destination.transactionHistory(.usdc))
 
-        BuyAmountScreen.finishPushedBuy(router: router, returningTo: launch)
+        router.finishPushedFlow(launchedFrom: launch)
 
         #expect(router[.tips] == AppRouter.navigationPath(.tipConversation(.test(1))))
     }
 
     @Test("Finishing a buy launched from a pushed token screen returns to that screen")
-    func finishPushedBuy_fromPushedCurrencyInfo_returnsToIt() {
+    func finishPushedFlow_fromPushedCurrencyInfo_returnsToIt() {
         let router = AppRouter()
         router.activeTabStack = .balance
         router.push(.currencyInfo(.usdc))
         router.push(.buyCurrency(.usdc))
         let launch = router.positionBeneathTopmost()
 
-        BuyAmountScreen.finishPushedBuy(router: router, returningTo: launch)
+        router.finishPushedFlow(launchedFrom: launch)
 
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
         #expect(router.requestedCardDismiss == 0)
     }
 
     @Test("Finishing a buy launched from the wallet's expanded card lands on the wallet")
-    func finishPushedBuy_fromExpandedCard_dismissesCard() {
+    func finishPushedFlow_fromExpandedCard_dismissesCard() {
         let router = AppRouter()
         router.activeTabStack = .balance
         router.push(.buyCurrency(.usdc))
         let launch = router.positionBeneathTopmost()
 
-        BuyAmountScreen.finishPushedBuy(router: router, returningTo: launch)
+        router.finishPushedFlow(launchedFrom: launch)
 
         #expect(router[.balance].isEmpty)
         #expect(router.requestedCardDismiss == 1)

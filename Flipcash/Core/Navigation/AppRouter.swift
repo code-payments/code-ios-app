@@ -259,6 +259,21 @@ final class AppRouter {
         popLast(self[position.stack].count - position.depth, on: position.stack)
     }
 
+    /// Pops a finished pushed flow back to where it was launched, closing the wallet's expanded
+    /// card when the flow was launched from a stack root, where the card sits. With no recorded
+    /// position it falls back to the topmost stack's root.
+    func finishPushedFlow(launchedFrom position: StackPosition?) {
+        guard let position else {
+            popToRoot()
+            dismissExpandedCard()
+            return
+        }
+        popTo(position)
+        if position.depth == 0 {
+            dismissExpandedCard()
+        }
+    }
+
     /// Replaces the entire path on `stack` with the given typed destinations.
     /// Used for cross-stack jumps like `navigate(to:)` where the leaf is set
     /// fresh.

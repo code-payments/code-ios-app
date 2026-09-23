@@ -38,21 +38,6 @@ struct BuyAmountScreen: View {
         )
         .id(mint)
     }
-
-    /// Unwinds a finished pushed buy back to the screen that launched it — the gated chat, a
-    /// pushed token screen, or the wallet — and closes the expanded card when the buy was launched
-    /// from one, which sits over the wallet's root.
-    static func finishPushedBuy(router: AppRouter, returningTo position: AppRouter.StackPosition?) {
-        guard let position else {
-            router.popToRoot()
-            router.dismissExpandedCard()
-            return
-        }
-        router.popTo(position)
-        if position.depth == 0 {
-            router.dismissExpandedCard()
-        }
-    }
 }
 
 private struct BuyAmountScreenContent: View {
@@ -131,7 +116,7 @@ private struct BuyAmountScreenContent: View {
                 // returns to the screen that launched it.
                 .environment(\.dismissParentContainer, presentedAsSheetRoot
                     ? router.dismissSheet
-                    : { BuyAmountScreen.finishPushedBuy(router: router, returningTo: launchPosition) })
+                    : { router.finishPushedFlow(launchedFrom: launchPosition) })
                 .id(path)
         }
         .sheet(isPresented: $isShowingPaymentPicker) {
