@@ -1052,7 +1052,7 @@ struct ConversationScreen: View {
             // A non-member can read a group whose listener rules they meet, but the cash posted in
             // it is for the people in it.
             if case .join = gate {
-                session.dialogItem = .error(title: "Join to Collect", subtitle: "Join this chat to collect cash sent in it.")
+                session.dialogItem = .info(title: "Join to Collect", subtitle: "Join this chat to collect cash sent in it.")
                 return
             }
             noteCashLinkTap(entropy: cash.entropy, messageStableID: messageStableID)
