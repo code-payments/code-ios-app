@@ -94,7 +94,7 @@ class ScanViewModel {
         case .cash(let payload):
             didScanCash(payload)
         case .tip(let payload):
-            Analytics.track(event: Analytics.TipCardEvent.scanned)
+            Analytics.tipCardScanned()
             tipFlow.begin(userID: payload.userID)
         }
     }
@@ -272,7 +272,7 @@ class ScanViewModel {
     private func handle(_ code: ScannedCode) async -> StillImageOutcome {
         switch code {
         case .tip(let payload):
-            Analytics.track(event: Analytics.TipCardEvent.scanned)
+            Analytics.tipCardScanned()
             tipFlow.begin(userID: payload.userID)
             return .handled
 

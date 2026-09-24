@@ -85,16 +85,7 @@ extension Analytics {
         case tipCardSetup
     }
 
-    /// The scanned-tipcard funnel: a tipcard is scanned, resolves and is
-    /// presented, then a tip is sent (`TransferEvent.sentTip`). Names are
-    /// shared verbatim with Android.
-    enum TipCardEvent: String, AnalyticsEvent {
-        case scanned   = "Tip Card Scanned"
-        case presented = "Tip Card Presented"
-    }
-
     enum GalleryScanEvent: String, AnalyticsEvent {
-        case picked       = "Gallery Scan: Image Picked"
         case codeFound    = "Gallery Scan: Code Found"
         case nothingFound = "Gallery Scan: Nothing Found"
     }
@@ -247,12 +238,12 @@ extension Analytics {
 extension Analytics {
     /// A tip card code was scanned.
     static func tipCardScanned() {
-        track(event: TipCardEvent.scanned)
+        track(ScanEvents.shared.tipCardScanned())
     }
 
     /// A scanned tip card resolved and was presented.
     static func tipCardPresented() {
-        track(event: TipCardEvent.presented)
+        track(ScanEvents.shared.tipCardPresented())
     }
 }
 
@@ -261,7 +252,7 @@ extension Analytics {
 extension Analytics {
     /// A picked image is about to be searched.
     static func galleryScanStarted() {
-        track(event: GalleryScanEvent.picked)
+        track(ScanEvents.shared.galleryImagePicked())
     }
 
     /// A Kik code was found, and how deep in the ladder it was. The tier and zoom are the

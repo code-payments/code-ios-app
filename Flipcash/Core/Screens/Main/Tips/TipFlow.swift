@@ -276,7 +276,7 @@ final class TipFlow {
     private func present(userID: UserID, profile: Profile) {
         // The card is resolved and about to show, whether reached from a scan or
         // a deep link — the second step of the Scanned → Presented → Sent Tip funnel.
-        Analytics.track(event: Analytics.TipCardEvent.presented)
+        Analytics.tipCardPresented()
         // Again, because the resolve above retries: a cold-foreground `.unavailable`
         // outlasts the window opened at `begin`, so the restore can win after it has
         // closed. The card is a focused modal and must never share the screen with a
