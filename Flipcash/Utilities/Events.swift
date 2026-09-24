@@ -59,9 +59,7 @@ extension Analytics {
     }
 
     enum ConversationEvent: String, AnalyticsEvent {
-        case sentMessage     = "Sent Message"
-        case tipReceived     = "Tip Received"
-        case messageReceived = "Message Received"
+        case tipReceived = "Tip Received"
     }
 
     /// The display name a user is known by. `Set` is a first name, `Updated` a
@@ -398,11 +396,7 @@ extension Analytics {
     /// A chat message send. `Chat Type` mirrors Android — Tip / Contact /
     /// Unknown (a conversation not resolved locally yet).
     static func sentMessage(chatType: ConversationType?, error: Error? = nil) {
-        track(
-            event: ConversationEvent.sentMessage,
-            properties: [.chatType: chatType.analyticsValue],
-            error: error
-        )
+        track(ChatEvents.shared.sentMessage(chatType: chatType.sharedChatType, error: nil), error: error)
     }
 
     /// An inbound tipped Cash message the user has now read. Mutually exclusive with
@@ -415,7 +409,7 @@ extension Analytics {
 
     /// An inbound non-tip message the user has now read.
     static func messageReceived(chatType: ConversationType?) {
-        track(event: ConversationEvent.messageReceived, properties: [.chatType: chatType.analyticsValue])
+        track(ChatEvents.shared.messageReceived(chatType: chatType.sharedChatType))
     }
 }
 
@@ -427,6 +421,16 @@ private extension Optional where Wrapped == ConversationType {
         case .tipDm:     "Tip"
         case .group:     "Group"
         case .none:      "Unknown"
+        }
+    }
+
+    /// The shared contract's `Chat Type`, which names the same four values.
+    var sharedChatType: ChatType {
+        switch self {
+        case .contactDm: .contact
+        case .tipDm:     .tip
+        case .group:     .group
+        case .none:      .unknown
         }
     }
 }
