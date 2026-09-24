@@ -89,6 +89,8 @@ protocol ConversationViewerSettings: AnyObject, Sendable {
 /// DM message send/read surface used by `ConversationController`. Maps to the
 /// `flipcash.messaging.v1.Messaging` RPCs.
 protocol ConversationMessaging: AnyObject, Sendable {
+    /// Fetches one message by id, or nil when the chat has no such message.
+    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage?
     /// Fetches a page of messages. `before == nil` returns the newest page;
     /// pass the oldest currently-loaded id to page strictly older (history).
     func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage]
@@ -135,6 +137,10 @@ extension FlipClient {
 
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
         try await getChat(owner: owner, conversationID: conversationID, viewMode: .full)
+    }
+
+    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
+        try await getMessage(owner: owner, conversationID: conversationID, messageID: messageID, viewMode: .full)
     }
 
     func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {

@@ -188,6 +188,26 @@ extension Conversation {
         }
     }
 
+    /// How many unread-eligible messages follow the signed-in user's READ watermark: 0 when
+    /// ``hasUnread(for:)`` is false, nil when the chat is unread but the count can't be known.
+    ///
+    /// The server stamps every message with a running `unreadSeq`, so the count is the newest
+    /// message's stamp minus the stamp of the message at the watermark. The feed reports the
+    /// watermark as a message id only, so `unreadSeqAt` supplies that message's stamp from local
+    /// storage; a watermark whose message isn't stored yields nil. A DM with no watermark counts
+    /// from zero, as ``hasUnread(for:)`` does.
+    public func unreadCount(for selfUserID: UserID?, unreadSeqAt: (MessageID) -> UInt64?) -> Int? {
+        guard let lastMessage, hasUnread(for: selfUserID) else { return 0 }
+        var readSeq: UInt64 = 0
+        if let pointer = selfReadPointer(for: selfUserID), pointer.value > 0 {
+            guard let seq = unreadSeqAt(pointer) else { return nil }
+            readSeq = seq
+        }
+        // Unread by id but not by stamp: the newest message doesn't count toward unread.
+        guard lastMessage.unreadSeq > readSeq else { return nil }
+        return Int(lastMessage.unreadSeq - readSeq)
+    }
+
     /// Whether the signed-in user has this chat muted as of `date`.
     ///
     /// Unread state is deliberately independent of this: a muted chat still accrues unread

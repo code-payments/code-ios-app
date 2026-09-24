@@ -137,15 +137,20 @@ private extension View {
 }
 
 /// A row's trailing accessory: a relative timestamp (or "Unknown Contact"
-/// pill), an unread dot, or a disclosure chevron.
+/// pill), the unread count, or a disclosure chevron.
 struct RecipientRowAccessory: View {
 
     let timestamp: Date
     let isUnknown: Bool
     let hasUnread: Bool
+    /// The count the unread pill carries. Nil while unread draws a bare dot: the count can't
+    /// always be known, and a guessed number would be wrong.
+    var unreadCount: Int? = nil
 
     var body: some View {
-        HStack(spacing: 6) {
+        let count = hasUnread ? unreadCount.flatMap { $0 > 0 ? $0 : nil } : nil
+        // The design sets the count pill 4pt off the timestamp; the dot and chevron keep 6.
+        HStack(spacing: count == nil ? 6 : 4) {
             if isUnknown {
                 Text("Unknown Contact")
                     .fixedSize(horizontal: true, vertical: false)
@@ -155,7 +160,9 @@ struct RecipientRowAccessory: View {
                     .font(.appTextSmall)
                     .foregroundStyle(hasUnread ? Color.unreadIndicator : Color.textSecondary)
             }
-            if hasUnread {
+            if let count {
+                UnreadCountPill(count: count)
+            } else if hasUnread {
                 Circle()
                     .fill(Color.unreadIndicator)
                     .frame(width: 9, height: 9)
@@ -167,5 +174,27 @@ struct RecipientRowAccessory: View {
                     .foregroundStyle(Color.textSecondary)
             }
         }
+    }
+}
+
+/// A chat's unread count beside its timestamp (node 10329:8245): dark digits on the unread
+/// blue, 18pt tall, a circle for one digit that widens into a capsule for more.
+private struct UnreadCountPill: View {
+
+    let count: Int
+
+    /// The tab bar's badge caps at the same point.
+    private static let cap = 100
+
+    var body: some View {
+        Text(count > Self.cap ? "\(Self.cap)+" : "\(count)")
+            .font(.appTextHeading)
+            .tracking(-0.72)
+            .foregroundStyle(Color.backgroundMain)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 4)
+            .frame(minWidth: 18, minHeight: 18)
+            .background(Color.unreadIndicator, in: .capsule)
     }
 }
