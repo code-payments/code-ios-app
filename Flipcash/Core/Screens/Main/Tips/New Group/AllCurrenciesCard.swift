@@ -40,7 +40,8 @@ struct AllCurrenciesCard: View {
                 CheckView(active: isSelected)
                     .accessibilityHidden(true)
             }
-            .padding(16)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 16)
             .background(Color.backgroundRow, in: .rect(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
@@ -48,6 +49,9 @@ struct AllCurrenciesCard: View {
             }
             .contentShape(.rect(cornerRadius: 12))
         }
+        // Margin plus padding matches the currency rows' 20pt inset, so the icon and check sit on
+        // the same lines as the rows' icons and checks.
+        .padding(.horizontal, 8)
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("all-currencies-card")
