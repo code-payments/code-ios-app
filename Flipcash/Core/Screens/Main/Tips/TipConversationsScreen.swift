@@ -14,6 +14,8 @@ struct TipConversationsScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
+    @State private var muteTarget: MuteTarget?
+
     /// The rows the tab lists, newest activity first. Groups sit among the tip DMs, but only the
     /// ones the user has joined: a group reached by a `/chat/{id}` link and not joined is in the
     /// store so its own screen can offer the join, not so it can appear in a list the user never
@@ -43,11 +45,17 @@ struct TipConversationsScreen: View {
                         // Separators divide rows from each other; the first
                         // row's leading one just draws a line under the bar.
                         .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
+                        .swipeActions {
+                            muteAction(for: conversation)
+                        }
                     }
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
             }
+        }
+        .sheet(item: $muteTarget) { target in
+            MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
         }
         .navigationTitle("Chats")
         .toolbarTitleDisplayMode(.inline)
@@ -81,6 +89,39 @@ struct TipConversationsScreen: View {
             sessionContainer.profileAvatars.preload(subjects)
         }
     }
+
+    /// The row's trailing swipe action, which opens the same duration picker as the chat's
+    /// settings screen rather than toggling the mute itself.
+    private func muteAction(for conversation: Conversation) -> some View {
+        let isMuted = conversation.isMuted(at: .now)
+        let symbol: SystemSymbol = isMuted ? .bell : .bellSlash
+        return Button {
+            muteTarget = MuteTarget(id: conversation.id)
+        } label: {
+            // A swipe action draws its label white whatever the style says, so the amber has to be
+            // baked into the image.
+            Image(uiImage: UIImage(systemName: symbol.rawValue)!
+                .withTintColor(UIColor(Color.warning), renderingMode: .alwaysOriginal))
+        }
+        // The mute chip's amber-on-amber, not the delete red: nothing is lost by it.
+        .tint(.warningSecondary)
+        .accessibilityLabel(isMuted ? "Change mute" : "Mute notifications")
+    }
+
+    /// Bridges ``MuteChatSheet``'s dismissal binding onto ``muteTarget``.
+    private var isPickingMuteDuration: Binding<Bool> {
+        Binding(
+            get: { muteTarget != nil },
+            set: { if !$0 { muteTarget = nil } }
+        )
+    }
+}
+
+/// The chat whose mute sheet is open. A wrapper because ``ConversationID`` isn't `Identifiable`,
+/// and `.sheet(item:)` keeps the item through the dismissal animation where an optional-backed
+/// `isPresented` would blank the sheet's content on the way out.
+private struct MuteTarget: Identifiable {
+    let id: ConversationID
 }
 
 // MARK: - NewChatButton -
