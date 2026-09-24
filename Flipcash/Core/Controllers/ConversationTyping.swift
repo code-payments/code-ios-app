@@ -10,7 +10,7 @@ import FlipcashCore
 
 nonisolated private let logger = Logger(label: "flipcash.conversation-controller")
 
-/// Typing indicators for DM conversations: broadcasts the signed-in user's typing state
+/// Typing indicators for conversations: broadcasts the signed-in user's typing state
 /// and tracks which counterparts are typing. The server relays typing best-effort with
 /// no timeout of its own, so stale typists are expired locally.
 @MainActor
@@ -25,8 +25,8 @@ final class ConversationTyping {
     private let timeout: Duration
     private let incomingExpiry: Duration
 
-    /// OTHER members typing per conversation, each keyed to their staleness deadline.
-    private var typists: [ConversationID: [UserID: ContinuousClock.Instant]] = [:]
+    /// OTHER members typing per conversation, each with when they started and their staleness deadline.
+    private var typists: [ConversationID: [UserID: Typist]] = [:]
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
 
     @ObservationIgnored private var isSelfTyping = false
@@ -59,12 +59,27 @@ final class ConversationTyping {
         !(typists[conversationID]?.isEmpty ?? true)
     }
 
+    /// Returns the other members typing in the conversation, oldest to newest by when they started.
+    func typists(in conversationID: ConversationID) -> [UserID] {
+        guard let typists = typists[conversationID] else { return [] }
+        // Ties on the start instant fall back to the id, so the order never flips between reads.
+        return typists
+            .sorted { ($0.value.startedAt, $0.key.uuidString) < ($1.value.startedAt, $1.key.uuidString) }
+            .map(\.key)
+    }
+
     /// Applies typing notifications from the live stream, ignoring the user's own.
     func apply(_ notifications: [TypingNotification], in conversationID: ConversationID) {
         for notification in notifications where notification.userID != selfUserID {
             switch notification.isActive {
             case true:
-                typists[conversationID, default: [:]][notification.userID] = ContinuousClock.now + incomingExpiry
+                let now = ContinuousClock.now
+                // A STILL heartbeat extends the deadline but keeps the typist's place in line.
+                let startedAt = typists[conversationID]?[notification.userID]?.startedAt ?? now
+                typists[conversationID, default: [:]][notification.userID] = Typist(
+                    startedAt: startedAt,
+                    deadline: now + incomingExpiry
+                )
             case false:
                 removeTypist(notification.userID, in: conversationID)
             }
@@ -83,7 +98,7 @@ final class ConversationTyping {
     private func scheduleExpirySweep() {
         expiryTask?.cancel()
         expiryTask = nil
-        guard let earliest = typists.values.flatMap(\.values).min() else { return }
+        guard let earliest = typists.values.flatMap(\.values).map(\.deadline).min() else { return }
         expiryTask = Task { [weak self] in
             try? await Task.sleep(until: earliest, clock: .continuous)
             guard let self, !Task.isCancelled else { return }
@@ -93,8 +108,8 @@ final class ConversationTyping {
 
     private func sweepExpiredTypists() {
         let now = ContinuousClock.now
-        for (conversationID, deadlines) in typists {
-            for (userID, deadline) in deadlines where deadline <= now {
+        for (conversationID, members) in typists {
+            for (userID, typist) in members where typist.deadline <= now {
                 logger.debug("Expiring stale typist", metadata: [
                     "conversationID": "\(conversationID)",
                     "userID": "\(userID)",
@@ -103,6 +118,11 @@ final class ConversationTyping {
             }
         }
         scheduleExpirySweep()
+    }
+
+    private struct Typist {
+        var startedAt: ContinuousClock.Instant
+        var deadline: ContinuousClock.Instant
     }
 
     // MARK: - Outgoing

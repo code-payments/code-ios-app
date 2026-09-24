@@ -534,6 +534,11 @@ final class ConversationController {
         typing.isCounterpartTyping(in: conversationID)
     }
 
+    /// Returns the other members typing in the conversation, oldest to newest by when they started.
+    func typists(in conversationID: ConversationID) -> [UserID] {
+        typing.typists(in: conversationID)
+    }
+
     func stop() {
         startTask?.cancel()
         startTask = nil

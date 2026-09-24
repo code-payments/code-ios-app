@@ -104,7 +104,7 @@ struct ChatViewControllerTests {
 
         let before: [ChatItem] = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
             .message(ChatMessage(id: "them-1", text: "typing next", sender: .other)),
-            .typingIndicator,
+            .typingIndicator(typists: []),
         ]
         controller.update(items: before)
         for _ in 0..<3 {
@@ -290,7 +290,7 @@ struct ChatRowSpacingTests {
     // them is never marked as continued — which is what puts a new turn's gap under it.
     @Test("The typing indicator reads as a new turn, not a continuation")
     func typingIndicator_isNotAContinuation() {
-        let items: [ChatItem] = [message("1", .other), .typingIndicator]
+        let items: [ChatItem] = [message("1", .other), .typingIndicator(typists: [])]
         #expect(gap(after: 0, in: items) == 10)
     }
 }
