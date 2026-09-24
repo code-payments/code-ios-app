@@ -91,7 +91,7 @@ extension DialogItem {
     static func leavingFlipcash(host: String, open: @escaping () -> Void) -> DialogItem {
         .alert(
             title: "You're leaving Flipcash",
-            subtitle: "This link opens \(host). Flipcash will never ask for your Access Key on a website."
+            subtitle: "This link opens \(host). Flipcash will never ask for your Access Key on a website"
         ) {
             DialogAction.standard("Cancel") {}
             DialogAction.subtle("Open Link", action: open)
