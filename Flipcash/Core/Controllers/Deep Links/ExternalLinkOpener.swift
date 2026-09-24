@@ -7,12 +7,10 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-private let logger = Logger(label: "flipcash.external-link")
-
 /// Whether a link can leave the app straight away or only after a warning naming its host.
 ///
-/// A token's social links and a chat message's links are written by strangers, and a drainer site
-/// reached from either looks like any other page once Safari has it. The warning puts the real
+/// A link in a chat message is written by a stranger, and a drainer site reached from one looks
+/// like any other page once Safari has it. The warning puts the real
 /// host in front of the user first. Android runs the same check with the same cases.
 nonisolated enum ExternalLinkCheck: Equatable {
 
@@ -54,12 +52,14 @@ nonisolated enum ExternalLinkCheck: Equatable {
     }
 }
 
-/// Opens a link that may leave the app, first warning when its host is not one of ours.
+/// Opens a link from a chat message's text, first warning when its host is not one of ours.
+///
+/// Links the app builds itself open directly; only text someone else wrote goes through here.
 @MainActor
 struct ExternalLinkOpener {
 
-    /// Where the warning is drawn; `nil` when no one is logged in.
-    let session: Session?
+    /// Where the warning is drawn.
+    let session: Session
 
     /// Opens `url` now if ``ExternalLinkCheck`` allows it, otherwise once the user picks Open Link.
     func open(_ url: URL) {
@@ -68,13 +68,6 @@ struct ExternalLinkOpener {
             UIApplication.shared.open(url)
 
         case .warn(let host):
-            // The warning is drawn by the logged-in session's dialog window. No logged-out screen
-            // shows a link from outside the app, so refusing here costs nothing today and keeps a
-            // future one from skipping the warning.
-            guard let session else {
-                logger.warning("Dropped external link with no session to warn from", metadata: ["host": "\(host)"])
-                return
-            }
             session.dialogItem = .leavingFlipcash(host: host) {
                 UIApplication.shared.open(url)
             }
