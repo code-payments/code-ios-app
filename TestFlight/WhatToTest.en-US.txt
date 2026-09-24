@@ -1,5 +1,20 @@
 What to test in this build
 
+New in this release — please exercise these end to end:
+• Launch the app — it should open on the Chat tab
+• Leave a chat with unread messages and come back — a divider should mark where the unread messages start
+• Scroll through a chat — messages should mark as read only once they've been on screen
+• In a group, have someone type — their avatar should appear ahead of the typing indicator
+• Send a cash link into a chat and have it collected — the sender should get a thank-you
+• Open a group you qualify for but haven't joined — you should be able to read the conversation
+• Open a group member's profile and tap Message
+• Send a link into a chat and share a group invite — each should get its own card
+• Join a group with a balance requirement by buying exactly the required amount — it should unlock
+• From a gated group chat, buy, deposit, or convert — you should land back in that chat
+• Scan a group invite QR — it should open the invite
+• Open a Flipcash universal link from outside the app — it should take you to the right place
+• On the scanner, the gallery button sits at the top right on its glass surface
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
