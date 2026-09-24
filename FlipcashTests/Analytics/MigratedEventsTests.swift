@@ -105,7 +105,7 @@ struct MigratedEventsTests {
 
     @Test("Onramp steps are named after the screen shown")
     func onrampStep() throws {
-        let expected: [(OnrampStep, String)] = [
+        let expected: [(Analytics.OnrampStep, String)] = [
             (.enterPhone, "Onramp: Show Enter Phone"),
             (.confirmPhone, "Onramp: Show Confirm Phone"),
             (.enterEmail, "Onramp: Show Enter Email"),

@@ -44,11 +44,22 @@ extension Analytics {
         case giveBill        = "Give Bill"
     }
 
-    enum OnrampEvent: String, AnalyticsEvent {
-        case showEnterPhone       = "Onramp: Show Enter Phone"
-        case showConfirmPhone     = "Onramp: Show Confirm Phone"
-        case showEnterEmail       = "Onramp: Show Enter Email"
-        case showConfirmEmail     = "Onramp: Show Confirm Email"
+    /// An onramp verification screen, sent as `Onramp: Show <step>`.
+    enum OnrampStep {
+        case enterPhone
+        case confirmPhone
+        case enterEmail
+        case confirmEmail
+
+        /// The shared contract's step for this screen.
+        var shared: SharedCoreKit.OnrampStep {
+            switch self {
+            case .enterPhone:   .enterPhone
+            case .confirmPhone: .confirmPhone
+            case .enterEmail:   .enterEmail
+            case .confirmEmail: .confirmEmail
+            }
+        }
     }
 
     enum SendEvent: String, AnalyticsEvent {
@@ -196,13 +207,7 @@ extension Analytics {
 extension Analytics {
     /// An onramp verification screen was shown.
     static func onrampStep(_ step: OnrampStep) {
-        switch step {
-        case .enterPhone:   track(event: OnrampEvent.showEnterPhone)
-        case .confirmPhone: track(event: OnrampEvent.showConfirmPhone)
-        case .enterEmail:   track(event: OnrampEvent.showEnterEmail)
-        case .confirmEmail: track(event: OnrampEvent.showConfirmEmail)
-        default:            break
-        }
+        track(OnrampEvents.shared.step(step: step.shared))
     }
 }
 
