@@ -175,6 +175,14 @@ nonisolated func headline(for rules: [ConversationListenerRule]) -> Conversation
 
 /// Returns the requirement when the user is short of it, or nil when it is met
 /// — including when no rate is available to restate it (fail-open).
+///
+/// The holding is compared at display precision, rounded half-up to cents: a
+/// balance the wallet shows as $5.00 meets a $5 requirement even when its exact
+/// worth is $4.998, and $4.995 passes too. A launchpad holding's exact worth
+/// depends on the supply the store last saw, and one that lags a buy prices the
+/// new tokens a fraction below what was paid. The server enforces the rule
+/// against its own supply, so a client that admits half a cent too generously
+/// costs one denied fetch, the same trade the fail-open rate case makes.
 @MainActor
 private func unmetBalance(
     _ requirement: MinimumBalanceRequirement,
@@ -187,7 +195,7 @@ private func unmetBalance(
     // The contract allows at most one mint today; empty means every mint counts.
     let mint = requirement.mints.first
     let held = mint.map { session.balance(for: $0)?.usdf ?? .usd(0) } ?? session.totalBalance.usdfValue
-    guard held >= required else {
+    guard held.roundedToSmallestUnit() >= required else {
         return .minimumBalance(amount: requirement.amount, mint: mint)
     }
     return nil
