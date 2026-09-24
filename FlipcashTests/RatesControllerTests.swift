@@ -358,6 +358,56 @@ struct RatesControllerTests {
         #expect(balance?.supplyFromBonding == 2_000_000)
     }
 
+    @Test("A re-delivered supply restores one that a GetMints insert overwrote")
+    @MainActor
+    func reserveStatesPublisher_redeliveredSupply_restoresOverwrittenRow() async throws {
+        let database = try Database(
+            url: URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("test-\(UUID().uuidString).sqlite")
+        )
+        let controller = makeController(database: database)
+        let mint = PublicKey.jeffy
+        let staleSupply: UInt64 = 50_000 * 10_000_000_000
+        let liveSupply: UInt64 = 60_000 * 10_000_000_000
+
+        try database.insert(mints: [.makeLaunchpad(address: mint, supplyFromBonding: staleSupply)], date: .now)
+        try database.insertBalance(quarks: 1_000_000_000_000, mint: mint, costBasis: 0, date: .now)
+
+        func streamSupply(_ supply: UInt64) async {
+            await confirmation("reserveStatesPublisher emit triggers DB write") { confirm in
+                let cancellable = controller.verifiedProtoService.reserveStatesPublisher
+                    .receive(on: DispatchQueue.main)
+                    .sink { _ in confirm() }
+
+                await controller.verifiedProtoService.saveReserveStates([
+                    .makeTest(mint: mint, supplyFromBonding: supply)
+                ])
+
+                _ = cancellable
+            }
+        }
+
+        func storedBalance() throws -> StoredBalance {
+            try #require(try database.getBalances().first { $0.mint == mint })
+        }
+
+        await streamSupply(liveSupply)
+        let live = try storedBalance()
+        #expect(live.supplyFromBonding == liveSupply)
+
+        // A post-swap balance refresh writes GetMints' older supply over the streamed one.
+        try database.insert(mints: [.makeLaunchpad(address: mint, supplyFromBonding: staleSupply)], date: .now)
+        let stale = try storedBalance()
+        #expect(stale.supplyFromBonding == staleSupply)
+        #expect(stale.usdf < live.usdf)
+
+        // The stream repeats a supply it already sent; the row has to take it back.
+        await streamSupply(liveSupply)
+        let restored = try storedBalance()
+        #expect(restored.supplyFromBonding == liveSupply)
+        #expect(restored.usdf == live.usdf)
+    }
+
     // MARK: - streamedMints filtering -
 
     @Test("startStreaming sets streamedMints to provided list")
