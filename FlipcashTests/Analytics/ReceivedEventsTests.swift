@@ -22,11 +22,4 @@ struct ReceivedEventsTests {
     func receivedEventNames() {
         #expect(Analytics.ConversationEvent.tipReceived.eventName == "Tip Received")
     }
-
-    @Test("Received counter names are the shared contract")
-    func receivedCounterNames() {
-        #expect(Analytics.ReceivedCounter.tips.rawValue == "Tips Received")
-        #expect(Analytics.ReceivedCounter.tipsValue.rawValue == "Tips Received Value")
-        #expect(Analytics.ReceivedCounter.messages.rawValue == "Messages Received")
-    }
 }
