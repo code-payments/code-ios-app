@@ -234,6 +234,12 @@ struct HomeTabView: View {
 
     private static let pillBottomMargin: CGFloat = 8
 
+    /// How far the legacy pill sits in from each side. Figma insets it ~42pt
+    /// (318pt wide on the 402pt frame); a fixed margin keeps the floating look
+    /// across device widths. Also what tab content lines up with to match the
+    /// pill's ends, since the pill is an overlay the content cannot measure.
+    static let legacyPillHorizontalMargin: CGFloat = 42
+
     /// The room the legacy pill occupies above the safe area. The pill is an
     /// overlay, so unlike the iOS 26 system bar it adds nothing to the safe
     /// area — a tab that scrolls under it has to inset for it itself.
@@ -254,10 +260,7 @@ struct HomeTabView: View {
                     profileSlot: profileSlot,
                     onLongPress: handleLongPress(on:)
                 )
-                    // Figma insets the pill ~42pt from each edge (318pt wide on the
-                    // 402pt frame); a fixed margin keeps the floating look across
-                    // device widths.
-                    .padding(.horizontal, 42)
+                    .padding(.horizontal, Self.legacyPillHorizontalMargin)
                     .padding(.bottom, Self.pillBottomMargin)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }

@@ -42,14 +42,35 @@ private struct ScanScreenContent: View {
         CameraPrompt(status: cameraAuthorizer.status, cameraEnabled: preferences.cameraEnabled)
     }
     
-    /// How far the gallery button sits in from the trailing edge — the same margin
-    /// the rest of the app's content uses.
-    private static let glyphTrailingMargin: CGFloat = 20
+    /// The gap between the gallery button and the tab bar it sits above.
+    private static let glyphTabBarGap: CGFloat = 12
 
-    /// The gap between the top safe area and the gallery button. Measured from the
-    /// inset rather than the screen edge: the camera preview ignores the safe area
-    /// and runs under the status bar, but the button must stay clear of it.
-    private static let glyphTopGap: CGFloat = 12
+    /// How far the iOS 26 tab bar's glass platter sits in from each side. The bar's
+    /// own view spans the full width and the platter inside it carries the margin,
+    /// so the safe area gives no sign of it and there is no API that reports it —
+    /// this is measured, and held at 21pt across the iPhone widths and OS versions
+    /// it was checked on (390pt and 402pt, iOS 26.5 and 27.0).
+    private static let systemTabBarSideMargin: CGFloat = 21
+
+    /// How far the gallery button sits in from the trailing edge: whatever the tab
+    /// bar below it is inset by, so the two ends line up.
+    private static var glyphTrailingInset: CGFloat {
+        if #available(iOS 26, *) {
+            return systemTabBarSideMargin
+        }
+        return HomeTabView.legacyPillHorizontalMargin
+    }
+
+    /// How far the gallery button sits up from the bottom of the tab's content. The
+    /// iOS 26 bar is part of the safe area, so the gap is the whole inset there;
+    /// the legacy pill is an overlay that adds nothing to the safe area and has to
+    /// be cleared on top of it.
+    private static var glyphBottomInset: CGFloat {
+        if #available(iOS 26, *) {
+            return glyphTabBarGap
+        }
+        return glyphTabBarGap + HomeTabView.legacyPillClearance
+    }
 
     private let sessionContainer: SessionContainer
 
@@ -90,9 +111,9 @@ private struct ScanScreenContent: View {
                 // Outside the `cameraPrompt` branch on purpose: a photo can be scanned
                 // whether or not the camera is available, so the glyph outlives the viewport.
                 GalleryScanButton(selection: $pickedItem)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(.trailing, Self.glyphTrailingMargin)
-                    .padding(.top, Self.glyphTopGap)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(.trailing, Self.glyphTrailingInset)
+                    .padding(.bottom, Self.glyphBottomInset)
                     .zIndex(2)
                     .transition(.opacity)
             }

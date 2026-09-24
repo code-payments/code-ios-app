@@ -10,8 +10,8 @@ import FlipcashUI
 
 /// The Scan tab's gallery entry point: a photo glyph that opens the system picker.
 ///
-/// A Liquid Glass circle in the scanner's top-trailing corner, clear of both the
-/// viewfinder and the tab bar.
+/// A Liquid Glass circle in the scanner's bottom-trailing corner, sitting above the
+/// tab bar with its trailing edge lined up with the bar's.
 ///
 /// `PhotosPicker` is out of process, so tapping this never prompts for anything. Only the
 /// recent-photo thumbnail needs library access, which is why it is drawn when access
