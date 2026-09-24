@@ -32,6 +32,16 @@ public final class ChatViewController: UICollectionViewController {
     /// spotlight — can follow it.
     public var onScroll: (() -> Void)?
 
+    /// Called with the newest message someone else sent that has been on screen, each time it moves
+    /// past the last one reported. Silent until the opening scroll has landed, and while
+    /// ``reportsReads`` is off.
+    public var onMessagesSeen: ((MessageID) -> Void)?
+    /// Whether rows on screen count as read. The owner turns this off while the app is not in front;
+    /// turning it back on reports what is on screen now.
+    public var reportsReads = true {
+        didSet { if reportsReads, !oldValue { scheduleReadReport() } }
+    }
+
     /// Called when the user taps a failed outgoing row to retry; the argument is the message's stable id.
     public var onRetry: ((String) -> Void)?
 
@@ -134,6 +144,16 @@ public final class ChatViewController: UICollectionViewController {
     /// open (a non-animated update) goes to the bottom as before, rather than back to the divider
     /// the reader may already have scrolled past.
     private var hasPlacedUnreadDivider = false
+
+    /// Set once the opening scroll has landed. Until then the transcript sits wherever the first
+    /// layout put it — at the bottom, for a chat that is about to move up to its unread divider —
+    /// and reporting that frame would mark read everything the divider is there to point at.
+    private var hasPositioned = false
+    /// What this visit has reported read so far.
+    private var readProgress = ReadProgress()
+    /// Whether a read report is queued for the next main-queue turn, so a burst of scroll ticks
+    /// evaluates the screen once.
+    private var isReadReportQueued = false
 
     /// A row asked for before it was in `items` — the loader's window has to move first. The next
     /// update carrying it performs the scroll.
@@ -342,6 +362,7 @@ public final class ChatViewController: UICollectionViewController {
             if !performPendingScrollIfLanded() {
                 performInitialScrollIfNeeded()
             }
+            scheduleReadReport()
             return
         }
 
@@ -376,6 +397,9 @@ public final class ChatViewController: UICollectionViewController {
                         setBottomInset(inset)
                     }
                     performPendingScrollIfLanded()
+                    // A message arriving while the reader sits at the bottom moves nothing, so
+                    // no scroll event would report it.
+                    scheduleReadReport()
                 },
                 setData: { [weak self] data in
                     self?.items = data
@@ -511,6 +535,7 @@ public final class ChatViewController: UICollectionViewController {
         guard needsInitialScroll, !items.isEmpty, collectionView.bounds.height > 0 else { return }
         needsInitialScroll = false
         scrollToBottom(animated: false)
+        armReadReportingOnceLanded()
         guard !hasPlacedUnreadDivider,
               let divider = items.firstIndex(where: { if case .unreadDivider = $0 { true } else { false } })
         else { return }
@@ -560,6 +585,8 @@ public final class ChatViewController: UICollectionViewController {
         pendingScrollTargetID = nil
         needsInitialScroll = false
         scrollToRow(id: target, animated: false)
+        // The jump lands synchronously, so it is the opening position as soon as it runs.
+        hasPositioned = true
         return true
     }
 
@@ -668,6 +695,7 @@ public final class ChatViewController: UICollectionViewController {
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
         onScroll?()
+        scheduleReadReport()
         // Track "at the bottom" only from real user scrolling, so an inset change (keyboard) or
         // content settling doesn't flip it.
         if scrollView.isDragging || scrollView.isDecelerating {
@@ -684,6 +712,66 @@ public final class ChatViewController: UICollectionViewController {
         if scrollView.contentOffset.y <= -scrollView.adjustedContentInset.top + scrollView.bounds.height {
             onReachTop?()
         }
+    }
+
+    // MARK: - Read reporting
+
+    /// Turns read reporting on once the opening scroll has landed, and reports what is on screen
+    /// then.
+    ///
+    /// Armed two main-queue turns out, and the report runs a turn after that. The open re-anchors a
+    /// turn after it scrolls. A divider that had not self-sized takes its second look in that same
+    /// turn and re-anchors on the next. The report lands after both.
+    private func armReadReportingOnceLanded() {
+        guard !hasPositioned else { return }
+        DispatchQueue.main.async { [weak self] in
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !hasPositioned else { return }
+                hasPositioned = true
+                scheduleReadReport()
+            }
+        }
+    }
+
+    /// Queues one evaluation of the rows on screen for the next main-queue turn, after the layout
+    /// has caught up with whatever asked for it.
+    private func scheduleReadReport() {
+        guard hasPositioned, reportsReads, !isReadReportQueued else { return }
+        isReadReportQueued = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            isReadReportQueued = false
+            reportSeenMessages()
+        }
+    }
+
+    /// Reports the newest message someone else sent that is on screen now, when it beats everything
+    /// reported before it.
+    private func reportSeenMessages() {
+        // A batch update reschedules from its completion; mid-update the index paths can outrun
+        // `items`.
+        guard hasPositioned, reportsReads, !isUpdating, isViewLoaded else { return }
+        let visibleBounds = chatLayout.visibleBounds
+        let visible = (chatLayout.layoutAttributesForElements(in: visibleBounds) ?? []).compactMap { attributes -> ReadProgress.VisibleMessage? in
+            guard attributes.representedElementCategory == .cell,
+                  Self.isSeen(attributes.frame, in: visibleBounds),
+                  let message = message(at: attributes.indexPath),
+                  let serverID = message.serverID else { return nil }
+            let isFromSelf = switch message.sender {
+            case .me:    true
+            case .other: false
+            }
+            return ReadProgress.VisibleMessage(id: serverID, isFromSelf: isFromSelf)
+        }
+        guard let seen = readProgress.advance(seeing: visible) else { return }
+        onMessagesSeen?(seen)
+    }
+
+    /// Whether a row at `frame` has been seen: any part of it inside the unobscured area counts, as
+    /// on Android, which reads a row from `visibleItemsInfo` however little of it shows.
+    static func isSeen(_ frame: CGRect, in visibleBounds: CGRect) -> Bool {
+        let overlap = frame.intersection(visibleBounds)
+        return !overlap.isNull && overlap.height > 0
     }
 
     /// Reserve room at the bottom for an overlaying bar (and the keyboard, when the screen pushes

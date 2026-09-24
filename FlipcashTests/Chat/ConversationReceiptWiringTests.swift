@@ -113,8 +113,8 @@ struct ConversationReceiptWiringTests {
         controller.stop()
     }
 
-    @Test("marking read emits one received event per crossed inbound message")
-    func markReadEmitsCrossedEvents() async throws {
+    @Test("advancing the read pointer emits one received event per crossed inbound message")
+    func advanceEmitsCrossedEvents() async throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
         let me = UUID(), them = UUID()
@@ -132,7 +132,7 @@ struct ConversationReceiptWiringTests {
         ], in: ConversationID.test(1)))
         try await waitUntil { ((try? database.newestMessageID(conversationID: ConversationID.test(1))) ?? nil) == MessageID(value: 3) }
 
-        await controller.markRead(conversationID: ConversationID.test(1))
+        controller.advanceReadPointer(to: MessageID(value: 3), in: ConversationID.test(1))
 
         #expect(spy.tips.count == 2)
         #expect(spy.tips.allSatisfy { $0.chatType == .tipDm })
@@ -140,8 +140,8 @@ struct ConversationReceiptWiringTests {
         controller.stop()
     }
 
-    @Test("a second mark-read over the same window emits nothing")
-    func markReadIsNotReplayed() async throws {
+    @Test("a second advance over the same window emits nothing")
+    func advanceIsNotReplayed() async throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
         let me = UUID(), them = UUID()
@@ -156,10 +156,37 @@ struct ConversationReceiptWiringTests {
         mock.emit(.sent([inboundTip(id: 2, from: them)], in: ConversationID.test(1)))
         try await waitUntil { ((try? database.newestMessageID(conversationID: ConversationID.test(1))) ?? nil) == MessageID(value: 2) }
 
-        await controller.markRead(conversationID: ConversationID.test(1))
-        await controller.markRead(conversationID: ConversationID.test(1))
+        controller.advanceReadPointer(to: MessageID(value: 2), in: ConversationID.test(1))
+        controller.advanceReadPointer(to: MessageID(value: 2), in: ConversationID.test(1))
 
         #expect(spy.tips.count == 1)
+        controller.stop()
+    }
+
+    @Test("an advance reports only the messages up to the one seen, not everything stored")
+    func advanceReportsOnlyTheCrossedWindow() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let me = UUID(), them = UUID()
+        let spy = ReceiptSpy()
+        let mock = MockConversations()
+        mock.feed = [tipConversation(.test(1), me: me, readPointer: MessageID(value: 1))]
+        let controller = makeController(mock, selfUserID: me, receipts: spy.makeReporter(selfUserID: me), database: database)
+
+        controller.start()
+        try await waitUntil { mock.streamOpened && !controller.conversations.isEmpty }
+
+        mock.emit(.sent([
+            inboundTip(id: 2, from: them),
+            inboundTip(id: 3, from: them),
+        ], in: ConversationID.test(1)))
+        try await waitUntil { ((try? database.newestMessageID(conversationID: ConversationID.test(1))) ?? nil) == MessageID(value: 3) }
+
+        controller.advanceReadPointer(to: MessageID(value: 2), in: ConversationID.test(1))
+        #expect(spy.tips.count == 1)
+
+        controller.advanceReadPointer(to: MessageID(value: 3), in: ConversationID.test(1))
+        #expect(spy.tips.count == 2)
         controller.stop()
     }
 }

@@ -206,6 +206,19 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onQuoteTap = newValue }
     }
 
+    /// Forwards the newest message someone else sent that the reader has had on screen — see
+    /// ``ChatViewController/onMessagesSeen``.
+    public var onMessagesSeen: ((MessageID) -> Void)? {
+        get { transcript.onMessagesSeen }
+        set { transcript.onMessagesSeen = newValue }
+    }
+
+    /// Whether rows on screen count as read — see ``ChatViewController/reportsReads``.
+    public var reportsReads: Bool {
+        get { transcript.reportsReads }
+        set { transcript.reportsReads = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)

@@ -170,13 +170,22 @@ extension Conversation {
         return ReadReceiptState(pointer: pointer, date: member.readPointerTimestamp)
     }
 
-    /// Whether the latest message postdates the signed-in user's READ
-    /// watermark. A missing watermark means nothing has been read yet, so any
-    /// message counts as unread.
+    /// Whether someone else sent the latest message after the signed-in user's READ watermark.
+    ///
+    /// The viewer's own message is never unread, so a send needs no pointer advance to clear the
+    /// row. A DM with no watermark counts from zero. A group whose paged roster omits the viewer's
+    /// row reads as read: its pointer is unknown, not zero. Android's `FeedProjection.unreadCount`
+    /// applies the same rule.
     public func hasUnread(for selfUserID: UserID?) -> Bool {
-        guard let lastMessage else { return false }
-        guard let read = selfReadPointer(for: selfUserID) else { return true }
-        return read < lastMessage.id
+        guard let lastMessage, lastMessage.senderID != selfUserID else { return false }
+        let member = members.first { $0.userID == selfUserID }
+        switch type {
+        case .group:
+            guard let member else { return false }
+            return (member.readPointer?.value ?? 0) < lastMessage.id.value
+        case .contactDm, .tipDm:
+            return (member?.readPointer?.value ?? 0) < lastMessage.id.value
+        }
     }
 
     /// Whether the signed-in user has this chat muted as of `date`.

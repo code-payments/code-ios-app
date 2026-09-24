@@ -30,7 +30,7 @@ public enum UnreadBoundary: Hashable, Sendable {
     /// A missing pointer resolves to `.none`, not to "everything is unread": a group's roster is
     /// paged, so the viewer's own member row can be absent, and treating that as a pointer of zero
     /// would head the whole transcript with the divider. This is deliberately not
-    /// ``Conversation/hasUnread(for:)``, which counts a missing pointer as unread.
+    /// ``Conversation/hasUnread(for:)``, which counts a DM's missing pointer as zero.
     ///
     /// `hasStored` answers whether any message at or below a given id is stored. When none is, the
     /// store has a gap below the unread run and can't know how many unread messages precede it, so

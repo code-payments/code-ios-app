@@ -60,6 +60,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     private var _deleteResult: MessageMutation?
     private var _deleteError: (any Error)?
     private var _markedRead: [MessageID] = []
+    private var _markReadError: Error?
     private var _typingCalls: [TypingCall] = []
     private var _typingCallsBegun = 0
     private var _heldTypingStates: Set<TypingState> = []
@@ -159,6 +160,11 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         set { lock.withLock { _deleteError = newValue } }
     }
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
+    /// When set, `markRead` records the attempt and then throws it.
+    var markReadError: Error? {
+        get { lock.withLock { _markReadError } }
+        set { lock.withLock { _markReadError = newValue } }
+    }
     var typingCalls: [TypingCall] { lock.withLock { _typingCalls } }
     /// Number of `notifyIsTyping` calls entered, counted before the gate — the
     /// awaitable signal that a send is in flight.
@@ -329,7 +335,11 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     }
 
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws {
-        lock.withLock { _markedRead.append(messageID) }
+        let error = lock.withLock {
+            _markedRead.append(messageID)
+            return _markReadError
+        }
+        if let error { throw error }
     }
 
     func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws {

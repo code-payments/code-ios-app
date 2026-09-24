@@ -465,6 +465,8 @@ struct ConversationScreen: View {
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
+            onMessagesSeen: markSeen,
+            reportsReads: reportsReads(gate: gate),
             showsSendCash: sendTarget != nil,
             chatExists: chatExists,
             conversationID: conversationID,
@@ -700,14 +702,6 @@ struct ConversationScreen: View {
             guard !obscures, !didInitialRead, !isJoiningChat, chatExists, let conversationID else { return }
             Task { await loadTranscript(for: conversationID) }
         }
-        .onChange(of: latestConfirmedMessage?.stableID) {
-            // Fires on a live arrival or our own send. Marking read on our own send is intentional: it
-            // advances the self-read watermark past the message we just sent, so the conversation
-            // doesn't show as unread in the feed. didInitialRead skips the opening load (the .task
-            // already marked read), and markRead short-circuits when the watermark already covers it.
-            guard didInitialRead, !gate.obscuresTranscript, let conversationID else { return }
-            conversationController.scheduleMarkRead(conversationID: conversationID)
-        }
         // Buzz on a live message from the other side while this conversation is on screen. `old != nil`
         // and `didInitialRead` skip the opening history load; the sender and visibility checks skip the
         // user's own sends and arrivals in a chat they've navigated away from.
@@ -747,6 +741,9 @@ struct ConversationScreen: View {
         }
         .onDisappear {
             saveDraft(flushing: true)
+            if let conversationID {
+                conversationController.flushReadPointer(in: conversationID)
+            }
             // The composer's focus `onChange` can't fire once unmounted, so stop typing here.
             if let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
@@ -987,6 +984,18 @@ struct ConversationScreen: View {
         router.push(.buyCurrency(gateMint))
     }
 
+    /// Moves the READ pointer past a message the transcript reports on screen.
+    private func markSeen(_ messageID: MessageID) {
+        guard let conversationID else { return }
+        conversationController.advanceReadPointer(to: messageID, in: conversationID)
+    }
+
+    /// Whether rows on screen count as read: only while the app is in front, since UIKit keeps
+    /// applying transcript updates in the background, and never under the gate's blur.
+    private func reportsReads(gate: ConversationGatePresentation) -> Bool {
+        scenePhase == .active && !gate.obscuresTranscript
+    }
+
     /// Everything the screen does once the gate lets it read. Factored out of the opening `.task`
     /// because a join opens the gate mid-screen, which does not re-run that task.
     private func loadTranscript(for conversationID: ConversationID) async {
@@ -994,7 +1003,6 @@ struct ConversationScreen: View {
         // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
         // foreground / reconnect / live-gap triggers instead.
         await conversationController.loadMessages(for: conversationID)
-        await conversationController.markRead(conversationID: conversationID)
         // Reading the thread clears its own delivered pushes; other chats keep theirs.
         await pushController.clearDeliveredNotifications(for: conversationID)
         didInitialRead = true

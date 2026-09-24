@@ -51,6 +51,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onMessageAction: (String, MessageCapability) -> Void
     /// Brings the quoted original into the loader's window; the scroll follows here.
     let onQuoteTap: (String) -> Void
+    /// Fired with the newest message someone else sent that the reader has had on screen, each time
+    /// it moves forward.
+    let onMessagesSeen: (MessageID) -> Void
+    /// Whether rows on screen count as read right now.
+    let reportsReads: Bool
     let showsSendCash: Bool
     let chatExists: Bool
     let conversationID: ConversationID?
@@ -118,6 +123,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             screen?.scrollToMessage(id: stableID)
         }
         screen.onCancelEdit = { [composer] in composer.endEditing() }
+        screen.onMessagesSeen = onMessagesSeen
+        screen.reportsReads = reportsReads
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
@@ -150,6 +157,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             screen?.scrollToMessage(id: stableID)
         }
         screen.onCancelEdit = { [composer] in composer.endEditing() }
+        screen.onMessagesSeen = onMessagesSeen
+        screen.reportsReads = reportsReads
         // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
         // has to claim the menu's blur before the dismissal fades it; it comes down here, whichever
         // way the edit ended — cancelled, saved, or abandoned by a tap outside.

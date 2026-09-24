@@ -185,15 +185,15 @@ struct UnreadDividerTests {
         #expect(controller.unreadBoundary(for: .test(1)) == .at(readThrough: MessageID(value: 2), count: 1))
     }
 
-    @Test("a boundary resolved before markRead survives the pointer advancing")
-    func resolvedBeforeMarkRead_isStable() async throws {
+    @Test("a boundary resolved before the pointer advances survives the advance")
+    func resolvedBeforeAdvance_isStable() async throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
         let messages = [message(1, fromSelf: false), message(2, fromSelf: false), message(3, fromSelf: false)]
         let controller = try await hydratedController(messages: messages, pointer: 1, database: database)
 
         let boundary = controller.unreadBoundary(for: .test(1))
-        await controller.markRead(conversationID: .test(1))
+        controller.advanceReadPointer(to: MessageID(value: 3), in: .test(1))
 
         #expect(boundary == .at(readThrough: MessageID(value: 1), count: 2))
         #expect(controller.unreadBoundary(for: .test(1)) == .none)
