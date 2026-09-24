@@ -19,18 +19,27 @@ extension Analytics {
         case createAccount = "Create Account"
     }
 
-    enum ButtonEvent: String, AnalyticsEvent {
-        case createAccount  = "Button: Create Account"
-        case saveAccessKey  = "Button: Save Access Key"
-        case wroteAccessKey = "Button: Wrote Access Key"
-        case allowCamera    = "Button: Allow Camera"
-        case allowPush        = "Button: Allow Push"
-        case skipPush         = "Button: Skip Push"
-        case buyWithReserves  = "Button: Buy With Reserves"
-        case buyWithCurrency  = "Button: Buy With Currency"
-        case give             = "Button: Give"
-        case sell             = "Button: Sell"
-        case shareTokenInfo   = "Button: Share Token Info"
+    /// A tapped button. Most are built by the shared contract; the rest are iOS-only or
+    /// unused and keep their names here.
+    enum ButtonEvent {
+        case createAccount
+        case saveAccessKey
+        case wroteAccessKey
+        case allowCamera
+        case allowPush
+        case skipPush
+        case buyWithReserves
+        case buyWithCurrency
+        case give
+        case sell
+        case shareTokenInfo
+    }
+
+    fileprivate enum NativeButtonEvent: String, AnalyticsEvent {
+        case allowCamera     = "Button: Allow Camera"
+        case buyWithCurrency = "Button: Buy With Currency"
+        case give            = "Button: Give"
+        case sell            = "Button: Sell"
     }
 
     enum TransferEvent: String, AnalyticsEvent {
@@ -175,7 +184,19 @@ extension Analytics {
 
 extension Analytics {
     static func buttonTapped(name: ButtonEvent) {
-        track(event: name)
+        switch name {
+        case .createAccount:   track(ButtonEvents.shared.tapped(button: .createAccount))
+        case .saveAccessKey:   track(ButtonEvents.shared.tapped(button: .saveAccessKey))
+        case .wroteAccessKey:  track(ButtonEvents.shared.tapped(button: .wroteAccessKey))
+        case .allowPush:       track(ButtonEvents.shared.tapped(button: .allowPush))
+        case .skipPush:        track(ButtonEvents.shared.tapped(button: .skipPush))
+        case .buyWithReserves: track(ButtonEvents.shared.tapped(button: .buyWithReserves))
+        case .shareTokenInfo:  track(ButtonEvents.shared.tapped(button: .shareTokenInfo))
+        case .allowCamera:     track(event: NativeButtonEvent.allowCamera)
+        case .buyWithCurrency: track(event: NativeButtonEvent.buyWithCurrency)
+        case .give:            track(event: NativeButtonEvent.give)
+        case .sell:            track(event: NativeButtonEvent.sell)
+        }
     }
 }
 
