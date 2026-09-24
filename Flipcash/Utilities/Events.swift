@@ -42,8 +42,6 @@ extension Analytics {
         case receiveCashLink = "Receive Cash Link"
         case grabBill        = "Grab Bill"
         case giveBill        = "Give Bill"
-        case grabBillStart   = "Grab Bill Start"
-        case giveBillStart   = "Give Bill Start"
     }
 
     enum OnrampEvent: String, AnalyticsEvent {
@@ -302,18 +300,14 @@ private extension Analytics {
 // MARK: - Cash Transfer -
 
 extension Analytics {
-    static func transferStart(event: TransferEvent) {
-        track(event: event)
-    }
-
-    /// The scanner has started grabbing a bill.
+    /// A bill grab started.
     static func grabBillStarted() {
-        track(event: TransferEvent.grabBillStart)
+        track(TransferEvents.shared.grabBillStart())
     }
 
-    /// A bill has been put on screen to give.
+    /// A bill give started.
     static func giveBillStarted() {
-        track(event: TransferEvent.giveBillStart)
+        track(TransferEvents.shared.giveBillStart())
     }
 
     static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
