@@ -10,6 +10,20 @@ import FlipcashCore
 
 nonisolated private let logger = Logger(label: "flipcash.conversation-controller")
 
+/// The time source incoming typists are stamped and expired against.
+nonisolated struct TypingExpiryClock: Sendable {
+    /// Returns the current instant.
+    let now: @Sendable () -> ContinuousClock.Instant
+    /// Suspends until `deadline`, throwing if the task is cancelled first.
+    let sleep: @Sendable (_ deadline: ContinuousClock.Instant) async throws -> Void
+
+    /// Wall time, via `ContinuousClock`.
+    static let continuous = TypingExpiryClock(
+        now: { ContinuousClock.now },
+        sleep: { try await Task.sleep(until: $0, clock: .continuous) }
+    )
+}
+
 /// Typing indicators for conversations: broadcasts the signed-in user's typing state
 /// and tracks which counterparts are typing. The server relays typing best-effort with
 /// no timeout of its own, so stale typists are expired locally.
@@ -24,6 +38,7 @@ final class ConversationTyping {
     private let heartbeatInterval: Duration
     private let timeout: Duration
     private let incomingExpiry: Duration
+    @ObservationIgnored private let expiryClock: TypingExpiryClock
 
     /// OTHER members typing per conversation, each with when they started and their staleness deadline.
     private var typists: [ConversationID: [UserID: Typist]] = [:]
@@ -42,7 +57,8 @@ final class ConversationTyping {
         selfUserID: UserID,
         heartbeatInterval: Duration = .seconds(3),
         timeout: Duration = .seconds(5),
-        incomingExpiry: Duration = .seconds(10)
+        incomingExpiry: Duration = .seconds(10),
+        expiryClock: TypingExpiryClock = .continuous
     ) {
         self.messaging = messaging
         self.owner = owner
@@ -50,6 +66,7 @@ final class ConversationTyping {
         self.heartbeatInterval = heartbeatInterval
         self.timeout = timeout
         self.incomingExpiry = incomingExpiry
+        self.expiryClock = expiryClock
     }
 
     // MARK: - Incoming
@@ -73,7 +90,7 @@ final class ConversationTyping {
         for notification in notifications where notification.userID != selfUserID {
             switch notification.isActive {
             case true:
-                let now = ContinuousClock.now
+                let now = expiryClock.now()
                 // A STILL heartbeat extends the deadline but keeps the typist's place in line.
                 let startedAt = typists[conversationID]?[notification.userID]?.startedAt ?? now
                 typists[conversationID, default: [:]][notification.userID] = Typist(
@@ -99,15 +116,16 @@ final class ConversationTyping {
         expiryTask?.cancel()
         expiryTask = nil
         guard let earliest = typists.values.flatMap(\.values).map(\.deadline).min() else { return }
+        let expiryClock = expiryClock
         expiryTask = Task { [weak self] in
-            try? await Task.sleep(until: earliest, clock: .continuous)
+            try? await expiryClock.sleep(earliest)
             guard let self, !Task.isCancelled else { return }
             self.sweepExpiredTypists()
         }
     }
 
     private func sweepExpiredTypists() {
-        let now = ContinuousClock.now
+        let now = expiryClock.now()
         for (conversationID, members) in typists {
             for (userID, typist) in members where typist.deadline <= now {
                 logger.debug("Expiring stale typist", metadata: [

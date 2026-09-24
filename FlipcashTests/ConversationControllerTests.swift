@@ -28,7 +28,8 @@ struct ConversationControllerTests {
         naming: MockDMContactNaming = MockDMContactNaming(),
         database: Database? = nil,
         typingHeartbeatInterval: Duration = .seconds(3),
-        incomingTypingExpiry: Duration = .seconds(10)
+        incomingTypingExpiry: Duration = .seconds(10),
+        typingExpiryClock: TypingExpiryClock = .continuous
     ) -> ConversationController {
         ConversationController(
             fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
@@ -36,7 +37,8 @@ struct ConversationControllerTests {
             database: database ?? (try! Database.makeTemp().database),
             owner: .generate()!, selfUserID: selfUserID,
             typingHeartbeatInterval: typingHeartbeatInterval,
-            incomingTypingExpiry: incomingTypingExpiry
+            incomingTypingExpiry: incomingTypingExpiry,
+            typingExpiryClock: typingExpiryClock
         )
     }
 
@@ -123,7 +125,8 @@ struct ConversationControllerTests {
     func typistExpiresWithoutStop() async throws {
         let them = UUID()
         let mock = MockConversations()
-        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(200))
+        let clock = ManualTypingClock()
+        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(200), typingExpiryClock: clock.clock)
         controller.start()
         try await waitUntil { mock.streamOpened }
 
@@ -131,6 +134,7 @@ struct ConversationControllerTests {
         try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
         // The STOPPED never arrives (dropped by the best-effort relay); the local
         // expiry must clear the indicator on its own.
+        clock.advance(by: .milliseconds(200))
         try await waitUntil { !controller.isCounterpartTyping(in: .test(1)) }
     }
 
@@ -138,25 +142,25 @@ struct ConversationControllerTests {
     func typingRefreshExtendsExpiry() async throws {
         let them = UUID()
         let mock = MockConversations()
-        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(500))
+        let clock = ManualTypingClock()
+        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(500), typingExpiryClock: clock.clock)
         controller.start()
         try await waitUntil { mock.streamOpened }
 
         mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: true)]))
         try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
 
-        // The refresh only extends a live deadline, so it has to land well inside the
-        // 500ms window; 150ms leaves room for the sleep to overrun on a loaded runner.
-        try await Task.sleep(for: .milliseconds(150))
-        try #require(controller.isCounterpartTyping(in: .test(1)), "the typist must still be shown when the refresh is emitted")
-        let refreshedAt = ContinuousClock.now
+        clock.advance(by: .milliseconds(150))
         mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: true)]))
+        // Waiting for the re-armed sweep is what makes the next check hold: once it is parked on
+        // the new deadline, nothing is left to fire at the original one.
+        try await waitUntil { clock.nextDeadline == .milliseconds(650) }
 
+        clock.advance(by: .milliseconds(350))
+        #expect(controller.isCounterpartTyping(in: .test(1)), "the typist must outlive its original deadline")
+
+        clock.advance(by: .milliseconds(150))
         try await waitUntil { !controller.isCounterpartTyping(in: .test(1)) }
-        // Measured from the refresh, not from when the typist appeared: load can only
-        // lengthen the observed lifetime. Without the extension the original deadline
-        // lands ~350ms after the refresh.
-        #expect(refreshedAt.duration(to: ContinuousClock.now) >= .milliseconds(400))
     }
 
     @Test("typists list oldest to newest, and a heartbeat keeps a typist's place")
@@ -185,18 +189,22 @@ struct ConversationControllerTests {
     func typists_staleTypist_dropsOut() async throws {
         let a = UUID(), b = UUID()
         let mock = MockConversations()
-        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(300))
+        let clock = ManualTypingClock()
+        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(300), typingExpiryClock: clock.clock)
         controller.start()
         try await waitUntil { mock.streamOpened }
 
         mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: a, isActive: true)]))
         try await waitUntil { controller.typists(in: .test(1)) == [a] }
-        try await Task.sleep(for: .milliseconds(150))
+        clock.advance(by: .milliseconds(150))
         mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: b, isActive: true)]))
         try await waitUntil { controller.typists(in: .test(1)) == [a, b] }
 
-        // `a` lapses first; `b` started later, so outlives it.
+        // `a` lapses first; `b` started later, so outlives it. One sweep removes every typist
+        // that is due, so a `b` expiring alongside `a` would skip `[b]` entirely.
+        clock.advance(by: .milliseconds(150))
         try await waitUntil { controller.typists(in: .test(1)) == [b] }
+        clock.advance(by: .milliseconds(150))
         try await waitUntil { controller.typists(in: .test(1)).isEmpty }
         #expect(!controller.isCounterpartTyping(in: .test(1)))
     }
