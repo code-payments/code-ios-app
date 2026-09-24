@@ -139,26 +139,26 @@ public actor VerifiedProtoService {
         }
     }
 
-    /// Save verified reserve states from a streaming batch.
-    /// Only publishes updates for mints whose supply actually changed,
-    /// avoiding cascading UI refreshes.
+    /// Save verified reserve states from a streaming batch, publishing every
+    /// mint's supply whether or not it moved since the last batch.
     public func saveReserveStates(_ states: [Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState]) {
         var updates: [ReserveStateUpdate] = []
         var rowsToPersist: [StoredReserveRow] = []
 
         for state in states {
             guard let mint = try? PublicKey(state.reserveState.mint.value) else { continue }
-            let supplyChanged = reserveStates[mint]?.reserveState.supplyFromBonding != state.reserveState.supplyFromBonding
             reserveStates[mint] = state
             if let data = try? state.serializedData() {
                 rowsToPersist.append(StoredReserveRow(mint: mint.base58, reserveProto: data))
             }
-            if supplyChanged {
-                updates.append(ReserveStateUpdate(
-                    mint: mint,
-                    supplyFromBonding: state.reserveState.supplyFromBonding
-                ))
-            }
+            // Not filtered against `reserveStates`: the database has a second writer
+            // (`insert(mints:)` from GetMints) that can replace this supply with an older
+            // one, and dropping a repeat here would leave that stale value in place
+            // until the supply next moves. `updateLiveSupply` skips unchanged rows.
+            updates.append(ReserveStateUpdate(
+                mint: mint,
+                supplyFromBonding: state.reserveState.supplyFromBonding
+            ))
         }
 
         persistReserves(rowsToPersist)

@@ -110,6 +110,23 @@ struct ConversationGateTests {
         #expect(gate.listener.primaryRequirement == .minimumBalance(amount: .usd(100), mint: .usdf))
     }
 
+    @Test("A holding a fraction of a cent short of the single-mint minimum satisfies it, as the wallet shows it")
+    func singleMint_subCentShort_satisfied() throws {
+        // A launchpad holding valued against a supply that lags the buy lands just under what was
+        // paid; the wallet rounds it back to the requirement, and so does the gate.
+        let rules = ConversationRules(listener: [.minimumBalance(minimumBalance(5, mints: [.usdf]))])
+        let session = StubHoldings(balances: [.usdf: try holding(usd: 4.998)])
+        #expect(conversationGate(session: session, rules: rules, rates: noRates).isOpen)
+    }
+
+    @Test("A holding cents short of the single-mint minimum still fails it")
+    func singleMint_centsShort_unsatisfied() throws {
+        let rules = ConversationRules(listener: [.minimumBalance(minimumBalance(5, mints: [.usdf]))])
+        let session = StubHoldings(balances: [.usdf: try holding(usd: 4.98)])
+        let gate = conversationGate(session: session, rules: rules, rates: noRates)
+        #expect(gate.listener.primaryRequirement == .minimumBalance(amount: .usd(5), mint: .usdf))
+    }
+
     @Test("Not holding the required mint at all is a zero balance, not a pass")
     func singleMint_notHeld_unsatisfied() {
         let rules = ConversationRules(listener: [.minimumBalance(minimumBalance(100, mints: [.usdf]))])
@@ -141,6 +158,19 @@ struct ConversationGateTests {
         let session = StubHoldings(totalUSD: 49.99)
         let gate = conversationGate(session: session, rules: rules, rates: noRates)
         #expect(gate.listener.primaryRequirement == .minimumBalance(amount: .usd(50), mint: nil))
+    }
+
+    @Test("A cumulative balance a fraction of a cent short of an all-mint minimum satisfies it")
+    func allMints_subCentShort_satisfied() {
+        let rules = ConversationRules(listener: [.minimumBalance(minimumBalance(5))])
+        #expect(conversationGate(session: StubHoldings(totalUSD: 4.998), rules: rules, rates: noRates).isOpen)
+    }
+
+    @Test("A cumulative balance cents short of an all-mint minimum still fails it")
+    func allMints_centsShort_unsatisfied() {
+        let rules = ConversationRules(listener: [.minimumBalance(minimumBalance(5))])
+        let gate = conversationGate(session: StubHoldings(totalUSD: 4.98), rules: rules, rates: noRates)
+        #expect(gate.listener.primaryRequirement == .minimumBalance(amount: .usd(5), mint: nil))
     }
 
     // MARK: - Several rules
