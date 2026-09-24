@@ -43,8 +43,16 @@ enum Analytics {
         }
     }
 
+    /// Test-only replacement for the Mixpanel event call; while set, events are handed to it
+    /// even though Mixpanel was never initialized.
+    static var sendOverride: ((String, [String: AnalyticsValue]) -> Void)?
+
+    /// Test-only replacement for the Mixpanel people increment, with the same rules as
+    /// `sendOverride`.
+    static var incrementOverride: ((String, Double) -> Void)?
+
     static func track(event: some AnalyticsEvent, properties: [Property: AnalyticsValue]? = nil, error: Error? = nil) {
-        guard isEnabled else { return }
+        guard isEnabled || sendOverride != nil else { return }
 
         var container: [String: AnalyticsValue] = [:]
 
@@ -60,11 +68,48 @@ enum Analytics {
         }
 
         if let error {
-            let swiftError = error as NSError
-            container["Error"] = "\(swiftError.domain).\(error):\(swiftError.code)"
+            container["Error"] = errorValue(error)
         }
 
-        mixpanel.track(event: event.eventName, properties: container)
+        send(event.eventName, container)
+    }
+
+    /// Sends an event built by the shared contract, adding token symbols and the iOS
+    /// `Error` format exactly as `track(event:properties:error:)` does.
+    static func track(_ event: TrackedEvent, error: Error? = nil) {
+        guard isEnabled || sendOverride != nil else { return }
+
+        var container: [String: AnalyticsValue] = event.scalarProperties.mapValues { scalar in
+            switch scalar {
+            case .text(let value):   value
+            case .number(let value): value
+            case .flag(let value):   value
+            }
+        }
+
+        if let tokenSymbolResolver {
+            container = withTokenSymbols(container, resolve: tokenSymbolResolver)
+        }
+
+        if let error {
+            container["Error"] = errorValue(error)
+        }
+
+        send(event.name, container)
+    }
+
+    /// The `Error` property value iOS sends for `error`: its domain, description and code.
+    static func errorValue(_ error: Error) -> String {
+        let swiftError = error as NSError
+        return "\(swiftError.domain).\(error):\(swiftError.code)"
+    }
+
+    private static func send(_ name: String, _ properties: [String: AnalyticsValue]) {
+        if let sendOverride {
+            sendOverride(name, properties)
+            return
+        }
+        mixpanel.track(event: name, properties: properties)
     }
 
     /// Pairs every mint-valued property with the symbol property that shadows it.
@@ -85,6 +130,21 @@ enum Analytics {
             guard let base58 = properties[pair.mint] as? String,
                   let symbol = resolve(base58) else { continue }
             enriched[pair.symbol] = symbol
+        }
+        return enriched
+    }
+
+    /// Adds the ticker symbol beside each mint in properties keyed by their Mixpanel
+    /// names, under the same rules as the `Property`-keyed variant.
+    static func withTokenSymbols(
+        _ properties: [String: AnalyticsValue],
+        resolve: (String) -> String?
+    ) -> [String: AnalyticsValue] {
+        var enriched = properties
+        for pair in mintProperties {
+            guard let base58 = properties[pair.mint.rawValue] as? String,
+                  let symbol = resolve(base58) else { continue }
+            enriched[pair.symbol.rawValue] = symbol
         }
         return enriched
     }
@@ -128,6 +188,10 @@ extension Analytics {
     }
 
     static func increment(_ counter: ReceivedCounter, by amount: Double = 1) {
+        if let incrementOverride {
+            incrementOverride(counter.rawValue, amount)
+            return
+        }
         guard isEnabled else { return }
         mixpanel.people.increment(property: counter.rawValue, by: amount)
     }
