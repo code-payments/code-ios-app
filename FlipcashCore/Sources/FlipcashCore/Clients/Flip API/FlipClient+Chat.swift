@@ -146,6 +146,13 @@ extension FlipClient {
         }
     }
 
+    /// Fetches one message by id, or nil when the chat has no such message.
+    public func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, viewMode: ConversationViewMode = .full) async throws -> ConversationMessage? {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.getMessage(owner: owner, conversationID: conversationID, messageID: messageID, viewMode: viewMode) { c.resume(with: $0) }
+        }
+    }
+
     public func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?, viewMode: ConversationViewMode = .full) async throws -> [ConversationMessage] {
         try await withCheckedThrowingContinuation { c in
             chatMessagingService.getMessages(owner: owner, conversationID: conversationID, pagingToken: before?.pagingToken, viewMode: viewMode) { c.resume(with: $0) }

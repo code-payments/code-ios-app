@@ -83,6 +83,43 @@ final class ConversationController {
         conversations(of: type).count { $0.hasUnread(for: selfUserID) }
     }
 
+    /// The unread count a conversation row shows; nil when the chat is unread but its READ
+    /// watermark's message is neither stored nor fetched yet. See
+    /// ``Conversation/unreadCount(for:unreadSeqAt:)`` and ``resolveUnreadCount(for:)``.
+    func unreadCount(for conversation: Conversation) -> Int? {
+        conversation.unreadCount(for: selfUserID) { pointer in
+            storedUnreadSeq(of: pointer, in: conversation.id)
+                ?? watermarkStamps.stamp(for: .init(conversationID: conversation.id, messageID: pointer))
+        }
+    }
+
+    /// Fetches the READ watermark's message when ``unreadCount(for:)`` can't be known without it,
+    /// so the row's count fills in. A no-op for a chat whose count is already known.
+    func resolveUnreadCount(for conversation: Conversation) async {
+        guard unreadCount(for: conversation) == nil,
+              let pointer = conversation.selfReadPointer(for: selfUserID),
+              storedUnreadSeq(of: pointer, in: conversation.id) == nil
+        else { return }
+        do {
+            try await watermarkStamps.resolve(.init(conversationID: conversation.id, messageID: pointer)) {
+                try await messaging.getMessage(owner: owner, conversationID: conversation.id, messageID: pointer)
+            }
+        } catch {
+            logger.error("Failed to fetch the READ watermark's message", metadata: [
+                "conversationID": "\(conversation.id)",
+                "messageID": "\(pointer.value)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to fetch the READ watermark's message")
+        }
+    }
+
+    /// The `unreadSeq` of a message this device stores.
+    private func storedUnreadSeq(of messageID: MessageID, in conversationID: ConversationID) -> UInt64? {
+        _ = messageRevision   // observe: the watermark's message can land after the row draws
+        return ((try? database.message(id: messageID, conversationID: conversationID)) ?? nil)?.unreadSeq
+    }
+
     /// The conversation for an id, hydrating it from the server when the feed
     /// doesn't hold it yet — the same fetch + apply + persist path stream
     /// events use, so the caller's screen finds the chat populated. Returns
@@ -186,6 +223,7 @@ final class ConversationController {
     /// because the opening screen awaits the fresh page it returns.
     @ObservationIgnored private var messageLoadsInFlight: Set<ConversationID> = []
     @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
+    @ObservationIgnored private let watermarkStamps = ReadWatermarkStamps()
 
     /// The session's chat drafts, wired by `SessionContainer` after construction — the controller
     /// is built before the container has finished assembling, and the tests build it without one.

@@ -180,6 +180,7 @@ private struct TipConversationRow: View {
         let title = conversationController.displayName(for: conversation)
         let subtitle = self.subtitle
         let hasUnread = conversation.hasUnread(for: conversationController.selfUserID)
+        let unreadCount = hasUnread ? conversationController.unreadCount(for: conversation) : nil
         // Read once, for the label only — the bell keeps its own clock. A label can't: VoiceOver
         // reads it when it lands on the row, and this view redraws on store changes rather than at
         // the instant a timed mute lapses, so it can be a moment stale.
@@ -195,17 +196,23 @@ private struct TipConversationRow: View {
             blurhash: avatarPicture?.thumbnailBlurhash,
             accessoryPlacement: .titleLine,
             mute: conversation.viewerState?.mute,
-            accessibilityLabel: accessibilityLabel(title: title, hasUnread: hasUnread, isMuted: isMuted),
+            accessibilityLabel: accessibilityLabel(title: title, hasUnread: hasUnread, unreadCount: unreadCount, isMuted: isMuted),
             onTap: onTap
         ) {
             RecipientRowAccessory(
                 timestamp: conversation.lastActivity,
                 isUnknown: false,
-                hasUnread: hasUnread
+                hasUnread: hasUnread,
+                unreadCount: unreadCount
             )
         }
         .task(id: avatarSubject) {
             await sessionContainer.profileAvatars.load(avatarSubject, picture: avatarPicture)
+        }
+        // Keyed on the watermark and the newest message, the two things the count reads, so a
+        // row whose count can't be known yet fetches again when either moves.
+        .task(id: UnreadCountSubject(conversation: conversation, selfUserID: conversationController.selfUserID)) {
+            await conversationController.resolveUnreadCount(for: conversation)
         }
     }
 
@@ -227,9 +234,29 @@ private struct TipConversationRow: View {
     }
 
     /// The row reads as one element, so the bell's own label is discarded — it has to be said here.
-    private func accessibilityLabel(title: String, hasUnread: Bool, isMuted: Bool) -> String {
-        [title, hasUnread ? "unread messages" : nil, isMuted ? "muted" : nil]
+    private func accessibilityLabel(title: String, hasUnread: Bool, unreadCount: Int?, isMuted: Bool) -> String {
+        [title, hasUnread ? unreadLabel(count: unreadCount) : nil, isMuted ? "muted" : nil]
             .compactMap { $0 }
             .joined(separator: ", ")
+    }
+
+    /// The count when the row shows one, else the bare state the dot stands for.
+    private func unreadLabel(count: Int?) -> String {
+        switch count {
+        case .some(1): "1 unread message"
+        case .some(let count) where count > 1: "\(count) unread messages"
+        case .some, .none: "unread messages"
+        }
+    }
+}
+
+/// What a row's unread count reads: the viewer's READ watermark and the newest message.
+private struct UnreadCountSubject: Equatable {
+    let readPointer: MessageID?
+    let lastMessageID: MessageID?
+
+    init(conversation: Conversation, selfUserID: UserID?) {
+        readPointer = conversation.selfReadPointer(for: selfUserID)
+        lastMessageID = conversation.lastMessage?.id
     }
 }

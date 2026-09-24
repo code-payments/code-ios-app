@@ -131,4 +131,64 @@ struct ConversationUnreadTests {
         )
         #expect(conversation.hasUnread(for: selfID) == row.unread)
     }
+
+    // MARK: - Unread count -
+
+    /// A chat whose newest message is `lastSeq` on the unread sequence, with the viewer's READ
+    /// watermark at message `readPointer`.
+    private func counted(lastID: UInt64, lastSeq: UInt64, readPointer: UInt64?, fromSelf: Bool = false) -> Conversation {
+        Conversation(
+            id: ConversationID(data: Data(repeating: 0x01, count: 32)),
+            members: [
+                ConversationMember(userID: selfID, displayName: "Self", readPointer: readPointer.map(MessageID.init(value:))),
+                ConversationMember(userID: otherID, displayName: "Them"),
+            ],
+            lastMessage: ConversationMessage(
+                id: MessageID(value: lastID),
+                senderID: fromSelf ? selfID : otherID,
+                content: .text("hello"),
+                date: .now,
+                unreadSeq: lastSeq
+            ),
+            lastActivity: .now
+        )
+    }
+
+    @Test("The count is the newest stamp less the stamp at the watermark")
+    func countSubtractsWatermarkStamp() {
+        // Message 20 carries stamp 12; the watermark's message 8 carried stamp 5.
+        let conversation = counted(lastID: 20, lastSeq: 12, readPointer: 8)
+        #expect(conversation.unreadCount(for: selfID) { $0.value == 8 ? 5 : nil } == 7)
+    }
+
+    @Test("A DM with no watermark counts every unread-eligible message")
+    func missingPointerCountsFromZero() {
+        let conversation = counted(lastID: 20, lastSeq: 15, readPointer: nil)
+        #expect(conversation.unreadCount(for: selfID) { _ in nil } == 15)
+    }
+
+    @Test("A watermark whose message isn't stored leaves the count unknown")
+    func unstoredWatermarkIsUnknown() {
+        let conversation = counted(lastID: 20, lastSeq: 12, readPointer: 8)
+        #expect(conversation.unreadCount(for: selfID) { _ in nil } == nil)
+    }
+
+    @Test("A read chat counts zero without looking up the watermark")
+    func readChatIsZero() {
+        let conversation = counted(lastID: 8, lastSeq: 5, readPointer: 8)
+        #expect(conversation.unreadCount(for: selfID) { _ in Issue.record("looked up"); return nil } == 0)
+    }
+
+    @Test("The viewer's own newest message counts zero")
+    func ownMessageIsZero() {
+        let conversation = counted(lastID: 20, lastSeq: 12, readPointer: 8, fromSelf: true)
+        #expect(conversation.unreadCount(for: selfID) { _ in 5 } == 0)
+    }
+
+    @Test("Unread by id but not by stamp leaves the count unknown")
+    func ineligibleNewestIsUnknown() {
+        // The newest message didn't advance the stamp past the watermark's.
+        let conversation = counted(lastID: 20, lastSeq: 5, readPointer: 8)
+        #expect(conversation.unreadCount(for: selfID) { _ in 5 } == nil)
+    }
 }

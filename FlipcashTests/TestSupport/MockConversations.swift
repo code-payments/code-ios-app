@@ -48,6 +48,9 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     private var _messages: [ConversationMessage] = []
     private var _olderMessages: [ConversationMessage] = []
     private var _olderQueries: [MessageID] = []
+    private var _singleMessages: [MessageID: ConversationMessage] = [:]
+    private var _singleMessageError: Error?
+    private var _singleMessageQueries: [MessageID] = []
     private var _latestPageQueries: [ConversationID] = []
     private var _sendResult: ConversationMessage?
     private var _sendError: Error?
@@ -120,6 +123,18 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     }
     /// The `before` cursors `getMessages` was paged with.
     var olderQueries: [MessageID] { lock.withLock { _olderQueries } }
+    /// Messages `getMessage` returns by id; an id missing here reads as not found.
+    var singleMessages: [MessageID: ConversationMessage] {
+        get { lock.withLock { _singleMessages } }
+        set { lock.withLock { _singleMessages = newValue } }
+    }
+    /// When set, `getMessage` throws this instead of returning a message.
+    var singleMessageError: Error? {
+        get { lock.withLock { _singleMessageError } }
+        set { lock.withLock { _singleMessageError = newValue } }
+    }
+    /// The ids `getMessage` was asked for, in order.
+    var singleMessageQueries: [MessageID] { lock.withLock { _singleMessageQueries } }
     /// The conversations `getMessages` was asked for the newest page of (`before == nil`).
     var latestPageQueries: [ConversationID] { lock.withLock { _latestPageQueries } }
     /// Forget the recorded newest-page fetches, so a test can assert on the ones its own exercise
@@ -279,6 +294,12 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     }
 
     // MARK: - ConversationMessaging
+
+    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
+        lock.withLock { _singleMessageQueries.append(messageID) }
+        if let error = singleMessageError { throw error }
+        return singleMessages[messageID]
+    }
 
     func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
         guard let before else {

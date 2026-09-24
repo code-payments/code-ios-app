@@ -33,6 +33,36 @@ final class ChatMessagingService: Sendable {
         self.service = Flipcash_Messaging_V1_Messaging.Client(wrapping: client)
     }
 
+    /// Fetches one message by id, or nil when the server has no such message in the chat.
+    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, viewMode: ConversationViewMode = .full, completion: @Sendable @escaping (Result<ConversationMessage?, ErrorGetMessage>) -> Void) {
+        let request = Flipcash_Messaging_V1_GetMessageRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.viewMode = viewMode.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getMessage(request, options: .unaryDefault)
+                let error = ErrorGetMessage(rawValue: response.result.rawValue) ?? .unknown
+                switch error {
+                case .ok:
+                    await MainActor.run { completion(.success(ConversationMessage(response.message))) }
+                case .notFound:
+                    await MainActor.run { completion(.success(nil)) }
+                case .denied, .unknown, .transportFailure, .cancelled, .rejected:
+                    logger.error("Failed to fetch message")
+                    await MainActor.run { completion(.failure(error)) }
+                }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
     /// Fetches the newest `pageSize` messages (descending on the wire — without
     /// an explicit order the server defaults to ascending and a long chat's
     /// first page would be its OLDEST messages), returned oldest-first.
@@ -290,6 +320,16 @@ final class ChatMessagingService: Sendable {
 
 // MARK: - Errors -
 
+public enum ErrorGetMessage: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
 public enum ErrorGetMessages: Int, Error {
     case ok
     case denied
@@ -360,6 +400,17 @@ public enum ErrorNotifyIsTyping: Int, Error {
     case transportFailure = -2
     case cancelled = -3
     case rejected = -4
+}
+
+extension ErrorGetMessage: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
 }
 
 extension ErrorGetMessages: ServerError, TransportClassifiableError {
