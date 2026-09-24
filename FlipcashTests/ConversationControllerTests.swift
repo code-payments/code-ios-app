@@ -276,52 +276,53 @@ struct ConversationControllerTests {
         #expect(controller.conversations.map(\.id) == [ConversationID.test(2), ConversationID.test(1)])
     }
 
-    @Test("Unread counts include only unread conversations, scoped by type")
-    func unreadConversationCount() async {
+    @Test("The Chats badge counts unread chats among the ones the list shows, groups included")
+    func unreadChatListCount() async {
         let me = UUID()
         let mock = MockConversations()
+        func message(_ id: UInt64) -> ConversationMessage {
+            ConversationMessage(id: MessageID(value: id), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        }
         mock.feed = [
-            // Unread: last message is past the self read pointer.
+            // Unread contact DM: the Chats list doesn't show it, so the badge doesn't count it.
             Conversation(
                 id: ConversationID.test(1),
-                members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 1))],
-                lastMessage: ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
-                lastActivity: Date(timeIntervalSince1970: 400)
+                members: [ConversationMember(userID: me, displayName: "", readPointer: nil)],
+                lastMessage: message(2),
+                lastActivity: Date(timeIntervalSince1970: 500)
             ),
-            // Read: the read pointer covers the last message.
+            // Unread tip DM.
             Conversation(
                 id: ConversationID.test(2),
-                members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 5))],
-                lastMessage: ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("y"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
-                lastActivity: Date(timeIntervalSince1970: 300)
+                members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 1))],
+                lastMessage: message(5),
+                lastActivity: Date(timeIntervalSince1970: 400),
+                type: .tipDm
             ),
-            // Empty: no last message is never unread.
+            // Read tip DM: the read pointer covers the last message.
             Conversation(
                 id: ConversationID.test(3),
-                members: [ConversationMember(userID: me, displayName: "")],
-                lastMessage: nil,
-                lastActivity: Date(timeIntervalSince1970: 200)
+                members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 5))],
+                lastMessage: message(5),
+                lastActivity: Date(timeIntervalSince1970: 300),
+                type: .tipDm
             ),
-            // Unread: a message with no read pointer.
+        ]
+        mock.groupFeed = [
+            // Unread joined group: listed, so it badges the tab like any other row.
             Conversation(
                 id: ConversationID.test(4),
-                members: [ConversationMember(userID: me, displayName: "", readPointer: nil)],
-                lastMessage: ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("z"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
-                lastActivity: Date(timeIntervalSince1970: 100)
-            ),
-            // Unread tip DM: counted in the tip bucket, not the contact one.
-            Conversation(
-                id: ConversationID.test(5),
-                members: [ConversationMember(userID: me, displayName: "", readPointer: nil)],
-                lastMessage: ConversationMessage(id: MessageID(value: 3), senderID: nil, content: .text("t"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
-                lastActivity: Date(timeIntervalSince1970: 50),
-                type: .tipDm
+                members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 3))],
+                lastMessage: message(9),
+                lastActivity: Date(timeIntervalSince1970: 200),
+                type: .group
             ),
         ]
         let controller = makeController(mock, selfUserID: me)
         await controller.loadFeed()
-        #expect(controller.unreadConversationCount(of: .contactDm) == 2)
-        #expect(controller.unreadConversationCount(of: .tipDm) == 1)
+
+        #expect(controller.chatListConversations.map(\.id) == [.test(2), .test(3), .test(4)])
+        #expect(controller.unreadChatListCount == 2)
     }
 
     @Test("send records the message and appends it to the conversation")

@@ -84,11 +84,10 @@ struct HomeTabView: View {
         return !router[stack].isEmpty
     }
 
-    /// Unread tip-conversation count, surfaced as a badge on the Chat tab —
-    /// mirrors the v1 scanner's Tips button badge. Reactive: reads the
-    /// `@Observable` conversation store, so the badge updates as chats are read.
+    /// Unread chats among the ones the Chat tab lists, surfaced as a badge on the tab.
+    /// Reactive: reads the `@Observable` conversation store, so the badge updates as chats are read.
     private var chatBadgeCount: Int {
-        sessionContainer.conversationController.unreadConversationCount(of: .tipDm)
+        sessionContainer.conversationController.unreadChatListCount
     }
 
     var body: some View {

@@ -16,14 +16,10 @@ struct TipConversationsScreen: View {
 
     @State private var muteTarget: MuteTarget?
 
-    /// The rows the tab lists, newest activity first. Groups sit among the tip DMs, but only the
-    /// ones the user has joined: a group reached by a `/chat/{id}` link and not joined is in the
-    /// store so its own screen can offer the join, not so it can appear in a list the user never
-    /// added it to.
+    /// The rows the tab lists. Shared with the tab badge so the two can't disagree about which
+    /// chats count.
     private var conversations: [Conversation] {
-        let tipDMs = conversationController.conversations(of: .tipDm)
-        return (tipDMs + conversationController.joinedGroups)
-            .sorted { $0.lastActivity > $1.lastActivity }
+        conversationController.chatListConversations
     }
 
     var body: some View {
