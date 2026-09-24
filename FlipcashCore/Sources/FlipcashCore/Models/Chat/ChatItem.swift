@@ -7,14 +7,17 @@
 
 import Foundation
 
-/// A single rendered row in the transcript: a message bubble or a centered date header. A
-/// separator carries no sender or grouping, so it's a distinct case rather than a message with
-/// unused fields. The delivery line rides on its message (`ChatMessage.receipt`), not as its own
-/// row. The whole transcript is driven by `[ChatItem]`.
+/// A single rendered row in the transcript: a message bubble, or a heading such as a centered date
+/// header or the unread divider. A heading carries no sender or grouping, so it's a distinct case
+/// rather than a message with unused fields. The delivery line rides on its message
+/// (`ChatMessage.receipt`), not as its own row. The whole transcript is driven by `[ChatItem]`.
 public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     case message(ChatMessage)
     /// A centered day + time header, e.g. "Today 12:13 PM". `text` is already formatted.
     case dateSeparator(id: String, text: String)
+    /// The "N Unread Messages" band above the first message the viewer had not read when they
+    /// opened the chat. At most one per transcript.
+    case unreadDivider(count: Int)
     /// A leading-aligned typing bubble pinned at the transcript tail while the counterpart types.
     /// In a group, `typists` holds the newest few people typing, oldest first, drawn as avatars
     /// ahead of the bubble; it is empty in a DM, which draws the bubble alone.
@@ -29,6 +32,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
         switch self {
         case .message(let message): message.id
         case .dateSeparator(let id, _): id
+        case .unreadDivider: "unread-divider"
         // Independent of `typists`, so a typist joining or leaving updates the row in place.
         case .typingIndicator: "typing-indicator"
         case .profileCard: "profile-card"
@@ -44,7 +48,17 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     public var messageID: String? {
         switch self {
         case .message(let message): message.messageID
-        case .dateSeparator, .typingIndicator, .profileCard, .groupCard: nil
+        case .dateSeparator, .unreadDivider, .typingIndicator, .profileCard, .groupCard: nil
+        }
+    }
+
+    /// The unread divider's label: "1 Unread Message", "12 Unread Messages", and "99+ Unread
+    /// Messages" past 99, as Android shows it.
+    public static func unreadDividerText(count: Int) -> String {
+        switch count {
+        case 1: "1 Unread Message"
+        case 100...: "99+ Unread Messages"
+        default: "\(count) Unread Messages"
         }
     }
 }

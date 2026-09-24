@@ -76,7 +76,7 @@ struct ConversationTypingIndicatorTests {
             switch item {
             case .typingIndicator(let typists):
                 return typists
-            case .message, .dateSeparator, .profileCard, .groupCard:
+            case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard:
                 continue
             }
         }

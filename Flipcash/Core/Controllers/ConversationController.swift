@@ -1322,6 +1322,30 @@ final class ConversationController {
         return (try? database.message(id: messageID, conversationID: conversationID)) ?? nil
     }
 
+    /// Where the viewer's unread messages begin, from their stored READ pointer and the messages
+    /// stored after it. Read once per visit, before ``markRead(conversationID:)`` advances the
+    /// pointer — see ``UnreadBoundary``.
+    func unreadBoundary(for conversationID: ConversationID) -> UnreadBoundary {
+        UnreadBoundary.resolve(
+            readPointer: store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
+            firstInbound: { readPointer in
+                ((try? database.firstInboundMessageID(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? nil)
+                    .map(MessageID.init(value:))
+            },
+            unreadCount: { readPointer in
+                (try? database.inboundMessageCount(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? 0
+            },
+            hasStored: { readThrough in
+                newestPersistedMessageID(through: readThrough, in: conversationID) != nil
+            }
+        )
+    }
+
+    /// The newest stored message id at or below `messageID`, or nil when none is stored.
+    func newestPersistedMessageID(through messageID: MessageID, in conversationID: ConversationID) -> MessageID? {
+        ((try? database.newestMessageID(conversationID: conversationID, through: messageID)) ?? nil).map(MessageID.init(value:))
+    }
+
     /// The oldest confirmed id inside the newest-`limit` window — the anchor a first page-back grows
     /// from; nil when nothing is persisted.
     func oldestWindowedMessageID(for conversationID: ConversationID, limit: Int) -> UInt64? {

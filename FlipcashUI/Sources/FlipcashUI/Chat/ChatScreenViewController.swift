@@ -147,7 +147,7 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onOpenURL = newValue }
     }
 
-    public var onLinkCardTap: ((LinkCard) -> Void)? {
+    public var onLinkCardTap: ((LinkCard, String) -> Void)? {
         get { transcript.onLinkCardTap }
         set { transcript.onLinkCardTap = newValue }
     }

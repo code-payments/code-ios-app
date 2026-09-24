@@ -8,7 +8,7 @@
 import Foundation
 import FlipcashCore
 import SQLite
-// For `SQLITE_BUSY`. SQLite.swift re-exports the connection API but not the result codes.
+// For `SQLITE_BUSY` and `SQLITE_PROTOCOL`. SQLite.swift re-exports the connection API but not the result codes.
 import SQLite3
 
 nonisolated private let logger = Logger(label: "flipcash.database.extension")
@@ -31,7 +31,7 @@ nonisolated public enum ExtensionStore {
         case noStore
         /// The version recorded beside the store is not the one this build writes.
         case versionMismatch(recorded: Int?)
-        /// Another process held the write lock for longer than the busy timeout.
+        /// Another connection held the store's locks for longer than SQLite would wait.
         case busy
         case failed(String)
     }
@@ -78,8 +78,8 @@ nonisolated public enum ExtensionStore {
             try body(database)
             return .wrote
 
-        } catch let error as SQLite.Result where error.isBusy {
-            // The app holds the write lock. Giving up is correct — whatever this write was carrying,
+        } catch let error as SQLite.Result where error.isLockContention {
+            // The app holds the store's locks. Giving up is correct — whatever this write was carrying,
             // the app is in a better position to fetch it than the extension is to wait for it.
             return .busy
 
@@ -92,14 +92,16 @@ nonisolated public enum ExtensionStore {
 
 extension SQLite.Result {
 
-    /// Whether this is `SQLITE_BUSY`, under either the primary or an extended result code.
+    /// Whether SQLite gave up because another connection held the store's locks.
     ///
+    /// That is `SQLITE_BUSY` once the busy timeout runs out, or `SQLITE_PROTOCOL` when a WAL read
+    /// loses the lock race for about 10 seconds, a retry loop the busy timeout does not bound.
     /// Extended codes carry the primary code in their low byte, so one mask covers both shapes.
-    var isBusy: Bool {
+    var isLockContention: Bool {
         let code: Int32 = switch self {
         case .error(_, let code, _): code
         case .extendedError(_, let extendedCode, _): extendedCode
         }
-        return code & 0xFF == SQLITE_BUSY
+        return [SQLITE_BUSY, SQLITE_PROTOCOL].contains(code & 0xFF)
     }
 }
