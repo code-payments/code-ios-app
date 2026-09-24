@@ -77,10 +77,15 @@ final class ConversationController {
         }
     }
 
-    /// Number of conversations of `type` with unread messages for the
-    /// signed-in user.
-    func unreadConversationCount(of type: ConversationType) -> Int {
-        conversations(of: type).count { $0.hasUnread(for: selfUserID) }
+    /// The chats the Chats tab lists, newest activity first: tip DMs and the groups the user has joined.
+    var chatListConversations: [Conversation] {
+        (conversations(of: .tipDm) + joinedGroups)
+            .sorted { $0.lastActivity > $1.lastActivity }
+    }
+
+    /// Number of ``chatListConversations`` with unread messages for the signed-in user.
+    var unreadChatListCount: Int {
+        chatListConversations.count { $0.hasUnread(for: selfUserID) }
     }
 
     /// The unread count a conversation row shows; nil when the chat is unread but its READ
