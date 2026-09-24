@@ -373,7 +373,7 @@ class Session {
         Task { await linkPhoneForPaymentIfNeeded() }
 
         if didLinkPhone {
-            Analytics.track(event: Analytics.PhoneEvent.linked)
+            Analytics.phoneNumberLinked()
         }
     }
 

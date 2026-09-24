@@ -98,12 +98,6 @@ extension Analytics {
         case routeRefused = "Route Refused"
     }
 
-    enum PhoneEvent: String, AnalyticsEvent {
-        case entered  = "Entered Phone Number"
-        case verified = "Verified Phone Number"
-        case linked   = "Linked Phone Number"
-    }
-
     enum WalletEvent: String, AnalyticsEvent {
         case connect               = "Wallet: Connect"
         case requestAmount         = "Wallet: Request Amount"
@@ -213,17 +207,17 @@ extension Analytics {
 extension Analytics {
     /// The user submitted a phone number for verification.
     static func phoneNumberEntered() {
-        track(event: PhoneEvent.entered)
+        track(AccountEvents.shared.enteredPhoneNumber())
     }
 
     /// The user confirmed a phone number with its code.
     static func phoneNumberVerified() {
-        track(event: PhoneEvent.verified)
+        track(AccountEvents.shared.verifiedPhoneNumber())
     }
 
     /// A verified phone number was linked to the account.
     static func phoneNumberLinked() {
-        track(event: PhoneEvent.linked)
+        track(AccountEvents.shared.linkedPhoneNumber())
     }
 
     /// The user finished onboarding and was logged in.
