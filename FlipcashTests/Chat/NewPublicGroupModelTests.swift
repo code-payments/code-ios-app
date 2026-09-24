@@ -65,14 +65,15 @@ struct NewPublicGroupModelTests {
         }
     }
 
-    /// Stands in for `Session`: a single USDF holding worth `usd`.
+    /// Stands in for `Session`: a USDF holding worth `usd`, plus `otherUSD` held in other mints and
+    /// counted only in the total.
     private final class StubHoldings: ConversationGateReading {
         var isStaff = false
         var totalBalance: ExchangedFiat
         var holding: StoredBalance?
 
-        init(usd: Decimal) {
-            totalBalance = ExchangedFiat(nativeAmount: .usd(usd), rate: Rate(fx: 1, currency: .usd))
+        init(usd: Decimal, otherUSD: Decimal = 0) {
+            totalBalance = ExchangedFiat(nativeAmount: .usd(usd + otherUSD), rate: Rate(fx: 1, currency: .usd))
             holding = try? StoredBalance(
                 quarks: NSDecimalNumber(decimal: usd * 1_000_000).uint64Value,
                 symbol: "USDF",
@@ -154,61 +155,55 @@ struct NewPublicGroupModelTests {
         #expect(model.customMinimumBalance == nil)
     }
 
-    // MARK: - The mint the form opens on -
+    // MARK: - Currency choice -
 
-    @Test("The mint the form opens on is seated but not counted as chosen")
-    func seededMintIsNotAChoice() {
+    @Test("The form opens on All Currencies")
+    func opensOnAllCurrencies() {
         let model = NewPublicGroupModel()
 
-        model.seed(balance: .makeTest(mint: .usdf))
-
-        // The heading turns on this, not on the mint: node 10127:118014 names a mint and still
-        // reads "Minimum Balance Required".
-        #expect(model.selectedBalance?.stored.mint == .usdf)
-        #expect(model.hasChosenMint == false)
+        #expect(model.currency == .all)
+        #expect(model.currency.mint == nil, "No token row reads as selected in the picker")
     }
 
-    @Test("Picking the mint the form opened on still counts as choosing it")
-    func choosingTheSeededMintCounts() {
+    @Test("Picking a token replaces All Currencies")
+    func pickingATokenReplacesAll() {
         let model = NewPublicGroupModel()
-        model.seed(balance: .makeTest(mint: .usdf))
 
-        model.select(balance: .makeTest(mint: .usdf))
+        model.select(balance: .makeTest(mint: .jeffy))
 
-        #expect(model.hasChosenMint)
+        #expect(model.currency != .all)
+        #expect(model.currency.mint == .jeffy)
     }
 
-    @Test("Seeding never walks over the mint the user picked")
-    func seedLeavesAChoiceAlone() {
+    @Test("Choosing All Currencies after a token clears the token")
+    func choosingAllClearsTheToken() {
         let model = NewPublicGroupModel()
         model.select(balance: .makeTest(mint: .jeffy))
 
-        // Balances can land after the form is on screen, so a seed can arrive after a pick.
-        model.seed(balance: .makeTest(mint: .usdf))
+        model.selectAllCurrencies()
 
-        #expect(model.selectedBalance?.stored.mint == .jeffy)
-        #expect(model.hasChosenMint)
-    }
-
-    @Test("A wallet holding nothing giveable opens on no mint at all")
-    func seedingNothingLeavesTheSlotEmpty() {
-        let model = NewPublicGroupModel()
-
-        model.seed(balance: nil)
-
-        #expect(model.selectedBalance == nil)
-        #expect(model.hasChosenMint == false)
-        #expect(model.rules == nil, "Nothing to weigh the requirement in")
+        #expect(model.currency == .all)
+        #expect(model.currency.mint == nil)
     }
 
     // MARK: - Rules -
 
-    @Test("The requirement maps to a single listener rule naming exactly the selected mint")
+    @Test("All Currencies maps to a requirement with no mints")
+    func allCurrenciesRulesCarryNoMints() {
+        let model = NewPublicGroupModel()
+        model.select(minimumBalance: .usd(100))
+
+        // An empty mint list is the requirement applying to every holding added together.
+        #expect(model.rules == ConversationRules(
+            listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(100), mints: []))]
+        ))
+        #expect(model.rules?.speaker.isEmpty == true)
+    }
+
+    @Test("A picked token maps to a requirement naming exactly that mint")
     func rulesCarryOneListenerRequirementForTheSelectedMint() {
         let model = filledModel()
 
-        // The contract caps the mint list at one entry, and an empty list means something else —
-        // the requirement applying across every mint.
         #expect(model.rules == ConversationRules(
             listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(100), mints: [.usdf]))]
         ))
@@ -216,17 +211,39 @@ struct NewPublicGroupModelTests {
         #expect(model.rules?.speaker.isEmpty == true)
     }
 
-    @Test("The rules stay nil until both halves of the requirement are collected")
+    @Test("Switching back to All Currencies drops the mint from the rules")
+    func switchingBackToAllDropsTheMint() {
+        let model = filledModel()
+
+        model.selectAllCurrencies()
+
+        #expect(model.rules == ConversationRules(
+            listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(100), mints: []))]
+        ))
+    }
+
+    @Test("The rules stay nil until an amount is picked")
     func rulesNilWhileRequirementIncomplete() {
         let model = NewPublicGroupModel()
         model.title = "BadBoys"
         #expect(model.rules == nil)
 
         model.select(minimumBalance: .usd(100))
-        #expect(model.rules == nil, "An amount with no mint names nothing to weigh")
-
-        model.select(balance: .makeTest(mint: .usdf))
         #expect(model.rules != nil)
+    }
+
+    @Test("Create sends an All Currencies group with no mints")
+    func createSendsEmptyMints() async throws {
+        let model = NewPublicGroupModel()
+        model.title = "Ballers"
+        model.select(minimumBalance: .usd(100))
+        let creator = SpyCreator()
+
+        _ = try await model.create(using: creator)
+
+        #expect(creator.startChatCalls.first?.rules == ConversationRules(
+            listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(100), mints: []))]
+        ))
     }
 
     // MARK: - The creator's own balance -
@@ -252,6 +269,47 @@ struct NewPublicGroupModelTests {
         model.title = "   "
         #expect(model.validatedTitle == nil)
         #expect(model.canCreate(session: StubHoldings(usd: 10_000), rates: noRates) == false)
+    }
+
+    @Test("All Currencies counts every holding toward the creator's own requirement")
+    func allCurrenciesSumsTheCreatorsHoldings() {
+        let model = NewPublicGroupModel()
+        model.title = "Ballers"
+        model.select(minimumBalance: .usd(100))
+
+        // $40 of USDF alone is short; with $60 held elsewhere the total clears $100.
+        let spread = StubHoldings(usd: 40, otherUSD: 60)
+
+        #expect(model.satisfiesOwnRules(session: spread, rates: noRates))
+        #expect(model.canCreate(session: spread, rates: noRates))
+    }
+
+    @Test("All Currencies stays short when the holdings added together are short")
+    func allCurrenciesShortWhenTheTotalIsShort() {
+        let model = NewPublicGroupModel()
+        model.title = "Ballers"
+        model.select(minimumBalance: .usd(100))
+
+        let short = StubHoldings(usd: 40, otherUSD: 59)
+
+        #expect(model.satisfiesOwnRules(session: short, rates: noRates) == false)
+        #expect(model.canCreate(session: short, rates: noRates) == false)
+    }
+
+    @Test("A picked token weighs only that token, not the total")
+    func specificTokenIgnoresOtherHoldings() {
+        let model = filledModel(minimum: 100)
+        let spread = StubHoldings(usd: 40, otherUSD: 60)
+
+        #expect(model.satisfiesOwnRules(session: spread, rates: noRates) == false)
+    }
+
+    @Test("The All Currencies card weighs the total even while a token is picked")
+    func allCurrenciesCardWeighsTheTotal() {
+        let model = filledModel(minimum: 100)
+
+        #expect(model.satisfiesAllCurrencies(session: StubHoldings(usd: 40, otherUSD: 60), rates: noRates))
+        #expect(model.satisfiesAllCurrencies(session: StubHoldings(usd: 40, otherUSD: 59), rates: noRates) == false)
     }
 
     @Test("An incomplete requirement keeps Create disabled")

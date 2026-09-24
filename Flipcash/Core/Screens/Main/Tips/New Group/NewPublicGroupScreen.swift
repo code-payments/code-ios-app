@@ -30,21 +30,6 @@ struct NewPublicGroupScreen: View {
 
     private var session: Session { sessionContainer.session }
 
-    /// The mint the form opens on: the wallet's top card, which ``StoredBalance/walletOrder(_:_:)``
-    /// puts at the largest USD worth. That is the same figure ``conversationGate`` weighs the rule
-    /// against — `StoredBalance.usdf` — so it is the mint the creator can draw the highest
-    /// requirement in, rather than the one they hold the most units of.
-    ///
-    /// Read from the same list ``SelectCurrencyScreen`` offers. A default drawn from a wider list
-    /// could open the form on a mint the picker won't show, leaving no way back to it once the
-    /// user opens the picker at all.
-    ///
-    /// Nil only for a wallet holding nothing giveable, which is the one case the row falls back to
-    /// a placeholder the design has no frame for.
-    private var defaultBalance: ExchangedBalance? {
-        session.balances(for: ratesController.rateForBalanceCurrency()).giveable().first
-    }
-
     var body: some View {
         Background(color: .backgroundMain) {
             ScrollView {
@@ -87,9 +72,6 @@ struct NewPublicGroupScreen: View {
             }
         }
         .dialog(item: $dialog)
-        .task {
-            model.seed(balance: defaultBalance)
-        }
         .fullScreenCover(isPresented: $isPickingPhoto) {
             ImagePickerWithEditor(
                 onImagePicked: model.select(picture:),
@@ -102,9 +84,23 @@ struct NewPublicGroupScreen: View {
                 isPresented: $isPickingCurrency,
                 // The check follows the requirement's mint, not the wallet's denomination — this
                 // screen is picking what the gate weighs, not what the balance is shown in.
-                isSelected: { $0.stored.mint == model.selectedBalance?.stored.mint }
+                isSelected: { $0.stored.mint == model.currency.mint },
+                listTitle: "Specific Currency"
             ) { balance in
                 model.select(balance: balance)
+            } header: {
+                AllCurrenciesCard(
+                    isSelected: model.currency == .all,
+                    total: session.totalBalance.usdfValue,
+                    requirement: model.minimumBalance,
+                    meetsRequirement: model.satisfiesAllCurrencies(
+                        session: session,
+                        rates: ratesController.cachedRates
+                    )
+                ) {
+                    model.selectAllCurrencies()
+                    isPickingCurrency = false
+                }
             }
         }
         .sheet(isPresented: $isEnteringCustomAmount) {
@@ -152,12 +148,7 @@ struct NewPublicGroupScreen: View {
 
     private var requirementSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // The label names what is still being collected until a currency is picked, and the
-            // requirement itself after. Keyed on the pick rather than on the mint, because the
-            // form opens with one already named: node 10127:118014 reads "Minimum Balance
-            // Required" over "Jeffy", and node 10127:118194 reads "Balance Requirement" over a
-            // picked mint with the amount still uncollected.
-            Text(model.hasChosenMint ? "Balance Requirement" : "Minimum Balance Required")
+            Text("Balance Requirement")
                 .font(.default(size: 17, weight: .bold))
                 .foregroundStyle(Color.textMain.opacity(0.5))
                 .padding(.horizontal, 12)
@@ -189,12 +180,20 @@ struct NewPublicGroupScreen: View {
         }
     }
 
-    /// The mint the requirement is denominated in, opening the currency picker (node
-    /// 10127:118254).
+    /// The holdings the requirement counts, opening the currency picker (nodes 10127:118254 and
+    /// 10364:1059).
     private var mintRow: some View {
         Button { isPickingCurrency = true } label: {
             HStack(spacing: 4) {
-                if let balance = model.selectedBalance {
+                switch model.currency {
+                case .all:
+                    AllCurrenciesIcon(size: 20)
+
+                    Text("All Currencies")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+
+                case .specific(let balance):
                     RemoteImage(url: balance.stored.imageURL)
                         .frame(width: 20, height: 20)
                         .clipShape(Circle())
@@ -202,12 +201,6 @@ struct NewPublicGroupScreen: View {
                     Text(balance.stored.name)
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
-                } else {
-                    // Only a wallet with nothing giveable gets here — every other form opens on
-                    // `defaultBalance`.
-                    Text("Select Currency")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textSecondary)
                 }
 
                 Image.system(.chevronDown)
