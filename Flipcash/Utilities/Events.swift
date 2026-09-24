@@ -13,7 +13,6 @@ import FlipcashCore
 extension Analytics {
     enum GeneralEvent: String, AnalyticsEvent {
         case autoLoginComplete     = "Auto-login complete"
-        case completeOnboarding    = "Complete Onboarding"
     }
 
     enum AccountEvent: String, AnalyticsEvent {
@@ -222,7 +221,7 @@ extension Analytics {
 
     /// The user finished onboarding and was logged in.
     static func onboardingCompleted() {
-        track(event: GeneralEvent.completeOnboarding)
+        track(AccountEvents.shared.completeOnboarding())
     }
 }
 

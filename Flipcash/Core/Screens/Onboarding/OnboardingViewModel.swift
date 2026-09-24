@@ -240,7 +240,7 @@ class OnboardingViewModel {
 
         sessionAuthenticator.completeLogin(with: initializedAccount, landingTab: .postOnboarding)
 
-        Analytics.track(event: Analytics.GeneralEvent.completeOnboarding)
+        Analytics.onboardingCompleted()
     }
 
     // MARK: - Navigation -
