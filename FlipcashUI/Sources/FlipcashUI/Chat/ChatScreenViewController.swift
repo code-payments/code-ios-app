@@ -626,7 +626,12 @@ private final class KeyboardFloor {
             let endFrame = info?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
             let duration = info?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval
             let curve = info?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt
+            let isLocal = info?[UIResponder.keyboardIsLocalUserInfoKey] as? Bool ?? true
             MainActor.assumeIsolated {
+                // Another process's keyboard — the Messages composer a share sheet hosts over this
+                // screen, say — is not one the bar has to clear, and its lowering can arrive with
+                // no usable frame, which would strand the bar at its height with nothing under it.
+                guard isLocal else { return }
                 // A zero end frame says nothing about where the keyboard is; UIKit posts one as
                 // the app returns to the foreground. Taken literally its top edge is the top of
                 // the screen, which would drive the bar up over the transcript.
