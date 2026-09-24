@@ -185,6 +185,59 @@ extension Analytics {
     }
 }
 
+// MARK: - Onramp -
+
+extension Analytics {
+    /// An onramp verification screen was shown.
+    static func onrampStep(_ step: OnrampStep) {
+        switch step {
+        case .enterPhone:   track(event: OnrampEvent.showEnterPhone)
+        case .confirmPhone: track(event: OnrampEvent.showConfirmPhone)
+        case .enterEmail:   track(event: OnrampEvent.showEnterEmail)
+        case .confirmEmail: track(event: OnrampEvent.showConfirmEmail)
+        default:            break
+        }
+    }
+}
+
+// MARK: - Phone & Onboarding -
+
+extension Analytics {
+    /// The user submitted a phone number for verification.
+    static func phoneNumberEntered() {
+        track(event: PhoneEvent.entered)
+    }
+
+    /// The user confirmed a phone number with its code.
+    static func phoneNumberVerified() {
+        track(event: PhoneEvent.verified)
+    }
+
+    /// A verified phone number was linked to the account.
+    static func phoneNumberLinked() {
+        track(event: PhoneEvent.linked)
+    }
+
+    /// The user finished onboarding and was logged in.
+    static func onboardingCompleted() {
+        track(event: GeneralEvent.completeOnboarding)
+    }
+}
+
+// MARK: - Tip Card -
+
+extension Analytics {
+    /// A tip card code was scanned.
+    static func tipCardScanned() {
+        track(event: TipCardEvent.scanned)
+    }
+
+    /// A scanned tip card resolved and was presented.
+    static func tipCardPresented() {
+        track(event: TipCardEvent.presented)
+    }
+}
+
 // MARK: - Gallery Scan -
 
 extension Analytics {
@@ -253,6 +306,16 @@ private extension Analytics {
 extension Analytics {
     static func transferStart(event: TransferEvent) {
         track(event: event)
+    }
+
+    /// The scanner has started grabbing a bill.
+    static func grabBillStarted() {
+        track(event: TransferEvent.grabBillStart)
+    }
+
+    /// A bill has been put on screen to give.
+    static func giveBillStarted() {
+        track(event: TransferEvent.giveBillStart)
     }
 
     static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
