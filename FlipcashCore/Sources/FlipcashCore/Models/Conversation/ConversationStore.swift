@@ -46,21 +46,32 @@ public struct ConversationStore: Sendable {
         let sequence: UInt64
     }
 
-    public init() {}
+    /// The signed-in user, whose READ pointer a server copy is never allowed to lower. Nil in tests
+    /// that don't exercise read pointers.
+    public let selfUserID: UserID?
+    /// Self READ pointers the server has not acknowledged yet, keyed by conversation: a local advance
+    /// whose `AdvancePointer` hasn't succeeded, or a server copy found behind the local one.
+    public private(set) var unsyncedSelfReadPointers: [ConversationID: MessageID] = [:]
+
+    public init(selfUserID: UserID? = nil) {
+        self.selfUserID = selfUserID
+    }
 
     /// Replace the feed from a paged load, sorted most-recent-activity first.
     public mutating func setFeed(_ conversations: [Conversation]) {
-        self.conversations = conversations
-            .map { seated($0) }
-            .sorted { $0.lastActivity > $1.lastActivity }
+        let merged = conversations.map { keepingSelfReadPointer(seated($0)) }
+        self.conversations = merged.sorted { $0.lastActivity > $1.lastActivity }
     }
 
     /// Replace one type's conversations from that type's paged feed load,
     /// leaving the other types' conversations in place. Rows of a different
     /// type are ignored — the call describes exactly one type's set.
     public mutating func setFeed(_ conversations: [Conversation], type: ConversationType) {
-        let others = self.conversations.filter { $0.type != type }
-        setFeed(others + conversations.filter { $0.type == type })
+        // Only the incoming rows are merged: re-merging the other types against themselves would
+        // read the store's own copy as the server acknowledging an unsynced READ pointer.
+        let incoming = conversations.filter { $0.type == type }.map { keepingSelfReadPointer(seated($0)) }
+        self.conversations = (self.conversations.filter { $0.type != type } + incoming)
+            .sorted { $0.lastActivity > $1.lastActivity }
     }
 
     /// Merge the group feed in, and returns the groups the user is no longer in.
@@ -244,18 +255,28 @@ public struct ConversationStore: Sendable {
 
     // MARK: - Feed
 
-    /// The signed-in user's READ watermark for a conversation, as last reported by the feed/stream and
-    /// locally advanced after each successful markRead.
+    /// The signed-in user's READ watermark for a conversation: the higher of the server's copy and
+    /// the local advances made since.
     public func selfReadPointer(for conversationID: ConversationID, selfUserID: UserID) -> MessageID? {
         conversations.first { $0.id == conversationID }?.selfReadPointer(for: selfUserID)
     }
 
-    /// Locally advance the signed-in user's READ watermark after a successful markRead so the next call
-    /// can short-circuit.
+    /// Advances the signed-in user's READ watermark ahead of the server, and records it as unsynced
+    /// until ``didSyncSelfReadPointer(_:in:)`` hears the server took it. Never moves it backward. A
+    /// chat the feed hasn't delivered yet still records the unsynced pointer, so it gets sent.
     public mutating func advanceSelfReadPointer(to messageID: MessageID, in conversationID: ConversationID, selfUserID: UserID) {
         // Self's read time is never surfaced — only the counterpart's receipt shows one — so advance
         // the watermark without a timestamp.
         advanceReadPointer(to: messageID, for: selfUserID, at: nil, in: conversationID)
+        if let unsynced = unsyncedSelfReadPointers[conversationID], unsynced >= messageID { return }
+        unsyncedSelfReadPointers[conversationID] = messageID
+    }
+
+    /// Records that the server holds the self READ pointer at `messageID`, clearing the unsynced
+    /// entry unless a later local advance has moved past it.
+    public mutating func didSyncSelfReadPointer(_ messageID: MessageID, in conversationID: ConversationID) {
+        guard let unsynced = unsyncedSelfReadPointers[conversationID], unsynced <= messageID else { return }
+        unsyncedSelfReadPointers[conversationID] = nil
     }
 
     /// Monotonically advance a member's READ watermark; never moves it backward. `date` is when the
@@ -326,6 +347,9 @@ public struct ConversationStore: Sendable {
         case .readPointersChanged(let conversationID, let pointers):
             for pointer in pointers {
                 advanceReadPointer(to: pointer.value, for: pointer.userID, at: pointer.date, in: conversationID)
+                if pointer.userID == selfUserID {
+                    didSyncSelfReadPointer(pointer.value, in: conversationID)
+                }
             }
             return .none
         case .typingChanged:
@@ -524,7 +548,7 @@ public struct ConversationStore: Sendable {
     }
 
     private mutating func upsert(_ conversation: Conversation) {
-        let conversation = seated(conversation)
+        let conversation = keepingSelfReadPointer(seated(conversation))
         if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
             conversations[index] = conversation
         } else {
@@ -547,6 +571,32 @@ public struct ConversationStore: Sendable {
         let current = conversations.first { $0.id == conversation.id }?.lastMessage
         conversation.lastMessage = current.flatMap { current in
             !current.isDeleted && current.id != tombstone.id ? current : nil
+        }
+        return conversation
+    }
+
+    /// `conversation` with the self READ pointer raised to the one the store already holds, when the
+    /// server's copy is behind it. The server never lowers a pointer, so a lower copy means an advance
+    /// it hasn't taken yet; that advance is kept and recorded as unsynced for the caller to re-send.
+    /// Android's `FeedSyncDelegate` keeps the same max.
+    private mutating func keepingSelfReadPointer(_ conversation: Conversation) -> Conversation {
+        guard let selfUserID,
+              let serverIndex = conversation.members.firstIndex(where: { $0.userID == selfUserID }) else {
+            return conversation
+        }
+        let server = conversation.members[serverIndex].readPointer
+        let local = conversations.first { $0.id == conversation.id }?.selfReadPointer(for: selfUserID)
+        guard let local, server.map({ $0 < local }) ?? true else {
+            if let server {
+                didSyncSelfReadPointer(server, in: conversation.id)
+            }
+            return conversation
+        }
+        var conversation = conversation
+        conversation.members[serverIndex].readPointer = local
+        conversation.members[serverIndex].readPointerTimestamp = nil
+        if unsyncedSelfReadPointers[conversation.id].map({ $0 < local }) ?? true {
+            unsyncedSelfReadPointers[conversation.id] = local
         }
         return conversation
     }

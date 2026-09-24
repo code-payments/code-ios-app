@@ -166,10 +166,12 @@ struct ConversationMembershipTests {
         mock.clearLatestPageQueries()
 
         await controller.loadMessages(for: .test(9))
-        await controller.markRead(conversationID: .test(9))
+        controller.advanceReadPointer(to: MessageID(value: 1), in: .test(9))
 
         // `AdvancePointer` is a member's write, so reading from outside leaves the pointer where it is.
         #expect(mock.latestPageQueries == [.test(9)])
+        #expect(controller.readPointerSyncTasks.isEmpty)
+        #expect(controller.store.unsyncedSelfReadPointers.isEmpty)
         #expect(mock.markedRead.isEmpty)
     }
 

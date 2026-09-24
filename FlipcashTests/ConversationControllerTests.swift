@@ -355,60 +355,104 @@ struct ConversationControllerTests {
         #expect(messages.first?.id.value == 9)
     }
 
-    @Test("markRead advances to the latest loaded message")
-    func markRead() async {
-        let mock = MockConversations()
-        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
-        let controller = makeController(mock)
+    private struct ReadPointerRejected: Error {}
 
-        await controller.loadMessages(for: ConversationID.test(1))
-        await controller.markRead(conversationID: ConversationID.test(1))
-        #expect(mock.markedRead == [MessageID(value: 5)])
-    }
-
-    @Test("markRead is skipped when the READ watermark already covers the latest message")
-    func markReadSkipsWhenAlreadyRead() async {
+    /// A DM whose self row holds `pointer`, with an inbound message at each id in `messageIDs`.
+    private func readPointerFixture(pointer: UInt64?, messageIDs: [UInt64]) -> (MockConversations, ConversationController) {
         let me = UUID()
         let mock = MockConversations()
         mock.feed = [Conversation(
             id: ConversationID.test(1),
             members: [
-                ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 5)),
+                ConversationMember(userID: me, displayName: "", readPointer: pointer.map(MessageID.init(value:))),
                 ConversationMember(userID: UUID(), displayName: "Alice"),
             ],
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 0)
         )]
-        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
-        let controller = makeController(mock, selfUserID: me)
+        mock.messages = messageIDs.map {
+            ConversationMessage(id: MessageID(value: $0), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: $0)
+        }
+        return (mock, makeController(mock, selfUserID: me))
+    }
 
+    private func selfPointer(_ controller: ConversationController) -> MessageID? {
+        controller.conversations.first?.selfReadPointer(for: controller.selfUserID)
+    }
+
+    @Test("Advancing moves the local pointer before the RPC goes out")
+    func advanceIsLocalFirst() async throws {
+        let (mock, controller) = readPointerFixture(pointer: 3, messageIDs: [4, 5])
         await controller.loadFeed()
         await controller.loadMessages(for: ConversationID.test(1))
-        await controller.markRead(conversationID: ConversationID.test(1))
+
+        controller.advanceReadPointer(to: MessageID(value: 5), in: ConversationID.test(1))
+
+        #expect(selfPointer(controller) == MessageID(value: 5))
         #expect(mock.markedRead.isEmpty)
+        try await waitUntil { mock.markedRead == [MessageID(value: 5)] }
+        try await waitUntil { controller.store.unsyncedSelfReadPointers.isEmpty }
     }
 
-    @Test("markRead fires for a newer message, then short-circuits after advancing")
-    func markReadFiresThenSkips() async {
-        let me = UUID()
-        let mock = MockConversations()
-        mock.feed = [Conversation(
-            id: ConversationID.test(1),
-            members: [
-                ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 3)),
-                ConversationMember(userID: UUID(), displayName: "Alice"),
-            ],
-            lastMessage: nil,
-            lastActivity: Date(timeIntervalSince1970: 0)
-        )]
-        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
-        let controller = makeController(mock, selfUserID: me)
+    @Test("An advance in a chat the feed hasn't delivered still sends, and only once")
+    func advanceBeforeFeedStillSends() async throws {
+        let (mock, controller) = readPointerFixture(pointer: 3, messageIDs: [4, 5])
+        await controller.loadMessages(for: ConversationID.test(1))
 
+        controller.advanceReadPointer(to: MessageID(value: 5), in: ConversationID.test(1))
+        controller.advanceReadPointer(to: MessageID(value: 5), in: ConversationID.test(1))
+
+        try await waitUntil { controller.readPointerSyncTasks.isEmpty }
+        #expect(mock.markedRead == [MessageID(value: 5)])
+        #expect(controller.store.unsyncedSelfReadPointers.isEmpty)
+    }
+
+    @Test("An advance at or below the pointer sends nothing")
+    func advanceBelowPointerIsSkipped() async throws {
+        let (mock, controller) = readPointerFixture(pointer: 5, messageIDs: [4, 5])
         await controller.loadFeed()
         await controller.loadMessages(for: ConversationID.test(1))
-        await controller.markRead(conversationID: ConversationID.test(1))
-        await controller.markRead(conversationID: ConversationID.test(1))
-        #expect(mock.markedRead == [MessageID(value: 5)])
+
+        controller.advanceReadPointer(to: MessageID(value: 4), in: ConversationID.test(1))
+        controller.advanceReadPointer(to: MessageID(value: 5), in: ConversationID.test(1))
+
+        #expect(controller.readPointerSyncTasks.isEmpty)
+        #expect(mock.markedRead.isEmpty)
+        #expect(selfPointer(controller) == MessageID(value: 5))
+    }
+
+    @Test("A burst of advances sends the newest id once")
+    func burstSendsNewestOnce() async throws {
+        let (mock, controller) = readPointerFixture(pointer: 1, messageIDs: [2, 3, 4])
+        await controller.loadFeed()
+        await controller.loadMessages(for: ConversationID.test(1))
+
+        for id in [2, 3, 4] as [UInt64] {
+            controller.advanceReadPointer(to: MessageID(value: id), in: ConversationID.test(1))
+        }
+
+        try await waitUntil { controller.readPointerSyncTasks.isEmpty }
+        #expect(mock.markedRead == [MessageID(value: 4)])
+    }
+
+    @Test("A failed RPC keeps the local pointer ahead, and the next feed load sends it again")
+    func failedAdvanceIsResentOnFeedLoad() async throws {
+        let (mock, controller) = readPointerFixture(pointer: 3, messageIDs: [4, 5])
+        await controller.loadFeed()
+        await controller.loadMessages(for: ConversationID.test(1))
+        mock.markReadError = ReadPointerRejected()
+
+        controller.advanceReadPointer(to: MessageID(value: 5), in: ConversationID.test(1))
+        try await waitUntil { mock.markedRead.count == 1 && controller.readPointerSyncTasks.isEmpty }
+        #expect(controller.store.unsyncedSelfReadPointers[ConversationID.test(1)] == MessageID(value: 5))
+
+        // The feed still reports the server's pointer at 3.
+        mock.markReadError = nil
+        await controller.loadFeed()
+
+        #expect(selfPointer(controller) == MessageID(value: 5))
+        try await waitUntil { mock.markedRead == [MessageID(value: 5), MessageID(value: 5)] }
+        try await waitUntil { controller.store.unsyncedSelfReadPointers.isEmpty }
     }
 
     @Test("uses the counterpart's feed-provided display name as the title")
@@ -944,7 +988,7 @@ struct ConversationControllerTests {
         #expect(controller.conversations.map(\.id) == [ConversationID.test(2)])
     }
 
-    @Test("loadFeed, loadMessages, and markRead persist — a fresh controller rehydrates the same state")
+    @Test("loadFeed, loadMessages, and a read advance persist — a fresh controller rehydrates the same state")
     func persistsAcrossControllers() async throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
@@ -962,7 +1006,7 @@ struct ConversationControllerTests {
         let controller = makeController(mock, selfUserID: selfUserID, database: database)
         await controller.loadFeed()
         await controller.loadMessages(for: ConversationID.test(1))
-        await controller.markRead(conversationID: ConversationID.test(1))
+        controller.advanceReadPointer(to: MessageID(value: 2), in: ConversationID.test(1))
 
         let freshDatabase = try Database(url: url)
         let rehydrated = makeController(MockConversations(), selfUserID: selfUserID, database: freshDatabase)

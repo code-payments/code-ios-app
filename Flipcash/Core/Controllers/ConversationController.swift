@@ -118,7 +118,7 @@ final class ConversationController {
     /// it's excluded from observation.
     @ObservationIgnored var visibleConversationID: ConversationID?
 
-    var store = ConversationStore()
+    var store: ConversationStore
 
     /// The current blocklist (wired to `BlocklistController`), used to reconcile
     /// which conversations are hidden from the feed.
@@ -172,7 +172,8 @@ final class ConversationController {
     /// reconnect whose missed window needs refetching.
     @ObservationIgnored private var hasSeenStreamLive = false
     @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
-    @ObservationIgnored private var markReadTasks: [ConversationID: Task<Void, Never>] = [:]
+    /// The in-flight `AdvancePointer` send per conversation — see ``syncReadPointer(in:)``.
+    @ObservationIgnored private(set) var readPointerSyncTasks: [ConversationID: Task<Void, Never>] = [:]
     /// Conversations with a `GetDelta` catch-up in flight. Dedups overlapping triggers (foreground +
     /// a near-simultaneous reconnect, or a gap-fill racing a reconnect) so two streams don't apply
     /// checkpoints out of order and regress the frontier.
@@ -182,7 +183,7 @@ final class ConversationController {
     @ObservationIgnored private var gapCatchUpTasks: [ConversationID: Task<Void, Never>] = [:]
     /// Conversations with a newest-page `GetMessages` in flight. Read by the backfill so it doesn't
     /// re-fetch a page the open chat is already loading; `loadMessages` itself never short-circuits,
-    /// because the screen awaits it before marking read.
+    /// because the opening screen awaits the fresh page it returns.
     @ObservationIgnored private var messageLoadsInFlight: Set<ConversationID> = []
     @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
 
@@ -227,6 +228,7 @@ final class ConversationController {
         self.database = database
         self.owner = owner
         self.selfUserID = selfUserID
+        self.store = ConversationStore(selfUserID: selfUserID)
         self.receipts = receipts ?? ConversationReceiptReporter(selfUserID: selfUserID)
         self.typing = ConversationTyping(
             messaging: messaging,
@@ -541,8 +543,8 @@ final class ConversationController {
         streamTask = nil
         connectionStateTask?.cancel()
         connectionStateTask = nil
-        markReadTasks.values.forEach { $0.cancel() }
-        markReadTasks.removeAll()
+        readPointerSyncTasks.values.forEach { $0.cancel() }
+        readPointerSyncTasks.removeAll()
         gapCatchUpTasks.values.forEach { $0.cancel() }
         gapCatchUpTasks.removeAll()
         catchUpInFlight.removeAll()
@@ -646,6 +648,7 @@ final class ConversationController {
             let departed = store.setGroupFeed(groups)
             reconcileHidden()
             persist(operation: "replace-group-feed") { try database.replaceGroupFeed(groups, departed: departed) }
+            resendUnsyncedReadPointers()
             // Same repair the DM feeds need: the store refuses a tombstone as a preview, so a chat whose
             // newest message is deleted seats blank without this.
             for group in groups where group.lastMessage?.isDeleted == true {
@@ -668,6 +671,7 @@ final class ConversationController {
             store.setFeed(conversations, type: type)
             reconcileHidden()
             persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
+            resendUnsyncedReadPointers()
             // The store refuses a tombstone as a preview, so a chat whose newest message is deleted
             // seats blank here. Fill it from the newest visible message already cached — the feed
             // reloads on every launch and foreground, so without this the row stays blank until the
@@ -1318,7 +1322,7 @@ final class ConversationController {
     }
 
     /// Where the viewer's unread messages begin, from their stored READ pointer and the messages
-    /// stored after it. Read once per visit, before ``markRead(conversationID:)`` advances the
+    /// stored after it. Read once per visit, before ``advanceReadPointer(to:in:)`` moves the
     /// pointer — see ``UnreadBoundary``.
     func unreadBoundary(for conversationID: ConversationID) -> UnreadBoundary {
         UnreadBoundary.resolve(
@@ -1555,43 +1559,74 @@ final class ConversationController {
         }
     }
 
-    /// Debounced read-pointer advance: collapses a burst of arrivals into a
-    /// single `markRead` round-trip ~400ms after the last one, instead of one
-    /// RPC per incoming message.
-    func scheduleMarkRead(conversationID: ConversationID) {
-        markReadTasks[conversationID]?.cancel()
-        markReadTasks[conversationID] = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled else { return }
-            await self?.markRead(conversationID: conversationID)
-        }
-    }
-
-    func markRead(conversationID: ConversationID) async {
+    /// Moves the viewer's READ pointer to `messageID`, the newest message someone else sent that has
+    /// been on screen. Never moves it backward.
+    ///
+    /// The local pointer moves first, so the feed's unread state follows the screen at once, and the
+    /// inbound messages it crossed report their receipts. `AdvancePointer` goes out after. When it
+    /// fails, the local pointer stays ahead and the next feed load sends it again. Android's
+    /// `MessagingDelegate.advanceReadPointer` works in the same order.
+    func advanceReadPointer(to messageID: MessageID, in conversationID: ConversationID) {
         // A pointer advance is denied to a non-member even when the fetch isn't, and a chat the user
         // cannot read has nothing to mark.
         guard canAdvancePointer(conversationID) else { return }
-        guard let latestID = (try? database.newestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
-        // Skip the round-trip when the server-known READ watermark already covers
-        // the latest message. We advance the watermark locally after each success.
-        let previousRead = store.selfReadPointer(for: conversationID, selfUserID: selfUserID)
-        if let previousRead, latestID <= previousRead {
-            return
+        // A chat not in the feed yet has no member row to hold the pointer, only the unsynced entry.
+        let previous = [
+            store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
+            store.unsyncedSelfReadPointers[conversationID],
+        ].compactMap { $0 }.max()
+        if let previous, messageID <= previous { return }
+        store.advanceSelfReadPointer(to: messageID, in: conversationID, selfUserID: selfUserID)
+        // The pointer only moves forward, so the window it just crossed holds exactly the messages the
+        // reader is seeing for the first time. The reporter keeps only the inbound ones.
+        let crossed = (try? database.messages(conversationID: conversationID, after: previous, through: messageID)) ?? []
+        receipts.reportRead(crossed, chatType: conversation(withID: conversationID)?.type)
+        persistConversation(conversationID)
+        syncReadPointer(in: conversationID)
+    }
+
+    /// Sends the viewer's unsynced READ pointer for `conversationID`, if it has one. Called as the
+    /// chat closes, so an advance whose send failed gets another try then.
+    func flushReadPointer(in conversationID: ConversationID) {
+        syncReadPointer(in: conversationID)
+    }
+
+    /// Sends `AdvancePointer` for the local pointer until the server holds it, one call in flight per
+    /// chat. A call that lands while an older one is in flight is carried by the loop, so a burst of
+    /// advances sends the newest id rather than every step.
+    private func syncReadPointer(in conversationID: ConversationID) {
+        guard readPointerSyncTasks[conversationID] == nil,
+              store.unsyncedSelfReadPointers[conversationID] != nil else { return }
+        readPointerSyncTasks[conversationID] = Task { [weak self] in
+            await self?.sendUnsyncedReadPointer(in: conversationID)
+            self?.readPointerSyncTasks[conversationID] = nil
         }
-        do {
-            try await messaging.markRead(owner: owner, conversationID: conversationID, messageID: latestID)
-            store.advanceSelfReadPointer(to: latestID, in: conversationID, selfUserID: selfUserID)
-            // The read pointer only moves forward, so the window it just crossed is
-            // exactly the set of messages the user is seeing for the first time.
-            let crossed = (try? database.messages(conversationID: conversationID, after: previousRead, through: latestID)) ?? []
-            receipts.reportRead(crossed, chatType: conversation(withID: conversationID)?.type)
+    }
+
+    private func sendUnsyncedReadPointer(in conversationID: ConversationID) async {
+        while !Task.isCancelled, let target = store.unsyncedSelfReadPointers[conversationID] {
+            do {
+                try await messaging.markRead(owner: owner, conversationID: conversationID, messageID: target)
+                store.didSyncSelfReadPointer(target, in: conversationID)
+            } catch {
+                logger.error("Failed to advance read pointer", metadata: [
+                    "conversationID": "\(conversationID)",
+                    "error": "\(error)",
+                ])
+                ErrorReporting.captureError(error, reason: "Failed to advance read pointer")
+                return
+            }
+        }
+    }
+
+    /// Re-sends every READ pointer the server is behind on, after a feed load has shown which those
+    /// are, and writes the kept local pointer back over the server copy the load just persisted.
+    /// Receipts are not reported again; they went out with the local advance. Android's
+    /// `MessagingDelegate.reportReadPointer` does the same.
+    private func resendUnsyncedReadPointers() {
+        for conversationID in store.unsyncedSelfReadPointers.keys where canAdvancePointer(conversationID) {
             persistConversation(conversationID)
-        } catch {
-            logger.error("Failed to mark conversation read", metadata: [
-                "conversationID": "\(conversationID)",
-                "error": "\(error)",
-            ])
-            ErrorReporting.captureError(error, reason: "Failed to mark conversation read")
+            syncReadPointer(in: conversationID)
         }
     }
 

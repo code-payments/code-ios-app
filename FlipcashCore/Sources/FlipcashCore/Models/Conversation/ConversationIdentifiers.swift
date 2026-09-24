@@ -83,7 +83,7 @@ public struct ConversationID: Hashable, Sendable, CustomStringConvertible {
 
 /// Per-conversation, gapless, server-assigned message sequence number. Doubles as
 /// the sort key and pagination cursor.
-public struct MessageID: Hashable, Sendable, Comparable, CustomStringConvertible {
+public struct MessageID: Hashable, Sendable, Codable, Comparable, CustomStringConvertible {
 
     public let value: UInt64
 

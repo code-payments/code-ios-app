@@ -236,6 +236,12 @@ extension ChatItem {
                 )
             }
 
+            // Only a confirmed row has an id the READ pointer can move to.
+            let serverID: MessageID? = switch message.status {
+            case .sent:              message.id
+            case .sending, .failed:  nil
+            }
+
             // A split message reads as one: the quote heads its first row, the receipt and the
             // "Edited" marker close its last, and every row between holds the author run and offers
             // the whole message's menu.
@@ -248,6 +254,7 @@ extension ChatItem {
                 }
                 items.append(.message(ChatMessage(
                     id: part?.rowID ?? message.stableID,
+                    serverID: serverID,
                     content: row.text.map(ChatMessage.Content.text) ?? content,
                     sender: isFromSelf ? .me : .other,
                     isContinuationFromPrevious: isFirst ? groupedAbove : true,

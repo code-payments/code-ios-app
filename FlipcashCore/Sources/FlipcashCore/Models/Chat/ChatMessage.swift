@@ -29,6 +29,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     }
 
     public let id: String
+    /// The server's id for the message this row draws, or nil while the send is still pending. A
+    /// row without one can never count toward the viewer's READ pointer.
+    public let serverID: MessageID?
     public let content: Content
     public let sender: Sender
     /// The row above has the same author — the name above this row is suppressed, so a run reads as
@@ -104,6 +107,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
 
     public init(
         id: String,
+        serverID: MessageID? = nil,
         content: Content,
         sender: Sender,
         isContinuationFromPrevious: Bool = false,
@@ -121,6 +125,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         part: ChatMessagePart? = nil
     ) {
         self.id = id
+        self.serverID = serverID
         self.content = content
         self.sender = sender
         self.isContinuationFromPrevious = isContinuationFromPrevious
@@ -141,6 +146,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// Convenience for text rows.
     public init(
         id: String,
+        serverID: MessageID? = nil,
         text: String,
         sender: Sender,
         isContinuationFromPrevious: Bool = false,
@@ -159,6 +165,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     ) {
         self.init(
             id: id,
+            serverID: serverID,
             content: .text(text),
             sender: sender,
             isContinuationFromPrevious: isContinuationFromPrevious,
