@@ -148,7 +148,7 @@ struct NewPublicGroupScreen: View {
 
     private var requirementSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Balance Requirement")
+            Text("Minimum Balance Required")
                 .font(.default(size: 17, weight: .bold))
                 .foregroundStyle(Color.textMain.opacity(0.5))
                 .padding(.horizontal, 12)
