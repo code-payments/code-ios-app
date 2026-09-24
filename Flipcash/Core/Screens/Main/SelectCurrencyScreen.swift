@@ -30,8 +30,9 @@ struct SelectCurrencyScreen<Header: View>: View {
     /// Creates a picker with `header` drawn above the currency list, and `listTitle` labelling the
     /// list beneath it.
     ///
-    /// The header stays on screen when there is nothing giveable to list, since it is a choice of
-    /// its own rather than one of the list's rows.
+    /// The header spans the list's full width and sets its own margins. It stays on screen when
+    /// there is nothing giveable to list, since it is a choice of its own rather than one of the
+    /// list's rows.
     ///
     /// - Parameter isSelected: which row draws its checkmark. Defaults to the currency the wallet is
     ///   denominated in, which is what picking one here changes. Pass a closure when the screen is
@@ -72,7 +73,7 @@ struct SelectCurrencyScreen<Header: View>: View {
                     List {
                         if let header {
                             header
-                                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                                .listRowInsets(EdgeInsets())
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
 
