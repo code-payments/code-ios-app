@@ -45,7 +45,7 @@ struct TipConversationsScreen: View {
                         // Separators divide rows from each other; the first
                         // row's leading one just draws a line under the bar.
                         .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
-                        .swipeActions(allowsFullSwipe: false) {
+                        .swipeActions {
                             muteAction(for: conversation)
                         }
                     }
@@ -94,13 +94,18 @@ struct TipConversationsScreen: View {
     /// settings screen rather than toggling the mute itself.
     private func muteAction(for conversation: Conversation) -> some View {
         let isMuted = conversation.isMuted(at: .now)
+        let symbol: SystemSymbol = isMuted ? .bell : .bellSlash
         return Button {
             muteTarget = MuteTarget(id: conversation.id)
         } label: {
-            Image.system(isMuted ? .bell : .bellSlash)
+            // A swipe action draws its label white whatever the style says, so the amber has to be
+            // baked into the image.
+            Image(uiImage: UIImage(systemName: symbol.rawValue)!
+                .withTintColor(UIColor(Color.warning), renderingMode: .alwaysOriginal))
         }
-        .tint(.textSecondary)
-        .accessibilityLabel(isMuted ? "Unmute" : "Mute")
+        // The mute chip's amber-on-amber, not the delete red: nothing is lost by it.
+        .tint(.warningSecondary)
+        .accessibilityLabel(isMuted ? "Change mute" : "Mute notifications")
     }
 
     /// Bridges ``MuteChatSheet``'s dismissal binding onto ``muteTarget``.
