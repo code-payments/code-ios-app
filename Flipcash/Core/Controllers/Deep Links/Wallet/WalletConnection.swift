@@ -92,7 +92,29 @@ public final class WalletConnection {
     
     // MARK: - Receive -
 
+    /// The `redirect_link` Phantom returns to after a connect request.
+    static let walletConnectedURL = URL(string: "https://app.flipcash.com/wallet/walletConnected")!
+
+    /// The `redirect_link` Phantom returns to after a sign-transaction request.
+    static let transactionSignedURL = URL(string: "https://app.flipcash.com/wallet/transactionSigned")!
+
+    /// Whether `url` is one of the two Phantom callbacks, matched on scheme, host, and path.
+    static func isWalletCallback(_ url: URL) -> Bool {
+        [walletConnectedURL, transactionSignedURL].contains { callback in
+            url.scheme?.lowercased() == callback.scheme
+                && url.host()?.lowercased() == callback.host()
+                && url.path() == callback.path()
+        }
+    }
+
+    /// Handles a Phantom callback URL; any other URL is ignored.
     func didReceiveURL(url: URL) {
+        // Every opened URL reaches here, including links tapped in chat, and the errorCode branch
+        // below drops the stored session, so only Phantom's own redirect targets may reach it.
+        guard Self.isWalletCallback(url) else {
+            return
+        }
+
         if let code = url.queryItemValue(for: "errorCode") {
             Analytics.track(event: Analytics.WalletEvent.cancel)
 
@@ -296,7 +318,7 @@ public final class WalletConnection {
             URLQueryItem(name: "app_url",                    value: "https://app.flipcash.com"),
             URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
             URLQueryItem(name: "cluster",                    value: "mainnet-beta"), // or "devnet"
-            URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/walletConnected"),
+            URLQueryItem(name: "redirect_link",              value: Self.walletConnectedURL.absoluteString),
             URLQueryItem(name: "nonce",                      value: nonce)
         ]
 
@@ -363,7 +385,7 @@ public final class WalletConnection {
         c.queryItems = [
             URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
             URLQueryItem(name: "nonce",                      value: nonce),
-            URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/transactionSigned"),
+            URLQueryItem(name: "redirect_link",              value: Self.transactionSignedURL.absoluteString),
             URLQueryItem(name: "payload",                    value: payloadEncrypted)
         ]
 
@@ -598,7 +620,7 @@ struct ConnectedWalletSession: Codable {
     public let phantomEncryptionPublicKey: Data
 }
 
-private extension FlipcashCore.Keychain {
+extension FlipcashCore.Keychain {
     @SecureCodable(.connectedWalletSession)
     static var connectedWalletSession: ConnectedWalletSession?
 }

@@ -1040,10 +1040,10 @@ struct ConversationScreen: View {
     }
 
     private func openLink(_ url: URL) {
-        // iOS won't re-enter the app for our own universal link from an in-app tap, so route every
-        // tapped link through the deep-link handler; anything it doesn't recognize opens externally.
-        if container.deepLinkController.open(url) { return }
-        ExternalLinkOpener(session: session).open(url)
+        ChatLinkOpener(
+            openDeepLink: { container.deepLinkController.open($0) },
+            openExternally: { ExternalLinkOpener(session: session).open($0) }
+        ).open(url)
     }
 
     /// Where a tapped link card lands, which is not the same place for every kind.
