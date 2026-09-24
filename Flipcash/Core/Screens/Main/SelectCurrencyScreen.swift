@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct SelectCurrencyScreen: View {
+struct SelectCurrencyScreen<Header: View>: View {
 
     @Binding var isPresented: Bool
 
@@ -19,12 +19,20 @@ struct SelectCurrencyScreen: View {
     let action: (ExchangedBalance) -> Void
     let isEnabled: (ExchangedBalance) -> Bool
     let isSelected: ((ExchangedBalance) -> Bool)?
+    private let header: Header?
+    private let listTitle: String?
 
     private var balances: [ExchangedBalance] {
         session.balances(for: ratesController.rateForBalanceCurrency())
             .giveable()
     }
 
+    /// Creates a picker with `header` drawn above the currency list, and `listTitle` labelling the
+    /// list beneath it.
+    ///
+    /// The header stays on screen when there is nothing giveable to list, since it is a choice of
+    /// its own rather than one of the list's rows.
+    ///
     /// - Parameter isSelected: which row draws its checkmark. Defaults to the currency the wallet is
     ///   denominated in, which is what picking one here changes. Pass a closure when the screen is
     ///   picking for something else — a group chat's balance requirement, say — so the check follows
@@ -33,12 +41,16 @@ struct SelectCurrencyScreen: View {
         isPresented: Binding<Bool>,
         isEnabled: @escaping (ExchangedBalance) -> Bool = { _ in true },
         isSelected: ((ExchangedBalance) -> Bool)? = nil,
-        action: @escaping (ExchangedBalance) -> Void
+        listTitle: String,
+        action: @escaping (ExchangedBalance) -> Void,
+        @ViewBuilder header: () -> Header
     ) {
         self._isPresented = isPresented
         self.isEnabled = isEnabled
         self.isSelected = isSelected
         self.action = action
+        self.header = header()
+        self.listTitle = listTitle
     }
 
     var body: some View {
@@ -48,7 +60,7 @@ struct SelectCurrencyScreen: View {
 
         NavigationStack {
             Background(color: .backgroundMain) {
-                if balances.isEmpty {
+                if balances.isEmpty && header == nil {
                     Text("No currencies to give")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
@@ -58,6 +70,24 @@ struct SelectCurrencyScreen: View {
                         .accessibilityIdentifier("give-picker-empty")
                 } else {
                     List {
+                        if let header {
+                            header
+                                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+
+                            if let listTitle, !balances.isEmpty {
+                                Text(listTitle)
+                                    .font(.default(size: 15, weight: .semibold))
+                                    .foregroundStyle(Color.textMain.opacity(0.5))
+                                    .padding(.top, 24)
+                                    .padding(.bottom, 4)
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                            }
+                        }
+
                         Section {
                             ForEach(balances) { balance in
                                 let enabled = isEnabled(balance)
@@ -90,6 +120,27 @@ struct SelectCurrencyScreen: View {
                 }
             }
         }
+    }
+}
+
+extension SelectCurrencyScreen where Header == EmptyView {
+
+    /// Creates a picker listing only the giveable currencies.
+    ///
+    /// - Parameter isSelected: which row draws its checkmark. Defaults to the currency the wallet is
+    ///   denominated in, which is what picking one here changes.
+    init(
+        isPresented: Binding<Bool>,
+        isEnabled: @escaping (ExchangedBalance) -> Bool = { _ in true },
+        isSelected: ((ExchangedBalance) -> Bool)? = nil,
+        action: @escaping (ExchangedBalance) -> Void
+    ) {
+        self._isPresented = isPresented
+        self.isEnabled = isEnabled
+        self.isSelected = isSelected
+        self.action = action
+        self.header = nil
+        self.listTitle = nil
     }
 }
 

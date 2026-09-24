@@ -27,19 +27,9 @@ final class NewPublicGroupModel {
     /// leaves the blob unset for a group with no picture.
     private(set) var picture: UIImage?
 
-    /// The holding the requirement is denominated in, kept whole so the form's row can draw the
-    /// token's name and icon. Only ``ExchangedBalance/stored``'s mint reaches the wire.
-    private(set) var selectedBalance: ExchangedBalance?
-
-    /// Whether the mint in ``selectedBalance`` is one the user picked, rather than the one the form
-    /// opened on.
-    ///
-    /// The form opens already naming a mint, so "a mint is set" stopped meaning "the user chose
-    /// one" — and the requirement's heading turns on the choice rather than on the mint. The
-    /// opening frame reads "Minimum Balance Required" with a mint already named (node
-    /// 10127:118014); picking one turns it into "Balance Requirement", still with no amount
-    /// collected (node 10127:118194).
-    private(set) var hasChosenMint = false
+    /// Which holdings count toward the requirement. Opens on ``CurrencyChoice/all``, the rule every
+    /// creator can draw without first having to pick a token.
+    private(set) var currency: CurrencyChoice = .all
 
     /// The minimum balance a member must hold, in USD.
     private(set) var minimumBalance: FiatAmount?
@@ -82,20 +72,12 @@ final class NewPublicGroupModel {
         self.picture = picture
     }
 
-    /// Seats the mint the form opens on, so the creator starts on a rule they can satisfy rather
-    /// than on a blank the design doesn't draw (node 10127:118014).
-    ///
-    /// Fills an empty slot only. It is a starting point, not a choice: it leaves ``hasChosenMint``
-    /// alone, and once anything sits in the slot this does nothing, so it can't walk over the
-    /// user's own pick.
-    func seed(balance: ExchangedBalance?) {
-        guard selectedBalance == nil, let balance else { return }
-        selectedBalance = balance
+    func select(balance: ExchangedBalance) {
+        currency = .specific(balance)
     }
 
-    func select(balance: ExchangedBalance) {
-        selectedBalance = balance
-        hasChosenMint = true
+    func selectAllCurrencies() {
+        currency = .all
     }
 
     func select(minimumBalance: FiatAmount) {
@@ -122,17 +104,32 @@ final class NewPublicGroupModel {
         validator.remaining(in: title)
     }
 
-    /// The rules the chat is created with, or nil while the requirement is incomplete.
+    /// The rules the chat is created with, or nil while no amount has been picked.
     ///
     /// Only a listener requirement is set: it is the one the design collects, and the contract
     /// applies speaker rules on top of listener rules, so leaving `speaker` unset means "anyone who
-    /// can read can send". The mint list carries exactly the one selected holding — the contract
-    /// caps it at one today, and an empty list would mean something else entirely (the requirement
-    /// applying across every mint).
+    /// can read can send".
     var rules: ConversationRules? {
-        guard let minimumBalance, let mint = selectedBalance?.stored.mint else { return nil }
-        return ConversationRules(
-            listener: [.minimumBalance(MinimumBalanceRequirement(amount: minimumBalance, mints: [mint]))]
+        guard let minimumBalance else { return nil }
+        return Self.rules(minimumBalance: minimumBalance, currency: currency)
+    }
+
+    /// Whether the user's holdings added together clear the amount picked, whatever
+    /// ``currency`` is — what the picker's All Currencies card states. True while no amount is
+    /// picked.
+    func satisfiesAllCurrencies(session: some ConversationGateReading, rates: [CurrencyCode: Rate]) -> Bool {
+        let rules = minimumBalance.map { Self.rules(minimumBalance: $0, currency: .all) }
+        return conversationGate(session: session, rules: rules, rates: rates).listener.isSatisfied
+    }
+
+    /// The contract caps the mint list at one entry, and an empty list is the requirement applying
+    /// to every holding added together, USDF included.
+    private static func rules(minimumBalance: FiatAmount, currency: CurrencyChoice) -> ConversationRules {
+        ConversationRules(
+            listener: [.minimumBalance(MinimumBalanceRequirement(
+                amount: minimumBalance,
+                mints: currency.mint.map { [$0] } ?? []
+            ))]
         )
     }
 
@@ -203,5 +200,25 @@ final class NewPublicGroupModel {
         }
 
         return blobID
+    }
+}
+
+extension NewPublicGroupModel {
+
+    /// The holdings a group's balance requirement counts.
+    enum CurrencyChoice: Equatable {
+        /// Every holding added together.
+        case all
+        /// One holding, kept whole so the form's row can draw the token's name and icon. Only
+        /// ``ExchangedBalance/stored``'s mint reaches the wire.
+        case specific(ExchangedBalance)
+
+        /// The mint of the chosen holding, or nil when every holding counts.
+        var mint: PublicKey? {
+            switch self {
+            case .all:                   return nil
+            case .specific(let balance): return balance.stored.mint
+            }
+        }
     }
 }
