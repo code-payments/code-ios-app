@@ -121,11 +121,18 @@ extension Analytics {
         case cancel                = "Wallet: Cancel"
     }
 
-    enum TokenInfoEvent: String, AnalyticsEvent {
-        case openedFromDeeplink = "Token Info: Opened From Deeplink"
-        case openedFromWallet   = "Token Info: Opened From Wallet"
-        case openedFromGive     = "Token Info: Opened From Give"
-        case openedFromSend     = "Token Info: Opened From Send"
+    /// Where Token Info was opened from. Deeplink and Wallet are built by the shared
+    /// contract; Give and Send are iOS-only and keep their names here.
+    enum TokenInfoEvent {
+        case openedFromDeeplink
+        case openedFromWallet
+        case openedFromGive
+        case openedFromSend
+    }
+
+    fileprivate enum NativeTokenInfoEvent: String, AnalyticsEvent {
+        case openedFromGive = "Token Info: Opened From Give"
+        case openedFromSend = "Token Info: Opened From Send"
     }
 
     enum TokenTransactionEvent: String, AnalyticsEvent {
@@ -507,7 +514,16 @@ extension Analytics {
 
 extension Analytics {
     static func tokenInfoOpened(from event: TokenInfoEvent, mint: PublicKey) {
-        track(event: event, properties: [.mint: mint.base58])
+        switch event {
+        case .openedFromDeeplink:
+            track(TokenInfoEvents.shared.opened(source: .deeplink, mint: mint.base58))
+        case .openedFromWallet:
+            track(TokenInfoEvents.shared.opened(source: .wallet, mint: mint.base58))
+        case .openedFromGive:
+            track(event: NativeTokenInfoEvent.openedFromGive, properties: [.mint: mint.base58])
+        case .openedFromSend:
+            track(event: NativeTokenInfoEvent.openedFromSend, properties: [.mint: mint.base58])
+        }
     }
 }
 

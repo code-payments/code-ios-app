@@ -128,6 +128,15 @@ struct MigratedEventsTests {
         try expectEvent(sent, expected, ["Mint": "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25"])
     }
 
+    @Test("Token Info from Give and Send keeps the native name", arguments: [
+        (Analytics.TokenInfoEvent.openedFromGive, "Token Info: Opened From Give"),
+        (.openedFromSend, "Token Info: Opened From Send"),
+    ])
+    func tokenInfoOpenedNative(_ source: Analytics.TokenInfoEvent, _ expected: String) throws {
+        let sent = Analytics.recordingSends { Analytics.tokenInfoOpened(from: source, mint: .jeffy) }
+        try expectEvent(sent, expected, ["Mint": "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25"])
+    }
+
     @Test("Token Info gains the token symbol")
     func tokenInfoOpenedSymbol() throws {
         Analytics.tokenSymbolResolver = { _ in "JEFF" }
