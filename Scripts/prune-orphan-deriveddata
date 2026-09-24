@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# prune-orphan-deriveddata — delete Xcode DerivedData whose source project is gone.
+# prune-orphan-deriveddata — delete Xcode DerivedData and test simulators whose checkout is gone.
 #
 # Xcode stores each project's build products in ~/Library/Developer/Xcode/DerivedData
 # under a <Name>-<pathhash> folder, keyed by the project's absolute path. Because the
@@ -10,6 +10,10 @@
 # This prunes only folders whose recorded WorkspacePath no longer exists on disk, so
 # live checkouts/worktrees are never touched. DerivedData is a pure cache — anything
 # pruned is rebuilt on next build.
+#
+# It also deletes the "Flipcash Tests <checkout dir>" simulators that Scripts/test.sh
+# creates, when no worktree of this repo has that directory name any more. A booted
+# simulator is left alone. test.sh recreates a deleted one on its next run.
 #
 # Usage:
 #   Scripts/prune-orphan-deriveddata            # prune orphans
@@ -77,6 +81,30 @@ for d in "$DD"/*/; do
   reclaimed_kb=$((reclaimed_kb+sz_kb))
   pruned=$((pruned+1))
 done
+
+# Test simulators whose checkout is gone. The name records only the checkout's
+# directory, so a simulator is orphaned when no live worktree has that basename.
+live_dirs="$(git -C "$(dirname "${BASH_SOURCE[0]}")" worktree list --porcelain 2>/dev/null \
+  | sed -n 's/^worktree //p' | while read -r w; do basename "$w"; done || true)"
+if [ -n "$live_dirs" ]; then
+  while IFS='|' read -r dir udid state; do
+    [ -n "$udid" ] || continue
+    if printf '%s\n' "$live_dirs" | grep -qxF "$dir"; then kept=$((kept+1)); continue; fi
+    if [ "$state" = "Booted" ]; then kept=$((kept+1)); continue; fi
+
+    sim_dir="$HOME/Library/Developer/CoreSimulator/Devices/$udid"
+    sz_kb=0; [ -d "$sim_dir" ] && sz_kb="$(du -sk "$sim_dir" | cut -f1)"
+    if [ "$DRY_RUN" -eq 1 ]; then
+      printf 'WOULD PRUNE  %6sM  simulator Flipcash Tests %s  (checkout gone)\n' "$((sz_kb/1024))" "$dir"
+    else
+      xcrun simctl delete "$udid"
+      printf 'pruned       %6sM  simulator Flipcash Tests %s  (checkout gone)\n' "$((sz_kb/1024))" "$dir"
+    fi
+    reclaimed_kb=$((reclaimed_kb+sz_kb))
+    pruned=$((pruned+1))
+  done < <(xcrun simctl list devices 2>/dev/null \
+    | sed -nE 's/^ +Flipcash Tests (.+) \(([0-9A-F-]{36})\) \(([A-Za-z ]+)\).*$/\1|\2|\3/p' || true)
+fi
 
 verb="reclaimed"; [ "$DRY_RUN" -eq 1 ] && verb="would reclaim"
 printf '\n%s: %s orphan(s), %s live/cache kept, %s %sMB\n' \
