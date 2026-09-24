@@ -20,7 +20,6 @@ struct AddMoneyEventsTests {
 
     @Test("Property keys have the expected raw values")
     func propertyKeys_rawValues_areExpected() {
-        #expect(Analytics.Property.source.rawValue == "Source")
         #expect(Analytics.Property.method.rawValue == "Method")
         #expect(Analytics.Property.state.rawValue == "State")
         #expect(Analytics.Property.mint.rawValue == "Mint")

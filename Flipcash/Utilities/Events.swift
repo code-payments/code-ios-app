@@ -73,9 +73,9 @@ extension Analytics {
 
     /// The display name a user is known by. `Set` is a first name, `Updated` a
     /// replacement — decided by whether a name already existed, not by the screen.
-    enum DisplayNameEvent: String, AnalyticsEvent {
-        case set     = "Display Name Set"
-        case updated = "Display Name Updated"
+    enum DisplayNameEvent {
+        case set
+        case updated
     }
 
     /// The surface a display-name submission came from.
@@ -378,20 +378,20 @@ extension Analytics {
     /// A successful `SetDisplayName`. `hadPreviousName` is read *before* the RPC —
     /// after it, every submission looks like a replacement.
     static func displayNameSubmitted(source: DisplayNameSource, hadPreviousName: Bool) {
-        track(
-            event: displayNameEvent(hadPreviousName: hadPreviousName),
-            properties: [.source: source.analyticsValue]
-        )
+        switch displayNameEvent(hadPreviousName: hadPreviousName) {
+        case .set:     track(DisplayNameEvents.shared.set(source: source.shared))
+        case .updated: track(DisplayNameEvents.shared.updated(source: source.shared))
+        }
     }
 }
 
 extension Analytics.DisplayNameSource {
-    /// The `Source` property value, shared verbatim with Android.
-    var analyticsValue: String {
+    /// The shared contract's source for this surface.
+    var shared: SharedCoreKit.DisplayNameSource {
         switch self {
-        case .onboarding:   "Onboarding"
-        case .myAccount:    "My Account"
-        case .tipCardSetup: "Tip Card Setup"
+        case .onboarding:   .onboarding
+        case .myAccount:    .myAccount
+        case .tipCardSetup: .tipCardSetup
         }
     }
 }
@@ -603,7 +603,6 @@ extension Analytics {
         case grabTime          = "Grab Time"
 
         case state             = "State"
-        case source            = "Source"
         case method            = "Method"
         case quarks            = "Quarks"
         case mint              = "Mint"
