@@ -139,24 +139,34 @@ extension Analytics {
     /// terminal event with State/Error properties. Names are shared verbatim
     /// with Android.
     enum AddMoneyEvent: String, AnalyticsEvent {
-        case opened          = "Add Money: Opened"
         case methodSelected  = "Add Money: Method Selected"
         case amountConfirmed = "Add Money: Amount Confirmed"
         case paymentInvoked  = "Add Money: Payment Invoked"
-        case addressCopied   = "Add Money: Address Copied"
         case terminal        = "Add Money"
     }
 
-    /// The `Source` property of `AddMoneyEvent.opened` — where the user
-    /// entered the flow. Values are shared verbatim with Android.
-    enum AddMoneySource: String {
-        case menu              = "Menu"
-        case giveShortfall     = "Give Shortfall"
-        case buyShortfall      = "Buy Shortfall"
-        case usernameShortfall = "Username Shortfall"
-        case chat              = "Chat"
-        case scanner           = "Scanner"
-        case balance           = "Balance"
+    /// Where the user entered the Add Money flow, sent as the `Source` of Add Money: Opened.
+    enum AddMoneySource {
+        case menu
+        case giveShortfall
+        case buyShortfall
+        case usernameShortfall
+        case chat
+        case scanner
+        case balance
+
+        /// The shared contract's `Source` value for this entry point.
+        var shared: SharedCoreKit.AddMoneySource {
+            switch self {
+            case .menu:              .menu
+            case .giveShortfall:     .giveShortfall
+            case .buyShortfall:      .buyShortfall
+            case .usernameShortfall: .usernameShortfall
+            case .chat:              .chat
+            case .scanner:           .scanner
+            case .balance:           .balance
+            }
+        }
     }
 }
 
@@ -433,7 +443,7 @@ private extension Optional where Wrapped == ConversationType {
 
 extension Analytics {
     static func addMoneyOpened(source: AddMoneySource) {
-        track(event: AddMoneyEvent.opened, properties: [.source: source.rawValue])
+        track(AddMoneyEvents.shared.opened(source: source.shared))
     }
 
     static func addMoneyMethodSelected(method: DepositMethod) {
@@ -453,7 +463,7 @@ extension Analytics {
     }
 
     static func addMoneyAddressCopied(mint: PublicKey) {
-        track(event: AddMoneyEvent.addressCopied, properties: [.mint: mint.base58])
+        track(AddMoneyEvents.shared.addressCopied(mint: mint.base58))
     }
 
     static func addMoney(method: DepositMethod, exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
