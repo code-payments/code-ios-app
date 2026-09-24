@@ -77,6 +77,8 @@ These orphans accumulate silently and can reach tens of GB across a handful of w
 - **Manual:** `Scripts/prune-orphan-deriveddata` (`--dry-run` to preview). It deletes only folders
   whose recorded `WorkspacePath` no longer exists on disk, so live checkouts and Xcode's shared
   caches are never touched. DerivedData is a pure cache — anything pruned is rebuilt on next build.
+  It also deletes `Scripts/test.sh`'s `Flipcash Tests <dir>` simulators when no worktree of this
+  repo has that directory name, skipping any that are booted.
 - **Automatic:** wire it to a Claude Code hook (`PostToolUse` filtered to `git worktree remove`,
   plus `WorktreeRemove`) in your gitignored `.claude/settings.local.json` so it runs on every
   worktree removal. The exact hook block is in the script's header comment.

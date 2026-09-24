@@ -28,11 +28,30 @@ struct SessionTests {
 Use the project scripts — they encode the correct scheme and destination:
 
 - **Build the app:** `./Scripts/build.sh` (generic iOS) or `./Scripts/build.sh --device` (paired physical iPhone)
-- **Targeted tests (for your changes):** `./Scripts/test.sh <Target>/<Suite>[/<TestName>] [...]` — always runs on the iPhone 17 simulator
+- **Targeted tests (for your changes):** `./Scripts/test.sh <Target>/<Suite>[/<TestName>] [...]` — runs on this checkout's own simulator (below)
   - One suite: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests`
   - Multiple suites: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests FlipcashCoreTests/FiatTests`
   - One test: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests/myTestCase`
 - **Full `AllTargets` suite is the user's job** — don't run it. If you think it's required before declaring work done, ask the user to run it.
+
+### One simulator per checkout
+
+Every worktree builds the same bundle ID. On a shared simulator, a second session's install makes
+`installcoordinationd` terminate the running test host. xcodebuild then reports "Restarting after
+unexpected exit, crash, or test timeout" and fails whichever test was in flight, usually a slow one
+such as `ExtensionStoreTests/busyLockGivesUp`, and no crash report is written. So `Scripts/test.sh`
+runs on `Flipcash Tests <checkout dir>`, an iPhone 17 it creates on first use. A raw `xcodebuild`
+against `name=iPhone 17` (the `/verify` and `/release` skills do this) can still run into the
+problem. When a test host dies with no crash report, check how it exited:
+
+```bash
+xcrun simctl spawn <udid> log show --last 1h --style compact \
+  --predicate 'process == "launchd_sim" AND eventMessage CONTAINS "com.flipcash.app.ios" AND eventMessage CONTAINS "exited with exit reason"'
+```
+
+`OS_REASON_RUNNINGBOARD` with `explanation:installcoordinationd` means another install replaced
+the app; the test did not crash. `Scripts/prune-orphan-deriveddata` deletes the simulators of
+removed worktrees along with their DerivedData.
 
 ### Test plans
 

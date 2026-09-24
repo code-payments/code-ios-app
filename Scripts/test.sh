@@ -14,6 +14,11 @@
 # not spawn ephemeral "Clone N of ..." simulators that pile up on disk. Targeted
 # runs here are small, so the lost parallelism is negligible.
 #
+# Each checkout runs on its own simulator, "Flipcash Tests <checkout dir>",
+# created from the iPhone 17 device type on first use. Every worktree builds the
+# same bundle ID, so on a shared simulator one session's install terminates
+# another session's running test host mid-test.
+#
 # This script intentionally does NOT support -testPlan AllTargets —
 # the full suite is run from Xcode or CI, not from here.
 
@@ -41,9 +46,19 @@ for target in "$@"; do
     args+=(-only-testing:"$target")
 done
 
-echo "+ xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -parallel-testing-enabled NO ${args[*]}"
+sim_name="Flipcash Tests $(basename "$(git rev-parse --show-toplevel)")"
+sim_udid="$(xcrun simctl list devices available \
+    | grep -F "    $sim_name (" \
+    | grep -oE '[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}' \
+    | head -n 1 || true)"
+if [ -z "$sim_udid" ]; then
+    echo "+ xcrun simctl create '$sim_name' 'iPhone 17'"
+    sim_udid="$(xcrun simctl create "$sim_name" "iPhone 17")"
+fi
+
+echo "+ xcodebuild test -scheme Flipcash -destination 'id=$sim_udid' -parallel-testing-enabled NO ${args[*]}"
 exec xcodebuild test \
     -scheme Flipcash \
-    -destination "platform=iOS Simulator,name=iPhone 17" \
+    -destination "id=$sim_udid" \
     -parallel-testing-enabled NO \
     "${args[@]}"
