@@ -1043,7 +1043,7 @@ struct ConversationScreen: View {
         // iOS won't re-enter the app for our own universal link from an in-app tap, so route every
         // tapped link through the deep-link handler; anything it doesn't recognize opens externally.
         if container.deepLinkController.open(url) { return }
-        UIApplication.shared.open(url)
+        ExternalLinkOpener(session: session).open(url)
     }
 
     /// Where a tapped link card lands, which is not the same place for every kind.

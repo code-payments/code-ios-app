@@ -45,6 +45,13 @@ struct FlipcashApp: App {
             .injectingEnvironment(from: appDelegate.container)
             .preferredColorScheme(.dark)
             .tint(Color.textMain)
+            // Every SwiftUI `Link` below opens through here, sheets included, so a link a stranger
+            // wrote (a token's social links) cannot reach Safari without the host check.
+            .environment(\.openURL, OpenURLAction { url in
+                let session = appDelegate.container.sessionAuthenticator.loggedInContainer?.session
+                ExternalLinkOpener(session: session).open(url)
+                return .handled
+            })
             .onOpenURL { url in
                 appDelegate.handleOpenURL(url: url)
             }

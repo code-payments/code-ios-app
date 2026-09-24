@@ -97,6 +97,10 @@ extension URL {
         UIApplication.shared.canOpenURL(self)
     }
 
+    /// Opens a destination the app itself built, with no warning.
+    ///
+    /// A URL that came from outside the app (message text, a token's metadata) opens through
+    /// ``ExternalLinkOpener`` instead, so the user sees its host first.
     @available(iOSApplicationExtension, unavailable)
     func openWithApplication() {
         if canOpen() {
