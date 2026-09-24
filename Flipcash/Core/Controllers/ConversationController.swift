@@ -255,6 +255,7 @@ final class ConversationController {
         typingHeartbeatInterval: Duration = .seconds(3),
         typingTimeout: Duration = .seconds(5),
         incomingTypingExpiry: Duration = .seconds(10),
+        typingExpiryClock: TypingExpiryClock = .continuous,
         receipts: ConversationReceiptReporter? = nil
     ) {
         self.fetching = fetching
@@ -274,7 +275,8 @@ final class ConversationController {
             selfUserID: selfUserID,
             heartbeatInterval: typingHeartbeatInterval,
             timeout: typingTimeout,
-            incomingExpiry: incomingTypingExpiry
+            incomingExpiry: incomingTypingExpiry,
+            expiryClock: typingExpiryClock
         )
     }
 
