@@ -139,7 +139,6 @@ extension Analytics {
     }
 
     enum DeeplinkEvent: String, AnalyticsEvent {
-        case open   = "Deeplink: Open"
         case parse  = "Deeplink: Parse"
         case routed = "Deeplink: Routed"
     }
@@ -571,9 +570,7 @@ extension Analytics {
 
 extension Analytics {
     static func deeplinkOpened(url: URL) {
-        track(event: DeeplinkEvent.open, properties: [
-            .url: url.sanitizedForAnalytics,
-        ])
+        track(DeeplinkEvents.shared.open(url: url.sanitizedForAnalytics))
     }
 
     static func deeplinkParsed(action: DeepLinkAction?, url: URL) {
@@ -620,7 +617,6 @@ extension Analytics {
         case type              = "Type"
         case chatType          = "Chat Type"
         case error             = "Error"
-        case url               = "URL"
 
         case tier              = "Tier"
         case zoom              = "Zoom"
