@@ -50,6 +50,16 @@ final class ConversationLoadCoordinator {
     /// Names senders the chat's own roster leaves out, from what the device already knows about
     /// them. Observed like every other input, so a reload re-attributes the window in place.
     private let knownAuthors: KnownAuthorDirectory
+    /// Where the viewer's unread messages began at open — see ``UnreadBoundary``. Resolved in
+    /// `init`, which the screen runs as it appears and so before its opening task marks the chat
+    /// read; never re-read for the life of this coordinator.
+    private let openingUnreadBoundary: UnreadBoundary
+    /// The newest stored message at open. A message of the viewer's past it is a send made on this
+    /// visit, which ends the divider under ``UnreadDividerLifetime/untilSend``.
+    private let newestAtOpen: MessageID?
+    /// Latched on the first send of the visit, so deleting that message doesn't bring the divider
+    /// back.
+    @ObservationIgnored private var viewerHasSent = false
     @ObservationIgnored private var lastInputs: Inputs?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
 
@@ -68,6 +78,10 @@ final class ConversationLoadCoordinator {
     /// most one extra remap per hour on a transcript left open that long.
     private static let expiryHorizon: TimeInterval = 3600
 
+    /// The most unread messages the opening window grows to include, so a chat left for weeks does
+    /// not lay out its whole backlog on open.
+    private static let unreadRevealLimit = 200
+
     init(
         conversationID: ConversationID,
         controller: ConversationController,
@@ -81,8 +95,19 @@ final class ConversationLoadCoordinator {
         self.knownAuthors = knownAuthors
         self.profileCard = profileCard
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
+        let boundary = controller.unreadBoundary(for: conversationID)
+        self.openingUnreadBoundary = boundary
+        self.newestAtOpen = controller.lastConfirmedMessage(for: conversationID)?.id
         self.claimReplies = CashLinkClaimReplies(claims: session.cashLinkClaims) { [controller] messageID in
             Task { await controller.send(CashLinkClaimReplies.thanks, to: conversationID, repliedTo: messageID) }
+        }
+
+        // The divider sits under the newest message at or below the pointer, so that message has to
+        // be in the window for the divider to draw. Past the limit the transcript opens at the bottom
+        // as it always has, and the divider draws once the reader pages back to it.
+        if case .at(let readThrough, let count) = boundary, count <= Self.unreadRevealLimit,
+           let anchor = controller.newestPersistedMessageID(through: readThrough, in: conversationID) {
+            loader.reveal(anchor)
         }
 
         // First paint is synchronous so an open never flashes an empty transcript; every later
@@ -232,8 +257,27 @@ final class ConversationLoadCoordinator {
             // Only a transcript that attributes its rows has anything to resolve, so a DM never
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
-            headsHistory: headsHistory
+            headsHistory: headsHistory,
+            unreadBoundary: unreadBoundary(in: window)
         )
+    }
+
+    /// The opening boundary, or `.none` once the viewer has sent a message on this visit and the
+    /// lifetime ends the divider there.
+    private func unreadBoundary(in window: [ConversationMessage]) -> UnreadBoundary {
+        switch UnreadDividerLifetime.current {
+        case .untilClose:
+            return openingUnreadBoundary
+        case .untilSend:
+            if !viewerHasSent {
+                viewerHasSent = window.contains { message in
+                    guard message.isFromSelf(controller.selfUserID) else { return false }
+                    guard message.status == .sent else { return true }
+                    return newestAtOpen.map { message.id > $0 } ?? true
+                }
+            }
+            return viewerHasSent ? .none : openingUnreadBoundary
+        }
     }
 
     nonisolated private static func map(_ inputs: Inputs, authors: [UserID: ChatAuthor]) -> [ChatItem] {
@@ -272,7 +316,8 @@ final class ConversationLoadCoordinator {
             // Classification is pure and host-gated, and that is all mapping does with a link: the
             // card is the link's identity, and the card view looks it up for itself. So nothing
             // here touches the network, and an answer landing cannot re-diff this window.
-            linkCard: { links in classifier.firstCard(in: links) }
+            linkCard: { links in classifier.firstCard(in: links) },
+            unreadBoundary: inputs.unreadBoundary
         )
         if inputs.isTyping {
             items.append(.typingIndicator)
@@ -366,6 +411,8 @@ final class ConversationLoadCoordinator {
         var knownAuthors: KnownAuthorDirectory.Snapshot
         /// Whether the window is the whole locally-known history — see ``headsHistory``.
         var headsHistory: Bool
+        /// Where the divider goes; `.none` draws none.
+        var unreadBoundary: UnreadBoundary
 
         struct Branding: Equatable, Sendable {
             var token: String

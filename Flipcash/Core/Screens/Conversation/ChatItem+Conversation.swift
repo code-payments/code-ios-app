@@ -76,7 +76,10 @@ extension ChatItem {
         /// so the mapper stays pure; the screen supplies classification and nothing else, and it
         /// defaults to no card. Takes the detected links rather than the text so the detector runs
         /// once per message, here.
-        linkCard: ([DetectedLink]) -> LinkCard? = { _ in nil }
+        linkCard: ([DetectedLink]) -> LinkCard? = { _ in nil },
+        /// Where the viewer's unread messages began at open; the divider heads the first message
+        /// after it that someone else sent.
+        unreadBoundary: UnreadBoundary = .none
     ) -> [ChatItem] {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
         // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
@@ -101,6 +104,12 @@ extension ChatItem {
         func separates(_ message: ConversationMessage, from earlier: ConversationMessage) -> Bool {
             message.date.timeIntervalSince(earlier.date) > gap
                 || !calendar.isDate(message.date, inSameDayAs: earlier.date)
+        }
+
+        // The unread divider heads `message` when the read-through falls between it and `earlier`.
+        // Like a separator it ends the run above it: a bubble must not join one across the divider.
+        func divides(_ message: ConversationMessage, from earlier: ConversationMessage) -> Bool {
+            unreadBoundary.dividerBetween(newer: message, older: earlier, selfUserID: selfUserID)
         }
 
         // What breaks the bubble run: a text body of one to three emoji, on a row that is not a
@@ -145,6 +154,11 @@ extension ChatItem {
             if showsSeparator {
                 items.append(.dateSeparator(id: "sep-\(message.stableID)", text: message.date.formattedChatSeparator()))
             }
+            // Below the date when both fall at one gap: the reader sees the day, then what is new.
+            let showsDivider = previous.map { divides(message, from: $0) } ?? false
+            if showsDivider, let count = unreadBoundary.count {
+                items.append(.unreadDivider(count: count))
+            }
 
             // Grouped by author, not by side: in a group chat two different people's messages sit on
             // the same edge, and comparing sides would merge them into one run with its facing
@@ -156,10 +170,10 @@ extension ChatItem {
             // separator is already the heading of what follows it, so a second, shorter threshold
             // would flatten runs the transcript still draws as continuous.
             let groupedAbove = previous.map {
-                $0.senderID == message.senderID && !showsSeparator
+                $0.senderID == message.senderID && !showsSeparator && !showsDivider
             } ?? false
             let groupedBelow = next.map {
-                $0.senderID == message.senderID && !separates($0, from: message)
+                $0.senderID == message.senderID && !separates($0, from: message) && !divides($0, from: message)
             } ?? false
 
             // The bubble run, which is not the author run. A bubble stacked above a bare emoji or a
