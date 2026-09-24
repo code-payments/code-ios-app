@@ -39,21 +39,23 @@ Flipcash/Core/Session/, Flipcash/Core/Controllers/, Flipcash/Core/Screens/**
 
 **Package/tool boundaries:**
 - Generated Swift arrives from the two published packages, which `FlipcashAPI` re-exports; service wrappers live in `FlipcashCore`; screens live in the `Flipcash` app target. Read generated sources from the resolved checkouts under `.build/checkouts/` (or `~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts/`), not from this repo.
-- The Core and Payments messaging services share basenames, but they are separate modules now, so the Swift type prefixes (`Flipcash_` vs `Ocp_`) are the only thing keeping them apart.
+- The Core and Payments messaging services share basenames, but they are separate modules, so the Swift type prefixes (`Flipcash_` vs `Ocp_`) are the only thing keeping them apart.
 
 ## Analysis Process
 
 ### 1. Identify what changed in the generated Swift
 
-`proto/` is wiped and re-cloned on every fetch, so diff the **generated Swift**, which
-is the durable signal:
+The generated Swift lives in the published packages, so the version change in
+`FlipcashAPI/Package.swift` names the range to diff:
 
 ```bash
-git diff FlipcashAPI/Sources/FlipcashAPI/Core/Generated FlipcashAPI/Sources/FlipcashAPI/Payments/Generated
-git diff FlipcashAPI/Sources/FlipcashAPI/*/proto   # secondary, for intent
+git diff FlipcashAPI/Package.swift
+gh api repos/code-payments/<package>/compare/<old-tag>...<new-tag> --jq '.files[].filename'
 ```
 
-Identify:
+Under `FLIPCASH_PROTO_LOCAL` there is no version change; diff the client checkout instead
+(`git -C "$FLIPCASH_PROTO_LOCAL/<package>" diff`). Read the changed `.pb.swift` /
+`.grpc.swift` files from the resolved checkouts and identify:
 - New services or RPCs (new methods on a `<Namespace>.Client`)
 - Changed request/response message fields
 - New or modified **result enum** values (`.pb.swift`)

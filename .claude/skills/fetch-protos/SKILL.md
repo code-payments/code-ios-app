@@ -132,8 +132,8 @@ rename that orphaned a Swift type reference) before proceeding.
 Dispatch the **proto-change-tracer** agent to map the changes through the codebase:
 
 ```
-Use the proto-change-tracer agent to trace the proto changes just fetched
-(see `git diff FlipcashAPI/`) through the service → client → consumer chain.
+Use the proto-change-tracer agent to trace <package> <old-tag> → <new-tag>
+(from `git diff FlipcashAPI/Package.swift`) through the service → client → consumer chain.
 ```
 
 The agent reports the full impact chain (generated → `*Service.swift` →
@@ -243,7 +243,7 @@ extension FlipClient {  // or Client, for Payments
 
 ### Step 7 — Review and commit
 
-Show the user a summary of all changes (proto/generated updates + any scaffolded
+Show the user a summary of all changes (the version bump + any scaffolded
 service code). Offer to commit only after approval, with a conventional message:
 
 ```

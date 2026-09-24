@@ -20,14 +20,11 @@ allowed-tools:
 
 # Triage
 
-<!-- `ultrathink` escalates the harness to max thinking budget. The harness scans for it as a standalone token, so it must remain on its own line and not be wrapped in code fences or prose. -->
-ultrathink
-
 You are running the daily Bugsnag triage ritual. The deliverable is **one lean review brief** at `.claude/plans/<YYYY-MM-DD>-bugsnag-<short_id>.md`. The brief is the user's review artifact — see `references/brief-template.md` for the structure and word cap.
 
 ## Hard rules
 
-1. **Max effort, no shortcuts.** Read full stack traces. Read each source file the trace touches in full, not snippets. Trace through callers when the crash site is ambiguous. Never skip an expert review when the trigger applies.
+1. **Read the evidence in full.** Read full stack traces. Read each source file the trace touches in full, not snippets. Trace through callers when the crash site is ambiguous. Never skip an expert review when the trigger applies.
 2. **No claim without a citation.** Every assertion in the brief (stack lines, "this is the root cause", "this code path runs first") must be followed by a `file.swift:NN` reference or a quoted log/breadcrumb excerpt. If unable to cite, mark as "hypothesis, unverified" and propose how to verify.
 3. **Root cause must be reachable from evidence.** The Root cause section is a short chain: `evidence → inference → evidence → inference → cause`. No leaps. If the chain breaks, the section is renamed "Leading hypothesis" and the Proposed direction becomes "Verification steps".
 4. **No mid-flow questions.** The brief is the review checkpoint. Don't ask the user anything until it's written.
