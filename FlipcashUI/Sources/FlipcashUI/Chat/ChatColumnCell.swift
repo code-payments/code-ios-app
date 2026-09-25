@@ -62,7 +62,12 @@ public class ChatColumnCell: UICollectionViewCell {
     /// Stacks `content` above the receipt and pins the column to all four edges of the contentView,
     /// so the cell self-sizes to the content plus the receipt line. Call once, from the subclass's
     /// `init`, after the content view exists.
-    func installColumn(content: UIView) {
+    ///
+    /// - Parameter accessory: an optional view stacked directly below `content` and above the
+    ///   receipt — the reaction pill row. It stays in the column at zero height when empty and
+    ///   carries its own gap to `content`, so it grows in place under the bubble rather than
+    ///   joining the stack from wherever it last sat.
+    func installColumn(content: UIView, accessory: UIView? = nil) {
         self.content = content
         column.axis = .vertical
         column.spacing = 4
@@ -73,6 +78,10 @@ public class ChatColumnCell: UICollectionViewCell {
         authorName.isHidden = true
         column.addArrangedSubview(authorName)
         column.addArrangedSubview(content)
+        if let accessory {
+            column.addArrangedSubview(accessory)
+            column.setCustomSpacing(0, after: content)
+        }
         metadata.axis = .horizontal
         // The two pieces are set in the same 11pt type, so centring them reads as one line without
         // asking a stack for a baseline that `ChatReceiptView` — a plain view around two faces — does

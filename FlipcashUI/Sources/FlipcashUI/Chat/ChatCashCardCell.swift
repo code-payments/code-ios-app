@@ -22,6 +22,7 @@ public final class ChatCashCardCell: ChatColumnCell {
     static let cardSize = CGSize(width: 232, height: 170)
 
     private let card = BubbleBackgroundView()
+    private let reactionRow = ReactionPillRowView()
     private let coinIcon = UIImageView()
     private let tokenLabel = UILabel()
     private let flag = UIImageView()
@@ -76,7 +77,10 @@ public final class ChatCashCardCell: ChatColumnCell {
         centerStack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(centerStack)
 
-        installColumn(content: card)
+        installColumn(content: card, accessory: reactionRow)
+        reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
+        reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
+        reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
 
         // Below required so the card height yields to the cell's self-sizing height instead of fighting it.
         let cardHeight = card.heightAnchor.constraint(equalToConstant: Self.cardSize.height)
@@ -84,6 +88,7 @@ public final class ChatCashCardCell: ChatColumnCell {
 
         NSLayoutConstraint.activate([
             card.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
+            reactionRow.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
             cardHeight,
 
             tokenRow.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 11),
@@ -103,8 +108,15 @@ public final class ChatCashCardCell: ChatColumnCell {
     /// width, so without this the selection machinery opens currency info from a tap in the dead
     /// space beside the card — the same reason the retry gesture on text rows hugs the bubble.
     public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
-        card.convert(card.bounds, to: self).contains(point)
+        card.convert(card.bounds, to: self).contains(point) || reactionRow.convert(reactionRow.bounds, to: self).contains(point)
     }
+
+    /// Fired when the viewer taps a reaction pill — the argument is the toggled emoji.
+    var onReactionTap: ((String) -> Void)?
+    /// Fired on a long-press of a reaction pill, to open the reactors sheet scoped to that emoji.
+    var onReactionLongPress: ((String) -> Void)?
+    /// Fired when the trailing "+" is tapped, to open the picker.
+    var onReactionAdd: (() -> Void)?
 
     private func configureCircle(_ imageView: UIImageView, diameter: CGFloat) {
         imageView.contentMode = .scaleAspectFill
@@ -121,6 +133,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         super.prepareForReuse()
         coinIcon.kf.cancelDownloadTask()
         coinIcon.image = nil
+        reactionRow.prepareForReuse()
     }
 
     public func configure(with message: ChatMessage, authorImageData: Data? = nil) {
@@ -145,6 +158,8 @@ public final class ChatCashCardCell: ChatColumnCell {
             ),
             identity: message.id
         )
+        reactionRow.hugsTrailingEdge = message.sender == .me
+        reactionRow.configure(pills: message.reactions, canReact: message.canReact)
         updateColumn(for: message, authorImageData: authorImageData)
 
         // Resting alpha lives here, not just in prepareForReuse: an in-place reconfigure (a new

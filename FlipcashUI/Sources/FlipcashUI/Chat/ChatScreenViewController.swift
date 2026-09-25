@@ -219,6 +219,48 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.reportsReads = newValue }
     }
 
+    /// Forwards a reaction-pill tap from the transcript, with the row's id and the toggled emoji.
+    public var onReactionTap: ((String, String) -> Void)? {
+        get { transcript.onReactionTap }
+        set { transcript.onReactionTap = newValue }
+    }
+
+    /// Forwards a reaction-pill long-press from the transcript, with the row's id and emoji, to open
+    /// the reactors sheet scoped to it.
+    public var onReactionLongPress: ((String, String) -> Void)? {
+        get { transcript.onReactionLongPress }
+        set { transcript.onReactionLongPress = newValue }
+    }
+
+    /// Forwards a tap on a row's trailing "+" reaction pill, with the row's id, to open the picker.
+    public var onReactionAdd: ((String) -> Void)? {
+        get { transcript.onReactionAdd }
+        set { transcript.onReactionAdd = newValue }
+    }
+
+    /// Supplies the long-press reaction strip's content for a message — recents plus the viewer's own
+    /// reactions, per `ReactionStrip.entries`. The owner supplies this because the ranking source
+    /// (`RecentReactionsStore`) lives above this module. Nil or an empty array suppresses the strip.
+    public var reactionStripEntries: ((ChatMessage) -> [ReactionStrip.Entry])?
+
+    /// Fired when an emoji in the long-press strip is tapped: the row's id and the toggled emoji.
+    /// The strip dismisses the menu itself; this only needs to apply the toggle.
+    public var onReactionStripSelect: ((String, String) -> Void)?
+
+    /// Fired when the strip's trailing "+" is tapped, with the row's id, to open the picker once the
+    /// menu has dismissed.
+    public var onReactionStripAdd: ((String) -> Void)?
+
+    /// The live strip over the currently-presented context menu, if any.
+    private var reactionStrip: ReactionStripView?
+    /// A window above the context menu's own container, which sits above the app's key window (see
+    /// `handOffComposerFocusAroundContextMenu`) — the only way for the strip to receive taps while a
+    /// system context menu is on screen.
+    private var reactionStripWindow: UIWindow?
+    /// The corner the live strip grows from, so it collapses back the same way.
+    private var stripHugsTrailing = false
+    private var stripSitsBelowBubble = false
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)
@@ -264,6 +306,7 @@ public final class ChatScreenViewController: UIViewController {
         transcript.onContextMenuWillPresent = { [weak self] animator in
             guard let self else { return }
             backdrop.present(over: contextMenuBackdropHost, animator: animator)
+            presentReactionStrip()
             guard let responder = bar.firstTextInputResponder else { return }
             composerHeldKeyboardUnderMenu = responder.isFirstResponder
             _ = responder.resignFirstResponder()
@@ -271,9 +314,169 @@ public final class ChatScreenViewController: UIViewController {
         transcript.onContextMenuDidDismiss = { [weak self] animator in
             guard let self else { return }
             backdrop.dismiss(animator: animator)
+            dismissReactionStrip(animator: animator)
             guard composerHeldKeyboardUnderMenu else { return }
             composerHeldKeyboardUnderMenu = false
             _ = bar.firstTextInputResponder?.becomeFirstResponder()
+        }
+    }
+
+    /// Adds the reaction strip beside the just-lifted bubble, on the side the menu isn't, in a window
+    /// above the context menu's own container — see `reactionStripWindow`. No-ops when the message
+    /// under the menu doesn't offer one (see `ChatMessage.offersReactionStrip`) or the owner hasn't
+    /// wired `reactionStripEntries`.
+    private func presentReactionStrip() {
+        guard let message = transcript.contextMenuMessage, message.offersReactionStrip,
+              let entriesProvider = reactionStripEntries else { return }
+        let entries = entriesProvider(message)
+        guard !entries.isEmpty, let scene = view.window?.windowScene,
+              let bubbleFrame = transcript.contextMenuBubbleFrame(in: view) else { return }
+
+        let window = StripWindow(windowScene: scene)
+        // Above `_UIContextMenuContainerView`'s own window, which UIKit places just over the key
+        // window — anything at `.normal` or below is covered by the menu and never sees a tap.
+        window.windowLevel = .alert + 1
+        window.backgroundColor = .clear
+        window.isUserInteractionEnabled = true
+        let host = UIViewController()
+        host.view.backgroundColor = .clear
+        window.rootViewController = host
+        window.isHidden = false
+
+        let strip = ReactionStripView()
+        strip.configure(entries: entries)
+        strip.alpha = 0
+        strip.translatesAutoresizingMaskIntoConstraints = false
+        host.view.addSubview(strip)
+        let bubble = view.convert(bubbleFrame, to: nil)
+        let margin: CGFloat = 16
+        // Hug the bubble's own side: outgoing bubbles sit on the trailing edge, incoming on the leading.
+        let hugsTrailing = bubble.midX > window.bounds.midX
+        let hug = hugsTrailing
+            ? strip.trailingAnchor.constraint(equalTo: host.view.leadingAnchor, constant: min(bubble.maxX, window.bounds.width - margin))
+            : strip.leadingAnchor.constraint(equalTo: host.view.leadingAnchor, constant: max(bubble.minX, margin))
+        hug.priority = .defaultHigh
+        NSLayoutConstraint.activate([
+            strip.leadingAnchor.constraint(greaterThanOrEqualTo: host.view.leadingAnchor, constant: margin),
+            strip.trailingAnchor.constraint(lessThanOrEqualTo: host.view.trailingAnchor, constant: -margin),
+            hug,
+        ])
+
+        // UIKit picks the menu's side, and not only by the room left below the bubble, so the strip
+        // takes whichever side the menu didn't. The menu's views carry their final frames from the
+        // first layout pass, before its spring has played out, so reading them one turn later lets
+        // the strip arrive alongside the menu rather than after it.
+        let titles = Set(message.actions.map(\.title))
+        let place = { [weak self, weak strip, weak window] in
+            guard let self, let strip, let window, reactionStrip === strip else { return }
+            let menu = Self.contextMenuFrame(in: scene, excluding: [view, window], titles: titles)
+            // UIKit may slide the lifted bubble away from its row to make room for the menu, so the
+            // strip goes by where the lifted copy sits rather than where the row does.
+            let lifted = Self.liftedPreviewFrame(in: scene, excluding: [view, window], size: bubble.size) ?? bubble
+            let menuIsAbove = menu.map { $0.midY < lifted.midY } ?? false
+            // The same gap UIKit left on the menu's side, so the bubble sits centered between the two.
+            let menuGap = menu.map { menuIsAbove ? lifted.minY - $0.maxY : $0.minY - lifted.maxY }
+            let gap = menuGap.flatMap { (0...40).contains($0) ? $0 : nil } ?? Self.fallbackStripGap
+            (menuIsAbove
+                ? strip.topAnchor.constraint(equalTo: host.view.topAnchor, constant: lifted.maxY + gap)
+                : strip.bottomAnchor.constraint(equalTo: host.view.topAnchor, constant: lifted.minY - gap)
+            ).isActive = true
+            host.view.layoutIfNeeded()
+            stripSitsBelowBubble = menuIsAbove
+            strip.transform = Self.collapsedStripTransform(strip.bounds.size, towardTrailing: hugsTrailing, towardTop: menuIsAbove)
+            strip.revealEntries(fromTrailing: hugsTrailing)
+            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.78, initialSpringVelocity: 0) {
+                strip.transform = .identity
+                strip.alpha = 1
+            }
+        }
+        DispatchQueue.main.async(execute: place)
+
+        strip.onSelect = { [weak self] emoji in
+            self?.transcript.dismissContextMenu()
+            self?.onReactionStripSelect?(message.messageID, emoji)
+        }
+        strip.onAdd = { [weak self] in
+            self?.transcript.dismissContextMenu()
+            self?.onReactionStripAdd?(message.messageID)
+        }
+
+        reactionStrip = strip
+        reactionStripWindow = window
+        stripHugsTrailing = hugsTrailing
+    }
+
+    /// The strip shrunk into the corner nearest the bubble's side, so it grows out of the bubble.
+    private static func collapsedStripTransform(_ size: CGSize, towardTrailing: Bool, towardTop: Bool) -> CGAffineTransform {
+        let scale: CGFloat = 0.3
+        let dx = size.width * (1 - scale) / 2 * (towardTrailing ? 1 : -1)
+        let dy = size.height * (1 - scale) / 2 * (towardTop ? -1 : 1)
+        return CGAffineTransform(translationX: dx, y: dy).scaledBy(x: scale, y: scale)
+    }
+
+    /// The strip's gap from the bubble when the menu's own gap can't be measured.
+    private static let fallbackStripGap: CGFloat = 16
+
+    /// Where the presented context menu's platter sits on screen, or `nil` if it isn't found. UIKit
+    /// exposes no frame for the menu, but its rows are plain `UILabel`s carrying the action titles,
+    /// and the platter is the outermost view around them that is still narrower than the screen.
+    /// `excluded` subtrees are skipped, so a message whose text matches an action title can't be
+    /// mistaken for the menu.
+    private static func contextMenuFrame(in scene: UIWindowScene, excluding excluded: [UIView], titles: Set<String>) -> CGRect? {
+        var labels: CGRect?
+        var platter: CGRect?
+        var pending: [UIView] = scene.windows
+        while let next = pending.popLast() {
+            guard !excluded.contains(where: { $0 === next }) else { continue }
+            if let label = next as? UILabel, let text = label.text, titles.contains(text), !label.isHidden {
+                let rect = label.convert(label.bounds, to: nil)
+                labels = labels.map { $0.union(rect) } ?? rect
+                if platter == nil, let screen = next.window?.bounds {
+                    var outer: UIView = label
+                    while let parent = outer.superview, parent.bounds.width < screen.width * 0.95 {
+                        outer = parent
+                    }
+                    platter = outer.convert(outer.bounds, to: nil)
+                }
+            }
+            pending.append(contentsOf: next.subviews)
+        }
+        guard let labels else { return nil }
+        return platter.map { $0.union(labels) } ?? labels
+    }
+
+    /// Where UIKit put the lifted copy of the bubble, found as the view in the menu's container
+    /// that matches the bubble's size, or `nil` if none does.
+    private static func liftedPreviewFrame(in scene: UIWindowScene, excluding excluded: [UIView], size: CGSize) -> CGRect? {
+        var pending: [UIView] = scene.windows
+        while let next = pending.popLast() {
+            guard !excluded.contains(where: { $0 === next }) else { continue }
+            if !next.isHidden, abs(next.bounds.width - size.width) < 1, abs(next.bounds.height - size.height) < 1 {
+                return next.convert(next.bounds, to: nil)
+            }
+            pending.append(contentsOf: next.subviews)
+        }
+        return nil
+    }
+
+    /// Collapses the strip back toward the bubble alongside the menu's own dismissal.
+    private func dismissReactionStrip(animator: UIContextMenuInteractionAnimating?) {
+        guard let strip = reactionStrip else { return }
+        reactionStrip = nil
+        let window = reactionStripWindow
+        reactionStripWindow = nil
+        let collapsed = Self.collapsedStripTransform(strip.bounds.size, towardTrailing: stripHugsTrailing, towardTop: stripSitsBelowBubble)
+        let collapse = {
+            strip.transform = collapsed
+            strip.alpha = 0
+        }
+        let finish: () -> Void = { window?.isHidden = true }
+        if let animator {
+            animator.addAnimations(collapse)
+            animator.addCompletion(finish)
+        } else {
+            collapse()
+            finish()
         }
     }
 
@@ -698,4 +901,12 @@ private extension UIView {
     }
 }
 
+/// Lets a touch that misses the strip fall through to the context menu's dimming view, which is
+/// what dismisses the menu on a tap outside it.
+private final class StripWindow: UIWindow {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        return hit === self || hit === rootViewController?.view ? nil : hit
+    }
+}
 #endif
