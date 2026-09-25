@@ -9,7 +9,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a group's invite link by
-/// Share or Copy, or post it straight into recent 1:1 chats with an optional message.
+/// Share or Copy, or post it straight into recent chats with an optional message.
 ///
 /// A group is not discoverable — the link built from its id is the only way in — so every path here
 /// sends the same URL.
@@ -54,11 +54,10 @@ struct GroupInviteSheet: View {
         conversationController.conversation(withID: conversationID)
     }
 
-    /// The 1:1 chats the Chats tab lists, newest activity first. Groups, search and people outside
-    /// recent chats are out of scope.
+    /// The chats the Chats tab lists, newest activity first: 1:1 chats and joined groups, less the
+    /// group being invited to. Search and people outside recent chats are out of scope.
     private var recentChats: [Conversation] {
-        conversationController.conversations(of: .tipDm)
-            .sorted { $0.lastActivity > $1.lastActivity }
+        conversationController.chatListConversations.filter { $0.id != conversationID }
     }
 
     /// The group's picture for the share sheet's own preview card.
@@ -250,7 +249,7 @@ struct GroupInviteSheet: View {
     }
 }
 
-/// One recent chat: the counterpart's face and name, and a check that fills when picked.
+/// One recent chat: its picture and name, and a check that fills when picked.
 private struct InviteChatRow: View {
 
     let conversation: Conversation
@@ -264,9 +263,20 @@ private struct InviteChatRow: View {
         conversation.counterpart(excluding: conversationController.selfUserID)
     }
 
+    /// The chat itself for a group, the counterpart for a DM — as the Chats tab's row does.
     private var avatarSubject: ProfileAvatarStore.AvatarSubject {
-        guard let userID = counterpart?.userID else { return .chat(conversation.id) }
+        guard conversation.type != .group, let userID = counterpart?.userID else { return .chat(conversation.id) }
         return .user(userID)
+    }
+
+    private var avatarPicture: ProfilePicture? {
+        conversation.type == .group ? conversation.picture : counterpart?.profilePicture
+    }
+
+    private var avatarID: String {
+        conversation.type == .group
+            ? conversation.id.description
+            : (counterpart?.userID?.uuidString ?? conversation.id.description)
     }
 
     var body: some View {
@@ -275,10 +285,10 @@ private struct InviteChatRow: View {
         Button(action: onToggle) {
             HStack(spacing: 16) {
                 ContactAvatarView(
-                    id: counterpart?.userID?.uuidString ?? conversation.id.description,
+                    id: avatarID,
                     displayName: name,
                     imageData: sessionContainer.profileAvatars.data(for: avatarSubject),
-                    blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
+                    blurhash: avatarPicture?.thumbnailBlurhash,
                     size: 24
                 )
 
@@ -307,7 +317,7 @@ private struct InviteChatRow: View {
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .accessibilityIdentifier("group-invite-chat-row")
         .task(id: avatarSubject) {
-            await sessionContainer.profileAvatars.load(avatarSubject, picture: counterpart?.profilePicture)
+            await sessionContainer.profileAvatars.load(avatarSubject, picture: avatarPicture)
         }
     }
 }
