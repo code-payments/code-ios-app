@@ -207,11 +207,7 @@ private struct WalletScreenContent: View {
                     // so with a close box instead of a back chevron.
                 }
             }
-            .onChange(of: router.requestedCardMint) { _, mint in
-                guard let mint else { return }
-                openCardImmediately(mint)
-                router.requestedCardMint = nil
-            }
+            .onChange(of: router.requestedCardMint) { _, _ in openRequestedCard() }
             // A flow launched from the expanded card (Convert, Get) finished and
             // asked to land back on the wallet — close the card overlay.
             .onChange(of: router.requestedCardDismiss) { _, _ in
@@ -228,7 +224,13 @@ private struct WalletScreenContent: View {
             // their own nav bar.
             .toolbar(.hidden, for: .navigationBar)
             .appRouterDestinations()
-            .onAppear { historyController.sync() }
+            .onAppear {
+                historyController.sync()
+                // Tabs are built on first selection, so a deep link that arrives
+                // while another tab is showing (or at cold start) parks its mint
+                // before this view exists to observe the change.
+                openRequestedCard()
+            }
             .onChange(of: session.balances) { _, _ in
                 refresh()
                 // The "add money" milestone is met by a balance as well as by
@@ -397,6 +399,13 @@ private struct WalletScreenContent: View {
         } else {
             withAnimation(.smooth(duration: 0.25)) { pageContentOpacity = 1 }
         }
+    }
+
+    /// Opens the card the router asked for, if any, and clears the request.
+    private func openRequestedCard() {
+        guard let mint = router.requestedCardMint else { return }
+        openCardImmediately(mint)
+        router.requestedCardMint = nil
     }
 
     /// Arrives in the opened state without the travel — for a deep link, where
