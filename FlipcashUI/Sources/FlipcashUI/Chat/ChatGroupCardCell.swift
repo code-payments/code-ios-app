@@ -17,9 +17,16 @@ public final class ChatGroupCardCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatGroupCardCell"
 
-    public func configure(with card: ChatGroupCard, onTap: (() -> Void)? = nil, onInvite: (() -> Void)? = nil) {
+    /// Fills the cell. `inviteCardWidth` is the width the transcript gives a link card, so the
+    /// invite card here matches the same card sent in a chat.
+    public func configure(
+        with card: ChatGroupCard,
+        inviteCardWidth: CGFloat,
+        onTap: (() -> Void)? = nil,
+        onInvite: (() -> Void)? = nil
+    ) {
         contentConfiguration = UIHostingConfiguration {
-            GroupCardView(card: card, onTap: onTap, onInvite: onInvite)
+            GroupCardView(card: card, inviteCardWidth: inviteCardWidth, onTap: onTap, onInvite: onInvite)
         }
         .margins(.all, 0)
     }
@@ -29,6 +36,8 @@ public final class ChatGroupCardCell: UICollectionViewCell {
 struct GroupCardView: View {
 
     let card: ChatGroupCard
+    /// The invite card's width: a link card's width in the transcript (node 10330:19164).
+    var inviteCardWidth: CGFloat = 290
     /// Opens the chat's own profile; nil leaves the card inert.
     var onTap: (() -> Void)?
     /// Hands out the chat's invite link. Drawn only when the card asks for it.
@@ -54,8 +63,7 @@ struct GroupCardView: View {
                     ctaAccessibilityIdentifier: "group-card-invite",
                     onTapCard: onTap
                 )
-                .frame(width: Layout.width)
-                .frame(minHeight: Layout.minHeight)
+                .frame(width: inviteCardWidth)
             } else {
                 cardBody
             }
