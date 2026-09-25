@@ -94,6 +94,16 @@ struct ConversationScreen: View {
     /// Whether `Group: Gate Shown` has gone out for this visit. The destination is keyed by
     /// conversation ID, so a new push is a new visit; a return from a pushed screen is not.
     @State private var didReportGate = false
+    /// The stable id and pill set the picker sheet is open for, or nil.
+    @State private var reactionPickerRequest: ReactionPickerRequest?
+    /// The stable id, pill set, and long-pressed emoji the reactors sheet is open for, or nil.
+    @State private var reactorsRequest: ReactorsRequest?
+    /// A reactor whose profile opens once the reactors sheet has finished dismissing.
+    @State private var pendingReactorProfile: UserID?
+    /// Emoji this OS build can't draw, kept out of the strip and the picker's Frequently Used row.
+    @State private var undrawableEmoji: Set<String> = []
+    /// The catalog's first category, in catalog order, that fills the strip after the recents.
+    @State private var stripCatalog: [String] = []
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -476,6 +486,12 @@ struct ConversationScreen: View {
             onQuoteTap: jumpToQuote,
             onMessagesSeen: markSeen,
             reportsReads: reportsReads(gate: gate),
+            onReactionTap: toggleReaction,
+            onReactionLongPress: openReactors,
+            onReactionAdd: openReactionPicker,
+            reactionStripEntries: reactionStripEntries,
+            onReactionStripSelect: toggleReaction,
+            onReactionStripAdd: openReactionPicker,
             showsSendCash: sendTarget != nil,
             chatExists: chatExists,
             conversationID: conversationID,
@@ -529,6 +545,40 @@ struct ConversationScreen: View {
     /// Framing, background, and the navigation bar's own contents.
     private func chrome(_ content: some View) -> some View {
         content
+        .overlay(alignment: .top) {
+            if let reactionToastText {
+                ToastLabel(reactionToastText)
+                    .padding(.top, 8)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .animation(.default, value: reactionToastText)
+        .onChange(of: conversationController.reactions.error) { _, _ in
+            scheduleReactionErrorDismissal()
+        }
+        .sheet(item: $reactionPickerRequest) { request in
+            EmojiPickerSheet(
+                recents: sessionContainer.recentReactions.row(limit: RecentReactionsStore.pickerRowLimit, undrawable: undrawableEmoji)
+            ) { emoji in
+                if let conversationID {
+                    conversationController.reactions.toggle(emoji, messageID: request.messageID, in: conversationID)
+                }
+                reactionPickerRequest = nil
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $reactorsRequest, onDismiss: {
+            guard let userID = pendingReactorProfile else { return }
+            pendingReactorProfile = nil
+            router.push(.userProfile(userID, origin: groupConversation == nil ? .directMessage : .groupMember))
+        }) { request in
+            ReactorsSheet(pills: request.pills, model: request.model) { userID in
+                pendingReactorProfile = userID
+                reactorsRequest = nil
+            }
+        }
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
         // what lets the iOS 26 toolbar scroll-edge effect materialize. The collection view keeps a
@@ -587,6 +637,15 @@ struct ConversationScreen: View {
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
     private func loads(_ content: some View) -> some View {
         content
+        .task {
+            // The probe runs once per OS build; after that this is a cached read.
+            guard let contents = try? await EmojiCatalog.shared.load() else { return }
+            undrawableEmoji = await UndrawableEmojiCache.shared.undrawable(in: contents.emoji)
+            let first = contents.categories.first
+            stripCatalog = contents.emoji
+                .filter { $0.category == first && !undrawableEmoji.contains($0.emoji) }
+                .map(\.emoji)
+        }
         // Name the gate's requirement in the token it asks for. The mint may be one the user holds
         // nothing of, so the local store can miss and the fetch is what fills it.
         .task(id: gateMints) {
@@ -867,6 +926,91 @@ struct ConversationScreen: View {
         }
     }
 
+    /// The transcript's own `ChatMessage` for a row, by its stable id — what the reaction handlers
+    /// need (pills, `canReact`), as opposed to `handleMessageAction`'s `ConversationMessage` lookup.
+    private func chatMessage(withStableID stableID: String) -> ChatMessage? {
+        for item in transcriptItems {
+            if case .message(let message) = item, message.id == stableID {
+                return message
+            }
+        }
+        return nil
+    }
+
+    /// Toggles `emoji` on the row, whichever way it is not currently showing — the same call a pill
+    /// tap and a strip selection both make.
+    private func toggleReaction(_ stableID: String, emoji: String) {
+        guard let conversationID, let messageID = coordinator?.loader.messages.first(where: { $0.stableID == stableID })?.id else { return }
+        conversationController.reactions.toggle(emoji, messageID: messageID, in: conversationID)
+    }
+
+    /// Opens the reactors sheet for the message. It lists everyone, so which pill was pressed doesn't matter.
+    private func openReactors(_ stableID: String, emoji _: String) {
+        guard let message = chatMessage(withStableID: stableID), !message.reactions.isEmpty,
+              let messageID = coordinator?.loader.messages.first(where: { $0.stableID == stableID })?.id else { return }
+        guard let conversationID else { return }
+        // Built and started here rather than in the sheet, so the first pages load while the sheet
+        // is still sliding up.
+        let model = ReactorsListModel(
+            source: FlipClientReactorsSource(client: container.flipClient, owner: session.ownerKeyPair),
+            conversationID: conversationID,
+            messageID: messageID,
+            emojis: message.reactions.map(\.emoji)
+        )
+        Task { await model.loadMoreIfNeeded() }
+        reactorsRequest = ReactorsRequest(id: stableID, pills: message.reactions, model: model)
+    }
+
+    /// Opens the picker sheet for the row's trailing "+" or the strip's own "+".
+    private func openReactionPicker(_ stableID: String) {
+        guard let messageID = coordinator?.loader.messages.first(where: { $0.stableID == stableID })?.id else { return }
+        reactionPickerRequest = ReactionPickerRequest(id: stableID, messageID: messageID)
+    }
+
+    /// The long-press strip's content: the six defaults, always first and in place, then the user's
+    /// most used, then the row's own reactions, then the start of the catalog, filtered to what the
+    /// current OS build can draw. Empty suppresses the strip.
+    private func reactionStripEntries(for message: ChatMessage) -> [ReactionStrip.Entry] {
+        let fixed = RecentReactions.defaults.filter { !undrawableEmoji.contains($0) }
+        let mostUsed = sessionContainer.recentReactions
+            .row(limit: fixed.count + RecentReactionsStore.stripLimit, undrawable: undrawableEmoji)
+            .filter { !fixed.contains($0) }
+            .prefix(RecentReactionsStore.stripLimit)
+        let recents = fixed + mostUsed
+        return ReactionStrip.filled(
+            ReactionStrip.entries(recents: recents, selfReactions: message.selfReactions),
+            from: stripCatalog,
+            limit: RecentReactionsStore.stripFillLimit
+        )
+    }
+
+    /// Maps a reaction failure to the copy the spec calls for. `.reactionFailed` covers both the
+    /// network path and a server rejection that isn't the reaction-type cap.
+    private func reactionErrorCopy(_ error: ReactionError) -> String {
+        switch error {
+        case .reactionFailed:
+            "Couldn't add reaction"
+        case .tooManyReactionTypes:
+            "This message has the maximum number of reactions"
+        }
+    }
+
+    /// The toast text for the controller's current `reactions.error`, or nil — read by `chrome`'s
+    /// overlay, the same "just show it, no confirmation" treatment as other best-effort chat actions.
+    private var reactionToastText: String? {
+        conversationController.reactions.error.map(reactionErrorCopy)
+    }
+
+    /// Clears the error a beat after it's shown, so the toast dismisses itself rather than sticking
+    /// until the next reaction attempt.
+    private func scheduleReactionErrorDismissal() {
+        guard conversationController.reactions.error != nil else { return }
+        Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            conversationController.reactions.error = nil
+        }
+    }
+
     /// The message a report is being filed against, so the sheet can be presented by item rather
     /// than from a loose boolean and a second piece of state that could disagree with it.
     private struct MessageReportRequest: Identifiable {
@@ -874,6 +1018,17 @@ struct ConversationScreen: View {
         let id: String
         let chatID: ConversationID
         let messageID: MessageID
+    }
+
+    private struct ReactionPickerRequest: Identifiable {
+        let id: String
+        let messageID: MessageID
+    }
+
+    private struct ReactorsRequest: Identifiable {
+        let id: String
+        let pills: [ReactionPill]
+        let model: ReactorsListModel
     }
 
     /// The composer strip's preview of the message being answered — the same three-way split the
@@ -1045,6 +1200,7 @@ struct ConversationScreen: View {
         // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
         // foreground / reconnect / live-gap triggers instead.
         await conversationController.loadMessages(for: conversationID)
+        await conversationController.refreshReactions(for: conversationID)
         // Reading the thread clears its own delivered pushes; other chats keep theirs.
         await pushController.clearDeliveredNotifications(for: conversationID)
         didInitialRead = true

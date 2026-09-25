@@ -72,6 +72,9 @@ extension ChatItem {
         quotedMessage: (MessageID) -> ConversationMessage? = { _ in nil },
         author: (ConversationMessage) -> ChatAuthor? = { _ in nil },
         namesAuthors: Bool = false,
+        /// Whether the viewer may add or remove a reaction — false for someone previewing a group
+        /// they have not joined (see `ChatMessage.canReact`).
+        canReact: Bool = true,
         /// The card, if any, for a message's detected links. Injected like the other collaborators
         /// so the mapper stays pure; the screen supplies classification and nothing else, and it
         /// defaults to no card. Takes the detected links rather than the text so the detector runs
@@ -208,8 +211,10 @@ extension ChatItem {
             // insert). All of its copy is produced here, in one layer; the cell only styles it
             // (resting vs. red + tappable) off `isFailed`.
             let receipt: ChatReceipt?
+            let isUnsent: Bool
             switch message.status {
             case .sent:
+                isUnsent = false
                 // "Delivered"/"Read" rides only the latest confirmed self message — preserved even when
                 // a later send is in flight or failed, and held back while the row is still settling in.
                 // `latestSentFromSelfID` is already a self+sent row, so matching it implies both.
@@ -217,10 +222,12 @@ extension ChatItem {
                     ? Self.receipt(for: message.id, counterpartRead: counterpartRead)
                     : nil
             case .sending:
+                isUnsent = true
                 // No status line while in flight — the bubble sits there until it resolves to
                 // "Delivered" or the failed state.
                 receipt = nil
             case .failed:
+                isUnsent = true
                 receipt = .failed("Not Delivered. Tap to retry")
             }
 
@@ -275,7 +282,16 @@ extension ChatItem {
                     // author, so the gutter the faces sit in is held open for all of them and the
                     // incoming bubbles share one leading edge.
                     isAttributedTranscript: namesAuthors,
-                    part: part
+                    part: part,
+                    // The server still accepts reactions on a tombstone (spec: "Text, cash, media, reply
+                    // and deleted messages take reactions"), and a deleted message keeps the pills it
+                    // already has — only the long-press strip is withheld, and that already follows from
+                    // a tombstone offering no context-menu actions. The pills sit under the message's
+                    // last row, with its receipt.
+                    reactions: isLast ? message.reactionState?.pills ?? [] : [],
+                    selfReactions: message.reactionState?.selfReactions ?? [],
+                    canReact: canReact,
+                    isUnsent: isUnsent
                 )))
             }
         }

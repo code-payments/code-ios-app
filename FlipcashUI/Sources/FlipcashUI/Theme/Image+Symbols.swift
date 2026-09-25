@@ -174,6 +174,7 @@ public enum Asset: String, Sendable {
     case profile
     case more
     case moreEmoji
+    case addReaction
     case crown
     case scrollBottom
     
