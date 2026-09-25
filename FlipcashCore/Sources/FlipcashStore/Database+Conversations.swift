@@ -263,6 +263,16 @@ nonisolated extension Database {
         ).map { $0[m.id] }
     }
 
+    /// The ids of up to `limit` stored messages older than `before` (or the newest when nil), newest first.
+    public func messageIDs(conversationID: ConversationID, before: UInt64? = nil, limit: Int) throws -> [MessageID] {
+        let m = ConversationMessageTable()
+        var query = m.table.select(m.id).filter(m.conversationId == conversationID.data)
+        if let before {
+            query = query.filter(m.id < before)
+        }
+        return try reader.prepareRowIterator(query.order(m.id.desc).limit(limit)).map { MessageID(value: $0[m.id]) }
+    }
+
     /// The oldest persisted message id for a conversation, or nil when none is cached — the anchor for
     /// paging genuinely older history from the server.
     public func oldestMessageID(conversationID: ConversationID) throws -> MessageID? {
@@ -465,9 +475,17 @@ nonisolated extension Database {
         // duplicate delta batch) overwrite a newer persisted version — that would resurrect a
         // deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
         if let existing = try writer.pluck(scoped) {
+            // Reactions sit outside the event log, so they merge on their own versions whatever the
+            // copy's event sequence says.
+            let storedReactions = Self.decodeReactions(existing[m.reactionsJson])
+            let reactions = Self.mergedReactions(stored: storedReactions, incoming: message.reactionState)
             let existingSequence = existing[m.eventSequence]
             if existingSequence > message.eventSequence {
-                return // stale re-delivery — keep the newer stored version
+                // Stale re-delivery: keep the newer stored version.
+                if reactions != storedReactions {
+                    try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+                }
+                return
             }
             if existingSequence == message.eventSequence {
                 // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
@@ -475,8 +493,12 @@ nonisolated extension Database {
                 if existing[m.clientMessageID] == nil, let clientMessageID = message.clientMessageID {
                     try writer.run(scoped.update(m.clientMessageID <- clientMessageID))
                 }
+                if reactions != storedReactions {
+                    try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+                }
                 return
             }
+            message.reactionState = reactions
             // Newer version wins; preserve the row's established identity if the newer copy lacks one.
             if message.clientMessageID == nil {
                 message.clientMessageID = existing[m.clientMessageID]
@@ -534,9 +556,64 @@ nonisolated extension Database {
                 m.repliedToId    <- message.repliedTo?.value,
                 m.lastEditedTs   <- message.lastEditedTs?.timeIntervalSinceReferenceDate,
                 m.deletedBy      <- deletedBy,
-                m.deletedAt      <- deletedAt
+                m.deletedAt      <- deletedAt,
+                m.reactionsJson  <- Self.encodeReactions(message.reactionState)
             )
         )
+    }
+
+    /// Replaces a stored message's reactions with `transform` applied to them, returning the new
+    /// state; nil when the message is not stored, in which case nothing is written.
+    @discardableResult
+    public func updateReactions(messageID: MessageID, conversationID: ConversationID, _ transform: (inout ReactionState) -> Void) throws -> ReactionState? {
+        let m = ConversationMessageTable()
+        let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
+        var updated: ReactionState?
+        try writer.transaction {
+            guard let row = try writer.pluck(scoped) else { return }
+            var state = Self.decodeReactions(row[m.reactionsJson]) ?? ReactionState()
+            transform(&state)
+            try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(state)))
+            updated = state
+        }
+        return updated
+    }
+
+    /// Merges fresh reaction summaries into the stored messages they belong to, returning how many
+    /// changed; messages that are not stored are skipped.
+    @discardableResult
+    public func mergeReactions(_ summaries: [MessageID: ReactionState], conversationID: ConversationID) throws -> Int {
+        let m = ConversationMessageTable()
+        var changed = 0
+        try writer.transaction {
+            for (messageID, summary) in summaries {
+                let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
+                guard let row = try writer.pluck(scoped) else { continue }
+                let stored = Self.decodeReactions(row[m.reactionsJson])
+                let merged = Self.mergedReactions(stored: stored, incoming: summary)
+                guard merged != stored else { continue }
+                try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(merged)))
+                changed += 1
+            }
+        }
+        return changed
+    }
+
+    /// A stored state absorbing an incoming copy's summary; the stored state stands when the copy
+    /// carries none.
+    static func mergedReactions(stored: ReactionState?, incoming: ReactionState?) -> ReactionState? {
+        guard let incoming else { return stored }
+        var state = stored ?? ReactionState()
+        state.applySummary(incoming.summaryEntries)
+        return state
+    }
+
+    nonisolated private static func encodeReactions(_ state: ReactionState?) -> Data? {
+        state.flatMap { try? JSONEncoder().encode($0) }
+    }
+
+    nonisolated private static func decodeReactions(_ data: Data?) -> ReactionState? {
+        data.flatMap { try? JSONDecoder().decode(ReactionState.self, from: $0) }
     }
 
     // MARK: - Decode -
@@ -652,7 +729,8 @@ nonisolated extension Database {
             eventSequence: row[m.eventSequence],
             lastEditedTs: row[m.lastEditedTs].map(Date.init(timeIntervalSinceReferenceDate:)),
             repliedTo: row[m.repliedToId].map(MessageID.init(value:)),
-            clientMessageID: row[m.clientMessageID]
+            clientMessageID: row[m.clientMessageID],
+            reactionState: Self.decodeReactions(row[m.reactionsJson])
         )
     }
 }

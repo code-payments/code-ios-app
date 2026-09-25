@@ -316,6 +316,162 @@ final class ChatMessagingService: Sendable {
             }
         }
     }
+
+    func addReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, completion: @Sendable @escaping (Result<EmojiReaction, ErrorAddReaction>) -> Void) {
+        let request = Flipcash_Messaging_V1_AddReactionRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.emoji = .with { $0.value = emoji }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.addReaction(request, options: .unaryDefault)
+                let result = Self.addReactionResult(response)
+                if case .failure = result {
+                    logger.error("Failed to add reaction")
+                }
+                await MainActor.run { completion(result) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    func removeReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, completion: @Sendable @escaping (Result<EmojiReaction, ErrorRemoveReaction>) -> Void) {
+        let request = Flipcash_Messaging_V1_RemoveReactionRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.emoji = .with { $0.value = emoji }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.removeReaction(request, options: .unaryDefault)
+                let result = Self.removeReactionResult(response)
+                if case .failure = result {
+                    logger.error("Failed to remove reaction")
+                }
+                await MainActor.run { completion(result) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    func getReactors(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, pageSize: Int, pagingToken: Data?, completion: @Sendable @escaping (Result<ReactorPage, ErrorGetReactors>) -> Void) {
+        let request = Flipcash_Messaging_V1_GetReactorsRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.emoji = .with { $0.value = emoji }
+            $0.options = .with {
+                $0.pageSize = Int32(pageSize)
+                if let pagingToken {
+                    $0.pagingToken = .with { $0.value = pagingToken }
+                }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getReactors(request, options: .unaryDefault)
+                let result = Self.reactorsResult(response)
+                if case .failure = result {
+                    logger.error("Failed to get reactors")
+                }
+                await MainActor.run { completion(result) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// The current reactions on up to 100 messages, keyed by message; a message with none is absent.
+    func getReactionSummaries(owner: KeyPair, conversationID: ConversationID, messageIDs: [MessageID], completion: @Sendable @escaping (Result<[MessageID: ReactionState], ErrorGetReactionSummaries>) -> Void) {
+        let request = Flipcash_Messaging_V1_GetReactionSummariesRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageIds = .with { $0.messageIds = messageIDs.map(\.proto) }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getReactionSummaries(request, options: .unaryDefault)
+                let result = Self.reactionSummariesResult(response)
+                if case .failure = result {
+                    logger.error("Failed to get reaction summaries")
+                }
+                await MainActor.run { completion(result) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    // MARK: - Reaction response mapping
+
+    /// The reaction an add answered with, or the failure it reported; an OK without a reaction is
+    /// malformed and fails as unknown.
+    static func addReactionResult(_ response: Flipcash_Messaging_V1_AddReactionResponse) -> Result<EmojiReaction, ErrorAddReaction> {
+        let error = ErrorAddReaction(rawValue: response.result.rawValue) ?? .unknown
+        switch error {
+        case .ok:
+            return response.hasReaction ? .success(EmojiReaction(response.reaction)) : .failure(.unknown)
+        case .denied, .messageNotFound, .cannotReact, .tooManyReactionTypes, .unknown, .transportFailure, .cancelled, .rejected:
+            return .failure(error)
+        }
+    }
+
+    /// The reaction a remove answered with, or the failure it reported.
+    static func removeReactionResult(_ response: Flipcash_Messaging_V1_RemoveReactionResponse) -> Result<EmojiReaction, ErrorRemoveReaction> {
+        let error = ErrorRemoveReaction(rawValue: response.result.rawValue) ?? .unknown
+        switch error {
+        case .ok:
+            return response.hasReaction ? .success(EmojiReaction(response.reaction)) : .failure(.unknown)
+        case .denied, .messageNotFound, .unknown, .transportFailure, .cancelled, .rejected:
+            return .failure(error)
+        }
+    }
+
+    /// Each message's reactions, or the failure reported.
+    static func reactionSummariesResult(_ response: Flipcash_Messaging_V1_GetReactionSummariesResponse) -> Result<[MessageID: ReactionState], ErrorGetReactionSummaries> {
+        let error = ErrorGetReactionSummaries(rawValue: response.result.rawValue) ?? .unknown
+        switch error {
+        case .ok:
+            return .success(Dictionary(
+                response.summaries.map { (MessageID($0.messageID), ReactionState($0)) },
+                uniquingKeysWith: { _, last in last }
+            ))
+        case .denied, .unknown, .transportFailure, .cancelled, .rejected:
+            return .failure(error)
+        }
+    }
+
+    /// The page of reactors, or the failure reported.
+    static func reactorsResult(_ response: Flipcash_Messaging_V1_GetReactorsResponse) -> Result<ReactorPage, ErrorGetReactors> {
+        let error = ErrorGetReactors(rawValue: response.result.rawValue) ?? .unknown
+        switch error {
+        case .ok:
+            return .success(ReactorPage(
+                reactors: response.reactors.compactMap(Reactor.init),
+                nextPageToken: response.hasMore_p && response.hasPagingToken ? response.pagingToken.value : nil,
+                version: response.version
+            ))
+        case .denied, .messageNotFound, .unknown, .transportFailure, .cancelled, .rejected:
+            return .failure(error)
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -488,6 +644,110 @@ extension ErrorNotifyIsTyping: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+public enum ErrorAddReaction: Int, Error {
+    case ok
+    case denied
+    case messageNotFound
+    case cannotReact
+    case tooManyReactionTypes
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorRemoveReaction: Int, Error {
+    case ok
+    case denied
+    case messageNotFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetReactors: Int, Error {
+    case ok
+    case denied
+    case messageNotFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorAddReaction: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .messageNotFound, .cannotReact, .tooManyReactionTypes: .info
+        case .unknown, .rejected: .error
+        }
+    }
+
+    /// The failure `ReactionState` settles the call with.
+    public var reactionFailure: ReactionFailure {
+        switch self {
+        case .messageNotFound: .messageNotFound
+        case .cannotReact: .cannotReact
+        case .tooManyReactionTypes: .tooManyReactionTypes
+        case .denied: .denied
+        case .ok, .unknown, .transportFailure, .cancelled, .rejected: .network
+        }
+    }
+}
+
+extension ErrorRemoveReaction: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .messageNotFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+
+    /// The failure `ReactionState` settles the call with.
+    public var reactionFailure: ReactionFailure {
+        switch self {
+        case .messageNotFound: .messageNotFound
+        case .denied: .denied
+        case .ok, .unknown, .transportFailure, .cancelled, .rejected: .network
+        }
+    }
+}
+
+public enum ErrorGetReactionSummaries: Int, Error {
+    case ok
+    case denied
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorGetReactionSummaries: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled, .denied: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetReactors: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .messageNotFound: .info
         case .unknown, .rejected: .error
         }
     }

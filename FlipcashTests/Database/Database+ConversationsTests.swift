@@ -815,4 +815,86 @@ struct DatabaseConversationsTests {
         #expect(stored.first { $0.id == MessageID(value: 1) }?.repliedTo == nil)
         #expect(stored.first { $0.id == MessageID(value: 2) }?.repliedTo == MessageID(value: 1))
     }
+
+    // MARK: - Reactions
+
+    private func reactions(_ entries: [ReactionState.SummaryEntry]) -> ReactionState {
+        var state = ReactionState()
+        state.applySummary(entries)
+        return state
+    }
+
+    private func entry(_ emoji: String, count: UInt64, selfReacted: Bool = false, version: UInt64) -> ReactionState.SummaryEntry {
+        ReactionState.SummaryEntry(emoji: emoji, count: count, selfReacted: selfReacted, version: version, selfReactedAt: selfReacted ? Date(timeIntervalSince1970: 7) : nil)
+    }
+
+    private func message(eventSequence: UInt64, reactions: ReactionState?) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: 1), senderID: otherID, content: .text("hi"),
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 1, eventSequence: eventSequence, reactionState: reactions)
+    }
+
+    @Test("Reaction state round-trips through the cache")
+    func reactionStateRoundTrips() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let state = reactions([entry("👍", count: 2, selfReacted: true, version: 4), entry("🔥", count: 1, version: 2)])
+        try database.upsertConversationMessages([message(eventSequence: 1, reactions: state)], conversationID: ConversationID.test(1))
+
+        let loaded = try database.getConversationMessages(conversationID: ConversationID.test(1)).first
+        #expect(loaded?.reactionState == state)
+        #expect(loaded?.reactionState?.pills.map(\.emoji) == ["👍", "🔥"])
+    }
+
+    @Test("A copy without a reaction summary keeps the stored reactions")
+    func missingSummaryKeepsStoredReactions() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let state = reactions([entry("👍", count: 1, version: 3)])
+        try database.upsertConversationMessages([message(eventSequence: 1, reactions: state)], conversationID: id)
+        try database.upsertConversationMessages([message(eventSequence: 2, reactions: nil)], conversationID: id)
+
+        #expect(try database.getConversationMessages(conversationID: id).first?.reactionState == state)
+    }
+
+    @Test("A stale message copy still merges its newer reactions")
+    func staleCopyMergesReactions() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages([message(eventSequence: 5, reactions: reactions([entry("👍", count: 1, version: 3)]))], conversationID: id)
+        try database.upsertConversationMessages([message(eventSequence: 4, reactions: reactions([entry("👍", count: 2, version: 4)]))], conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id).first
+        #expect(loaded?.eventSequence == 5)
+        #expect(loaded?.reactionState?.pills.first?.count == 2)
+    }
+
+    @Test("An older reaction summary does not roll back a newer stored emoji")
+    func olderSummaryDoesNotRollBack() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages([message(eventSequence: 1, reactions: reactions([entry("👍", count: 3, version: 9)]))], conversationID: id)
+        try database.upsertConversationMessages([message(eventSequence: 2, reactions: reactions([entry("👍", count: 1, version: 2)]))], conversationID: id)
+
+        #expect(try database.getConversationMessages(conversationID: id).first?.reactionState?.pills.first?.count == 3)
+    }
+
+    @Test("updateReactions rewrites a stored message's reactions and skips an unknown one")
+    func updateReactionsReadModifyWrite() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages([message(eventSequence: 1, reactions: nil)], conversationID: id)
+
+        let updated = try database.updateReactions(messageID: MessageID(value: 1), conversationID: id) {
+            $0.applyUpdate(emoji: "😂", actorIsSelf: false, added: true, count: 1, version: 1, reactedAt: nil)
+        }
+        #expect(updated?.pills.map(\.emoji) == ["😂"])
+        #expect(try database.getConversationMessages(conversationID: id).first?.reactionState == updated)
+
+        let missing = try database.updateReactions(messageID: MessageID(value: 99), conversationID: id) { _ in }
+        #expect(missing == nil)
+    }
 }
