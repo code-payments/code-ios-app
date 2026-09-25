@@ -48,6 +48,12 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         case text(String)
         case cash(ExchangedFiat)
         case deleted(Deletion)
+        /// End-to-end-encrypted content this client cannot decrypt (decryption isn't implemented
+        /// yet -- a cross-platform parity hotspot). `scheme` is the wire `EncryptedContent.Scheme`
+        /// raw value, kept as `Int` so this model doesn't depend on the generated proto enum.
+        /// Stored verbatim -- nonce and ciphertext are never inspected -- so the message round-trips
+        /// byte for byte back to the wire on re-send/edit, and renders as an "unsupported" bubble.
+        case encrypted(scheme: Int, nonce: Data, ciphertext: Data)
     }
 
     public let id: MessageID
@@ -196,6 +202,19 @@ extension ConversationMessage {
             self.content = .text(textContent.text)
             self.cashAction = nil
             repliedTo = replyContent.hasRepliedMessageID ? MessageID(replyContent.repliedMessageID) : nil
+        case .encrypted(let encryptedContent):
+            // EncryptedContent is a cross-platform parity hotspot (X25519/HKDF/XChaCha20); decrypting
+            // it is not implemented here. Unlike `.media`/`.system`, the message is kept -- stored
+            // verbatim and rendered as an "unsupported" bubble -- so it doesn't silently vanish from
+            // the transcript the way Android's client no longer does either.
+            self.content = .encrypted(
+                scheme: encryptedContent.scheme.rawValue,
+                nonce: encryptedContent.nonce,
+                ciphertext: encryptedContent.ciphertext
+            )
+            self.cashAction = nil
+            repliedTo = nil
+        // `.media`/`.system` are dropped by design: the message is not stored and not shown.
         case .media, .system, .none:
             return nil
         }
@@ -210,5 +229,36 @@ extension ConversationMessage {
         self.status = .sent
         self.clientMessageID = nil
         self.redacted = proto.redacted
+    }
+}
+
+/// Content this client has no way to turn back into a proto `Content` to send. Thrown rather than
+/// asserted: `.cash` and `.deleted` are never round-tripped this way (cash has its own send path;
+/// a tombstone is a mutation result, never resent), but a caller that tries should get a normal
+/// error, not a crash.
+public enum ConversationMessageContentEncodingError: Error, Sendable {
+    case unsupported(ConversationMessage.Content)
+}
+
+extension ConversationMessage.Content {
+    /// Encodes this content back to the wire `Content` it would be sent as. For `.encrypted` this
+    /// is a byte-for-byte round trip of the stored scheme/nonce/ciphertext -- not encryption, since
+    /// this client never decrypted them in the first place -- so a retried/re-sent encrypted message
+    /// reaches the server unchanged rather than being dropped or crashing the sender.
+    public func asProto() throws -> Flipcash_Messaging_V1_Content {
+        switch self {
+        case .text(let text):
+            return .with { $0.type = .text(.with { $0.text = text }) }
+        case .encrypted(let scheme, let nonce, let ciphertext):
+            return .with {
+                $0.type = .encrypted(.with {
+                    $0.scheme = Flipcash_Messaging_V1_EncryptedContent.Scheme(rawValue: scheme) ?? .unknown
+                    $0.nonce = nonce
+                    $0.ciphertext = ciphertext
+                })
+            }
+        case .cash, .deleted:
+            throw ConversationMessageContentEncodingError.unsupported(self)
+        }
     }
 }

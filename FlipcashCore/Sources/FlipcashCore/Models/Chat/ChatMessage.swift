@@ -95,6 +95,12 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         }
     }
 
+    /// Placeholder copy for content this client has no way to render -- today, an encrypted
+    /// message it cannot decrypt. Reuses the tombstone's `.deleted` display case (same
+    /// non-interactive bubble style) with wording that says "unsupported" rather than "deleted",
+    /// matching Android's copy for the same content.
+    public static let unsupportedContentCopy = "This message isn't supported on this version"
+
     /// Whether this row draws as the link card on its own, with no bubble behind it.
     ///
     /// The card is already a surface with its own rounded shape, so a bubble behind it would draw

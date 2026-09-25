@@ -99,7 +99,9 @@ nonisolated extension Database {
                     version: row[c.rosterVersion]
                 ),
                 rules: conversationRules(from: row),
-                viewerState: conversationViewerState(from: row)
+                viewerState: conversationViewerState(from: row),
+                creator: row[c.creator],
+                useE2Ee: row[c.useE2Ee]
             )
         }
     }
@@ -426,6 +428,8 @@ nonisolated extension Database {
                 c.rosterVersion     <- conversation.rosterSummary.version,
                 c.rules             <- conversation.rules.flatMap { try? JSONEncoder().encode($0) },
                 c.viewerState       <- conversation.viewerState.flatMap { try? JSONEncoder().encode($0) },
+                c.creator           <- conversation.creator,
+                c.useE2Ee           <- conversation.useE2Ee,
                 onConflictOf: c.id
             )
         )
@@ -491,6 +495,9 @@ nonisolated extension Database {
         var mint: PublicKey?
         var deletedBy: UUID?
         var deletedAt: Double?
+        var encryptedScheme: Int?
+        var encryptedNonce: Data?
+        var encryptedCiphertext: Data?
 
         switch message.content {
         case .text(let value):
@@ -506,6 +513,11 @@ nonisolated extension Database {
             kind = 2
             deletedBy = deletion.deletedBy
             deletedAt = deletion.deletedAt.timeIntervalSinceReferenceDate
+        case .encrypted(let scheme, let nonce, let ciphertext):
+            kind = 3
+            encryptedScheme = scheme
+            encryptedNonce = nonce
+            encryptedCiphertext = ciphertext
         }
 
         let cashAction: Int? = switch message.cashAction {
@@ -534,7 +546,10 @@ nonisolated extension Database {
                 m.repliedToId    <- message.repliedTo?.value,
                 m.lastEditedTs   <- message.lastEditedTs?.timeIntervalSinceReferenceDate,
                 m.deletedBy      <- deletedBy,
-                m.deletedAt      <- deletedAt
+                m.deletedAt      <- deletedAt,
+                m.encryptedScheme     <- encryptedScheme,
+                m.encryptedNonce      <- encryptedNonce,
+                m.encryptedCiphertext <- encryptedCiphertext
             )
         )
     }
@@ -638,6 +653,13 @@ nonisolated extension Database {
                     deletedAt: row[m.deletedAt].map(Date.init(timeIntervalSinceReferenceDate:)) ?? date
                 )
             )
+        case 3:
+            guard let scheme = row[m.encryptedScheme],
+                  let nonce = row[m.encryptedNonce],
+                  let ciphertext = row[m.encryptedCiphertext] else {
+                return nil
+            }
+            content = .encrypted(scheme: scheme, nonce: nonce, ciphertext: ciphertext)
         default:
             return nil
         }

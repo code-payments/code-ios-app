@@ -150,6 +150,33 @@ struct ConversationModelMappingTests {
         #expect(Conversation(proto).type == .contactDm)
     }
 
+    @Test("Metadata maps the group's creator and use_e2ee")
+    func dmMetadataMapsCreatorAndUseE2Ee() {
+        let creatorUUID = UUID()
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .group
+            $0.creator = .with { $0.value = creatorUUID.data }
+            $0.useE2Ee = true
+        }
+
+        let conversation = Conversation(proto)
+        #expect(conversation.creator == creatorUUID)
+        #expect(conversation.useE2Ee)
+    }
+
+    @Test("Metadata without a creator or use_e2ee maps to nil/false")
+    func dmMetadataWithoutCreatorOrUseE2Ee() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .contactDm
+        }
+
+        let conversation = Conversation(proto)
+        #expect(conversation.creator == nil)
+        #expect(conversation.useE2Ee == false)
+    }
+
     @Test("Metadata maps the group chat type and title")
     func dmMetadataMapsGroupTypeAndTitle() {
         let proto = Flipcash_Chat_V1_Metadata.with {
@@ -510,6 +537,31 @@ struct ConversationMessageMetadataTests {
         #expect(message.lastEditedTs == nil)
     }
 
+    @Test("Encrypted content maps to .encrypted, keeping scheme, nonce, and ciphertext")
+    func encryptedMessageParses() throws {
+        let nonce = Data(repeating: 0xCD, count: 24)
+        let ciphertext = Data([0x0A, 0x0B, 0x0C])
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 14 }
+            $0.content = [.with {
+                $0.encrypted = .with {
+                    $0.scheme = .x25519Xchacha20Poly1305
+                    $0.nonce = nonce
+                    $0.ciphertext = ciphertext
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        guard case .encrypted(let scheme, let gotNonce, let gotCiphertext) = message.content else {
+            Issue.record("Expected encrypted content")
+            return
+        }
+        #expect(scheme == Flipcash_Messaging_V1_EncryptedContent.Scheme.x25519Xchacha20Poly1305.rawValue)
+        #expect(gotNonce == nonce)
+        #expect(gotCiphertext == ciphertext)
+    }
+
     @Test("replacingContent preserves identity and ordering")
     func replacingContentPreservesIdentity() {
         let original = ConversationMessage(
@@ -588,5 +640,70 @@ struct ConversationMessageReplyMappingTests {
         )
         let edited = message.replacingContent(.text("second"), lastEditedTs: Date(timeIntervalSince1970: 1))
         #expect(edited.repliedTo == MessageID(value: 9))
+    }
+}
+
+@Suite("ConversationMessage.Content -> proto encoding")
+struct ConversationMessageContentEncodingTests {
+
+    @Test("Text content encodes to a proto text body")
+    func textEncodes() throws {
+        let proto = try ConversationMessage.Content.text("hi").asProto()
+        guard case .text(let body) = proto.type else {
+            Issue.record("Expected text content")
+            return
+        }
+        #expect(body.text == "hi")
+    }
+
+    @Test("Encrypted content round-trips scheme, nonce, and ciphertext byte for byte -- not decrypted, just re-encoded")
+    func encryptedContentRoundTrips() throws {
+        let nonce = Data(repeating: 0xEF, count: 24)
+        let ciphertext = Data([0x01, 0x02, 0x03])
+        let content = ConversationMessage.Content.encrypted(
+            scheme: Flipcash_Messaging_V1_EncryptedContent.Scheme.x25519Xchacha20Poly1305.rawValue,
+            nonce: nonce,
+            ciphertext: ciphertext
+        )
+
+        let proto = try content.asProto()
+        guard case .encrypted(let encrypted) = proto.type else {
+            Issue.record("Expected encrypted content")
+            return
+        }
+        #expect(encrypted.scheme == .x25519Xchacha20Poly1305)
+        #expect(encrypted.nonce == nonce)
+        #expect(encrypted.ciphertext == ciphertext)
+
+        // And decoding that proto back gives the identical domain value -- a full round trip.
+        let roundTripped = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 1 }
+            $0.content = [proto]
+        }
+        #expect(try #require(ConversationMessage(roundTripped)).content == content)
+    }
+
+    @Test("An unrecognized encrypted scheme raw value encodes as .UNRECOGNIZED rather than crashing")
+    func unrecognizedSchemeFallsBackToUnknown() throws {
+        let content = ConversationMessage.Content.encrypted(scheme: 99, nonce: Data(), ciphertext: Data())
+        let proto = try content.asProto()
+        guard case .encrypted(let encrypted) = proto.type else {
+            Issue.record("Expected encrypted content")
+            return
+        }
+        #expect(encrypted.scheme == .UNRECOGNIZED(99))
+    }
+
+    @Test("Cash and deleted content throw rather than crash -- there is no wire shape a client resends for either")
+    func cashAndDeletedThrow() {
+        let cash = ConversationMessage.Content.cash(ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 1, mint: .usdf),
+            nativeAmount: FiatAmount(value: 1, currency: .usd),
+            currencyRate: Rate(fx: 1, currency: .usd)
+        ))
+        #expect(throws: ConversationMessageContentEncodingError.self) { try cash.asProto() }
+
+        let deleted = ConversationMessage.Content.deleted(.init(deletedBy: nil, deletedAt: .now))
+        #expect(throws: ConversationMessageContentEncodingError.self) { try deleted.asProto() }
     }
 }

@@ -273,6 +273,12 @@ nonisolated public struct ConversationTable: Sendable {
     // FlipcashAPI, so the proto can't be stored; ConversationRules is Codable
     // for exactly this.
     public let rules             = Expression <Data?>  ("rules")
+    // The group's creator, group chats only; nil for a DM or a group whose metadata predates the
+    // field. Nil-able rather than defaulted, since "no creator" and "not yet known" are both real.
+    public let creator           = Expression <UUID?>  ("creator")
+    // Whether the chat is end-to-end encrypted. Defaults false: every conversation before this
+    // field existed, and every DM/group the server hasn't opted in, reads as not-E2EE.
+    public let useE2Ee           = Expression <Bool>   ("useE2Ee")
     // The signed-in viewer's per-chat state (currently mute) as JSON, same
     // reason as `rules`. The whole struct is stored, version included, so a
     // cold-start reload can't beat a fresher stream update; the mute is stored
@@ -349,6 +355,11 @@ nonisolated public struct ConversationMessageTable: Sendable {
     // because the schema version can only be bumped once per rebuild, and adding it later would
     // cost users a second full resync.
     public let repliedToId    = Expression <UInt64?>       ("repliedToId")
+    // `.encrypted` content, decomposed the way cash amounts are. All three nil for a non-encrypted
+    // row. `encryptedScheme` is the wire `EncryptedContent.Scheme` raw value.
+    public let encryptedScheme     = Expression <Int?>     ("encryptedScheme")
+    public let encryptedNonce      = Expression <Data?>    ("encryptedNonce")
+    public let encryptedCiphertext = Expression <Data?>    ("encryptedCiphertext")
     // When the sender last edited this message; nil if never edited.
     public let lastEditedTs   = Expression <Double?>       ("lastEditedTs")
     // Tombstone detail. Both nil for a message that has not been deleted.
@@ -569,6 +580,8 @@ nonisolated extension Database {
                 t.column(conversationTable.rosterVersion, defaultValue: 0)
                 t.column(conversationTable.rules)
                 t.column(conversationTable.viewerState)
+                t.column(conversationTable.creator)
+                t.column(conversationTable.useE2Ee, defaultValue: false)
             })
         }
 
@@ -622,6 +635,9 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.lastEditedTs)
                 t.column(conversationMessageTable.deletedBy)
                 t.column(conversationMessageTable.deletedAt)
+                t.column(conversationMessageTable.encryptedScheme)
+                t.column(conversationMessageTable.encryptedNonce)
+                t.column(conversationMessageTable.encryptedCiphertext)
                 t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
             })
         }

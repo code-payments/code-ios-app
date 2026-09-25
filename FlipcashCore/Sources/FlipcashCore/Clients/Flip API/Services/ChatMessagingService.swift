@@ -224,7 +224,7 @@ final class ChatMessagingService: Sendable {
                     await MainActor.run {
                         completion(.success(MessageMutation(message: message, isConflict: error == .conflict)))
                     }
-                case .denied, .messageNotFound, .cannotEdit, .unknown, .transportFailure, .cancelled, .rejected:
+                case .denied, .messageNotFound, .cannotEdit, .encryptionNotAllowed, .unknown, .transportFailure, .cancelled, .rejected:
                     logger.error("Failed to edit message")
                     await MainActor.run { completion(.failure(error)) }
                 }
@@ -353,6 +353,8 @@ public enum ErrorGetDelta: Int, Error {
 public enum ErrorSendMessage: Int, Error {
     case ok
     case denied
+    /// The content is EncryptedContent and the chat is not a DM.
+    case encryptionNotAllowed
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -365,6 +367,8 @@ public enum ErrorEditMessage: Int, Error {
     case messageNotFound
     case cannotEdit
     case conflict
+    /// The content is EncryptedContent and the chat is not a DM.
+    case encryptionNotAllowed
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -441,7 +445,10 @@ extension ErrorSendMessage: ServerError, TransportClassifiableError {
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
+        // Denied is an expected membership/business outcome; encryptionNotAllowed is a client-side
+        // contract violation (sending EncryptedContent outside a DM), not a server hiccup.
         case .denied: .info
+        case .encryptionNotAllowed: .error
         case .unknown, .rejected: .error
         }
     }
@@ -455,6 +462,8 @@ extension ErrorEditMessage: ServerError, TransportClassifiableError {
         // `conflict` is the concurrency guard doing its job, and the rest are expected
         // membership/business outcomes — none is a client defect.
         case .denied, .messageNotFound, .cannotEdit, .conflict: .info
+        // A client-side contract violation (sending EncryptedContent outside a DM), not a server hiccup.
+        case .encryptionNotAllowed: .error
         case .unknown, .rejected: .error
         }
     }

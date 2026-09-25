@@ -118,7 +118,7 @@ extension ChatItem {
         func isEmojiOnlyBody(_ message: ConversationMessage) -> Bool {
             switch message.content {
             case .text(let text): EmojiOnlyDetector.isEmojiOnly(text)
-            case .cash, .deleted: false
+            case .cash, .deleted, .encrypted: false
             }
         }
         func rendersBare(_ message: ConversationMessage) -> Bool {
@@ -131,7 +131,7 @@ extension ChatItem {
         let layouts = messages.map { message in
             switch message.content {
             case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard))
-            case .cash, .deleted: [RowLayout(part: nil, text: nil, preview: nil)]
+            case .cash, .deleted, .encrypted: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
         // A card row breaks the bubble run the way bare emoji do, so what faces a neighbour is the
@@ -202,6 +202,11 @@ extension ChatItem {
                         ? "You deleted this message"
                         : "This message was deleted"
                 )
+            case .encrypted:
+                // Decryption isn't implemented on this client -- a cross-platform parity hotspot --
+                // so an encrypted message renders as the same non-interactive placeholder bubble a
+                // tombstone does, with copy matching Android's unsupported-content bubble.
+                content = .deleted(ChatMessage.unsupportedContentCopy)
             }
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean
@@ -331,6 +336,16 @@ extension ChatItem {
                 stableID: nil,
                 authorName: authorName,
                 snippet: ChatQuote.deletedSnippet,
+                kind: .unavailable,
+                authorID: original.senderID
+            )
+        case .encrypted:
+            // No plaintext to preview -- same unavailable treatment as a quote whose original the
+            // local database never saw.
+            return ChatQuote(
+                stableID: nil,
+                authorName: authorName,
+                snippet: ChatQuote.unavailableSnippet,
                 kind: .unavailable,
                 authorID: original.senderID
             )
