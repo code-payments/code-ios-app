@@ -96,6 +96,10 @@ struct ChatProfileScreen: View {
                                 .foregroundStyle(.textMain)
                             Spacer()
                         } action: {
+                            Analytics.groupInviteSheetOpened(
+                                source: .profile,
+                                memberCount: conversation?.rosterSummary.memberCount ?? 0
+                            )
                             isInviting = true
                         }
                         .accessibilityIdentifier("chat-profile-invite")
@@ -192,10 +196,13 @@ struct ChatProfileScreen: View {
     private func leave() async {
         isLeaving = true
         defer { isLeaving = false }
+        let memberCount = conversation?.rosterSummary.memberCount ?? 0
         do {
             try await conversationController.leave(conversationID: conversationID)
+            Analytics.groupLeft(error: nil, memberCount: memberCount)
             router.popToRoot()
         } catch {
+            Analytics.groupLeft(error: error, memberCount: memberCount)
             sessionContainer.session.dialogItem = .error(
                 title: "Something Went Wrong",
                 subtitle: "We were unable to leave this group. Please try again"

@@ -11,6 +11,20 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.deeplink")
 
+/// Where a URL entered the app, which decides whether opening a group counts as following an invite.
+enum DeepLinkOrigin {
+    /// A tapped link: a universal link, a custom-scheme open, or a link in a chat message.
+    case link
+    /// A scanned QR code, from the camera or a still image.
+    case qr
+    /// A push notification tap.
+    case push
+    /// A home-screen quick action.
+    case shortcut
+    /// A continued user activity: Spotlight, Handoff, or a Siri suggestion.
+    case activity
+}
+
 final class DeepLinkController {
 
     private let sessionAuthenticator: SessionAuthenticator
@@ -32,7 +46,7 @@ final class DeepLinkController {
     /// The canonical deep-link entry: dedups opens of the same URL within a short window, records
     /// analytics, and executes the parsed action. Returns false when the URL parses to no action.
     @discardableResult
-    func open(_ url: URL) -> Bool {
+    func open(_ url: URL, origin: DeepLinkOrigin = .link) -> Bool {
         // Drop duplicate deliveries: a second claim is rejected server-side as
         // stale state and surfaces as a false error after the first succeeded.
         // A scene link can arrive twice — once from `SceneDelegate`, and
@@ -45,7 +59,8 @@ final class DeepLinkController {
         }
 
         Analytics.deeplinkOpened(url: url)
-        let action = handle(open: url)
+        var action = handle(open: url)
+        action?.origin = origin
         // Only record a parse result for URLs that resolve to an action. Chat links now route through
         // here too, and most are ordinary web URLs — logging every non-match as a "failed to parse"
         // error would bury genuine deep-link parse failures in expected noise.
@@ -181,6 +196,9 @@ final class DeepLinkController {
 struct DeepLinkAction {
 
     let kind: Kind
+
+    /// Where the URL that produced this action entered the app.
+    var origin: DeepLinkOrigin = .link
     
     private let sessionAuthenticator: SessionAuthenticator
     
@@ -200,7 +218,7 @@ struct DeepLinkAction {
     ///
     /// `GetGroupChatFeed` carries only the groups the user has joined, so for a group they have not
     /// joined this link is the only way in — and the screen it lands on is the one that offers the join.
-    private static func routeChat(_ conversationID: ConversationID, in container: SessionContainer) async {
+    private static func routeChat(_ conversationID: ConversationID, origin: DeepLinkOrigin, in container: SessionContainer) async {
         let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
 
         guard let destination = chatDestination(for: conversation?.type, conversationID: conversationID) else {
@@ -208,6 +226,12 @@ struct DeepLinkAction {
                 "conversationID": "\(conversationID)",
             ])
             return
+        }
+
+        // A push or a Spotlight tap reopens a group the user is already in; only a link or a
+        // scanned code is someone arriving from an invite.
+        if conversation?.type == .group, let source = origin.groupInviteSource {
+            Analytics.groupInviteFollowed(source: source)
         }
 
         container.appRouter.navigate(to: destination)
@@ -271,7 +295,7 @@ struct DeepLinkAction {
         case .chat(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
-                await Self.routeChat(conversationID, in: container)
+                await Self.routeChat(conversationID, origin: origin, in: container)
             }
 
         case .chatSendCash(let conversationID):
@@ -388,5 +412,16 @@ struct VerificationDescription: Identifiable, Equatable {
 
     var id: String {
         "\(email):\(code)"
+    }
+}
+
+private extension DeepLinkOrigin {
+    /// The `Source` a group opened from this origin reports, or nil when it isn't an invite.
+    var groupInviteSource: GroupInviteSource? {
+        switch self {
+        case .link:                         .link
+        case .qr:                           .qr
+        case .push, .shortcut, .activity:   nil
+        }
     }
 }

@@ -18,6 +18,7 @@ struct CurrencyDiscoveryScreen: View {
 
                 CurrencyDiscoveryList(
                     onSelectMint: { mint in
+                        Analytics.tokenInfoOpened(from: .openedFromDiscovery, mint: mint)
                         router.push(.currencyInfo(mint))
                     }
                 )

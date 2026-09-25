@@ -91,6 +91,9 @@ struct ConversationScreen: View {
     /// Whether `startSendCash` has been acted on, so a re-render or a return from the sheet it
     /// opened doesn't start it again.
     @State private var didStartSendCash = false
+    /// Whether `Group: Gate Shown` has gone out for this visit. The destination is keyed by
+    /// conversation ID, so a new push is a new visit; a return from a pushed screen is not.
+    @State private var didReportGate = false
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -198,7 +201,13 @@ struct ConversationScreen: View {
     /// taps open the chat's own profile instead.
     private var profileTapAction: (() -> Void)? {
         if let group = groupConversation {
-            return { router.push(.chatProfile(group.id)) }
+            return {
+                Analytics.groupInfoOpened(
+                    memberCount: group.rosterSummary.memberCount,
+                    isMember: conversationController.isMember(of: group)
+                )
+                router.push(.chatProfile(group.id))
+            }
         }
         guard let userID = tipCounterpart?.userID else { return nil }
         return { router.push(.userProfile(userID, origin: .directMessage)) }
@@ -461,7 +470,7 @@ struct ConversationScreen: View {
             linkCardSource: sessionContainer.linkCardFeed,
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
-            onGroupInvite: { isInviting = true },
+            onGroupInvite: openGroupInvite,
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
@@ -694,6 +703,9 @@ struct ConversationScreen: View {
             // catch-up alike — so a blocked chat stops here with its metadata and nothing else.
             guard !gate.obscuresTranscript else { return }
             await loadTranscript(for: conversationID)
+        }
+        .onChange(of: gate, initial: true) { _, gate in
+            reportGateShown(gate)
         }
         .onChange(of: gate.obscuresTranscript) { _, obscures in
             // The opening task read the gate it started with, which for a chat reached by link or
@@ -966,6 +978,7 @@ struct ConversationScreen: View {
         guard let message = (coordinator?.loader.messages ?? []).first(where: { $0.stableID == messageID }) else { return }
         switch message.content {
         case .cash(let fiat):
+            Analytics.tokenInfoOpened(from: .openedFromChat, mint: fiat.mint)
             router.push(.currencyInfo(fiat.mint))
         case .text, .deleted:
             break
@@ -978,10 +991,39 @@ struct ConversationScreen: View {
     /// routes leave the chat on the stack, so satisfying the requirement returns to an ungated screen.
     private func addFunds() {
         guard let gateMint, gateMint != .usdf else {
+            Analytics.groupGateFundingTapped(method: .addCash, gateMint: gateMint)
             router.presentAddMoney(.general, source: .chat)
             return
         }
+        Analytics.groupGateFundingTapped(method: .buyToken, gateMint: gateMint)
         router.push(.buyCurrency(gateMint))
+    }
+
+    /// Sends `Group: Gate Shown` the first time this visit draws a join gate. A gate that is
+    /// still `.undetermined` waits for its answer; a member's read-only panel isn't a join gate.
+    private func reportGateShown(_ gate: ConversationGatePresentation) {
+        guard !didReportGate, let group = groupConversation else { return }
+        let access: GroupAccess
+        switch gate {
+        case .join:                          access = .eligible
+        case .blocked:                       access = .blocked
+        case .open, .undetermined, .readOnly: return
+        }
+        didReportGate = true
+        Analytics.groupGateShown(
+            access: access,
+            gateMint: group.rules.gateMint,
+            memberCount: group.rosterSummary.memberCount
+        )
+    }
+
+    /// The head card's invite button.
+    private func openGroupInvite() {
+        Analytics.groupInviteSheetOpened(
+            source: .chat,
+            memberCount: groupConversation?.rosterSummary.memberCount ?? 0
+        )
+        isInviting = true
     }
 
     /// Moves the READ pointer past a message the transcript reports on screen.
@@ -1014,12 +1056,17 @@ struct ConversationScreen: View {
     private func joinChat() {
         guard let conversationID, !isJoiningChat else { return }
         isJoiningChat = true
+        // Read before the join, which seats a roster that already counts the viewer.
+        let memberCount = groupConversation?.rosterSummary.memberCount ?? 0
+        let gated = groupConversation?.rules?.listener.isEmpty == false
         Task {
             defer { isJoiningChat = false }
             do {
                 try await conversationController.join(conversationID: conversationID)
+                Analytics.groupJoined(error: nil, memberCount: memberCount, gated: gated)
                 await loadTranscript(for: conversationID)
             } catch {
+                Analytics.groupJoined(error: error, memberCount: memberCount, gated: gated)
                 session.dialogItem = DialogItem.alert(
                     title: "Couldn't Join Chat",
                     subtitle: joinFailureSubtitle(error)
@@ -1068,8 +1115,10 @@ struct ConversationScreen: View {
         case .group(let group):
             // A link to the chat already on screen has nowhere to go.
             guard group.chatID != conversationID else { return }
+            Analytics.groupInviteFollowed(source: .chatCard)
             router.push(.tipConversation(group.chatID))
         case .token(let token):
+            Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
             router.push(.currencyInfo(token.mint))
         }
     }

@@ -67,6 +67,7 @@ struct GroupInviteSheet: View {
                         title: "Send Invite Link",
                         accessibilityIdentifier: "group-invite-send"
                     ) {
+                        Analytics.groupInviteShared(method: .share)
                         ShareSheet.present(
                             activityItem: GroupInviteShareItem(url: url, title: title, icon: icon())
                         ) { _ in }
@@ -116,6 +117,7 @@ struct GroupInviteSheet: View {
     }
 
     private func copy() {
+        Analytics.groupInviteShared(method: .theCopy)
         UIPasteboard.general.string = url.absoluteString
         withAnimation(.easeInOut(duration: 0.15)) {
             didCopy = true

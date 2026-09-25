@@ -171,12 +171,19 @@ final class NewPublicGroupModel {
 
         let blobID = try await uploadPictureIfNeeded(using: creator)
 
-        return try await creator.startChat(
-            title: title,
-            pictureBlobID: blobID,
-            rules: rules,
-            idempotencyKey: key
-        )
+        do {
+            let conversation = try await creator.startChat(
+                title: title,
+                pictureBlobID: blobID,
+                rules: rules,
+                idempotencyKey: key
+            )
+            Analytics.groupCreated(error: nil, rules: rules, hasPicture: blobID != nil)
+            return conversation
+        } catch {
+            Analytics.groupCreated(error: error, rules: rules, hasPicture: blobID != nil)
+            throw error
+        }
     }
 
     /// Stores and finalizes the picture, returning the blob `StartChat` should carry, or nil when
