@@ -269,5 +269,4 @@ feat: scaffold <domain> service for new RPCs
 - Give a streaming RPC a deadline (`.unaryDefault`). Streaming passes `.defaults`.
 - Interpolate variables (especially base58/keys) into log message strings — variables go in `metadata`.
 - Skip the build verification in Step 4.
-- Scaffold service code without asking the user first.
 - Commit without user approval.
