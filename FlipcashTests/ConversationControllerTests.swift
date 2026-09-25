@@ -383,6 +383,32 @@ struct ConversationControllerTests {
         #expect(messages.first?.content == .text("hello"))
     }
 
+    @Test("a refused postOnce leaves no retryable row in the transcript")
+    func postOnceFailureDiscardsMessage() async {
+        let mock = MockConversations()
+        mock.sendError = ErrorSendMessage.transportFailure
+        let controller = makeController(mock, selfUserID: UUID())
+
+        let ok = await controller.postOnce("https://send.flipcash.com/c/#/e=x", to: ConversationID.test(1))
+
+        #expect(!ok)
+        #expect(controller.messages(for: ConversationID.test(1)).isEmpty)
+    }
+
+    @Test("an accepted postOnce shows the message as sent")
+    func postOnceSuccessKeepsMessage() async {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.sendResult = ConversationMessage(id: MessageID(value: 7), senderID: me, content: .text("link"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        let controller = makeController(mock, selfUserID: me)
+
+        #expect(await controller.postOnce("link", to: ConversationID.test(1)))
+
+        let messages = controller.messages(for: ConversationID.test(1))
+        #expect(messages.map(\.id.value) == [7])
+        #expect(messages.first?.status == .sent)
+    }
+
     @Test("retry re-sends the failed message reusing its client id")
     func retryReusesClientID() async throws {
         let me = UUID()

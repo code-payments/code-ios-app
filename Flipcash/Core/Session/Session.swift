@@ -1561,6 +1561,23 @@ class Session {
         }
     }
     
+    /// Funds a cash link for `exchangedFiat` without a bill on screen, returning the gift card
+    /// whose mnemonic is the link.
+    func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) async throws -> GiftCardCluster {
+        let payload = CashCode.Payload(
+            kind: .cashMulticurrency,
+            fiat: exchangedFiat.nativeAmount,
+            nonce: .nonce
+        )
+        let giftCard = try await createCashLink(
+            payload: payload,
+            exchangedFiat: exchangedFiat,
+            verifiedState: verifiedState
+        )
+        updatePostTransaction()
+        return giftCard
+    }
+
     func cancelCashLink(giftCardVault: PublicKey) async throws {
         try await client.voidCashLink(giftCardVault: giftCardVault, owner: ownerKeyPair)
         updatePostTransaction()

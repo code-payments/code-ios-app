@@ -300,9 +300,8 @@ struct DeepLinkAction {
 
         case .chatSendCash(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
-                // Only tip DMs resolve a send target now; contact/phone sends are no longer
-                // surfaced, and a group has no single payee (`SendTarget.init` returns nil for one,
-                // which is why a group push carries no Send Cash action to begin with).
+                // Only tip DMs take the Send Cash action; contact/phone sends are no longer
+                // surfaced, and a group push carries Reply alone (`ChatNotificationCategory`).
                 guard let target = SendTarget(
                     conversation: await container.conversationController.hydratedConversation(withID: conversationID),
                     dmChatID: conversationID.data,

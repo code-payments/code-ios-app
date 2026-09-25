@@ -12,9 +12,7 @@ import Foundation
 /// content extension (declares + handles them).
 ///
 /// There are two because the actions differ: a DM offers Reply and Send Cash, a group offers Reply
-/// alone. A group has no single payee, so Send Cash has nothing to resolve
-/// (``SendTarget/init(conversation:dmChatID:selfUserID:)`` returns nil for one) and the action must
-/// not be offered at all.
+/// alone. A group is paid by a cash link posted from inside the chat, never from a push action.
 public enum ChatNotificationCategory {
     public static let id = "CHAT_MESSAGE"
     public static let groupID = "CHAT_MESSAGE_GROUP"
