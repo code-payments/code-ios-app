@@ -47,18 +47,30 @@ public enum NotificationPayload {
     }
 
     /// The message a CHAT push carries inline, or `nil` when the push isn't a chat message, carries
-    /// no chat metadata, predates the server embedding the message, or carries content this client
-    /// can't represent.
+    /// no chat metadata, predates the server embedding the message, carries content this client
+    /// can't represent, or only carries the message's id (a long message — see
+    /// `Flipcash_Push_V1_ChatMetadata.messageRef`).
     ///
     /// The embedded message is the only part of a push that needs no network to become store rows.
     /// It carries the same `eventSequence` the transcript fetch would return for it, so it merges
     /// with a fetched message rather than competing with one.
+    ///
+    /// TODO(push/v1/model.proto ChatMetadata.message_ref): when only `messageID` is present, this
+    /// returns nil rather than fetching the message via `Messaging.GetMessage`. The notification
+    /// service extension's transcript prefetch (`NotificationService.cachePreview`) already fetches
+    /// the chat's recent messages independently of this value, so the id-only case is not silently
+    /// dropped in practice — it just doesn't get the "needs no network" fast path this doc comment
+    /// describes. Wire up a `GetMessage` fetch here (or at the call site) if that gap matters.
     public static func chatMessage(_ userInfo: [AnyHashable: Any]) -> ConversationMessage? {
         guard let payload = decode(userInfo), payload.category == .chat, payload.hasChatMetadata else {
             return nil
         }
-        guard payload.chatMetadata.hasMessage else { return nil }
-        return ConversationMessage(payload.chatMetadata.message)
+        switch payload.chatMetadata.messageRef {
+        case .message(let message):
+            return ConversationMessage(message)
+        case .messageID, nil:
+            return nil
+        }
     }
 
     /// Whether the recipient had the chat muted when a CHAT push was sent. The push is still
