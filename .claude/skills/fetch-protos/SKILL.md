@@ -144,7 +144,8 @@ in the existing `Error*(rawValue:)` mapping until a case is added.
 
 ### Step 6 — Scaffold new service stubs
 
-For RPCs the tracer marked as needing scaffolding, ask the user before generating.
+Scaffold the stubs the tracer flagged, and list them in the step-7 summary so the user can
+drop any before committing.
 Follow the existing iOS layering — there is **no** Repository/Controller/DI layer here;
 the chain is Service → Client extension → consumer.
 
@@ -268,5 +269,4 @@ feat: scaffold <domain> service for new RPCs
 - Give a streaming RPC a deadline (`.unaryDefault`). Streaming passes `.defaults`.
 - Interpolate variables (especially base58/keys) into log message strings — variables go in `metadata`.
 - Skip the build verification in Step 4.
-- Scaffold service code without asking the user first.
 - Commit without user approval.

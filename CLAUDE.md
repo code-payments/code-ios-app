@@ -63,9 +63,16 @@ and is linked from the map below. **Read the relevant doc before working in that
 
 ### Working Style
 
-- **Understand the context.** Take your time to understand how the changes _should_ fit into the complete project. Perhaps a refactor is required. Perhaps the current structure is not ideal. Take your time to identify this.
-- **Double-check your work.** Verify changes compile and don't break existing functionality.
-- **Ask clarifying questions.** When requirements are ambiguous or something is unclear or can have multiple meanings, don't assume. Ask clarifying questions where needed but try to keep these as concise and as minimal as possible.
+- **Understand the context.** Before editing, read the callers and neighbors of what you change. If the right fix needs a refactor beyond the task, say so in the report instead of doing it.
+- **Done means the Before Committing checklist passes** ([code-style.md](.claude/docs/code-style.md#before-committing)).
+- **Ask only when the answer would change what you build.** Otherwise pick the most reasonable reading, name it in the report, and keep going.
+
+### End-of-run report
+
+End every long run with three headings, in this order:
+- **Blocked on me** — decisions left open, approvals needed, anything the user must run (e.g. `AllTargets`). Write "Nothing" if empty.
+- **Changed** — files and commits, one line each.
+- **Found** — bugs, risks, or doc drift noticed along the way that were out of scope.
 
 ### Before Making Changes
 
