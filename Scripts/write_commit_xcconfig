@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
 # Writes the commit being built into Configurations/commit.local.xcconfig as
-# GIT_COMMIT_SHA, which the Flipcash Info.plist reads as FCGitCommit.
+# GIT_COMMIT_SHA, suffixed `*` for a local build with uncommitted changes to
+# tracked files. The Flipcash Info.plist reads it as FCGitCommit.
 #
 # Runs as a scheme pre-action (before build settings are read, so the value
 # lands in the same build) and from ci_scripts/ci_pre_xcodebuild.sh. It never
-# fails the build: when the commit can't be determined the file is left alone
-# and base.xcconfig's `unknown` default applies.
+# fails the build: when the commit can't be determined any stale file is
+# removed and base.xcconfig's `unknown` default applies.
 #
 # Usage: write_commit_xcconfig <source root>
 
@@ -27,10 +28,14 @@ if [ -n "$CI_COMMIT" ]; then
   DIRTY=""
 else
   COMMIT=$(git -C "$SOURCE_ROOT" rev-parse HEAD 2>/dev/null)
-  if [ -n "$(git -C "$SOURCE_ROOT" status --porcelain 2>/dev/null)" ]; then
-    DIRTY="-dirty"
-  else
+  # Tracked changes only, matching Android: untracked files never mark a build
+  # dirty. GoogleService-Info.plist is tracked but rewritten from secrets by the
+  # "Generate Google" phase on every build, so it doesn't count either.
+  if git -C "$SOURCE_ROOT" diff --quiet HEAD -- . \
+    ':(exclude)Flipcash/Supporting Files/GoogleService-Info.plist' 2>/dev/null; then
     DIRTY=""
+  else
+    DIRTY="*"
   fi
 fi
 

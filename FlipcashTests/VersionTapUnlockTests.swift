@@ -13,10 +13,10 @@ struct VersionTapUnlockTests {
 
     /// Taps `count` times against a locked state, reporting how many taps
     /// toggled and the message left standing.
-    private func tap(_ unlock: VersionTapUnlock, times count: Int, isUnlocked: Bool = false, otherwise: String? = nil) -> Int {
+    private func tap(_ unlock: VersionTapUnlock, times count: Int, isUnlocked: Bool = false) -> Int {
         var toggles = 0
         for _ in 0..<count {
-            unlock.registerTap(isUnlocked: isUnlocked, otherwise: otherwise) { toggles += 1 }
+            unlock.registerTap(isUnlocked: isUnlocked) { toggles += 1 }
         }
         return toggles
     }
@@ -26,23 +26,6 @@ struct VersionTapUnlockTests {
         let unlock = VersionTapUnlock()
         #expect(tap(unlock, times: 6) == 0)
         #expect(unlock.message == nil)
-    }
-
-    @Test("An early tap shows the caller's message instead")
-    func earlyTap_showsOtherwise() {
-        let unlock = VersionTapUnlock()
-        #expect(tap(unlock, times: 1, otherwise: "Copied") == 0)
-        #expect(unlock.message == "Copied")
-    }
-
-    @Test("The countdown speaks over the caller's message")
-    func countdown_winsOverOtherwise() {
-        let unlock = VersionTapUnlock()
-        _ = tap(unlock, times: 7, otherwise: "Copied")
-        #expect(unlock.message == "You are now 3 steps away from being a developer")
-
-        #expect(tap(unlock, times: 3, otherwise: "Copied") == 1)
-        #expect(unlock.message == "You are now a developer!")
     }
 
     @Test("The countdown starts three taps out")

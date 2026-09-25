@@ -12,7 +12,10 @@ Open `Code.xcodeproj` in Xcode 16.x. Swift packages resolve automatically on fir
 pre-action (pre-actions run before build settings are read, so the value lands in the same
 build; a Run Script phase would be one build stale and can't reach `.git` under
 `ENABLE_USER_SCRIPT_SANDBOXING`) and from `ci_scripts/ci_pre_xcodebuild.sh`, which prefers
-`CI_COMMIT` and never marks the build dirty. `base.xcconfig` defaults it to `unknown`. Don't
+`CI_COMMIT` and never marks the build dirty. Locally, `*` marks uncommitted changes to tracked
+files (`git diff --quiet HEAD`, excluding the generated `GoogleService-Info.plist`), the same rule
+Android uses. `base.xcconfig` defaults it to `unknown`. The footer format is shared with Android:
+keep `AppMeta.versionFooter` and Android's `VersionInfo.commitLabel` in step. Don't
 change `CFBundleVersion` for this: `SessionAuthenticator.requiresUpgrade` parses it.
 
 ## Protos: consumed, not generated here
