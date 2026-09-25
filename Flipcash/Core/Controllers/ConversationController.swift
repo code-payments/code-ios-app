@@ -1193,6 +1193,11 @@ final class ConversationController {
 
         case .deleted:
             return nil
+
+        case .encrypted:
+            // No plaintext to preview -- the row still surfaces (it's still the newest activity),
+            // just with a blank subtitle, same as an empty text body above.
+            return nil
         }
     }
 

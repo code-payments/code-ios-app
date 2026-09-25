@@ -510,6 +510,31 @@ struct ConversationMessageMetadataTests {
         #expect(message.lastEditedTs == nil)
     }
 
+    @Test("Encrypted content maps to .encrypted, keeping scheme, nonce, and ciphertext")
+    func encryptedMessageParses() throws {
+        let nonce = Data(repeating: 0xCD, count: 24)
+        let ciphertext = Data([0x0A, 0x0B, 0x0C])
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 14 }
+            $0.content = [.with {
+                $0.encrypted = .with {
+                    $0.scheme = .x25519Xchacha20Poly1305
+                    $0.nonce = nonce
+                    $0.ciphertext = ciphertext
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        guard case .encrypted(let scheme, let gotNonce, let gotCiphertext) = message.content else {
+            Issue.record("Expected encrypted content")
+            return
+        }
+        #expect(scheme == Flipcash_Messaging_V1_EncryptedContent.Scheme.x25519Xchacha20Poly1305.rawValue)
+        #expect(gotNonce == nonce)
+        #expect(gotCiphertext == ciphertext)
+    }
+
     @Test("replacingContent preserves identity and ordering")
     func replacingContentPreservesIdentity() {
         let original = ConversationMessage(

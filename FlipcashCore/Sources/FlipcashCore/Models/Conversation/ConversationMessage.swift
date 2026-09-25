@@ -48,6 +48,12 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         case text(String)
         case cash(ExchangedFiat)
         case deleted(Deletion)
+        /// End-to-end-encrypted content this client cannot decrypt (decryption isn't implemented
+        /// yet -- a cross-platform parity hotspot). `scheme` is the wire `EncryptedContent.Scheme`
+        /// raw value, kept as `Int` so this model doesn't depend on the generated proto enum.
+        /// Stored verbatim -- nonce and ciphertext are never inspected -- so the message round-trips
+        /// byte for byte back to the wire on re-send/edit, and renders as an "unsupported" bubble.
+        case encrypted(scheme: Int, nonce: Data, ciphertext: Data)
     }
 
     public let id: MessageID
@@ -196,10 +202,20 @@ extension ConversationMessage {
             self.content = .text(textContent.text)
             self.cashAction = nil
             repliedTo = replyContent.hasRepliedMessageID ? MessageID(replyContent.repliedMessageID) : nil
-        // EncryptedContent is a cross-platform parity hotspot (X25519/HKDF/XChaCha20); decrypting
-        // it is not implemented here. It renders the same as any other content this client can't
-        // represent: the message is dropped rather than shown, same as `.media`/`.system` today.
-        case .media, .system, .encrypted, .none:
+        case .encrypted(let encryptedContent):
+            // EncryptedContent is a cross-platform parity hotspot (X25519/HKDF/XChaCha20); decrypting
+            // it is not implemented here. Unlike `.media`/`.system`, the message is kept -- stored
+            // verbatim and rendered as an "unsupported" bubble -- so it doesn't silently vanish from
+            // the transcript the way Android's client no longer does either.
+            self.content = .encrypted(
+                scheme: encryptedContent.scheme.rawValue,
+                nonce: encryptedContent.nonce,
+                ciphertext: encryptedContent.ciphertext
+            )
+            self.cashAction = nil
+            repliedTo = nil
+        // `.media`/`.system` are dropped by design: the message is not stored and not shown.
+        case .media, .system, .none:
             return nil
         }
 

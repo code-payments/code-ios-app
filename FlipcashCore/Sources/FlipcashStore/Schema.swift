@@ -349,6 +349,11 @@ nonisolated public struct ConversationMessageTable: Sendable {
     // because the schema version can only be bumped once per rebuild, and adding it later would
     // cost users a second full resync.
     public let repliedToId    = Expression <UInt64?>       ("repliedToId")
+    // `.encrypted` content, decomposed the way cash amounts are. All three nil for a non-encrypted
+    // row. `encryptedScheme` is the wire `EncryptedContent.Scheme` raw value.
+    public let encryptedScheme     = Expression <Int?>     ("encryptedScheme")
+    public let encryptedNonce      = Expression <Data?>    ("encryptedNonce")
+    public let encryptedCiphertext = Expression <Data?>    ("encryptedCiphertext")
     // When the sender last edited this message; nil if never edited.
     public let lastEditedTs   = Expression <Double?>       ("lastEditedTs")
     // Tombstone detail. Both nil for a message that has not been deleted.
@@ -622,6 +627,9 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.lastEditedTs)
                 t.column(conversationMessageTable.deletedBy)
                 t.column(conversationMessageTable.deletedAt)
+                t.column(conversationMessageTable.encryptedScheme)
+                t.column(conversationMessageTable.encryptedNonce)
+                t.column(conversationMessageTable.encryptedCiphertext)
                 t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
             })
         }

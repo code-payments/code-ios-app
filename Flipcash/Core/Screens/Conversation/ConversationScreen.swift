@@ -895,6 +895,8 @@ struct ConversationScreen: View {
             )
         case .deleted:
             (ChatQuote.deletedSnippet, .unavailable)
+        case .encrypted:
+            (ChatQuote.unavailableSnippet, .unavailable)
         }
     }
 
@@ -980,7 +982,7 @@ struct ConversationScreen: View {
         case .cash(let fiat):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: fiat.mint)
             router.push(.currencyInfo(fiat.mint))
-        case .text, .deleted:
+        case .text, .deleted, .encrypted:
             break
         }
     }
