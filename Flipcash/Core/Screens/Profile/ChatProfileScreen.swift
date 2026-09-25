@@ -164,7 +164,9 @@ struct ChatProfileScreen: View {
         }
         .dialog(item: $dialogItem)
         .sheet(isPresented: $isInviting) {
-            GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting)
+            GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting) { chatID in
+                router.push(.tipConversation(chatID))
+            }
         }
         .task {
             await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
