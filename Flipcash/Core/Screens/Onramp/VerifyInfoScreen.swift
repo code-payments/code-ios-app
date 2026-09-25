@@ -77,11 +77,11 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
         .task {
             switch initialStep {
             case .intro:
-                break // The intro tracks showEnterPhone when the user proceeds.
+                break // The intro tracks the enter-phone step when the user proceeds.
             case .enterPhoneNumber, .confirmPhoneNumberCode:
-                Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
+                Analytics.onrampStep(.enterPhone)
             case .enterEmail, .confirmEmailCode:
-                Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
+                Analytics.onrampStep(.enterEmail)
             }
         }
     }

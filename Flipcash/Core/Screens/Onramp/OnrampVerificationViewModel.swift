@@ -102,7 +102,7 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
         phoneVerifier.onCodeRequested = { [weak self] in
             guard let self else { return }
             advance(to: .confirmPhoneNumberCode)
-            Analytics.track(event: Analytics.OnrampEvent.showConfirmPhone)
+            Analytics.onrampStep(.confirmPhone)
         }
         phoneVerifier.onVerified = { [weak self] in
             self?.navigateToEmailOrFinish()
@@ -110,7 +110,7 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
         emailVerifier.onCodeRequested = { [weak self] in
             guard let self else { return }
             advance(to: .confirmEmailCode)
-            Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
+            Analytics.onrampStep(.confirmEmail)
         }
         emailVerifier.onVerified = { [weak self] in
             self?.finish()
@@ -164,23 +164,23 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
             return .intro
         }
         if needsPhone {
-            Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
+            Analytics.onrampStep(.enterPhone)
             return .enterPhoneNumber
         }
-        Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
+        Analytics.onrampStep(.enterEmail)
         return .enterEmail
     }
 
     /// Advances from the intro to the first real step. The intro only appears
     /// when both phone and email are needed, so phone entry is always next.
     func proceedFromIntro() {
-        Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
+        Analytics.onrampStep(.enterPhone)
         advance(to: .enterPhoneNumber)
     }
 
     private func navigateToEmailOrFinish() {
         if !emailVerifier.isAlreadyVerified {
-            Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
+            Analytics.onrampStep(.enterEmail)
             advance(to: .enterEmail)
             return
         }

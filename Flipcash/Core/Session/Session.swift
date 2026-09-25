@@ -373,7 +373,7 @@ class Session {
         Task { await linkPhoneForPaymentIfNeeded() }
 
         if didLinkPhone {
-            Analytics.track(event: Analytics.PhoneEvent.linked)
+            Analytics.phoneNumberLinked()
         }
     }
 
@@ -1153,7 +1153,7 @@ class Session {
             
             do {
                 // Track grab initiation to measure the start-to-completion funnel
-                Analytics.transferStart(event: .grabBillStart)
+                Analytics.grabBillStarted()
 
                 let metadata = try await operation.start()
 
@@ -1358,7 +1358,7 @@ class Session {
         // Only for outgoing bills — received bills are displayed after a
         // successful grab and don't represent a new give action.
         if !billDescription.received {
-            Analytics.transferStart(event: .giveBillStart)
+            Analytics.giveBillStarted()
         }
 
         Task { [weak self] in

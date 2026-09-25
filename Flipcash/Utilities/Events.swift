@@ -13,25 +13,33 @@ import FlipcashCore
 extension Analytics {
     enum GeneralEvent: String, AnalyticsEvent {
         case autoLoginComplete     = "Auto-login complete"
-        case completeOnboarding    = "Complete Onboarding"
     }
 
     enum AccountEvent: String, AnalyticsEvent {
         case createAccount = "Create Account"
     }
 
-    enum ButtonEvent: String, AnalyticsEvent {
-        case createAccount  = "Button: Create Account"
-        case saveAccessKey  = "Button: Save Access Key"
-        case wroteAccessKey = "Button: Wrote Access Key"
-        case allowCamera    = "Button: Allow Camera"
-        case allowPush        = "Button: Allow Push"
-        case skipPush         = "Button: Skip Push"
-        case buyWithReserves  = "Button: Buy With Reserves"
-        case buyWithCurrency  = "Button: Buy With Currency"
-        case give             = "Button: Give"
-        case sell             = "Button: Sell"
-        case shareTokenInfo   = "Button: Share Token Info"
+    /// A tapped button. Most are built by the shared contract; the rest are iOS-only or
+    /// unused and keep their names here.
+    enum ButtonEvent {
+        case createAccount
+        case saveAccessKey
+        case wroteAccessKey
+        case allowCamera
+        case allowPush
+        case skipPush
+        case buyWithReserves
+        case buyWithCurrency
+        case give
+        case sell
+        case shareTokenInfo
+    }
+
+    fileprivate enum NativeButtonEvent: String, AnalyticsEvent {
+        case allowCamera     = "Button: Allow Camera"
+        case buyWithCurrency = "Button: Buy With Currency"
+        case give            = "Button: Give"
+        case sell            = "Button: Sell"
     }
 
     enum TransferEvent: String, AnalyticsEvent {
@@ -42,15 +50,24 @@ extension Analytics {
         case receiveCashLink = "Receive Cash Link"
         case grabBill        = "Grab Bill"
         case giveBill        = "Give Bill"
-        case grabBillStart   = "Grab Bill Start"
-        case giveBillStart   = "Give Bill Start"
     }
 
-    enum OnrampEvent: String, AnalyticsEvent {
-        case showEnterPhone       = "Onramp: Show Enter Phone"
-        case showConfirmPhone     = "Onramp: Show Confirm Phone"
-        case showEnterEmail       = "Onramp: Show Enter Email"
-        case showConfirmEmail     = "Onramp: Show Confirm Email"
+    /// An onramp verification screen, sent as `Onramp: Show <step>`.
+    enum OnrampStep {
+        case enterPhone
+        case confirmPhone
+        case enterEmail
+        case confirmEmail
+
+        /// The shared contract's step for this screen.
+        var shared: SharedCoreKit.OnrampStep {
+            switch self {
+            case .enterPhone:   .enterPhone
+            case .confirmPhone: .confirmPhone
+            case .enterEmail:   .enterEmail
+            case .confirmEmail: .confirmEmail
+            }
+        }
     }
 
     enum SendEvent: String, AnalyticsEvent {
@@ -59,16 +76,14 @@ extension Analytics {
     }
 
     enum ConversationEvent: String, AnalyticsEvent {
-        case sentMessage     = "Sent Message"
-        case tipReceived     = "Tip Received"
-        case messageReceived = "Message Received"
+        case tipReceived = "Tip Received"
     }
 
     /// The display name a user is known by. `Set` is a first name, `Updated` a
     /// replacement — decided by whether a name already existed, not by the screen.
-    enum DisplayNameEvent: String, AnalyticsEvent {
-        case set     = "Display Name Set"
-        case updated = "Display Name Updated"
+    enum DisplayNameEvent {
+        case set
+        case updated
     }
 
     /// The surface a display-name submission came from.
@@ -78,16 +93,7 @@ extension Analytics {
         case tipCardSetup
     }
 
-    /// The scanned-tipcard funnel: a tipcard is scanned, resolves and is
-    /// presented, then a tip is sent (`TransferEvent.sentTip`). Names are
-    /// shared verbatim with Android.
-    enum TipCardEvent: String, AnalyticsEvent {
-        case scanned   = "Tip Card Scanned"
-        case presented = "Tip Card Presented"
-    }
-
     enum GalleryScanEvent: String, AnalyticsEvent {
-        case picked       = "Gallery Scan: Image Picked"
         case codeFound    = "Gallery Scan: Code Found"
         case nothingFound = "Gallery Scan: Nothing Found"
     }
@@ -100,12 +106,6 @@ extension Analytics {
         case routeRefused = "Route Refused"
     }
 
-    enum PhoneEvent: String, AnalyticsEvent {
-        case entered  = "Entered Phone Number"
-        case verified = "Verified Phone Number"
-        case linked   = "Linked Phone Number"
-    }
-
     enum WalletEvent: String, AnalyticsEvent {
         case connect               = "Wallet: Connect"
         case requestAmount         = "Wallet: Request Amount"
@@ -114,11 +114,18 @@ extension Analytics {
         case cancel                = "Wallet: Cancel"
     }
 
-    enum TokenInfoEvent: String, AnalyticsEvent {
-        case openedFromDeeplink = "Token Info: Opened From Deeplink"
-        case openedFromWallet   = "Token Info: Opened From Wallet"
-        case openedFromGive     = "Token Info: Opened From Give"
-        case openedFromSend     = "Token Info: Opened From Send"
+    /// Where Token Info was opened from. Deeplink and Wallet are built by the shared
+    /// contract; Give and Send are iOS-only and keep their names here.
+    enum TokenInfoEvent {
+        case openedFromDeeplink
+        case openedFromWallet
+        case openedFromGive
+        case openedFromSend
+    }
+
+    fileprivate enum NativeTokenInfoEvent: String, AnalyticsEvent {
+        case openedFromGive = "Token Info: Opened From Give"
+        case openedFromSend = "Token Info: Opened From Send"
     }
 
     enum TokenTransactionEvent: String, AnalyticsEvent {
@@ -134,7 +141,6 @@ extension Analytics {
     }
 
     enum DeeplinkEvent: String, AnalyticsEvent {
-        case open   = "Deeplink: Open"
         case parse  = "Deeplink: Parse"
         case routed = "Deeplink: Routed"
     }
@@ -143,24 +149,34 @@ extension Analytics {
     /// terminal event with State/Error properties. Names are shared verbatim
     /// with Android.
     enum AddMoneyEvent: String, AnalyticsEvent {
-        case opened          = "Add Money: Opened"
         case methodSelected  = "Add Money: Method Selected"
         case amountConfirmed = "Add Money: Amount Confirmed"
         case paymentInvoked  = "Add Money: Payment Invoked"
-        case addressCopied   = "Add Money: Address Copied"
         case terminal        = "Add Money"
     }
 
-    /// The `Source` property of `AddMoneyEvent.opened` — where the user
-    /// entered the flow. Values are shared verbatim with Android.
-    enum AddMoneySource: String {
-        case menu              = "Menu"
-        case giveShortfall     = "Give Shortfall"
-        case buyShortfall      = "Buy Shortfall"
-        case usernameShortfall = "Username Shortfall"
-        case chat              = "Chat"
-        case scanner           = "Scanner"
-        case balance           = "Balance"
+    /// Where the user entered the Add Money flow, sent as the `Source` of Add Money: Opened.
+    enum AddMoneySource {
+        case menu
+        case giveShortfall
+        case buyShortfall
+        case usernameShortfall
+        case chat
+        case scanner
+        case balance
+
+        /// The shared contract's `Source` value for this entry point.
+        var shared: SharedCoreKit.AddMoneySource {
+            switch self {
+            case .menu:              .menu
+            case .giveShortfall:     .giveShortfall
+            case .buyShortfall:      .buyShortfall
+            case .usernameShortfall: .usernameShortfall
+            case .chat:              .chat
+            case .scanner:           .scanner
+            case .balance:           .balance
+            }
+        }
     }
 }
 
@@ -168,7 +184,19 @@ extension Analytics {
 
 extension Analytics {
     static func buttonTapped(name: ButtonEvent) {
-        track(event: name)
+        switch name {
+        case .createAccount:   track(ButtonEvents.shared.tapped(button: .createAccount))
+        case .saveAccessKey:   track(ButtonEvents.shared.tapped(button: .saveAccessKey))
+        case .wroteAccessKey:  track(ButtonEvents.shared.tapped(button: .wroteAccessKey))
+        case .allowPush:       track(ButtonEvents.shared.tapped(button: .allowPush))
+        case .skipPush:        track(ButtonEvents.shared.tapped(button: .skipPush))
+        case .buyWithReserves: track(ButtonEvents.shared.tapped(button: .buyWithReserves))
+        case .shareTokenInfo:  track(ButtonEvents.shared.tapped(button: .shareTokenInfo))
+        case .allowCamera:     track(event: NativeButtonEvent.allowCamera)
+        case .buyWithCurrency: track(event: NativeButtonEvent.buyWithCurrency)
+        case .give:            track(event: NativeButtonEvent.give)
+        case .sell:            track(event: NativeButtonEvent.sell)
+        }
     }
 }
 
@@ -185,12 +213,59 @@ extension Analytics {
     }
 }
 
+// MARK: - Onramp -
+
+extension Analytics {
+    /// An onramp verification screen was shown.
+    static func onrampStep(_ step: OnrampStep) {
+        track(OnrampEvents.shared.step(step: step.shared))
+    }
+}
+
+// MARK: - Phone & Onboarding -
+
+extension Analytics {
+    /// The user submitted a phone number for verification.
+    static func phoneNumberEntered() {
+        track(AccountEvents.shared.enteredPhoneNumber())
+    }
+
+    /// The user confirmed a phone number with its code.
+    static func phoneNumberVerified() {
+        track(AccountEvents.shared.verifiedPhoneNumber())
+    }
+
+    /// A verified phone number was linked to the account.
+    static func phoneNumberLinked() {
+        track(AccountEvents.shared.linkedPhoneNumber())
+    }
+
+    /// The user finished onboarding and was logged in.
+    static func onboardingCompleted() {
+        track(AccountEvents.shared.completeOnboarding())
+    }
+}
+
+// MARK: - Tip Card -
+
+extension Analytics {
+    /// A tip card code was scanned.
+    static func tipCardScanned() {
+        track(ScanEvents.shared.tipCardScanned())
+    }
+
+    /// A scanned tip card resolved and was presented.
+    static func tipCardPresented() {
+        track(ScanEvents.shared.tipCardPresented())
+    }
+}
+
 // MARK: - Gallery Scan -
 
 extension Analytics {
     /// A picked image is about to be searched.
     static func galleryScanStarted() {
-        track(event: GalleryScanEvent.picked)
+        track(ScanEvents.shared.galleryImagePicked())
     }
 
     /// A Kik code was found, and how deep in the ladder it was. The tier and zoom are the
@@ -251,8 +326,14 @@ private extension Analytics {
 // MARK: - Cash Transfer -
 
 extension Analytics {
-    static func transferStart(event: TransferEvent) {
-        track(event: event)
+    /// A bill grab started.
+    static func grabBillStarted() {
+        track(TransferEvents.shared.grabBillStart())
+    }
+
+    /// A bill give started.
+    static func giveBillStarted() {
+        track(TransferEvents.shared.giveBillStart())
     }
 
     static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
@@ -311,20 +392,20 @@ extension Analytics {
     /// A successful `SetDisplayName`. `hadPreviousName` is read *before* the RPC —
     /// after it, every submission looks like a replacement.
     static func displayNameSubmitted(source: DisplayNameSource, hadPreviousName: Bool) {
-        track(
-            event: displayNameEvent(hadPreviousName: hadPreviousName),
-            properties: [.source: source.analyticsValue]
-        )
+        switch displayNameEvent(hadPreviousName: hadPreviousName) {
+        case .set:     track(DisplayNameEvents.shared.set(source: source.shared))
+        case .updated: track(DisplayNameEvents.shared.updated(source: source.shared))
+        }
     }
 }
 
 extension Analytics.DisplayNameSource {
-    /// The `Source` property value, shared verbatim with Android.
-    var analyticsValue: String {
+    /// The shared contract's source for this surface.
+    var shared: SharedCoreKit.DisplayNameSource {
         switch self {
-        case .onboarding:   "Onboarding"
-        case .myAccount:    "My Account"
-        case .tipCardSetup: "Tip Card Setup"
+        case .onboarding:   .onboarding
+        case .myAccount:    .myAccount
+        case .tipCardSetup: .tipCardSetup
         }
     }
 }
@@ -335,11 +416,7 @@ extension Analytics {
     /// A chat message send. `Chat Type` mirrors Android — Tip / Contact /
     /// Unknown (a conversation not resolved locally yet).
     static func sentMessage(chatType: ConversationType?, error: Error? = nil) {
-        track(
-            event: ConversationEvent.sentMessage,
-            properties: [.chatType: chatType.analyticsValue],
-            error: error
-        )
+        track(ChatEvents.shared.sentMessage(chatType: chatType.sharedChatType, error: nil), error: error)
     }
 
     /// An inbound tipped Cash message the user has now read. Mutually exclusive with
@@ -352,7 +429,7 @@ extension Analytics {
 
     /// An inbound non-tip message the user has now read.
     static func messageReceived(chatType: ConversationType?) {
-        track(event: ConversationEvent.messageReceived, properties: [.chatType: chatType.analyticsValue])
+        track(ChatEvents.shared.messageReceived(chatType: chatType.sharedChatType))
     }
 }
 
@@ -366,13 +443,23 @@ private extension Optional where Wrapped == ConversationType {
         case .none:      "Unknown"
         }
     }
+
+    /// The shared contract's `Chat Type`, which names the same four values.
+    var sharedChatType: ChatType {
+        switch self {
+        case .contactDm: .contact
+        case .tipDm:     .tip
+        case .group:     .group
+        case .none:      .unknown
+        }
+    }
 }
 
 // MARK: - Add Money -
 
 extension Analytics {
     static func addMoneyOpened(source: AddMoneySource) {
-        track(event: AddMoneyEvent.opened, properties: [.source: source.rawValue])
+        track(AddMoneyEvents.shared.opened(source: source.shared))
     }
 
     static func addMoneyMethodSelected(method: DepositMethod) {
@@ -392,7 +479,7 @@ extension Analytics {
     }
 
     static func addMoneyAddressCopied(mint: PublicKey) {
-        track(event: AddMoneyEvent.addressCopied, properties: [.mint: mint.base58])
+        track(AddMoneyEvents.shared.addressCopied(mint: mint.base58))
     }
 
     static func addMoney(method: DepositMethod, exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
@@ -431,7 +518,16 @@ extension Analytics {
 
 extension Analytics {
     static func tokenInfoOpened(from event: TokenInfoEvent, mint: PublicKey) {
-        track(event: event, properties: [.mint: mint.base58])
+        switch event {
+        case .openedFromDeeplink:
+            track(TokenInfoEvents.shared.opened(source: .deeplink, mint: mint.base58))
+        case .openedFromWallet:
+            track(TokenInfoEvents.shared.opened(source: .wallet, mint: mint.base58))
+        case .openedFromGive:
+            track(event: NativeTokenInfoEvent.openedFromGive, properties: [.mint: mint.base58])
+        case .openedFromSend:
+            track(event: NativeTokenInfoEvent.openedFromSend, properties: [.mint: mint.base58])
+        }
     }
 }
 
@@ -488,9 +584,7 @@ extension Analytics {
 
 extension Analytics {
     static func deeplinkOpened(url: URL) {
-        track(event: DeeplinkEvent.open, properties: [
-            .url: url.sanitizedForAnalytics,
-        ])
+        track(DeeplinkEvents.shared.open(url: url.sanitizedForAnalytics))
     }
 
     static func deeplinkParsed(action: DeepLinkAction?, url: URL) {
@@ -523,7 +617,6 @@ extension Analytics {
         case grabTime          = "Grab Time"
 
         case state             = "State"
-        case source            = "Source"
         case method            = "Method"
         case quarks            = "Quarks"
         case mint              = "Mint"
@@ -537,7 +630,6 @@ extension Analytics {
         case type              = "Type"
         case chatType          = "Chat Type"
         case error             = "Error"
-        case url               = "URL"
 
         case tier              = "Tier"
         case zoom              = "Zoom"

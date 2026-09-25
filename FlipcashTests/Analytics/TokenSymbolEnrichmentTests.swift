@@ -60,4 +60,24 @@ struct TokenSymbolEnrichmentTests {
         #expect(enriched[.paymentTokenSymbol] == nil)
         #expect(enriched.count == 1)
     }
+
+    @Test("Name-keyed properties gain both symbols under their Mixpanel names")
+    func nameKeyedMintsResolve() {
+        let properties: [String: AnalyticsValue] = [
+            "Mint": "target",
+            "Payment Mint": "payment",
+        ]
+        let enriched = Analytics.withTokenSymbols(properties) { base58 in
+            base58 == "target" ? "FLIP" : "USDF"
+        }
+        #expect(enriched["Token Symbol"] as? String == "FLIP")
+        #expect(enriched["Payment Token Symbol"] as? String == "USDF")
+    }
+
+    @Test("A name-keyed unresolvable mint omits the symbol entirely")
+    func nameKeyedUnresolvedMintOmitsSymbol() {
+        let properties: [String: AnalyticsValue] = ["Mint": "SomeMint"]
+        let enriched = Analytics.withTokenSymbols(properties) { _ in nil }
+        #expect(enriched.count == 1)
+    }
 }
