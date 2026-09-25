@@ -142,10 +142,10 @@ struct GroupInviteSheet: View {
         .padding(16)
     }
 
-    /// Share and Copy Invite Link, as the profile's action buttons. The design's own tiles wait on a
-    /// shared component (spec: "reuse the profile's for now").
+    /// Share and Copy Invite Link, as the profile's action buttons, laid out as the profile lays
+    /// out its own: fixed columns side by side, centred.
     private var shareTiles: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 0) {
             ProfileActionButton(title: "Share") {
                 Image.asset(.shareOS)
                     .renderingMode(.template)
@@ -155,7 +155,6 @@ struct GroupInviteSheet: View {
                     activityItem: GroupInviteShareItem(url: model.url, title: title, icon: icon())
                 ) { _ in }
             }
-            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("group-invite-send")
 
             ProfileActionButton(title: didCopy ? "Copied" : "Copy Invite Link") {
@@ -168,9 +167,9 @@ struct GroupInviteSheet: View {
             } action: {
                 copy()
             }
-            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("group-invite-copy")
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var sectionHeader: some View {
