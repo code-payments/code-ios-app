@@ -122,6 +122,8 @@ struct MigratedEventsTests {
     @Test("Token Info is named after where it opened from", arguments: [
         (Analytics.TokenInfoEvent.openedFromDeeplink, "Token Info: Opened From Deeplink"),
         (.openedFromWallet, "Token Info: Opened From Wallet"),
+        (.openedFromDiscovery, "Token Info: Opened From Discovery"),
+        (.openedFromChat, "Token Info: Opened From Chat"),
     ])
     func tokenInfoOpened(_ source: Analytics.TokenInfoEvent, _ expected: String) throws {
         let sent = Analytics.recordingSends { Analytics.tokenInfoOpened(from: source, mint: .jeffy) }

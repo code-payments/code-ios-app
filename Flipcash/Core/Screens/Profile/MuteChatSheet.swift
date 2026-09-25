@@ -29,8 +29,8 @@ struct MuteChatSheet: View {
 
     /// What a row on this sheet does.
     private enum Option: Hashable {
-        /// Mute until now plus this offset.
-        case until(TimeInterval)
+        /// Mute until now plus this offset, reported to analytics as `duration`.
+        case until(TimeInterval, duration: MuteDuration)
         /// Mute with no end.
         case forever
         /// Clear the mute.
@@ -43,9 +43,9 @@ struct MuteChatSheet: View {
     /// The set is WhatsApp's (8 hours, 1 week, Always) plus Telegram's 1 hour, which is the shortest
     /// option either offers and the one a noisy group most often wants.
     private static let durations: [(title: String, option: Option)] = [
-        ("1 Hour", .until(60 * 60)),
-        ("8 Hours", .until(8 * 60 * 60)),
-        ("1 Week", .until(7 * 24 * 60 * 60)),
+        ("1 Hour", .until(60 * 60, duration: .oneHour)),
+        ("8 Hours", .until(8 * 60 * 60, duration: .eightHours)),
+        ("1 Week", .until(7 * 24 * 60 * 60, duration: .oneWeek)),
         ("Always", .forever),
     ]
 
@@ -143,7 +143,7 @@ struct MuteChatSheet: View {
 
     private func identifier(for option: Option) -> String {
         switch option {
-        case .until(let duration): "\(Int(duration))"
+        case .until(let offset, _): "\(Int(offset))"
         case .forever: "forever"
         case .never: "never"
         }
@@ -156,17 +156,20 @@ struct MuteChatSheet: View {
         pinnedOffersUnmute = offersUnmute
         isWorking = true
         defer { isWorking = false }
+        let chatType = conversationController.conversation(withID: conversationID)?.type
         do {
             switch option {
-            case .until(let duration):
-                try await conversationController.mute(conversationID: conversationID, .until(.now.addingTimeInterval(duration)))
+            case .until(let offset, _):
+                try await conversationController.mute(conversationID: conversationID, .until(.now.addingTimeInterval(offset)))
             case .forever:
                 try await conversationController.mute(conversationID: conversationID, .forever)
             case .never:
                 try await conversationController.unmute(conversationID: conversationID)
             }
+            track(option, chatType: chatType, error: nil)
             isPresented = false
         } catch {
+            track(option, chatType: chatType, error: error)
             isPresented = false
             let unmuting = option == .never
             sessionContainer.session.dialogItem = .error(
@@ -176,6 +179,15 @@ struct MuteChatSheet: View {
                     : "We were unable to mute this chat. Please try again"
             )
             ErrorReporting.captureError(error, reason: unmuting ? "Failed to unmute chat" : "Failed to mute chat")
+        }
+    }
+
+    /// Reports what the mute or unmute call returned; `error` is nil on success.
+    private func track(_ option: Option, chatType: ConversationType?, error: Error?) {
+        switch option {
+        case .until(_, let duration): Analytics.chatMuted(chatType: chatType, duration: duration, error: error)
+        case .forever:                Analytics.chatMuted(chatType: chatType, duration: .always, error: error)
+        case .never:                  Analytics.chatUnmuted(chatType: chatType, error: error)
         }
     }
 }

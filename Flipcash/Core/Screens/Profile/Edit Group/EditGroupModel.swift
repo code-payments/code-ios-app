@@ -98,11 +98,13 @@ final class EditGroupModel {
         isSaving = true
         defer { isSaving = false }
 
-        return try await editor.editChat(
-            conversationID: conversationID,
-            title: title,
-            pictureBlobID: nil
-        )
+        return try await Self.tracked(.name) {
+            try await editor.editChat(
+                conversationID: conversationID,
+                title: title,
+                pictureBlobID: nil
+            )
+        }
     }
 
     /// Uploads the picked picture, waits for the server to finalize it, then sends it alone and
@@ -121,11 +123,28 @@ final class EditGroupModel {
 
         let blobID = try await uploadPicture(using: editor)
 
-        return try await editor.editChat(
-            conversationID: conversationID,
-            title: nil,
-            pictureBlobID: blobID
-        )
+        return try await Self.tracked(.picture) {
+            try await editor.editChat(
+                conversationID: conversationID,
+                title: nil,
+                pictureBlobID: blobID
+            )
+        }
+    }
+
+    /// Runs the `EditChat` call and reports what it returned as a `field` edit.
+    private static func tracked(
+        _ field: GroupField,
+        _ editChat: () async throws -> Conversation
+    ) async throws -> Conversation {
+        do {
+            let conversation = try await editChat()
+            Analytics.groupEdited(field: field, error: nil)
+            return conversation
+        } catch {
+            Analytics.groupEdited(field: field, error: error)
+            throw error
+        }
     }
 
     /// Stores and finalizes the picture, returning the blob `EditChat` should carry. A rejected

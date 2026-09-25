@@ -114,11 +114,13 @@ extension Analytics {
         case cancel                = "Wallet: Cancel"
     }
 
-    /// Where Token Info was opened from. Deeplink and Wallet are built by the shared
-    /// contract; Give and Send are iOS-only and keep their names here.
+    /// Where Token Info was opened from. Deeplink, Wallet, Discovery and Chat are built by the
+    /// shared contract; Give and Send are iOS-only and keep their names here.
     enum TokenInfoEvent {
         case openedFromDeeplink
         case openedFromWallet
+        case openedFromDiscovery
+        case openedFromChat
         case openedFromGive
         case openedFromSend
     }
@@ -431,6 +433,174 @@ extension Analytics {
     static func messageReceived(chatType: ConversationType?) {
         track(ChatEvents.shared.messageReceived(chatType: chatType.sharedChatType))
     }
+
+    /// `MuteChat` returned; `error` is nil on success.
+    static func chatMuted(chatType: ConversationType?, duration: MuteDuration, error: Error?) {
+        track(ChatEvents.shared.muted(
+            chatType: chatType.sharedChatType,
+            duration: duration,
+            state: .from(error),
+            error: error.map(chatResult)
+        ))
+    }
+
+    /// `UnmuteChat` returned; `error` is nil on success.
+    static func chatUnmuted(chatType: ConversationType?, error: Error?) {
+        track(ChatEvents.shared.unmuted(
+            chatType: chatType.sharedChatType,
+            state: .from(error),
+            error: error.map(chatResult)
+        ))
+    }
+}
+
+// MARK: - Group -
+
+extension Analytics {
+    /// The New Group form opened.
+    static func groupNewOpened() {
+        track(GroupEvents.shared.doNewOpened())
+    }
+
+    /// `StartChat` returned for a new group; `error` is nil on success.
+    static func groupCreated(error: Error?, rules: ConversationRules?, hasPicture: Bool) {
+        track(GroupEvents.shared.created(
+            state: .from(error),
+            error: error.map(chatResult),
+            gateMint: rules.gateMint?.base58,
+            hasPicture: hasPicture
+        ))
+    }
+
+    /// `EditChat` returned after a rename or a picture change; `error` is nil on success.
+    static func groupEdited(field: GroupField, error: Error?) {
+        track(GroupEvents.shared.edited(field: field, state: .from(error), error: error.map(chatResult)))
+    }
+
+    /// The invite sheet was presented.
+    static func groupInviteSheetOpened(source: GroupInviteSheetSource, memberCount: UInt64) {
+        track(GroupEvents.shared.inviteSheetOpened(source: source, memberCount: Int32(clamping: memberCount)))
+    }
+
+    /// The invite link left the app through the share sheet or the pasteboard.
+    static func groupInviteShared(method: GroupInviteMethod) {
+        track(GroupEvents.shared.inviteShared(method: method))
+    }
+
+    /// A group opened from an invite.
+    static func groupInviteFollowed(source: GroupInviteSource) {
+        track(GroupEvents.shared.inviteFollowed(source: source))
+    }
+
+    /// The gate first appeared during a visit to a group.
+    static func groupGateShown(access: GroupAccess, gateMint: PublicKey?, memberCount: UInt64) {
+        track(GroupEvents.shared.gateShown(
+            access: access,
+            gateMint: gateMint?.base58,
+            memberCount: Int32(clamping: memberCount)
+        ))
+    }
+
+    /// A funding button on the gate was tapped.
+    static func groupGateFundingTapped(method: GroupGateFunding, gateMint: PublicKey?) {
+        track(GroupEvents.shared.gateFundingTapped(method: method, gateMint: gateMint?.base58))
+    }
+
+    /// `JoinChat` returned; `error` is nil on success.
+    static func groupJoined(error: Error?, memberCount: UInt64, gated: Bool) {
+        track(GroupEvents.shared.joined(
+            state: .from(error),
+            error: error.map(chatResult),
+            memberCount: Int32(clamping: memberCount),
+            gated: gated
+        ))
+    }
+
+    /// `LeaveChat` returned; `error` is nil on success.
+    static func groupLeft(error: Error?, memberCount: UInt64) {
+        track(GroupEvents.shared.left(
+            state: .from(error),
+            error: error.map(chatResult),
+            memberCount: Int32(clamping: memberCount)
+        ))
+    }
+
+    /// The group info screen opened.
+    static func groupInfoOpened(memberCount: UInt64, isMember: Bool) {
+        track(GroupEvents.shared.infoOpened(memberCount: Int32(clamping: memberCount), isMember: isMember))
+    }
+
+    /// The `Error` value the group and mute events send: the chat RPC's result as the proto names
+    /// it, or `Network` for anything the server didn't answer with a result.
+    ///
+    /// iOS folds an unrecognized result into the same `.unknown` case as an unclassified RPC
+    /// failure, so `.unknown` reports as `Network`, the more common of the two.
+    static func chatResult(_ error: Error) -> String {
+        switch error {
+        case let error as ErrorStartChat:
+            switch error {
+            case .denied:                                         "Denied"
+            case .titleModerated:                                 "TitleModerated"
+            case .pictureBlobNotAccepted:                         "PictureBlobNotAccepted"
+            case .invalidRules:                                   "InvalidRules"
+            case .rulesNotSatisfied:                              "RulesNotSatisfied"
+            case .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorEditChat:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .titleModerated:                                 "TitleModerated"
+            case .pictureBlobNotAccepted:                         "PictureBlobNotAccepted"
+            case .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorJoinChat:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .rulesNotSatisfied:                              "RulesNotSatisfied"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorLeaveChat:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorMuteChat:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorUnmuteChat:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        default:
+            "Network"
+        }
+    }
+}
+
+private extension EventState {
+    /// `Success` when there was no error.
+    static func from(_ error: Error?) -> EventState {
+        error == nil ? .success : .failure
+    }
+}
+
+extension Optional where Wrapped == ConversationRules {
+    /// The `Gate Mint` property: the one mint the listener balance rule names, or nil when the
+    /// group has no token gate — no rule, or a rule every holding counts toward.
+    var gateMint: PublicKey? {
+        for case .minimumBalance(let requirement) in self?.listener ?? [] {
+            return requirement.mints.count == 1 ? requirement.mints[0] : nil
+        }
+        return nil
+    }
 }
 
 private extension Optional where Wrapped == ConversationType {
@@ -523,6 +693,10 @@ extension Analytics {
             track(TokenInfoEvents.shared.opened(source: .deeplink, mint: mint.base58))
         case .openedFromWallet:
             track(TokenInfoEvents.shared.opened(source: .wallet, mint: mint.base58))
+        case .openedFromDiscovery:
+            track(TokenInfoEvents.shared.opened(source: .discovery, mint: mint.base58))
+        case .openedFromChat:
+            track(TokenInfoEvents.shared.opened(source: .chat, mint: mint.base58))
         case .openedFromGive:
             track(event: NativeTokenInfoEvent.openedFromGive, properties: [.mint: mint.base58])
         case .openedFromSend:

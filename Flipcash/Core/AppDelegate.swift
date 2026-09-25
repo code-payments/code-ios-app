@@ -204,8 +204,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // MARK: - Deep Links -
 
-    func handleOpenURL(url: URL) {
-        container.deepLinkController.open(url)
+    func handleOpenURL(url: URL, origin: DeepLinkOrigin = .link) {
+        container.deepLinkController.open(url, origin: origin)
     }
 
     @objc private func handleDeepLinkNotification(_ notification: Notification) {
@@ -213,7 +213,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
 
-        handleOpenURL(url: url)
+        let origin: DeepLinkOrigin = switch notification.name {
+        case .qrDeepLinkReceived:       .qr
+        case .pushDeepLinkReceived:     .push
+        case .shortcutDeepLinkReceived: .shortcut
+        default:                        .link
+        }
+        handleOpenURL(url: url, origin: origin)
     }
 
     /// Routes a continued `NSUserActivity` — a Spotlight chat tap or a Handoff /
@@ -234,7 +240,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
 
-        handleOpenURL(url: url)
+        handleOpenURL(url: url, origin: .activity)
     }
 
     // MARK: - Push Notifications -

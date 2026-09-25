@@ -18,7 +18,7 @@ let sharedCore: Package.Dependency = {
     if let sharedCoreLocalRoot {
         return .package(path: "\(sharedCoreLocalRoot)/kmp/shared-core/spm")
     }
-    return .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.8.0"))
+    return .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.9.0"))
 }()
 
 // Cross-platform test-vector GATE (Track-B/C safety net). Asserts the ed25519 this app signs

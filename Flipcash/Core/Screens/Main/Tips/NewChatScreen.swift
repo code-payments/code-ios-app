@@ -20,6 +20,7 @@ struct NewChatScreen: View {
                     title: "Create a Public Group",
                     accessibilityIdentifier: "new-chat-public-group"
                 ) {
+                    Analytics.groupNewOpened()
                     router.push(.newPublicGroup)
                 }
 
