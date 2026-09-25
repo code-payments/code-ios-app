@@ -101,6 +101,27 @@ import FlipcashCore
         #expect(await resolver.user(.username(Self.satoshi)) == nil)
     }
 
+    /// A failed lookup draws the same card as an unclaimed handle, and is not remembered: the next
+    /// appearance asks again.
+    @Test func aFailedLookupResolvesToNothingAndAsksAgain() async throws {
+        struct Offline: Error {}
+        let calls = Calls()
+        let resolver = LinkCardResolver(
+            cashLookup: { _ in throw CancellationError() },
+            mintLookup: { _ in throw CancellationError() },
+            groupLookup: { _ in throw CancellationError() },
+            userLookup: { _ in await calls.increment(); throw Offline() }
+        )
+        #expect(await resolver.user(.username(Self.satoshi)) == nil)
+        #expect(await resolver.user(.username(Self.satoshi)) == nil)
+        #expect(await calls.count == 2)
+    }
+
+    private actor Calls {
+        var count = 0
+        func increment() { count += 1 }
+    }
+
     // MARK: - Card -
 
     private static func card(_ profile: Profile, isOwn: Bool = false) -> LinkCard.User.Resolved {
