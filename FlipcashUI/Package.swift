@@ -52,7 +52,8 @@ let package = Package(
                 .product(name: "SharedCoreKit", package: sharedCorePackage),
             ],
             resources: [
-                .process("Assets")
+                .process("Assets"),
+                .copy("Resources/emoji_catalog.json"),
             ],
             swiftSettings: [
                 .defaultIsolation(MainActor.self),

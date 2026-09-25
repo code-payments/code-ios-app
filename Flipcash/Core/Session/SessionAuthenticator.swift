@@ -568,6 +568,9 @@ final class SessionContainer {
     /// file, and coming back to this one is meant to find its drafts where the database is.
     let chatDrafts: ChatDraftStore
 
+    /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
+    let recentReactions: RecentReactionsStore
+
     init(
         session: Session,
         database: Database,
@@ -672,6 +675,9 @@ final class SessionContainer {
         // Wired before `start()`: leaving or blocking a chat drops its draft, and a send that fails
         // puts its text back — none of which the controller can do before it has the store.
         conversationController.chatDrafts = chatDrafts
+        let recentReactions = RecentReactionsStore(owner: owner.publicKey)
+        self.recentReactions = recentReactions
+        conversationController.reactions.recents = recentReactions
         conversationController.start()
         self.conversationController = conversationController
 

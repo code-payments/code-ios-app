@@ -17,6 +17,8 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     public static let reuseIdentifier = "ChatLinkMessageCell"
 
     private let bubble = LinkableBubbleView()
+    private let reactionRow = ReactionPillRowView()
+    private var reactionRowWidthConstraint: NSLayoutConstraint!
     private var bubbleMaxWidthConstraint: NSLayoutConstraint!
     /// Holds a card row open at the transcript's full bubble width. The card is pinned to the row's
     /// sides and takes its width from the row, and a card row has no text to widen it — so without
@@ -53,9 +55,16 @@ public final class ChatLinkMessageCell: ChatColumnCell {
 
     func flashAttention(startedAt start: CFTimeInterval) { bubble.flashAttention(startedAt: start) }
 
+    /// Fired when the viewer taps a reaction pill — the argument is the toggled emoji.
+    var onReactionTap: ((String) -> Void)?
+    /// Fired on a long-press of a reaction pill, to open the reactors sheet scoped to that emoji.
+    var onReactionLongPress: ((String) -> Void)?
+    /// Fired when the trailing "+" is tapped, to open the picker.
+    var onReactionAdd: (() -> Void)?
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
-        installColumn(content: bubble)
+        installColumn(content: bubble, accessory: reactionRow)
         bubbleMaxWidthConstraint = bubble.widthAnchor.constraint(lessThanOrEqualToConstant: 280)
         bubbleMaxWidthConstraint.isActive = true
         bubbleCardWidthConstraint = bubble.widthAnchor.constraint(equalToConstant: 280)
@@ -63,6 +72,13 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         // The transcript self-sizes on invalidation, so a card that grows after its lookup lands
         // re-measures its row instead of spilling over its neighbours until it scrolls back in.
         bubble.onCardHeightChange = { [weak self] in self?.contentView.invalidateIntrinsicContentSize() }
+        // The pills get the widest a bubble can be, so a short message's row stays on one line.
+        reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 280)
+        reactionRowWidthConstraint.isActive = true
+
+        reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
+        reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
+        reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
     }
 
     @available(*, unavailable)
@@ -71,6 +87,7 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     public override func prepareForReuse() {
         super.prepareForReuse()
         bubble.prepareForReuse()
+        reactionRow.prepareForReuse()
     }
 
     /// - Parameter maxWidth: the widest the bubble may grow before its text wraps.
@@ -79,6 +96,9 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         bubbleCardWidthConstraint.constant = maxWidth
         bubbleCardWidthConstraint.isActive = message.linkPreview?.card != nil
         bubble.configure(with: message)
+        reactionRowWidthConstraint.constant = maxWidth
+        reactionRow.hugsTrailingEdge = message.sender == .me
+        reactionRow.configure(pills: message.reactions, canReact: message.canReact)
         // A card row has no bubble to hold "Edited", so it goes on the metadata line with the receipt.
         updateColumn(
             for: message,

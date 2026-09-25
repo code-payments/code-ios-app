@@ -83,6 +83,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// content — the request asked to render the chat blurred/placeholder-only, not that the server
     /// withheld something unrelated. `false` for every message fetched under the default `.full` mode.
     public let redacted: Bool
+    /// The message's reactions; nil when this copy carries no reaction summary, so a store merging
+    /// it keeps the reactions it already holds.
+    public var reactionState: ReactionState?
 
     public init(
         id: MessageID,
@@ -96,7 +99,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         repliedTo: MessageID? = nil,
         status: SendStatus = .sent,
         clientMessageID: UUID? = nil,
-        redacted: Bool = false
+        redacted: Bool = false,
+        reactionState: ReactionState? = nil
     ) {
         self.id = id
         self.senderID = senderID
@@ -110,6 +114,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.status = status
         self.clientMessageID = clientMessageID
         self.redacted = redacted
+        self.reactionState = reactionState
     }
 }
 
@@ -142,7 +147,8 @@ extension ConversationMessage {
             repliedTo: repliedTo,
             status: status,
             clientMessageID: clientMessageID,
-            redacted: redacted
+            redacted: redacted,
+            reactionState: reactionState
         )
     }
 }
@@ -210,5 +216,6 @@ extension ConversationMessage {
         self.status = .sent
         self.clientMessageID = nil
         self.redacted = proto.redacted
+        self.reactionState = proto.hasReactions ? ReactionState(proto.reactions) : nil
     }
 }

@@ -56,6 +56,20 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onMessagesSeen: (MessageID) -> Void
     /// Whether rows on screen count as read right now.
     let reportsReads: Bool
+    /// Fired when a reaction pill is tapped: the row's stable id and the toggled emoji.
+    let onReactionTap: (String, String) -> Void
+    /// Fired when a reaction pill is long-pressed: the row's stable id and emoji, to open the
+    /// reactors sheet scoped to it.
+    let onReactionLongPress: (String, String) -> Void
+    /// Fired when a row's trailing "+" reaction pill is tapped, with the row's stable id.
+    let onReactionAdd: (String) -> Void
+    /// Supplies the long-press strip's content for a message — see
+    /// `ChatScreenViewController.reactionStripEntries`.
+    let reactionStripEntries: (ChatMessage) -> [ReactionStrip.Entry]
+    /// Fired when the long-press strip's emoji is tapped: the row's stable id and the toggled emoji.
+    let onReactionStripSelect: (String, String) -> Void
+    /// Fired when the long-press strip's "+" is tapped, with the row's stable id.
+    let onReactionStripAdd: (String) -> Void
     let showsSendCash: Bool
     let chatExists: Bool
     let conversationID: ConversationID?
@@ -122,6 +136,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             // pending target when the row is not in the window yet.
             screen?.scrollToMessage(id: stableID)
         }
+        screen.onReactionTap = onReactionTap
+        screen.onReactionLongPress = onReactionLongPress
+        screen.onReactionAdd = onReactionAdd
+        screen.reactionStripEntries = reactionStripEntries
+        screen.onReactionStripSelect = onReactionStripSelect
+        screen.onReactionStripAdd = onReactionStripAdd
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMessagesSeen = onMessagesSeen
         screen.reportsReads = reportsReads
@@ -156,6 +176,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             // pending target when the row is not in the window yet.
             screen?.scrollToMessage(id: stableID)
         }
+        screen.onReactionTap = onReactionTap
+        screen.onReactionLongPress = onReactionLongPress
+        screen.onReactionAdd = onReactionAdd
+        screen.reactionStripEntries = reactionStripEntries
+        screen.onReactionStripSelect = onReactionStripSelect
+        screen.onReactionStripAdd = onReactionStripAdd
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMessagesSeen = onMessagesSeen
         screen.reportsReads = reportsReads

@@ -247,6 +247,9 @@ final class ConversationController {
     /// The typing indicators for the user's conversations.
     private let typing: ConversationTyping
 
+    /// The emoji reactions concern: the user's taps, their calls, and the stream's updates.
+    let reactions: ConversationReactions
+
     init(
         fetching: any ConversationFetching,
         membership: any ConversationMembership,
@@ -283,6 +286,13 @@ final class ConversationController {
             incomingExpiry: incomingTypingExpiry,
             expiryClock: typingExpiryClock
         )
+        self.reactions = ConversationReactions(
+            messaging: messaging,
+            database: database,
+            owner: owner,
+            selfUserID: selfUserID
+        )
+        reactions.didPersist = { [weak self] in self?.bumpMessageRevision() }
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
@@ -378,6 +388,7 @@ final class ConversationController {
                 self.hydrateIfUnknown(event)
                 self.logCounterpartRead(event)
                 self.applyTyping(event)
+                self.applyReactions(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }
@@ -504,8 +515,32 @@ final class ConversationController {
     /// Foreground hook (`AppDelegate` `.active`): reconcile the on-screen chat regardless of any ping.
     func catchUpOpenChat() {
         guard let visibleConversationID else { return }
-        Task { await catchUp(conversationID: visibleConversationID) }
+        Task {
+            await catchUp(conversationID: visibleConversationID)
+            await refreshReactions(for: visibleConversationID)
+        }
     }
+
+    /// Refreshes from the server the reactions on up to `limit` stored messages older than `before`,
+    /// or the newest when `before` is nil: one page of the transcript as the reader reveals it.
+    func refreshReactions(for conversationID: ConversationID, before: UInt64? = nil, limit: Int = MessageLoader.initialWindow) async {
+        guard canRead(conversationID) else { return }
+        let messageIDs: [MessageID]
+        do {
+            messageIDs = try database.messageIDs(conversationID: conversationID, before: before, limit: min(limit, Self.reactionRefreshLimit))
+        } catch {
+            logger.error("Failed to read message ids for a reaction refresh", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to read message ids for a reaction refresh")
+            return
+        }
+        await reactions.refresh(messageIDs, in: conversationID)
+    }
+
+    /// The most messages one `GetReactionSummaries` call takes.
+    private static let reactionRefreshLimit = 100
 
     /// A live event exposed a gap. Debounce briefly — a late out-of-order event may close it before we
     /// spend a round trip — then reconcile from the (possibly already-advanced) cursor.
@@ -576,6 +611,11 @@ final class ConversationController {
         typing.apply(notifications, in: conversationID)
     }
 
+    private func applyReactions(_ event: ConversationStreamEvent) {
+        guard case .reactionsChanged(let conversationID, let updates) = event else { return }
+        reactions.apply(updates, in: conversationID)
+    }
+
     /// Returns whether another member is currently typing in the conversation.
     func isCounterpartTyping(in conversationID: ConversationID) -> Bool {
         typing.isCounterpartTyping(in: conversationID)
@@ -625,8 +665,9 @@ final class ConversationController {
             conversationID = id
         case .metadataRefresh:
             return
-        case .typingChanged:
-            // A typing event for an unknown conversation isn't worth a metadata fetch — it's transient.
+        case .typingChanged, .reactionsChanged:
+            // Neither is worth a metadata fetch for an unknown conversation: typing is transient, and
+            // reactions land on message rows that an unknown chat does not have yet.
             return
         case .viewerStateChanged:
             // Mute is the viewer's own state, and only a chat they are in can carry it — so an
@@ -1024,6 +1065,9 @@ final class ConversationController {
             persistConversation(conversationID)
         case .typingChanged:
             break
+        case .reactionsChanged:
+            // Written by `reactions`, which also holds the taps the update has to merge with.
+            break
         }
     }
 
@@ -1322,7 +1366,8 @@ final class ConversationController {
     /// arriving message grows the window at the tail instead of sliding the oldest revealed row out.
     func windowedMessages(for conversationID: ConversationID, startingAt startID: UInt64?, limit: Int) -> [ConversationMessage] {
         _ = messageRevision   // observe: re-read when a confirmed DB write lands
-        return store.displayedMessages(for: conversationID, over: confirmedWindow(for: conversationID, startingAt: startID, limit: limit))
+        let displayed = store.displayedMessages(for: conversationID, over: confirmedWindow(for: conversationID, startingAt: startID, limit: limit))
+        return reactions.displayed(displayed, in: conversationID)
     }
 
     /// The confirmed rows behind ``windowedMessages(for:startingAt:limit:)``, cached against

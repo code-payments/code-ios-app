@@ -355,6 +355,10 @@ public struct ConversationStore: Sendable {
         case .typingChanged:
             // Typing is ephemeral UI state held by the controller, never the persisted message store.
             return .none
+        case .reactionsChanged:
+            // Reactions live on the persisted message rows, which the controller updates; the
+            // store holds only the pending overlay.
+            return .none
         case .rosterChanged(let conversationID, let updates):
             applyRosterUpdates(updates, in: conversationID)
             return .none

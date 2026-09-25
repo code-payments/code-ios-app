@@ -78,6 +78,17 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// Which piece of its message this row draws, for a message split into rows around its link
     /// card, or nil for a row that is the whole of its message.
     public let part: ChatMessagePart?
+    /// The reaction pills under the bubble, in display order.
+    public let reactions: [ReactionPill]
+    /// The emoji the viewer is shown reacting with; the reaction strip highlights these.
+    public let selfReactions: [SelfReaction]
+    /// Whether the viewer may add or remove a reaction — false for someone previewing a group they
+    /// have not joined. They still see the pills other members left; the trailing "+" is withheld
+    /// and a tap on an existing pill is inert, but a long-press still opens the reactors sheet.
+    public let canReact: Bool
+    /// Whether this is the viewer's own row that the server has not confirmed — still sending, or
+    /// failed. Only an earlier-confirmed row's `receipt` is withheld, so a nil receipt doesn't say this.
+    public let isUnsent: Bool
 
     /// The id of the message this row draws some or all of. Every action that means the message
     /// rather than the row — the menu, a reply swipe, retry, a jump to a quoted original — goes by
@@ -105,6 +116,16 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         linkPreview?.card != nil
     }
 
+    /// Whether a long-press on this row should offer the reaction strip above the context menu.
+    /// False for a deleted message (a tombstone keeps whatever pills it has, but there is nothing
+    /// left to add a new one to) and for the user's own message still in flight — the server has
+    /// nothing to record a reaction against until the send lands. A row with no context menu at all
+    /// never reaches this check, since the menu itself is what hosts the strip.
+    public var offersReactionStrip: Bool {
+        guard case .deleted = content else { return !isUnsent }
+        return false
+    }
+
     public init(
         id: String,
         serverID: MessageID? = nil,
@@ -122,7 +143,11 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         quote: ChatQuote? = nil,
         author: ChatAuthor? = nil,
         isAttributedTranscript: Bool = false,
-        part: ChatMessagePart? = nil
+        part: ChatMessagePart? = nil,
+        reactions: [ReactionPill] = [],
+        selfReactions: [SelfReaction] = [],
+        canReact: Bool = true,
+        isUnsent: Bool = false
     ) {
         self.id = id
         self.serverID = serverID
@@ -141,6 +166,10 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.author = author
         self.isAttributedTranscript = isAttributedTranscript
         self.part = part
+        self.reactions = reactions
+        self.selfReactions = selfReactions
+        self.canReact = canReact
+        self.isUnsent = isUnsent
     }
 
     /// Convenience for text rows.
@@ -161,7 +190,11 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         quote: ChatQuote? = nil,
         author: ChatAuthor? = nil,
         isAttributedTranscript: Bool = false,
-        part: ChatMessagePart? = nil
+        part: ChatMessagePart? = nil,
+        reactions: [ReactionPill] = [],
+        selfReactions: [SelfReaction] = [],
+        canReact: Bool = true,
+        isUnsent: Bool = false
     ) {
         self.init(
             id: id,
@@ -180,7 +213,11 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             quote: quote,
             author: author,
             isAttributedTranscript: isAttributedTranscript,
-            part: part
+            part: part,
+            reactions: reactions,
+            selfReactions: selfReactions,
+            canReact: canReact,
+            isUnsent: isUnsent
         )
     }
 }

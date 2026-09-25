@@ -19,6 +19,8 @@ public final class ChatMessageCell: ChatColumnCell {
     public static let reuseIdentifier = "ChatMessageCell"
 
     private let bubble = ChatBubbleView()
+    private let reactionRow = ReactionPillRowView()
+    private var reactionRowWidthConstraint: NSLayoutConstraint!
     private var maxWidthConstraint: NSLayoutConstraint!
 
     /// The bubble view, exposed so the controller can build a context-menu lift preview that clips
@@ -31,21 +33,44 @@ public final class ChatMessageCell: ChatColumnCell {
         set { bubbleView.onQuoteTap = newValue }
     }
 
+    /// Fired when the viewer taps a reaction pill — the argument is the toggled emoji.
+    var onReactionTap: ((String) -> Void)?
+    /// Fired on a long-press of a reaction pill, to open the reactors sheet scoped to that emoji.
+    var onReactionLongPress: ((String) -> Void)?
+    /// Fired when the trailing "+" is tapped, to open the picker.
+    var onReactionAdd: (() -> Void)?
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
-        installColumn(content: bubble)
+        installColumn(content: bubble, accessory: reactionRow)
         maxWidthConstraint = bubble.widthAnchor.constraint(lessThanOrEqualToConstant: 280)
         maxWidthConstraint.isActive = true
+        // The pills get the widest a bubble can be, not this bubble's width, so a short message's
+        // row stays on one line; `configure` keeps it in step with `maxWidth`.
+        reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 280)
+        reactionRowWidthConstraint.isActive = true
+
+        reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
+        reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
+        reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
     }
 
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    public override func prepareForReuse() {
+        super.prepareForReuse()
+        reactionRow.prepareForReuse()
+    }
 
     /// - Parameter maxWidth: the widest the bubble may grow before its text wraps, in points.
     ///   The owner derives it from the collection view's width.
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         bubble.configure(with: message)
         maxWidthConstraint.constant = maxWidth
+        reactionRowWidthConstraint.constant = maxWidth
+        reactionRow.hugsTrailingEdge = message.sender == .me
+        reactionRow.configure(pills: message.reactions, canReact: message.canReact)
         updateColumn(
             for: message,
             authorImageData: authorImageData,
