@@ -433,7 +433,13 @@ public final class ChatViewController: UICollectionViewController {
         case .groupCard(let card):
             let cardTap: (() -> Void)? = onProfileTap == nil ? nil : { [weak self] in self?.onProfileTap?() }
             let invite: (() -> Void)? = onGroupInvite == nil ? nil : { [weak self] in self?.onGroupInvite?() }
-            (cell as! ChatGroupCardCell).configure(with: card, onTap: cardTap, onInvite: invite)
+            let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
+            (cell as! ChatGroupCardCell).configure(
+                with: card,
+                inviteCardWidth: width * Self.maxBubbleWidthFraction,
+                onTap: cardTap,
+                onInvite: invite
+            )
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .unreadDivider(let count):
