@@ -70,7 +70,7 @@ public final class ChatViewController: UICollectionViewController {
     /// chat's own in a group. The owner opens that subject's profile; nil disables the tap.
     public var onProfileTap: (() -> Void)?
 
-    /// Called when the user taps the group card's "Invite People To Join"; the owner hands out the
+    /// Called when the user taps the group card's "Invite People"; the owner hands out the
     /// chat's invite link. nil leaves the card without the offer.
     public var onGroupInvite: (() -> Void)?
 

@@ -41,7 +41,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps the transcript's head card — the counterpart's in a tip DM, the
     /// chat's own in a group; nil disables the card tap.
     let onProfileTap: (() -> Void)?
-    /// Fired when the user taps the group head card's "Invite People To Join". The card draws the
+    /// Fired when the user taps the group head card's "Invite People". The card draws the
     /// button only when it both asks for it and this is set.
     let onGroupInvite: (() -> Void)?
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
