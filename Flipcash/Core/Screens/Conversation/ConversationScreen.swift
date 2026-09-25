@@ -651,7 +651,9 @@ struct ConversationScreen: View {
         }
         .sheet(isPresented: $isInviting) {
             if let conversationID {
-                GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting)
+                GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting) { chatID in
+                    router.push(.tipConversation(chatID))
+                }
             }
         }
         .fullScreenCover(item: $messageReport) { report in
