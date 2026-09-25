@@ -61,6 +61,18 @@ final class LinkCardView: UIView {
     /// Called when a group card's button, or a person card, is tapped.
     var onCardButton: (() -> Void)?
 
+    /// The card's outline: `BubbleBackgroundView`'s radii for the card's place in its bubble run, so
+    /// it groups with the bubbles around it exactly as a text bubble would. Every kind takes it,
+    /// placeholder included.
+    var cornerRadii = BubbleBackgroundView.standaloneRadii {
+        didSet {
+            cashView.cornerRadii = cornerRadii
+            tokenView.cornerRadii = cornerRadii
+            groupView.cornerRadii = cornerRadii
+            userView.cornerRadii = cornerRadii
+        }
+    }
+
     /// Called when an answer arriving after ``configure(with:source:)`` changes the card's height,
     /// so the row holding it can be measured again. Only a group or person card's height follows
     /// its content.

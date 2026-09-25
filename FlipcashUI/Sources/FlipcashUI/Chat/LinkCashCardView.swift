@@ -60,6 +60,12 @@ final class LinkCashCardView: UIView {
     private static let paper = UIColor(red: 242 / 255, green: 240 / 255, blue: 234 / 255, alpha: 1)
     private static let ink = UIColor(red: 20 / 255, green: 18 / 255, blue: 31 / 255, alpha: 1)
 
+    /// The card's outline, set by the row from the card's place in its bubble run. The ticket takes
+    /// the top two corners and the stub the bottom two; the notches between them never change.
+    var cornerRadii = BubbleBackgroundView.standaloneRadii {
+        didSet { if cornerRadii != oldValue { setNeedsLayout() } }
+    }
+
     private let topPiece = UIView()
     private let stubPiece = UIView()
     private let topMask = CAShapeLayer()
@@ -175,7 +181,7 @@ final class LinkCashCardView: UIView {
         guard width > 0, height > 0 else { return }
 
         let notch = Self.notchRadius
-        let corner = Metrics.boxRadius
+        let corners = cornerRadii
         let stubHeight = (height * Self.stubShare).rounded()
         let seam = height - stubHeight
 
@@ -185,9 +191,9 @@ final class LinkCashCardView: UIView {
         stubDim.frame = stubPiece.bounds
 
         topMask.frame = topPiece.bounds
-        topMask.path = Self.ticketPath(size: topPiece.bounds.size, notch: notch, corner: corner).cgPath
+        topMask.path = Self.ticketPath(size: topPiece.bounds.size, notch: notch, leading: corners.topLeading, trailing: corners.topTrailing).cgPath
         stubMask.frame = stubPiece.bounds
-        stubMask.path = Self.stubPath(size: stubPiece.bounds.size, notch: notch, corner: corner).cgPath
+        stubMask.path = Self.stubPath(size: stubPiece.bounds.size, notch: notch, leading: corners.bottomLeading, trailing: corners.bottomTrailing).cgPath
 
         // Between the notches, and half a point up so the hairline lands inside the paper rather
         // than straddling its bottom edge.
@@ -330,15 +336,15 @@ final class LinkCashCardView: UIView {
     /// The ticket: rounded across the top, square at the seam, with a half-notch bitten inward from
     /// each bottom corner. Traced as one closed outline rather than punched with an even-odd rule,
     /// because the stub's identical outline is also stroked as the torn state's silhouette.
-    private static func ticketPath(size: CGSize, notch: CGFloat, corner: CGFloat) -> UIBezierPath {
+    private static func ticketPath(size: CGSize, notch: CGFloat, leading: CGFloat, trailing: CGFloat) -> UIBezierPath {
         let path = UIBezierPath()
         let width = size.width
         let height = size.height
-        path.move(to: CGPoint(x: 0, y: corner))
-        path.addArc(withCenter: CGPoint(x: corner, y: corner), radius: corner,
+        path.move(to: CGPoint(x: 0, y: leading))
+        path.addArc(withCenter: CGPoint(x: leading, y: leading), radius: leading,
                     startAngle: .pi, endAngle: 1.5 * .pi, clockwise: true)
-        path.addLine(to: CGPoint(x: width - corner, y: 0))
-        path.addArc(withCenter: CGPoint(x: width - corner, y: corner), radius: corner,
+        path.addLine(to: CGPoint(x: width - trailing, y: 0))
+        path.addArc(withCenter: CGPoint(x: width - trailing, y: trailing), radius: trailing,
                     startAngle: 1.5 * .pi, endAngle: 2 * .pi, clockwise: true)
         path.addLine(to: CGPoint(x: width, y: height - notch))
         path.addArc(withCenter: CGPoint(x: width, y: height), radius: notch,
@@ -352,7 +358,7 @@ final class LinkCashCardView: UIView {
 
     /// The stub: the ticket inverted — square at the seam with the matching half-notches along its
     /// top, rounded across the bottom. The two halves of each notch meet to make one hole.
-    private static func stubPath(size: CGSize, notch: CGFloat, corner: CGFloat) -> UIBezierPath {
+    private static func stubPath(size: CGSize, notch: CGFloat, leading: CGFloat, trailing: CGFloat) -> UIBezierPath {
         let path = UIBezierPath()
         let width = size.width
         let height = size.height
@@ -362,11 +368,11 @@ final class LinkCashCardView: UIView {
         path.addLine(to: CGPoint(x: width - notch, y: 0))
         path.addArc(withCenter: CGPoint(x: width, y: 0), radius: notch,
                     startAngle: .pi, endAngle: 0.5 * .pi, clockwise: false)
-        path.addLine(to: CGPoint(x: width, y: height - corner))
-        path.addArc(withCenter: CGPoint(x: width - corner, y: height - corner), radius: corner,
+        path.addLine(to: CGPoint(x: width, y: height - trailing))
+        path.addArc(withCenter: CGPoint(x: width - trailing, y: height - trailing), radius: trailing,
                     startAngle: 0, endAngle: 0.5 * .pi, clockwise: true)
-        path.addLine(to: CGPoint(x: corner, y: height))
-        path.addArc(withCenter: CGPoint(x: corner, y: height - corner), radius: corner,
+        path.addLine(to: CGPoint(x: leading, y: height))
+        path.addArc(withCenter: CGPoint(x: leading, y: height - leading), radius: leading,
                     startAngle: 0.5 * .pi, endAngle: .pi, clockwise: true)
         path.close()
         return path
