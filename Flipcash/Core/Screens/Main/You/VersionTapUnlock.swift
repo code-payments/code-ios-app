@@ -9,8 +9,9 @@ import FlipcashCore
 /// The version footer's easter egg: ten taps toggle beta access, and the last
 /// few taps say so out loud.
 ///
-/// The counter is silent until the unlock is within reach, so a stray tap on
-/// the version string never announces anything. Owns the message it shows and
+/// The countdown is silent until the unlock is within reach, so a stray tap on
+/// the version string never announces it; until then a tap shows only the
+/// caller's `otherwise` message, if any. Owns the message it shows and
 /// the delay that takes it away again, so the footer only has to draw it.
 @MainActor
 @Observable
@@ -41,8 +42,9 @@ final class VersionTapUnlock {
     /// - Parameters:
     ///   - isUnlocked: Beta access as it stands, which decides whether the taps
     ///     are counting toward showing the beta rows or hiding them again.
+    ///   - otherwise: Shown on a tap the countdown has nothing to say about.
     ///   - toggle: Flips beta access. Called on the tap that completes the count.
-    func registerTap(isUnlocked: Bool, toggle: () -> Void) {
+    func registerTap(isUnlocked: Bool, otherwise: String? = nil, toggle: () -> Void) {
         tapCount += 1
         let remaining = Self.tapsToToggle - tapCount
 
@@ -57,6 +59,8 @@ final class VersionTapUnlock {
                     ? "You are now \(remaining) \(steps) away from hiding beta features"
                     : "You are now \(remaining) \(steps) away from being a developer"
             )
+        } else if let otherwise {
+            show(otherwise)
         }
     }
 

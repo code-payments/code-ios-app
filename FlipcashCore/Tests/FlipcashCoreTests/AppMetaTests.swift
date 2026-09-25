@@ -22,6 +22,11 @@ struct AppMetaTests {
         #expect(!AppMeta.build.isEmpty)
     }
 
+    @Test("Commit reads without trapping and is never empty")
+    func commitDegrades() {
+        #expect(!AppMeta.commit.isEmpty)
+    }
+
     @Test("The build stand-in stays unparseable, so requiresUpgrade allows access")
     func buildStandInIsNotNumeric() {
         #expect(UInt32(AppMeta.unknown) == nil)

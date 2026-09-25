@@ -23,4 +23,10 @@ public enum AppMeta {
     public static var build: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? unknown
     }
+
+    /// The git commit stamp the app was built from, or ``unknown`` when the host bundle doesn't
+    /// declare one. Parse it with ``BuildCommit`` for display.
+    public static var commit: String {
+        Bundle.main.object(forInfoDictionaryKey: "FCGitCommit") as? String ?? unknown
+    }
 }

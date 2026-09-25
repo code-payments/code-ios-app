@@ -1,5 +1,6 @@
 ## Private assets
 Configurations/secrets.local.xcconfig
+Configurations/commit.local.xcconfig
 ci_scripts/ci_post_xcodebuild.sh
 .env
 .env.local

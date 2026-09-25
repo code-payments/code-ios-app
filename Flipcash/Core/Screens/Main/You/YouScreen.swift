@@ -459,12 +459,21 @@ struct YouScreen: View {
     }
 
     private var versionFooter: some View {
-        Button {
-            versionUnlock.registerTap(isUnlocked: betaFlags.accessGranted) {
+        let commit = BuildCommit(AppMeta.commit)
+        return Button {
+            // Copied on every tap, so the count toward the beta toggle still
+            // starts from the first one.
+            if let sha = commit.sha {
+                UIPasteboard.general.string = sha
+            }
+            versionUnlock.registerTap(
+                isUnlocked: betaFlags.accessGranted,
+                otherwise: commit.sha == nil ? nil : "Copied"
+            ) {
                 betaFlags.setAccessGranted(!betaFlags.accessGranted)
             }
         } label: {
-            Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
+            Text("Version \(AppMeta.version) • Build \(AppMeta.build) • \(commit.display)")
                 .lineLimit(1)
                 .font(.appTextHeading)
                 .foregroundStyle(Color.textSecondary)
