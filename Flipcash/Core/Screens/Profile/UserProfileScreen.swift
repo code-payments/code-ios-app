@@ -211,38 +211,6 @@ nonisolated enum UserProfileOrigin: Hashable {
     }
 }
 
-/// A round, borderless icon over its label — one of the profile's Message / Send Cash pair.
-private struct ProfileActionButton<Glyph: View>: View {
-    let title: String
-    @ViewBuilder let glyph: Glyph
-    let action: () -> Void
-
-    private var diameter: CGFloat { 45 }
-    /// The column each button owns, so the pair keeps fixed centers when Send Cash returns.
-    private var columnWidth: CGFloat { 100 }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 5) {
-                glyph
-                    .foregroundStyle(.textMain)
-                    .frame(width: diameter, height: diameter)
-                    .background(Circle().fill(.backgroundSecondary))
-
-                Text(title)
-                    .font(.appTextSmall)
-                    .foregroundStyle(.textSecondary)
-            }
-            .frame(width: columnWidth)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(.isButton)
-    }
-}
-
 @MainActor
 @Observable
 final class UserProfileViewModel {
