@@ -21,7 +21,7 @@ import FlipcashCore
 /// routes through the chat link, whose screen offers the join or the buy itself.
 final class LinkGroupCardView: UIView {
 
-    /// Called when the "Start Chatting" button is tapped.
+    /// Called when the "View" button is tapped.
     var onStart: (() -> Void)?
 
     /// Called when the content's height at the card's width changes, so the row can be measured
@@ -123,7 +123,7 @@ final class LinkGroupCardView: UIView {
 
         let display = state ?? .unavailable
         content.configuration = UIHostingConfiguration {
-            LinkGroupCardContent(state: display) { [weak self] in self?.onStart?() }
+            LinkGroupCardContent(state: display, onAction: { [weak self] in self?.onStart?() })
         }
         .margins(.all, 0)
 
@@ -134,10 +134,25 @@ final class LinkGroupCardView: UIView {
 
 /// The card's body, per the group head card (nodes 10125:19157, 10127:118280, 10127:116723): the
 /// same radius, ring, avatar ring, title and requirement styling, with a tinted band across the top.
+///
+/// Shared by two hosts rather than forked between them: ``LinkGroupCardView`` draws it wherever a
+/// group's invite link appears in a transcript (CTA "View", into the group), and
+/// ``ChatGroupCardCell``'s ``GroupCardView`` draws it at the head of a group's own transcript while
+/// it is still empty (CTA "Invite People", into the invite sheet). The CTA's label and action are
+/// the only things that differ between the two, so they are the only things passed in.
 struct LinkGroupCardContent: View {
 
     let state: LinkCard.Group.State
-    var onStart: () -> Void = {}
+    /// The button's label — "View" from a transcript link, "Invite People" from a group's own
+    /// empty-state head card.
+    var ctaTitle: String = Copy.view
+    /// Called when the button is tapped.
+    var onAction: () -> Void = {}
+    /// The button's UI-test handle, which differs by host.
+    var ctaAccessibilityIdentifier: String = "group-card-cta"
+    /// Taps the picture/title band open, same as the head card's own chevron used to. Nil leaves
+    /// the band inert, as it is inline in a transcript, where only the button leads anywhere.
+    var onTapCard: (() -> Void)? = nil
 
     /// Values this card adds to the head card's ``GroupCardView/Layout``. Named so Android can copy
     /// them one for one.
@@ -156,31 +171,16 @@ struct LinkGroupCardContent: View {
 
     /// Button labels, Title Case.
     enum Copy {
-        /// Every resolved card, whatever the viewer's membership or holdings.
-        static let start = "Start Chatting"
+        /// A group's invite link, met in a transcript.
+        static let view = "View"
+        /// A group's own empty-state head card.
+        static let invite = "Invite People"
         static let unavailable = "Group Unavailable"
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                Rectangle()
-                    .fill(tint.opacity(Layout.bandOpacity))
-                    .frame(height: Layout.bandHeight)
-
-                if case .resolved(let group) = state {
-                    ContactAvatarView(
-                        id: group.avatarID,
-                        displayName: group.title,
-                        imageData: group.imageData,
-                        blurhash: group.blurHash,
-                        size: Layout.avatar
-                    )
-                    .overlay { Circle().strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity)) }
-                    // Centred on the band's bottom edge.
-                    .padding(.top, Layout.bandHeight - Layout.avatar / 2)
-                }
-            }
+            band
 
             if case .resolved(let group) = state {
                 text(for: group)
@@ -227,6 +227,34 @@ struct LinkGroupCardContent: View {
         }
     }
 
+    /// The tinted band and the picture centred on its bottom edge, tappable as one unit when
+    /// ``onTapCard`` is set.
+    @ViewBuilder private var band: some View {
+        let content = ZStack(alignment: .top) {
+            Rectangle()
+                .fill(tint.opacity(Layout.bandOpacity))
+                .frame(height: Layout.bandHeight)
+
+            if case .resolved(let group) = state {
+                ContactAvatarView(
+                    id: group.avatarID,
+                    displayName: group.title,
+                    imageData: group.imageData,
+                    blurhash: group.blurHash,
+                    size: Layout.avatar
+                )
+                .overlay { Circle().strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity)) }
+                // Centred on the band's bottom edge.
+                .padding(.top, Layout.bandHeight - Layout.avatar / 2)
+            }
+        }
+        if let onTapCard, case .resolved = state {
+            Button(action: onTapCard) { content }.buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
+
     @ViewBuilder private var button: some View {
         switch state {
         case .unavailable:
@@ -234,7 +262,9 @@ struct LinkGroupCardContent: View {
                 .buttonStyle(.filled20Compact)
                 .disabled(true)
         case .resolved:
-            Button(Copy.start, action: onStart).buttonStyle(.filledCompact)
+            Button(ctaTitle, action: onAction)
+                .buttonStyle(.filledCompact)
+                .accessibilityIdentifier(ctaAccessibilityIdentifier)
         }
     }
 

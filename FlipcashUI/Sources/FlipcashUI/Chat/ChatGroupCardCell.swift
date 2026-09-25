@@ -35,21 +35,29 @@ struct GroupCardView: View {
     var onInvite: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: Layout.inviteGap) {
-            cardBody
-
+        Group {
             if card.showsInvite, let onInvite {
-                Button(action: onInvite) {
-                    Text("Invite People To Join")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textAction)
-                        .padding(.horizontal, Layout.invitePadding)
-                        .frame(height: Layout.inviteHeight)
-                        .background(Color.action, in: .capsule)
-                        .contentShape(.capsule)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("group-card-invite")
+                // The same card a group's invite link renders as elsewhere (node 10330:19164) —
+                // CTA "Invite People" rather than "View", opening the invite sheet rather than the
+                // chat itself.
+                LinkGroupCardContent(
+                    state: .resolved(.init(
+                        title: card.title,
+                        memberCount: card.memberCount,
+                        avatarID: card.avatarID,
+                        imageData: card.imageData,
+                        blurHash: card.blurhash,
+                        requirement: card.requirement
+                    )),
+                    ctaTitle: LinkGroupCardContent.Copy.invite,
+                    onAction: onInvite,
+                    ctaAccessibilityIdentifier: "group-card-invite",
+                    onTapCard: onTap
+                )
+                .frame(width: Layout.width)
+                .frame(minHeight: Layout.minHeight)
+            } else {
+                cardBody
             }
         }
         .frame(maxWidth: .infinity)
@@ -133,9 +141,6 @@ struct GroupCardView: View {
         static let horizontalPadding: CGFloat = 12
         static let titleGap: CGFloat = 13
         static let requirementGap: CGFloat = 11
-        static let inviteGap: CGFloat = 12
-        static let inviteHeight: CGFloat = 44
-        static let invitePadding: CGFloat = 24
     }
 }
 

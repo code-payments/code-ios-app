@@ -19,6 +19,10 @@ public struct ChatGroupCard: Hashable, Sendable, Codable {
     /// Stable identity for the avatar (monogram colour + image cache key) — the conversation id.
     public var avatarID: String
 
+    /// "1 person" / "12 people" — the same wording the group's profile and its transcript's
+    /// invite-link card both use, so the empty-state card reads identically to either.
+    public var memberCount: String
+
     /// The chat picture's thumbnail bytes; nil renders the BlurHash or the monogram.
     public var imageData: Data?
 
@@ -30,14 +34,15 @@ public struct ChatGroupCard: Hashable, Sendable, Codable {
     /// a member too (node 10125:19256).
     public var requirement: String?
 
-    /// Whether the card offers "Invite People To Join" under the requirement (node 10127:118280).
+    /// Whether the card offers "Invite People" under the requirement (node 10127:118280).
     /// Set for a group the viewer is a member of that no one else has joined yet: a link is the only
     /// way into a group, so an empty one needs its own way to hand that link out.
     public var showsInvite: Bool
 
-    public init(title: String, avatarID: String, imageData: Data? = nil, blurhash: String? = nil, requirement: String? = nil, showsInvite: Bool = false) {
+    public init(title: String, avatarID: String, memberCount: String = "", imageData: Data? = nil, blurhash: String? = nil, requirement: String? = nil, showsInvite: Bool = false) {
         self.title = title
         self.avatarID = avatarID
+        self.memberCount = memberCount
         self.imageData = imageData
         self.blurhash = blurhash
         self.requirement = requirement
