@@ -512,6 +512,31 @@ struct DatabaseConversationsTests {
         #expect(loaded.lastMessage == preview)
     }
 
+    @Test("A group's creator and use_e2ee round-trip; a DM's nil creator round-trips as nil")
+    func creatorAndUseE2EeRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        var group = conversation(byte: 1)
+        group.creator = otherID
+        group.useE2Ee = true
+        try database.upsertConversation(group)
+
+        let loadedGroup = try #require(try database.getConversations().first)
+        #expect(loadedGroup.creator == otherID)
+        #expect(loadedGroup.useE2Ee == true)
+    }
+
+    @Test("A conversation with no stored creator/use_e2ee round-trips as nil/false")
+    func creatorAndUseE2EeDefaultRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(conversation(byte: 1))
+
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.creator == nil)
+        #expect(loaded.useE2Ee == false)
+    }
+
     @Test("Mute state round-trips as its expiry and version, not as a boolean")
     func viewerStateRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

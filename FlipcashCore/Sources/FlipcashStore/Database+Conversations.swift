@@ -99,7 +99,9 @@ nonisolated extension Database {
                     version: row[c.rosterVersion]
                 ),
                 rules: conversationRules(from: row),
-                viewerState: conversationViewerState(from: row)
+                viewerState: conversationViewerState(from: row),
+                creator: row[c.creator],
+                useE2Ee: row[c.useE2Ee]
             )
         }
     }
@@ -426,6 +428,8 @@ nonisolated extension Database {
                 c.rosterVersion     <- conversation.rosterSummary.version,
                 c.rules             <- conversation.rules.flatMap { try? JSONEncoder().encode($0) },
                 c.viewerState       <- conversation.viewerState.flatMap { try? JSONEncoder().encode($0) },
+                c.creator           <- conversation.creator,
+                c.useE2Ee           <- conversation.useE2Ee,
                 onConflictOf: c.id
             )
         )
