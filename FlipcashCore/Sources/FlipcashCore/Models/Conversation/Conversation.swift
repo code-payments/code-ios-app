@@ -49,7 +49,16 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// server has reported one. See ``ConversationViewerState``.
     public var viewerState: ConversationViewerState?
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil) {
+    /// The chat's creator. Only ever set for group chats; `nil` for DMs.
+    public var creator: UserID?
+
+    /// Whether messages in this chat are end-to-end encrypted. DMs only, always `false` for group
+    /// chats. A transitional migration flag — see `Flipcash_Chat_V1_Metadata.useE2Ee` — that this
+    /// client does not yet act on: E2EE send/receive is a cross-platform parity hotspot with its
+    /// own implementation decision still pending.
+    public var useE2Ee: Bool
+
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -62,6 +71,8 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.rosterSummary = rosterSummary
         self.rules = rules
         self.viewerState = viewerState
+        self.creator = creator
+        self.useE2Ee = useE2Ee
     }
 }
 
@@ -145,6 +156,8 @@ extension Conversation {
         self.rosterSummary = ConversationRosterSummary(proto.rosterSummary)
         self.rules = proto.hasRules ? ConversationRules(proto.rules) : nil
         self.viewerState = proto.hasViewerState ? ConversationViewerState(proto.viewerState) : nil
+        self.creator = proto.hasCreator ? (try? UUID(data: proto.creator.value)) : nil
+        self.useE2Ee = proto.useE2Ee
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.

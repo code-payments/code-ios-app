@@ -196,7 +196,10 @@ extension ConversationMessage {
             self.content = .text(textContent.text)
             self.cashAction = nil
             repliedTo = replyContent.hasRepliedMessageID ? MessageID(replyContent.repliedMessageID) : nil
-        case .media, .system, .none:
+        // EncryptedContent is a cross-platform parity hotspot (X25519/HKDF/XChaCha20); decrypting
+        // it is not implemented here. It renders the same as any other content this client can't
+        // represent: the message is dropped rather than shown, same as `.media`/`.system` today.
+        case .media, .system, .encrypted, .none:
             return nil
         }
 
