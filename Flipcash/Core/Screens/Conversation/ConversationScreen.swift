@@ -1120,6 +1120,19 @@ struct ConversationScreen: View {
         case .token(let token):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
             router.push(.currencyInfo(token.mint))
+        case .user:
+            // Only the button takes a tap, and a not-found card's button is disabled, so a tap
+            // always finds the lookup's answer here.
+            guard case .user(.resolved(let user))? = sessionContainer.linkCardFeed.known(card) else { return }
+            if user.isOwn {
+                router.showOwnTipCard()
+                return
+            }
+            // A link to the person this DM is already with has nowhere to go.
+            guard user.userID != tipCounterpart?.userID else { return }
+            // Straight to the DM, without `TipFlow`'s bill overlay. The chat's own fee sheet still
+            // asks for the minimum before the first message goes out.
+            router.push(.tipConversationForUser(user.userID))
         }
     }
 

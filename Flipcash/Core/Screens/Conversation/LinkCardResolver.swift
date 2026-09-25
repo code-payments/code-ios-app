@@ -14,7 +14,9 @@ import FlipcashCore
 /// backend work here; there is a fetch and a hard stop. Nothing on this path may call
 /// `receiveCashLink`, because that claims the link, and a card that claims what it renders would
 /// empty a link by scrolling past it. A token card asks `GetMint` for branding and nothing else. A
-/// group card asks `GetChat` for the chat's public record, redacted, and never joins.
+/// group card asks `GetChat` for the chat's public record, redacted, and never joins. A person card
+/// asks `GetProfile` and nothing else: it caches no profile, opens no overlay and navigates nowhere,
+/// which is why it does not go through `TipFlow`.
 ///
 /// The kinds memoize in separate maps so an entropy and a mint address cannot collide on one
 /// key, and each kind's lookup is the only thing that can write its own side.
@@ -29,6 +31,7 @@ actor LinkCardResolver {
     private let cashLookup: @Sendable (String) async throws -> LinkCard.Cash.Resolved
     private let mintLookup: @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved
     private let groupLookup: @Sendable (ConversationID) async throws -> GroupLinkFacts
+    private let userLookup: @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts
 
     /// The query per key, not the answer.
     ///
@@ -44,21 +47,25 @@ actor LinkCardResolver {
     private var cashQueries: [String: Task<LinkCard.Cash.State, Never>] = [:]
     private var tokenQueries: [PublicKey: Task<LinkCard.Token.State, Never>] = [:]
     private var groupQueries: [ConversationID: Task<GroupLinkFacts?, Never>] = [:]
+    private var userQueries: [LinkCard.User.Identity: Task<UserLinkFacts?, Never>] = [:]
 
     init(
         cashLookup: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved,
         mintLookup: @escaping @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved,
-        groupLookup: @escaping @Sendable (ConversationID) async throws -> GroupLinkFacts
+        groupLookup: @escaping @Sendable (ConversationID) async throws -> GroupLinkFacts,
+        userLookup: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts
     ) {
         self.cashLookup = cashLookup
         self.mintLookup = mintLookup
         self.groupLookup = groupLookup
+        self.userLookup = userLookup
     }
 
     /// How far a cash or token card's lookup got: resolved, or unresolved if it failed.
     ///
-    /// A group card is not answered here. What it shows depends on who is looking — membership and
-    /// holdings, both main-actor state — so ``LinkCardFeed`` presents it from ``group(_:)`` instead.
+    /// A group or person card is not answered here. Its picture's bytes land after the lookup, from
+    /// the main-actor avatar store, so ``LinkCardFeed`` presents it from ``group(_:)`` or ``user(_:)``
+    /// instead.
     func resolve(_ card: LinkCard) async -> LinkCard.State {
         switch card {
         case .cash(let cash):   return .cash(await cashState(for: cash.entropy))
@@ -66,6 +73,9 @@ actor LinkCardResolver {
         case .group:
             assertionFailure("A group card resolves through group(_:), not resolve(_:)")
             return .group(.unavailable)
+        case .user:
+            assertionFailure("A person card resolves through user(_:), not resolve(_:)")
+            return .user(.notFound)
         }
     }
 
@@ -81,6 +91,21 @@ actor LinkCardResolver {
 
         let facts = await query.value
         if facts == nil, groupQueries[chatID] == query { groupQueries[chatID] = nil }
+        return facts
+    }
+
+    /// The person a tip card link names, or nil if nobody owns it or the lookup failed.
+    func user(_ identity: LinkCard.User.Identity) async -> UserLinkFacts? {
+        if let query = userQueries[identity] { return await query.value }
+
+        let lookup = userLookup
+        let query = Task<UserLinkFacts?, Never> {
+            try? await lookup(identity)
+        }
+        userQueries[identity] = query
+
+        let facts = await query.value
+        if facts == nil, userQueries[identity] == query { userQueries[identity] = nil }
         return facts
     }
 
@@ -140,6 +165,12 @@ nonisolated extension LinkCard {
         case .cash(let cash): Self.cashKey(entropy: cash.entropy)
         case .token(let token): "token:\(token.mint.base58)"
         case .group(let group): "group:\(group.chatID.description)"
+        case .user(let user):
+            switch user.identity {
+            // Lowercased because the no-handle link is, and a handle already is.
+            case .userID(let userID):     "user:id:\(userID.uuidString.lowercased())"
+            case .username(let username): "user:handle:\(username.value)"
+            }
         }
     }
 
@@ -173,6 +204,19 @@ nonisolated protocol GroupChatReading: Sendable {
 }
 
 extension FlipClient: GroupChatReading {}
+
+/// The one call a person card needs: a public profile, by whichever identity the link spells.
+/// Read-only like the others — a card renders, it does not cache the profile or open anything.
+nonisolated protocol ProfileReading: Sendable {
+    func fetchProfile(userID: UserID, owner: KeyPair) async throws -> Profile
+    func fetchProfile(username: Username, owner: KeyPair) async throws -> Profile
+}
+
+extension FlipClient: ProfileReading {}
+
+/// A handle nobody has claimed. The server answers it with an id-less `Profile.empty` rather than
+/// an error, so the lookup turns that into one.
+struct NoSuchAccount: Error {}
 
 /// A chat id that names something other than a group. An invite link only ever names a group, so
 /// anything else has no card to show.
@@ -252,6 +296,27 @@ extension LinkCardResolver {
                 mintName = try await mints.fetchMint(mint: mint).name
             }
             return GroupLinkFacts(conversation: conversation, headlineMintName: mintName)
+        }
+    }
+
+    /// The profile query itself, and whose link it is.
+    ///
+    /// An unclaimed handle comes back as `Profile.empty`, whose `userID` is nil; that is not found,
+    /// not a person with no name. Own-link detection compares against `viewerID`, the session's
+    /// user, rather than against the identity in the URL, so a handle link to the viewer is caught
+    /// as well as an id link.
+    static func userLookup(
+        profiles: any ProfileReading,
+        viewer: KeyPair,
+        viewerID: UserID
+    ) -> @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts {
+        { identity in
+            let profile = switch identity {
+            case .userID(let userID):     try await profiles.fetchProfile(userID: userID, owner: viewer)
+            case .username(let username): try await profiles.fetchProfile(username: username, owner: viewer)
+            }
+            guard let userID = profile.userID else { throw NoSuchAccount() }
+            return UserLinkFacts(profile: profile, userID: userID, isOwn: userID == viewerID)
         }
     }
 

@@ -317,8 +317,8 @@ final class UserProfileViewModel {
         if let name = profile.displayName, !name.isEmpty { self.name = name }
         if let username = profile.username { self.username = username }
         if blurhash == nil { blurhash = profile.profilePicture?.thumbnailBlurhash }
-        if let joined = profile.joinedAt {
-            joinedText = "Joined \(joined.formatted(.dateTime.month(.wide).year()))"
+        if let joined = profile.joinedLine {
+            joinedText = joined
         }
     }
 

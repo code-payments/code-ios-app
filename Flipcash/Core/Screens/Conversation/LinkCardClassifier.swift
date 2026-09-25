@@ -26,7 +26,8 @@ import FlipcashCore
 /// **Route.** Whatever survives the host gate goes to the real parser. No second path parser is
 /// written.
 ///
-/// Three paths become cards: `.cash`, `.token`, and `.chat` (a group invite). The rest are refused by name rather than by a
+/// Five paths become cards: `.cash`, `.token`, `.chat` (a group invite), and `.tip` / `.username` (a
+/// person's tip card link). The rest are refused by name rather than by a
 /// `default`, so a new route has to be ruled on here instead of inheriting a card. `.login` and
 /// `.verifyEmail` in particular carry the account seed and a verification secret, and a card with a
 /// tap target in front of either is a phishing aid.
@@ -41,6 +42,19 @@ nonisolated struct LinkCardClassifier {
     func firstCard(in links: [DetectedLink]) -> LinkCard? {
         links.lazy.compactMap { classify($0) }.first
     }
+
+    /// Single-segment paths the website serves itself, which `Route` would otherwise read as
+    /// handles. A deep link never meets these, because the AASA's `exclude` entries keep them out of
+    /// the app; a link pasted into a message arrives through nothing. Android's
+    /// `AppRouter.reservedProfilePaths` less the names `Route` already claims as its own paths.
+    static let reservedPaths: Set<String> = [
+        // The website's own pages.
+        "download", "privacy", "terms", "support", "help", "about", "blog", "legal", "currencycreator",
+        // Static roots and the web API, served off the apex alongside the pages.
+        "app", "api", "assets", "fonts", "icons", "js", "v1",
+        // Routes belonging to the app hosts.
+        "pool",
+    ]
 
     private func classify(_ link: DetectedLink) -> LinkCard? {
         let target = Route.unwrappingJump(link.url) ?? link.url
@@ -64,7 +78,18 @@ nonisolated struct LinkCardClassifier {
             // a question for the lookup; a chat that turns out not to exist renders unavailable.
             return .group(LinkCard.Group(url: target, chatID: chatID, range: link.range))
 
-        case .login, .verifyEmail, .chatSendCash, .tip, .username,
+        case .tip(let userID):
+            // A person's link, by id: the no-handle form `URL.tipcard(for:username:)` builds, or the
+            // legacy `/tip/<uuid>`. Whether anyone owns the id is the lookup's question.
+            return .user(LinkCard.User(url: target, identity: .userID(userID), range: link.range))
+
+        case .username(let username):
+            // Only reached past the host gate above. `Route` parses any single-segment path as a
+            // handle, so without that gate `discord.gg/<invite>` would be a person card.
+            guard !Self.reservedPaths.contains(username.value) else { return nil }
+            return .user(LinkCard.User(url: target, identity: .username(username), range: link.range))
+
+        case .login, .verifyEmail, .chatSendCash,
              .give, .balance, .discover, .unknown:
             return nil
         }

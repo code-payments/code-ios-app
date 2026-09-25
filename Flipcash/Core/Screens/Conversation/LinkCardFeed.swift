@@ -32,16 +32,23 @@ final class LinkCardFeed: LinkCardSource {
     private let memo: LinkCardMemo
     private let claims: CashLinkClaimLog
     private let groups: any GroupLinkPresenting
+    private let users: any UserLinkPresenting
 
-    /// What each group link's lookup fetched, by resolution key.
+    /// What a group or person link's lookup fetched.
+    private enum Fetched {
+        case group(GroupLinkFacts)
+        case user(UserLinkFacts)
+    }
+
+    /// What each group or person link's lookup fetched, by resolution key.
     ///
     /// Held as facts, not as a finished card, because the picture's bytes land after the lookup
     /// does. ``known(_:)`` presents from here on every paint, so a card shows them once they have.
-    private var groupFacts: [String: GroupLinkFacts] = [:]
+    private var fetched: [String: Fetched] = [:]
 
-    /// Group keys whose presentation is being observed, so each is watched once however many rows
-    /// show it.
-    private var observedGroups: Set<String> = []
+    /// Group and person keys whose presentation is being observed, so each is watched once however
+    /// many rows show it.
+    private var observedPictures: Set<String> = []
 
     /// Who is listening to each key. A link quoted by two rows has two continuations and one query.
     private var listeners: [String: [UUID: AsyncStream<LinkCard.State>.Continuation]] = [:]
@@ -62,11 +69,18 @@ final class LinkCardFeed: LinkCardSource {
     private var claimRefreshTask: Task<Void, Never>?
     private var foregroundTask: Task<Void, Never>?
 
-    init(resolver: LinkCardResolver, memo: LinkCardMemo, claims: CashLinkClaimLog, groups: any GroupLinkPresenting) {
+    init(
+        resolver: LinkCardResolver,
+        memo: LinkCardMemo,
+        claims: CashLinkClaimLog,
+        groups: any GroupLinkPresenting,
+        users: any UserLinkPresenting
+    ) {
         self.resolver = resolver
         self.memo = memo
         self.claims = claims
         self.groups = groups
+        self.users = users
         observeSettledClaims()
         startClaimableRefresh()
     }
@@ -82,8 +96,8 @@ final class LinkCardFeed: LinkCardSource {
         switch card {
         case .cash, .token:
             memo.states[card.resolutionKey]
-        case .group:
-            groupFacts[card.resolutionKey].map { .group(.resolved(groups.present($0))) }
+        case .group, .user:
+            fetched[card.resolutionKey].map(present)
         }
     }
 
@@ -119,7 +133,12 @@ final class LinkCardFeed: LinkCardSource {
         case .group(let group):
             Task { [resolver] in
                 let facts = await resolver.group(group.chatID)
-                deliverGroup(facts, for: key)
+                deliverFetched(facts.map(Fetched.group), missing: .group(.unavailable), for: key)
+            }
+        case .user(let user):
+            Task { [resolver] in
+                let facts = await resolver.user(user.identity)
+                deliverFetched(facts.map(Fetched.user), missing: .user(.notFound), for: key)
             }
         }
     }
@@ -137,37 +156,51 @@ final class LinkCardFeed: LinkCardSource {
         listeners[key]?.values.forEach { $0.yield(state) }
     }
 
-    // A group's facts land here rather than in the memo, and are presented per listener. A failed
-    // lookup is forgotten like any other: the card shows unavailable, and the next appearance asks
-    // again.
-    private func deliverGroup(_ facts: GroupLinkFacts?, for key: String) {
+    // A group's or person's facts land here rather than in the memo, and are presented per
+    // listener. A failed lookup is forgotten like any other: the card shows `missing`, and the next
+    // appearance asks again.
+    private func deliverFetched(_ facts: Fetched?, missing: LinkCard.State, for key: String) {
         guard let facts else {
-            listeners[key]?.values.forEach { $0.yield(.group(.unavailable)) }
+            listeners[key]?.values.forEach { $0.yield(missing) }
             return
         }
-        groupFacts[key] = facts
-        let card = groups.present(facts)
-        listeners[key]?.values.forEach { $0.yield(.group(.resolved(card))) }
-        observeGroup(key)
-        Task { [groups] in await groups.loadPicture(for: facts) }
+        fetched[key] = facts
+        let state = present(facts)
+        listeners[key]?.values.forEach { $0.yield(state) }
+        observePicture(key)
+        Task { await loadPicture(for: facts) }
     }
 
-    // Re-presents a group card when the picture's bytes land, and yields it to whoever is still
-    // listening. Re-arms once per change, and lapses once no row shows the link.
-    private func observeGroup(_ key: String) {
-        guard !observedGroups.contains(key), let facts = groupFacts[key] else { return }
-        observedGroups.insert(key)
+    private func present(_ facts: Fetched) -> LinkCard.State {
+        switch facts {
+        case .group(let group): .group(.resolved(groups.present(group)))
+        case .user(let user):   .user(.resolved(users.present(user)))
+        }
+    }
+
+    private func loadPicture(for facts: Fetched) async {
+        switch facts {
+        case .group(let group): await groups.loadPicture(for: group)
+        case .user(let user):   await users.loadPicture(for: user)
+        }
+    }
+
+    // Re-presents a group or person card when the picture's bytes land, and yields it to whoever is
+    // still listening. Re-arms once per change, and lapses once no row shows the link.
+    private func observePicture(_ key: String) {
+        guard !observedPictures.contains(key), let facts = fetched[key] else { return }
+        observedPictures.insert(key)
 
         withObservationTracking {
-            _ = groups.present(facts)
+            _ = present(facts)
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.observedGroups.remove(key)
-                guard self.listeners[key] != nil, let facts = self.groupFacts[key] else { return }
-                let card = self.groups.present(facts)
-                self.listeners[key]?.values.forEach { $0.yield(.group(.resolved(card))) }
-                self.observeGroup(key)
+                self.observedPictures.remove(key)
+                guard self.listeners[key] != nil, let facts = self.fetched[key] else { return }
+                let state = self.present(facts)
+                self.listeners[key]?.values.forEach { $0.yield(state) }
+                self.observePicture(key)
             }
         }
     }
