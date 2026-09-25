@@ -26,6 +26,19 @@ enum Analytics {
 
     private static var isEnabled = false
 
+    /// Whether events are logged instead of sent, which Debug builds do because they never initialize Mixpanel.
+    private static var logsInsteadOfSending: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
+    private static var canSend: Bool {
+        isEnabled || sendOverride != nil || logsInsteadOfSending
+    }
+
     /// Resolves a mint's base58 address to its ticker symbol. Installed once at
     /// session start (see `SessionAuthenticator.completeLogin`) so no call site has
     /// to look a symbol up; nil before login, and nil per-mint when the mint isn't
@@ -52,7 +65,7 @@ enum Analytics {
     static var incrementOverride: ((String, Double) -> Void)?
 
     static func track(event: some AnalyticsEvent, properties: [Property: AnalyticsValue]? = nil, error: Error? = nil) {
-        guard isEnabled || sendOverride != nil else { return }
+        guard canSend else { return }
 
         var container: [String: AnalyticsValue] = [:]
 
@@ -77,7 +90,7 @@ enum Analytics {
     /// Sends an event built by the shared contract, adding token symbols and the iOS
     /// `Error` format exactly as `track(event:properties:error:)` does.
     static func track(_ event: TrackedEvent, error: Error? = nil) {
-        guard isEnabled || sendOverride != nil else { return }
+        guard canSend else { return }
 
         var container: [String: AnalyticsValue] = event.scalarProperties.mapValues { scalar in
             switch scalar {
@@ -107,6 +120,12 @@ enum Analytics {
     private static func send(_ name: String, _ properties: [String: AnalyticsValue]) {
         if let sendOverride {
             sendOverride(name, properties)
+            return
+        }
+        guard isEnabled else {
+            logger.debug("Analytics event", metadata: properties.reduce(into: ["event": "\(name)"]) { metadata, property in
+                metadata[property.key] = "\(property.value)"
+            })
             return
         }
         mixpanel.track(event: name, properties: properties)
@@ -188,7 +207,12 @@ extension Analytics {
             incrementOverride(counter.key, amount)
             return
         }
-        guard isEnabled else { return }
+        guard isEnabled else {
+            if logsInsteadOfSending {
+                logger.debug("Analytics increment", metadata: ["counter": "\(counter.key)", "amount": "\(amount)"])
+            }
+            return
+        }
         mixpanel.people.increment(property: counter.key, by: amount)
     }
 }
