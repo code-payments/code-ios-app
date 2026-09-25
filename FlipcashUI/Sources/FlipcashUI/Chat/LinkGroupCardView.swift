@@ -31,6 +31,15 @@ final class LinkGroupCardView: UIView {
     /// What the card last drew, so a repeat of it is not reported as a change.
     private var shown: (state: LinkCard.Group.State?, loading: Bool)?
 
+    /// The card's outline, set by the row from the card's place in its bubble run.
+    var cornerRadii = BubbleBackgroundView.standaloneRadii {
+        didSet {
+            guard cornerRadii != oldValue else { return }
+            shimmer.roundCorners(to: cornerRadii)
+            renderContent()
+        }
+    }
+
     private let content: any UIView & UIContentView
     /// The content's height at the card's actual width. The hosting view's own intrinsic height is
     /// worked out at its ideal width, where a wrapped requirement line fits on one line, so the row
@@ -61,8 +70,7 @@ final class LinkGroupCardView: UIView {
         addSubview(content)
 
         shimmer.translatesAutoresizingMaskIntoConstraints = false
-        shimmer.layer.cornerRadius = GroupCardView.Layout.radius
-        shimmer.layer.cornerCurve = .continuous
+        shimmer.roundCorners(to: cornerRadii)
         addSubview(shimmer)
 
         for view in [content, shimmer] as [UIView] {
@@ -121,14 +129,18 @@ final class LinkGroupCardView: UIView {
         shimmer.setShimmering(showsShimmer)
         content.isHidden = showsShimmer
 
-        let display = state ?? .unavailable
-        content.configuration = UIHostingConfiguration {
-            LinkGroupCardContent(state: display, onAction: { [weak self] in self?.onStart?() })
-        }
-        .margins(.all, 0)
-
+        renderContent()
         fit()
         return true
+    }
+
+    private func renderContent() {
+        let display = shown?.state ?? .unavailable
+        let radii = cornerRadii
+        content.configuration = UIHostingConfiguration {
+            LinkGroupCardContent(state: display, cornerRadii: radii, onAction: { [weak self] in self?.onStart?() })
+        }
+        .margins(.all, 0)
     }
 }
 
@@ -143,6 +155,14 @@ final class LinkGroupCardView: UIView {
 struct LinkGroupCardContent: View {
 
     let state: LinkCard.Group.State
+    /// The card's outline: its place in a bubble run inside a transcript, every corner at the head
+    /// card's radius on its own.
+    var cornerRadii = RectangleCornerRadii(
+        topLeading: GroupCardView.Layout.radius,
+        bottomLeading: GroupCardView.Layout.radius,
+        bottomTrailing: GroupCardView.Layout.radius,
+        topTrailing: GroupCardView.Layout.radius
+    )
     /// The button's label — "View" from a transcript link, "Invite People" from a group's own
     /// empty-state head card.
     var ctaTitle: String = Copy.view
@@ -197,9 +217,9 @@ struct LinkGroupCardContent: View {
                 .padding(.bottom, GroupCardView.Layout.horizontalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: GroupCardView.Layout.radius, style: .continuous))
+        .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: GroupCardView.Layout.radius, style: .continuous)
+            UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous)
                 .strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity))
         }
     }

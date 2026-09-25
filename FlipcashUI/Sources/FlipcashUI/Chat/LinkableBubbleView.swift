@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 import FlipcashCore
 
 /// A chat bubble that renders text with tappable links, over the shared `BubbleBackgroundView`, or
@@ -199,6 +200,9 @@ public final class LinkableBubbleView: UIView {
     /// so the lift traces the card rather than a bubble that is not drawn.
     var maskingPath: UIBezierPath { background.maskingPath }
 
+    /// The outline the row's card is cut to; the standalone radii on a row with no card.
+    var cardCornerRadii: RectangleCornerRadii { cardView.cornerRadii }
+
     /// Flashes the bubble's ground to point the eye at this message after a jump.
     func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
 
@@ -225,11 +229,16 @@ public final class LinkableBubbleView: UIView {
         textView.attributedText = Self.linkedText(for: message)
 
         // The transcript gives a carded link a row of its own, so a row carries either text or the
-        // card — never both. Asked of the message rather than of `card` here, because the mapper
-        // asks the same question of this row's neighbours to break the bubble run: one answer, or a
-        // bubble flattens its corner toward chrome that is not drawn.
+        // card — never both.
         let bare = message.rendersAsBareLinkCard
         setBare(bare)
+        // One set of radii for the card and the chrome: a card sits in its bubble run exactly where
+        // a text bubble would, with the same corners flattened toward its neighbours.
+        let radii = BubbleBackgroundView.radii(
+            isFromSelf: message.sender == .me,
+            groupedAbove: message.joinsBubbleAbove,
+            groupedBelow: message.joinsBubbleBelow
+        )
         // A card row's "Edited" marker sits on the column's metadata line instead — see
         // `ChatLinkMessageCell`.
         editedLabel.isHidden = bare || !ChatBubbleView.showsEditedMarker(for: message)
@@ -241,6 +250,7 @@ public final class LinkableBubbleView: UIView {
             case .group:        false
             case .cash, .token: true
             }
+            cardView.cornerRadii = radii
             cardView.configure(with: card, source: linkCardSource)
             NSLayoutConstraint.deactivate(cardCollapse)
             NSLayoutConstraint.activate(cardSides)
@@ -274,11 +284,7 @@ public final class LinkableBubbleView: UIView {
 
         background.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
-            radii: BubbleBackgroundView.radii(
-                isFromSelf: message.sender == .me,
-                groupedAbove: message.joinsBubbleAbove,
-                groupedBelow: message.joinsBubbleBelow
-            ),
+            radii: radii,
             bare: bare,
             identity: message.id
         )

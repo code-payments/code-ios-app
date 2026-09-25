@@ -187,8 +187,8 @@ struct ChatLinkCardSplitTests {
 
     // MARK: - Bubble run
 
-    @Test("A card breaks the bubble run on both sides, inside and outside its message")
-    func cardBreaksTheBubbleRun() {
+    @Test("A card joins the bubble run on both sides, inside and outside its message")
+    func cardJoinsTheBubbleRun() {
         let rows = rows([
             text(1, me, "before", after: 0),
             text(2, me, "a \(Self.cashLink) b", after: 60),
@@ -200,19 +200,19 @@ struct ChatLinkCardSplitTests {
         #expect(rows.map(\.isContinuationFromPrevious) == [false, true, true, true, true])
         #expect(rows.map(\.isContinuedByNext) == [true, true, true, true, false])
 
-        // "before" joins "a"; everything facing the card stands alone; "b" joins "after".
-        #expect(rows.map(\.joinsBubbleAbove) == [false, true, false, false, true])
-        #expect(rows.map(\.joinsBubbleBelow) == [true, false, false, true, false])
+        // The card is cut to a bubble's shape, so the bubble run is the author run.
+        #expect(rows.map(\.joinsBubbleAbove) == [false, true, true, true, true])
+        #expect(rows.map(\.joinsBubbleBelow) == [true, true, true, true, false])
     }
 
-    @Test("A neighbour of a link-only message does not join toward it")
-    func linkOnlyNeighboursStandAlone() {
+    @Test("A link-only message joins the bubbles on either side of it")
+    func linkOnlyMessageJoinsItsNeighbours() {
         let rows = rows([
             text(1, me, "before", after: 0),
             text(2, me, Self.cashLink, after: 60),
             text(3, me, "after", after: 120),
         ])
-        #expect(rows.map(\.joinsBubbleAbove) == [false, false, false])
-        #expect(rows.map(\.joinsBubbleBelow) == [false, false, false])
+        #expect(rows.map(\.joinsBubbleAbove) == [false, true, true])
+        #expect(rows.map(\.joinsBubbleBelow) == [true, true, false])
     }
 }

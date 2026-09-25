@@ -40,6 +40,13 @@ final class LinkTokenCardView: UIView {
     private static let watermarkShare: CGFloat = 213.0 / 224.0
 
     private let gradient = CAGradientLayer()
+    private let outline = CAShapeLayer()
+    private let border = CAShapeLayer()
+
+    /// The card's outline, set by the row from the card's place in its bubble run.
+    var cornerRadii = BubbleBackgroundView.standaloneRadii {
+        didSet { if cornerRadii != oldValue { setNeedsLayout() } }
+    }
     /// Sweeps the bill itself, which is the one part of this card that really is a placeholder:
     /// unresolved, the gradient is the neutral row colour standing in for branding nobody has
     /// fetched. Above the gradient and below everything else, so the address is never swept.
@@ -57,11 +64,12 @@ final class LinkTokenCardView: UIView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     private func setUp() {
-        clipsToBounds = true
-        layer.cornerRadius = Metrics.boxRadius
-        layer.cornerCurve = .continuous
-        layer.borderWidth = 1
-        layer.borderColor = UIColor(Color.rowSeparator).cgColor
+        // Masked and stroked by path rather than `cornerRadius`, which rounds every corner alike:
+        // a card inside a bubble run flattens the corners it shares with its neighbours.
+        layer.mask = outline
+        border.fillColor = nil
+        border.lineWidth = 2
+        border.strokeColor = UIColor(Color.rowSeparator).cgColor
 
         gradient.startPoint = CGPoint(x: 0, y: 0.5)
         gradient.endPoint = CGPoint(x: 1, y: 0.5)
@@ -86,6 +94,7 @@ final class LinkTokenCardView: UIView {
         nameLabel.font = .appTextSmall
         nameLabel.numberOfLines = 1
         addSubview(nameLabel)
+        layer.addSublayer(border)
     }
 
     override func layoutSubviews() {
@@ -100,6 +109,12 @@ final class LinkTokenCardView: UIView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         gradient.frame = bounds
+        let path = BubbleBackgroundView.path(radii: cornerRadii, in: bounds)
+        outline.frame = bounds
+        outline.path = path
+        // Twice the hairline, centred on the edge, so the mask keeps the inner point of it.
+        border.frame = bounds
+        border.path = path
         CATransaction.commit()
 
         surfaceShimmer.frame = bounds
