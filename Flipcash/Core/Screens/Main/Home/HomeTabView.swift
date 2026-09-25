@@ -77,11 +77,12 @@ struct HomeTabView: View {
     @State private var tipCardPresentation = TipCardPresentation()
 
     private var isTabBarHidden: Bool {
-        if cardExpansion.isExpanded { return true }
-        if tipCardPresentation.isExpanded { return true }
-        if sessionContainer.session.isShowingBill { return true }
-        guard let stack = selection.pushStack else { return false }
-        return !router[stack].isEmpty
+        selection.hidesTabBar(
+            isWalletCardExpanded: cardExpansion.isExpanded,
+            isTipCardExpanded: tipCardPresentation.isExpanded,
+            isShowingBill: sessionContainer.session.isShowingBill,
+            hasPushedScreen: selection.pushStack.map { !router[$0].isEmpty } ?? false
+        )
     }
 
     /// Unread chats among the ones the Chat tab lists, surfaced as a badge on the tab.
@@ -319,6 +320,25 @@ extension HomeTab {
         case .chat:    return .tips
         case .tipCard: return .you
         case .scan:    return nil
+        }
+    }
+
+    /// Whether the tab bar hides while this tab is selected.
+    ///
+    /// An expanded card hides the bar only on the tab that owns it. The card
+    /// stays open when a deep link or push brings another tab forward, so
+    /// hiding on it everywhere left that tab with no bar and no way back.
+    func hidesTabBar(
+        isWalletCardExpanded: Bool,
+        isTipCardExpanded: Bool,
+        isShowingBill: Bool,
+        hasPushedScreen: Bool
+    ) -> Bool {
+        if isShowingBill || hasPushedScreen { return true }
+        switch self {
+        case .wallet:        return isWalletCardExpanded
+        case .tipCard:       return isTipCardExpanded
+        case .scan, .chat:   return false
         }
     }
 }
