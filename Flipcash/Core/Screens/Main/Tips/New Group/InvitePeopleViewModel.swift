@@ -7,7 +7,7 @@ import Foundation
 import FlipcashCore
 
 /// The invite sheet's selection and send (node 10330:19387): the group's invite link, then an
-/// optional message, posted into each picked 1:1 chat on its own.
+/// optional message, posted into each picked chat on its own.
 @MainActor
 @Observable
 final class InvitePeopleViewModel {
