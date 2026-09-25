@@ -15,7 +15,9 @@ build; a Run Script phase would be one build stale and can't reach `.git` under
 `CI_COMMIT` and never marks the build dirty. Locally, `*` marks uncommitted changes to tracked
 files (`git diff --quiet HEAD`, excluding the generated `GoogleService-Info.plist`), the same rule
 Android uses. `base.xcconfig` defaults it to `unknown`. The footer format is shared with Android:
-keep `AppMeta.versionFooter` and Android's `VersionInfo.commitLabel` in step. Don't
+keep `AppMeta.versionFooter` and Android's `VersionInfo.commitLabel` in step. The track after
+the hash comes from `ReleaseTrack`: `development` under `#if DEBUG`, `beta` when StoreKit's
+`AppTransaction` environment is `.sandbox` (TestFlight), none on the App Store. Don't
 change `CFBundleVersion` for this: `SessionAuthenticator.requiresUpgrade` parses it.
 
 ## Protos: consumed, not generated here
