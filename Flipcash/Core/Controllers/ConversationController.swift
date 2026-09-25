@@ -1561,10 +1561,27 @@ final class ConversationController {
     /// so a double-tap (or a tap during a slow in-flight retry) can't fire concurrent sends.
     func retry(clientMessageID: UUID, in conversationID: ConversationID) async {
         guard let pending = store.pendingMessage(clientMessageID: clientMessageID, in: conversationID),
-              pending.status == .failed,
-              case .text(let text) = pending.content else { return }
-        store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
-        _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
+              pending.status == .failed else { return }
+        // Only `.text` is ever sent by this client today -- `deliver(text:)` is the only send path,
+        // and `send(_:to:)` only ever creates a `.text` pending row -- so this is unreachable in
+        // practice. It's a `switch` rather than the narrow `guard case .text` it replaces so a future
+        // pending shape (e.g. an outbox that can hold `.encrypted`) fails loudly via the log below
+        // instead of silently never retrying, and so `Content.asProto()`'s own crash-free contract
+        // (no fatalError/force-unwrap for `.encrypted`/`.cash`/`.deleted`) is exercised here too.
+        switch pending.content {
+        case .text(let text):
+            store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+            _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
+        case .encrypted, .cash, .deleted:
+            if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
+                logger.error("Cannot retry a send this client has no path to re-send", metadata: [
+                    "conversationID": "\(conversationID)",
+                    "error": "\(error)",
+                ])
+            }
+            // Nothing to resend over the existing text-only send RPC; leave it `.failed` rather than
+            // looping forever or crashing.
+        }
     }
 
     private func deliver(clientMessageID: UUID, text: String, repliedTo: MessageID?, to conversationID: ConversationID) async -> Bool {

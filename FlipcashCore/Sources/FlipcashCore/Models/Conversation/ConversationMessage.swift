@@ -231,3 +231,34 @@ extension ConversationMessage {
         self.redacted = proto.redacted
     }
 }
+
+/// Content this client has no way to turn back into a proto `Content` to send. Thrown rather than
+/// asserted: `.cash` and `.deleted` are never round-tripped this way (cash has its own send path;
+/// a tombstone is a mutation result, never resent), but a caller that tries should get a normal
+/// error, not a crash.
+public enum ConversationMessageContentEncodingError: Error, Sendable {
+    case unsupported(ConversationMessage.Content)
+}
+
+extension ConversationMessage.Content {
+    /// Encodes this content back to the wire `Content` it would be sent as. For `.encrypted` this
+    /// is a byte-for-byte round trip of the stored scheme/nonce/ciphertext -- not encryption, since
+    /// this client never decrypted them in the first place -- so a retried/re-sent encrypted message
+    /// reaches the server unchanged rather than being dropped or crashing the sender.
+    public func asProto() throws -> Flipcash_Messaging_V1_Content {
+        switch self {
+        case .text(let text):
+            return .with { $0.type = .text(.with { $0.text = text }) }
+        case .encrypted(let scheme, let nonce, let ciphertext):
+            return .with {
+                $0.type = .encrypted(.with {
+                    $0.scheme = Flipcash_Messaging_V1_EncryptedContent.Scheme(rawValue: scheme) ?? .unknown
+                    $0.nonce = nonce
+                    $0.ciphertext = ciphertext
+                })
+            }
+        case .cash, .deleted:
+            throw ConversationMessageContentEncodingError.unsupported(self)
+        }
+    }
+}
