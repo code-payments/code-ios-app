@@ -4,6 +4,22 @@
 
 Open `Code.xcodeproj` in Xcode 16.x. Swift packages resolve automatically on first open. Build and run the `Flipcash` scheme.
 
+## Commit stamp
+
+`Scripts/write_commit_xcconfig` writes `GIT_COMMIT_SHA` into the gitignored
+`Configurations/commit.local.xcconfig`; Info.plist exposes it as `FCGitCommit`, read by
+`AppMeta.commit` and parsed by `BuildCommit`. It runs from the Flipcash scheme's build
+pre-action (pre-actions run before build settings are read, so the value lands in the same
+build; a Run Script phase would be one build stale and can't reach `.git` under
+`ENABLE_USER_SCRIPT_SANDBOXING`) and from `ci_scripts/ci_pre_xcodebuild.sh`, which prefers
+`CI_COMMIT` and never marks the build dirty. Locally, `*` marks uncommitted changes to tracked
+files (`git diff --quiet HEAD`, excluding the generated `GoogleService-Info.plist`), the same rule
+Android uses. `base.xcconfig` defaults it to `unknown`. The footer format is shared with Android:
+keep `AppMeta.versionFooter` and Android's `VersionInfo.commitLabel` in step. The track after
+the hash comes from `ReleaseTrack`: `development` under `#if DEBUG`, `beta` when StoreKit's
+`AppTransaction` environment is `.sandbox` (TestFlight), none on the App Store. Don't
+change `CFBundleVersion` for this: `SessionAuthenticator.requiresUpgrade` parses it.
+
 ## Protos: consumed, not generated here
 
 This repo no longer vendors `.proto` files or runs protoc. The generated Swift ships from two

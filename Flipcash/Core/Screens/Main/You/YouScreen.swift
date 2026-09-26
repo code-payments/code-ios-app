@@ -42,6 +42,7 @@ struct YouScreen: View {
     /// The version footer's beta-access easter egg — the tap count and the line
     /// it shows for the last few taps.
     @State private var versionUnlock = VersionTapUnlock()
+    @State private var releaseTrack: String?
     @State private var isShowingDownloadOptions = false
 
     /// The format tapped in the download sheet, held until the sheet is gone so
@@ -464,8 +465,9 @@ struct YouScreen: View {
                 betaFlags.setAccessGranted(!betaFlags.accessGranted)
             }
         } label: {
-            Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
-                .lineLimit(1)
+            Text(AppMeta.versionFooter(commit: BuildCommit(AppMeta.commit), track: releaseTrack))
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
                 .font(.appTextHeading)
                 .foregroundStyle(Color.textSecondary)
                 .padding(.vertical, 12)
@@ -492,6 +494,7 @@ struct YouScreen: View {
             }
         }
         .animation(.springFaster, value: versionUnlock.message)
+        .task { releaseTrack = await ReleaseTrack.current() }
     }
 
     // MARK: - Content -
