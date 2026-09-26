@@ -742,8 +742,8 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
-    @Test("a message an extension preloaded into the shared store while suspended becomes visible on foreground through the same GetDelta the client would run anyway - no separate DB reload path is needed")
-    func foregroundSurfacesExtensionPreloadedMessageViaOrdinaryCatchUp() async throws {
+    @Test("foreground re-fetches via GetDelta even when the extension already persisted the message to the shared store")
+    func foregroundRefetchesViaGetDeltaEvenWhenExtensionAlreadyPersistedMessage() async throws {
         let (database, _) = try Database.makeTemp()
         let mock = MockConversations()
         mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
