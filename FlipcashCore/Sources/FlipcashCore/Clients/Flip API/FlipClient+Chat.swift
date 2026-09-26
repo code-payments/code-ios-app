@@ -199,6 +199,34 @@ extension FlipClient {
         }
     }
 
+    /// Adds the owner's reaction with `emoji` to a message and returns the emoji's new aggregate.
+    public func addReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.addReaction(owner: owner, conversationID: conversationID, messageID: messageID, emoji: emoji) { c.resume(with: $0) }
+        }
+    }
+
+    /// Removes the owner's reaction with `emoji` from a message and returns the emoji's new aggregate.
+    public func removeReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.removeReaction(owner: owner, conversationID: conversationID, messageID: messageID, emoji: emoji) { c.resume(with: $0) }
+        }
+    }
+
+    /// One page of the users who reacted to a message with `emoji`, newest first.
+    public func getReactors(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, pageSize: Int = 50, pagingToken: Data? = nil) async throws -> ReactorPage {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.getReactors(owner: owner, conversationID: conversationID, messageID: messageID, emoji: emoji, pageSize: pageSize, pagingToken: pagingToken) { c.resume(with: $0) }
+        }
+    }
+
+    /// The current reactions on up to 100 messages, keyed by message; a message with none is absent.
+    public func getReactionSummaries(owner: KeyPair, conversationID: ConversationID, messageIDs: [MessageID]) async throws -> [MessageID: ReactionState] {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.getReactionSummaries(owner: owner, conversationID: conversationID, messageIDs: messageIDs) { c.resume(with: $0) }
+        }
+    }
+
     public func deleteMessage(
         owner: KeyPair,
         conversationID: ConversationID,

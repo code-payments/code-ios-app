@@ -111,6 +111,14 @@ protocol ConversationMessaging: AnyObject, Sendable {
     func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Tombstones a message, guarded by `expectedEventSequence` the same way as `editMessage`.
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation
+    /// Adds the owner's reaction with `emoji`, returning the emoji's new aggregate.
+    func addReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction
+    /// Removes the owner's reaction with `emoji`, returning the emoji's new aggregate.
+    func removeReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction
+    /// One page of an emoji's reactors, newest first.
+    func getReactors(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, pageSize: Int, pagingToken: Data?) async throws -> ReactorPage
+    /// The current reactions on up to 100 messages, keyed by message; a message with none is absent.
+    func getReactionSummaries(owner: KeyPair, conversationID: ConversationID, messageIDs: [MessageID]) async throws -> [MessageID: ReactionState]
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws
     func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws
 }

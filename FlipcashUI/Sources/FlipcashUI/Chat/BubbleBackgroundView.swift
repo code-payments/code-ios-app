@@ -192,11 +192,22 @@ final class BubbleBackgroundView: UIView {
     /// Applied to the view *hosting* the chrome, never to this view: its layer is masked to the
     /// bubble shape, and a mask clips a shadow as readily as it clips a sublayer.
     static func raise(_ view: UIView, shape: UIBezierPath?) {
+        view.layer.removeAnimation(forKey: "liftFade")
         view.layer.shadowColor = UIColor.black.cgColor
         view.layer.shadowOpacity = shape == nil ? 0 : liftShadowOpacity
         view.layer.shadowRadius = liftShadowRadius
         view.layer.shadowOffset = liftShadowOffset
         view.layer.shadowPath = shape?.cgPath
+    }
+
+    /// Fades a raised bubble's elevation out over `duration`, leaving `lower` to clear it for good.
+    static func fadeLift(_ view: UIView, duration: TimeInterval) {
+        let fade = CABasicAnimation(keyPath: "shadowOpacity")
+        fade.fromValue = view.layer.presentation()?.shadowOpacity ?? view.layer.shadowOpacity
+        fade.toValue = 0
+        fade.duration = duration
+        view.layer.shadowOpacity = 0
+        view.layer.add(fade, forKey: "liftFade")
     }
 
     /// Returns `view` to the transcript's plane. Must run for every `raise`, including on the way out
