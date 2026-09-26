@@ -515,12 +515,30 @@ final class ConversationController {
     /// no chat open, previously refreshed nothing. `loadFeed()` re-fetches every conversation's head and
     /// runs the same `backfillMessages`/`catchUp` (GetDelta) route `start()` and reconnect use, so a
     /// conversation the extension preloaded while suspended (cursor left at 0, deliberately not
-    /// advanced - see `NotificationService.persist`) is re-fetched from the server on the same call,
-    /// with no separate database-reload path needed. `catchUpInFlight` still dedupes a foreground
-    /// refresh that overlaps a reconnect's own catch-up of the same conversation.
+    /// advanced - see `NotificationService.persist`) is re-fetched from the server on the same call.
+    /// That fetch needs a network, though - with none, `reloadFromDatabase()` reads what the extension
+    /// already wrote straight off disk first, so the row surfaces even offline. A later GetDelta that
+    /// does land re-applies the same row through the ordinary upsert-by-id write, so it can't duplicate
+    /// or reorder what was just reloaded. `catchUpInFlight` still dedupes a foreground refresh that
+    /// overlaps a reconnect's own catch-up of the same conversation.
     func handleForeground() {
+        reloadFromDatabase()
         catchUpOpenChat()
         Task { await loadFeed() }
+    }
+
+    /// Re-reads every known conversation's transcript and feed preview straight from disk, with no
+    /// network involved. Covers the notification extension's writes: it persists pushed messages into
+    /// the shared store with `cursor: 0` (see `NotificationService.persist`), which the running app's
+    /// in-memory `store` never observes, since `Database.transaction` only posts `.databaseDidChange`
+    /// for writes made by this process. Bumping `messageRevision` invalidates the cached transcript
+    /// window so the next read re-queries the DB; `refreshFeedPreview` does the same for each chat's
+    /// last-message preview and unread state, which don't come from the network-only catch-up paths.
+    private func reloadFromDatabase() {
+        bumpMessageRevision()
+        for conversationID in store.conversations.map(\.id) {
+            refreshFeedPreview(for: conversationID)
+        }
     }
 
     /// A live event exposed a gap. Debounce briefly — a late out-of-order event may close it before we
