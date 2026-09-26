@@ -70,6 +70,8 @@ final class MessageLoader {
         }
         if let older = controller.olderAnchor(for: conversationID, before: anchor, step: Self.step) {
             startID = older
+            // Stored history carries the reactions it had when it was saved; a server page arrives current.
+            Task { await controller.refreshReactions(for: conversationID, before: anchor, limit: Self.step) }
         } else {
             fetchOlder()
         }
@@ -85,6 +87,7 @@ final class MessageLoader {
         }
     }
 
-    private static let initialWindow = 60
+    /// How many of the newest messages a fresh open renders.
+    static let initialWindow = 60
     private static let step = 40
 }

@@ -721,6 +721,131 @@ struct SendAmountViewModelTests {
         #expect(mock.sendCalls.count == 1)
     }
 
+    // MARK: - Group targets
+
+    private static let groupID = ConversationID(data: Data(repeating: 0x0A, count: 32))
+
+    private static func makeGroupViewModel(
+        container: SessionContainer,
+        mock: MockSession,
+        poster: MockChatPoster
+    ) -> SendAmountViewModel {
+        SendAmountViewModel(
+            sessionContainer: container,
+            target: .group(groupID),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock,
+            cashLinkSender: mock,
+            poster: poster
+        )
+    }
+
+    @Test("A group send funds a cash link, then posts exactly its URL into the group")
+    func groupSend_fundsThenPostsURL() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let mock = MockSession()
+        let poster = MockChatPoster()
+        let giftCard = GiftCardCluster(mint: .usdf, timeAuthority: .usdcAuthority)
+        mock.sendCashLinkHandler = { _, _ in
+            #expect(poster.posts.isEmpty, "The link is posted only once it's funded")
+            return giftCard
+        }
+        let viewModel = Self.makeGroupViewModel(container: container, mock: mock, poster: poster)
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(mock.fundedCashLinks.count == 1)
+        #expect(mock.fundedCashLinks.first?.nativeAmount.value == 5)
+        #expect(poster.posts == [.init(
+            text: URL.cashLink(with: giftCard.mnemonic).absoluteString,
+            conversationID: Self.groupID
+        )])
+        #expect(mock.sendCalls.isEmpty)
+        #expect(mock.cancelledCashLinkVaults.isEmpty)
+        #expect(container.session.dialogItem == nil)
+    }
+
+    @Test("A group send whose post fails voids the funded link and surfaces a dialog")
+    func groupSend_postFails_voidsLink() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let mock = MockSession()
+        let poster = MockChatPoster()
+        poster.accepts = false
+        let giftCard = GiftCardCluster(mint: .usdf, timeAuthority: .usdcAuthority)
+        mock.sendCashLinkHandler = { _, _ in giftCard }
+        mock.cancelCashLinkHandler = { _ in }
+        let viewModel = Self.makeGroupViewModel(container: container, mock: mock, poster: poster)
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .failed)
+        #expect(poster.posts.count == 1)
+        #expect(mock.cancelledCashLinkVaults == [giftCard.cluster.vaultPublicKey])
+        #expect(container.session.dialogItem?.title == "Couldn't Send")
+    }
+
+    @Test("A group send whose funding fails posts nothing")
+    func groupSend_fundFails_postsNothing() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let mock = MockSession()
+        let poster = MockChatPoster()
+        mock.sendCashLinkHandler = { _, _ in throw URLError(.timedOut) }
+        let viewModel = Self.makeGroupViewModel(container: container, mock: mock, poster: poster)
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .failed)
+        #expect(poster.posts.isEmpty)
+        #expect(mock.cancelledCashLinkVaults.isEmpty)
+        #expect(container.session.dialogItem?.title == "Couldn't Send")
+    }
+
+    @Test("A group send over the send limit funds nothing")
+    func groupSend_overSendLimit_fundsNothing() async throws {
+        let container = try await Self.makeReadyToSendContainer(sendLimitUSD: 1)
+        let mock = MockSession()
+        let poster = MockChatPoster()
+        let viewModel = Self.makeGroupViewModel(container: container, mock: mock, poster: poster)
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .failed)
+        #expect(mock.fundedCashLinks.isEmpty)
+        #expect(poster.posts.isEmpty)
+    }
+
+    @Test("A contact send never funds a cash link or posts one")
+    func contactSend_neverTouchesCashLink() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let mock = MockSession()
+        let poster = MockChatPoster()
+        mock.resolveContactHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            target: .contact(Self.makeContact()),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock,
+            cashLinkSender: mock,
+            poster: poster
+        )
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(mock.sendCalls.count == 1)
+        #expect(mock.fundedCashLinks.isEmpty)
+        #expect(poster.posts.isEmpty)
+    }
+
     // MARK: - Tip floor
 
     // The fee a recipient sets buys the *conversation*, so it applies to exactly

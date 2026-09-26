@@ -99,6 +99,15 @@ protocol DirectSending: AnyObject {
     ) async throws
 }
 
+// MARK: - Cash links
+
+/// Funds and voids cash links that the app posts itself rather than showing on a bill.
+protocol CashLinkSending: AnyObject {
+
+    func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) async throws -> GiftCardCluster
+    func cancelCashLink(giftCardVault: PublicKey) async throws
+}
+
 // MARK: - Session conformance
 
 extension Session: AccountProviding,
@@ -108,4 +117,5 @@ extension Session: AccountProviding,
                     ReservesBuying,
                     CurrencyLaunching,
                     RecipientResolving,
-                    DirectSending {}
+                    DirectSending,
+                    CashLinkSending {}

@@ -256,6 +256,7 @@ final class ConversationLoadCoordinator {
             policy: MessagePolicy(userFlags: session.userFlags),
             now: capabilityClock,
             namesAuthors: namesAuthors,
+            canReact: conversation.map { controller.isMember(of: $0) } ?? true,
             // Only a transcript that attributes its rows has anything to resolve, so a DM never
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
@@ -315,6 +316,7 @@ final class ConversationLoadCoordinator {
             // draws as it does in a DM rather than under a blank name.
             author: { message in message.senderID.flatMap { authors[$0] } },
             namesAuthors: inputs.namesAuthors,
+            canReact: inputs.canReact,
             // Classification is pure and host-gated, and that is all mapping does with a link: the
             // card is the link's identity, and the card view looks it up for itself. So nothing
             // here touches the network, and an answer landing cannot re-diff this window.
@@ -415,6 +417,9 @@ final class ConversationLoadCoordinator {
         /// Whether the transcript attributes its rows: true for a group chat, false for a DM,
         /// where every row is one of two people and a name above each would be noise.
         var namesAuthors: Bool
+        /// Whether the viewer may add or remove a reaction — false for someone previewing a group
+        /// they have not joined. True for a DM, where there is no conversation record to preview.
+        var canReact: Bool
         /// Identities for senders the chat's own roster leaves out. Compared by identity — see
         /// ``KnownAuthorDirectory/Snapshot``.
         var knownAuthors: KnownAuthorDirectory.Snapshot

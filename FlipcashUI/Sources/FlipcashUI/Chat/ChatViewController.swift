@@ -85,6 +85,18 @@ public final class ChatViewController: UICollectionViewController {
 
     public var onMessageAction: ((String, MessageCapability) -> Void)?
 
+    /// Fired when the viewer taps a reaction pill on a message row: the row's stable id and the
+    /// toggled emoji. Not folded into `onMessageAction`/`MessageCapability` — a reaction toggle is
+    /// not a capability the context menu offers, and a group previewer without reply/edit/etc. can
+    /// still reach this.
+    public var onReactionTap: ((String, String) -> Void)?
+    /// Fired on a long-press of a reaction pill: the row's stable id and the long-pressed emoji, to
+    /// open the reactors sheet scoped to it.
+    public var onReactionLongPress: ((String, String) -> Void)?
+    /// Fired when a message row's trailing "+" reaction pill is tapped, to open the picker for that
+    /// row's stable id.
+    public var onReactionAdd: ((String) -> Void)?
+
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
@@ -185,6 +197,9 @@ public final class ChatViewController: UICollectionViewController {
     /// value (see `freezeInset`): the keyboard's space stays reserved, so nothing moves — and the
     /// keyboard sliding back on dismiss restores everything to exactly where it was, matching iMessage.
     private var isShowingContextMenu = false
+    /// Counts menus opened, so a menu's early resume (see `willEndContextMenuInteraction`) can tell
+    /// it still belongs to the menu on screen rather than to one opened while it was landing.
+    private var contextMenuGeneration = 0
     /// The bubble a context menu has raised, held so the lift's elevation comes off the same view when
     /// the menu goes. Weak: the cell it belongs to can be recycled out from under the menu.
     private weak var liftedBubble: UIView?
@@ -211,6 +226,11 @@ public final class ChatViewController: UICollectionViewController {
     /// Guards the lowering to once per menu — the display callback can fire for the lift and again
     /// for the menu itself.
     private var didLowerKeyboardForMenu = false
+    /// The message the currently-presented context menu belongs to, so a caller layering the
+    /// reaction strip over the menu knows what it's for. Set for the whole life of the menu —
+    /// `contextMenuConfigurationForItemAt` through `willEndContextMenuInteraction` — and nil the rest
+    /// of the time.
+    private(set) var contextMenuMessage: ChatMessage?
 
     /// Work handed over by a menu action to run, in order, once the menu has finished dismissing. A
     /// `becomeFirstResponder` issued from a `UIAction` is rejected while the menu still owns the
@@ -468,12 +488,21 @@ public final class ChatViewController: UICollectionViewController {
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
             cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card, message.messageID) }
             cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
+            cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
+            cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
+            cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         case let cell as ChatMessageCell:
             cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
+            cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
+            cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
+            cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         case let cell as ChatCashCardCell:
             cell.configure(with: message, authorImageData: authorImageData)
+            cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
+            cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
+            cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         default:
             assertionFailure("Unhandled chat cell class for message row")
         }
@@ -956,18 +985,33 @@ extension ChatViewController {
     public override func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
         // Don't offer a menu mid-batch-update: the index path may not line up with the rendered cell.
         guard !isUpdating else { return nil }
+        // A long-pressed reaction pill opens its reactors sheet, not the message's menu.
+        guard !isInReactionRow(point) else { return nil }
         guard let menu = contextMenu(forItemAt: indexPath) else { return nil }
 
+        if indexPath.item < items.count, case .message(let message) = items[indexPath.item] {
+            contextMenuMessage = message
+        }
 
         // Freeze the inset for the menu's lifetime so presenting it (which dismisses the keyboard)
         // doesn't shrink the adjusted inset and reflow the content out from under the lifted preview.
         isShowingContextMenu = true
+        contextMenuGeneration += 1
         freezeInset()
 
         // The section/item pair, encoded as an NSString, resolves the cell back in `preview(for:)`.
         // ChatLayout's note: a custom NSCopying identifier crashes, so a plain string is used.
         let identifier = "\(indexPath.section)|\(indexPath.item)" as NSString
         return UIContextMenuConfiguration(identifier: identifier, previewProvider: nil) { _ in menu }
+    }
+
+    private func isInReactionRow(_ point: CGPoint) -> Bool {
+        var view = collectionView.hitTest(point, with: nil)
+        while let current = view {
+            if current is ReactionPillRowView { return true }
+            view = current.superview
+        }
+        return false
     }
 
     /// The menu a row offers, or `nil` if it offers none. Built separately from the configuration so
@@ -1000,11 +1044,13 @@ extension ChatViewController {
     }
 
     public override func collectionView(_ collectionView: UICollectionView, previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
-        preview(for: configuration)
+        preview(for: configuration, raising: true)
     }
 
     public override func collectionView(_ collectionView: UICollectionView, previewForDismissingContextMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
-        preview(for: configuration)
+        // Not raised again: UIKit asks for this once the dismissal has begun, and raising here would
+        // cancel the fade `willEndContextMenuInteraction` started and land the bubble still lifted.
+        preview(for: configuration, raising: false)
     }
 
     /// The menu is coming on screen — take the keyboard down now, so it leaves as the menu arrives
@@ -1029,9 +1075,18 @@ extension ChatViewController {
         // the completion hands the inset back the keyboard is where the system expects it.
         didLowerKeyboardForMenu = false
         onContextMenuDidDismiss?(animator)
+        contextMenuMessage = nil
 
+        // The lift's elevation fades with the bubble's flight home rather than lingering on it after.
+        if let liftedBubble {
+            BubbleBackgroundView.fadeLift(liftedBubble, duration: ChatMotion.contextMenuLanding)
+        }
+
+        let generation = contextMenuGeneration
+        var resumed = false
         let resume: () -> Void = { [weak self] in
-            guard let self else { return }
+            guard let self, !resumed, generation == contextMenuGeneration else { return }
+            resumed = true
             // Restore the inset while the flag is still set, so the behavior switch's inset change is
             // suppressed (no stray scroll); then drop the flag and apply any held update.
             restoreInset()
@@ -1053,7 +1108,11 @@ extension ChatViewController {
             for work in held { work() }
         }
         if let animator {
+            // UIKit's completion arrives well after the bubble is back in its row (about 0.7s on
+            // device), so held work — a reaction's pill above all — runs once the bubble has landed,
+            // and the completion only covers a landing that takes longer.
             animator.addCompletion(resume)
+            DispatchQueue.main.asyncAfter(deadline: .now() + ChatMotion.contextMenuLanding, execute: resume)
         } else {
             resume()
         }
@@ -1098,6 +1157,17 @@ extension ChatViewController {
         return space.convert(bubble.bounds, from: bubble)
     }
 
+    /// Where the long-pressed row's bubble currently sits, in `space`'s coordinates, or `nil` when no
+    /// menu is open or the row is off screen. For a split message this is the row that was pressed,
+    /// not the message's first row.
+    func contextMenuBubbleFrame(in space: UICoordinateSpace) -> CGRect? {
+        guard let message = contextMenuMessage,
+              let item = items.firstIndex(where: { $0.id == message.id }),
+              let cell = collectionView.cellForItem(at: IndexPath(item: item, section: 0)) as? BubbleCarrying else { return nil }
+        let bubble = cell.liftPreviewView
+        return space.convert(bubble.bounds, from: bubble)
+    }
+
     /// The on-screen cell drawing the first row of the message with `stableID` — the row a split
     /// message's quote heads, and the one an edit spotlights.
     private func bubbleCell(forStableID stableID: String) -> BubbleCarrying? {
@@ -1113,9 +1183,18 @@ extension ChatViewController {
             .compactMap { collectionView.cellForItem(at: IndexPath(item: $0, section: 0)) as? BubbleCarrying }
     }
 
+    /// Closes the row's context menu programmatically — used when the reaction strip layered above
+    /// it (which the menu itself knows nothing about) is tapped. The collection view owns the
+    /// interaction behind its row menus, so it's found in the collection view's own `interactions`.
+    func dismissContextMenu() {
+        for case let menuInteraction as UIContextMenuInteraction in collectionView.interactions {
+            menuInteraction.dismissMenu()
+        }
+    }
+
     /// Builds the lift preview from the bubble alone, clipped to its shape. Without it UIKit lifts the
     /// whole side-hugging cell as a plain rectangle. Mirrors ChatLayout's `preview(for:)`.
-    private func preview(for configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
+    private func preview(for configuration: UIContextMenuConfiguration, raising: Bool) -> UITargetedPreview? {
         guard let identifier = configuration.identifier as? String else { return nil }
         let components = identifier.split(separator: "|")
         guard components.count == 2,
@@ -1127,11 +1206,16 @@ extension ChatViewController {
         let parameters = UIPreviewParameters()
         parameters.visiblePath = cell.liftPreviewMaskingPath
         parameters.backgroundColor = .clear
+        // An empty path turns off UIKit's own preview shadow, which on iOS 27 traces the view's square
+        // bounds and outlasts the dismissal. The bubble-shaped shadow below is the only one.
+        parameters.shadowPath = UIBezierPath()
         // The lift's elevation, put on the bubble itself because the preview won't carry one: a clear
         // background casts nothing, `shadowPath` or not. Taken off again in `willEndContextMenu`'s
         // completion — this is a live cell subview, not a copy.
-        liftedBubble = cell.liftPreviewView
-        BubbleBackgroundView.raise(cell.liftPreviewView, shape: cell.liftPreviewMaskingPath)
+        if raising {
+            liftedBubble = cell.liftPreviewView
+            BubbleBackgroundView.raise(cell.liftPreviewView, shape: cell.liftPreviewMaskingPath)
+        }
         return UITargetedPreview(view: cell.liftPreviewView, parameters: parameters)
     }
 }

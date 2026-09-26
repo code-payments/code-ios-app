@@ -385,4 +385,36 @@ struct ConversationStreamEventDecodeTests {
         }
         #expect(!ConversationStreamEvent.decode(event).contains { if case .rosterChanged = $0 { true } else { false } })
     }
+
+    @Test("reaction updates decode, dropping unknown actions")
+    func reactionUpdates() throws {
+        let actor = UUID()
+        let update: (Flipcash_Messaging_V1_ReactionUpdate.Action) -> Flipcash_Messaging_V1_ReactionUpdate = { action in
+            .with {
+                $0.messageID = .with { $0.value = 42 }
+                $0.emoji = .with { $0.value = "🔥" }
+                $0.actor = .with { $0.value = actor.data }
+                $0.action = action
+                $0.count = 3
+                $0.version = 11
+                $0.reactedTs = .init(date: Date(timeIntervalSince1970: 50))
+            }
+        }
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.reactionUpdates = .with { $0.reactionUpdates = [update(.added), update(.removed), update(.unknown)] }
+            }
+        }
+
+        guard case .reactionsChanged(let conversationID, let updates) = ConversationStreamEvent.decode(event).first else {
+            Issue.record("expected .reactionsChanged"); return
+        }
+        #expect(conversationID == ConversationID(data: conversationBytes))
+        #expect(updates.map(\.added) == [true, false])
+        #expect(updates.first == DecodedReactionUpdate(
+            messageID: MessageID(value: 42), emoji: "🔥", actor: actor, added: true, count: 3, version: 11,
+            reactedAt: Date(timeIntervalSince1970: 50)
+        ))
+    }
 }

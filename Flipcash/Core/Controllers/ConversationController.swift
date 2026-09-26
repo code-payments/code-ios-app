@@ -20,6 +20,13 @@ protocol DMContactNaming: AnyObject {
     func contactDisplayName(forDMChat conversationID: ConversationID) -> String?
 }
 
+/// Posts a message the caller can't let the user retry, such as a cash link voided after a failure.
+@MainActor
+protocol ChatMessagePosting: AnyObject {
+    /// Returns whether the server accepted the message.
+    func postOnce(_ text: String, to conversationID: ConversationID) async -> Bool
+}
+
 /// Session-scoped owner of the DM conversation feed and the single per-user
 /// event stream. Holds state in a pure `ConversationStore`, applies live
 /// `ConversationStreamEvent`s, and resolves counterpart display names.
@@ -251,6 +258,9 @@ final class ConversationController {
     /// The typing indicators for the user's conversations.
     private let typing: ConversationTyping
 
+    /// The emoji reactions concern: the user's taps, their calls, and the stream's updates.
+    let reactions: ConversationReactions
+
     init(
         fetching: any ConversationFetching,
         membership: any ConversationMembership,
@@ -287,6 +297,13 @@ final class ConversationController {
             incomingExpiry: incomingTypingExpiry,
             expiryClock: typingExpiryClock
         )
+        self.reactions = ConversationReactions(
+            messaging: messaging,
+            database: database,
+            owner: owner,
+            selfUserID: selfUserID
+        )
+        reactions.didPersist = { [weak self] in self?.bumpMessageRevision() }
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
@@ -385,6 +402,7 @@ final class ConversationController {
                 self.hydrateIfUnknown(event)
                 self.logCounterpartRead(event)
                 self.applyTyping(event)
+                self.applyReactions(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }
@@ -511,7 +529,10 @@ final class ConversationController {
     /// Foreground hook (`AppDelegate` `.active`): reconcile the on-screen chat regardless of any ping.
     func catchUpOpenChat() {
         guard let visibleConversationID else { return }
-        Task { await catchUp(conversationID: visibleConversationID) }
+        Task {
+            await catchUp(conversationID: visibleConversationID)
+            await refreshReactions(for: visibleConversationID)
+        }
     }
 
     /// Foreground hook (`AppDelegate` `.active`): brings the feed and every lagging conversation up to
@@ -560,6 +581,27 @@ final class ConversationController {
             self?.reloadFromDatabase()
         }
     }
+
+    /// Refreshes from the server the reactions on up to `limit` stored messages older than `before`,
+    /// or the newest when `before` is nil: one page of the transcript as the reader reveals it.
+    func refreshReactions(for conversationID: ConversationID, before: UInt64? = nil, limit: Int = MessageLoader.initialWindow) async {
+        guard canRead(conversationID) else { return }
+        let messageIDs: [MessageID]
+        do {
+            messageIDs = try database.messageIDs(conversationID: conversationID, before: before, limit: min(limit, Self.reactionRefreshLimit))
+        } catch {
+            logger.error("Failed to read message ids for a reaction refresh", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to read message ids for a reaction refresh")
+            return
+        }
+        await reactions.refresh(messageIDs, in: conversationID)
+    }
+
+    /// The most messages one `GetReactionSummaries` call takes.
+    private static let reactionRefreshLimit = 100
 
     /// A live event exposed a gap. Debounce briefly — a late out-of-order event may close it before we
     /// spend a round trip — then reconcile from the (possibly already-advanced) cursor.
@@ -630,6 +672,11 @@ final class ConversationController {
         typing.apply(notifications, in: conversationID)
     }
 
+    private func applyReactions(_ event: ConversationStreamEvent) {
+        guard case .reactionsChanged(let conversationID, let updates) = event else { return }
+        reactions.apply(updates, in: conversationID)
+    }
+
     /// Returns whether another member is currently typing in the conversation.
     func isCounterpartTyping(in conversationID: ConversationID) -> Bool {
         typing.isCounterpartTyping(in: conversationID)
@@ -685,8 +732,9 @@ final class ConversationController {
             conversationID = id
         case .metadataRefresh:
             return
-        case .typingChanged:
-            // A typing event for an unknown conversation isn't worth a metadata fetch — it's transient.
+        case .typingChanged, .reactionsChanged:
+            // Neither is worth a metadata fetch for an unknown conversation: typing is transient, and
+            // reactions land on message rows that an unknown chat does not have yet.
             return
         case .viewerStateChanged:
             // Mute is the viewer's own state, and only a chat they are in can carry it — so an
@@ -1084,6 +1132,9 @@ final class ConversationController {
             persistConversation(conversationID)
         case .typingChanged:
             break
+        case .reactionsChanged:
+            // Written by `reactions`, which also holds the taps the update has to merge with.
+            break
         }
     }
 
@@ -1387,7 +1438,8 @@ final class ConversationController {
     /// arriving message grows the window at the tail instead of sliding the oldest revealed row out.
     func windowedMessages(for conversationID: ConversationID, startingAt startID: UInt64?, limit: Int) -> [ConversationMessage] {
         _ = messageRevision   // observe: re-read when a confirmed DB write lands
-        return store.displayedMessages(for: conversationID, over: confirmedWindow(for: conversationID, startingAt: startID, limit: limit))
+        let displayed = store.displayedMessages(for: conversationID, over: confirmedWindow(for: conversationID, startingAt: startID, limit: limit))
+        return reactions.displayed(displayed, in: conversationID)
     }
 
     /// The confirmed rows behind ``windowedMessages(for:startingAt:limit:)``, cached against
@@ -1593,6 +1645,28 @@ final class ConversationController {
         repliedTo: MessageID? = nil,
         restoringOnFailure draft: ChatDraft? = nil
     ) async -> Bool {
+        let clientMessageID = insertPending(text, repliedTo: repliedTo, into: conversationID)
+        // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
+        // untrimmed text and the reply strip's author and snippet, and it has already cleared both
+        // by the time a failure comes back.
+        if let draft {
+            failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
+        }
+        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+    }
+
+    /// Posts `text` the way ``send(_:to:repliedTo:restoringOnFailure:)`` does, except that a
+    /// refused message leaves the transcript rather than staying there to be retried.
+    func postOnce(_ text: String, to conversationID: ConversationID) async -> Bool {
+        let clientMessageID = insertPending(text, repliedTo: nil, into: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: nil, to: conversationID)
+        if !delivered {
+            store.discardPending(clientMessageID: clientMessageID, in: conversationID)
+        }
+        return delivered
+    }
+
+    private func insertPending(_ text: String, repliedTo: MessageID?, into conversationID: ConversationID) -> UUID {
         let clientMessageID = UUID()
         let pending = ConversationMessage(
             id: .unassigned,
@@ -1607,13 +1681,7 @@ final class ConversationController {
         let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
         store.insertPending(pending, anchoredTo: anchor, into: conversationID)
         receiptSettle.hold(clientMessageID.uuidString)
-        // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
-        // untrimmed text and the reply strip's author and snippet, and it has already cleared both
-        // by the time a failure comes back.
-        if let draft {
-            failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
-        }
-        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        return clientMessageID
     }
 
     /// Re-send a failed optimistic message, reusing its client id so the server (idempotent on it)
@@ -1786,3 +1854,5 @@ struct CounterpartSeed: Sendable {
     let imageData: Data?
     let blurhash: String?
 }
+
+extension ConversationController: ChatMessagePosting {}
