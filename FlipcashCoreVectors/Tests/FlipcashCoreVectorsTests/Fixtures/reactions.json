@@ -1,0 +1,1766 @@
+{
+  "defaults": [
+    "❤️",
+    "👍",
+    "😂",
+    "😮",
+    "😢",
+    "🔥"
+  ],
+  "merge": [
+    {
+      "name": "summary-renders",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 2,
+              "self": false,
+              "version": 4
+            },
+            {
+              "emoji": "🔥",
+              "count": 1,
+              "self": true,
+              "version": 1
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 2,
+            "selfReacted": false,
+            "pending": false
+          },
+          {
+            "emoji": "🔥",
+            "count": 1,
+            "selfReacted": true,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "A summary alone. Counts as given; self from self_reactor."
+    },
+    {
+      "name": "stale-update-dropped",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 3,
+              "self": false,
+              "version": 7
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ana",
+          "action": "REMOVED",
+          "count": 2,
+          "version": 6
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 3,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "Version 6 is below the held 7, so it is an update the summary already folded in."
+    },
+    {
+      "name": "equal-version-dropped",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 3,
+              "self": false,
+              "version": 7
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ana",
+          "action": "REMOVED",
+          "count": 2,
+          "version": 7
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 3,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "Accept strictly greater. The same version is the same state."
+    },
+    {
+      "name": "newer-update-applied",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 3,
+              "self": false,
+              "version": 7
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ana",
+          "action": "ADDED",
+          "count": 4,
+          "version": 8
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 4,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "Count comes from the update, not from adding one: an update is state, not a delta."
+    },
+    {
+      "name": "update-to-zero-removes-pill",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 3
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ana",
+          "action": "REMOVED",
+          "count": 0,
+          "version": 4
+        }
+      ],
+      "expect": {
+        "pills": [],
+        "calls": [],
+        "errors": []
+      },
+      "note": "Zero count, no pill."
+    },
+    {
+      "name": "tombstone-rejects-late-add",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 3
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ana",
+          "action": "REMOVED",
+          "count": 0,
+          "version": 4
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ana",
+          "action": "ADDED",
+          "count": 1,
+          "version": 3
+        }
+      ],
+      "expect": {
+        "pills": [],
+        "calls": [],
+        "errors": []
+      },
+      "note": "The server keeps an emptied emoji's version, so the client must too. Without the tombstone the late ADDED at 3 would resurrect the pill."
+    },
+    {
+      "name": "readd-after-empty",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 3
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ana",
+          "action": "REMOVED",
+          "count": 0,
+          "version": 4
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ben",
+          "action": "ADDED",
+          "count": 1,
+          "version": 5
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "A re-add comes above the tombstone and is accepted."
+    },
+    {
+      "name": "new-emoji-from-stream",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "🎉",
+          "actor": "ana",
+          "action": "ADDED",
+          "count": 1,
+          "version": 1
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "🎉",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          },
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "An emoji we have never held has no watermark; any version is accepted. Equal counts fall back to UTF-8 byte order: 🎉 (F0 9F 8E 89) before 👍 (F0 9F 91 8D)."
+    },
+    {
+      "name": "own-update-from-another-device",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "me",
+          "action": "ADDED",
+          "count": 2,
+          "version": 2
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 2,
+            "selfReacted": true,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "Our own reaction made on another device arrives on the stream and highlights the pill."
+    },
+    {
+      "name": "tap-adds-optimistically",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 2,
+            "selfReacted": true,
+            "pending": true
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "The pill changes before the server answers, and is marked pending."
+    },
+    {
+      "name": "tap-new-emoji",
+      "self": "me",
+      "steps": [
+        {
+          "op": "tap",
+          "emoji": "🔥"
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "🔥",
+            "count": 1,
+            "selfReacted": true,
+            "pending": true
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "🔥"
+          }
+        ],
+        "errors": []
+      },
+      "note": "Tapping an emoji the message does not have yet, from the strip or picker."
+    },
+    {
+      "name": "tap-confirmed",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "OK",
+          "reaction": {
+            "count": 2,
+            "self": true,
+            "version": 2
+          }
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 2,
+            "selfReacted": true,
+            "pending": false
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "The response's EmojiReaction replaces the pending state."
+    },
+    {
+      "name": "tap-removes",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 2,
+              "self": true,
+              "version": 5
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "OK",
+          "reaction": {
+            "count": 1,
+            "self": false,
+            "version": 6
+          }
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [
+          {
+            "op": "remove",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "Tapping a highlighted pill removes."
+    },
+    {
+      "name": "remove-last-reaction",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": true,
+              "version": 5
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        }
+      ],
+      "expect": {
+        "pills": [],
+        "calls": [
+          {
+            "op": "remove",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "Removing the only reaction hides the pill immediately, before the response."
+    },
+    {
+      "name": "stream-during-pending-keeps-highlight",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "ana",
+          "action": "ADDED",
+          "count": 2,
+          "version": 2
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 3,
+            "selfReacted": true,
+            "pending": true
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "Someone else's reaction lands while ours is on the wire: their count shows, our highlight stays."
+    },
+    {
+      "name": "own-echo-before-response",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "update",
+          "emoji": "👍",
+          "actor": "me",
+          "action": "ADDED",
+          "count": 2,
+          "version": 2
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "OK",
+          "reaction": {
+            "count": 2,
+            "self": true,
+            "version": 2
+          }
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 2,
+            "selfReacted": true,
+            "pending": false
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "The stream can deliver our own add before the RPC returns. It must not count us twice (3), and the response at the same version is then a no-op."
+    },
+    {
+      "name": "coalesce-on-off-on",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 2,
+            "selfReacted": true,
+            "pending": true
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "Three taps while the first add is in flight: one call. The later taps only move the displayed state."
+    },
+    {
+      "name": "coalesce-on-off-then-settle",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "OK",
+          "reaction": {
+            "count": 2,
+            "self": true,
+            "version": 2
+          }
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": false,
+            "pending": true
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          },
+          {
+            "op": "remove",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "On, then off, while the add is in flight. The add lands; the final state (off) differs from the server's (on), so a remove follows, and the pill shows the off state as pending until it returns."
+    },
+    {
+      "name": "coalesce-on-off-on-settle",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "OK",
+          "reaction": {
+            "count": 2,
+            "self": true,
+            "version": 2
+          }
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 2,
+            "selfReacted": true,
+            "pending": false
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "On, off, on. The add lands and the final state already matches, so nothing more is sent."
+    },
+    {
+      "name": "network-failure-rolls-back",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "NETWORK"
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": [
+          "reactionFailed"
+        ]
+      },
+      "note": "Back to the confirmed state, with the generic error."
+    },
+    {
+      "name": "denied-rolls-back",
+      "self": "me",
+      "steps": [
+        {
+          "op": "tap",
+          "emoji": "🫩"
+        },
+        {
+          "op": "respond",
+          "emoji": "🫩",
+          "result": "DENIED"
+        }
+      ],
+      "expect": {
+        "pills": [],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "🫩"
+          }
+        ],
+        "errors": [
+          "reactionFailed"
+        ]
+      },
+      "note": "DENIED is shown like a network failure; the catalog should make it rare."
+    },
+    {
+      "name": "too-many-types",
+      "self": "me",
+      "steps": [
+        {
+          "op": "tap",
+          "emoji": "🦖"
+        },
+        {
+          "op": "respond",
+          "emoji": "🦖",
+          "result": "TOO_MANY_REACTION_TYPES"
+        }
+      ],
+      "expect": {
+        "pills": [],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "🦖"
+          }
+        ],
+        "errors": [
+          "tooManyReactionTypes"
+        ]
+      },
+      "note": "The 21st distinct emoji on a message."
+    },
+    {
+      "name": "message-not-found-is-silent",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "MESSAGE_NOT_FOUND"
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "The message was deleted; the stream is removing it, so no error is shown."
+    },
+    {
+      "name": "cannot-react-is-silent",
+      "self": "me",
+      "steps": [
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "CANNOT_REACT"
+        }
+      ],
+      "expect": {
+        "pills": [],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "The strip should not have been offered. Roll back quietly."
+    },
+    {
+      "name": "failure-drops-coalesced-taps",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "respond",
+          "emoji": "👍",
+          "result": "NETWORK"
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": [
+          "reactionFailed"
+        ]
+      },
+      "note": "Nothing is queued: a failure discards the taps made while it was in flight too."
+    },
+    {
+      "name": "summary-omits-emptied-emoji",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 1
+            },
+            {
+              "emoji": "🔥",
+              "count": 2,
+              "self": false,
+              "version": 3
+            }
+          ]
+        },
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "🔥",
+              "count": 2,
+              "self": false,
+              "version": 3
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "🔥",
+            "count": 2,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "A later summary without 👍 means it emptied."
+    },
+    {
+      "name": "summary-keeps-pending-emoji",
+      "self": "me",
+      "steps": [
+        {
+          "op": "tap",
+          "emoji": "👍"
+        },
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "🔥",
+              "count": 1,
+              "self": false,
+              "version": 1
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": true,
+            "pending": true
+          },
+          {
+            "emoji": "🔥",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [
+          {
+            "op": "add",
+            "emoji": "👍"
+          }
+        ],
+        "errors": []
+      },
+      "note": "A summary fetched before our add landed must not wipe the pending tap."
+    },
+    {
+      "name": "reactions-are-per-emoji",
+      "self": "me",
+      "steps": [
+        {
+          "op": "summary",
+          "reactions": [
+            {
+              "emoji": "👍",
+              "count": 1,
+              "self": false,
+              "version": 9
+            },
+            {
+              "emoji": "🔥",
+              "count": 1,
+              "self": false,
+              "version": 2
+            }
+          ]
+        },
+        {
+          "op": "update",
+          "emoji": "🔥",
+          "actor": "ana",
+          "action": "ADDED",
+          "count": 2,
+          "version": 3
+        }
+      ],
+      "expect": {
+        "pills": [
+          {
+            "emoji": "🔥",
+            "count": 2,
+            "selfReacted": false,
+            "pending": false
+          },
+          {
+            "emoji": "👍",
+            "count": 1,
+            "selfReacted": false,
+            "pending": false
+          }
+        ],
+        "calls": [],
+        "errors": []
+      },
+      "note": "Versions are per (message, emoji). 🔥 at 3 is fresh even though 👍 is at 9."
+    }
+  ],
+  "order": [
+    {
+      "name": "count-descending",
+      "pills": [
+        {
+          "emoji": "👍",
+          "count": 1,
+          "boostTotal": 0
+        },
+        {
+          "emoji": "🔥",
+          "count": 3,
+          "boostTotal": 0
+        },
+        {
+          "emoji": "😂",
+          "count": 2,
+          "boostTotal": 0
+        }
+      ],
+      "expect": [
+        "🔥",
+        "😂",
+        "👍"
+      ],
+      "note": "Phase 1: every boost total is 0, so count decides."
+    },
+    {
+      "name": "boost-before-count",
+      "pills": [
+        {
+          "emoji": "👍",
+          "count": 5,
+          "boostTotal": 0
+        },
+        {
+          "emoji": "💯",
+          "count": 2,
+          "boostTotal": 1000
+        },
+        {
+          "emoji": "👎",
+          "count": 1,
+          "boostTotal": 500
+        }
+      ],
+      "expect": [
+        "💯",
+        "👎",
+        "👍"
+      ],
+      "note": "Phase 2: any boost outranks any count. The unit is opaque here, only its order matters."
+    },
+    {
+      "name": "tie-on-utf8-bytes",
+      "pills": [
+        {
+          "emoji": "😂",
+          "count": 1,
+          "boostTotal": 0
+        },
+        {
+          "emoji": "👍",
+          "count": 1,
+          "boostTotal": 0
+        },
+        {
+          "emoji": "❤️",
+          "count": 1,
+          "boostTotal": 0
+        }
+      ],
+      "expect": [
+        "❤️",
+        "👍",
+        "😂"
+      ],
+      "note": "Ties fall back to the server's order, UTF-8 byte order. ❤️ starts E2, the others F0."
+    },
+    {
+      "name": "tie-utf8-not-utf16",
+      "pills": [
+        {
+          "emoji": "☝🏻",
+          "count": 1,
+          "boostTotal": 0
+        },
+        {
+          "emoji": "☝️",
+          "count": 1,
+          "boostTotal": 0
+        }
+      ],
+      "expect": [
+        "☝️",
+        "☝🏻"
+      ],
+      "note": "The case that separates byte order from a platform's default string compare. Both start U+261D. Next, ☝️ has U+FE0F (UTF-8 EF B8 8F) and ☝🏻 has U+1F3FB (F0 9F 8F BB): EF < F0 in UTF-8, but in UTF-16 the surrogate D83C < FE0F, which would flip them."
+    }
+  ],
+  "strip": [
+    {
+      "name": "no-reactions",
+      "recents": [
+        "😂",
+        "❤️",
+        "🔥",
+        "👍",
+        "😭",
+        "✨"
+      ],
+      "selfReactions": [],
+      "expect": [
+        {
+          "emoji": "😂",
+          "highlighted": false
+        },
+        {
+          "emoji": "❤️",
+          "highlighted": false
+        },
+        {
+          "emoji": "🔥",
+          "highlighted": false
+        },
+        {
+          "emoji": "👍",
+          "highlighted": false
+        },
+        {
+          "emoji": "😭",
+          "highlighted": false
+        },
+        {
+          "emoji": "✨",
+          "highlighted": false
+        }
+      ],
+      "note": "Recents, in rank order."
+    },
+    {
+      "name": "reacted-with-a-recent",
+      "recents": [
+        "😂",
+        "❤️",
+        "🔥",
+        "👍",
+        "😭",
+        "✨"
+      ],
+      "selfReactions": [
+        {
+          "emoji": "🔥",
+          "reactedAt": 100
+        }
+      ],
+      "expect": [
+        {
+          "emoji": "😂",
+          "highlighted": false
+        },
+        {
+          "emoji": "❤️",
+          "highlighted": false
+        },
+        {
+          "emoji": "🔥",
+          "highlighted": true
+        },
+        {
+          "emoji": "👍",
+          "highlighted": false
+        },
+        {
+          "emoji": "😭",
+          "highlighted": false
+        },
+        {
+          "emoji": "✨",
+          "highlighted": false
+        }
+      ],
+      "note": "A reaction already in the recents is highlighted in place, not moved."
+    },
+    {
+      "name": "reacted-outside-recents",
+      "recents": [
+        "😂",
+        "❤️",
+        "🔥",
+        "👍",
+        "😭",
+        "✨"
+      ],
+      "selfReactions": [
+        {
+          "emoji": "💥",
+          "reactedAt": 100
+        }
+      ],
+      "expect": [
+        {
+          "emoji": "😂",
+          "highlighted": false
+        },
+        {
+          "emoji": "❤️",
+          "highlighted": false
+        },
+        {
+          "emoji": "🔥",
+          "highlighted": false
+        },
+        {
+          "emoji": "👍",
+          "highlighted": false
+        },
+        {
+          "emoji": "😭",
+          "highlighted": false
+        },
+        {
+          "emoji": "✨",
+          "highlighted": false
+        },
+        {
+          "emoji": "💥",
+          "highlighted": true
+        }
+      ],
+      "note": "After the six, next to +. The WhatsApp screenshot in the design review."
+    },
+    {
+      "name": "several-outside-newest-first",
+      "recents": [
+        "😂",
+        "❤️",
+        "🔥",
+        "👍",
+        "😭",
+        "✨"
+      ],
+      "selfReactions": [
+        {
+          "emoji": "💥",
+          "reactedAt": 100
+        },
+        {
+          "emoji": "🦖",
+          "reactedAt": 300
+        },
+        {
+          "emoji": "🫠",
+          "reactedAt": 200
+        }
+      ],
+      "expect": [
+        {
+          "emoji": "😂",
+          "highlighted": false
+        },
+        {
+          "emoji": "❤️",
+          "highlighted": false
+        },
+        {
+          "emoji": "🔥",
+          "highlighted": false
+        },
+        {
+          "emoji": "👍",
+          "highlighted": false
+        },
+        {
+          "emoji": "😭",
+          "highlighted": false
+        },
+        {
+          "emoji": "✨",
+          "highlighted": false
+        },
+        {
+          "emoji": "🦖",
+          "highlighted": true
+        },
+        {
+          "emoji": "🫠",
+          "highlighted": true
+        },
+        {
+          "emoji": "💥",
+          "highlighted": true
+        }
+      ],
+      "note": "Newest reaction first, so the one you just made is the one visible before scrolling."
+    },
+    {
+      "name": "mixed",
+      "recents": [
+        "😂",
+        "❤️",
+        "🔥",
+        "👍",
+        "😭",
+        "✨"
+      ],
+      "selfReactions": [
+        {
+          "emoji": "❤️",
+          "reactedAt": 50
+        },
+        {
+          "emoji": "🦖",
+          "reactedAt": 60
+        }
+      ],
+      "expect": [
+        {
+          "emoji": "😂",
+          "highlighted": false
+        },
+        {
+          "emoji": "❤️",
+          "highlighted": true
+        },
+        {
+          "emoji": "🔥",
+          "highlighted": false
+        },
+        {
+          "emoji": "👍",
+          "highlighted": false
+        },
+        {
+          "emoji": "😭",
+          "highlighted": false
+        },
+        {
+          "emoji": "✨",
+          "highlighted": false
+        },
+        {
+          "emoji": "🦖",
+          "highlighted": true
+        }
+      ],
+      "note": "Only the reaction outside the recents is appended."
+    }
+  ],
+  "recents": [
+    {
+      "name": "empty-pads-defaults",
+      "uses": [],
+      "undrawable": [],
+      "limit": 6,
+      "expect": [
+        "❤️",
+        "👍",
+        "😂",
+        "😮",
+        "😢",
+        "🔥"
+      ],
+      "note": "Nothing used yet: the defaults from node 10286:2573, in their order."
+    },
+    {
+      "name": "frequency-first",
+      "uses": [
+        {
+          "emoji": "🦖",
+          "usedAt": 1
+        },
+        {
+          "emoji": "🦖",
+          "usedAt": 2
+        },
+        {
+          "emoji": "🦖",
+          "usedAt": 3
+        },
+        {
+          "emoji": "🫠",
+          "usedAt": 4
+        }
+      ],
+      "undrawable": [],
+      "limit": 6,
+      "expect": [
+        "🦖",
+        "🫠",
+        "❤️",
+        "👍",
+        "😂",
+        "😮"
+      ],
+      "note": "Most used first, then padding with the defaults."
+    },
+    {
+      "name": "recency-breaks-ties",
+      "uses": [
+        {
+          "emoji": "🦖",
+          "usedAt": 1
+        },
+        {
+          "emoji": "🫠",
+          "usedAt": 2
+        },
+        {
+          "emoji": "🎉",
+          "usedAt": 3
+        }
+      ],
+      "undrawable": [],
+      "limit": 6,
+      "expect": [
+        "🎉",
+        "🫠",
+        "🦖",
+        "❤️",
+        "👍",
+        "😂"
+      ],
+      "note": "Equal counts: most recently used first."
+    },
+    {
+      "name": "padding-skips-used-defaults",
+      "uses": [
+        {
+          "emoji": "👍",
+          "usedAt": 1
+        },
+        {
+          "emoji": "👍",
+          "usedAt": 2
+        }
+      ],
+      "undrawable": [],
+      "limit": 6,
+      "expect": [
+        "👍",
+        "❤️",
+        "😂",
+        "😮",
+        "😢",
+        "🔥"
+      ],
+      "note": "A default already ranked is not repeated."
+    },
+    {
+      "name": "undrawable-skipped",
+      "uses": [
+        {
+          "emoji": "🫩",
+          "usedAt": 1
+        },
+        {
+          "emoji": "🫩",
+          "usedAt": 2
+        },
+        {
+          "emoji": "🦖",
+          "usedAt": 3
+        }
+      ],
+      "undrawable": [
+        "🫩"
+      ],
+      "limit": 6,
+      "expect": [
+        "🦖",
+        "❤️",
+        "👍",
+        "😂",
+        "😮",
+        "😢"
+      ],
+      "note": "Emoji this device cannot draw are not offered, even if used on another OS version."
+    },
+    {
+      "name": "picker-row-of-seven",
+      "uses": [],
+      "undrawable": [],
+      "limit": 7,
+      "expect": [
+        "❤️",
+        "👍",
+        "😂",
+        "😮",
+        "😢",
+        "🔥"
+      ],
+      "note": "The picker asks for 7 and there are 6 defaults, so an unused picker shows 6. Not padded further: the row is not worth an invented seventh default."
+    },
+    {
+      "name": "limit-truncates",
+      "uses": [
+        {
+          "emoji": "🦖",
+          "usedAt": 0
+        },
+        {
+          "emoji": "🫠",
+          "usedAt": 1
+        },
+        {
+          "emoji": "🎉",
+          "usedAt": 2
+        },
+        {
+          "emoji": "💥",
+          "usedAt": 3
+        },
+        {
+          "emoji": "✨",
+          "usedAt": 4
+        },
+        {
+          "emoji": "😭",
+          "usedAt": 5
+        },
+        {
+          "emoji": "🥺",
+          "usedAt": 6
+        },
+        {
+          "emoji": "🙏",
+          "usedAt": 7
+        }
+      ],
+      "undrawable": [],
+      "limit": 6,
+      "expect": [
+        "🙏",
+        "🥺",
+        "😭",
+        "✨",
+        "💥",
+        "🎉"
+      ],
+      "note": "All used once, so recency orders them and the oldest two drop."
+    }
+  ],
+  "drawability": [
+    {
+      "emoji": "😀",
+      "drawable": true,
+      "note": "Emoji 1.0, single code point."
+    },
+    {
+      "emoji": "👍🏽",
+      "drawable": true,
+      "note": "Base plus skin-tone modifier."
+    },
+    {
+      "emoji": "🧑🏻‍🤝‍🧑🏿",
+      "drawable": true,
+      "note": "Mixed-skin-tone ZWJ sequence, Emoji 12.1. The case a glyph-count rule gets wrong on iOS."
+    },
+    {
+      "emoji": "🐈‍🦄",
+      "drawable": false,
+      "note": "Not an RGI sequence, so no font has a ligature; it draws as two emoji."
+    },
+    {
+      "emoji": "🇦🇦",
+      "drawable": false,
+      "note": "Regional indicators that are not a flag draw as two letters."
+    }
+  ]
+}

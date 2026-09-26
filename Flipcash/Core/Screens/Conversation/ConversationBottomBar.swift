@@ -53,8 +53,7 @@ struct ConversationBottomBar: View {
     let onSendCash: () -> Void
     let model: ConversationBarModel
     let composer: ComposerModel
-    /// Tip chats always show the compact symbol-only send button; ordinary
-    /// chats expand to "Send €" at rest and collapse only while composing.
+    /// Whether this is a tip DM, whose Send Cash reads Start Chatting until the chat exists.
     var isTipDm: Bool = false
     /// What the first tip has to clear to open this chat, named on the CTA.
     /// Nil once the chat exists, and when no floor has resolved yet.
@@ -120,11 +119,11 @@ struct ConversationBottomBar: View {
                     // the two move together and the later focus change finds nothing left to do.
                     composing: model.isComposing || composer.replyTarget != nil,
                     standalone: !chatExists,
-                    // A tip chat sits minimized beside its composer, but before
+                    // Every chat sits minimized beside its composer, but before
                     // the first tip there is no composer to sit beside: the
                     // design draws the full-width "Start Chatting" CTA
                     // (node 10074:18891).
-                    alwaysMinimized: isTipDm && chatExists,
+                    alwaysMinimized: chatExists,
                     expandedTitle: isTipDm ? startChattingTitle : nil,
                     action: onSendCash
                 )
@@ -563,15 +562,15 @@ struct SendCashMorphButton: View {
     /// the bar at the standard filled-button size instead of field-sized.
     let standalone: Bool
     /// Forces the compact symbol-only presentation regardless of composing.
-    /// Tip chats always show it minimized; ordinary chats expand at rest.
+    /// The bar sets it once a chat exists; only the pre-chat CTA expands.
     var alwaysMinimized: Bool = false
     /// Replaces "Send <symbol>" while expanded. A tip chat names the tip
     /// instead of the currency, because the amount is chosen on the next screen.
     var expandedTitle: String?
     let action: () -> Void
 
-    /// The compact glass "€" presentation: while composing, or always in a tip
-    /// chat. The whole morph (label, fill, width, color) keys off this.
+    /// The compact glass "€" presentation: while composing, or always once a
+    /// chat exists. The whole morph (label, fill, width, color) keys off this.
     private var minimized: Bool { composing || alwaysMinimized }
 
     private var height: CGFloat {

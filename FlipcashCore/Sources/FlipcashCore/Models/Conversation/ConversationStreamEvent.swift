@@ -51,6 +51,56 @@ public enum ConversationStreamEvent: Sendable {
     /// A group chat's picture changed (via `Chat.EditChat`), including on the editor's other
     /// devices. Best-effort and applied as received, like ``titleChanged``.
     case pictureChanged(conversationID: ConversationID, picture: ProfilePicture)
+
+    /// Reactions on messages in the chat changed. Best-effort and outside the gap-detected event
+    /// log: each update is applied by its per-emoji version, and a missed one is reconciled by the
+    /// next reaction summary.
+    case reactionsChanged(conversationID: ConversationID, updates: [DecodedReactionUpdate])
+}
+
+/// One reaction added or removed on one message.
+public struct DecodedReactionUpdate: Hashable, Sendable {
+    public let messageID: MessageID
+    public let emoji: String
+    public let actor: UserID
+    /// True for an add, false for a remove.
+    public let added: Bool
+    /// The emoji's total reactor count after the change.
+    public let count: UInt64
+    public let version: UInt64
+    public let reactedAt: Date?
+
+    public init(messageID: MessageID, emoji: String, actor: UserID, added: Bool, count: UInt64, version: UInt64, reactedAt: Date?) {
+        self.messageID = messageID
+        self.emoji = emoji
+        self.actor = actor
+        self.added = added
+        self.count = count
+        self.version = version
+        self.reactedAt = reactedAt
+    }
+}
+
+extension DecodedReactionUpdate {
+    /// Nil for an update whose action this client does not know or whose actor does not parse.
+    init?(_ proto: Flipcash_Messaging_V1_ReactionUpdate) {
+        let added: Bool
+        switch proto.action {
+        case .added: added = true
+        case .removed: added = false
+        case .unknown, .UNRECOGNIZED: return nil
+        }
+        guard let actor = try? UUID(data: proto.actor.value) else { return nil }
+        self.init(
+            messageID: MessageID(proto.messageID),
+            emoji: proto.emoji.value,
+            actor: actor,
+            added: added,
+            count: proto.count,
+            version: proto.version,
+            reactedAt: proto.hasReactedTs ? proto.reactedTs.date : nil
+        )
+    }
 }
 
 /// One durable event in a chat's log: a contiguous run of mutations delivered atomically. `sequence`
@@ -183,6 +233,11 @@ extension ConversationStreamEvent {
         let rosterUpdates = update.rosterUpdates.rosterUpdates.compactMap(DecodedRosterUpdate.init)
         if !rosterUpdates.isEmpty {
             events.append(.rosterChanged(conversationID: conversationID, updates: rosterUpdates))
+        }
+
+        let reactionUpdates = update.reactionUpdates.reactionUpdates.compactMap(DecodedReactionUpdate.init)
+        if !reactionUpdates.isEmpty {
+            events.append(.reactionsChanged(conversationID: conversationID, updates: reactionUpdates))
         }
 
         return events

@@ -20,6 +20,13 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     /// A scripted `GetDelta` batch: one `onBatch` call with these messages + checkpoint.
     struct DeltaBatch: Sendable { let messages: [ConversationMessage]; let checkpoint: UInt64? }
 
+    /// One add or remove reaction call.
+    struct Reacted: Sendable, Equatable {
+        let op: ReactionCall.Op
+        let messageID: MessageID
+        let emoji: String
+    }
+
     struct Edited: Sendable, Equatable {
         let conversationID: ConversationID
         let messageID: MessageID
@@ -57,6 +64,10 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     private var _sentClientIDs: [UUID] = []
     private var _sent: [Sent] = []
     private var _edited: [Edited] = []
+    private var _reacted: [Reacted] = []
+    private var _reactionHandler: (@Sendable (Reacted) async throws -> EmojiReaction)?
+    private var _reactionSummaries: [MessageID: ReactionState] = [:]
+    private var _reactionSummaryRequests: [[MessageID]] = []
     private var _deleted: [Deleted] = []
     private var _editResult: MessageMutation?
     private var _editError: (any Error)?
@@ -154,6 +165,20 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     var sent: [Sent] { lock.withLock { _sent } }
     /// The edits `editMessage` was called with, in order.
     var edited: [Edited] { lock.withLock { _edited } }
+    /// The add/remove reaction calls, in order.
+    var reacted: [Reacted] { lock.withLock { _reacted } }
+    /// What `getReactionSummaries` answers, for the requested messages it holds.
+    var reactionSummaries: [MessageID: ReactionState] {
+        get { lock.withLock { _reactionSummaries } }
+        set { lock.withLock { _reactionSummaries = newValue } }
+    }
+    /// The message ids of each `getReactionSummaries` call, in order.
+    var reactionSummaryRequests: [[MessageID]] { lock.withLock { _reactionSummaryRequests } }
+    /// Answers each reaction call; unset, a call fails as a transport error.
+    var reactionHandler: (@Sendable (Reacted) async throws -> EmojiReaction)? {
+        get { lock.withLock { _reactionHandler } }
+        set { lock.withLock { _reactionHandler = newValue } }
+    }
     /// The deletes `deleteMessage` was called with, in order.
     var deleted: [Deleted] { lock.withLock { _deleted } }
     var editResult: MessageMutation? {
@@ -329,6 +354,34 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         if let editError { throw editError }
         guard let editResult else { throw ErrorEditMessage.unknown }
         return editResult
+    }
+
+    func addReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction {
+        try await react(Reacted(op: .add, messageID: messageID, emoji: emoji))
+    }
+
+    func removeReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction {
+        try await react(Reacted(op: .remove, messageID: messageID, emoji: emoji))
+    }
+
+    private func react(_ call: Reacted) async throws -> EmojiReaction {
+        let handler = lock.withLock {
+            _reacted.append(call)
+            return _reactionHandler
+        }
+        guard let handler else { throw ErrorAddReaction.transportFailure }
+        return try await handler(call)
+    }
+
+    func getReactors(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, pageSize: Int, pagingToken: Data?) async throws -> ReactorPage {
+        ReactorPage(reactors: [], nextPageToken: nil, version: 0)
+    }
+
+    func getReactionSummaries(owner: KeyPair, conversationID: ConversationID, messageIDs: [MessageID]) async throws -> [MessageID: ReactionState] {
+        lock.withLock {
+            _reactionSummaryRequests.append(messageIDs)
+            return _reactionSummaries.filter { messageIDs.contains($0.key) }
+        }
     }
 
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation {

@@ -365,6 +365,8 @@ nonisolated public struct ConversationMessageTable: Sendable {
     // Tombstone detail. Both nil for a message that has not been deleted.
     public let deletedBy      = Expression <UUID?>         ("deletedBy")
     public let deletedAt      = Expression <Double?>       ("deletedAt")
+    // JSON-encoded `ReactionState` (its confirmed server state only); nil when none is known.
+    public let reactionsJson  = Expression <Data?>         ("reactionsJson")
 }
 
 
@@ -638,6 +640,7 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.encryptedScheme)
                 t.column(conversationMessageTable.encryptedNonce)
                 t.column(conversationMessageTable.encryptedCiphertext)
+                t.column(conversationMessageTable.reactionsJson)
                 t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
             })
         }

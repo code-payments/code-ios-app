@@ -2,3 +2,5 @@ Vendor/* linguist-vendored
 */*.framework/* linguist-vendored
 FlipcashAPI/Sources/FlipcashAPI/Payments/Generated/** linguist-generated
 FlipcashAPI/Sources/FlipcashAPI/Core/Generated/** linguist-generated
+FlipcashCoreVectors/Tests/FlipcashCoreVectorsTests/Fixtures/reactions.json linguist-generated
+FlipcashUI/Sources/FlipcashUI/Resources/emoji_catalog.json linguist-generated

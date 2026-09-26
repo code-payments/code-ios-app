@@ -92,8 +92,8 @@ struct SendTargetTests {
         #expect(SendTarget(conversation: convo, dmChatID: chatID, selfUserID: me) == nil)
     }
 
-    @Test("A group conversation has no single counterpart to pay")
-    func groupConversationYieldsNil() {
+    @Test("A group conversation resolves to the group itself, so its thread shows the $ button")
+    func groupConversationYieldsGroupTarget() throws {
         let me = UUID()
         let convo = makeConversation(type: .group, members: [
             ConversationMember(userID: me, displayName: "Me"),
@@ -101,7 +101,10 @@ struct SendTargetTests {
             ConversationMember(userID: UUID(), displayName: "Bob"),
         ])
 
-        #expect(SendTarget(conversation: convo, dmChatID: chatID, selfUserID: me) == nil)
+        // `ConversationScreen` shows Send Cash exactly when this is non-nil.
+        let target = try #require(SendTarget(conversation: convo, dmChatID: chatID, selfUserID: me))
+
+        #expect(target == .group(convo.id))
     }
 
     @Test("A contact DM resolves through ResolvedContact rather than the tip path")
