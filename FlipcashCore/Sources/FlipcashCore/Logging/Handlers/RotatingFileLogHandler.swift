@@ -15,6 +15,7 @@ public actor FileWriterActor {
     private var currentFileHandle: FileHandle?
     private var currentFileSize: Int = 0
     private var fatalFailure: Bool = false
+    private var hasResumed: Bool = false
 
     public init(directory: URL, maxFileSize: Int = 500_000, maxFileCount: Int = 3) {
         self.directory = directory
@@ -62,10 +63,15 @@ public actor FileWriterActor {
     }
 
     private func openCurrentFile() {
-        let url = fileURL(index: currentFileIndex)
         let fm = FileManager.default
-
         try? fm.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        if !hasResumed {
+            hasResumed = true
+            currentFileIndex = mostRecentlyModifiedFileIndex() ?? currentFileIndex
+        }
+
+        let url = fileURL(index: currentFileIndex)
 
         if !fm.fileExists(atPath: url.path) {
             fm.createFile(atPath: url.path, contents: nil)
@@ -77,6 +83,28 @@ public actor FileWriterActor {
         }
         currentFileHandle = handle
         currentFileSize = Int((try? handle.seekToEnd()) ?? 0)
+    }
+
+    /// Finds the index of the most recently modified `app-N.log` on disk, so a new
+    /// launch resumes writing where the previous one left off instead of restarting
+    /// at `app-0.log` (which would immediately rotate away and truncate whichever
+    /// file the previous session was actually still writing to).
+    private func mostRecentlyModifiedFileIndex() -> Int? {
+        let fm = FileManager.default
+        var bestIndex: Int?
+        var bestDate = Date.distantPast
+
+        for index in 0..<maxFileCount {
+            let url = fileURL(index: index)
+            guard fm.fileExists(atPath: url.path) else { continue }
+            let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            if bestIndex == nil || date > bestDate {
+                bestIndex = index
+                bestDate = date
+            }
+        }
+
+        return bestIndex
     }
 
     private func rotate() {
@@ -113,10 +141,13 @@ public final class FileWriteBuffer: @unchecked Sendable {
         self.flushThreshold = flushThreshold
     }
 
-    public func append(_ line: String) {
+    /// - Parameter forceFlush: Bypasses the batch threshold and flushes immediately.
+    ///   Used for `.warning` and above, so a force-quit only risks losing sub-warning
+    ///   lines rather than up to `flushThreshold - 1` of any severity.
+    public func append(_ line: String, forceFlush: Bool = false) {
         lock.lock()
         buffer.append(line)
-        let shouldFlush = buffer.count >= flushThreshold
+        let shouldFlush = forceFlush || buffer.count >= flushThreshold
         let batch: String? = shouldFlush ? buffer.joined() : nil
         if shouldFlush { buffer = [] }
         lock.unlock()

@@ -137,6 +137,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             container.preferences.appDidEnterBackground()
             sessionContainer?.pushController.clearBadgeCount()
             shutDownForBackground()
+            flushLogsForBackground()
         case .active:
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
@@ -199,6 +200,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             } catch {
                 logger.error("Failed to close the database", metadata: ["error": "\(error)"])
             }
+        }
+    }
+
+    private var logFlushTaskID: UIBackgroundTaskIdentifier = .invalid
+
+    private func endLogFlushTask() {
+        guard logFlushTaskID != .invalid else {
+            return
+        }
+
+        UIApplication.shared.endBackgroundTask(logFlushTaskID)
+        logFlushTaskID = .invalid
+    }
+
+    /// Writes buffered log lines to disk before suspension, logged in or not.
+    ///
+    /// Lines below `.warning` wait in memory for a full batch, so without this a kill while
+    /// suspended loses the tail that led up to it.
+    private func flushLogsForBackground() {
+        logFlushTaskID = UIApplication.shared.beginBackgroundTask(withName: "logs.flush") { [weak self] in
+            MainActor.assumeIsolated { self?.endLogFlushTask() }
+        }
+
+        Task { @MainActor [weak self] in
+            defer { self?.endLogFlushTask() }
+
+            await LogStore.shared.flush()
         }
     }
 

@@ -6,6 +6,12 @@ import Logging
 @Suite("LogStore Tests")
 struct LogStoreTests {
 
+    // The app bootstraps LoggingSystem at launch; this test host doesn't, so the
+    // tests that write through a Logger install the handler here. A second
+    // LoggingSystem.bootstrap traps, and tests run in parallel, so it goes through
+    // a lazy static, which Swift initializes exactly once.
+    private static let bootstrapLogging: Void = LogStore.bootstrap()
+
     @Test("recentEntries returns formatted strings from ring buffer")
     func recentEntriesReturnsFormattedStrings() {
         let store = LogStore.shared
@@ -38,12 +44,7 @@ struct LogStoreTests {
 
     @Test("exported log file starts with the device header")
     func exportedLogStartsWithHeader() async throws {
-        // The app bootstraps LoggingSystem at launch; this test host doesn't, so
-        // install the handler here. LoggingSystem.bootstrap is a process-global,
-        // one-time call -- safe to repeat since FlipcashLogHandler is idempotent
-        // to install (last writer wins) and no other test in this process needs
-        // a different configuration.
-        LogStore.bootstrap()
+        _ = Self.bootstrapLogging
         let logger = Logger(label: "test.export")
         logger.info("export header check")
 
@@ -55,5 +56,19 @@ struct LogStoreTests {
         #expect(contents.contains("DEVICE & APP INFO"))
         #expect(contents.contains("OCP Contract:"))
         #expect(contents.contains("FC2 Contract:"))
+    }
+
+    @Test("flush writes buffered lines to a log file")
+    func flushWritesBufferedLines() async throws {
+        _ = Self.bootstrapLogging
+        let logger = Logger(label: "test.flush")
+        let marker = "flush check \(UUID().uuidString)"
+        logger.info("\(marker)")
+
+        await LogStore.shared.flush()
+
+        let files = await LogStore.shared.fileWriter.logFileURLs()
+        let contents = try files.map { try String(contentsOf: $0, encoding: .utf8) }
+        #expect(contents.contains { $0.contains(marker) })
     }
 }
