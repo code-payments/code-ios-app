@@ -315,8 +315,6 @@ extension LinkCard {
             public let handle: String?
             /// "Joined March 2024", or nil when the server gave no join date.
             public let joined: String?
-            /// "Minimum To Chat: $1.00", or nil when the person charges nothing to start a chat.
-            public let fee: String?
             /// The profile picture's thumbnail bytes, once loaded.
             public let imageData: Data?
             /// The profile picture's BlurHash: the avatar's preview and the card's backdrop.
@@ -328,7 +326,6 @@ extension LinkCard {
                 displayName: String,
                 handle: String?,
                 joined: String?,
-                fee: String?,
                 imageData: Data?,
                 blurHash: String?
             ) {
@@ -337,7 +334,6 @@ extension LinkCard {
                 self.displayName = displayName
                 self.handle = handle
                 self.joined = joined
-                self.fee = fee
                 self.imageData = imageData
                 self.blurHash = blurHash
             }

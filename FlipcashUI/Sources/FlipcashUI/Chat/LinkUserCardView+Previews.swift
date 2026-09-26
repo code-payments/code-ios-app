@@ -21,7 +21,6 @@ enum LinkUserCardSamples {
         displayName: String = "Satoshi Nakamoto",
         handle: String? = "@satoshi",
         joined: String? = "Joined March 2024",
-        fee: String? = "Minimum To Chat: $1.00",
         blurHash: String? = Self.blurHash
     ) -> LinkCard.User.State {
         .resolved(LinkCard.User.Resolved(
@@ -30,7 +29,6 @@ enum LinkUserCardSamples {
             displayName: displayName,
             handle: handle,
             joined: joined,
-            fee: fee,
             imageData: nil,
             blurHash: blurHash
         ))
@@ -38,12 +36,11 @@ enum LinkUserCardSamples {
 
     /// Every state, labelled, in the order the PR describes them, with the handle the link names.
     static let all: [(name: String, state: LinkCard.User.State, linkedHandle: String?)] = [
-        ("Someone else, with a fee", resolved(), "@satoshi"),
-        ("Someone else, no fee", resolved(fee: nil), "@satoshi"),
+        ("Someone else", resolved(), "@satoshi"),
         ("No handle (UUID link)", resolved(handle: nil), nil),
         ("No picture", resolved(blurHash: nil), "@satoshi"),
         ("No join date", resolved(joined: nil), "@satoshi"),
-        ("Your own link", resolved(isOwn: true, fee: nil), "@satoshi"),
+        ("Your own link", resolved(isOwn: true), "@satoshi"),
         ("Not found", .notFound, "@nobodyhere"),
         ("Not found (UUID link)", .notFound, nil),
     ]

@@ -62,7 +62,6 @@ func userLinkCard(_ facts: UserLinkFacts, imageData: Data?) -> LinkCard.User.Res
         displayName: name ?? profile.username?.handle ?? ConversationController.fallbackCounterpartName,
         handle: name == nil ? nil : profile.username?.handle,
         joined: profile.joinedLine,
-        fee: profile.minimumToChatLine,
         imageData: imageData,
         blurHash: profile.profilePicture?.thumbnailBlurhash
     )
@@ -74,12 +73,5 @@ extension Profile {
     /// person card both state it, so it is worded once, here.
     var joinedLine: String? {
         joinedAt.map { "Joined \($0.formatted(.dateTime.month(.wide).year()))" }
-    }
-
-    /// "Minimum To Chat: $1.00", or nil when starting a chat costs nothing. The amount is formatted
-    /// as the chat's "Send $X to Start Chatting" button formats the same fee.
-    var minimumToChatLine: String? {
-        guard let fee = minDmChatInitFee, fee.isPositive else { return nil }
-        return "Minimum To Chat: \(fee.formatted())"
     }
 }

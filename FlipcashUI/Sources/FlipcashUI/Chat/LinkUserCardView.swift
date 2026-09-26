@@ -170,12 +170,9 @@ struct LinkUserCardContent: View {
         static let avatar: CGFloat = 40
         /// The least room between the avatar and the name, when the card is at its minimum height.
         static let avatarGap: CGFloat = 16
-        /// Between the handle and the first detail line.
+        /// Between the handle and the detail line.
         static let detailGap: CGFloat = 10
-        /// Between one detail line and the next.
-        static let detailSpacing: CGFloat = 2
-        /// The joined line, the fee line and the not-found line.
-        static let detailSize: CGFloat = 13
+        /// The joined line or the not-found line, set in `appTextCaption`.
         static let detailOpacity: Double = 0.45
     }
 
@@ -250,16 +247,12 @@ struct LinkUserCardContent: View {
                     .padding(.top, width * TipcardProportions.subtitleGapFraction)
             }
 
-            if !details.isEmpty {
-                VStack(alignment: .leading, spacing: Layout.detailSpacing) {
-                    ForEach(details, id: \.self) { line in
-                        Text(line)
-                            .font(.default(size: Layout.detailSize, weight: .medium))
-                            .foregroundStyle(Color.textMain)
-                            .opacity(Layout.detailOpacity)
-                    }
-                }
-                .padding(.top, Layout.detailGap)
+            if let detail {
+                Text(detail)
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textMain)
+                    .opacity(Layout.detailOpacity)
+                    .padding(.top, Layout.detailGap)
             }
         }
         .multilineTextAlignment(.leading)
@@ -275,12 +268,11 @@ struct LinkUserCardContent: View {
         }
     }
 
-    /// The small lines under the handle: when the account joined and its minimum to chat, or that
-    /// there is no account.
-    private var details: [String] {
+    /// The small line under the handle: when the account joined, or that there is no account.
+    private var detail: String? {
         switch state {
-        case .resolved(let user): [user.joined, user.fee].compactMap { $0 }
-        case .notFound:           [Copy.notFound]
+        case .resolved(let user): user.joined
+        case .notFound:           Copy.notFound
         }
     }
 

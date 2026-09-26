@@ -41,8 +41,7 @@ import FlipcashCore
         userID: UserID? = otherID,
         displayName: String? = "Satoshi",
         username: Username? = satoshi,
-        joinedAt: Date? = nil,
-        fee: FiatAmount? = nil
+        joinedAt: Date? = nil
     ) -> Profile {
         Profile(
             displayName: displayName,
@@ -51,7 +50,7 @@ import FlipcashCore
             joinedAt: joinedAt,
             userID: userID,
             username: username,
-            minDmChatInitFee: fee
+            minDmChatInitFee: nil
         )
     }
 
@@ -160,15 +159,5 @@ import FlipcashCore
     @Test func noJoinDateMeansNoJoinedLine() {
         #expect(Self.profile(joinedAt: nil).joinedLine == nil)
         #expect(Self.card(Self.profile(joinedAt: nil)).joined == nil)
-    }
-
-    @Test func aFeeIsStatedAsTheMinimumToChat() {
-        let card = Self.card(Self.profile(fee: .usd(1)))
-        #expect(card.fee == "Minimum To Chat: \(FiatAmount.usd(1).formatted())")
-    }
-
-    @Test(arguments: [nil, FiatAmount.usd(0)])
-    func noFeeMeansNoFeeLine(fee: FiatAmount?) {
-        #expect(Self.card(Self.profile(fee: fee)).fee == nil)
     }
 }
