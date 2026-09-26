@@ -71,7 +71,7 @@ enum LinkUserCardSamples {
                 VStack(spacing: 6) {
                     Text("Loading").font(.caption).foregroundStyle(Color.textSecondary)
                     LinkCardShimmerSample()
-                        .frame(width: cardWidth, height: cardWidth * TipcardProportions.aspectRatio)
+                        .frame(width: cardWidth, height: cardWidth * LinkCardView.aspectRatio)
                 }
             }
             .padding(.vertical, 24)

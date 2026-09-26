@@ -11,15 +11,15 @@ import SwiftUI
 import FlipcashCore
 
 /// The person card: a frosted ID card for a `flipcash.com/<handle>` or `flipcash.com/<uuid>` link,
-/// with the person's minimum to chat and a button under it.
+/// tapped as a whole.
 ///
 /// Built from the person's public profile only. Hosted the same way as ``LinkGroupCardView``: SwiftUI
 /// content in a UIKit view, pinned to its fitted height at the card's width, a shimmer while the
-/// lookup is out, and taps only on the button.
+/// lookup is out.
 final class LinkUserCardView: UIView {
 
-    /// Called when the button is tapped.
-    var onButton: (() -> Void)?
+    /// Called when the card is tapped. Never for a card with no account behind it.
+    var onTap: (() -> Void)?
 
     /// Called when the content's height at the card's width changes, so the row can be measured
     /// again.
@@ -33,7 +33,7 @@ final class LinkUserCardView: UIView {
     private let content: any UIView & UIContentView
     /// The content's height at the card's actual width, as for ``LinkGroupCardView``.
     private var fittedHeight: NSLayoutConstraint!
-    /// The card's own proportion, held while the shimmer stands alone.
+    /// The card's minimum proportion, held while the shimmer stands alone.
     private var shimmerHeight: NSLayoutConstraint!
     private let shimmer = LinkCardShimmerView(
         ground: UIColor(Color.backgroundRow),
@@ -72,7 +72,7 @@ final class LinkUserCardView: UIView {
             ])
         }
         fittedHeight = content.heightAnchor.constraint(equalToConstant: 0)
-        shimmerHeight = heightAnchor.constraint(equalTo: widthAnchor, multiplier: TipcardProportions.aspectRatio)
+        shimmerHeight = heightAnchor.constraint(equalTo: widthAnchor, multiplier: LinkCardView.aspectRatio)
     }
 
     override func layoutSubviews() {
@@ -85,7 +85,7 @@ final class LinkUserCardView: UIView {
     }
 
     /// Pins the content to its height at the current width. Off while the shimmer stands alone,
-    /// which takes the card's own proportion instead.
+    /// which takes the card's minimum proportion instead.
     /// - Returns: whether the pinned height changed.
     @discardableResult
     private func fit() -> Bool {
@@ -114,7 +114,7 @@ final class LinkUserCardView: UIView {
     /// - Parameters:
     ///   - linkedHandle: the `@handle` the link itself names, the name a not-found card shows.
     ///   - loading: whether the lookup is still out. A card with nothing to say yet is the shimmer
-    ///     on its own, at the card's own proportion.
+    ///     on its own, at the card's minimum proportion.
     /// - Returns: whether this changed what the card draws, and with it the card's height.
     @discardableResult
     func configure(with state: LinkCard.User.State?, linkedHandle: String?, loading: Bool) -> Bool {
@@ -138,18 +138,19 @@ final class LinkUserCardView: UIView {
         let width = bounds.width
         content.configuration = UIHostingConfiguration {
             LinkUserCardContent(state: display, linkedHandle: handle, width: width) { [weak self] in
-                self?.onButton?()
+                self?.onTap?()
             }
         }
         .margins(.all, 0)
     }
 }
 
-/// The person card's body: the ID card in the tip card's proportions and material, then the fee
-/// line and the button under it.
+/// The person card's body: an ID card in the tip card's material and type scale, at the link
+/// cards' proportions, and itself the tap target.
 ///
-/// Proportions, corner and type scale come from ``TipcardProportions`` (nodes 9276:4641,
-/// 9277:121417, 9277:121421, 9443:7991); the rest is below, in ``Layout``.
+/// Corner and type scale come from ``TipcardProportions`` (nodes 9276:4641, 9277:121417,
+/// 9277:121421, 9443:7991); the minimum height from ``LinkCardView/aspectRatio``, so it lines up
+/// with a cash or group card; the rest is below, in ``Layout``.
 struct LinkUserCardContent: View {
 
     let state: LinkCard.User.State
@@ -157,7 +158,7 @@ struct LinkUserCardContent: View {
     let linkedHandle: String?
     /// The card's width. Its type and corner are fractions of it, as on the tip card.
     let width: CGFloat
-    var onButton: () -> Void = {}
+    var onTap: () -> Void = {}
 
     /// Values this card adds to ``TipcardProportions``. Named so Android can copy them one for one.
     enum Layout {
@@ -169,45 +170,33 @@ struct LinkUserCardContent: View {
         static let avatar: CGFloat = 40
         /// The least room between the avatar and the name, when the card is at its minimum height.
         static let avatarGap: CGFloat = 16
-        /// Between the handle and the joined line.
-        static let joinedGap: CGFloat = 10
-        static let joinedSize: CGFloat = 13
-        static let joinedOpacity: Double = 0.45
-        /// Between the card and the fee line, or the button when there is no fee.
-        static let belowCardGap: CGFloat = 12
-        static let feeSize: CGFloat = 15
-        static let feeOpacity: Double = 0.5
-        /// Between the fee line and the button.
-        static let feeGap: CGFloat = 12
+        /// Between the handle and the first detail line.
+        static let detailGap: CGFloat = 10
+        /// Between one detail line and the next.
+        static let detailSpacing: CGFloat = 2
+        /// The joined line, the fee line and the not-found line.
+        static let detailSize: CGFloat = 13
+        static let detailOpacity: Double = 0.45
     }
 
-    /// Button labels, Title Case.
+    /// Detail-line copy, Title Case.
     enum Copy {
-        static let start = "Start Chatting"
-        /// Provisional, pending design: what the viewer's own link offers in place of a chat.
-        static let own = "View Your Card"
         static let notFound = "No Such Account"
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            card
+        Button(action: onTap) { card }
+            .buttonStyle(.plain)
+            // Nothing to open with no account behind the link.
+            .disabled(!isTappable)
+            .accessibilityElement(children: .combine)
+    }
 
-            if case .resolved(let user) = state, let fee = user.fee {
-                Text(fee)
-                    .font(.default(size: Layout.feeSize, weight: .medium))
-                    .foregroundStyle(Color.textMain.opacity(Layout.feeOpacity))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, Layout.belowCardGap)
-                    .padding(.bottom, Layout.feeGap)
-            } else {
-                Spacer().frame(height: Layout.belowCardGap)
-            }
-
-            button
+    private var isTappable: Bool {
+        switch state {
+        case .resolved: true
+        case .notFound: false
         }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Card -
@@ -233,13 +222,14 @@ struct LinkUserCardContent: View {
             identity
         }
         .padding(Layout.padding)
-        .frame(maxWidth: .infinity, minHeight: width * TipcardProportions.aspectRatio, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: width * LinkCardView.aspectRatio, alignment: .leading)
         .background { backdrop }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity))
         }
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
     private var identity: some View {
@@ -258,12 +248,16 @@ struct LinkUserCardContent: View {
                     .padding(.top, width * TipcardProportions.subtitleGapFraction)
             }
 
-            if case .resolved(let user) = state, let joined = user.joined {
-                Text(joined)
-                    .font(.default(size: Layout.joinedSize, weight: .medium))
-                    .foregroundStyle(Color.textMain)
-                    .opacity(Layout.joinedOpacity)
-                    .padding(.top, Layout.joinedGap)
+            if !details.isEmpty {
+                VStack(alignment: .leading, spacing: Layout.detailSpacing) {
+                    ForEach(details, id: \.self) { line in
+                        Text(line)
+                            .font(.default(size: Layout.detailSize, weight: .medium))
+                            .foregroundStyle(Color.textMain)
+                            .opacity(Layout.detailOpacity)
+                    }
+                }
+                .padding(.top, Layout.detailGap)
             }
         }
         .multilineTextAlignment(.leading)
@@ -279,6 +273,15 @@ struct LinkUserCardContent: View {
         }
     }
 
+    /// The small lines under the handle: when the account joined and its minimum to chat, or that
+    /// there is no account.
+    private var details: [String] {
+        switch state {
+        case .resolved(let user): [user.joined, user.fee].compactMap { $0 }
+        case .notFound:           [Copy.notFound]
+        }
+    }
+
     /// The picture's BlurHash filling the card under the tip card's black, or the black over the
     /// chat's own ground when there is no picture. The photo itself is never the backdrop.
     private var backdrop: some View {
@@ -290,21 +293,6 @@ struct LinkUserCardContent: View {
                     .scaledToFill()
             }
             Color.black.opacity(Layout.tintOpacity)
-        }
-    }
-
-    // MARK: - Button -
-
-    @ViewBuilder private var button: some View {
-        switch state {
-        case .notFound:
-            Button(Copy.notFound) {}
-                .buttonStyle(.filled20Compact)
-                .disabled(true)
-        case .resolved(let user) where user.isOwn:
-            Button(Copy.own, action: onButton).buttonStyle(.filled20Compact)
-        case .resolved:
-            Button(Copy.start, action: onButton).buttonStyle(.filledCompact)
         }
     }
 }

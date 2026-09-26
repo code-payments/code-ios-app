@@ -1121,8 +1121,8 @@ struct ConversationScreen: View {
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
             router.push(.currencyInfo(token.mint))
         case .user:
-            // Only the button takes a tap, and a not-found card's button is disabled, so a tap
-            // always finds the lookup's answer here.
+            // The card is its own button, disabled with no account behind it, so a tap always
+            // finds the lookup's answer here.
             guard case .user(.resolved(let user))? = sessionContainer.linkCardFeed.known(card) else { return }
             if user.isOwn {
                 router.showOwnTipCard()

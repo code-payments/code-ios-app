@@ -16,8 +16,7 @@ import FlipcashCore
 /// a token link should read as one column of cards rather than two card sizes, and the bubble above
 /// it switches on whether there is a card at all — not on which one. A group card and a person card
 /// have the same width, and take their height from their content instead: they carry a button and
-/// text that grow with Dynamic Type. The group card holds these proportions as its minimum; the
-/// person card, the tip card's taller ones.
+/// text that grow with Dynamic Type, and hold these proportions as their minimum.
 ///
 /// Every kind is built once and kept, hidden, rather than swapped in per dequeue: this sits in a
 /// recycled row, and a transcript that alternates kinds would otherwise allocate a card per scroll.
@@ -30,8 +29,8 @@ final class LinkCardView: UIView {
     /// The proportions of the wallet's bill: 224pt of card across 328pt of usable width — its own
     /// height at full width less two screen insets on a 375pt phone. A chat bubble is a good deal
     /// narrower than that, and scaling the height with the width is what keeps a card a card there
-    /// rather than a tall panel.
-    private static let aspectRatio: CGFloat = 224.0 / 328.0
+    /// rather than a tall panel. Every kind's height, or for a group or person card its minimum.
+    static let aspectRatio: CGFloat = 224.0 / 328.0
 
     private let cashView = LinkCashCardView()
     private let tokenView = LinkTokenCardView()
@@ -57,7 +56,7 @@ final class LinkCardView: UIView {
     /// another link's row.
     private var subscription: Task<Void, Never>?
 
-    /// Called when a group or person card's button is tapped.
+    /// Called when a group card's button, or a person card, is tapped.
     var onCardButton: (() -> Void)?
 
     /// Called when an answer arriving after ``configure(with:source:)`` changes the card's height,
@@ -88,7 +87,7 @@ final class LinkCardView: UIView {
 
         groupView.onStart = { [weak self] in self?.onCardButton?() }
         groupView.onHeightChange = { [weak self] in self?.onHeightChange?() }
-        userView.onButton = { [weak self] in self?.onCardButton?() }
+        userView.onTap = { [weak self] in self?.onCardButton?() }
         userView.onHeightChange = { [weak self] in self?.onHeightChange?() }
         for card in [groupView, userView] as [UIView] {
             card.translatesAutoresizingMaskIntoConstraints = false
