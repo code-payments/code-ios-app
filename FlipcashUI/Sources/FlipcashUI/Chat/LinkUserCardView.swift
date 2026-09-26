@@ -148,9 +148,9 @@ final class LinkUserCardView: UIView {
 /// The person card's body: an ID card in the tip card's material and type scale, at the link
 /// cards' proportions, and itself the tap target.
 ///
-/// Corner and type scale come from ``TipcardProportions`` (nodes 9276:4641, 9277:121417,
-/// 9277:121421, 9443:7991); the minimum height from ``LinkCardView/aspectRatio``, so it lines up
-/// with a cash or group card; the rest is below, in ``Layout``.
+/// Corner, name size and handle gap come from ``TipcardProportions`` (nodes 9276:4641,
+/// 9277:121417, 9277:121421, 9443:7991); the minimum height from ``LinkCardView/aspectRatio``, so
+/// it lines up with a cash or group card; the handle is `appTextMessage`; the rest is in ``Layout``.
 struct LinkUserCardContent: View {
 
     let state: LinkCard.User.State
@@ -242,7 +242,9 @@ struct LinkUserCardContent: View {
 
             if case .resolved(let user) = state, let handle = user.handle {
                 Text(handle)
-                    .font(.default(size: nameSize, weight: .medium))
+                    // A tier below the name, not the tip card's same-size pair: here the name sits
+                    // over small detail lines rather than alone under a code.
+                    .font(.appTextMessage)
                     .foregroundStyle(Color.textMain)
                     .opacity(TipcardProportions.subtitleOpacity)
                     .padding(.top, width * TipcardProportions.subtitleGapFraction)
