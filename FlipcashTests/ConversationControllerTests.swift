@@ -709,6 +709,75 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
+    @Test("foreground with no open chat still backfills a lagging conversation via the feed's GetDelta path (missed-push-while-backgrounded regression)")
+    func foregroundWithNoOpenChatBackfillsLaggingConversation() async throws {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)]
+        let controller = makeController(mock)
+
+        controller.start()
+        try await waitUntil { !controller.conversations.isEmpty }
+        // start()'s own feed load already backfilled this (then-empty) transcript as a newest page.
+        // Forget that call so the assertions below isolate the foreground hook's own fetch.
+        try await waitUntil { !mock.latestPageQueries.isEmpty }
+        mock.clearLatestPageQueries()
+        // The classic report: nothing is on screen when the app resumes.
+        controller.visibleConversationID = nil
+
+        // The server moved past the client's cursor while backgrounded — e.g. a push the extension
+        // preloaded into the shared store but couldn't advance the catch-up cursor for.
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200), latestEventSequence: 2)]
+        mock.deltaHead = 2
+        mock.deltaBatches = [MockConversations.DeltaBatch(
+            messages: [ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("missed while backgrounded"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)],
+            checkpoint: 2
+        )]
+
+        controller.handleForeground()
+
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        // No chat was open, so this can only have come from the feed's own backfill, not catchUpOpenChat.
+        #expect(mock.deltaAfterSequences == [1])
+        controller.stop()
+    }
+
+    @Test("a message an extension preloaded into the shared store while suspended becomes visible on foreground through the same GetDelta the client would run anyway - no separate DB reload path is needed")
+    func foregroundSurfacesExtensionPreloadedMessageViaOrdinaryCatchUp() async throws {
+        let (database, _) = try Database.makeTemp()
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)]
+        let controller = makeController(mock, database: database)
+
+        controller.start()
+        try await waitUntil { !controller.conversations.isEmpty }
+        try await waitUntil { !mock.latestPageQueries.isEmpty }
+        controller.visibleConversationID = nil
+        // Prime the transcript's cached window at revision 0, the way the running app would have it
+        // before backgrounding.
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1])
+
+        // While suspended, the notification extension wrote the pushed message straight into the
+        // shared SQLite store with `cursor: 0` (deliberately not advancing the catch-up cursor - see
+        // `NotificationService.persist`), bypassing the controller's `store`/`messageRevision` entirely.
+        let preloaded = ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("missed while backgrounded"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)
+        try database.persistMessages([preloaded], cursor: 0, conversationID: .test(1))
+
+        // On foreground, because the cursor never advanced, the client's own GetDelta will report the
+        // same window the extension already preloaded - scripted here to mirror that.
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200), latestEventSequence: 2)]
+        mock.deltaHead = 2
+        mock.deltaBatches = [MockConversations.DeltaBatch(messages: [preloaded], checkpoint: 2)]
+
+        controller.handleForeground()
+
+        // The ordinary catch-up path re-applies and re-persists the row, which bumps `messageRevision`
+        // and makes the transcript visible - the same route a message never preloaded would take.
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        controller.stop()
+    }
+
     @Test("RESET_REQUIRED discards the cursor and re-syncs history via GetMessages")
     func catchUpResetResyncsHistory() async throws {
         let mock = MockConversations()

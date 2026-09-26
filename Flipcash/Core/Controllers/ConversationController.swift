@@ -507,6 +507,22 @@ final class ConversationController {
         Task { await catchUp(conversationID: visibleConversationID) }
     }
 
+    /// Foreground hook (`AppDelegate` `.active`): brings the feed and every lagging conversation up to
+    /// date, independent of stream health, and reconciles the open chat.
+    ///
+    /// `ensureConnected()` no-ops when the stream still *looks* healthy, and `catchUpOpenChat()` only
+    /// reconciles the chat that's currently visible - so a resume with a quietly-dead stream, or with
+    /// no chat open, previously refreshed nothing. `loadFeed()` re-fetches every conversation's head and
+    /// runs the same `backfillMessages`/`catchUp` (GetDelta) route `start()` and reconnect use, so a
+    /// conversation the extension preloaded while suspended (cursor left at 0, deliberately not
+    /// advanced - see `NotificationService.persist`) is re-fetched from the server on the same call,
+    /// with no separate database-reload path needed. `catchUpInFlight` still dedupes a foreground
+    /// refresh that overlaps a reconnect's own catch-up of the same conversation.
+    func handleForeground() {
+        catchUpOpenChat()
+        Task { await loadFeed() }
+    }
+
     /// A live event exposed a gap. Debounce briefly — a late out-of-order event may close it before we
     /// spend a round trip — then reconcile from the (possibly already-advanced) cursor.
     private func scheduleGapCatchUp(_ conversationID: ConversationID) {
