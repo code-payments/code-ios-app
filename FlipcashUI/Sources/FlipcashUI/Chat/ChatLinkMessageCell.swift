@@ -97,6 +97,7 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         bubbleCardWidthConstraint.isActive = message.linkPreview?.card != nil
         bubble.configure(with: message)
         reactionRowWidthConstraint.constant = maxWidth
+        reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = message.sender == .me
         reactionRow.configure(pills: message.reactions, canReact: message.canReact)
         // A card row has no bubble to hold "Edited", so it goes on the metadata line with the receipt.
