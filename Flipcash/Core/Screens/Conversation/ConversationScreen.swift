@@ -375,6 +375,7 @@ struct ConversationScreen: View {
         return ChatGroupCard(
             title: conversationController.displayName(for: group),
             avatarID: group.id.description,
+            memberCount: group.rosterSummary.peopleCount,
             imageData: groupAvatarSubject.flatMap { sessionContainer.profileAvatars.data(for: $0) },
             blurhash: group.picture?.thumbnailBlurhash,
             requirement: groupCardRequirement,
@@ -650,7 +651,9 @@ struct ConversationScreen: View {
         }
         .sheet(isPresented: $isInviting) {
             if let conversationID {
-                GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting)
+                GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting) { chatID in
+                    router.push(.tipConversation(chatID))
+                }
             }
         }
         .fullScreenCover(item: $messageReport) { report in

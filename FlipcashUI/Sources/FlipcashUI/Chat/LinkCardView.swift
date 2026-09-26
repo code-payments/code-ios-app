@@ -50,7 +50,18 @@ final class LinkCardView: UIView {
     /// another link's row.
     private var subscription: Task<Void, Never>?
 
-    /// Called when a group card's "Start Chatting" button is tapped.
+    /// The card's outline: `BubbleBackgroundView`'s radii for the card's place in its bubble run, so
+    /// it groups with the bubbles around it exactly as a text bubble would. Every kind takes it,
+    /// placeholder included.
+    var cornerRadii = BubbleBackgroundView.standaloneRadii {
+        didSet {
+            cashView.cornerRadii = cornerRadii
+            tokenView.cornerRadii = cornerRadii
+            groupView.cornerRadii = cornerRadii
+        }
+    }
+
+    /// Called when a group card's "View" button is tapped.
     var onGroupStart: (() -> Void)?
 
     /// Called when an answer arriving after ``configure(with:source:)`` changes the card's height,

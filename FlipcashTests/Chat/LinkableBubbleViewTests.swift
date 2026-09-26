@@ -7,6 +7,7 @@
 
 import Testing
 import UIKit
+import SwiftUI
 import FlipcashCore
 @testable import FlipcashUI
 
@@ -97,6 +98,88 @@ struct LinkableBubbleViewTests {
             quote: quote,
             part: ChatMessagePart(messageID: "1", kind: .card, messageText: Self.cashLink)
         )
+    }
+
+    private static let groupLink = "https://app.flipcash.com/g/abc"
+
+    /// A group-invite card row, the other card shape the transcript draws bare.
+    private func groupCardRow(sender: ChatMessage.Sender, above: Bool, below: Bool) -> ChatMessage {
+        let range = NSRange(location: 0, length: (Self.groupLink as NSString).length)
+        return ChatMessage(
+            id: "1#card",
+            text: Self.groupLink,
+            sender: sender,
+            joinsBubbleAbove: above,
+            joinsBubbleBelow: below,
+            linkPreview: LinkPreview(
+                links: [DetectedLink(range: range, url: url(Self.groupLink))],
+                card: .group(LinkCard.Group(url: url(Self.groupLink), chatID: ConversationID(data: Data(repeating: 7, count: 32)), range: range))
+            ),
+            part: ChatMessagePart(messageID: "1", kind: .card, messageText: Self.groupLink)
+        )
+    }
+
+    private func cashCardRow(sender: ChatMessage.Sender, above: Bool, below: Bool) -> ChatMessage {
+        let range = NSRange(location: 0, length: (Self.cashLink as NSString).length)
+        return ChatMessage(
+            id: "1#card",
+            text: Self.cashLink,
+            sender: sender,
+            joinsBubbleAbove: above,
+            joinsBubbleBelow: below,
+            linkPreview: LinkPreview(
+                links: [DetectedLink(range: range, url: url(Self.cashLink))],
+                card: .cash(LinkCard.Cash(url: url(Self.cashLink), entropy: "KNi8pQr1n5hRU65vKJGge3", range: range))
+            ),
+            part: ChatMessagePart(messageID: "1", kind: .card, messageText: Self.cashLink)
+        )
+    }
+
+    /// Alone, top, middle and bottom of a run, from each side.
+    private static let runPositions: [(sender: ChatMessage.Sender, above: Bool, below: Bool)] = [
+        (.me, false, false), (.me, false, true), (.me, true, true), (.me, true, false),
+        (.other, false, false), (.other, false, true), (.other, true, true), (.other, true, false),
+    ]
+
+    @Test("A card's corners match a text bubble's at every run position, for every card kind")
+    func cardRadii_matchTheTextBubble() {
+        for position in Self.runPositions {
+            let textView = LinkableBubbleView()
+            textView.configure(with: ChatMessage(
+                id: "2",
+                text: "hi",
+                sender: position.sender,
+                joinsBubbleAbove: position.above,
+                joinsBubbleBelow: position.below
+            ))
+            let textRadii = chrome(textView)?.radii
+
+            for row in [
+                cashCardRow(sender: position.sender, above: position.above, below: position.below),
+                groupCardRow(sender: position.sender, above: position.above, below: position.below),
+            ] {
+                let cardView = LinkableBubbleView()
+                cardView.configure(with: row)
+                #expect(cardView.cardCornerRadii == textRadii, "\(position) \(row.linkPreview?.card as Any)")
+            }
+        }
+    }
+
+    @Test("A card in the middle of a run flattens both inner corners toward its neighbours")
+    func cardRadii_middleOfRunIsFlattened() {
+        let view = LinkableBubbleView()
+        view.configure(with: cashCardRow(sender: .me, above: true, below: true))
+        #expect(view.cardCornerRadii.topTrailing == BubbleBackgroundView.groupedRadius)
+        #expect(view.cardCornerRadii.bottomTrailing == BubbleBackgroundView.groupedRadius)
+        #expect(view.cardCornerRadii.topLeading == BubbleBackgroundView.baseRadius)
+    }
+
+    @Test("A recycled card row takes the new position's corners")
+    func cardRadii_followReuse() {
+        let view = LinkableBubbleView()
+        view.configure(with: cashCardRow(sender: .me, above: true, below: true))
+        view.configure(with: groupCardRow(sender: .other, above: false, below: false))
+        #expect(view.cardCornerRadii == BubbleBackgroundView.standaloneRadii)
     }
 
     private func chrome(_ view: LinkableBubbleView) -> BubbleBackgroundView? {

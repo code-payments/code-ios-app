@@ -134,15 +134,6 @@ extension ChatItem {
             case .cash, .deleted, .encrypted: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
-        // A card row breaks the bubble run the way bare emoji do, so what faces a neighbour is the
-        // row at that end of the message, not the message as a whole.
-        func startsBare(_ index: Int) -> Bool {
-            rendersBare(messages[index]) || layouts[index].first?.part == .card
-        }
-        func endsBare(_ index: Int) -> Bool {
-            rendersBare(messages[index]) || layouts[index].last?.part == .card
-        }
-
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -176,12 +167,14 @@ extension ChatItem {
                 $0.senderID == message.senderID && !separates($0, from: message) && !divides($0, from: message)
             } ?? false
 
-            // The bubble run, which is not the author run. A bubble stacked above a bare emoji or a
-            // card would otherwise flatten its inner corner to `BubbleBackgroundView.groupedRadius`
+            // The bubble run, which is not the author run. A bubble stacked above a bare emoji would
+            // otherwise flatten its inner corner to `BubbleBackgroundView.groupedRadius`
             // and take the tight row gap, pointing at a bubble that is not there — while the name and
             // the gutter face stay where they are.
-            let joinsBubbleAbove = groupedAbove && !startsBare(index) && !(previous != nil && endsBare(index - 1))
-            let joinsBubbleBelow = groupedBelow && !endsBare(index) && !(next != nil && startsBare(index + 1))
+            // A card row is no break: it is cut to the same per-corner shape a bubble is, so it joins
+            // the bubbles around it like one.
+            let joinsBubbleAbove = groupedAbove && !rendersBare(message) && !(previous.map(rendersBare) ?? false)
+            let joinsBubbleBelow = groupedBelow && !rendersBare(message) && !(next.map(rendersBare) ?? false)
 
             let content: ChatMessage.Content
             switch message.content {
@@ -264,9 +257,9 @@ extension ChatItem {
                     sender: isFromSelf ? .me : .other,
                     isContinuationFromPrevious: isFirst ? groupedAbove : true,
                     isContinuedByNext: isLast ? groupedBelow : true,
-                    // Inside a split message a text row always faces the card, which is bare.
-                    joinsBubbleAbove: isFirst && joinsBubbleAbove,
-                    joinsBubbleBelow: isLast && joinsBubbleBelow,
+                    // The rows of a split message are one run: text, card and text join each other.
+                    joinsBubbleAbove: isFirst ? joinsBubbleAbove : true,
+                    joinsBubbleBelow: isLast ? joinsBubbleBelow : true,
                     isEmojiOnly: part == nil && isEmojiOnlyBody(message),
                     receipt: isLast ? receipt : nil,
                     linkPreview: row.preview,

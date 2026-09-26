@@ -17,9 +17,16 @@ public final class ChatGroupCardCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatGroupCardCell"
 
-    public func configure(with card: ChatGroupCard, onTap: (() -> Void)? = nil, onInvite: (() -> Void)? = nil) {
+    /// Fills the cell. `inviteCardWidth` is the width the transcript gives a link card, so the
+    /// invite card here matches the same card sent in a chat.
+    public func configure(
+        with card: ChatGroupCard,
+        inviteCardWidth: CGFloat,
+        onTap: (() -> Void)? = nil,
+        onInvite: (() -> Void)? = nil
+    ) {
         contentConfiguration = UIHostingConfiguration {
-            GroupCardView(card: card, onTap: onTap, onInvite: onInvite)
+            GroupCardView(card: card, inviteCardWidth: inviteCardWidth, onTap: onTap, onInvite: onInvite)
         }
         .margins(.all, 0)
     }
@@ -29,27 +36,36 @@ public final class ChatGroupCardCell: UICollectionViewCell {
 struct GroupCardView: View {
 
     let card: ChatGroupCard
+    /// The invite card's width: a link card's width in the transcript (node 10330:19164).
+    var inviteCardWidth: CGFloat = 290
     /// Opens the chat's own profile; nil leaves the card inert.
     var onTap: (() -> Void)?
     /// Hands out the chat's invite link. Drawn only when the card asks for it.
     var onInvite: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: Layout.inviteGap) {
-            cardBody
-
+        Group {
             if card.showsInvite, let onInvite {
-                Button(action: onInvite) {
-                    Text("Invite People To Join")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textAction)
-                        .padding(.horizontal, Layout.invitePadding)
-                        .frame(height: Layout.inviteHeight)
-                        .background(Color.action, in: .capsule)
-                        .contentShape(.capsule)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("group-card-invite")
+                // The same card a group's invite link renders as elsewhere (node 10330:19164) —
+                // CTA "Invite People" rather than "View", opening the invite sheet rather than the
+                // chat itself.
+                LinkGroupCardContent(
+                    state: .resolved(.init(
+                        title: card.title,
+                        memberCount: card.memberCount,
+                        avatarID: card.avatarID,
+                        imageData: card.imageData,
+                        blurHash: card.blurhash,
+                        requirement: card.requirement
+                    )),
+                    ctaTitle: LinkGroupCardContent.Copy.invite,
+                    onAction: onInvite,
+                    ctaAccessibilityIdentifier: "group-card-invite",
+                    onTapCard: onTap
+                )
+                .frame(width: inviteCardWidth)
+            } else {
+                cardBody
             }
         }
         .frame(maxWidth: .infinity)
@@ -133,9 +149,6 @@ struct GroupCardView: View {
         static let horizontalPadding: CGFloat = 12
         static let titleGap: CGFloat = 13
         static let requirementGap: CGFloat = 11
-        static let inviteGap: CGFloat = 12
-        static let inviteHeight: CGFloat = 44
-        static let invitePadding: CGFloat = 24
     }
 }
 

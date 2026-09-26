@@ -32,7 +32,7 @@ final class BubbleBackgroundView: UIView {
     private let washLayer = CALayer()
     private let attentionLayer = CALayer()
     private let borderLayer = CAShapeLayer()
-    private var radii = RectangleCornerRadii(topLeading: baseRadius, bottomLeading: baseRadius, bottomTrailing: baseRadius, topTrailing: baseRadius)
+    private(set) var radii = standaloneRadii
     /// The message this chrome currently draws, so a radii change can be told apart from a recycled
     /// view being set up for a different row. A view with no identity never morphs.
     private var identity: String?
@@ -110,13 +110,13 @@ final class BubbleBackgroundView: UIView {
     /// The bubble's continuous, per-corner rounded shape in its own coordinate space — the same
     /// geometry used for the layer mask. Clips the context-menu lift preview to the bubble.
     var maskingPath: UIBezierPath {
-        UIBezierPath(cgPath: UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath)
+        UIBezierPath(cgPath: Self.path(radii: radii, in: bounds))
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
         let previous = shapeMask.path
-        let path = UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath
+        let path = Self.path(radii: radii, in: bounds)
         shapeMask.path = path
         washLayer.frame = bounds
         attentionLayer.frame = bounds
@@ -212,6 +212,15 @@ final class BubbleBackgroundView: UIView {
         isFromSelf
             ? UIColor.white.withAlphaComponent(0.08)
             : UIColor.white.withAlphaComponent(0.02)
+    }
+
+    /// Every corner at `baseRadius`: a bubble, or a link card, that stands alone.
+    static let standaloneRadii = RectangleCornerRadii(topLeading: baseRadius, bottomLeading: baseRadius, bottomTrailing: baseRadius, topTrailing: baseRadius)
+
+    /// The continuous, per-corner rounded outline of `rect`. The one shape every bubble and link
+    /// card in a run is cut to, so a card groups with the text around it exactly as a bubble does.
+    static func path(radii: RectangleCornerRadii, in rect: CGRect) -> CGPath {
+        UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: rect).cgPath
     }
 
     /// Per-corner radii: a bubble run flattens the inner corners (nearest the avatar column)
