@@ -528,6 +528,22 @@ final class ConversationController {
         }
     }
 
+    /// Foreground hook (`AppDelegate` `.active`): brings the feed and every lagging conversation up to
+    /// date, independent of stream health, and reconciles the open chat.
+    ///
+    /// `ensureConnected()` no-ops when the stream still *looks* healthy, and `catchUpOpenChat()` only
+    /// reconciles the chat that's currently visible - so a resume with a quietly-dead stream, or with
+    /// no chat open, previously refreshed nothing. `loadFeed()` re-fetches every conversation's head and
+    /// runs the same `backfillMessages`/`catchUp` (GetDelta) route `start()` and reconnect use, so a
+    /// conversation the extension preloaded while suspended (cursor left at 0, deliberately not
+    /// advanced - see `NotificationService.persist`) is re-fetched from the server on the same call,
+    /// with no separate database-reload path needed. `catchUpInFlight` still dedupes a foreground
+    /// refresh that overlaps a reconnect's own catch-up of the same conversation.
+    func handleForeground() {
+        catchUpOpenChat()
+        Task { await loadFeed() }
+    }
+
     /// Refreshes from the server the reactions on up to `limit` stored messages older than `before`,
     /// or the newest when `before` is nil: one page of the transcript as the reader reveals it.
     func refreshReactions(for conversationID: ConversationID, before: UInt64? = nil, limit: Int = MessageLoader.initialWindow) async {
