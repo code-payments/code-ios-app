@@ -69,6 +69,7 @@ public final class ChatMessageCell: ChatColumnCell {
         bubble.configure(with: message)
         maxWidthConstraint.constant = maxWidth
         reactionRowWidthConstraint.constant = maxWidth
+        reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = message.sender == .me
         reactionRow.configure(pills: message.reactions, canReact: message.canReact)
         updateColumn(

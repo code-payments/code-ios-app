@@ -157,7 +157,7 @@ public struct EmojiPickerSheet: View {
                 .scrollDismissesKeyboard(.immediately)
                 if query.isEmpty, sections.count > 1 {
                     EmojiCategoryBar(
-                        categories: sections.map { .init(id: $0.id, title: $0.title, emoji: $0.entries.first?.emoji ?? "＃") },
+                        categories: sections.map { .init(id: $0.id, title: $0.title, emoji: Self.barEmoji(for: $0)) },
                         selected: pendingCategory ?? visibleCategory ?? sections.first?.id
                     ) { id in
                         pendingCategory = id
@@ -171,6 +171,13 @@ public struct EmojiPickerSheet: View {
     }
 
     private static let scrollSpring = Animation.spring(duration: 0.35, bounce: 0.2)
+
+    /// The category bar's icon for a section. Frequently Used gets a fixed ❤️ so its slot doesn't
+    /// change as your recents do; catalog categories use their first emoji.
+    private static func barEmoji(for section: EmojiPickerModel.Section) -> String {
+        if section.id == EmojiPickerModel.frequentlyUsedID { return "❤️" }
+        return section.entries.first?.emoji ?? "＃"
+    }
 }
 
 /// The floating jump bar to each category, a glass capsule over the grid (node 9768:1624). The

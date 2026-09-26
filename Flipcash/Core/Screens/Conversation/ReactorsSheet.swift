@@ -22,6 +22,7 @@ struct ReactorsSheet: View {
 
     @Environment(Session.self) private var session
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(\.dismiss) private var dismiss
 
     /// Set once the first load has run long enough to be noticeable, so a quick load never flashes
     /// placeholders.
@@ -85,9 +86,16 @@ struct ReactorsSheet: View {
     /// The title and filter pills, floating over the list as it scrolls under them.
     private var bar: some View {
         VStack(spacing: 20) {
-            Text("\(pills.totalReactionCount) Reactions")
-                .font(.default(size: 18, weight: .semibold))
-                .foregroundStyle(Color.textMain)
+            ZStack {
+                Text("\(pills.totalReactionCount) Reactions")
+                    .font(.default(size: 18, weight: .semibold))
+                    .foregroundStyle(Color.textMain)
+                HStack {
+                    Spacer()
+                    CloseButton(style: .glass) { dismiss() }
+                }
+                .padding(.horizontal, 20)
+            }
             filterRow
         }
         .padding(.top, 28)

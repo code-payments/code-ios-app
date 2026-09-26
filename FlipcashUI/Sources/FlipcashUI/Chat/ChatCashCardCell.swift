@@ -158,6 +158,7 @@ public final class ChatCashCardCell: ChatColumnCell {
             ),
             identity: message.id
         )
+        reactionRow.layoutWidth = Self.cardSize.width
         reactionRow.hugsTrailingEdge = message.sender == .me
         reactionRow.configure(pills: message.reactions, canReact: message.canReact)
         updateColumn(for: message, authorImageData: authorImageData)

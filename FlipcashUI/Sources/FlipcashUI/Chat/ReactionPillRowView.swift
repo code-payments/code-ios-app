@@ -26,6 +26,12 @@ final class ReactionPillRowView: UIView {
     /// viewer cannot react (see `configure(pills:canReact:)`).
     var onAdd: (() -> Void)?
 
+    /// The width the cell gives this row, known before the row has been laid out. A freshly configured
+    /// cell is measured before its first layout pass, so the line count has to come from this.
+    var layoutWidth: CGFloat = 0 {
+        didSet { if layoutWidth != oldValue { invalidateIntrinsicContentSize() } }
+    }
+
     /// Whether each line sits against the trailing edge, as under the viewer's own bubbles.
     var hugsTrailingEdge = false {
         didSet { if hugsTrailingEdge != oldValue { setNeedsLayout() } }
@@ -110,6 +116,7 @@ final class ReactionPillRowView: UIView {
         isExpanded = false
         animatesChanges = false
         pendingChange = false
+        lastComputedHeight = 0
     }
 
     /// Whether the "+" belongs in the row. Its visibility follows this in `layoutSubviews`, where an
@@ -274,14 +281,14 @@ final class ReactionPillRowView: UIView {
     }
 
     /// Width is always whatever the column stack hands this view (`noIntrinsicMetric`). Height is
-    /// measured against the width the row already has, so the transcript's resize for a reaction
-    /// change sees the new line count and animates to it. Before the row has a width, it falls back to
-    /// the last layout pass, or a single line.
+    /// measured against the width the row has, or will have (`layoutWidth`), so the first measure of
+    /// a cell and the transcript's resize for a reaction change both see the real line count.
     override var intrinsicContentSize: CGSize {
         guard !isEmpty else { return CGSize(width: UIView.noIntrinsicMetric, height: 0) }
+        let width = bounds.width > 0 ? bounds.width : layoutWidth
         let height: CGFloat
-        if bounds.width > 0 {
-            height = Self.topGap + currentLayout(width: bounds.width).height
+        if width > 0 {
+            height = Self.topGap + currentLayout(width: width).height
         } else {
             height = lastComputedHeight > 0 ? lastComputedHeight : Self.topGap + Self.buttonSize.height
         }
