@@ -18,6 +18,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
     case cash(Cash)
     case token(Token)
     case group(Group)
+    case user(User)
 
     /// The URL the card stands for, jump wrapper already unwrapped. Tapping the card opens this.
     public var url: URL {
@@ -25,6 +26,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case .cash(let cash): cash.url
         case .token(let token): token.url
         case .group(let group): group.url
+        case .user(let user): user.url
         }
     }
 
@@ -38,6 +40,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case .cash(let cash): cash.range
         case .token(let token): token.range
         case .group(let group): group.range
+        case .user(let user): user.range
         }
     }
 
@@ -49,14 +52,15 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case cash(Cash.State)
         case token(Token.State)
         case group(Group.State)
+        case user(User.State)
 
         /// Whether the lookup came back with something. A failure of any kind is `unresolved` (or
-        /// `unavailable` for a group), which is the one answer not worth remembering — the next
+        /// `unavailable` for a group, `notFound` for a person), which is the one answer not worth remembering — the next
         /// look asks again.
         public var isResolved: Bool {
             switch self {
-            case .cash(.resolved), .token(.resolved), .group(.resolved):  true
-            case .cash(.unresolved), .token(.unresolved), .group(.unavailable): false
+            case .cash(.resolved), .token(.resolved), .group(.resolved), .user(.resolved):  true
+            case .cash(.unresolved), .token(.unresolved), .group(.unavailable), .user(.notFound): false
             }
         }
     }
@@ -254,6 +258,96 @@ extension LinkCard {
     }
 }
 
+// MARK: - User -
+
+extension LinkCard {
+
+    /// A person's tip card link: `flipcash.com/<handle>`, `flipcash.com/<uuid>` for someone with no
+    /// handle, or the legacy `flipcash.com/tip/<uuid>`.
+    public struct User: Hashable, Sendable, Codable {
+
+        /// Who the link names, as the URL spells it.
+        public enum Identity: Hashable, Sendable, Codable {
+            case userID(UserID)
+            case username(Username)
+        }
+
+        public let url: URL
+        public let identity: Identity
+        /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
+        public let location: Int
+        public let length: Int
+
+        public var range: NSRange { NSRange(location: location, length: length) }
+
+        public init(url: URL, identity: Identity, range: NSRange) {
+            self.url = url
+            self.identity = identity
+            self.location = range.location
+            self.length = range.length
+        }
+
+        /// The `@handle` the link itself names, or nil for an id link. What a card with no account
+        /// behind it shows as the name, since the link is all it has to go on.
+        public var linkedHandle: String? {
+            switch identity {
+            case .username(let username): username.handle
+            case .userID:                 nil
+            }
+        }
+
+        public enum State: Hashable, Sendable, Codable {
+            /// No account to show: the handle is unclaimed, or the lookup failed. Not remembered, so
+            /// the next appearance asks again.
+            case notFound
+            case resolved(Resolved)
+        }
+
+        /// The card's contents, already worded for display. Built from the person's public profile
+        /// only.
+        public struct Resolved: Hashable, Sendable, Codable {
+            public let userID: UserID
+            /// Whether the link is the viewer's own, which turns the button into a way to their card
+            /// rather than into a chat with themselves.
+            public let isOwn: Bool
+            public let displayName: String
+            /// "@handle", or nil when the person has not claimed one.
+            public let handle: String?
+            /// "Joined March 2024", or nil when the server gave no join date.
+            public let joined: String?
+            /// "Minimum To Chat: $1.00", or nil when the person charges nothing to start a chat.
+            public let fee: String?
+            /// The profile picture's thumbnail bytes, once loaded.
+            public let imageData: Data?
+            /// The profile picture's BlurHash: the avatar's preview and the card's backdrop.
+            public let blurHash: String?
+
+            public init(
+                userID: UserID,
+                isOwn: Bool,
+                displayName: String,
+                handle: String?,
+                joined: String?,
+                fee: String?,
+                imageData: Data?,
+                blurHash: String?
+            ) {
+                self.userID = userID
+                self.isOwn = isOwn
+                self.displayName = displayName
+                self.handle = handle
+                self.joined = joined
+                self.fee = fee
+                self.imageData = imageData
+                self.blurHash = blurHash
+            }
+
+            /// Stable identity for the avatar (monogram colour and image cache key).
+            public var avatarID: String { userID.uuidString }
+        }
+    }
+}
+
 // MARK: - The span the card takes -
 
 nonisolated extension LinkCard {
@@ -265,6 +359,7 @@ nonisolated extension LinkCard {
         case .cash(let cash):   .cash(Cash(url: cash.url, entropy: cash.entropy, range: range))
         case .token(let token): .token(Token(url: token.url, mint: token.mint, range: range))
         case .group(let group): .group(Group(url: group.url, chatID: group.chatID, range: range))
+        case .user(let user):   .user(User(url: user.url, identity: user.identity, range: range))
         }
     }
 }

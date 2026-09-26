@@ -40,7 +40,7 @@ public final class LinkableBubbleView: UIView {
     /// has no text span to tap — without this it would render something that goes nowhere.
     private var card: LinkCard?
 
-    /// The whole-card tap. Off for a group card, which takes taps only on its button.
+    /// The whole-card tap. Off for a group or person card, which takes taps only on its button.
     private lazy var cardTap = UITapGestureRecognizer(target: self, action: #selector(cardTapped))
 
     private(set) var quotePanel = ChatQuotePanelView()
@@ -129,7 +129,7 @@ public final class LinkableBubbleView: UIView {
 
         cardView.translatesAutoresizingMaskIntoConstraints = false
         cardView.addGestureRecognizer(cardTap)
-        cardView.onGroupStart = { [weak self] in self?.cardTapped() }
+        cardView.onCardButton = { [weak self] in self?.cardTapped() }
         cardView.onHeightChange = { [weak self] in self?.onCardHeightChange?() }
         addSubview(cardView)
 
@@ -203,7 +203,7 @@ public final class LinkableBubbleView: UIView {
     func flashAttention(startedAt start: CFTimeInterval = CACurrentMediaTime()) { background.flashAttention(startedAt: start) }
 
     /// Hands the tapped card to the owner. A cash or token card is inert and the whole card is the
-    /// tap target; a group card takes taps only on its button, which lands here too.
+    /// tap target; a group or person card takes taps only on its button, which lands here too.
     @objc func cardTapped() {
         card.map { onLinkCardTap?($0) }
     }
@@ -238,7 +238,7 @@ public final class LinkableBubbleView: UIView {
             cardView.isHidden = false
             self.card = card
             cardTap.isEnabled = switch card {
-            case .group:        false
+            case .group, .user: false
             case .cash, .token: true
             }
             cardView.configure(with: card, source: linkCardSource)

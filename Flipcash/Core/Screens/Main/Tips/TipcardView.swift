@@ -13,21 +13,8 @@ import FlipcashUI
 struct TipcardView: View {
 
     /// The card's height-to-width proportion, shared by every surface that
-    /// sizes one. From Figma's 269 x 333 card, which holds that proportion both
-    /// on the You page (node 9276:4641) and full screen (node 9277:121417).
-    static let aspectRatio: CGFloat = 333.0 / 269.0
-
-    /// The name's size as a fraction of the card's width. Figma draws the name
-    /// at 17 on the 269-wide card and scales it with the card, so the 302-wide
-    /// full-screen card gets 19.1 (node 9277:121421) and the 242-wide You-page
-    /// card 15.3 (node 9276:4645). A fixed size instead left the name looking
-    /// oversized on the small card and undersized on the big one.
-    static let nameFraction: CGFloat = 17.0 / 269.0
-
-    /// The gap between the name and the subtitle, as a fraction of the card's
-    /// width so it scales with the type. From node 9443:7991's 4 on the
-    /// 241.6-wide card.
-    static let subtitleGapFraction: CGFloat = 4.0 / 241.636
+    /// sizes one. See ``TipcardProportions/aspectRatio``.
+    static let aspectRatio: CGFloat = TipcardProportions.aspectRatio
 
     /// Explicit because a rendered tree has no container to size against.
     let size: CGSize
@@ -87,19 +74,17 @@ struct TipcardView: View {
                     .truncationMode(.tail)
                     .padding(.horizontal, size.width * 0.08)
                     // Same size as the name — node 9443:7991 draws both at 15
-                    // on the 241.6-wide card. Medium rather than bold, at half
-                    // opacity, is what separates the handle from the name; a
-                    // second type size read as an afterthought next to Figma
-                    // and Android.
+                    // on the 241.6-wide card. A second type size read as an
+                    // afterthought next to Figma and Android.
                     .font(.default(size: nameFontSize, weight: .medium))
                     .foregroundStyle(Color.textMain)
-                    .opacity(0.5)
-                    .padding(.top, size.width * Self.subtitleGapFraction)
+                    .opacity(TipcardProportions.subtitleOpacity)
+                    .padding(.top, size.width * TipcardProportions.subtitleGapFraction)
             }
         }
         .frame(width: size.width, height: size.height)
         .background(Color.black.opacity(tintOpacity).background(BackdropBlur(radius: 20)))
-        .clipShape(RoundedRectangle(cornerRadius: size.width * 0.08, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: size.width * TipcardProportions.cornerRadiusFraction, style: .continuous))
     }
 
     /// The system avatar placeholder stands in when the photo isn't available,
@@ -113,7 +98,7 @@ struct TipcardView: View {
     }
 
     private var nameFontSize: CGFloat {
-        size.width * Self.nameFraction
+        size.width * TipcardProportions.nameFraction
     }
 
     private var codeDimension: CGFloat {

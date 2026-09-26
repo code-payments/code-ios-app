@@ -545,7 +545,8 @@ final class SessionContainer {
         resolver: linkCardResolver,
         memo: linkCardMemo,
         claims: session.cashLinkClaims,
-        groups: GroupLinkPresenter(avatars: profileAvatars)
+        groups: GroupLinkPresenter(avatars: profileAvatars),
+        users: UserLinkPresenter(avatars: profileAvatars)
     )
 
     /// Lazy so it can capture the container it reads its dependencies from;
@@ -604,7 +605,8 @@ final class SessionContainer {
         self.linkCardResolver = LinkCardResolver(
             cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
             mintLookup: LinkCardResolver.mintLookup(reader: client),
-            groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner)
+            groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
+            userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID)
         )
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {

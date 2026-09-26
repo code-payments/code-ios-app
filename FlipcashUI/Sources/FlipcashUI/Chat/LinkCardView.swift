@@ -14,9 +14,10 @@ import FlipcashCore
 ///
 /// The kinds are laid out by the same rectangle on purpose. A transcript mixing a cash link and
 /// a token link should read as one column of cards rather than two card sizes, and the bubble above
-/// it switches on whether there is a card at all — not on which one. A group card has the same
-/// width, and takes the same proportions as its minimum rather than its size: it carries a title,
-/// a member count, a rule and a button, which run taller than the bill and grow with Dynamic Type.
+/// it switches on whether there is a card at all — not on which one. A group card and a person card
+/// have the same width, and take their height from their content instead: they carry a button and
+/// text that grow with Dynamic Type. The group card holds these proportions as its minimum; the
+/// person card, the tip card's taller ones.
 ///
 /// Every kind is built once and kept, hidden, rather than swapped in per dequeue: this sits in a
 /// recycled row, and a transcript that alternates kinds would otherwise allocate a card per scroll.
@@ -35,26 +36,33 @@ final class LinkCardView: UIView {
     private let cashView = LinkCashCardView()
     private let tokenView = LinkTokenCardView()
     private let groupView = LinkGroupCardView()
+    private let userView = LinkUserCardView()
+
+    /// A card whose content sets the slot's height.
+    private enum Sized { case group, user }
 
     /// Height at exactly the proportions, for a cash or token card.
     private var fixedHeight: NSLayoutConstraint!
-    /// Height at least the proportions, for a group card, whose content may need more.
+    /// Height at least the proportions, for a group or person card, whose content may need more.
     private var minimumHeight: NSLayoutConstraint!
     /// Lets the group card's content set the slot's height. Only while a group card is showing: a
     /// hidden view still takes part in layout, and the group content's own height would otherwise
     /// hold every other kind of card open past its proportions.
     private var groupBottom: NSLayoutConstraint!
+    /// The same, for the person card.
+    private var userBottom: NSLayoutConstraint!
 
     /// The subscription to the card currently shown. Cancelled before every reconfigure and on
     /// reuse: cells recycle, and a task outliving its card would paint one link's answer onto
     /// another link's row.
     private var subscription: Task<Void, Never>?
 
-    /// Called when a group card's "Start Chatting" button is tapped.
-    var onGroupStart: (() -> Void)?
+    /// Called when a group or person card's button is tapped.
+    var onCardButton: (() -> Void)?
 
     /// Called when an answer arriving after ``configure(with:source:)`` changes the card's height,
-    /// so the row holding it can be measured again. Only a group card's height follows its content.
+    /// so the row holding it can be measured again. Only a group or person card's height follows
+    /// its content.
     var onHeightChange: (() -> Void)?
 
     override init(frame: CGRect) {
@@ -78,17 +86,22 @@ final class LinkCardView: UIView {
             ])
         }
 
-        groupView.translatesAutoresizingMaskIntoConstraints = false
-        groupView.isHidden = true
-        groupView.onStart = { [weak self] in self?.onGroupStart?() }
+        groupView.onStart = { [weak self] in self?.onCardButton?() }
         groupView.onHeightChange = { [weak self] in self?.onHeightChange?() }
-        addSubview(groupView)
+        userView.onButton = { [weak self] in self?.onCardButton?() }
+        userView.onHeightChange = { [weak self] in self?.onHeightChange?() }
+        for card in [groupView, userView] as [UIView] {
+            card.translatesAutoresizingMaskIntoConstraints = false
+            card.isHidden = true
+            addSubview(card)
+            NSLayoutConstraint.activate([
+                card.topAnchor.constraint(equalTo: topAnchor),
+                card.leadingAnchor.constraint(equalTo: leadingAnchor),
+                card.trailingAnchor.constraint(equalTo: trailingAnchor),
+            ])
+        }
         groupBottom = groupView.bottomAnchor.constraint(equalTo: bottomAnchor)
-        NSLayoutConstraint.activate([
-            groupView.topAnchor.constraint(equalTo: topAnchor),
-            groupView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            groupView.trailingAnchor.constraint(equalTo: trailingAnchor),
-        ])
+        userBottom = userView.bottomAnchor.constraint(equalTo: bottomAnchor)
 
         // The card's proportions, not its size. One of the two is always live, including while
         // collapsed: a card with no width has no height either, so this stays consistent with the
@@ -98,20 +111,23 @@ final class LinkCardView: UIView {
         fixedHeight.isActive = true
     }
 
-    /// Switches the slot between the fixed proportions of a cash or token card and the minimum of a
-    /// group card.
-    private func setGroupShown(_ shown: Bool) {
-        groupView.isHidden = !shown
-        guard groupBottom.isActive != shown else { return }
-        if shown {
-            fixedHeight.isActive = false
-            minimumHeight.isActive = true
-            groupBottom.isActive = true
-        } else {
-            groupBottom.isActive = false
+    /// Switches the slot between the fixed proportions of a cash or token card (nil) and the
+    /// content-set height of a group or person card.
+    private func setSized(_ sized: Sized?) {
+        groupView.isHidden = sized != .group
+        userView.isHidden = sized != .user
+        // Deactivated before activated, so the slot never holds two heights at once.
+        if sized != .group { groupBottom.isActive = false }
+        if sized != .user { userBottom.isActive = false }
+        if sized == nil {
             minimumHeight.isActive = false
             fixedHeight.isActive = true
+        } else {
+            fixedHeight.isActive = false
+            minimumHeight.isActive = true
         }
+        if sized == .group { groupBottom.isActive = true }
+        if sized == .user { userBottom.isActive = true }
     }
 
     func prepareForReuse() {
@@ -120,7 +136,8 @@ final class LinkCardView: UIView {
         cashView.prepareForReuse()
         tokenView.prepareForReuse()
         groupView.prepareForReuse()
-        setGroupShown(false)
+        userView.prepareForReuse()
+        setSized(nil)
     }
 
     /// Shows `card` and keeps it up to date from `source`.
@@ -163,36 +180,42 @@ final class LinkCardView: UIView {
         case .cash:
             cashView.isHidden = false
             tokenView.isHidden = true
-            setGroupShown(false)
+            setSized(nil)
             cashView.configure(with: Self.cashState(state), loading: loading)
             return false
 
         case .token(let token):
             cashView.isHidden = true
             tokenView.isHidden = false
-            setGroupShown(false)
+            setSized(nil)
             tokenView.configure(with: token, state: Self.tokenState(state), loading: loading)
             return false
 
         case .group:
             cashView.isHidden = true
             tokenView.isHidden = true
-            setGroupShown(true)
+            setSized(.group)
             return groupView.configure(with: Self.groupState(state), loading: loading)
+
+        case .user(let user):
+            cashView.isHidden = true
+            tokenView.isHidden = true
+            setSized(.user)
+            return userView.configure(with: Self.userState(state), linkedHandle: user.linkedHandle, loading: loading)
         }
     }
 
     private static func cashState(_ state: LinkCard.State?) -> LinkCard.Cash.State {
         switch state {
         case .cash(let cash):       cash
-        case .token, .group, nil:   .unresolved
+        case .token, .group, .user, nil: .unresolved
         }
     }
 
     private static func tokenState(_ state: LinkCard.State?) -> LinkCard.Token.State {
         switch state {
         case .token(let token):     token
-        case .cash, .group, nil:    .unresolved
+        case .cash, .group, .user, nil: .unresolved
         }
     }
 
@@ -200,7 +223,15 @@ final class LinkCardView: UIView {
     private static func groupState(_ state: LinkCard.State?) -> LinkCard.Group.State? {
         switch state {
         case .group(let group):     group
-        case .cash, .token, nil:    nil
+        case .cash, .token, .user, nil: nil
+        }
+    }
+
+    /// Nil while nothing is known, which the person card draws as its shimmer when a lookup is out.
+    private static func userState(_ state: LinkCard.State?) -> LinkCard.User.State? {
+        switch state {
+        case .user(let user):               user
+        case .cash, .token, .group, nil:    nil
         }
     }
 }

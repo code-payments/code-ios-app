@@ -30,9 +30,12 @@ import FlipcashCore
         },
         group: @escaping @Sendable (ConversationID) async throws -> GroupLinkFacts = { _ in
             Issue.record("the group lookup was called"); throw Offline()
+        },
+        user: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts = { _ in
+            Issue.record("the user lookup was called"); throw Offline()
         }
     ) -> LinkCardResolver {
-        LinkCardResolver(cashLookup: cash, mintLookup: mint, groupLookup: group)
+        LinkCardResolver(cashLookup: cash, mintLookup: mint, groupLookup: group, userLookup: user)
     }
 
     @Test func aFailedLookupStaysUnresolved() async throws {
@@ -236,7 +239,8 @@ import FlipcashCore
         let resolver = LinkCardResolver(
             cashLookup: LinkCardResolver.giftCardLookup(reader: reader, viewer: viewer),
             mintLookup: { _ in throw Reader.Stop() },
-            groupLookup: { _ in throw Reader.Stop() }
+            groupLookup: { _ in throw Reader.Stop() },
+            userLookup: { _ in throw Reader.Stop() }
         )
 
         let card = LinkCard.cash(
@@ -274,7 +278,8 @@ import FlipcashCore
         let resolver = LinkCardResolver(
             cashLookup: { _ in throw Reader.Stop() },
             mintLookup: LinkCardResolver.mintLookup(reader: reader),
-            groupLookup: { _ in throw Reader.Stop() }
+            groupLookup: { _ in throw Reader.Stop() },
+            userLookup: { _ in throw Reader.Stop() }
         )
 
         let card = LinkCard.token(
