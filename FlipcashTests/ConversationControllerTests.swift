@@ -816,6 +816,31 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
+    @Test("an extension store write surfaces the pushed message while the app stays in the foreground")
+    func extensionStoreWriteSurfacesPreloadedMessage() async throws {
+        let (database, _) = try Database.makeTemp()
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)]
+        let controller = makeController(mock, database: database)
+
+        controller.start()
+        try await waitUntil { !controller.conversations.isEmpty }
+        try await waitUntil { !mock.latestPageQueries.isEmpty }
+        // Prime the transcript's cached window, as an on-screen app would have it.
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1])
+
+        // The notification extension writes the pushed message into the shared store with `cursor: 0`
+        // while the app is running, then signals the app. No foreground transition happens.
+        let pushed = ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("pushed while on screen"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)
+        try database.persistMessages([pushed], cursor: 0, conversationID: .test(1))
+
+        controller.handleExtensionStoreWrite()
+
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        controller.stop()
+    }
+
     @Test("RESET_REQUIRED discards the cursor and re-syncs history via GetMessages")
     func catchUpResetResyncsHistory() async throws {
         let mock = MockConversations()

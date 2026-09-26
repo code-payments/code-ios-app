@@ -437,8 +437,13 @@ final class NotificationService: UNNotificationServiceExtension {
                 }
 
                 switch outcome {
-                case .wrote, .noStore, .busy:
-                    // All three are ordinary. `noStore` is a user who has not finished login on a
+                case .wrote:
+                    ExtensionReporting.breadcrumb("store write: \(outcome)")
+                    // A running app never sees this process's writes on its own; the signal is what
+                    // tells it to re-read the store.
+                    ChatStoreWriteNotification.post()
+                case .noStore, .busy:
+                    // Both are ordinary. `noStore` is a user who has not finished login on a
                     // build that owns the shared store; `busy` is the app holding the store's locks,
                     // which means the app is running and will fetch this itself.
                     ExtensionReporting.breadcrumb("store write: \(outcome)")

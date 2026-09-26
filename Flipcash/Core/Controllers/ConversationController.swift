@@ -223,6 +223,10 @@ final class ConversationController {
     /// Debounced live-gap catch-ups, one per conversation: a detected gap waits briefly (a late
     /// out-of-order event may close it) before spending a `GetDelta`.
     @ObservationIgnored private var gapCatchUpTasks: [ConversationID: Task<Void, Never>] = [:]
+    /// The observation of the notification extension's store-write signal, held while started.
+    @ObservationIgnored private var extensionStoreWriteToken: AnyObject?
+    /// The debounced reload a burst of extension store writes coalesces into.
+    @ObservationIgnored private var extensionStoreWriteReload: Task<Void, Never>?
     /// Conversations with a newest-page `GetMessages` in flight. Read by the backfill so it doesn't
     /// re-fetch a page the open chat is already loading; `loadMessages` itself never short-circuits,
     /// because the opening screen awaits the fresh page it returns.
@@ -353,6 +357,9 @@ final class ConversationController {
         // the tab UI, and a read queued behind that lands after the Chats tab has drawn empty. The
         // Chats screen picks the result up through `hydrateIfReady()` as it appears.
         let cache = loadCache()
+        extensionStoreWriteToken = ChatStoreWriteNotification.observe { [weak self] in
+            Task { @MainActor in self?.handleExtensionStoreWrite() }
+        }
         startTask = Task {
             await hydrateFromDatabase(loading: cache, unlessApplied: true)
             await openStream()
@@ -541,6 +548,19 @@ final class ConversationController {
         }
     }
 
+    /// Reloads known chats from disk after the notification extension signals a store write, so an
+    /// app that stays on screen shows pushed messages without waiting for the network. Several pushes
+    /// in quick succession coalesce into one reload. A chat the app doesn't know yet still waits for
+    /// the feed: the extension writes messages, never a conversation row.
+    func handleExtensionStoreWrite() {
+        extensionStoreWriteReload?.cancel()
+        extensionStoreWriteReload = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            self?.reloadFromDatabase()
+        }
+    }
+
     /// A live event exposed a gap. Debounce briefly — a late out-of-order event may close it before we
     /// spend a round trip — then reconcile from the (possibly already-advanced) cursor.
     private func scheduleGapCatchUp(_ conversationID: ConversationID) {
@@ -623,6 +643,12 @@ final class ConversationController {
     func stop() {
         startTask?.cancel()
         startTask = nil
+        if let extensionStoreWriteToken {
+            ChatStoreWriteNotification.stopObserving(extensionStoreWriteToken)
+            self.extensionStoreWriteToken = nil
+        }
+        extensionStoreWriteReload?.cancel()
+        extensionStoreWriteReload = nil
         streamTask?.cancel()
         streamTask = nil
         connectionStateTask?.cancel()
