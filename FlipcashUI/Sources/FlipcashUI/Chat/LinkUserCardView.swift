@@ -27,7 +27,7 @@ final class LinkUserCardView: UIView {
 
     /// What the card last drew, so a repeat of it is not reported as a change.
     private var shown: (state: LinkCard.User.State?, handle: String?, loading: Bool)?
-    /// The width the content was last drawn at. The card's type and corner are fractions of it.
+    /// The width the content was last drawn at, which sets the card's minimum height.
     private var drawnWidth: CGFloat = 0
 
     private let content: any UIView & UIContentView
@@ -77,7 +77,7 @@ final class LinkUserCardView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        shimmer.layer.cornerRadius = bounds.width * TipcardProportions.cornerRadiusFraction
+        shimmer.layer.cornerRadius = GroupCardView.Layout.radius
         if bounds.width != drawnWidth, let shown {
             draw(shown.state, handle: shown.handle)
         }
@@ -145,31 +145,33 @@ final class LinkUserCardView: UIView {
     }
 }
 
-/// The person card's body: an ID card in the tip card's material and type scale, at the link
-/// cards' proportions, and itself the tap target.
+/// The person card's body: an ID card over the person's blurred picture, sized and cornered like
+/// the other link cards, and itself the tap target.
 ///
-/// Corner, name size and handle gap come from ``TipcardProportions`` (nodes 9276:4641,
-/// 9277:121417, 9277:121421, 9443:7991); the minimum height from ``LinkCardView/aspectRatio``, so
-/// it lines up with a cash or group card; the handle is `appTextMessage`; the rest is in ``Layout``.
+/// The minimum height comes from ``LinkCardView/aspectRatio`` and the corner and border from the
+/// group card, so it lines up with a cash or group card; the rest is in ``Layout``.
 struct LinkUserCardContent: View {
 
     let state: LinkCard.User.State
     /// The `@handle` the link names, shown as the name when there is no account behind it.
     let linkedHandle: String?
-    /// The card's width. Its type and corner are fractions of it, as on the tip card.
+    /// The card's width, which sets its minimum height.
     let width: CGFloat
     var onTap: () -> Void = {}
 
-    /// Values this card adds to ``TipcardProportions``. Named so Android can copy them one for one.
+    /// This card's own values. Named so Android can copy them one for one.
     enum Layout {
-        /// The black over the frosted backdrop. The tip card draws 0.72 over a live blur; this card
-        /// draws over a decoded BlurHash instead. Pending design sign-off.
+        /// The black over the decoded BlurHash backdrop. Pending design sign-off.
         static let tintOpacity: Double = 0.6
         /// Inset from every edge of the card to its content.
         static let padding: CGFloat = 14
         static let avatar: CGFloat = 40
         /// The least room between the avatar and the name, when the card is at its minimum height.
         static let avatarGap: CGFloat = 16
+        /// Between every line of the name column, so the column spaces evenly.
+        static let lineGap: CGFloat = 6
+        /// The handle, set in `appTextMessage` under the `appTextLarge` name.
+        static let handleOpacity: Double = 0.5
         /// The joined line or the not-found line, set in `appTextCaption`.
         static let detailOpacity: Double = 0.45
     }
@@ -196,10 +198,7 @@ struct LinkUserCardContent: View {
 
     // MARK: - Card -
 
-    private var cornerRadius: CGFloat { width * TipcardProportions.cornerRadiusFraction }
-    private var nameSize: CGFloat { width * TipcardProportions.nameFraction }
-    /// The tip card's name-to-subtitle gap, used between every line of the column so it spaces evenly.
-    private var lineGap: CGFloat { width * TipcardProportions.subtitleGapFraction }
+    private var cornerRadius: CGFloat { GroupCardView.Layout.radius }
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -233,18 +232,16 @@ struct LinkUserCardContent: View {
         VStack(alignment: .leading, spacing: 0) {
             if let name {
                 Text(name)
-                    .font(.default(size: nameSize, weight: .bold))
+                    .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
             }
 
             if case .resolved(let user) = state, let handle = user.handle {
                 Text(handle)
-                    // A tier below the name, not the tip card's same-size pair: here the name sits
-                    // over small detail lines rather than alone under a code.
                     .font(.appTextMessage)
                     .foregroundStyle(Color.textMain)
-                    .opacity(TipcardProportions.subtitleOpacity)
-                    .padding(.top, lineGap)
+                    .opacity(Layout.handleOpacity)
+                    .padding(.top, Layout.lineGap)
             }
 
             if let detail {
@@ -252,7 +249,7 @@ struct LinkUserCardContent: View {
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textMain)
                     .opacity(Layout.detailOpacity)
-                    .padding(.top, lineGap)
+                    .padding(.top, Layout.lineGap)
             }
         }
         .multilineTextAlignment(.leading)
@@ -276,7 +273,7 @@ struct LinkUserCardContent: View {
         }
     }
 
-    /// The picture's BlurHash filling the card under the tip card's black, or the black over the
+    /// The picture's BlurHash filling the card under a black tint, or the tint over the
     /// chat's own ground when there is no picture. The photo itself is never the backdrop.
     private var backdrop: some View {
         ZStack {
