@@ -23,8 +23,8 @@ public enum ChatStoreWriteNotification {
         CFNotificationCenterPostNotification(center, name, nil, nil, true)
     }
 
-    /// Calls `handler` on each signal until the returned token is passed to ``stopObserving(_:)``.
-    /// The handler runs on an arbitrary thread. The caller must keep the token alive while observing.
+    /// Calls `handler` on each signal until the returned token is passed to ``stopObserving(_:)`` or
+    /// released. The handler runs on an arbitrary thread.
     public static func observe(_ handler: @escaping @Sendable () -> Void) -> AnyObject {
         let observer = Observer(handler: handler)
         CFNotificationCenterAddObserver(
@@ -51,6 +51,12 @@ public enum ChatStoreWriteNotification {
 
         init(handler: @escaping @Sendable () -> Void) {
             self.handler = handler
+        }
+
+        // The center holds this object unretained, so a registration that outlived it would call
+        // into freed memory on the next signal.
+        deinit {
+            ChatStoreWriteNotification.stopObserving(self)
         }
     }
 }
