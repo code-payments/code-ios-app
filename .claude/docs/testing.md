@@ -32,7 +32,7 @@ Use the project scripts — they encode the correct scheme and destination:
   - One suite: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests`
   - Multiple suites: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests FlipcashCoreTests/FiatTests`
   - One test: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests/myTestCase`
-- **Full `AllTargets` suite is the user's job** — don't run it. If you think it's required before declaring work done, ask the user to run it.
+- **Full `AllTargets` suite is the user's job** — don't run it. If you think it's required before declaring work done, list it under **Blocked on me** in the end-of-run report and finish the rest.
 
 ### One simulator per checkout
 

@@ -89,8 +89,9 @@ extension MessageCapability {
         now: Date
     ) -> Set<MessageCapability> {
         switch message.content {
-        case .deleted:
-            // Nothing is left to act on, and a tombstone must not be re-deleted.
+        case .deleted, .encrypted:
+            // Nothing is left to act on: a tombstone must not be re-deleted, and this client has no
+            // plaintext to copy, quote, or edit for an encrypted message it cannot decrypt.
             return []
         case .cash:
             // Reply is a cash message's only capability: there is no text to copy, the server

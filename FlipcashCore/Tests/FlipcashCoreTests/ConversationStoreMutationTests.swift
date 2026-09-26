@@ -31,6 +31,7 @@ struct ConversationStoreMutationTests {
             case .text(let value): value
             case .deleted:         "<deleted>"
             case .cash:            "<cash>"
+            case .encrypted:       "<encrypted>"
             }
         }
     }

@@ -6,12 +6,14 @@
 import Foundation
 import FlipcashCore
 
-/// Who a direct send pays: a synced contact (resolved by phone, posted into
-/// the contact DM) or a tip recipient (resolved by user id, posted into the
-/// tip DM — no contact information involved).
+/// Who a send pays: a synced contact (resolved by phone, posted into the
+/// contact DM), a tip recipient (resolved by user id, posted into the tip DM —
+/// no contact information involved), or a group chat, which gets a cash link
+/// that its first claimant takes.
 nonisolated enum SendTarget: Hashable, Sendable {
     case contact(ResolvedContact)
     case tip(TipRecipient)
+    case group(ConversationID)
 }
 
 /// A tip recipient as scanned from a tipcode or opened from a tipcard link.
@@ -38,9 +40,9 @@ nonisolated struct TipRecipient: Hashable, Sendable {
 
 extension SendTarget {
 
-    /// The send target a conversation's counterpart resolves to: the tip
-    /// recipient for a tip DM, otherwise the counterpart's shared phone
-    /// number. `nil` when neither identifies someone payable. The one rule
+    /// The send target a conversation resolves to: the tip recipient for a tip
+    /// DM, the chat itself for a group, otherwise the counterpart's shared
+    /// phone number. `nil` when none identifies someone payable. The one rule
     /// the thread's `$` button and the Send Cash push action share.
     @MainActor
     init?(conversation: Conversation?, dmChatID: Data, selfUserID: UserID) {
@@ -61,8 +63,8 @@ extension SendTarget {
             }
             self = .contact(target)
         case .group:
-            // A group chat has no single counterpart to pay through this path.
-            return nil
+            guard let conversation else { return nil }
+            self = .group(conversation.id)
         }
     }
 }

@@ -3,7 +3,7 @@ name: triage
 description: Daily Bugsnag triage ritual — surface the top open production issue, investigate with evidence, propose a fix direction, route through experts, write a lean review brief.
 argument-hint: "[--skip <count> | --id <bugsnag_id_or_url>]"
 model: opus
-effort: max
+effort: high
 allowed-tools:
   - Read
   - Write

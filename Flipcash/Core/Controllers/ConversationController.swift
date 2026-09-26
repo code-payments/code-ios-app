@@ -20,6 +20,13 @@ protocol DMContactNaming: AnyObject {
     func contactDisplayName(forDMChat conversationID: ConversationID) -> String?
 }
 
+/// Posts a message the caller can't let the user retry, such as a cash link voided after a failure.
+@MainActor
+protocol ChatMessagePosting: AnyObject {
+    /// Returns whether the server accepted the message.
+    func postOnce(_ text: String, to conversationID: ConversationID) async -> Bool
+}
+
 /// Session-scoped owner of the DM conversation feed and the single per-user
 /// event stream. Holds state in a pure `ConversationStore`, applies live
 /// `ConversationStreamEvent`s, and resolves counterpart display names.
@@ -1237,6 +1244,11 @@ final class ConversationController {
 
         case .deleted:
             return nil
+
+        case .encrypted:
+            // No plaintext to preview -- the row still surfaces (it's still the newest activity),
+            // just with a blank subtitle, same as an empty text body above.
+            return nil
         }
     }
 
@@ -1573,6 +1585,28 @@ final class ConversationController {
         repliedTo: MessageID? = nil,
         restoringOnFailure draft: ChatDraft? = nil
     ) async -> Bool {
+        let clientMessageID = insertPending(text, repliedTo: repliedTo, into: conversationID)
+        // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
+        // untrimmed text and the reply strip's author and snippet, and it has already cleared both
+        // by the time a failure comes back.
+        if let draft {
+            failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
+        }
+        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+    }
+
+    /// Posts `text` the way ``send(_:to:repliedTo:restoringOnFailure:)`` does, except that a
+    /// refused message leaves the transcript rather than staying there to be retried.
+    func postOnce(_ text: String, to conversationID: ConversationID) async -> Bool {
+        let clientMessageID = insertPending(text, repliedTo: nil, into: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: nil, to: conversationID)
+        if !delivered {
+            store.discardPending(clientMessageID: clientMessageID, in: conversationID)
+        }
+        return delivered
+    }
+
+    private func insertPending(_ text: String, repliedTo: MessageID?, into conversationID: ConversationID) -> UUID {
         let clientMessageID = UUID()
         let pending = ConversationMessage(
             id: .unassigned,
@@ -1587,13 +1621,7 @@ final class ConversationController {
         let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
         store.insertPending(pending, anchoredTo: anchor, into: conversationID)
         receiptSettle.hold(clientMessageID.uuidString)
-        // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
-        // untrimmed text and the reply strip's author and snippet, and it has already cleared both
-        // by the time a failure comes back.
-        if let draft {
-            failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
-        }
-        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        return clientMessageID
     }
 
     /// Re-send a failed optimistic message, reusing its client id so the server (idempotent on it)
@@ -1601,10 +1629,27 @@ final class ConversationController {
     /// so a double-tap (or a tap during a slow in-flight retry) can't fire concurrent sends.
     func retry(clientMessageID: UUID, in conversationID: ConversationID) async {
         guard let pending = store.pendingMessage(clientMessageID: clientMessageID, in: conversationID),
-              pending.status == .failed,
-              case .text(let text) = pending.content else { return }
-        store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
-        _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
+              pending.status == .failed else { return }
+        // Only `.text` is ever sent by this client today -- `deliver(text:)` is the only send path,
+        // and `send(_:to:)` only ever creates a `.text` pending row -- so this is unreachable in
+        // practice. It's a `switch` rather than the narrow `guard case .text` it replaces so a future
+        // pending shape (e.g. an outbox that can hold `.encrypted`) fails loudly via the log below
+        // instead of silently never retrying, and so `Content.asProto()`'s own crash-free contract
+        // (no fatalError/force-unwrap for `.encrypted`/`.cash`/`.deleted`) is exercised here too.
+        switch pending.content {
+        case .text(let text):
+            store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+            _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
+        case .encrypted, .cash, .deleted:
+            if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
+                logger.error("Cannot retry a send this client has no path to re-send", metadata: [
+                    "conversationID": "\(conversationID)",
+                    "error": "\(error)",
+                ])
+            }
+            // Nothing to resend over the existing text-only send RPC; leave it `.failed` rather than
+            // looping forever or crashing.
+        }
     }
 
     private func deliver(clientMessageID: UUID, text: String, repliedTo: MessageID?, to conversationID: ConversationID) async -> Bool {
@@ -1749,3 +1794,5 @@ struct CounterpartSeed: Sendable {
     let imageData: Data?
     let blurhash: String?
 }
+
+extension ConversationController: ChatMessagePosting {}

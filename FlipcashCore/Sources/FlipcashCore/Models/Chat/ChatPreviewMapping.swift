@@ -77,6 +77,10 @@ extension ChatItem {
                     iconURL: branding?.iconURL,
                     isTip: message.cashAction == .tipped
                 ))
+            case .encrypted:
+                // Not filtered above (only tombstones are): an encrypted message stays a real,
+                // visible row, same as the in-app transcript, just with no plaintext to preview.
+                content = .deleted(ChatMessage.unsupportedContentCopy)
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
             }
@@ -86,8 +90,8 @@ extension ChatItem {
             // at most three rows and never groups them.
             let isEmojiOnly: Bool
             switch message.content {
-            case .text(let text):  isEmojiOnly = EmojiOnlyDetector.isEmojiOnly(text)
-            case .cash, .deleted:  isEmojiOnly = false
+            case .text(let text):            isEmojiOnly = EmojiOnlyDetector.isEmojiOnly(text)
+            case .cash, .deleted, .encrypted: isEmojiOnly = false
             }
 
             items.append(.message(ChatMessage(

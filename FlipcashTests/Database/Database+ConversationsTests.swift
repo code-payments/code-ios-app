@@ -103,7 +103,7 @@ struct DatabaseConversationsTests {
         switch loadedMessage.content {
         case .cash(let loadedExchanged):
             #expect(loadedExchanged.nativeAmount.value == amount)
-        case .text, .deleted:
+        case .text, .deleted, .encrypted:
             Issue.record("Expected cash message content")
         }
     }
@@ -413,6 +413,33 @@ struct DatabaseConversationsTests {
         #expect(loaded.last?.isDeleted == true)
     }
 
+    @Test("An encrypted message round-trips scheme, nonce, and ciphertext byte for byte")
+    func encryptedMessageRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let message = ConversationMessage(
+            id: MessageID(value: 1),
+            senderID: otherID,
+            content: .encrypted(scheme: 1, nonce: Data(repeating: 0xAB, count: 24), ciphertext: Data([0x01, 0x02, 0x03, 0x04])),
+            date: Date(timeIntervalSince1970: 10),
+            unreadSeq: 1,
+            eventSequence: 3
+        )
+
+        try database.upsertConversationMessages([message], conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded == [message])
+        guard case .encrypted(let scheme, let nonce, let ciphertext) = loaded.first?.content else {
+            Issue.record("expected encrypted content")
+            return
+        }
+        #expect(scheme == 1)
+        #expect(nonce == Data(repeating: 0xAB, count: 24))
+        #expect(ciphertext == Data([0x01, 0x02, 0x03, 0x04]))
+    }
+
     @Test("the catch-up cursor round-trips and survives a feed replace")
     func catchupCursorRoundTrip() throws {
         let (database, url) = try Database.makeTemp()
@@ -483,6 +510,31 @@ struct DatabaseConversationsTests {
         #expect(loaded.members == members)
         #expect(loaded.lastActivity == stored.lastActivity)
         #expect(loaded.lastMessage == preview)
+    }
+
+    @Test("A group's creator and use_e2ee round-trip; a DM's nil creator round-trips as nil")
+    func creatorAndUseE2EeRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        var group = conversation(byte: 1)
+        group.creator = otherID
+        group.useE2Ee = true
+        try database.upsertConversation(group)
+
+        let loadedGroup = try #require(try database.getConversations().first)
+        #expect(loadedGroup.creator == otherID)
+        #expect(loadedGroup.useE2Ee == true)
+    }
+
+    @Test("A conversation with no stored creator/use_e2ee round-trips as nil/false")
+    func creatorAndUseE2EeDefaultRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(conversation(byte: 1))
+
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.creator == nil)
+        #expect(loaded.useE2Ee == false)
     }
 
     @Test("Mute state round-trips as its expiry and version, not as a boolean")

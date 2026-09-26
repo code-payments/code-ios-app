@@ -5,6 +5,9 @@ description: Build, install, and drive Flipcash on the iPhone 17 simulator to ob
 
 # Verifying Flipcash changes on the simulator
 
+Done when the changed surface has been driven on the simulator and captured in a screenshot.
+Report expected vs. observed, and if they differ, which step.
+
 ## Build + install + launch
 
 ```bash
