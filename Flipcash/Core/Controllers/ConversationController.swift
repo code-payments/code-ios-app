@@ -230,6 +230,10 @@ final class ConversationController {
     /// Debounced live-gap catch-ups, one per conversation: a detected gap waits briefly (a late
     /// out-of-order event may close it) before spending a `GetDelta`.
     @ObservationIgnored private var gapCatchUpTasks: [ConversationID: Task<Void, Never>] = [:]
+    /// The observation of the notification extension's store-write signal, held while started.
+    @ObservationIgnored private var extensionStoreWriteToken: AnyObject?
+    /// The debounced reload a burst of extension store writes coalesces into.
+    @ObservationIgnored private var extensionStoreWriteReload: Task<Void, Never>?
     /// Conversations with a newest-page `GetMessages` in flight. Read by the backfill so it doesn't
     /// re-fetch a page the open chat is already loading; `loadMessages` itself never short-circuits,
     /// because the opening screen awaits the fresh page it returns.
@@ -370,6 +374,9 @@ final class ConversationController {
         // the tab UI, and a read queued behind that lands after the Chats tab has drawn empty. The
         // Chats screen picks the result up through `hydrateIfReady()` as it appears.
         let cache = loadCache()
+        extensionStoreWriteToken = ChatStoreWriteNotification.observe { [weak self] in
+            Task { @MainActor in self?.handleExtensionStoreWrite() }
+        }
         startTask = Task {
             await hydrateFromDatabase(loading: cache, unlessApplied: true)
             await openStream()
@@ -536,12 +543,43 @@ final class ConversationController {
     /// no chat open, previously refreshed nothing. `loadFeed()` re-fetches every conversation's head and
     /// runs the same `backfillMessages`/`catchUp` (GetDelta) route `start()` and reconnect use, so a
     /// conversation the extension preloaded while suspended (cursor left at 0, deliberately not
-    /// advanced - see `NotificationService.persist`) is re-fetched from the server on the same call,
-    /// with no separate database-reload path needed. `catchUpInFlight` still dedupes a foreground
-    /// refresh that overlaps a reconnect's own catch-up of the same conversation.
+    /// advanced - see `NotificationService.persist`) is re-fetched from the server on the same call.
+    /// That fetch needs a network, though - with none, `reloadFromDatabase()` reads what the extension
+    /// already wrote straight off disk first, so the row surfaces even offline. A later GetDelta that
+    /// does land re-applies the same row through the ordinary upsert-by-id write, so it can't duplicate
+    /// or reorder what was just reloaded. `catchUpInFlight` still dedupes a foreground refresh that
+    /// overlaps a reconnect's own catch-up of the same conversation.
     func handleForeground() {
+        reloadFromDatabase()
         catchUpOpenChat()
         Task { await loadFeed() }
+    }
+
+    /// Re-reads every known conversation's transcript and feed preview straight from disk, with no
+    /// network involved. Covers the notification extension's writes: it persists pushed messages into
+    /// the shared store with `cursor: 0` (see `NotificationService.persist`), which the running app's
+    /// in-memory `store` never observes, since `Database.transaction` only posts `.databaseDidChange`
+    /// for writes made by this process. Bumping `messageRevision` invalidates the cached transcript
+    /// window so the next read re-queries the DB; `refreshFeedPreview` does the same for each chat's
+    /// last-message preview and unread state, which don't come from the network-only catch-up paths.
+    private func reloadFromDatabase() {
+        bumpMessageRevision()
+        for conversationID in store.conversations.map(\.id) {
+            refreshFeedPreview(for: conversationID)
+        }
+    }
+
+    /// Reloads known chats from disk after the notification extension signals a store write, so an
+    /// app that stays on screen shows pushed messages without waiting for the network. Several pushes
+    /// in quick succession coalesce into one reload. A chat the app doesn't know yet still waits for
+    /// the feed: the extension writes messages, never a conversation row.
+    func handleExtensionStoreWrite() {
+        extensionStoreWriteReload?.cancel()
+        extensionStoreWriteReload = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            self?.reloadFromDatabase()
+        }
     }
 
     /// Refreshes from the server the reactions on up to `limit` stored messages older than `before`,
@@ -652,6 +690,12 @@ final class ConversationController {
     func stop() {
         startTask?.cancel()
         startTask = nil
+        if let extensionStoreWriteToken {
+            ChatStoreWriteNotification.stopObserving(extensionStoreWriteToken)
+            self.extensionStoreWriteToken = nil
+        }
+        extensionStoreWriteReload?.cancel()
+        extensionStoreWriteReload = nil
         streamTask?.cancel()
         streamTask = nil
         connectionStateTask?.cancel()
