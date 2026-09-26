@@ -170,8 +170,6 @@ struct LinkUserCardContent: View {
         static let avatar: CGFloat = 40
         /// The least room between the avatar and the name, when the card is at its minimum height.
         static let avatarGap: CGFloat = 16
-        /// Between the handle and the detail line.
-        static let detailGap: CGFloat = 10
         /// The joined line or the not-found line, set in `appTextCaption`.
         static let detailOpacity: Double = 0.45
     }
@@ -200,6 +198,8 @@ struct LinkUserCardContent: View {
 
     private var cornerRadius: CGFloat { width * TipcardProportions.cornerRadiusFraction }
     private var nameSize: CGFloat { width * TipcardProportions.nameFraction }
+    /// The tip card's name-to-subtitle gap, used between every line of the column so it spaces evenly.
+    private var lineGap: CGFloat { width * TipcardProportions.subtitleGapFraction }
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -244,7 +244,7 @@ struct LinkUserCardContent: View {
                     .font(.appTextMessage)
                     .foregroundStyle(Color.textMain)
                     .opacity(TipcardProportions.subtitleOpacity)
-                    .padding(.top, width * TipcardProportions.subtitleGapFraction)
+                    .padding(.top, lineGap)
             }
 
             if let detail {
@@ -252,7 +252,7 @@ struct LinkUserCardContent: View {
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textMain)
                     .opacity(Layout.detailOpacity)
-                    .padding(.top, Layout.detailGap)
+                    .padding(.top, lineGap)
             }
         }
         .multilineTextAlignment(.leading)
