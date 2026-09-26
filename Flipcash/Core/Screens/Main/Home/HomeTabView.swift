@@ -104,6 +104,12 @@ struct HomeTabView: View {
                 selectRequestedTab()
             }
             .onChange(of: router.requestedTabStack) { _, _ in selectRequestedTab() }
+            // Scan has no push stack, so `requestedTabStack` cannot name it and a shared image
+            // brings the tab forward from here instead. `initial: true` covers the cold start,
+            // where the deep link is handled before this view exists.
+            .onChange(of: sessionContainer.sharedImageScanInbox.hasPendingImage, initial: true) { _, isPending in
+                if isPending { selection = .scan }
+            }
             .onChange(of: selection) { _, tab in
                 router.activeTabStack = tab.pushStack
                 if tab == .chat { hasOpenedChat = true }

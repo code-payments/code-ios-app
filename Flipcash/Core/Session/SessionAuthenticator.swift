@@ -519,6 +519,8 @@ final class SessionContainer {
     let contactSyncController: ContactSyncController
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
+    /// Whether a shared image is waiting to be scanned — see ``SharedImageScanInbox``.
+    let sharedImageScanInbox = SharedImageScanInbox()
     let verificationCoordinator: VerificationCoordinator
     let coinbaseService: CoinbaseService
     let appRouter: AppRouter

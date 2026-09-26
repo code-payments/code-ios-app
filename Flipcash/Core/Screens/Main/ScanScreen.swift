@@ -109,6 +109,19 @@ private struct ScanScreenContent: View {
             guard let item else { return }
             Task { await scanPickedItem(item) }
         }
+        // Watched rather than read on appear, so an image shared while the Scan tab is already
+        // forward scans without the user leaving and coming back; `initial: true` catches the
+        // cold start, where the link is handled before this view exists.
+        //
+        // Deliberately not `.task(id:)`: clearing the flag would change the id and cancel the
+        // scan it just started. An unstructured `Task`, as the picked-item path above uses,
+        // outlives the view update that clearing it causes.
+        .onChange(of: sessionContainer.sharedImageScanInbox.hasPendingImage, initial: true) { _, isPending in
+            guard isPending else { return }
+            sessionContainer.sharedImageScanInbox.hasPendingImage = false
+
+            Task { await scanSharedImage() }
+        }
         .overlay {
             if isScanningStillImage {
                 ScanningOverlay {
@@ -144,27 +157,56 @@ private struct ScanScreenContent: View {
         }
     }
     
-    /// Loads the picked image and scans it, reporting the outcome through the app's dialog.
+    /// Loads the picked image and scans it.
     ///
-    /// The overlay is blocking for the length of the search, so the idle timer goes with it:
-    /// there is nothing to touch while the ladder runs, and the screen dimming mid-search
-    /// would read as the app having stalled.
+    /// The overlay goes up before the load rather than inside ``scan(_:)``: `loadTransferable`
+    /// on a full-resolution photo takes long enough that the tap would otherwise look like it
+    /// did nothing.
     private func scanPickedItem(_ item: PhotosPickerItem) async {
         isScanningStillImage = true
-        UIApplication.shared.isIdleTimerDisabled = true
-        defer {
-            isScanningStillImage = false
-            scanTask = nil
-            pickedItem = nil
-            UIApplication.shared.isIdleTimerDisabled = false
-        }
+        defer { pickedItem = nil }
 
         guard
             let data = try? await item.loadTransferable(type: Data.self),
             let image = UIImage(data: data)?.cgImage
         else {
+            isScanningStillImage = false
             session.dialogItem = .noCodeFound
             return
+        }
+
+        await scan(image)
+    }
+
+    /// Scans an image shared to the app through the share extension.
+    ///
+    /// Takes the handover, which empties it — see ``SharedImageInbox``. An empty inbox or bytes
+    /// that do not decode report nothing: the user is looking at the live scanner either way,
+    /// and a dialog about an image the app never showed them would explain nothing.
+    private func scanSharedImage() async {
+        guard
+            let inbox = SharedImageInbox(),
+            let data = try? inbox.take(),
+            let image = UIImage(data: data)?.cgImage
+        else {
+            return
+        }
+
+        await scan(image)
+    }
+
+    /// Runs the still-image ladder and reports the outcome through the app's dialog.
+    ///
+    /// The overlay is blocking for the length of the search, so the idle timer goes with it:
+    /// there is nothing to touch while the ladder runs, and the screen dimming mid-search
+    /// would read as the app having stalled.
+    private func scan(_ image: CGImage) async {
+        isScanningStillImage = true
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer {
+            isScanningStillImage = false
+            scanTask = nil
+            UIApplication.shared.isIdleTimerDisabled = false
         }
 
         let task = Task { await viewModel.scanStillImage(image) }

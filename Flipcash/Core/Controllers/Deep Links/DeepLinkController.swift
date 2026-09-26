@@ -94,6 +94,13 @@ final class DeepLinkController {
             container.walletConnection.didReceiveURL(url: url)
         }
         
+        // Not a route: the share extension deposited an image in the group container and
+        // opened this URL to say so. It carries a nonce, so it never matches `Route` and must
+        // be recognised before the parsing below rather than by it.
+        if SharedImageInbox.isHandoff(url) {
+            return action(.scanSharedImage)
+        }
+
         // Handle jump subdomains by forwarding the underlying
         // URL to the correct handler. Don't perform any
         // other action on jump subdomains.
@@ -349,6 +356,15 @@ struct DeepLinkAction {
                 container.appRouter.navigate(to: .discoverCurrencies)
             }
 
+        case .scanSharedImage:
+            if let container = sessionAuthenticator.loggedInContainer {
+                Analytics.deeplinkRouted(kind: kind)
+                // Raising the flag is the whole job: `HomeTabView` brings Scan forward on it
+                // and `ScanScreen` reads the image. Not `requestedTabStack`, which selects a
+                // tab by its push stack and so cannot name Scan — Scan has none.
+                container.sharedImageScanInbox.hasPendingImage = true
+            }
+
         case .openSheet(let sheet):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
@@ -382,6 +398,8 @@ extension DeepLinkAction {
         case wallet
         /// Discover, pushed onto the Wallet tab.
         case discoverCurrencies
+        /// An image shared to the app is waiting to be scanned.
+        case scanSharedImage
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -399,6 +417,7 @@ extension DeepLinkAction.Kind {
         case .username:             "Username"
         case .wallet:               "Wallet"
         case .discoverCurrencies:   "DiscoverCurrencies"
+        case .scanSharedImage:      "ScanSharedImage"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }
