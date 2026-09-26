@@ -138,10 +138,10 @@ struct ConversationScreen: View {
         return Self.cachedCounterpart(counterpartUserID, session: session)
     }
 
-    /// Who Send Cash pays: the tip counterpart in a tip DM, the synced
-    /// address-book contact when there is one, otherwise a target built from
-    /// the counterpart's shared phone number so a chat with a non-contact can
-    /// still receive cash. `nil` when none of those resolve.
+    /// Who Send Cash pays: the tip counterpart in a tip DM, the chat itself in
+    /// a group, the synced address-book contact when there is one, otherwise a
+    /// target built from the counterpart's shared phone number so a chat with a
+    /// non-contact can still receive cash. `nil` when none of those resolve.
     private var sendTarget: SendTarget? {
         if let contact, tipCounterpart == nil {
             return .contact(contact)
@@ -937,8 +937,8 @@ struct ConversationScreen: View {
     private func sendCash() {
         guard let sendTarget else { return }
         let context: AddMoneyContext = switch sendTarget {
-        case .tip:     .sendTips
-        case .contact: .giveCash
+        case .tip:              .sendTips
+        case .contact, .group:  .giveCash
         }
         let rate = ratesController.rateForBalanceCurrency()
         if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat, context: context) {

@@ -36,6 +36,8 @@ final class SendAmountViewModel {
     @ObservationIgnored let conversationController: ConversationController
     @ObservationIgnored let sender: any DirectSending
     @ObservationIgnored let resolver: any RecipientResolving
+    @ObservationIgnored let cashLinkSender: any CashLinkSending
+    @ObservationIgnored let poster: any ChatMessagePosting
     @ObservationIgnored let target: SendTarget
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let amountValidator = AmountValidator()
@@ -152,7 +154,9 @@ final class SendAmountViewModel {
         target: SendTarget,
         mint: PublicKey? = nil,
         sender: (any DirectSending)? = nil,
-        resolver: (any RecipientResolving)? = nil
+        resolver: (any RecipientResolving)? = nil,
+        cashLinkSender: (any CashLinkSending)? = nil,
+        poster: (any ChatMessagePosting)? = nil
     ) {
         let session          = sessionContainer.session
         let ratesController  = sessionContainer.ratesController
@@ -164,6 +168,8 @@ final class SendAmountViewModel {
         self.flipClient      = sessionContainer.flipClient
         self.sender          = sender ?? session
         self.resolver        = resolver ?? session
+        self.cashLinkSender  = cashLinkSender ?? session
+        self.poster          = poster ?? sessionContainer.conversationController
         self.target          = target
         self.initialMint     = mint
         self.selectedBalance = resolved
@@ -313,16 +319,21 @@ final class SendAmountViewModel {
             return .failed
 
         case .sufficient:
-            let recipient: PublicKey
-            switch await resolveRecipient() {
-            case .resolved(let owner):
-                recipient = owner
-            case .notFound:
-                showRecipientNotFoundError()
-                return .recipientNotFound
-            case .failed:
-                showResolveFailedError()
-                return .failed
+            let payee: Payee
+            switch target {
+            case .group(let conversationID):
+                payee = .cashLink(into: conversationID)
+            case .contact, .tip:
+                switch await resolveRecipient() {
+                case .resolved(let owner):
+                    payee = .owner(owner)
+                case .notFound:
+                    showRecipientNotFoundError()
+                    return .recipientNotFound
+                case .failed:
+                    showResolveFailedError()
+                    return .failed
+                }
             }
 
             guard let (amountToSend, pinnedState) = await prepareSubmission(entered: entered) else {
@@ -356,6 +367,14 @@ final class SendAmountViewModel {
                 return .failed
             }
 
+            let recipient: PublicKey
+            switch payee {
+            case .owner(let owner):
+                recipient = owner
+            case .cashLink(let conversationID):
+                return await sendCashLink(amount: amountToSend, verifiedState: pinnedState, into: conversationID)
+            }
+
             // Both the scanned tipcard flow and the Send Cash action inside a tip
             // thread submit here; `chat` is the single source for whether this
             // reports as a tip, so the wire `action` and the analytics event
@@ -378,6 +397,32 @@ final class SendAmountViewModel {
                 return .failed
             }
         }
+    }
+
+    /// Funds a cash link, then posts its bare URL into the group, where it renders as a cash card.
+    /// A link whose post fails is voided so the funds come back.
+    private func sendCashLink(amount: ExchangedFiat, verifiedState: VerifiedState, into conversationID: ConversationID) async -> SendOutcome {
+        let giftCard: GiftCardCluster
+        do {
+            giftCard = try await cashLinkSender.sendCashLink(exchangedFiat: amount, verifiedState: verifiedState)
+        } catch {
+            // `Session.sendCashLink` has already reported the failure.
+            showSendError()
+            return .failed
+        }
+
+        let link = URL.cashLink(with: giftCard.mnemonic).absoluteString
+        guard await poster.postOnce(link, to: conversationID) else {
+            do {
+                try await cashLinkSender.cancelCashLink(giftCardVault: giftCard.cluster.vaultPublicKey)
+            } catch {
+                // The link's expiry still returns the funds.
+                ErrorReporting.captureError(error, reason: "Failed to void cash link after its chat post failed")
+            }
+            showSendError()
+            return .failed
+        }
+        return .success
     }
 
     /// Chat context for posting this payment into the recipient's DM. Contact
@@ -403,10 +448,18 @@ final class SendAmountViewModel {
                 origin: origin,
                 action: origin == .tipcard ? .tip : .send
             )
+        case .group:
+            return nil
         }
     }
 
     // MARK: - Recipient resolution -
+
+    /// Where a submission's funds go: a resolved owner's vault, or a cash link posted into a group.
+    private enum Payee {
+        case owner(PublicKey)
+        case cashLink(into: ConversationID)
+    }
 
     private enum RecipientResolution {
         case resolved(PublicKey)
@@ -428,6 +481,9 @@ final class SendAmountViewModel {
                     owner = try await resolver.resolveContact(e164: contact.phoneE164)
                 case .tip(let recipient):
                     owner = try await resolver.resolveUserID(recipient.userID)
+                case .group:
+                    assertionFailure("A group send funds a cash link and has no recipient to resolve")
+                    return .failed
                 }
                 resolvedRecipient = owner
                 return .resolved(owner)
@@ -450,6 +506,7 @@ final class SendAmountViewModel {
         switch target {
         case .contact(let contact): contact.contactId
         case .tip(let recipient):   recipient.userID.uuidString
+        case .group(let id):        id.description
         }
     }
 
@@ -482,7 +539,7 @@ final class SendAmountViewModel {
                     mint: mint
                 )
             }
-        case .contact:
+        case .contact, .group:
             pinnedState = await ratesController.currentPinnedState(
                 for: ratesController.balanceCurrency,
                 mint: mint

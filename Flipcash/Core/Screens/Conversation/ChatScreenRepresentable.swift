@@ -72,7 +72,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// the composer field in `viewDidAppear` — a hosted SwiftUI `@FocusState` never presents the
     /// keyboard across the hosting boundary.
     let focusOnAppear: Bool
-    /// Whether this is a tip DM — the send button then stays minimized.
+    /// Whether this is a tip DM, whose Send Cash reads Start Chatting until the chat exists.
     let isTipDm: Bool
     /// The floor the first tip has to clear to open this chat, named on the CTA.
     let startChattingFee: FiatAmount?

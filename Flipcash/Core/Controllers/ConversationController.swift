@@ -20,6 +20,13 @@ protocol DMContactNaming: AnyObject {
     func contactDisplayName(forDMChat conversationID: ConversationID) -> String?
 }
 
+/// Posts a message the caller can't let the user retry, such as a cash link voided after a failure.
+@MainActor
+protocol ChatMessagePosting: AnyObject {
+    /// Returns whether the server accepted the message.
+    func postOnce(_ text: String, to conversationID: ConversationID) async -> Bool
+}
+
 /// Session-scoped owner of the DM conversation feed and the single per-user
 /// event stream. Holds state in a pure `ConversationStore`, applies live
 /// `ConversationStreamEvent`s, and resolves counterpart display names.
@@ -1533,6 +1540,28 @@ final class ConversationController {
         repliedTo: MessageID? = nil,
         restoringOnFailure draft: ChatDraft? = nil
     ) async -> Bool {
+        let clientMessageID = insertPending(text, repliedTo: repliedTo, into: conversationID)
+        // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
+        // untrimmed text and the reply strip's author and snippet, and it has already cleared both
+        // by the time a failure comes back.
+        if let draft {
+            failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
+        }
+        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+    }
+
+    /// Posts `text` the way ``send(_:to:repliedTo:restoringOnFailure:)`` does, except that a
+    /// refused message leaves the transcript rather than staying there to be retried.
+    func postOnce(_ text: String, to conversationID: ConversationID) async -> Bool {
+        let clientMessageID = insertPending(text, repliedTo: nil, into: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: nil, to: conversationID)
+        if !delivered {
+            store.discardPending(clientMessageID: clientMessageID, in: conversationID)
+        }
+        return delivered
+    }
+
+    private func insertPending(_ text: String, repliedTo: MessageID?, into conversationID: ConversationID) -> UUID {
         let clientMessageID = UUID()
         let pending = ConversationMessage(
             id: .unassigned,
@@ -1547,13 +1576,7 @@ final class ConversationController {
         let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
         store.insertPending(pending, anchoredTo: anchor, into: conversationID)
         receiptSettle.hold(clientMessageID.uuidString)
-        // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
-        // untrimmed text and the reply strip's author and snippet, and it has already cleared both
-        // by the time a failure comes back.
-        if let draft {
-            failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
-        }
-        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        return clientMessageID
     }
 
     /// Re-send a failed optimistic message, reusing its client id so the server (idempotent on it)
@@ -1726,3 +1749,5 @@ struct CounterpartSeed: Sendable {
     let imageData: Data?
     let blurhash: String?
 }
+
+extension ConversationController: ChatMessagePosting {}

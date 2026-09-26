@@ -208,6 +208,12 @@ public struct ConversationStore: Sendable {
         pendingByConversation[conversationID]?[index].message.status = status
     }
 
+    /// Removes a pending message the server never confirmed, so it leaves the transcript instead of
+    /// staying as a retryable failure.
+    public mutating func discardPending(clientMessageID: UUID, in conversationID: ConversationID) {
+        pendingByConversation[conversationID]?.removeAll { $0.message.clientMessageID == clientMessageID }
+    }
+
     /// Match a server copy against the pending optimistic sends WITHOUT removing anything, returning
     /// the matched send's client id so the caller can carry that identity onto the persisted confirmed
     /// row (the echo collapses onto the send instead of duplicating it). The pending row is removed

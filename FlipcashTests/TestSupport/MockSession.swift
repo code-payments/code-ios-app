@@ -21,7 +21,8 @@ final class MockSession:
     ReservesBuying,
     CurrencyLaunching,
     RecipientResolving,
-    DirectSending {
+    DirectSending,
+    CashLinkSending {
 
     // MARK: - Identity
 
@@ -179,6 +180,30 @@ final class MockSession:
             throw MockSessionError.unimplemented(method: "send")
         }
         try await handler(amount, verifiedState, destination)
+    }
+
+    // MARK: - Cash links
+
+    var sendCashLinkHandler: (@MainActor (ExchangedFiat, VerifiedState) async throws -> GiftCardCluster)?
+    var cancelCashLinkHandler: (@MainActor (PublicKey) async throws -> Void)?
+
+    private(set) var fundedCashLinks: [ExchangedFiat] = []
+    private(set) var cancelledCashLinkVaults: [PublicKey] = []
+
+    func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) async throws -> GiftCardCluster {
+        fundedCashLinks.append(exchangedFiat)
+        guard let handler = sendCashLinkHandler else {
+            throw MockSessionError.unimplemented(method: "sendCashLink")
+        }
+        return try await handler(exchangedFiat, verifiedState)
+    }
+
+    func cancelCashLink(giftCardVault: PublicKey) async throws {
+        cancelledCashLinkVaults.append(giftCardVault)
+        guard let handler = cancelCashLinkHandler else {
+            throw MockSessionError.unimplemented(method: "cancelCashLink")
+        }
+        try await handler(giftCardVault)
     }
 
     // MARK: - USDF reserves
