@@ -778,6 +778,44 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
+    @Test("foreground surfaces an extension-preloaded message even when the network is down (offline-resume regression)")
+    func foregroundSurfacesExtensionPreloadedMessageOffline() async throws {
+        let (database, _) = try Database.makeTemp()
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)]
+        let controller = makeController(mock, database: database)
+
+        controller.start()
+        try await waitUntil { !controller.conversations.isEmpty }
+        try await waitUntil { !mock.latestPageQueries.isEmpty }
+        controller.visibleConversationID = nil
+        // Prime the transcript's cached window, the way the running app would have it before backgrounding.
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1])
+        let cursorBeforeOffline = try database.catchupCursor(conversationID: .test(1))
+
+        // While suspended, the notification extension wrote the pushed message straight into the
+        // shared SQLite store with `cursor: 0` (deliberately not advancing the catch-up cursor - see
+        // `NotificationService.persist`).
+        let preloaded = ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("missed while backgrounded, offline"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)
+        try database.persistMessages([preloaded], cursor: 0, conversationID: .test(1))
+
+        // The server says there's something newer (so the foreground path attempts to fetch it), but
+        // every network call the fetch could make fails outright - there is no connectivity at all.
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200), latestEventSequence: 2)]
+        mock.deltaError = URLError(.notConnectedToInternet)
+
+        controller.handleForeground()
+
+        // The message the extension already wrote to disk must surface even though the network call
+        // that would otherwise re-fetch it failed outright.
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        // No GetDelta ever landed, so the persisted catch-up cursor must be untouched - never advanced
+        // from a row the extension (not the client's own catch-up) wrote.
+        #expect(try database.catchupCursor(conversationID: .test(1)) == cursorBeforeOffline)
+        controller.stop()
+    }
+
     @Test("RESET_REQUIRED discards the cursor and re-syncs history via GetMessages")
     func catchUpResetResyncsHistory() async throws {
         let mock = MockConversations()
