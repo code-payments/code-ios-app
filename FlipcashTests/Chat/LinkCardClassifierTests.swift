@@ -29,10 +29,28 @@ import FlipcashCore
         return try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
     }
 
+    /// Vectors iOS answers ahead of the canonical fixture, by name, with the card kind it gives.
+    /// The fixture still says what Android does; each entry goes when the fixture is updated after
+    /// Android ships the same card.
+    private static let aheadOfFixture: [String: String] = [
+        // Person cards: the fixture's "not in phase 1" (open decision 4).
+        "tip-card-by-id": "user",
+    ]
+
     @Test func cardEligibilityMatchesTheCrossPlatformVectors() throws {
         let classifier = LinkCardClassifier()
 
         for vector in try loadFixture().vectors {
+            if let kind = Self.aheadOfFixture[vector.name] {
+                let links = vector.spans.compactMap { span in
+                    URL(string: span.url).map {
+                        DetectedLink(range: NSRange(location: span.start, length: span.end - span.start), url: $0)
+                    }
+                }
+                #expect(classifier.firstCard(in: links)?.kindName == kind, "vector `\(vector.name)` is ahead of the fixture")
+                continue
+            }
+
             let links = vector.spans.compactMap { span in
                 URL(string: span.url).map {
                     DetectedLink(range: NSRange(location: span.start, length: span.end - span.start), url: $0)
@@ -106,6 +124,64 @@ import FlipcashCore
         #expect(LinkCardClassifier().firstCard(in: [link]) == nil)
     }
 
+    // MARK: - Person cards -
+
+    private static func card(for text: String) throws -> LinkCard? {
+        let url = try #require(URL(string: text))
+        let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
+        return LinkCardClassifier().firstCard(in: [link])
+    }
+
+    private static let userID = "2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b"
+
+    @Test func aHandleLinkBecomesAPersonCard() throws {
+        let card = try #require(try Self.card(for: "https://flipcash.com/satoshi"))
+        guard case .user(let user) = card else {
+            Issue.record("expected a person card, got \(card.kindName)")
+            return
+        }
+        #expect(user.identity == .username(try #require(Username("satoshi"))))
+        #expect(user.linkedHandle == "@satoshi")
+    }
+
+    @Test(arguments: [
+        "https://flipcash.com/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b",
+        "https://flipcash.com/tip/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b",
+    ])
+    func anIDLinkBecomesAPersonCard(text: String) throws {
+        let card = try #require(try Self.card(for: text))
+        guard case .user(let user) = card else {
+            Issue.record("expected a person card, got \(card.kindName)")
+            return
+        }
+        #expect(user.identity == .userID(try #require(UserID(uuidString: Self.userID))))
+        #expect(user.linkedHandle == nil)
+    }
+
+    /// `Route` reads any single-segment path as a handle, so only the host gate keeps an invite on
+    /// another service from becoming a person card.
+    @Test(arguments: [
+        "https://discord.gg/x",
+        "https://t.me/satoshi",
+        "https://example.com/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b",
+        "https://example.com/tip/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b",
+    ])
+    func aPersonShapedLinkOnAnotherHostStaysALink(text: String) throws {
+        #expect(try Self.card(for: text) == nil)
+    }
+
+    /// A page the website serves is not somebody's handle, whatever case the link is typed in.
+    @Test(arguments: [
+        "https://flipcash.com/download",
+        "https://flipcash.com/Privacy",
+        "https://flipcash.com/terms",
+        "https://flipcash.com/currencycreator",
+        "https://flipcash.com/api",
+    ])
+    func aWebsitePageStaysALink(text: String) throws {
+        #expect(try Self.card(for: text) == nil)
+    }
+
     @Test func theHostAllowlistMatchesTheCrossPlatformFixture() throws {
         #expect(Set(try loadFixture().cardHosts) == Route.flipcashHosts)
     }
@@ -118,6 +194,7 @@ private extension LinkCard {
         case .cash: "cash"
         case .token: "token"
         case .group: "group"
+        case .user: "user"
         }
     }
 }

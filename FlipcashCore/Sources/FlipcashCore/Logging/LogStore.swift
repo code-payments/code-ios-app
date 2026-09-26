@@ -71,6 +71,11 @@ public final class LogStore: Sendable {
         ringBuffer.entries(last: last).map { $0.formatted() }
     }
 
+    /// Writes any buffered log lines to disk and returns once the write completes.
+    public func flush() async {
+        await fileBuffer.flush()
+    }
+
     /// Concatenates all log files into a single `.log` for sharing.
     /// Streams data through FileHandle to avoid loading all files into memory.
     ///

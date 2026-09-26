@@ -13,6 +13,7 @@ struct SentEvent {
     let properties: [String: AnalyticsValue]
 }
 
+@MainActor
 extension Analytics {
     /// Runs `body` with Mixpanel replaced by a recorder and returns every event it sent.
     /// Suites that call this must be `.serialized`: the hook is process-wide.
