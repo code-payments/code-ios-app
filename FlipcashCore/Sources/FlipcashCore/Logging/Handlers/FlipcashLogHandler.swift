@@ -65,8 +65,9 @@ struct FlipcashLogHandler: LogHandler {
         // Ring buffer — synchronous append under lock
         ringBuffer.append(entry)
 
-        // File — batched, flushes every N entries
-        fileBuffer.append(formatted + "\n")
+        // File — batched, flushes every N entries; warnings and above flush immediately
+        // so a force-quit only risks losing sub-warning lines.
+        fileBuffer.append(formatted + "\n", forceFlush: level >= .warning)
     }
 }
 

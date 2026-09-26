@@ -141,10 +141,13 @@ public final class FileWriteBuffer: @unchecked Sendable {
         self.flushThreshold = flushThreshold
     }
 
-    public func append(_ line: String) {
+    /// - Parameter forceFlush: Bypasses the batch threshold and flushes immediately.
+    ///   Used for `.warning` and above, so a force-quit only risks losing sub-warning
+    ///   lines rather than up to `flushThreshold - 1` of any severity.
+    public func append(_ line: String, forceFlush: Bool = false) {
         lock.lock()
         buffer.append(line)
-        let shouldFlush = buffer.count >= flushThreshold
+        let shouldFlush = forceFlush || buffer.count >= flushThreshold
         let batch: String? = shouldFlush ? buffer.joined() : nil
         if shouldFlush { buffer = [] }
         lock.unlock()

@@ -106,4 +106,26 @@ struct RotatingFileLogHandlerTests {
             #expect(rangeOfLine1.upperBound <= rangeOfB.lowerBound, "Launch 2's line must come after launch 1's in the exported log")
         }
     }
+
+    @Test("forceFlush writes immediately instead of waiting for the batch threshold")
+    func forceFlushBypassesBatchThreshold() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let writer = FileWriterActor(directory: dir, maxFileSize: 1024, maxFileCount: 3)
+        let buffer = FileWriteBuffer(writer: writer, flushThreshold: 10)
+
+        // Well under the threshold, so a plain append would stay buffered in memory.
+        buffer.append("[WARN] something went wrong\n", forceFlush: true)
+
+        // Give the detached flush Task a chance to run.
+        try await Task.sleep(for: .milliseconds(50))
+
+        let files = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+        #expect(!files.isEmpty, "forceFlush should have written to disk without waiting for the batch threshold")
+
+        let content = try files.map { try String(contentsOf: $0, encoding: .utf8) }.joined()
+        #expect(content.contains("something went wrong"))
+    }
 }
