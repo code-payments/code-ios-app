@@ -187,7 +187,7 @@ final class LinkUserCardView: UIView {
 /// At accessibility text sizes the avatar moves above the text and every line wraps, where a row
 /// would cut each one short. The corner and border come from the group card; the rest is in
 /// ``Layout``.
-struct LinkUserCardContent: View {
+public struct LinkUserCardContent: View {
 
     let state: LinkCard.User.State
     /// The `@handle` the link names, shown as the name when there is no account behind it.
@@ -197,35 +197,48 @@ struct LinkUserCardContent: View {
     var fillsWidth = true
     var onTap: () -> Void = {}
 
+    /// The card as the transcript draws it, for showing one outside a message.
+    public init(
+        state: LinkCard.User.State,
+        linkedHandle: String?,
+        fillsWidth: Bool = true,
+        onTap: @escaping () -> Void = {}
+    ) {
+        self.state = state
+        self.linkedHandle = linkedHandle
+        self.fillsWidth = fillsWidth
+        self.onTap = onTap
+    }
+
     @Environment(\.dynamicTypeSize) private var typeSize
 
     /// This card's own values. Named so Android can copy them one for one.
-    enum Layout {
+    public enum Layout {
         /// The black over the decoded BlurHash backdrop. Pending design sign-off.
-        static let tintOpacity: Double = 0.6
-        static let avatar: CGFloat = 44
+        public static let tintOpacity: Double = 0.6
+        public static let avatar: CGFloat = 44
         /// Between the avatar and the text beside it, or above it at accessibility sizes.
-        static let avatarGap: CGFloat = 12
+        public static let avatarGap: CGFloat = 12
         /// Above and below the content.
-        static let verticalPadding: CGFloat = 10
+        public static let verticalPadding: CGFloat = 10
         /// Before the avatar. Less than ``trailingPadding`` because the avatar's circle already
         /// leaves room at its edge.
-        static let leadingPadding: CGFloat = 10
+        public static let leadingPadding: CGFloat = 10
         /// After the text.
-        static let trailingPadding: CGFloat = 16
+        public static let trailingPadding: CGFloat = 16
         /// Between the lines of text.
-        static let lineGap: CGFloat = 2
+        public static let lineGap: CGFloat = 2
         /// The name wraps to this many lines before it ends in an ellipsis. Display names run to
         /// 64 Unicode scalars (`DisplayNameValidator.maxScalars`); the handle (15 characters at
         /// most) and the joined line always fit on one.
-        static let nameLines = 2
+        public static let nameLines = 2
         /// The handle, set in `appTextCaption` under the `appTextMedium` name.
-        static let handleOpacity: Double = 0.5
+        public static let handleOpacity: Double = 0.5
         /// The joined line or the not-found line, set in `appTextCaption`.
-        static let detailOpacity: Double = 0.45
+        public static let detailOpacity: Double = 0.45
         /// The shimmer's size while the lookup is out, near a typical resolved card's.
-        static let shimmerWidth: CGFloat = 200
-        static let shimmerHeight: CGFloat = 64
+        public static let shimmerWidth: CGFloat = 200
+        public static let shimmerHeight: CGFloat = 64
     }
 
     /// Detail-line copy, Title Case.
@@ -233,7 +246,7 @@ struct LinkUserCardContent: View {
         static let notFound = "No Such Account"
     }
 
-    var body: some View {
+    public var body: some View {
         Button(action: onTap) { card }
             .buttonStyle(.plain)
             // Nothing to open with no account behind the link.

@@ -62,25 +62,9 @@ struct ComposerReplyStrip: View {
             .accessibilityLabel("Replying to \(target.authorName): \(spokenSnippet)")
             .accessibilityIdentifier("composer-reply-quote")
 
-            // A disc rather than a bare ✕, because the ground behind it is glass sampling the
-            // transcript: a hairline glyph's contrast changed with whatever message scrolled past.
-            // The fill gives it its own ground and takes that variable out.
-            Button(action: onDismiss) {
-                Image(systemName: SystemSymbol.closeCircle.rawValue)
-                    // `.system`, not the app face: an SF Symbol only takes its optical axes from a
-                    // system font.
-                    .font(.system(size: 22))
-                    // Palette, not monochrome. A monochrome fill knocks the ✕ out as a hole, which
-                    // over glass fills with the transcript — the thing the disc is here to stop.
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(Color.textMain, Color.textSecondary.opacity(0.35))
-                    // Wider than the disc: the glyph is small enough to miss on its own.
-                    .frame(width: 34, height: 34)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Cancel reply")
-            .accessibilityIdentifier("cancel-reply-button")
+            ComposerStripDismissButton(action: onDismiss)
+                .accessibilityLabel("Cancel reply")
+                .accessibilityIdentifier("cancel-reply-button")
         }
         // Where the rule and its gutter used to stand in the row.
         .padding(.leading, Self.ruleWidth + Self.gutter)
@@ -175,7 +159,7 @@ private struct QuoteRule: View {
 /// corners it passes unless something rounds it, and `glassEffect` draws its specular edge outside
 /// its own bounds and loses it to a clip — so the rule is clipped, the ground is not, and the rule
 /// can sit on the edge.
-private struct QuoteGround: ViewModifier {
+struct QuoteGround: ViewModifier {
 
     private static let shape = RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
 
@@ -184,5 +168,32 @@ private struct QuoteGround: ViewModifier {
         content
             .clipShape(Self.shape)
             .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+    }
+}
+
+/// The ✕ that closes a strip above the composer.
+///
+/// A disc rather than a bare ✕, because the ground behind it is glass sampling the transcript: a
+/// hairline glyph's contrast changed with whatever message scrolled past. The fill gives it its own
+/// ground and takes that variable out.
+struct ComposerStripDismissButton: View {
+
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: SystemSymbol.closeCircle.rawValue)
+                // `.system`, not the app face: an SF Symbol only takes its optical axes from a
+                // system font.
+                .font(.system(size: 22))
+                // Palette, not monochrome. A monochrome fill knocks the ✕ out as a hole, which over
+                // glass fills with the transcript — the thing the disc is here to stop.
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(Color.textMain, Color.textSecondary.opacity(0.35))
+                // Wider than the disc: the glyph is small enough to miss on its own.
+                .frame(width: 34, height: 34)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
     }
 }

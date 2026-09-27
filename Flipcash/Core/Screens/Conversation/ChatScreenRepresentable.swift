@@ -259,7 +259,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             )
             .environment(conversationController)
             .modifier(
-                MeasuredBarHeight(isReplying: composer.replyTarget != nil) { height, isReplying in
+                // A card suggestion opens and closes over the bar's edge the same way a reply quote
+                // does, so either one counts as a strip being open.
+                MeasuredBarHeight(
+                    isReplying: composer.replyTarget != nil || composer.cardSuggestion.suggestion != nil
+                ) { height, isReplying in
                     coordinator.screen?.setBarHeight(height, replying: isReplying)
                 }
             )

@@ -41,6 +41,8 @@ final class ComposerModel {
 
     private(set) var mode: Mode = .new
     var draft = ""
+    /// The person's card offered for a `@handle` in the draft, and held once taken.
+    let cardSuggestion = CardSuggestionModel()
 
     /// The unsent new-message draft, held while an edit occupies the field.
     @ObservationIgnored private var stashedDraft = ""

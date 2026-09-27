@@ -148,7 +148,17 @@ struct ConversationBottomBar: View {
             // No `withAnimation` at the dismiss site either: the `.animation(_, value:)` below
             // already drives this state in both directions, and wrapping the dismissal in a second
             // transaction gave the exit a curve the entry never had.
-            ComposerReplyReveal(target: composer.replyTarget) { composer.endReplying() }
+            ComposerStripReveal(target: composer.replyTarget) { target in
+                ComposerReplyStrip(target: target) { composer.endReplying() }
+            }
+            // Under the reply quote, so the offer sits next to the draft that prompted it.
+            ComposerStripReveal(target: composer.cardSuggestion.suggestion) { suggestion in
+                ComposerCardSuggestionStrip(
+                    suggestion: suggestion,
+                    onAccept: { composer.cardSuggestion.accept() },
+                    onDismiss: { composer.cardSuggestion.dismiss() }
+                )
+            }
             // On the composer row alone, not on the stack. The surface's job is to dissolve the
             // transcript into the input; anchoring it to the stack moved the dissolve up to the reply
             // strip's top edge, so a reply slid the fade 50pt up the screen and put an opaque slab
@@ -156,6 +166,7 @@ struct ConversationBottomBar: View {
             content.modifier(BarSurfaceBackground())
         }
         .animation(replySpring, value: composer.replyTarget)
+        .animation(replySpring, value: composer.cardSuggestion.suggestion == nil)
     }
 
     /// The tip CTA's title. Names the amount that opens the chat when a floor
@@ -167,8 +178,8 @@ struct ConversationBottomBar: View {
     }
 }
 
-/// The reply strip's arrival and departure: the quote the bar's top edge uncovers on the way in and
-/// closes back over on the way out.
+/// A strip's arrival and departure above the composer — the reply quote, or the card suggestion: the
+/// strip the bar's top edge uncovers on the way in and closes back over on the way out.
 ///
 /// The travel itself is not here. The bar is hosted in a box that clips it, and that box's edge is
 /// what moves — see `ChatScreenViewController`'s `barClip`. This view only decides *what* height the
@@ -181,10 +192,10 @@ struct ConversationBottomBar: View {
 /// .opacity)` slid the quote down behind the field and dissolved it there while the edge travelled
 /// separately. Clipping welds them — the quote holds still against the field below it while the
 /// edge uncovers it.
-private struct ComposerReplyReveal: View {
+private struct ComposerStripReveal<Target: Equatable, Strip: View>: View {
 
-    let target: ComposerModel.ReplyTarget?
-    let onDismiss: () -> Void
+    let target: Target?
+    @ViewBuilder let strip: (Target) -> Strip
 
     /// The strip's own height. Measured rather than declared: a snippet that wraps to a second line
     /// makes the sheet taller, and the clip has to know by how much.
@@ -195,7 +206,7 @@ private struct ComposerReplyReveal: View {
     @State private var naturalHeight: CGFloat = 0
     /// The last target seen, kept after the target clears. A strip that unmounts on the way out has
     /// nothing to draw while it collapses, and the sheet slides back under the field empty.
-    @State private var retained: ComposerModel.ReplyTarget?
+    @State private var retained: Target?
     /// The quote's own opacity, which only ever moves on the way out.
     ///
     /// Asymmetric on purpose. Coming in, the edge uncovering the quote is the whole effect and a
@@ -214,9 +225,9 @@ private struct ComposerReplyReveal: View {
     /// any other: a draft restored into the composer is aimed before the bar is on screen, and the
     /// gate keeps the bar unmounted until the chat's rules land, so the target can change while
     /// there is no `onChange` to fire and be in place before `onAppear` would set anything. Latched,
-    /// a missed transition was also unrecoverable: `ReplyTarget` is `Equatable`, so aiming at the
+    /// a missed transition was also unrecoverable: `Target` is `Equatable`, so aiming at the
     /// same message again is not a change and `onChange` never fires for it twice.
-    private var shown: ComposerModel.ReplyTarget? { target ?? retained }
+    private var shown: Target? { target ?? retained }
 
     /// How much height the strip is asking the bar for. Zero until it has been measured, and held at
     /// full height right through the exit — the clip closes over the quote, so there has to be a
@@ -226,7 +237,7 @@ private struct ComposerReplyReveal: View {
     var body: some View {
         Group {
             if let shown {
-                ComposerReplyStrip(target: shown, onDismiss: onDismiss)
+                strip(shown)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { measured in
                         guard naturalHeight != measured else { return }
                         naturalHeight = measured
@@ -365,6 +376,10 @@ struct ConversationComposer: View {
             }
         }
         .onChange(of: composer.draft) { _, text in
+            // An edit rewrites a message already sent, which a card cannot be added to.
+            if !composer.isEditing {
+                composer.cardSuggestion.draftDidChange(text)
+            }
             guard let conversationID else { return }
             conversationController.draftDidChange(text, in: conversationID)
         }
@@ -381,7 +396,9 @@ struct ConversationComposer: View {
 
     /// The confirm button is up for the whole of an edit, as it is in WhatsApp, and only once
     /// there's text to send otherwise.
-    private var showsSubmit: Bool { composer.isEditing || composer.canSubmit }
+    private var showsSubmit: Bool {
+        composer.isEditing || composer.canSubmit || composer.cardSuggestion.suggestion?.phase == .attached
+    }
 
     private var submitSymbol: String {
         composer.isEditing ? SystemSymbol.checkmark.rawValue : SystemSymbol.arrowUp.rawValue
@@ -395,19 +412,21 @@ struct ConversationComposer: View {
         // no-op, because there is then nothing to submit.
         switch composer.mode {
         case .new:
-            guard let text = composer.submission else { return }
+            guard let text = composer.cardSuggestion.outgoing(composer.submission) else { return }
             // Snapshotted before the field is emptied: a send that fails has no persisted record on
             // this platform, so this is the only copy of the words left to put back.
             let draft = composer.persistableDraft
             composer.clear()
+            composer.cardSuggestion.reset()
             isFocused = true
             Task { await conversationController.send(text, to: conversationID, restoringOnFailure: draft) }
         case .replying(let target):
-            guard let text = composer.submission else { return }
+            guard let text = composer.cardSuggestion.outgoing(composer.submission) else { return }
             // The strip travels with the text. Restoring the words alone would downgrade a reply to
             // a loose message, which is the wrong-context send this is here to prevent.
             let draft = composer.persistableDraft
             composer.clear()
+            composer.cardSuggestion.reset()
             isFocused = true
             Task {
                 await conversationController.send(

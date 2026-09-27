@@ -695,6 +695,11 @@ struct ConversationScreen: View {
                 picture: tipCounterpart?.profilePicture
             )
         }
+        // Handles mentioned in the draft are looked up through the transcript's own card feed, so
+        // a person already drawn as a card is not asked for twice. The DM's counterpart is left out.
+        .task(id: tipCounterpart?.userID) {
+            composer.cardSuggestion.connect(to: sessionContainer.linkCardFeed, excluding: tipCounterpart?.userID)
+        }
     }
 
     /// What this screen puts on top of itself, and the measurement the title bar needs.
