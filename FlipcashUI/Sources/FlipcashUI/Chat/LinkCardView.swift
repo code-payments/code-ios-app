@@ -14,9 +14,10 @@ import FlipcashCore
 ///
 /// The kinds are laid out by the same rectangle on purpose. A transcript mixing a cash link and
 /// a token link should read as one column of cards rather than two card sizes, and the bubble above
-/// it switches on whether there is a card at all — not on which one. A group card and a person card
-/// have the same width, and take their height from their content instead: they carry a button and
-/// text that grow with Dynamic Type, and hold these proportions as their minimum.
+/// it switches on whether there is a card at all — not on which one. A group card has the same width
+/// and takes its height from its content instead: it carries a button and text that grow with
+/// Dynamic Type, and holds these proportions as its minimum. A person card is the exception: a
+/// compact row that sets its own width and height, like a text bubble.
 ///
 /// Every kind is built once and kept, hidden, rather than swapped in per dequeue: this sits in a
 /// recycled row, and a transcript that alternates kinds would otherwise allocate a card per scroll.
@@ -29,7 +30,8 @@ final class LinkCardView: UIView {
     /// The proportions of the wallet's bill: 224pt of card across 328pt of usable width — its own
     /// height at full width less two screen insets on a 375pt phone. A chat bubble is a good deal
     /// narrower than that, and scaling the height with the width is what keeps a card a card there
-    /// rather than a tall panel. Every kind's height, or for a group or person card its minimum.
+    /// rather than a tall panel. Every kind's height, or for a group card its minimum. Not the person
+    /// card's, which is as tall as its content.
     static let aspectRatio: CGFloat = 224.0 / 328.0
 
     private let cashView = LinkCashCardView()
@@ -42,7 +44,7 @@ final class LinkCardView: UIView {
 
     /// Height at exactly the proportions, for a cash or token card.
     private var fixedHeight: NSLayoutConstraint!
-    /// Height at least the proportions, for a group or person card, whose content may need more.
+    /// Height at least the proportions, for a group card, whose content may need more.
     private var minimumHeight: NSLayoutConstraint!
     /// Lets the group card's content set the slot's height. Only while a group card is showing: a
     /// hidden view still takes part in layout, and the group content's own height would otherwise
@@ -110,20 +112,24 @@ final class LinkCardView: UIView {
         fixedHeight.isActive = true
     }
 
-    /// Switches the slot between the fixed proportions of a cash or token card (nil) and the
-    /// content-set height of a group or person card.
+    /// Switches the slot between the fixed proportions of a cash or token card (nil), the content-set
+    /// height over a minimum of a group card, and the content-set height of a person card.
     private func setSized(_ sized: Sized?) {
         groupView.isHidden = sized != .group
         userView.isHidden = sized != .user
         // Deactivated before activated, so the slot never holds two heights at once.
         if sized != .group { groupBottom.isActive = false }
         if sized != .user { userBottom.isActive = false }
-        if sized == nil {
+        switch sized {
+        case nil:
             minimumHeight.isActive = false
             fixedHeight.isActive = true
-        } else {
+        case .group:
             fixedHeight.isActive = false
             minimumHeight.isActive = true
+        case .user:
+            fixedHeight.isActive = false
+            minimumHeight.isActive = false
         }
         if sized == .group { groupBottom.isActive = true }
         if sized == .user { userBottom.isActive = true }

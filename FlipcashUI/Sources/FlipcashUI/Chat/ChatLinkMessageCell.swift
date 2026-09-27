@@ -23,7 +23,7 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     /// Holds a card row open at the transcript's full bubble width. The card is pinned to the row's
     /// sides and takes its width from the row, and a card row has no text to widen it — so without
     /// this the card would collapse to nothing. Not required, so the `<=` above still wins on a
-    /// narrow transcript.
+    /// narrow transcript. Off for a person card, which reports its own width.
     private var bubbleCardWidthConstraint: NSLayoutConstraint!
 
     /// Called when the user taps a URL in the bubble.
@@ -94,7 +94,7 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         bubbleMaxWidthConstraint.constant = maxWidth
         bubbleCardWidthConstraint.constant = maxWidth
-        bubbleCardWidthConstraint.isActive = message.linkPreview?.card != nil
+        bubbleCardWidthConstraint.isActive = Self.cardFillsWidth(message.linkPreview?.card)
         bubble.configure(with: message)
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth
@@ -109,6 +109,17 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         // A failed row's whole column is the retry target (ChatColumnCell); disable the bubble's own
         // text-view link taps so a tap on a failed message retries the send rather than opening the URL.
         bubble.isUserInteractionEnabled = !message.isFailed
+    }
+}
+
+extension ChatLinkMessageCell {
+    /// Whether `card` runs to the bubble's full width. A person card hugs its content like a text
+    /// bubble and gives its own width instead.
+    static func cardFillsWidth(_ card: LinkCard?) -> Bool {
+        switch card {
+        case .cash, .token, .group: true
+        case .user, nil:            false
+        }
     }
 }
 

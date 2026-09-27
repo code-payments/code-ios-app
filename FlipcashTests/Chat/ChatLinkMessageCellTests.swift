@@ -86,6 +86,40 @@ struct ChatLinkMessageCellTests {
         #expect(card.height > 0)
     }
 
+    @Test("A person card hugs its content; every other card runs the bubble's full width")
+    func cardFillsWidth_onlyForNonPersonCards() {
+        let link = url("https://flipcash.com/satoshi")
+        let range = NSRange(location: 0, length: 28)
+        let user = LinkCard.user(LinkCard.User(url: link, identity: .username(Username("satoshi")!), range: range))
+        let cash = LinkCard.cash(LinkCard.Cash(url: url(Self.cashLink), entropy: "KNi8pQr1n5hRU65vKJGge3", range: range))
+        #expect(ChatLinkMessageCell.cardFillsWidth(cash))
+        #expect(!ChatLinkMessageCell.cardFillsWidth(user))
+        #expect(!ChatLinkMessageCell.cardFillsWidth(nil))
+    }
+
+    /// The link's text is hidden on a card row but used to stay in the bubble, where it set the
+    /// row's width and left a person card short of the column's edge.
+    @Test("A person card's row is as wide as the card, not as the link's hidden text")
+    func personCardRow_takesTheCardsWidth() {
+        let link = "https://flipcash.com/abcdefghijklmno"
+        let range = NSRange(location: 0, length: (link as NSString).length)
+        let message = ChatMessage(
+            id: "1",
+            text: link,
+            sender: .me,
+            linkPreview: LinkPreview(
+                links: [DetectedLink(range: range, url: url(link))],
+                card: .user(LinkCard.User(url: url(link), identity: .username(Username("abcdefghijklmno")!), range: range))
+            )
+        )
+        let bubble = LinkableBubbleView()
+        bubble.configure(with: message)
+
+        let card = bubble.descendants(of: LinkUserCardView.self).first
+        let width = bubble.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize).width
+        #expect(width == card?.intrinsicContentSize.width, "row was \(width)")
+    }
+
     private func chrome(_ cell: ChatLinkMessageCell) -> BubbleBackgroundView? {
         cell.descendants(of: BubbleBackgroundView.self).first
     }
