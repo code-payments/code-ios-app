@@ -76,7 +76,7 @@ struct LinkableBubbleViewTests {
         #expect(linked == 0)
     }
 
-    @Test("A mention is tagged with its handle and drawn like a link, without becoming one")
+    @Test("A mention is tagged with its handle and padded for its pill, without becoming a link")
     func linkedText_tagsMentions() throws {
         let message = ChatMessage(
             id: "1",
@@ -90,12 +90,49 @@ struct LinkableBubbleViewTests {
         let rendered = try #require(LinkableBubbleView.linkedText(for: message))
         let mention = NSRange(location: 4, length: 5)
         var effective = NSRange()
-        let tag = rendered.attribute(.textItemTag, at: 4, effectiveRange: &effective) as? String
+        let tag = rendered.attribute(.textItemTag, at: 4, longestEffectiveRange: &effective, in: NSRange(location: 0, length: rendered.length)) as? String
         #expect(tag == "jeff")
         #expect(effective == mention)
-        #expect(rendered.attribute(.underlineStyle, at: 4, effectiveRange: nil) as? Int == NSUnderlineStyle.single.rawValue)
+        #expect(rendered.attribute(.underlineStyle, at: 4, effectiveRange: nil) == nil)
+        #expect(rendered.attribute(.kern, at: 3, effectiveRange: nil) as? CGFloat == MentionPill.spacing)
+        #expect(rendered.attribute(.kern, at: 8, effectiveRange: nil) as? CGFloat == MentionPill.spacing)
+        #expect(rendered.attribute(.kern, at: 4, effectiveRange: nil) == nil)
         #expect(rendered.attribute(.link, at: 4, effectiveRange: nil) == nil)
         #expect(rendered.attribute(.textItemTag, at: 0, effectiveRange: nil) == nil)
+    }
+
+    @Test("A mention's pill reaches past the handle by the same padding on both sides")
+    func mentionPill_rect() {
+        let line = CGRect(x: 40, y: 10, width: 50, height: 20)
+        #expect(MentionPill.rect(around: line) == CGRect(x: 40 - MentionPill.padding, y: 10, width: 50 + 2 * MentionPill.padding, height: 20))
+    }
+
+    @Test("A tap resolves to the link or mention under it, and to nothing off every span")
+    func span_findsTheTappedItem() throws {
+        let message = ChatMessage(
+            id: "1",
+            text: "ask @jeff at https://apple.com",
+            sender: .me,
+            linkPreview: LinkPreview(
+                links: [DetectedLink(range: NSRange(location: 13, length: 17), url: url("https://apple.com"))],
+                mentions: [DetectedMention(range: NSRange(location: 4, length: 5), username: Username("jeff")!)]
+            )
+        )
+
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        #expect(LinkableBubbleView.span(in: rendered, at: 4) == .mention(Username("jeff")!))
+        #expect(LinkableBubbleView.span(in: rendered, at: 8) == .mention(Username("jeff")!))
+        #expect(LinkableBubbleView.span(in: rendered, at: 20) == .url(url("https://apple.com")))
+        #expect(LinkableBubbleView.span(in: rendered, at: 0) == nil)
+        #expect(LinkableBubbleView.span(in: rendered, at: 10) == nil)
+        #expect(LinkableBubbleView.span(in: rendered, at: rendered.length) == nil)
+    }
+
+    @Test("The text view carries its own span tap, so a tap that lowers the keyboard still opens the span")
+    func textView_carriesSpanTap() {
+        let view = LinkableBubbleView()
+        let textView = view.descendants(of: UITextView.self).first
+        #expect(textView?.gestureRecognizers?.contains { $0.delegate === view } == true)
     }
 
     // MARK: - A card row
