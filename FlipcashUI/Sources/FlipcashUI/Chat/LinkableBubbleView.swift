@@ -443,9 +443,6 @@ extension LinkableBubbleView: UITextViewDelegate {
     }
 }
 
-/// A `UITextView` that shows text and taps links but refuses selection, the loupe, and the edit menu —
-/// so the cell's long-press "Copy" context menu and the context-menu lift keep working. Mirrors
-/// ChatLayout's own `MessageTextView` recipe.
 /// The rounded background drawn behind an `@handle`.
 enum MentionPill {
     static let fill = UIColor.white.withAlphaComponent(0.14)
@@ -463,7 +460,10 @@ enum MentionPill {
     }
 }
 
-private final class LinkTextView: UITextView {
+/// A `UITextView` that shows text and taps links but refuses selection, the loupe, and the edit menu —
+/// so the cell's long-press "Copy" context menu and the context-menu lift keep working. Mirrors
+/// ChatLayout's own `MessageTextView` recipe.
+final class LinkTextView: UITextView {
     private let pills = CAShapeLayer()
 
     override init(frame: CGRect, textContainer: NSTextContainer?) {
@@ -487,18 +487,53 @@ private final class LinkTextView: UITextView {
     /// One pill per line a mention covers, behind the text, so a wrapped handle gets one on each line.
     private func drawPills() {
         let path = UIBezierPath()
-        defer { pills.path = path.cgPath; pills.frame = bounds }
-        guard let text = attributedText, text.length > 0 else { return }
-        text.enumerateAttribute(.textItemTag, in: NSRange(location: 0, length: text.length)) { value, range, _ in
-            guard value != nil,
-                  let start = position(from: beginningOfDocument, offset: range.location),
-                  let end = position(from: start, offset: range.length),
-                  let span = textRange(from: start, to: end)
-            else { return }
-            for rect in selectionRects(for: span).map(\.rect) where rect.width > 0 {
-                path.append(UIBezierPath(roundedRect: MentionPill.rect(around: rect), cornerRadius: MentionPill.cornerRadius))
-            }
+        for rect in mentionPillRects {
+            path.append(UIBezierPath(roundedRect: rect, cornerRadius: MentionPill.cornerRadius))
         }
+        pills.path = path.cgPath
+        pills.frame = bounds
+    }
+
+    /// The pill behind each line of each mention, in the text view's coordinates.
+    var mentionPillRects: [CGRect] {
+        guard let text = attributedText, text.length > 0 else { return [] }
+        var result: [CGRect] = []
+        text.enumerateAttribute(.textItemTag, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+            guard value != nil, let lines = lineRects(for: range), let line = lines.first else { return }
+            // The kern that opens room either side of the handle leaks into its selection rect: some
+            // of the kern before it on the left, and the kern on its last letter on the right, except
+            // at the end of a line where the text system drops it. So a handle on one line is sized
+            // from its own letters, ending where its last letter does. One too long for a line keeps
+            // its selection rects.
+            guard lines.count == 1, let end = glyphEnd(ofLastCharacterIn: range, of: text) else {
+                result += lines.map(MentionPill.rect(around:))
+                return
+            }
+            let width = Self.unkerned(text.attributedSubstring(from: range)).size().width
+            result.append(MentionPill.rect(around: CGRect(x: end - width, y: line.minY, width: width, height: line.height)))
+        }
+        return result
+    }
+
+    private func lineRects(for range: NSRange) -> [CGRect]? {
+        guard let start = position(from: beginningOfDocument, offset: range.location),
+              let end = position(from: start, offset: range.length),
+              let span = textRange(from: start, to: end)
+        else { return nil }
+        return selectionRects(for: span).map(\.rect).filter { $0.width > 0 }
+    }
+
+    /// Where the last letter of `range` ends, from where it starts plus its width without kern.
+    private func glyphEnd(ofLastCharacterIn range: NSRange, of text: NSAttributedString) -> CGFloat? {
+        let last = NSRange(location: range.location + range.length - 1, length: 1)
+        guard let rect = lineRects(for: last)?.first else { return nil }
+        return rect.minX + Self.unkerned(text.attributedSubstring(from: last)).size().width
+    }
+
+    private static func unkerned(_ text: NSAttributedString) -> NSAttributedString {
+        let result = NSMutableAttributedString(attributedString: text)
+        result.removeAttribute(.kern, range: NSRange(location: 0, length: result.length))
+        return result
     }
 
     override var isFocused: Bool { false }

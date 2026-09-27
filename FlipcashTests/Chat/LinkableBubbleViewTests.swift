@@ -328,4 +328,28 @@ struct LinkableBubbleViewTests {
         #expect(chrome(view)?.isDrawingBubble == true)
         #expect(view.descendants(of: UITextView.self).first?.isHidden == false)
     }
+
+    @Test(
+        "A mention's pill is its handle's width plus the same padding on both sides",
+        arguments: ["@erik", "Talk to @erik about that", "hey @erik, did it", "(@erik)", "ask @erik", "@jeff @erik"]
+    )
+    func mentionPill_evenPadding(text: String) throws {
+        // The kern either side of a handle leaks into its selection rect, differently mid-line and at
+        // the end of a line, so a pill sized from that rect comes out lopsided.
+        let links = LinkDetector().webLinks(in: text)
+        let mentions = MentionDetector.mentions(in: text, excluding: links)
+        let view = LinkableBubbleView()
+        view.configure(with: ChatMessage(id: "1", text: text, sender: .me,
+                                         linkPreview: LinkPreview(links: links, mentions: mentions)))
+        view.frame = CGRect(x: 0, y: 0, width: 330, height: 200)
+        view.layoutIfNeeded()
+
+        let textView = try #require(view.descendants(of: LinkTextView.self).first)
+        let mention = try #require(mentions.last)
+        let pill = try #require(textView.mentionPillRects.last)
+        let handle = NSMutableAttributedString(attributedString: textView.attributedText.attributedSubstring(from: mention.range))
+        handle.removeAttribute(.kern, range: NSRange(location: 0, length: handle.length))
+
+        #expect(abs(pill.width - (handle.size().width + 2 * MentionPill.padding)) < 0.5)
+    }
 }
