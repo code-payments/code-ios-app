@@ -76,6 +76,28 @@ struct LinkableBubbleViewTests {
         #expect(linked == 0)
     }
 
+    @Test("A mention is tagged with its handle and drawn like a link, without becoming one")
+    func linkedText_tagsMentions() throws {
+        let message = ChatMessage(
+            id: "1",
+            text: "ask @jeff",
+            sender: .me,
+            linkPreview: LinkPreview(links: [], mentions: [
+                DetectedMention(range: NSRange(location: 4, length: 5), username: Username("jeff")!),
+            ])
+        )
+
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        let mention = NSRange(location: 4, length: 5)
+        var effective = NSRange()
+        let tag = rendered.attribute(.textItemTag, at: 4, effectiveRange: &effective) as? String
+        #expect(tag == "jeff")
+        #expect(effective == mention)
+        #expect(rendered.attribute(.underlineStyle, at: 4, effectiveRange: nil) as? Int == NSUnderlineStyle.single.rawValue)
+        #expect(rendered.attribute(.link, at: 4, effectiveRange: nil) == nil)
+        #expect(rendered.attribute(.textItemTag, at: 0, effectiveRange: nil) == nil)
+    }
+
     // MARK: - A card row
 
     private static let cashLink = "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"

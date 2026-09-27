@@ -100,6 +100,9 @@ struct ConversationScreen: View {
     @State private var reactorsRequest: ReactorsRequest?
     /// A reactor whose profile opens once the reactors sheet has finished dismissing.
     @State private var pendingReactorProfile: UserID?
+    /// The `@handle` being looked up after a tap, or nil. Taps while one is in flight are dropped,
+    /// so a slow lookup cannot push the same profile twice.
+    @State private var tappedMention: Username?
     /// Emoji this OS build can't draw, kept out of the strip and the picker's Frequently Used row.
     @State private var undrawableEmoji: Set<String> = []
     /// The catalog's first category, in catalog order, that fills the strip after the recents.
@@ -477,6 +480,7 @@ struct ConversationScreen: View {
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
+            onMentionTap: openMention,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
             onContactAction: openContactCard,
@@ -579,6 +583,15 @@ struct ConversationScreen: View {
                 pendingReactorProfile = userID
                 reactorsRequest = nil
             }
+        }
+        // Tied to the screen, so leaving mid-lookup cancels the push rather than landing a profile
+        // on whatever screen is up by then. The lookup itself carries on and warms the memo.
+        .task(id: tappedMention) {
+            guard let username = tappedMention else { return }
+            let lookup = await sessionContainer.linkCardFeed.person(named: username)
+            guard !Task.isCancelled else { return }
+            tappedMention = nil
+            open(MentionDestination.destination(for: lookup, counterpart: tipCounterpart?.userID), for: username)
         }
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
@@ -1252,6 +1265,30 @@ struct ConversationScreen: View {
             openDeepLink: { container.deepLinkController.open($0) },
             openExternally: { ExternalLinkOpener(session: session).open($0) }
         ).open(url)
+    }
+
+    /// Looks up a tapped `@handle` and opens whoever it names. Resolved on tap rather than as the
+    /// message maps: a transcript full of handles would otherwise cost a lookup per handle for
+    /// people nobody taps.
+    private func openMention(_ username: Username) {
+        guard tappedMention == nil else { return }
+        tappedMention = username
+    }
+
+    private func open(_ destination: MentionDestination, for username: Username) {
+        switch destination {
+        case .ownTipCard:
+            router.showOwnTipCard()
+        case .profile(let userID, let origin):
+            router.push(.userProfile(userID, origin: origin))
+        case .noSuchAccount:
+            session.dialogItem = .info(title: "No Such Account", subtitle: "Nobody has claimed \(username.handle)")
+        case .lookupFailed:
+            session.dialogItem = .error(
+                title: "Couldn't Open Profile",
+                subtitle: "Please check your connection and try again"
+            )
+        }
     }
 
     /// Where a tapped link card lands, which is not the same place for every kind.

@@ -190,14 +190,16 @@ nonisolated enum UserProfileOrigin: Hashable {
     case directMessage
     /// Their face in a group transcript.
     case groupMember
+    /// Their `@handle` tapped in a message, in a chat that is not a DM with them.
+    case mention
 
     /// Whether the profile offers Message and Send Cash: not from the DM they would lead back
     /// into, and never on the viewer's own profile.
     func showsChatActions(profileUserID: UserID, selfUserID: UserID) -> Bool {
         guard profileUserID != selfUserID else { return false }
         switch self {
-        case .directMessage: return false
-        case .groupMember:   return true
+        case .directMessage:        return false
+        case .groupMember, .mention: return true
         }
     }
 
@@ -205,8 +207,8 @@ nonisolated enum UserProfileOrigin: Hashable {
     /// group the row would read as muting the group.
     var showsMute: Bool {
         switch self {
-        case .directMessage: return true
-        case .groupMember:   return false
+        case .directMessage:        return true
+        case .groupMember, .mention: return false
         }
     }
 }

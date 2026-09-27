@@ -13,7 +13,8 @@ import FlipcashCore
 /// A chat bubble that renders text with tappable links, over the shared `BubbleBackgroundView`, or
 /// the link card a message was split around, drawn bare. Used only for messages that contain a link;
 /// plain text stays on the cheaper `ChatBubbleView` (a `UILabel`). Link taps are reported through
-/// `onOpenURL` and card taps through `onLinkCardTap`; the bubble itself opens nothing.
+/// `onOpenURL`, `@handle` taps through `onMentionTap`, and card taps through `onLinkCardTap`; the
+/// bubble itself opens nothing.
 public final class LinkableBubbleView: UIView {
 
     private let background = BubbleBackgroundView()
@@ -23,6 +24,9 @@ public final class LinkableBubbleView: UIView {
 
     /// Called when the user taps a detected link.
     var onOpenURL: ((URL) -> Void)?
+
+    /// Called when the user taps an `@handle`, with the handle it names.
+    var onMentionTap: ((Username) -> Void)?
 
     /// Called when the user taps the card standing in for a link. The whole card goes back rather
     /// than its URL, because where a tap should land differs by kind and only the owner knows the
@@ -115,10 +119,7 @@ public final class LinkableBubbleView: UIView {
         textView.dataDetectorTypes = []
         textView.font = .default(size: 16, weight: .medium)
         textView.textColor = .white
-        textView.linkTextAttributes = [
-            .foregroundColor: UIColor.white,
-            .underlineStyle: NSUnderlineStyle.single.rawValue,
-        ]
+        textView.linkTextAttributes = Self.linkAttributes
         textView.delegate = self
         textView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(textView)
@@ -324,7 +325,14 @@ public final class LinkableBubbleView: UIView {
 
 extension LinkableBubbleView {
 
-    /// The bubble's body with every detected link underlined.
+    /// How a link reads in a bubble. A mention is drawn the same way: it is a text item tag rather
+    /// than a `.link`, so `linkTextAttributes` does not reach it and it carries these itself.
+    static let linkAttributes: [NSAttributedString.Key: Any] = [
+        .foregroundColor: UIColor.white,
+        .underlineStyle: NSUnderlineStyle.single.rawValue,
+    ]
+
+    /// The bubble's body with every detected link and mention underlined.
     ///
     /// `DetectedLink.range` is already UTF-16 offsets into the same string `displayText` renders, so
     /// the ranges apply straight to the attributed string. They are clamped anyway: the preview is
@@ -338,17 +346,31 @@ extension LinkableBubbleView {
             guard link.location >= 0, link.location + link.length <= result.length else { continue }
             result.addAttribute(.link, value: link.url, range: link.range)
         }
+        for mention in message.linkPreview?.mentions ?? [] where mention.length > 0 {
+            guard mention.location >= 0, mention.location + mention.length <= result.length else { continue }
+            result.addAttributes(Self.linkAttributes, range: mention.range)
+            result.addAttribute(.textItemTag, value: mention.username.value, range: mention.range)
+        }
         return result
     }
 }
 
 extension LinkableBubbleView: UITextViewDelegate {
-    /// Route the tap to `onOpenURL` instead of the system's Safari open.
+    /// Route a link tap to `onOpenURL` instead of the system's Safari open, and a mention tap to
+    /// `onMentionTap`.
     public func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
-        if case .link(let url) = textItem.content {
+        switch textItem.content {
+        case .link(let url):
             return UIAction { [weak self] _ in self?.onOpenURL?(url) }
+        case .tag(let tag):
+            // The only tag `linkedText(for:)` sets is a mention's handle.
+            guard let username = Username(tag) else { return nil }
+            return UIAction { [weak self] _ in self?.onMentionTap?(username) }
+        case .textAttachment:
+            return defaultAction
+        @unknown default:
+            return defaultAction
         }
-        return defaultAction
     }
 
     /// Suppress the per-link context menu so the cell's long-press "Copy" menu isn't shadowed.

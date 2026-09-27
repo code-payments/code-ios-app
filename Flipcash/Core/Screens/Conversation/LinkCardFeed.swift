@@ -116,6 +116,15 @@ final class LinkCardFeed: LinkCardSource {
         return stream
     }
 
+    // MARK: - Mentions -
+
+    /// Who a tapped `@handle` names, or why nobody. Asks the question a person card for that handle
+    /// asks, through the same memo, so a handle already drawn as a card or tapped before answers
+    /// without going back to the server.
+    func person(named username: Username) async -> Result<UserLinkFacts, any Error> {
+        await resolver.userResult(.username(username))
+    }
+
     // MARK: - Asking -
 
     // One ask per subscription, deduplicated by the resolver rather than here: it memoizes the

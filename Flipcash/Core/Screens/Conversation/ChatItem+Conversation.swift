@@ -26,7 +26,11 @@ nonisolated(unsafe) private let linkDetector = LinkDetector()
 /// it belongs to `LinkCardResolver`, keyed on the entropy.
 private final class DetectedLinkBox {
     nonisolated let links: [DetectedLink]
-    nonisolated init(_ links: [DetectedLink]) { self.links = links }
+    nonisolated let mentions: [DetectedMention]
+    nonisolated init(_ links: [DetectedLink], _ mentions: [DetectedMention]) {
+        self.links = links
+        self.mentions = mentions
+    }
 }
 
 nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLinkBox> = {
@@ -38,14 +42,17 @@ nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLink
 nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) -> LinkCard?) -> LinkPreview? {
     let key = text as NSString
     let links: [DetectedLink]
+    let mentions: [DetectedMention]
     if let cached = linkPreviewCache.object(forKey: key) {
         links = cached.links
+        mentions = cached.mentions
     } else {
         links = linkDetector.webLinks(in: text)
-        linkPreviewCache.setObject(DetectedLinkBox(links), forKey: key)
+        mentions = MentionDetector.mentions(in: text, excluding: links)
+        linkPreviewCache.setObject(DetectedLinkBox(links, mentions), forKey: key)
     }
-    guard !links.isEmpty else { return nil }
-    return LinkPreview(links: links, card: card(links))
+    guard !links.isEmpty || !mentions.isEmpty else { return nil }
+    return LinkPreview(links: links, card: card(links), mentions: mentions)
 }
 
 extension ChatItem {
@@ -397,7 +404,7 @@ extension ChatItem {
         let body = text as NSString
         let link = card.range
         guard link.location >= 0, link.length > 0, NSMaxRange(link) <= body.length else {
-            return [RowLayout(part: nil, text: nil, preview: LinkPreview(links: preview.links, card: nil))]
+            return [RowLayout(part: nil, text: nil, preview: LinkPreview(links: preview.links, mentions: preview.mentions))]
         }
 
         func isIn(_ set: CharacterSet, _ index: Int) -> Bool {
@@ -413,23 +420,25 @@ extension ChatItem {
         while trailingStart < body.length, isIn(.punctuationCharacters, trailingStart) { trailingStart += 1 }
         while trailingStart < body.length, isIn(.whitespacesAndNewlines, trailingStart) { trailingStart += 1 }
 
-        // The links inside `span`, re-based to its start. A row with no link keeps no preview, so it
-        // takes the plain text cell.
+        // The links and mentions inside `span`, re-based to its start. A row with neither keeps no
+        // preview, so it takes the plain text cell.
         func textRow(_ kind: ChatMessagePart.Kind, _ span: NSRange) -> RowLayout? {
             let segment = body.substring(with: span)
             guard !segment.unicodeScalars.allSatisfy(Self.carriesNothing.contains) else { return nil }
-            let links = preview.links.compactMap { detected -> DetectedLink? in
-                guard detected.location >= span.location,
-                      NSMaxRange(detected.range) <= NSMaxRange(span) else { return nil }
-                return DetectedLink(
-                    range: NSRange(location: detected.location - span.location, length: detected.length),
-                    url: detected.url
-                )
+            func rebased(_ range: NSRange) -> NSRange? {
+                guard range.location >= span.location, NSMaxRange(range) <= NSMaxRange(span) else { return nil }
+                return NSRange(location: range.location - span.location, length: range.length)
+            }
+            let links = preview.links.compactMap { detected in
+                rebased(detected.range).map { DetectedLink(range: $0, url: detected.url) }
+            }
+            let mentions = preview.mentions.compactMap { mention in
+                rebased(mention.range).map { DetectedMention(range: $0, username: mention.username) }
             }
             return RowLayout(
                 part: kind,
                 text: segment,
-                preview: links.isEmpty ? nil : LinkPreview(links: links),
+                preview: links.isEmpty && mentions.isEmpty ? nil : LinkPreview(links: links, mentions: mentions),
                 messageText: text
             )
         }

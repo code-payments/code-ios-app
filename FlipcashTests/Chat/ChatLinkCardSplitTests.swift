@@ -153,6 +153,29 @@ struct ChatLinkCardSplitTests {
         #expect(rows[0].id == rows[0].messageID)
     }
 
+    // MARK: - Mentions
+
+    @Test("A message with only a mention takes the link cell, with the mention's span")
+    func mentionOnly_carriesPreview() throws {
+        let rows = rows([text(1, me, "ask @jeff")])
+        let preview = try #require(rows.first?.linkPreview)
+        #expect(preview.links.isEmpty)
+        #expect(preview.mentions.map(\.username.value) == ["jeff"])
+        #expect(preview.mentions.first?.range == NSRange(location: 4, length: 5))
+    }
+
+    @Test("A mention past the card moves into its own row's frame")
+    func mentionRebasedIntoTrailingRow() throws {
+        let rows = rows([text(1, me, "here \(Self.cashLink) from @jeff")])
+        #expect(rows.map(\.part?.kind) == [.leadingText, .card, .trailingText])
+
+        #expect(rows[0].linkPreview == nil)
+        #expect(rows[1].linkPreview?.mentions.isEmpty == true)
+        let trailing = try #require(rows[2].linkPreview)
+        #expect(body(rows[2]) == "from @jeff")
+        #expect(trailing.mentions.first?.range == NSRange(location: 5, length: 5))
+    }
+
     // MARK: - Ids
 
     @Test("Every row has a unique id, and all of them name the same message")

@@ -52,6 +52,9 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the user taps a URL in a text bubble; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
 
+    /// Called when the user taps an `@handle` in a text bubble; the owner finds who it names.
+    public var onMentionTap: ((Username) -> Void)?
+
     /// Called when the user taps the card drawn in place of a link. The whole card goes back
     /// because the two kinds land in different places — a cash card opens its link, a token card
     /// pushes that token onto this chat's own stack — and only the owner holds that stack. Carries
@@ -492,6 +495,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+            cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
             cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card, message.messageID) }
             cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
