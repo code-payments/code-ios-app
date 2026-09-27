@@ -389,10 +389,10 @@ extension ChatItem {
 
     /// The rows a text message draws, in the order the sender wrote them: the text before the
     /// carded link, the card, and the text after it, each skipped when it would hold nothing but
-    /// whitespace. A message with no card is one row, as it always was.
+    /// whitespace and punctuation. A message with no card is one row, as it always was.
     ///
-    /// The whitespace between the link and the text on either side goes with the link — it was the
-    /// gap around a word that now has a row of its own. Every other link stays in whichever text row
+    /// The punctuation touching the link and the whitespace past it go with the link — they were
+    /// the gap and the brackets around a word that now has a row of its own. Every other link stays in whichever text row
     /// it fell in, underlined, with its span moved into that row's frame.
     ///
     /// A card whose span does not fit the text — a stale preview — is dropped rather than split, and
@@ -407,19 +407,24 @@ extension ChatItem {
             return [RowLayout(part: nil, text: nil, preview: LinkPreview(links: preview.links, card: nil))]
         }
 
-        func isGap(_ index: Int) -> Bool {
+        func isIn(_ set: CharacterSet, _ index: Int) -> Bool {
             guard let scalar = Unicode.Scalar(body.character(at: index)) else { return false }
-            return CharacterSet.whitespacesAndNewlines.contains(scalar)
+            return set.contains(scalar)
         }
+        // Punctuation touching the link first — the "." ending a sentence, the brackets or quotes
+        // around it — then the gap. Punctuation past a space belongs to the words beside it.
         var leadingEnd = link.location
-        while leadingEnd > 0, isGap(leadingEnd - 1) { leadingEnd -= 1 }
+        while leadingEnd > 0, isIn(.punctuationCharacters, leadingEnd - 1) { leadingEnd -= 1 }
+        while leadingEnd > 0, isIn(.whitespacesAndNewlines, leadingEnd - 1) { leadingEnd -= 1 }
         var trailingStart = NSMaxRange(link)
-        while trailingStart < body.length, isGap(trailingStart) { trailingStart += 1 }
+        while trailingStart < body.length, isIn(.punctuationCharacters, trailingStart) { trailingStart += 1 }
+        while trailingStart < body.length, isIn(.whitespacesAndNewlines, trailingStart) { trailingStart += 1 }
 
         // The links inside `span`, re-based to its start. A row with no link keeps no preview, so it
         // takes the plain text cell.
         func textRow(_ kind: ChatMessagePart.Kind, _ span: NSRange) -> RowLayout? {
-            guard span.length > 0 else { return nil }
+            let segment = body.substring(with: span)
+            guard !segment.unicodeScalars.allSatisfy(Self.carriesNothing.contains) else { return nil }
             let links = preview.links.compactMap { detected -> DetectedLink? in
                 guard detected.location >= span.location,
                       NSMaxRange(detected.range) <= NSMaxRange(span) else { return nil }
@@ -430,7 +435,7 @@ extension ChatItem {
             }
             return RowLayout(
                 part: kind,
-                text: body.substring(with: span),
+                text: segment,
                 preview: links.isEmpty ? nil : LinkPreview(links: links),
                 messageText: text
             )
@@ -453,6 +458,10 @@ extension ChatItem {
             textRow(.trailingText, NSRange(location: trailingStart, length: body.length - trailingStart)),
         ].compactMap { $0 }
     }
+
+    /// What a text row may hold and still say nothing: a segment of only these is dropped, not
+    /// drawn as a bubble of stray punctuation next to its card.
+    nonisolated private static let carriesNothing = CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters)
 
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
     /// must not shuffle its rows between renders of the same message.

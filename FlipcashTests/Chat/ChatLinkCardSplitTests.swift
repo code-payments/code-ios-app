@@ -93,6 +93,32 @@ struct ChatLinkCardSplitTests {
         #expect(rows.map(\.part?.kind) == [.card])
     }
 
+    @Test("Punctuation touching the link goes with it, rather than drawing a bubble of its own")
+    func dropsPunctuationTouchingTheLink() {
+        #expect(rows([text(1, me, "hi \(Self.cashLink).")]).map(body) == ["hi", Self.cashLink])
+        #expect(rows([text(1, me, "(\(Self.cashLink))")]).map(body) == [Self.cashLink])
+        #expect(rows([text(1, me, "\(Self.cashLink), then lunch")]).map(body) == [Self.cashLink, "then lunch"])
+        #expect(rows([text(1, me, "\"\(Self.cashLink)\" enjoy")]).map(body) == [Self.cashLink, "enjoy"])
+    }
+
+    @Test("Punctuation set apart from the link by a space stays with its words")
+    func keepsPunctuationAcrossAGap() {
+        #expect(rows([text(1, me, "is this you? \(Self.cashLink)")]).map(body) == ["is this you?", Self.cashLink])
+        #expect(rows([text(1, me, "look: \(Self.cashLink)")]).map(body) == ["look:", Self.cashLink])
+    }
+
+    @Test("A segment of nothing but punctuation is dropped")
+    func dropsPunctuationOnlySegments() {
+        #expect(rows([text(1, me, "\(Self.cashLink) !!")]).map(\.part?.kind) == [.card])
+        #expect(rows([text(1, me, "... \(Self.cashLink)")]).map(\.part?.kind) == [.card])
+    }
+
+    @Test("An emoji or symbol beside the link is content, and keeps its row")
+    func keepsEmojiAndSymbols() {
+        #expect(rows([text(1, me, "\(Self.cashLink) 🎉")]).map(body) == [Self.cashLink, "🎉"])
+        #expect(rows([text(1, me, "\(Self.cashLink) $5")]).map(body) == [Self.cashLink, "$5"])
+    }
+
     @Test("The card row's span is its whole text, so the card lines up with its row")
     func cardRowSpanIsRebased() throws {
         let rows = rows([text(1, me, "look \(Self.cashLink)")])
