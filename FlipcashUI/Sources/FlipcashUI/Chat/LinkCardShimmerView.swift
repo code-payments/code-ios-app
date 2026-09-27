@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 
 /// A swept highlight over the part of a link card that is genuinely absent until its lookup lands.
 ///
@@ -38,6 +39,8 @@ final class LinkCardShimmerView: UIView {
     /// Whether the card wants this shimmering. The sweep also needs a window and motion allowed —
     /// see ``updateSweep()``.
     private var isWanted = false
+    /// Cuts the shimmer to a card's per-corner outline; nil while it rounds evenly or not at all.
+    private var outline: (mask: CAShapeLayer, radii: RectangleCornerRadii)?
 
     /// - Parameters:
     ///   - ground: the slot's own fill, or nil for a surface that only sweeps.
@@ -80,6 +83,10 @@ final class LinkCardShimmerView: UIView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         sweep.frame = bounds
+        if let outline {
+            outline.mask.frame = bounds
+            outline.mask.path = BubbleBackgroundView.path(radii: outline.radii, in: bounds)
+        }
         CATransaction.commit()
     }
 
@@ -92,6 +99,16 @@ final class LinkCardShimmerView: UIView {
     func roundCorners(to radius: CGFloat) {
         layer.cornerRadius = radius
         layer.cornerCurve = .continuous
+    }
+
+    /// The per-corner outline of a surface that stands in for a whole card, so the placeholder
+    /// takes the same place in a bubble run as the card that replaces it.
+    func roundCorners(to radii: RectangleCornerRadii) {
+        let mask = outline?.mask ?? CAShapeLayer()
+        layer.cornerRadius = 0
+        layer.mask = mask
+        outline = (mask, radii)
+        setNeedsLayout()
     }
 
     /// Shows or hides the shimmer. Hidden rather than removed, so a recycled row that needs it

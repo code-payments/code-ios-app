@@ -26,6 +26,15 @@ final class LinkUserCardView: UIView {
     /// again.
     var onHeightChange: (() -> Void)?
 
+    /// The card's outline, set by the row from the card's place in its bubble run.
+    var cornerRadii = BubbleBackgroundView.standaloneRadii {
+        didSet {
+            guard cornerRadii != oldValue else { return }
+            shimmer.roundCorners(to: cornerRadii)
+            if let shown { draw(shown.state, handle: shown.handle) }
+        }
+    }
+
     /// What the card last drew, so a repeat of it is not reported as a change.
     private var shown: (state: LinkCard.User.State?, handle: String?, loading: Bool)?
     /// The width the content was last drawn at.
@@ -65,7 +74,7 @@ final class LinkUserCardView: UIView {
         addSubview(content)
 
         shimmer.translatesAutoresizingMaskIntoConstraints = false
-        shimmer.layer.cornerCurve = .continuous
+        shimmer.roundCorners(to: cornerRadii)
         addSubview(shimmer)
 
         for view in [content, shimmer] as [UIView] {
@@ -90,7 +99,6 @@ final class LinkUserCardView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        shimmer.layer.cornerRadius = GroupCardView.Layout.radius
         if bounds.width != drawnWidth, let shown {
             draw(shown.state, handle: shown.handle)
         }
@@ -172,8 +180,9 @@ final class LinkUserCardView: UIView {
     private func draw(_ state: LinkCard.User.State?, handle: String?) {
         drawnWidth = bounds.width
         let display = state ?? .notFound
+        let radii = cornerRadii
         content.configuration = UIHostingConfiguration {
-            LinkUserCardContent(state: display, linkedHandle: handle) { [weak self] in
+            LinkUserCardContent(state: display, linkedHandle: handle, cornerRadii: radii) { [weak self] in
                 self?.onTap?()
             }
         }
@@ -185,7 +194,7 @@ final class LinkUserCardView: UIView {
 /// rounded frosted ground as wide as the text needs, and itself the tap target.
 ///
 /// At accessibility text sizes the avatar moves above the text and every line wraps, where a row
-/// would cut each one short. The corner and border come from the group card; the rest is in
+/// would cut each one short. The border comes from the group card and the corners from the bubble run; the rest is in
 /// ``Layout``.
 struct LinkUserCardContent: View {
 
@@ -195,6 +204,8 @@ struct LinkUserCardContent: View {
     /// Whether the card fills all the width it is given, as in the row, or reports only its own
     /// width, as when measured.
     var fillsWidth = true
+    /// The card's outline: its place in the bubble run, or standalone when measured.
+    var cornerRadii = BubbleBackgroundView.standaloneRadii
     var onTap: () -> Void = {}
 
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -250,7 +261,9 @@ struct LinkUserCardContent: View {
 
     // MARK: - Card -
 
-    private var cornerRadius: CGFloat { GroupCardView.Layout.radius }
+    private var outline: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous)
+    }
 
     private var card: some View {
         Group {
@@ -267,12 +280,9 @@ struct LinkUserCardContent: View {
         // column caps it at a large text size, so it always reaches the column's edge.
         .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .leading)
         .background { backdrop }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity))
-        }
-        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .clipShape(outline)
+        .overlay { outline.strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity)) }
+        .contentShape(outline)
     }
 
     /// The person's picture, or with no account the generic person glyph: an empty name gives the
