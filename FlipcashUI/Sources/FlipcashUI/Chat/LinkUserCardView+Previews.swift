@@ -45,33 +45,63 @@ enum LinkUserCardSamples {
         ("Not found (UUID link)", .notFound, nil),
     ]
 
+    /// Long and unusual data, to show where the card wraps and where it ends in an ellipsis.
+    static let stress: [(name: String, state: LinkCard.User.State, linkedHandle: String?)] = [
+        ("Short", resolved(displayName: "Al", handle: "@al", joined: "Joined May 2024"), "@al"),
+        (
+            "64-scalar name, longest handle and joined line",
+            resolved(
+                displayName: "Maximilian Alexander Constantine Bartholomew von Hohenzollern-Sig",
+                handle: "@abcdefghijklmno",
+                joined: "Joined September 2026"
+            ),
+            "@abcdefghijklmno"
+        ),
+        (
+            "64-scalar name, one word",
+            resolved(displayName: "Supercalifragilisticexpialidociousandthensomemorelettersuntilsixt"),
+            "@satoshi"
+        ),
+        ("Emoji", resolved(displayName: String(repeating: "👩‍👩‍👧‍👦", count: 9)), "@satoshi"),
+        ("CJK", resolved(displayName: "山田太郎の非常に長い表示名テストです日本語の名前"), "@satoshi"),
+        ("Arabic", resolved(displayName: "محمد عبد الرحمن بن عبد العزيز آل سعود"), "@satoshi"),
+    ]
+
     /// The width the transcript gives a card on a 390pt-wide phone.
     static let cardWidth: CGFloat = LinkGroupCardSamples.cardWidth
 
-    /// A card drawn the way the bubble draws it: full card width, growing with its content.
+    /// A card drawn the way the bubble draws it: as wide as its content, at most the card width.
     static func card(_ state: LinkCard.User.State, linkedHandle: String?) -> some View {
-        LinkUserCardContent(state: state, linkedHandle: linkedHandle, width: cardWidth)
+        LinkUserCardContent(state: state, linkedHandle: linkedHandle)
             .frame(width: cardWidth)
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Every state, labelled, in a scrolling column.
-    static func gallery() -> some View {
+    /// `samples`, labelled, in a scrolling column, with the loading shimmer last when asked for.
+    static func gallery(
+        _ samples: [(name: String, state: LinkCard.User.State, linkedHandle: String?)] = all,
+        showsLoading: Bool = true
+    ) -> some View {
         ScrollView {
-            VStack(spacing: 24) {
-                ForEach(all, id: \.name) { sample in
-                    VStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 24) {
+                ForEach(samples, id: \.name) { sample in
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(sample.name).font(.caption).foregroundStyle(Color.textSecondary)
                         card(sample.state, linkedHandle: sample.linkedHandle)
                     }
                 }
-                VStack(spacing: 6) {
-                    Text("Loading").font(.caption).foregroundStyle(Color.textSecondary)
-                    LinkCardShimmerSample()
-                        .frame(width: cardWidth, height: cardWidth * LinkCardView.aspectRatio)
+                if showsLoading {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Loading").font(.caption).foregroundStyle(Color.textSecondary)
+                        LinkCardShimmerSample()
+                            .frame(
+                                width: LinkUserCardContent.Layout.shimmerWidth,
+                                height: LinkUserCardContent.Layout.shimmerHeight
+                            )
+                    }
                 }
             }
-            .padding(.vertical, 24)
+            .padding(24)
             .frame(maxWidth: .infinity)
         }
         .background(Color.backgroundMain)
@@ -139,8 +169,8 @@ enum LinkUserCardSamples {
     }
 }
 
-/// The loading state as the card draws it: the link cards' shimmer, at the card's own proportion
-/// and corner.
+/// The loading state as the card draws it: the link cards' shimmer, at the card's own size and
+/// corner.
 private struct LinkCardShimmerSample: UIViewRepresentable {
     func makeUIView(context: Context) -> LinkCardShimmerView {
         let view = LinkCardShimmerView(
@@ -160,14 +190,16 @@ private struct LinkCardShimmerSample: UIViewRepresentable {
     LinkUserCardSamples.gallery()
 }
 
-#Preview("Person card, accessibility XL") {
-    ScrollView {
-        LinkUserCardSamples.card(LinkUserCardSamples.resolved(), linkedHandle: "@satoshi")
-            .padding(.vertical, 24)
-            .frame(maxWidth: .infinity)
-    }
-    .background(Color.backgroundMain)
-    .environment(\.dynamicTypeSize, .accessibility2)
+#Preview("Person card, long data") {
+    LinkUserCardSamples.gallery(LinkUserCardSamples.stress, showsLoading: false)
+}
+
+#Preview("Person card, accessibility sizes") {
+    LinkUserCardSamples.gallery(
+        Array(LinkUserCardSamples.all.prefix(1) + LinkUserCardSamples.stress.prefix(2)) + [LinkUserCardSamples.all[5]],
+        showsLoading: false
+    )
+    .environment(\.dynamicTypeSize, .accessibility3)
 }
 
 #Preview("Beside a group card and a cash card") {

@@ -223,13 +223,14 @@ public final class LinkableBubbleView: UIView {
         // Shares the plain bubble's text builder so a link message gets the same body styling, the
         // same tombstone copy, and the same "Edited" reservation, with the link spans laid over it
         // from the preview the mapper already detected.
-        textView.attributedText = Self.linkedText(for: message)
-
         // The transcript gives a carded link a row of its own, so a row carries either text or the
         // card — never both. Asked of the message rather than of `card` here, because the mapper
         // asks the same question of this row's neighbours to break the bubble run: one answer, or a
         // bubble flattens its corner toward chrome that is not drawn.
         let bare = message.rendersAsBareLinkCard
+        // Empty on a card row: the hidden text still widens the row, and a person card, which gives
+        // its own width, would sit short of the column's edge inside it.
+        textView.attributedText = bare ? nil : Self.linkedText(for: message)
         setBare(bare)
         // A card row's "Edited" marker sits on the column's metadata line instead — see
         // `ChatLinkMessageCell`.
