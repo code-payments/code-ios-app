@@ -540,19 +540,19 @@ struct ConversationScreen: View {
             authorAvatars: authorAvatars,
             acceptsMedia: acceptsMedia,
             onCameraCapture: stageCapturedPhoto,
-            onPhotosPicked: stagePickedPhotos,
+            onPhotosAdded: stageAddedPhotos,
             mintMediaURL: mintMediaURL,
             onMediaTap: openMediaViewer
         )
     }
 
-    /// Whether the chat takes photos: any chat this device has a record of, except an E2EE DM, whose
+    /// Whether the chat takes photos: any chat this device has a record of, except one it encrypts, whose
     /// encryption does not cover media. False until the record loads, so the menu never offers a
     /// photo the chat may refuse.
     private var acceptsMedia: Bool {
         guard let conversationID,
               let conversation = conversationController.conversation(withID: conversationID) else { return false }
-        return !conversation.useE2Ee
+        return !E2eePolicy.shouldEncrypt(conversation)
     }
 
     /// Uploads chat photos on behalf of the signed-in owner.
@@ -560,17 +560,24 @@ struct ConversationScreen: View {
         ChatMediaUploader(blob: SessionChatMediaBlobStore(session: session, flipClient: container.flipClient))
     }
 
-    /// Stages photos picked from the library, in the order they were picked.
-    private func stagePickedPhotos(_ items: [PhotosPickerItem]) {
-        let uploader = mediaUploader
-        Task {
-            await ChatPhotoStaging.stage(items, into: composer, uploader: uploader, load: ChatPhotoStaging.loadImage)
-        }
+    /// Stages photos added from the photo card in the order they were selected, returning the chip
+    /// the first became when its image was already loaded. The rest stage as they finish loading.
+    private func stageAddedPhotos(
+        _ items: [PhotosPickerItem],
+        preloader: ChatPhotoPreloader<PhotosPickerItem>
+    ) -> ComposerChip.ID? {
+        ChatPhotoStaging.stageAdded(
+            items,
+            into: composer,
+            uploader: mediaUploader,
+            loaded: preloader.loadedImage(for:),
+            load: preloader.image(for:)
+        ).handOff
     }
 
-    /// Stages a photo taken with the inline camera.
-    private func stageCapturedPhoto(_ image: UIImage) {
-        composer.stageChip(image: image, uploader: mediaUploader)
+    /// Stages a photo taken with the inline camera, returning the chip it became.
+    private func stageCapturedPhoto(_ capture: ChatCameraCapture) -> ComposerChip.ID? {
+        composer.stageChip(image: capture.image, preview: capture.preview, uploader: mediaUploader)?.id
     }
 
     /// Opens a tapped photo full screen, zooming out of its row, with share through the system sheet.

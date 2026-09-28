@@ -160,6 +160,25 @@ public nonisolated enum ChatMotion {
     public static let reactionReflow = reflow
     /// A pill's count or selected state changing in place.
     public static let reactionChange = ChatSpring(duration: 0.24, bounce: 0)
+    /// The attach panel growing out of `+` and collapsing back. The bar's own spring, since it moves
+    /// a piece of the bar; no reference frames were measured for it. A morph that also opens or
+    /// closes the camera or photo card rides `attachCard` instead.
+    public static let attachPanel = swap
+    /// The camera or photo card growing out of the panel, and closing into a chip or back into the
+    /// panel. Zero bounce, from `keyboardScroll`: an overshoot on a card half the screen tall carries
+    /// its edge well past where it rests.
+    public static let attachCard = keyboardScroll
+    /// The leaving side's content fading out while the panel and a card morph into each other: done in
+    /// the first third of `attachCard`, so only the shared surface is seen changing shape.
+    public static let attachContentOut = Animation.easeOut(duration: attachCard.duration * 0.35)
+    /// The arriving side's content fading in once the shared surface has nearly landed, so the two
+    /// directions of the morph are one motion played either way. Eased out: an ease-in ends at full
+    /// speed, and the content popped the last of the way in.
+    public static let attachContentIn = Animation.easeOut(duration: attachCard.duration * 0.55)
+        .delay(attachCard.duration * 0.45)
+    /// A chip arriving in or leaving the composer's strip, and its neighbours sliding to make room.
+    /// Small and tapped-for like a reaction pill, so it travels on the pill's spring.
+    public static let composerChip = reaction
 
     // MARK: - Scales
 
@@ -181,6 +200,12 @@ public nonisolated enum ChatMotion {
     /// How far below its slot a row appended at the bottom starts, as a share of the room its arrival
     /// makes. At 1 it rides up in step with the rows it pushes, so it never overlaps the one above.
     public static let insertionRise: CGFloat = 0.35
+    /// The attach panel's starting scale as it grows out of `+`, and its ending scale as it
+    /// collapses back. The pill's figure: small enough that the panel reads as coming out of the
+    /// button rather than fading in beside it.
+    public static let attachPanelEnterScale: CGFloat = reactionEnterScale
+    /// A composer chip's starting scale as it arrives, and its ending scale as it is removed.
+    public static let composerChipEnterScale: CGFloat = reactionEnterScale
 
     // MARK: - Timing
 
