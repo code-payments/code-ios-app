@@ -139,6 +139,25 @@ struct ChatQuoteBubbleTests {
         cell.bubbleView.quotePanel.simulateTap()
         #expect(tapped == nil)
     }
+
+    @Test("A quoted photo draws its thumbnail; a redacted one draws none")
+    func mediaQuote_drawsThumbnailOnlyWhenFetchable() {
+        let photo = ChatQuote(stableID: "7", authorName: "Ada", snippet: "Photo", kind: .media(thumbnailBlobID: BlobID(data: Data([1]))))
+        let redacted = ChatQuote(stableID: "7", authorName: "Ada", snippet: "Photo", kind: .media(thumbnailBlobID: nil))
+
+        #expect(laidOutCell(quote: photo).bubbleView.quotePanel.thumbnailView.isHidden == false)
+        #expect(laidOutCell(quote: redacted).bubbleView.quotePanel.thumbnailView.isHidden == true)
+    }
+
+    @Test("A recycled panel drops the photo it quoted before")
+    func reuse_dropsThumbnail() {
+        let photo = ChatQuote(stableID: "7", authorName: "Ada", snippet: "Photo", kind: .media(thumbnailBlobID: BlobID(data: Data([1]))))
+        let cell = laidOutCell(quote: photo)
+        cell.configure(with: ChatMessage(id: "2", content: .text("hi"), sender: .me, quote: quote), maxWidth: Self.maxWidth)
+
+        #expect(cell.bubbleView.quotePanel.thumbnailView.isHidden == true)
+        #expect(cell.bubbleView.quotePanel.thumbnailView.image == nil)
+    }
 }
 
 @Suite("Reply bubble geometry")

@@ -80,11 +80,13 @@ struct CameraPromptView: View {
     let prompt: CameraPrompt
     /// Whether shown inside the v2 tab-bar UI (affects the permission copy).
     var embedded: Bool = false
+    /// Replaces the scanner wording, for a camera used for something other than scanning.
+    var message: String? = nil
     let action: () -> Void
 
     var body: some View {
         VStack(spacing: 40) {
-            Text(prompt.message(embedded: embedded))
+            Text(message ?? prompt.message(embedded: embedded))
                 .frame(maxWidth: 260)
                 .multilineTextAlignment(.center)
 

@@ -49,6 +49,8 @@ extension ChatItem {
                 ChatCashCardCell.reuseIdentifier
             case .shareProfile:
                 ChatShareProfileCell.reuseIdentifier
+            case .media:
+                ChatMediaCell.reuseIdentifier
             }
         }
     }

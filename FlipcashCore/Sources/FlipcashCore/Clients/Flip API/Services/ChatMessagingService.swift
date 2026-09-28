@@ -168,10 +168,39 @@ final class ChatMessagingService: Sendable {
             completion(.failure(.encryptionFailed))
             return
         }
+        send(content, owner: owner, conversationID: conversationID, seal: seal, clientMessageID: clientMessageID, completion: completion)
+    }
+
+    func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, blobID: BlobID, caption: String?, repliedTo: MessageID?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
+        let media = Flipcash_Messaging_V1_Content.with {
+            $0.media = .with {
+                $0.items = [.with {
+                    $0.renditions = [.with {
+                        $0.role = .original
+                        $0.blobID = .with { $0.value = blobID.data }
+                    }]
+                }]
+                if let caption {
+                    $0.caption = .with { $0.text = caption }
+                }
+            }
+        }
+        // A reply wraps the media one level deeper on the wire. The domain model keeps it flat —
+        // see `ConversationMessage.init?(_:)`, which unwraps it back.
+        let content = repliedTo.map { repliedTo in
+            Flipcash_Messaging_V1_Content.with {
+                $0.reply = .with {
+                    $0.repliedMessageID = repliedTo.proto
+                    $0.content = [media]
+                }
+            }
+        } ?? media
+        send(content, owner: owner, conversationID: conversationID, seal: nil, clientMessageID: clientMessageID, completion: completion)
+    }
+
+    private func send(_ content: Flipcash_Messaging_V1_Content, owner: KeyPair, conversationID: ConversationID, seal: ChatSeal?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
         let request = Flipcash_Messaging_V1_SendMessageRequest.with {
             $0.chatID = conversationID.proto
-            // A reply wraps the text one level deeper on the wire. The domain model keeps it flat —
-            // see `ConversationMessage.init?(_:)`, which unwraps it back.
             $0.content = [content]
             $0.clientMessageID = .with { $0.value = clientMessageID.data }
             $0.auth = owner.authFor(message: $0)

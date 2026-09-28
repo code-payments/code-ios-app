@@ -91,9 +91,17 @@ extension ChatItem {
                 content = .shareProfile(LinkCard.User(profileOf: share.username))
             case .widget(.unrecognized):
                 content = .unavailable(.updateApp)
-            case .media(_, let caption):
-                // A text stand-in until the preview has a media row to draw.
-                content = .text("📷 " + (caption ?? "Photo"))
+            case .media(let attachments, let caption):
+                // The same row the transcript maps to; the extension decides how to draw it.
+                let attachment = attachments.first
+                content = .media(ChatMediaContent(
+                    blobID: attachment?.blobID,
+                    width: attachment?.width ?? 0,
+                    height: attachment?.height ?? 0,
+                    blurhash: attachment?.blurhash,
+                    caption: caption,
+                    isRedacted: message.redacted
+                ))
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
             }

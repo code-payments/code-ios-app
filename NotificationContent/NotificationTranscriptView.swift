@@ -87,6 +87,9 @@ private struct NotificationMessageRow: View {
             case .shareProfile(let profile):
                 // The extension has no profile lookup; the handle is what the widget names.
                 NotificationTextBubble(text: profile.linkedHandle ?? "Shared a profile", isFromSelf: message.sender == .me)
+            case .media(let media):
+                // The extension draws no photos; a text line stands in, like the chat list's preview.
+                NotificationTextBubble(text: ChatMediaStrings.listPreview(caption: media.caption), isFromSelf: message.sender == .me)
             }
             if message.sender == .other { Spacer(minLength: 44) }
         }

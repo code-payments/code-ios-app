@@ -258,6 +258,32 @@ struct ChatMessageMappingTests {
         #expect(ChatCashContent.caption(isFromSelf: false, isTip: cash.isTip) == "You received")
     }
 
+    @Test("Photo messages map to media content, a redacted one staying a photo", arguments: [false, true])
+    func media(redacted: Bool) {
+        let attachment = MediaAttachment(blobID: BlobID(data: Data([9, 8, 7])), width: 300, height: 400, blurhash: "LEHV6nWB2yk8")
+        let messages = [
+            ConversationMessage(
+                id: MessageID(value: 1),
+                senderID: them,
+                content: .media([attachment], caption: "hi"),
+                date: base,
+                unreadSeq: 1,
+                redacted: redacted
+            ),
+        ]
+
+        let rows = messageRows(ChatItem.from(messages, selfUserID: me))
+
+        #expect(rows.map(\.content) == [.media(ChatMediaContent(
+            blobID: attachment.blobID,
+            width: 300,
+            height: 400,
+            blurhash: "LEHV6nWB2yk8",
+            caption: "hi",
+            isRedacted: redacted
+        ))])
+    }
+
     @Test("Tipped cash messages carry the tip flag and caption")
     func tippedCash() {
         let fiat = ExchangedFiat(
