@@ -5,6 +5,7 @@
 //  Copyright © 2026 Code Inc. All rights reserved.
 //
 
+import PhotosUI
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
@@ -14,6 +15,8 @@ import FlipcashUI
 /// `ComposerModel`, which also knows whether it is a new message or an edit.
 @MainActor @Observable final class ConversationBarModel {
     var isComposing = false
+    /// The inline camera, which takes the keyboard's place under the composer.
+    let camera = ChatCameraSlot()
 }
 
 /// Single spring driving the whole bar: the button morph, the composer's
@@ -47,7 +50,36 @@ enum BarMetrics {
     static let compactInset: CGFloat = 32
 }
 
-/// The unified bottom bar: Send Cash (morphing) beside the message field.
+/// What stands in the bar's leading slot, beside the message field.
+enum ConversationBarLeadingControl: Equatable {
+    /// The way out of an edit.
+    case cancelEdit
+    /// The full-width Send Cash call to action, alone in the bar before the chat exists.
+    case sendCash
+    /// The `+` menu with these rows.
+    case attach([AttachMenuItem])
+    /// Nothing: the chat takes neither cash nor media from this user.
+    case none
+
+    /// Returns the control for the bar's state. An edit wins; before the chat exists the only
+    /// control is the Send Cash call to action; after, it is the attach menu, when it has a row.
+    init(isEditing: Bool, chatExists: Bool, showsSendCash: Bool, acceptsMedia: Bool, attachedCount: Int) {
+        if isEditing {
+            self = .cancelEdit
+        } else if !chatExists {
+            self = showsSendCash ? .sendCash : .none
+        } else {
+            let items = AttachMenuItem.items(
+                showsCash: showsSendCash,
+                acceptsMedia: acceptsMedia,
+                attachedCount: attachedCount
+            )
+            self = items.isEmpty ? .none : .attach(items)
+        }
+    }
+}
+
+/// The unified bottom bar: the attach menu beside the message field.
 /// A standard-size filled Send Cash alone until the chat exists server-side.
 struct ConversationBottomBar: View {
 
@@ -88,6 +120,18 @@ struct ConversationBottomBar: View {
     /// The composer row's measured height, reported as part of what the mention list's room is
     /// measured without.
     @State private var composerRowHeight: CGFloat = 0
+    /// Whether the chat takes photos; false for an E2EE DM, whose encryption does not cover media.
+    var acceptsMedia: Bool = false
+    /// Opens the camera from the attach menu.
+    var onCamera: () -> Void = {}
+    /// Receives a photo the inline camera took.
+    var onCameraCapture: (UIImage) -> Void = { _ in }
+    /// Fired by the inline camera's back chevron.
+    var onCameraCancel: () -> Void = {}
+    /// Receives the photos picked from the attach menu, in the order they were selected.
+    var onPhotosPicked: ([PhotosPickerItem]) -> Void = { _ in }
+    /// Where the reply strip's quoted photo loads its thumbnail from.
+    var quoteThumbnailURL: (ChatQuote.Kind) async -> URL? = { _ in nil }
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
     private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
@@ -130,33 +174,58 @@ struct ConversationBottomBar: View {
         // gained or lost. Nothing animates that travel — the bar's springs key on `chatExists` and
         // `isEditing`, neither of which moves during a send — so it snapped while the bar's height
         // sprang underneath it.
-        let content = HStack(alignment: .bottom, spacing: 10) {
-            // An edit takes over the bar: the leading control becomes the way out of it and Send
-            // Cash steps aside until it resolves, the way WhatsApp hides its accessory controls.
-            if composer.isEditing {
-                CancelEditButton { composer.endEditing() }
-            } else if showsSendCash {
-                SendCashMorphButton(
-                    symbol: symbol,
-                    // Minimized by a reply as well as by focus. Starting a reply from the context
-                    // menu raises the keyboard, and focus — and so `isComposing` — arrives a
-                    // transaction later than the reply target, on its own bouncy spring: the button
-                    // collapsed after the bar had already grown, jolting the field beside it.
-                    // Reading the target directly puts the morph in the reply's own transaction, so
-                    // the two move together and the later focus change finds nothing left to do.
-                    composing: model.isComposing || composer.replyTarget != nil,
-                    standalone: !chatExists,
-                    // Every chat sits minimized beside its composer, but before
-                    // the first tip there is no composer to sit beside: the
-                    // design draws the full-width "Start Chatting" CTA
-                    // (node 10074:18891).
-                    alwaysMinimized: chatExists,
-                    expandedTitle: isTipDm ? startChattingTitle : nil,
-                    action: onSendCash
+        let content = VStack(alignment: .leading, spacing: Self.rowSpacing) {
+            // Below the reply strip and above the field, as the spec orders them.
+            if ComposerChipStrip.isShown(chipCount: composer.chips.count, isEditing: composer.isEditing) {
+                ComposerChipStrip(
+                    chips: composer.chips,
+                    onRemove: { composer.removeChip($0) },
+                    onRetry: { $0.retryUpload() }
                 )
             }
-            if chatExists {
-                ConversationComposer(conversationID: conversationID, model: model, composer: composer)
+            HStack(alignment: .bottom, spacing: 10) {
+                // An edit takes over the bar: the leading control becomes the way out of it and the
+                // attach menu steps aside until it resolves, the way WhatsApp hides its accessory controls.
+                switch leadingControl {
+                case .cancelEdit:
+                    CancelEditButton { composer.endEditing() }
+                case .sendCash:
+                    SendCashMorphButton(
+                        symbol: symbol,
+                        // Minimized by a reply as well as by focus. Starting a reply from the context
+                        // menu raises the keyboard, and focus — and so `isComposing` — arrives a
+                        // transaction later than the reply target, on its own bouncy spring: the button
+                        // collapsed after the bar had already grown, jolting the field beside it.
+                        // Reading the target directly puts the morph in the reply's own transaction, so
+                        // the two move together and the later focus change finds nothing left to do.
+                        composing: model.isComposing || composer.replyTarget != nil,
+                        // Before the first tip there is no composer to sit beside: the design draws
+                        // the full-width "Start Chatting" CTA (node 10074:18891).
+                        standalone: true,
+                        expandedTitle: isTipDm ? startChattingTitle : nil,
+                        action: onSendCash
+                    )
+                case .attach(let items):
+                    AttachMenu(
+                        items: items,
+                        photosSelectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
+                        onCash: onSendCash,
+                        onCamera: onCamera,
+                        onPhotos: onPhotosPicked
+                    )
+                case .none:
+                    EmptyView()
+                }
+                if chatExists {
+                    ConversationComposer(conversationID: conversationID, model: model, composer: composer)
+                        .transition(.opacity)
+                }
+            }
+            // In the keyboard's place: the screen lowers the keyboard as this opens, and the bar
+            // grows by what the keyboard held, so the field stays where it was.
+            if model.camera.isOpen {
+                ChatCameraSheet(onCapture: onCameraCapture, onCancel: onCameraCancel)
+                    .frame(height: max(0, model.camera.height - Self.rowSpacing))
                     .transition(.opacity)
             }
         }
@@ -171,6 +240,7 @@ struct ConversationBottomBar: View {
         .padding(.bottom, BarMetrics.contentPadding)
         .animation(barMorphSpring, value: chatExists)
         .animation(barMorphSpring, value: composer.isEditing)
+        .animation(barMorphSpring, value: model.camera.isOpen)
 
         // No shared GlassEffectContainer: the composer's glass is a background
         // layer behind an editable text field, and a container composites its
@@ -203,7 +273,7 @@ struct ConversationBottomBar: View {
             // already drives this state in both directions, and wrapping the dismissal in a second
             // transaction gave the exit a curve the entry never had.
             AccessoryReveal(kind: .reply, item: barReply, collapsesInPlace: mentionCandidates != nil) { target in
-                ComposerReplyStrip(target: target) { composer.endReplying() }
+                ComposerReplyStrip(target: target, thumbnailURL: quoteThumbnailURL) { composer.endReplying() }
             }
                 // The quote narrows with the row below it, so the two keep one margin.
                 .padding(.horizontal, compactExtraInset)
@@ -256,6 +326,20 @@ struct ConversationBottomBar: View {
     private var mentionCandidates: [ConversationMember]? {
         guard mentions != nil, composer.mentionQuery != nil, !listedCandidates.isEmpty else { return nil }
         return listedCandidates
+    }
+
+    /// The gap between the bar's rows. The camera's height gives it back, so the bar grows by
+    /// exactly the keyboard's height.
+    private static let rowSpacing: CGFloat = 8
+
+    private var leadingControl: ConversationBarLeadingControl {
+        ConversationBarLeadingControl(
+            isEditing: composer.isEditing,
+            chatExists: chatExists,
+            showsSendCash: showsSendCash,
+            acceptsMedia: acceptsMedia,
+            attachedCount: composer.chips.count
+        )
     }
 
     /// The tip CTA's title. Names the amount that opens the chat when a floor
@@ -724,28 +808,32 @@ struct ConversationComposer: View {
         // so the composer stays ready immediately. Emptying the field up front makes a double-tap a
         // no-op, because there is then nothing to submit.
         switch composer.mode {
-        case .new:
-            guard let text = composer.submission else { return }
+        case .new, .replying:
+            guard let outgoing = composer.outgoing else { return }
+            let repliedTo = composer.replyTarget?.messageID
             // Snapshotted before the field is emptied: a send that fails has no persisted record on
-            // this platform, so this is the only copy of the words left to put back.
+            // this platform, so this is the only copy of the words left to put back. A reply's strip
+            // travels with the text, since restoring the words alone would downgrade it to a loose
+            // message.
             let draft = composer.persistableDraft
             composer.clear()
             isFocused = true
-            Task { await conversationController.send(text, to: conversationID, restoringOnFailure: draft) }
-        case .replying(let target):
-            guard let text = composer.submission else { return }
-            // The strip travels with the text. Restoring the words alone would downgrade a reply to
-            // a loose message, which is the wrong-context send this is here to prevent.
-            let draft = composer.persistableDraft
-            composer.clear()
-            isFocused = true
-            Task {
-                await conversationController.send(
-                    text,
-                    to: conversationID,
-                    repliedTo: target.messageID,
-                    restoringOnFailure: draft
-                )
+            switch outgoing {
+            case .text(let text):
+                Task {
+                    await conversationController.send(
+                        text,
+                        to: conversationID,
+                        repliedTo: repliedTo,
+                        restoringOnFailure: draft
+                    )
+                }
+            case .media(let chips, let caption):
+                // A photo that fails stays in the transcript to be retried, so nothing goes back
+                // into the field.
+                Task {
+                    await conversationController.sendMedia(chips, caption: caption, to: conversationID, repliedTo: repliedTo)
+                }
             }
         case .editing(let messageID, _):
             // Confirming an edit that changed nothing leaves edit mode rather than round-tripping
@@ -800,7 +888,6 @@ struct SendCashMorphButton: View {
     /// the bar at the standard filled-button size instead of field-sized.
     let standalone: Bool
     /// Forces the compact symbol-only presentation regardless of composing.
-    /// The bar sets it once a chat exists; only the pre-chat CTA expands.
     var alwaysMinimized: Bool = false
     /// Replaces "Send <symbol>" while expanded. A tip chat names the tip
     /// instead of the currency, because the amount is chosen on the next screen.

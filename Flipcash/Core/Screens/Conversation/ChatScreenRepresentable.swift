@@ -5,6 +5,7 @@
 //  Copyright © 2026 Code Inc. All rights reserved.
 //
 
+import PhotosUI
 import SwiftUI
 import UIKit
 import FlipcashCore
@@ -117,6 +118,18 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Avatar bytes for the group's members, keyed by user id. Empty in a DM, and empty for a group
     /// until the pictures download — the rows fall back to a BlurHash, then a monogram.
     let authorAvatars: [UserID: Data]
+    /// Whether the chat takes photos; false for an E2EE DM.
+    var acceptsMedia: Bool = false
+    /// Receives a photo taken with the inline camera, which the representable opens in the
+    /// keyboard's place and closes again once the photo is handed over.
+    var onCameraCapture: (UIImage) -> Void = { _ in }
+    /// Receives the photos picked from the attach menu, in the order they were selected.
+    var onPhotosPicked: ([PhotosPickerItem]) -> Void = { _ in }
+    /// Mints a signed download URL for a photo in this chat. The transcript's resolver caches what it
+    /// returns and never asks for a photo drawn only from its BlurHash.
+    var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
+    /// Fired when the user taps a photo the viewer may see. The owner opens the full-screen viewer.
+    var onMediaTap: (ChatMediaViewerRequest) -> Void = { _ in }
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -143,6 +156,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
+        screen.onMediaTap = onMediaTap
+        context.coordinator.mintMediaURL = mintMediaURL
+        screen.mediaURLResolver = context.coordinator.mediaURLResolver
+        screen.pendingMediaImage = { [conversationController] id in
+            conversationController.pendingMediaImage(forMessageID: id)
+        }
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onGroupInvite = onGroupInvite
@@ -189,6 +208,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
+        screen.onMediaTap = onMediaTap
+        context.coordinator.mintMediaURL = mintMediaURL
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onGroupInvite = onGroupInvite
@@ -285,7 +306,27 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onGateAddFunds: onGateAddFunds,
                 onGateJoin: onGateJoin,
                 isJoiningChat: isJoiningChat,
-                mentions: mentions
+                mentions: mentions,
+                acceptsMedia: acceptsMedia,
+                onCamera: { [weak coordinator, camera = barModel.camera] in
+                    coordinator?.screen?.dismissKeyboard()
+                    camera.open()
+                },
+                onCameraCapture: { [weak coordinator, camera = barModel.camera] image in
+                    onCameraCapture(image)
+                    camera.close()
+                    // Back to the keyboard, so the photo can be captioned.
+                    coordinator?.screen?.focusComposer()
+                },
+                onCameraCancel: { [weak coordinator, camera = barModel.camera] in
+                    camera.close()
+                    coordinator?.screen?.focusComposer()
+                },
+                onPhotosPicked: onPhotosPicked,
+                // Only a member can aim a reply, so the viewer may see what it quotes.
+                quoteThumbnailURL: { [resolver = coordinator.mediaURLResolver] kind in
+                    await resolver.thumbnailURL(for: kind, canReact: true)
+                }
             )
             .environment(conversationController)
             .modifier(
@@ -307,6 +348,15 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         var barHost: UIHostingController<AnyView>?
         weak var screen: ChatScreenViewController?
         var lastMessageID: String?
+        /// The latest ``ChatScreenRepresentable/mintMediaURL``, read by the resolver.
+        var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
+        /// The one resolver the transcript and the composer's reply strip share, so a photo is minted
+        /// once however many places draw it. Reads ``mintMediaURL`` at fetch time, so a chat created
+        /// after this screen opened mints against its real id.
+        lazy var mediaURLResolver = ChatMediaURLResolver { [weak self] blobID in
+            guard let self else { return nil }
+            return try await self.mintMediaURL(blobID)
+        }
     }
 }
 

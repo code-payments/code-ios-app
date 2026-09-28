@@ -5,7 +5,7 @@
 //  Copyright © 2026 Code Inc. All rights reserved.
 //
 
-import Foundation
+import UIKit
 import Observation
 import SwiftUI
 import FlipcashCore
@@ -40,6 +40,9 @@ final class ComposerModel {
         case replying(to: ReplyTarget)
     }
 
+    /// The most photos one send can carry, matching `chat_media.json`'s `maxAttachments`.
+    static let maxAttachments = 10
+
     private(set) var mode: Mode = .new
     var draft = ""
     /// The field's cursor or selection, while it has focus.
@@ -47,6 +50,9 @@ final class ComposerModel {
     /// Cleared wherever the draft is replaced wholesale: its indices belong to the text it was
     /// taken from.
     var selection: TextSelection?
+
+    /// Photos staged for the next send, in the order they were added.
+    private(set) var chips: [ComposerChip] = []
 
     /// The unsent new-message draft, held while an edit occupies the field.
     @ObservationIgnored private var stashedDraft = ""
@@ -66,7 +72,47 @@ final class ComposerModel {
         }
     }
 
-    var canSubmit: Bool { submission != nil }
+    /// Whether the send button can fire: text or at least one chip, and no chip that failed. Chips
+    /// still uploading do not hold the send back, and an edit is text only.
+    var canSubmit: Bool {
+        switch mode {
+        case .new, .replying:
+            !hasFailedChip && (submission != nil || !chips.isEmpty)
+        case .editing:
+            submission != nil
+        }
+    }
+
+    /// What the send button posts for a new message or a reply.
+    enum Outgoing {
+        case text(String)
+        /// The staged photos in order, with the trimmed text as the caption.
+        case media([ComposerChip], caption: String?)
+    }
+
+    /// What the send button would post now, or `nil` when it cannot fire or the field holds an edit.
+    var outgoing: Outgoing? {
+        switch mode {
+        case .editing:
+            return nil
+        case .new, .replying:
+            guard canSubmit else { return nil }
+            if chips.isEmpty {
+                return submission.map(Outgoing.text)
+            }
+            return .media(chips, caption: submission)
+        }
+    }
+
+    /// Whether any staged chip failed to upload, which holds the send until it is retried or removed.
+    var hasFailedChip: Bool {
+        chips.contains { chip in
+            switch chip.state {
+            case .failed:                               true
+            case .preparing, .uploading, .uploaded:     false
+            }
+        }
+    }
 
     /// The transcript row an edit is open on, if any. The chat screen keys its edit backdrop off
     /// this, so reading it is what ties the backdrop's lifetime to the composer's mode.
@@ -163,7 +209,26 @@ final class ComposerModel {
         mode = .new
     }
 
-    /// Empties the field after a successful send.
+    /// Stages `image` as a new chip and starts its upload through `uploader`, returning the chip, or
+    /// returns `nil` when the composer already holds `maxAttachments` chips.
+    @discardableResult
+    func stageChip(image: UIImage, uploader: ChatMediaUploader) -> ComposerChip? {
+        guard chips.count < Self.maxAttachments else { return nil }
+        let chip = ComposerChip(image: image)
+        chips.append(chip)
+        chip.startUpload(using: uploader)
+        return chip
+    }
+
+    /// Drops the chip with `id` and cancels its upload.
+    func removeChip(_ id: ComposerChip.ID) {
+        guard let index = chips.firstIndex(where: { $0.id == id }) else { return }
+        chips[index].uploadTask?.cancel()
+        chips.remove(at: index)
+    }
+
+    /// Empties the field and the chip strip once a send has taken them. The chips' uploads keep
+    /// running, since the send awaits them.
     func clear() {
         // Only when it actually changes. `@Observable` fires on assignment without comparing, and
         // the chat screen's body reads `isEditing` and `editingStableID` — both derived from this —
@@ -176,6 +241,9 @@ final class ComposerModel {
         stashedDraft = ""
         draft = ""
         selection = nil
+        if !chips.isEmpty {
+            chips = []
+        }
     }
 
     /// The `@word` at the cursor that the mention picker searches for, or `nil` when it is closed.

@@ -18,7 +18,10 @@ struct ConversationUIScreen {
 
     // MARK: - Elements
 
+    /// The full-width Send Cash call to action, shown only before the chat exists.
     var sendCashButton: XCUIElement { app.buttons["send-cash-button"] }
+    /// The composer's `+`, which holds Cash once the chat exists.
+    var attachMenuButton: XCUIElement { app.buttons["attach-menu-button"] }
     /// The composer's text field, found by identifier rather than by placeholder — the placeholder
     /// disappears as soon as there is a draft, and a multiline `TextField(axis:)` reports a text-view
     /// base type, so neither `textFields["Message"]` nor a type-scoped query survives typing.
@@ -62,9 +65,15 @@ struct ConversationUIScreen {
 
     // MARK: - Actions
 
-    /// Opens the Send amount sheet on top of the conversation.
+    /// Opens the Send amount sheet on top of the conversation: from the call to action before the
+    /// chat exists, and from the attach menu's Cash row after.
     func tapSendCash(from testCase: BaseUITestCase) {
-        testCase.waitAndTap(sendCashButton)
+        if attachMenuButton.exists {
+            testCase.waitAndTap(attachMenuButton)
+            testCase.waitAndTap(app.buttons["Cash"].firstMatch)
+        } else {
+            testCase.waitAndTap(sendCashButton)
+        }
     }
 
     /// Focuses the always-visible composer, types `text`, and sends it.

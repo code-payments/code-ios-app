@@ -65,7 +65,7 @@ jobs:
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -quiet
 
-      # The app target's own vector suites -- chat drafts and link detection -- assert against types
+      # The app target's own vector suites -- chat drafts, link detection, and chat media -- assert against types
       # only the app has, so they cannot move into either package above. Heavier than the two
       # package schemes because it builds the app.
       # Split so the two failure classes are separable and each stays legible:
@@ -82,8 +82,8 @@ jobs:
 
       # Two runs of the one built target, because they answer different questions.
       #
-      # This is the gate: the two suites that read the synced copies of
-      # `chat_draft.json` and `link_detection.json`. Those fixtures are canonical and
+      # This is the gate: the suites that read the synced copies of `chat_draft.json`,
+      # `link_detection.json`, and `chat_media.json`. Those fixtures are canonical and
       # code-android-app asserts against the same ones, so a failure here is contract
       # drift between the platforms -- exactly what this job exists to stop.
       - name: App vectors
@@ -92,6 +92,9 @@ jobs:
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -only-testing:FlipcashTests/ChatDraftVectorTests \
             -only-testing:FlipcashTests/LinkCardClassifierTests \
+            -only-testing:FlipcashTests/ChatMediaFanOutVectorTests \
+            -only-testing:FlipcashTests/ChatMediaBubbleVectorTests \
+            -only-testing:FlipcashTests/ChatMediaStringVectorTests \
             -resultBundlePath "${{ runner.temp }}/AppVectors.xcresult"
 
       # The rest of the target reports but does not gate. It holds timing-sensitive

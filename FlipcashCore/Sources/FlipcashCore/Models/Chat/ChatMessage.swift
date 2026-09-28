@@ -32,6 +32,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         /// A shared profile, drawn as a card with a Share button. The card carries only the
         /// handle's link; the name and picture are looked up by the view, as a link card's are.
         case shareProfile(LinkCard.User)
+        /// A photo, drawn from its blob once a download URL is resolved and from its BlurHash until then.
+        case media(ChatMediaContent)
     }
 
     /// The line under an unavailable message's bubble, chosen by why it can't be shown.
@@ -147,7 +149,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         guard isEmojiOnly, quote == nil, linkPreview == nil else { return false }
         switch content {
         case .text:           return true
-        case .cash, .deleted, .unavailable, .shareProfile: return false
+        case .cash, .deleted, .unavailable, .shareProfile, .media: return false
         }
     }
 
@@ -166,10 +168,15 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// left to add a new one to) and for the user's own message still in flight — the server has
     /// nothing to record a reaction against until the send lands. A row with no context menu at all
     /// never reaches this check, since the menu itself is what hosts the strip.
+    /// A redacted photo keeps its reactions hidden, so it offers no strip to add one either.
     public var offersReactionStrip: Bool {
         switch content {
-        case .deleted, .unavailable: return false
-        case .text, .cash, .shareProfile: return !isUnsent
+        case .deleted, .unavailable:
+            return false
+        case .media(let media) where media.isRedacted:
+            return false
+        case .text, .cash, .shareProfile, .media:
+            return !isUnsent
         }
     }
 
@@ -321,6 +328,34 @@ public struct ChatAuthor: Hashable, Sendable, Codable {
         self.id = id
         self.name = name
         self.blurhash = blurhash
+    }
+}
+
+/// A photo row's display data: what the bubble needs to size itself and draw a placeholder before
+/// any bytes arrive. The download URL and a pending row's local image stay outside this value — a
+/// URL is signed and minted per fetch, and an image is not `Codable` — and reach the cell at
+/// configure time instead.
+public struct ChatMediaContent: Hashable, Sendable, Codable {
+    /// The photo's blob, or nil for a pending row whose upload has not produced one yet.
+    public let blobID: BlobID?
+    /// Pixel width of the photo, or 0 when the server carried none.
+    public let width: Int
+    /// Pixel height of the photo, or 0 when the server carried none.
+    public let height: Int
+    /// The photo's BlurHash, drawn until the image loads.
+    public let blurhash: String?
+    /// The text sent with the photo, drawn as its own bubble under the image.
+    public let caption: String?
+    /// Whether the server withheld the photo's download URL; the bubble then only ever draws its BlurHash.
+    public let isRedacted: Bool
+
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, isRedacted: Bool) {
+        self.blobID = blobID
+        self.width = width
+        self.height = height
+        self.blurhash = blurhash
+        self.caption = caption
+        self.isRedacted = isRedacted
     }
 }
 

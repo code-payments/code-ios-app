@@ -61,11 +61,11 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         row.tap()
 
         // MARK: Open the counterpart's profile from the conversation.
-        // The tip DM shows Send Cash — wait for it so the transcript has loaded
-        // before reaching for the title.
+        // The tip DM already exists, so its bar leads with the attach menu — wait
+        // for it so the transcript has loaded before reaching for the title.
         XCTAssertTrue(
-            app.buttons["send-cash-button"].waitForExistence(timeout: 30),
-            "Expected the tip DM conversation to open with Send Cash"
+            app.buttons["attach-menu-button"].waitForExistence(timeout: 30),
+            "Expected the tip DM conversation to open with the attach menu"
         )
         // The nav-title item is a button (label = the name) only when blocking is
         // enabled and the tip counterpart resolves — both hold here.

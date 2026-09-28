@@ -135,6 +135,11 @@ extension EncryptedChatClient: ConversationMessaging {
         }
     }
 
+    /// Media has no sealed form, so a photo goes out in plaintext whatever the chat's encryption.
+    func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, blobID: BlobID, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+        try await client.sendMediaMessage(owner: owner, conversationID: conversationID, blobID: blobID, caption: caption, repliedTo: repliedTo, clientMessageID: clientMessageID)
+    }
+
     func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, expectedEventSequence: UInt64) async throws -> MessageMutation {
         try await refetchingOnRefusal(conversationID) {
             let seal = try await sealForSending(conversationID, owner: owner)

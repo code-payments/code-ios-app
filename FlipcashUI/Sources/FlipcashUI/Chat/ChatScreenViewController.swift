@@ -185,11 +185,29 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onLinkCardTap = newValue }
     }
 
+    /// Fired when a photo in the transcript is tapped — see ``ChatViewController/onMediaTap``.
+    public var onMediaTap: ((ChatMediaViewerRequest) -> Void)? {
+        get { transcript.onMediaTap }
+        set { transcript.onMediaTap = newValue }
+    }
+
     /// Where a link card in the transcript looks its link up — see
     /// ``ChatViewController/linkCardSource``.
     public weak var linkCardSource: (any LinkCardSource)? {
         get { transcript.linkCardSource }
         set { transcript.linkCardSource = newValue }
+    }
+
+    /// Where a photo row gets its download URL — see ``ChatViewController/mediaURLResolver``.
+    public var mediaURLResolver: ChatMediaURLResolver? {
+        get { transcript.mediaURLResolver }
+        set { transcript.mediaURLResolver = newValue }
+    }
+
+    /// A pending photo's local image — see ``ChatViewController/pendingMediaImage``.
+    public var pendingMediaImage: ((String) -> UIImage?)? {
+        get { transcript.pendingMediaImage }
+        set { transcript.pendingMediaImage = newValue }
     }
 
     public var onContactAction: (() -> Void)? {

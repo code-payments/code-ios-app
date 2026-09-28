@@ -190,6 +190,14 @@ extension FlipClient {
         }
     }
 
+    /// Sends the finalized photo `blobID` as one media message, with `caption` under it.
+    @discardableResult
+    public func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, blobID: BlobID, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.sendMediaMessage(owner: owner, conversationID: conversationID, blobID: blobID, caption: caption, repliedTo: repliedTo, clientMessageID: clientMessageID) { c.resume(with: $0) }
+        }
+    }
+
     public func editMessage(
         owner: KeyPair,
         conversationID: ConversationID,

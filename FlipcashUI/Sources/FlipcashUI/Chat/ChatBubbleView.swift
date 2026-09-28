@@ -148,7 +148,8 @@ public final class ChatBubbleView: UIView {
     /// Whether this bubble is currently flashing.
     var isFlashingAttention: Bool { background.isFlashingAttention }
 
-    public func configure(with message: ChatMessage) {
+    /// Fills the bubble; `quoteThumbnailURL` is where a quoted photo's thumbnail loads from.
+    public func configure(with message: ChatMessage, quoteThumbnailURL: URL? = nil) {
         label.attributedText = Self.displayText(for: message)
         editedLabel.isHidden = !Self.showsEditedMarker(for: message) || message.rendersAsLargeEmoji
         isBare = message.rendersAsLargeEmoji
@@ -157,7 +158,7 @@ public final class ChatBubbleView: UIView {
         let hint: String?
         switch message.content {
         case .unavailable(let unavailableHint): hint = unavailableHint.text
-        case .text, .cash, .deleted, .shareProfile: hint = nil
+        case .text, .cash, .deleted, .shareProfile, .media: hint = nil
         }
         hintLabel.text = hint
         hintLabel.isHidden = hint == nil
@@ -181,7 +182,7 @@ public final class ChatBubbleView: UIView {
         // unsatisfiable, and UIKit resolves that by breaking one at random.
         if let quote = message.quote {
             quotePanel.isHidden = false
-            quotePanel.configure(with: quote)
+            quotePanel.configure(with: quote, thumbnailURL: quoteThumbnailURL)
             NSLayoutConstraint.deactivate(quoteCollapse)
             quoteTrailing.isActive = true
             labelTopToBubble.isActive = false
@@ -215,14 +216,14 @@ public final class ChatBubbleView: UIView {
         case .text:    message.isEdited
         case .deleted: false
         case .cash:    false
-        case .unavailable, .shareProfile: false
+        case .unavailable, .shareProfile, .media: false
         }
     }
 
     private static func isUnavailable(_ message: ChatMessage) -> Bool {
         switch message.content {
         case .unavailable:              true
-        case .text, .cash, .deleted, .shareProfile: false
+        case .text, .cash, .deleted, .shareProfile, .media: false
         }
     }
 
@@ -265,7 +266,7 @@ public final class ChatBubbleView: UIView {
             isPlaceholder = true
         case .unavailable:
             return unavailableText()
-        case .cash, .shareProfile:
+        case .cash, .shareProfile, .media:
             return nil
         }
 

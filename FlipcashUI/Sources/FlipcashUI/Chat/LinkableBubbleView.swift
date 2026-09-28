@@ -248,7 +248,8 @@ public final class LinkableBubbleView: UIView {
         cardView.prepareForReuse()
     }
 
-    public func configure(with message: ChatMessage) {
+    /// Fills the bubble; `quoteThumbnailURL` is where a quoted photo's thumbnail loads from.
+    public func configure(with message: ChatMessage, quoteThumbnailURL: URL? = nil) {
         // Shares the plain bubble's text builder so a link message gets the same body styling, the
         // same tombstone copy, and the same "Edited" reservation, with the link spans laid over it
         // from the preview the mapper already detected.
@@ -295,7 +296,7 @@ public final class LinkableBubbleView: UIView {
         // and UIKit resolves that by breaking one at random.
         if let quote = message.quote {
             quotePanel.isHidden = false
-            quotePanel.configure(with: quote)
+            quotePanel.configure(with: quote, thumbnailURL: quoteThumbnailURL)
             NSLayoutConstraint.deactivate(quoteCollapse + [textTopToBubble, cardTopToBubble])
             quoteTrailing.isActive = true
             textTopToQuote.isActive = !bare

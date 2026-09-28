@@ -16,6 +16,14 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let text: String
         let repliedTo: MessageID?
     }
+    /// One `sendMediaMessage` call.
+    struct SentMedia: Sendable, Equatable {
+        let conversationID: ConversationID
+        let blobID: BlobID
+        let caption: String?
+        let repliedTo: MessageID?
+        let clientMessageID: UUID
+    }
     struct TypingCall: Sendable { let conversationID: ConversationID; let state: TypingState }
     /// A scripted `GetDelta` batch: one `onBatch` call with these messages + checkpoint.
     struct DeltaBatch: Sendable { let messages: [ConversationMessage]; let checkpoint: UInt64? }
@@ -64,6 +72,8 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     private var _sendError: Error?
     private var _sentClientIDs: [UUID] = []
     private var _sent: [Sent] = []
+    private var _sentMedia: [SentMedia] = []
+    private var _mediaSendError: Error?
     private var _edited: [Edited] = []
     private var _reacted: [Reacted] = []
     private var _reactionHandler: (@Sendable (Reacted) async throws -> EmojiReaction)?
@@ -164,6 +174,13 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     /// The client message ids `sendMessage` was called with, in order.
     var sentClientIDs: [UUID] { lock.withLock { _sentClientIDs } }
     var sent: [Sent] { lock.withLock { _sent } }
+    /// Every `sendMediaMessage` call, in order, including the ones that threw.
+    var sentMedia: [SentMedia] { lock.withLock { _sentMedia } }
+    /// Thrown by `sendMediaMessage` while set.
+    var mediaSendError: Error? {
+        get { lock.withLock { _mediaSendError } }
+        set { lock.withLock { _mediaSendError = newValue } }
+    }
     /// The edits `editMessage` was called with, in order.
     var edited: [Edited] { lock.withLock { _edited } }
     /// The add/remove reaction calls, in order.
@@ -388,6 +405,19 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         if let error = sendError { throw error }
         return sendResult ?? ConversationMessage(
             id: MessageID(value: 1), senderID: nil, content: .text(text),
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 0, repliedTo: repliedTo
+        )
+    }
+
+    func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, blobID: BlobID, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+        let (count, error) = lock.withLock {
+            _sentMedia.append(SentMedia(conversationID: conversationID, blobID: blobID, caption: caption, repliedTo: repliedTo, clientMessageID: clientMessageID))
+            return (_sentMedia.count, _mediaSendError)
+        }
+        if let error { throw error }
+        return ConversationMessage(
+            id: MessageID(value: 100 + UInt64(count)), senderID: nil,
+            content: .media([MediaAttachment(blobID: blobID, width: 4, height: 3, blurhash: nil)], caption: caption),
             date: Date(timeIntervalSince1970: 0), unreadSeq: 0, repliedTo: repliedTo
         )
     }

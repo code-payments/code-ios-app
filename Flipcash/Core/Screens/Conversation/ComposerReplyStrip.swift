@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
+import Kingfisher
 
 /// The quoted original above the composer while a reply is being written: a rule in the author's own
 /// colour, the author's name over one or two lines of what they said, and the way out on the
@@ -22,8 +23,12 @@ import FlipcashUI
 struct ComposerReplyStrip: View {
 
     let target: ComposerModel.ReplyTarget
+    /// Where a quoted photo's thumbnail loads from; nil for anything else, or a photo with none to fetch.
+    var thumbnailURL: (ChatQuote.Kind) async -> URL? = { _ in nil }
     let onDismiss: () -> Void
     @Environment(\.barCardCollapsed) private var collapsed
+
+    @State private var resolvedThumbnail: URL?
 
     /// Wider than the 4pt a blockquote rule usually takes, because the quote's corner radius is the
     /// bar's 14: the leading edge is straight for only `contentHeight - 14 * 2` of its run, and the
@@ -42,6 +47,9 @@ struct ComposerReplyStrip: View {
     /// Sized to the cap height of the amount beside it, so the flag reads as a mark on the line
     /// rather than as a second element the line has to make room for.
     private static let flagDiameter: CGFloat = 16
+
+    /// The quote's two text lines' height, so the photo sits beside them without growing the strip.
+    private static let thumbnailSide: CGFloat = 38
 
     var body: some View {
         // One colour for the rule and the name, so the rule keeps the name's contrast on the surface.
@@ -62,6 +70,8 @@ struct ComposerReplyStrip: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Replying to \(target.authorName): \(spokenSnippet)")
             .accessibilityIdentifier("composer-reply-quote")
+
+            thumbnail
 
             // A disc rather than a bare ✕, because the ground behind it is glass sampling the
             // transcript: a hairline glyph's contrast changed with whatever message scrolled past.
@@ -142,6 +152,31 @@ struct ComposerReplyStrip: View {
                 .font(.default(size: 14, weight: .medium))
                 .foregroundStyle(Color.textMain)
                 .lineLimit(2)
+        }
+    }
+
+    /// A quoted photo's thumbnail; nothing for any other quote, or a redacted photo.
+    @ViewBuilder
+    private var thumbnail: some View {
+        switch target.kind {
+        case .media(let thumbnailBlobID?):
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.white.opacity(0.08))
+                .overlay {
+                    if let resolvedThumbnail {
+                        KFImage(source: .network(ChatMediaImageSource.resource(blobID: thumbnailBlobID, url: resolvedThumbnail)))
+                            .resizable()
+                            .scaledToFill()
+                    }
+                }
+                .frame(width: Self.thumbnailSide, height: Self.thumbnailSide)
+                .clipShape(.rect(cornerRadius: 6))
+                .accessibilityHidden(true)
+                .task(id: thumbnailBlobID) {
+                    resolvedThumbnail = await thumbnailURL(target.kind)
+                }
+        case .media(nil), .text, .cash, .unavailable:
+            EmptyView()
         }
     }
 

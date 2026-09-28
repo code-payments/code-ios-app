@@ -8,6 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 import FlipcashCore
+import Kingfisher
 
 /// The quoted original drawn inside a reply's bubble, above the body: a leading rule, the author,
 /// and up to two lines of the original. Tapping it asks to jump to that message — but only when
@@ -32,6 +33,17 @@ final class ChatQuotePanelView: UIView {
     /// Takes the slack so the flag, amount and token stay clustered at the leading edge instead of
     /// the amount stretching and pushing the token to the far side of the panel.
     private let detailSpacer = UIView()
+    /// Drawn only for a quoted photo the viewer may see: the photo itself at the trailing edge.
+    private(set) var thumbnailView = UIImageView()
+    /// The text's trailing edge with no thumbnail, and with one; exactly one is active.
+    private lazy var textTrailingToEdge = authorLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8)
+    private lazy var textTrailingToThumbnail = authorLabel.trailingAnchor.constraint(equalTo: thumbnailView.leadingAnchor, constant: -8)
+    private lazy var thumbnailConstraints = [
+        thumbnailView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+        thumbnailView.centerYAnchor.constraint(equalTo: centerYAnchor),
+        thumbnailView.widthAnchor.constraint(equalToConstant: Self.thumbnailSide),
+        thumbnailView.heightAnchor.constraint(equalToConstant: Self.thumbnailSide),
+    ]
 
     /// The gap between the panel and the bubble's edges, the same on the top, leading and trailing
     /// sides — the bubble's own vertical margin. One gap rather than three, so ``cornerRadius``
@@ -51,6 +63,9 @@ final class ChatQuotePanelView: UIView {
     /// Sized to the cap height of the amount beside it, so the flag reads as a mark on the line
     /// rather than as a second element the line has to make room for.
     private static let flagDiameter: CGFloat = 14
+
+    /// The two text lines' height, so the thumbnail sits in the panel without growing it.
+    private static let thumbnailSide: CGFloat = 34
 
     /// The preview grey a quoted sentence is drawn in.
     private static let snippetColor = UIColor.white.withAlphaComponent(0.55)
@@ -108,6 +123,16 @@ final class ChatQuotePanelView: UIView {
         detailRow.addArrangedSubview(detailSpacer)
         addSubview(detailRow)
 
+        thumbnailView.contentMode = .scaleAspectFill
+        thumbnailView.clipsToBounds = true
+        thumbnailView.layer.cornerRadius = 6
+        thumbnailView.layer.cornerCurve = .continuous
+        // The ground a photo loads onto, so the slot reads as a photo before any bytes arrive.
+        thumbnailView.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+        thumbnailView.isHidden = true
+        thumbnailView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(thumbnailView)
+
         // The rule, the two gutters around the text and the detail row's spacing add up to a width
         // the panel demands even when it holds nothing, and a bubble with no quote would pay for it:
         // the host pins the panel to both of the bubble's sides, so the panel's floor becomes the
@@ -116,13 +141,13 @@ final class ChatQuotePanelView: UIView {
         let horizontal = [
             rule.widthAnchor.constraint(equalToConstant: Self.ruleWidth),
             authorLabel.leadingAnchor.constraint(equalTo: rule.trailingAnchor, constant: 8),
-            authorLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             detailRow.leadingAnchor.constraint(equalTo: authorLabel.leadingAnchor),
             detailRow.trailingAnchor.constraint(equalTo: authorLabel.trailingAnchor),
         ]
-        for constraint in horizontal {
+        for constraint in horizontal + [textTrailingToEdge, textTrailingToThumbnail] + thumbnailConstraints {
             constraint.priority = .required - 1
         }
+        textTrailingToEdge.isActive = true
 
         NSLayoutConstraint.activate(horizontal + [
             // Flush against the cell's leading edge and the full height of it, so the cell reads as
@@ -146,7 +171,8 @@ final class ChatQuotePanelView: UIView {
         accessibilityIdentifier = "chat-quote-panel"
     }
 
-    func configure(with quote: ChatQuote) {
+    /// - Parameter thumbnailURL: where a quoted photo's thumbnail loads from, or nil until it resolves.
+    func configure(with quote: ChatQuote, thumbnailURL: URL? = nil) {
         targetStableID = quote.stableID
         // The author's own colour, derived from their user id — the same colour the composer's strip
         // draws them in, and the same one Android does. An original with no known author falls back
@@ -170,10 +196,17 @@ final class ChatQuotePanelView: UIView {
             // A payment's amount is the whole of what was said, so it is read rather than glanced
             // at — a step brighter than the preview grey a quoted sentence gets.
             snippetLabel.textColor = UIColor.white.withAlphaComponent(0.75)
-        case .text, .media, .unavailable:
+            showThumbnail(blobID: nil, url: nil)
+        case .media(let thumbnailBlobID):
             flagView.isHidden = true
             tokenLabel.isHidden = true
             snippetLabel.textColor = Self.snippetColor
+            showThumbnail(blobID: thumbnailBlobID, url: thumbnailURL)
+        case .text, .unavailable:
+            flagView.isHidden = true
+            tokenLabel.isHidden = true
+            snippetLabel.textColor = Self.snippetColor
+            showThumbnail(blobID: nil, url: nil)
         }
         let spoken = switch quote.kind {
         case .cash(let token, _):  "\(quote.snippet) \(token)"
@@ -197,8 +230,38 @@ final class ChatQuotePanelView: UIView {
         flagView.image = nil
         flagView.isHidden = true
         tokenLabel.isHidden = true
+        showThumbnail(blobID: nil, url: nil)
         isUserInteractionEnabled = false
         accessibilityLabel = nil
+    }
+
+    /// Shows the thumbnail slot for a photo with a blob, loading it once `url` resolves; hides and
+    /// empties it otherwise. A redacted photo has no blob, so it never reaches the network from here.
+    private func showThumbnail(blobID: BlobID?, url: URL?) {
+        guard let blobID else {
+            thumbnailView.kf.cancelDownloadTask()
+            thumbnailView.image = nil
+            thumbnailView.isHidden = true
+            NSLayoutConstraint.deactivate(thumbnailConstraints + [textTrailingToThumbnail])
+            textTrailingToEdge.isActive = true
+            return
+        }
+        thumbnailView.isHidden = false
+        textTrailingToEdge.isActive = false
+        NSLayoutConstraint.activate(thumbnailConstraints + [textTrailingToThumbnail])
+        guard let url else {
+            thumbnailView.kf.cancelDownloadTask()
+            thumbnailView.image = nil
+            return
+        }
+        let side = Self.thumbnailSide
+        thumbnailView.kf.setImage(
+            with: ChatMediaImageSource.resource(blobID: blobID, url: url),
+            options: [
+                .processor(DownsamplingImageProcessor(size: CGSize(width: side, height: side))),
+                .scaleFactor(traitCollection.displayScale),
+            ]
+        )
     }
 
     @objc private func handleTap() {
