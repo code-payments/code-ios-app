@@ -84,6 +84,23 @@ struct TipConversationsScreen: View {
                 }
             sessionContainer.profileAvatars.preload(subjects)
         }
+        // Name the group senders a row's roster subset leaves out. Keyed on that set, so it runs when
+        // a new last message comes from someone nothing here can name, and not again once the
+        // directory has landed them. The reload comes first: `resolve` skips only what the snapshot
+        // already holds, and at launch the snapshot has not read the cache yet.
+        .task(id: unnamedSenders) {
+            guard !unnamedSenders.isEmpty else { return }
+            await sessionContainer.knownAuthors.reload()
+            await sessionContainer.knownAuthors.resolve(unnamedSenders)
+        }
+    }
+
+    /// Group senders of the listed rows' last messages that nothing on the device can name yet.
+    private var unnamedSenders: [UserID] {
+        conversationController.unnamedLastMessageSenders(
+            in: conversations,
+            knownAuthors: sessionContainer.knownAuthors.snapshot
+        )
     }
 
     /// The row's trailing swipe action, which opens the same duration picker as the chat's
@@ -258,9 +275,11 @@ private struct TipConversationRow: View {
     /// Only a chat that never had a message gets the placeholder — a last message the preview
     /// declines to quote (a tombstone, an empty body) is not nothing, so it leaves the line off.
     private var subtitle: AttributedString? {
-        if let preview = conversationController.lastMessagePreview(for: conversation, currencyName: {
-            session.balance(for: $0)?.name
-        }) {
+        if let preview = conversationController.lastMessagePreview(
+            for: conversation,
+            knownAuthors: sessionContainer.knownAuthors.snapshot,
+            currencyName: { session.balance(for: $0)?.name }
+        ) {
             return AttributedString(preview)
         }
         guard conversation.lastMessage == nil else { return nil }

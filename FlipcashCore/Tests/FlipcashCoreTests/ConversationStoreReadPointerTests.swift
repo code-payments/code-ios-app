@@ -97,6 +97,24 @@ struct ConversationStoreReadPointerTests {
         #expect(store.unsyncedSelfReadPointers[conversationID(1)] == MessageID(value: 5))
     }
 
+    @Test("A group refresh whose roster subset omits the viewer keeps the local pointer unsynced")
+    func groupRefreshWithoutSelfKeepsPointerUnsynced() {
+        var store = ConversationStore(selfUserID: me)
+        store.setFeed([conversation(1, pointer: 3, type: .group)])
+        store.advanceSelfReadPointer(to: MessageID(value: 5), in: conversationID(1), selfUserID: me)
+
+        store.apply(.metadataRefresh(Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: them, displayName: "Them")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0),
+            type: .group
+        )))
+
+        #expect(pointer(store, 1) == MessageID(value: 5))
+        #expect(store.unsyncedSelfReadPointers[conversationID(1)] == MessageID(value: 5))
+    }
+
     @Test("A streamed self pointer at or past the local one clears the unsynced entry")
     func streamedSelfPointerClearsUnsynced() {
         var store = ConversationStore(selfUserID: me)

@@ -189,7 +189,7 @@ struct NewPublicGroupScreen: View {
                 case .all:
                     AllCurrenciesIcon(size: 20)
 
-                    Text("All Currencies")
+                    Text("Total Balance")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
 
