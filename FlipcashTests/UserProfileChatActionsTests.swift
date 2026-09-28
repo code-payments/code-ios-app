@@ -28,17 +28,44 @@ struct UserProfileChatActionsTests {
 
     @Test(
         "The viewer's own profile hides the chat actions from either origin",
-        arguments: [UserProfileOrigin.groupMember, .directMessage, .mention]
+        arguments: [UserProfileOrigin.groupMember, .directMessage, .mention, .deeplink]
     )
     func ownProfile_hidesChatActions(_ origin: UserProfileOrigin) {
         let me = UUID()
         #expect(!origin.showsChatActions(profileUserID: me, selfUserID: me))
     }
 
+    @Test("A profile opened from a person link offers the chat actions but not mute")
+    func deeplink_showsChatActionsButNotMute() {
+        #expect(UserProfileOrigin.deeplink.showsChatActions(profileUserID: UUID(), selfUserID: UUID()))
+        #expect(!UserProfileOrigin.deeplink.showsMute)
+    }
+
     @Test("Only a profile opened from the DM offers muting it")
     func mute_showsOnlyFromDirectMessage() {
         #expect(UserProfileOrigin.directMessage.showsMute)
         #expect(!UserProfileOrigin.groupMember.showsMute)
+    }
+
+    @Test("Blocking from a link-opened profile returns to where the link was followed")
+    func deeplink_blockReturnsToOpener() {
+        #expect(UserProfileOrigin.deeplink.blockReturnsToOpener)
+    }
+
+    @Test(
+        "Blocking from a chat-opened profile resets the stack, which can hold the blocked DM",
+        arguments: [UserProfileOrigin.directMessage, .groupMember, .mention]
+    )
+    func chatOrigins_blockResetsStack(_ origin: UserProfileOrigin) {
+        #expect(!origin.blockReturnsToOpener)
+    }
+
+    @Test("Only a link-opened profile arrives already fetched")
+    func arrivesFetched_onlyFromDeeplink() {
+        #expect(UserProfileOrigin.deeplink.arrivesFetched)
+        #expect(!UserProfileOrigin.directMessage.arrivesFetched)
+        #expect(!UserProfileOrigin.groupMember.arrivesFetched)
+        #expect(!UserProfileOrigin.mention.arrivesFetched)
     }
 
     // MARK: - Destinations -

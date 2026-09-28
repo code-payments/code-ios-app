@@ -223,7 +223,9 @@ extension FlipClient: ProfileReading {}
 
 /// A handle nobody has claimed. The server answers it with an id-less `Profile.empty` rather than
 /// an error, so the lookup turns that into one.
-struct NoSuchAccount: Error {}
+struct NoSuchAccount: ServerError {
+    var reportingLevel: ErrorReportingLevel { .info }
+}
 
 /// A chat id that names something other than a group. An invite link only ever names a group, so
 /// anything else has no card to show.

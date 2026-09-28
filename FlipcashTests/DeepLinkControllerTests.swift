@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+import FlipcashCore
 @testable import Flipcash
 
 @MainActor
@@ -70,6 +71,65 @@ struct DeepLinkControllerTests {
           ])
     func claimedHost_namesAnAction(urlString: String) {
         #expect(makeController().handle(open: URL(string: urlString)!) != nil)
+    }
+
+    // MARK: - Person links -
+
+    private static let userID = UUID(uuidString: "3f2504e0-4f89-41d3-9a0c-0305e82c3301")!
+
+    @Test("A bare user id opens that user's profile, not the tipcard",
+          arguments: [
+              "https://flipcash.com/3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+              "https://app.flipcash.com/3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+          ])
+    func bareUserID_opensProfile(urlString: String) throws {
+        let kind = try #require(makeController().handle(open: URL(string: urlString)!)?.kind)
+        guard case .profile(let identifier) = kind else {
+            Issue.record("\(urlString) should dispatch .profile, got \(kind.analyticsName)")
+            return
+        }
+        #expect(identifier == .userID(Self.userID))
+    }
+
+    @Test("A bare handle opens that user's profile, not the tipcard")
+    func bareHandle_opensProfile() throws {
+        let kind = try #require(makeController().handle(open: URL(string: "https://flipcash.com/Taylor")!)?.kind)
+        guard case .profile(let identifier) = kind else {
+            Issue.record("A handle link should dispatch .profile, got \(kind.analyticsName)")
+            return
+        }
+        #expect(identifier == .username(try #require(Username("taylor"))))
+    }
+
+    @Test("The legacy /tip/ link still opens the tipcard")
+    func legacyTipLink_opensTipcard() throws {
+        let url = URL(string: "https://app.flipcash.com/tip/3f2504e0-4f89-41d3-9a0c-0305e82c3301")!
+        let kind = try #require(makeController().handle(open: url)?.kind)
+        guard case .tip(let userID) = kind else {
+            Issue.record("/tip/ should dispatch .tip, got \(kind.analyticsName)")
+            return
+        }
+        #expect(userID == Self.userID)
+    }
+
+    @Test("The viewer's own id or handle is known to be their own without a lookup")
+    func ownLink_isOwn() throws {
+        let me = try #require(Username("me"))
+        #expect(DeepLinkAction.isOwnLink(.userID(Self.userID), selfUserID: Self.userID, selfUsername: me))
+        #expect(DeepLinkAction.isOwnLink(.username(me), selfUserID: Self.userID, selfUsername: me))
+    }
+
+    @Test("Someone else's id or handle is not the viewer's own")
+    func otherLink_isNotOwn() throws {
+        let me = try #require(Username("me"))
+        #expect(!DeepLinkAction.isOwnLink(.userID(UUID()), selfUserID: Self.userID, selfUsername: me))
+        #expect(!DeepLinkAction.isOwnLink(.username(try #require(Username("taylor"))), selfUserID: Self.userID, selfUsername: me))
+    }
+
+    @Test("A handle can't be matched to the viewer before their own profile has loaded")
+    func ownHandle_beforeProfileLoads_isNotOwn() throws {
+        let me = try #require(Username("me"))
+        #expect(!DeepLinkAction.isOwnLink(.username(me), selfUserID: Self.userID, selfUsername: nil))
     }
 
     @Test("A duplicate in-flight open is reported handled without re-processing")

@@ -12,8 +12,8 @@ import FlipcashUI
 /// The counterpart's Flipcash profile, carrying the actions the viewer has over the person rather
 /// than over one chat: muting the DM with them, and blocking them outright.
 ///
-/// Reached from a tip DM's title and from a face in a group transcript. Both land here because both
-/// are the same question — who is this — so Block works on the person either way. The mute row
+/// Reached from a tip DM's title, from a face in a group transcript, and from a person link. All land
+/// here because all are the same question — who is this — so Block works on the person either way. The mute row
 /// silences the DM with them, so it shows only when the profile was opened from that DM.
 struct UserProfileScreen: View {
     let userID: UserID
@@ -41,6 +41,8 @@ struct UserProfileScreen: View {
                 owner: sessionContainer.session.ownerKeyPair,
                 blocklistController: blocklistController,
                 router: router,
+                blockReturnsToOpener: origin.blockReturnsToOpener,
+                arrivesFetched: origin.arrivesFetched,
                 session: sessionContainer.session,
                 profileAvatars: sessionContainer.profileAvatars,
                 seed: seed
@@ -100,16 +102,12 @@ private struct UserProfileContent: View {
                                 .font(.appTextSmall)
                                 .foregroundStyle(.textSecondary)
                         }
-
-                        if let conversationID {
-                            ChatMuteStatusLabel(conversationID: conversationID)
-                        }
                     }
 
-                    if showsChatActions {
-                        // Centered between the join date and the first row's text, 25pt each side;
-                        // the row's own top inset supplies the lower 25.
-                        HStack(spacing: 0) {
+                    // Centered between the join date and the first row's text, 25pt each side;
+                    // the row's own top inset supplies the lower 25.
+                    HStack(spacing: 0) {
+                        if showsChatActions {
                             ProfileActionButton(title: "Message") {
                                 Image(systemName: "bubble.left.fill")
                                     .font(.appTextLarge)
@@ -129,7 +127,25 @@ private struct UserProfileContent: View {
                             // }
                             // .accessibilityIdentifier("profile-send-cash")
                         }
-                        .padding(.top, 25)
+
+                        ProfileActionButton(title: "Share") {
+                            Image.asset(.shareOS)
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                        } action: {
+                            model.share()
+                        }
+                        .accessibilityIdentifier("profile-share")
+                    }
+                    .padding(.top, 25)
+
+                    // Under the actions rather than the name, so the actions sit at the same height on
+                    // every profile; only a DM's profile, the one with a mute, holds the chip's line.
+                    if let conversationID {
+                        ChatMuteStatusLabel(conversationID: conversationID)
+                            .padding(.top, 16)
                     }
 
                     VStack(spacing: 0) {
@@ -154,7 +170,6 @@ private struct UserProfileContent: View {
                         .accessibilityIdentifier("chat-block")
                     }
                     .font(.appDisplayXS)
-                    .padding(.top, showsChatActions ? 0 : 40)
                 }
 
                 Spacer()
@@ -190,16 +205,18 @@ nonisolated enum UserProfileOrigin: Hashable {
     case directMessage
     /// Their face in a group transcript.
     case groupMember
-    /// Their `@handle` tapped in a message, in a chat that is not a DM with them.
+    /// Their `@handle` or person link card tapped in a message, in a chat that is not a DM with them.
     case mention
+    /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.
+    case deeplink
 
     /// Whether the profile offers Message and Send Cash: not from the DM they would lead back
     /// into, and never on the viewer's own profile.
     func showsChatActions(profileUserID: UserID, selfUserID: UserID) -> Bool {
         guard profileUserID != selfUserID else { return false }
         switch self {
-        case .directMessage:        return false
-        case .groupMember, .mention: return true
+        case .directMessage:                    return false
+        case .groupMember, .mention, .deeplink: return true
         }
     }
 
@@ -207,8 +224,27 @@ nonisolated enum UserProfileOrigin: Hashable {
     /// group the row would read as muting the group.
     var showsMute: Bool {
         switch self {
-        case .directMessage:        return true
-        case .groupMember, .mention: return false
+        case .directMessage:                    return true
+        case .groupMember, .mention, .deeplink: return false
+        }
+    }
+
+    /// Whether the profile was fetched and cached just before the screen opened, so the screen
+    /// reads the cache instead of fetching again. A link is looked up before it navigates.
+    var arrivesFetched: Bool {
+        switch self {
+        case .deeplink:                               return true
+        case .directMessage, .groupMember, .mention:  return false
+        }
+    }
+
+    /// Whether blocking closes just the profile rather than resetting its stack. From a chat the
+    /// stack beneath can hold the blocked person's DM, so it resets; a link opened the profile over
+    /// whatever the user was on, and that is where blocking returns them.
+    var blockReturnsToOpener: Bool {
+        switch self {
+        case .deeplink:                               return true
+        case .directMessage, .groupMember, .mention:  return false
         }
     }
 }
@@ -243,6 +279,8 @@ final class UserProfileViewModel {
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let blocklistController: BlocklistController
     @ObservationIgnored private let router: AppRouter
+    @ObservationIgnored private let blockReturnsToOpener: Bool
+    @ObservationIgnored private let arrivesFetched: Bool
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let profileAvatars: ProfileAvatarStore
     @ObservationIgnored private let seedImageData: Data?
@@ -255,12 +293,14 @@ final class UserProfileViewModel {
         profileAvatars.data(for: userID) ?? seedImageData
     }
 
-    init(userID: UserID, flipClient: FlipClient, owner: KeyPair, blocklistController: BlocklistController, router: AppRouter, session: Session, profileAvatars: ProfileAvatarStore, seed: CounterpartSeed) {
+    init(userID: UserID, flipClient: FlipClient, owner: KeyPair, blocklistController: BlocklistController, router: AppRouter, blockReturnsToOpener: Bool, arrivesFetched: Bool, session: Session, profileAvatars: ProfileAvatarStore, seed: CounterpartSeed) {
         self.userID = userID
         self.flipClient = flipClient
         self.owner = owner
         self.blocklistController = blocklistController
         self.router = router
+        self.blockReturnsToOpener = blockReturnsToOpener
+        self.arrivesFetched = arrivesFetched
         self.session = session
         self.profileAvatars = profileAvatars
         self.name = seed.name
@@ -271,11 +311,12 @@ final class UserProfileViewModel {
 
     /// Fetches the profile for a fresh name, join date, and avatar. Seeds from
     /// the shared profile cache first for instant display, then caches the
-    /// freshly fetched profile.
+    /// freshly fetched profile. A profile that arrived fetched stops at the cache.
     func loadProfile() async {
         if let cached = session.cachedUserProfile(for: userID) {
             apply(cached)
             await profileAvatars.load(userID: userID, picture: cached.profilePicture)
+            if arrivesFetched { return }
         }
         guard let profile = try? await flipClient.fetchProfile(userID: userID, owner: owner) else { return }
         session.cacheUserProfile(profile, for: userID)
@@ -292,11 +333,26 @@ final class UserProfileViewModel {
         }
     }
 
-    /// Blocks the user and returns to the Tips list; the blocklist reconcile hides the conversation.
+    /// Opens the share sheet on this person's public link, the one their own You tab shares.
+    func share() {
+        let item = TipCodeShareItem(
+            url: .tipcard(for: userID, username: username),
+            title: displayName,
+            preview: nil
+        )
+        ShareSheet.present(activityItem: item) { _ in }
+    }
+
+    /// Blocks the user and closes the profile — see ``UserProfileOrigin/blockReturnsToOpener``. The
+    /// blocklist reconcile hides the conversation.
     func block() async {
         do {
             try await blocklistController.block(userID: userID, displayName: displayName, avatarBlurhash: blurhash)
-            router.popToRoot()
+            if blockReturnsToOpener {
+                router.popTopmost()
+            } else {
+                router.popToRoot()
+            }
         } catch {
             session.dialogItem = .error(title: "Something Went Wrong", subtitle: "We were unable to block the user. Please try again")
             ErrorReporting.captureError(error, reason: "Failed to block user")

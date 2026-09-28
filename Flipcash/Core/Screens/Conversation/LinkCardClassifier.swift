@@ -78,7 +78,7 @@ nonisolated struct LinkCardClassifier {
             // a question for the lookup; a chat that turns out not to exist renders unavailable.
             return .group(LinkCard.Group(url: target, chatID: chatID, range: link.range))
 
-        case .tip(let userID):
+        case .profile(let userID), .tip(let userID):
             // A person's link, by id: the no-handle form `URL.tipcard(for:username:)` builds, or the
             // legacy `/tip/<uuid>`. Whether anyone owns the id is the lookup's question.
             return .user(LinkCard.User(url: target, identity: .userID(userID), range: link.range))
