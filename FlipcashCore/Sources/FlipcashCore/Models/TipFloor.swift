@@ -64,7 +64,9 @@ extension TipFloor {
         in currency: CurrencyCode,
         rates: [CurrencyCode: Rate]
     ) -> TipFloor? {
-        if let fee = recipientFee?.converted(to: currency, rates: rates), fee.isPositive {
+        // Rounded up: a half-up floor can land under the fee, pass `isMet`,
+        // and be denied by the server.
+        if let fee = recipientFee?.converted(to: currency, rates: rates, roundingUp: true), fee.isPositive {
             return .recipientFee(fee)
         }
         return systemMinimum(presets: presets)
