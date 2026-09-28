@@ -149,9 +149,9 @@ final class LinkGroupCardView: UIView {
 ///
 /// Shared by two hosts rather than forked between them: ``LinkGroupCardView`` draws it wherever a
 /// group's invite link appears in a transcript (CTA "View", into the group), and
-/// ``ChatGroupCardCell``'s ``GroupCardView`` draws it at the head of a group's own transcript while
-/// it is still empty (CTA "Invite People", into the invite sheet). The CTA's label and action are
-/// the only things that differ between the two, so they are the only things passed in.
+/// ``ChatGroupCardCell``'s ``GroupCardView`` draws it at the head of a group's own transcript (CTA
+/// "Invite People" for a member, into the invite sheet; no button for anyone else). The CTA's label
+/// and action are the only things that differ between the two, so they are the only things passed in.
 struct LinkGroupCardContent: View {
 
     let state: LinkCard.Group.State
@@ -163,9 +163,9 @@ struct LinkGroupCardContent: View {
         bottomTrailing: GroupCardView.Layout.radius,
         topTrailing: GroupCardView.Layout.radius
     )
-    /// The button's label — "View" from a transcript link, "Invite People" from a group's own
-    /// empty-state head card.
-    var ctaTitle: String = Copy.view
+    /// The button's label — "View" from a transcript link, "Invite People" from a group's own head
+    /// card. Nil leaves the button out of a resolved card, which is then as tall as its content.
+    var ctaTitle: String? = Copy.view
     /// Called when the button is tapped.
     var onAction: () -> Void = {}
     /// The button's UI-test handle, which differs by host.
@@ -193,7 +193,7 @@ struct LinkGroupCardContent: View {
     enum Copy {
         /// A group's invite link, met in a transcript.
         static let view = "View"
-        /// A group's own empty-state head card.
+        /// A group's own head card, for a member.
         static let invite = "Invite People"
         static let unavailable = "Group Unavailable"
     }
@@ -210,11 +210,15 @@ struct LinkGroupCardContent: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Spacer(minLength: Layout.buttonGap)
+            if showsButton {
+                Spacer(minLength: Layout.buttonGap)
 
-            button
-                .padding(.horizontal, GroupCardView.Layout.horizontalPadding)
-                .padding(.bottom, GroupCardView.Layout.horizontalPadding)
+                button
+                    .padding(.horizontal, GroupCardView.Layout.horizontalPadding)
+                    .padding(.bottom, GroupCardView.Layout.horizontalPadding)
+            } else {
+                Spacer(minLength: GroupCardView.Layout.horizontalPadding)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous))
@@ -275,6 +279,13 @@ struct LinkGroupCardContent: View {
         }
     }
 
+    /// An unavailable card always says so on its disabled button; a resolved one has a button only
+    /// when it's given a label.
+    private var showsButton: Bool {
+        if case .resolved = state { return ctaTitle != nil }
+        return true
+    }
+
     @ViewBuilder private var button: some View {
         switch state {
         case .unavailable:
@@ -282,9 +293,11 @@ struct LinkGroupCardContent: View {
                 .buttonStyle(.filled20Compact)
                 .disabled(true)
         case .resolved:
-            Button(ctaTitle, action: onAction)
-                .buttonStyle(.filledCompact)
-                .accessibilityIdentifier(ctaAccessibilityIdentifier)
+            if let ctaTitle {
+                Button(ctaTitle, action: onAction)
+                    .buttonStyle(.filledCompact)
+                    .accessibilityIdentifier(ctaAccessibilityIdentifier)
+            }
         }
     }
 

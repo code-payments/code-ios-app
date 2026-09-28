@@ -84,8 +84,8 @@ struct ConversationScreen: View {
     @State private var isJoiningChat = false
     /// Memoizes the head-carded transcript — see ``TranscriptHead``.
     @State private var transcriptHead = TranscriptHead()
-    /// Whether the invite sheet is up. A link is the only way into a group, so the empty group's
-    /// card hands one out (node 10127:118280).
+    /// Whether the invite sheet is up. A link is the only way into a group, so a member's head card
+    /// hands one out.
     @State private var isInviting = false
     @State private var messageReport: MessageReportRequest?
     /// Whether `startSendCash` has been acted on, so a re-render or a return from the sheet it
@@ -396,15 +396,11 @@ struct ConversationScreen: View {
         )
     }
 
-    /// Whether the head card offers the invite link: a group the viewer belongs to that nobody else
-    /// has joined. Once someone else is in, the invite lives on the chat's profile instead, so it
-    /// stops competing with the transcript (node 10127:118280).
-    ///
-    /// Counted from ``ConversationRosterSummary/memberCount`` for the reason ``titleSubtitle`` is —
-    /// an embedded roster is a subset.
+    /// Whether the head card offers the invite link: any group the viewer belongs to, however many
+    /// have joined. A viewer who hasn't joined has no link to hand out, so their card has no button.
     private var showsGroupInvite: Bool {
         guard let group = groupConversation else { return false }
-        return conversationController.isMember(of: group) && group.rosterSummary.memberCount <= 1
+        return conversationController.isMember(of: group)
     }
 
     /// The chat's entry rule as the card states it (node 10125:19164), or nil when the chat states

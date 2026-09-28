@@ -32,140 +32,67 @@ public final class ChatGroupCardCell: UICollectionViewCell {
     }
 }
 
-/// The card body, per node 10125:19157.
+/// The card body: the same card a group's invite link renders as in a transcript (node
+/// 10330:19164), with CTA "Invite People" for a member, opening the invite sheet, and no button for
+/// anyone else.
 struct GroupCardView: View {
 
     let card: ChatGroupCard
-    /// The invite card's width: a link card's width in the transcript (node 10330:19164).
+    /// The card's width: a link card's width in the transcript (node 10330:19164).
     var inviteCardWidth: CGFloat = 290
     /// Opens the chat's own profile; nil leaves the card inert.
     var onTap: (() -> Void)?
-    /// Hands out the chat's invite link. Drawn only when the card asks for it.
+    /// Hands out the chat's invite link. The button is drawn only when the card asks for it.
     var onInvite: (() -> Void)?
 
     var body: some View {
-        Group {
-            if card.showsInvite, let onInvite {
-                // The same card a group's invite link renders as elsewhere (node 10330:19164) —
-                // CTA "Invite People" rather than "View", opening the invite sheet rather than the
-                // chat itself.
-                LinkGroupCardContent(
-                    state: .resolved(.init(
-                        title: card.title,
-                        memberCount: card.memberCount,
-                        avatarID: card.avatarID,
-                        imageData: card.imageData,
-                        blurHash: card.blurhash,
-                        requirement: card.requirement
-                    )),
-                    ctaTitle: LinkGroupCardContent.Copy.invite,
-                    onAction: onInvite,
-                    ctaAccessibilityIdentifier: "group-card-invite",
-                    onTapCard: onTap
-                )
-                .frame(width: inviteCardWidth)
-            } else {
-                cardBody
-            }
-        }
+        LinkGroupCardContent(
+            state: .resolved(.init(
+                title: card.title,
+                memberCount: card.memberCount,
+                avatarID: card.avatarID,
+                imageData: card.imageData,
+                blurHash: card.blurhash,
+                requirement: card.requirement
+            )),
+            ctaTitle: showsInvite ? LinkGroupCardContent.Copy.invite : nil,
+            onAction: onInvite ?? {},
+            ctaAccessibilityIdentifier: "group-card-invite",
+            onTapCard: onTap
+        )
+        .frame(width: inviteCardWidth)
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
     }
 
-    /// The bordered card itself: everything the group states about itself. The invite button sits
-    /// outside it — it is an action the viewer takes, not a fact about the chat (node 10127:118280).
-    private var cardBody: some View {
-        VStack(spacing: 0) {
-            header
-
-            if let requirement = card.requirement {
-                Text(requirement)
-                    .font(.default(size: 15, weight: .medium))
-                    .foregroundStyle(Color.textMain.opacity(0.5))
-                    .multilineTextAlignment(.center)
-                    .padding(.top, Layout.requirementGap)
-            }
-        }
-        .padding(.horizontal, Layout.horizontalPadding)
-        .padding(.top, Layout.topPadding)
-        .padding(.bottom, Layout.bottomPadding)
-        // Min, not fixed: the app fonts scale with Dynamic Type, so the card grows past its design
-        // height at accessibility sizes instead of clipping.
-        .frame(width: Layout.width)
-        .frame(minHeight: Layout.minHeight)
-        .background {
-            RoundedRectangle(cornerRadius: Layout.radius, style: .continuous)
-                .strokeBorder(Color.white.opacity(Layout.borderOpacity))
-        }
-        .accessibilityElement(children: .combine)
+    private var showsInvite: Bool {
+        card.showsInvite && onInvite != nil
     }
 
-    /// The picture and the title, with the chevron that says the card opens something (node
-    /// 10127:116723). The requirement line below stays outside the tap target — it states a rule,
-    /// it does not lead anywhere.
-    @ViewBuilder private var header: some View {
-        let content = VStack(spacing: 0) {
-            ContactAvatarView(
-                id: card.avatarID,
-                displayName: card.title,
-                imageData: card.imageData,
-                blurhash: card.blurhash,
-                size: Layout.avatar
-            )
-            .overlay { Circle().strokeBorder(Color.white.opacity(Layout.borderOpacity)) }
-            .accessibilityHidden(true)
-
-            HStack(spacing: 6) {
-                Text(card.title)
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
-                if onTap != nil {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(Color.textSecondary)
-                }
-            }
-            .padding(.top, Layout.titleGap)
-        }
-        if let onTap {
-            Button(action: onTap) { content }.buttonStyle(.plain)
-        } else {
-            content
-        }
-    }
-
-    /// Node 10125:19157 — a 210×228 card, its column starting 31pt down, 13pt under the 80pt
-    /// picture and the requirement line centred at 177pt.
-    /// Internal so the group invite link card sizes itself from the same values.
+    /// Node 10125:19157's metrics, which the link card still sizes itself from.
     enum Layout {
-        static let width: CGFloat = 210
-        static let minHeight: CGFloat = 228
         static let radius: CGFloat = 12
         static let borderOpacity: Double = 0.1
-        static let avatar: CGFloat = 80
-        static let topPadding: CGFloat = 31
-        static let bottomPadding: CGFloat = 24
         static let horizontalPadding: CGFloat = 12
         static let titleGap: CGFloat = 13
         static let requirementGap: CGFloat = 11
     }
 }
 
-#Preview("Gated / open") {
+#Preview("Member / not a member") {
     VStack(spacing: 12) {
-        GroupCardView(card: ChatGroupCard(
-            title: "Ballers",
-            avatarID: "ballers",
-            requirement: "Balance Requirement:\n$100.00 of $BadBoys"
-        ), onTap: {})
-        GroupCardView(card: ChatGroupCard(title: "Flipcash Staff", avatarID: "staff"))
         GroupCardView(card: ChatGroupCard(
             title: "BadBoys",
             avatarID: "badboys",
             requirement: "Balance Requirement:\n$100.00 of $BadBoys",
             showsInvite: true
         ), onTap: {}, onInvite: {})
+        GroupCardView(card: ChatGroupCard(
+            title: "Ballers",
+            avatarID: "ballers",
+            requirement: "Balance Requirement:\n$100.00 of $BadBoys"
+        ), onTap: {})
+        GroupCardView(card: ChatGroupCard(title: "Flipcash Staff", avatarID: "staff"))
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.backgroundMain)
