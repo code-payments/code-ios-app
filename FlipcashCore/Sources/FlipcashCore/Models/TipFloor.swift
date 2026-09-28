@@ -53,7 +53,7 @@ extension TipFloor {
 
     /// The floor for the tip that *opens* a DM with a recipient: the fee they
     /// charge, restated in `currency`, falling back to the regional preset when
-    /// they charge nothing. Nil when neither is known.
+    /// they charge nothing or their fee is below it. Nil when neither is known.
     ///
     /// The fallback also covers a fee that can't be converted — stating a floor
     /// in a currency the entry isn't using would be worse than stating the
@@ -64,10 +64,25 @@ extension TipFloor {
         in currency: CurrencyCode,
         rates: [CurrencyCode: Rate]
     ) -> TipFloor? {
-        if let fee = recipientFee?.converted(to: currency, rates: rates), fee.isPositive {
+        // Rounded up: a half-up floor can land under the fee, pass `isMet`,
+        // and be denied by the server.
+        if let fee = recipientFee?.converted(to: currency, rates: rates, roundingUp: true), fee.isPositive {
+            // Every tip carries the regional minimum, so a fee under it would
+            // pass the fee check and be denied for the minimum.
+            if let presets, !clears(fee, presets, rates: rates) {
+                return .preset(presets)
+            }
             return .recipientFee(fee)
         }
         return systemMinimum(presets: presets)
+    }
+
+    /// Whether `fee` meets the preset row's minimum, compared the way
+    /// `TipPresets.meetsMinimum` compares an entry. A fee that can't be
+    /// restated in the row's currency keeps its own floor.
+    private static func clears(_ fee: FiatAmount, _ presets: UserFlags.TipPresets, rates: [CurrencyCode: Rate]) -> Bool {
+        guard let restated = fee.converted(to: presets.currency, rates: rates) else { return true }
+        return restated.value >= presets.minimum
     }
 
     /// The regional minimum every tip carries, regardless of recipient.

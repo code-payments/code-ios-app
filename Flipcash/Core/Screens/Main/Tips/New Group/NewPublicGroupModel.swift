@@ -115,7 +115,7 @@ final class NewPublicGroupModel {
     }
 
     /// Whether the user's holdings added together clear the amount picked, whatever
-    /// ``currency`` is — what the picker's All Currencies card states. True while no amount is
+    /// ``currency`` is — what the picker's Total Balance card states. True while no amount is
     /// picked.
     func satisfiesAllCurrencies(session: some ConversationGateReading, rates: [CurrencyCode: Rate]) -> Bool {
         let rules = minimumBalance.map { Self.rules(minimumBalance: $0, currency: .all) }

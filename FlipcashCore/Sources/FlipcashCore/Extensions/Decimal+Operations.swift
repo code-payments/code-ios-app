@@ -22,6 +22,13 @@ extension Decimal {
         return rounded
     }
 
+    public func roundedUp(to decimalPlaces: Int) -> Decimal {
+        var current = self
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &current, decimalPlaces, .up)
+        return rounded
+    }
+
     private func pow10(_ n: Int) -> Decimal {
         var result: Decimal = 1
         for _ in 0..<n {

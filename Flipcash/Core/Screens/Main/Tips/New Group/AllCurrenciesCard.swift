@@ -7,7 +7,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The currency picker's "All Currencies" choice for a group's balance requirement, stating the
+/// The currency picker's "Total Balance" choice for a group's balance requirement, stating the
 /// user's total against the amount picked (node 10370:997).
 struct AllCurrenciesCard: View {
 
@@ -25,7 +25,7 @@ struct AllCurrenciesCard: View {
                 AllCurrenciesIcon(size: 32)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("All Currencies")
+                    Text("Total Balance")
                         .font(.appBarButton)
                         .foregroundStyle(Color.textMain)
 

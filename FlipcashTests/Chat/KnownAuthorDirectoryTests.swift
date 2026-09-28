@@ -116,4 +116,20 @@ struct KnownAuthorDirectoryTests {
         #expect(recorder.requests == [sender, sender])
         #expect(directory.snapshot.membersByUserID[sender]?.displayName == "Ada")
     }
+
+    @Test("A resolved sender invalidates the snapshot, so a Chats row reading it redraws")
+    func resolveInvalidatesSnapshotObservers() async {
+        let recorder = Recorder()
+        let sender = UserID()
+        let directory = directory(recorder)
+
+        await confirmation("snapshot invalidated") { invalidated in
+            withObservationTracking {
+                _ = directory.snapshot
+            } onChange: {
+                invalidated()
+            }
+            await directory.resolve([sender])
+        }
+    }
 }
