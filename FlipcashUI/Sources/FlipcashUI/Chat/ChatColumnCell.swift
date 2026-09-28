@@ -58,6 +58,8 @@ public class ChatColumnCell: UICollectionViewCell {
     /// *same* row changes in place; a recycled cell reconfigured for a different id sets its line
     /// directly, so it never replays this cell's prior line (a reused failed cell flashing red).
     private var currentMessageID: String?
+    /// The typing row's copies fading out over this row as it grows out of the typing bubble.
+    private var typingRemnants: [UIView] = []
 
     /// Stacks `content` above the receipt and pins the column to all four edges of the contentView,
     /// so the cell self-sizes to the content plus the receipt line. Call once, from the subclass's
@@ -97,6 +99,9 @@ public class ChatColumnCell: UICollectionViewCell {
         editedMarker.isAccessibilityElement = true
         metadata.addArrangedSubview(editedMarker)
         metadata.addArrangedSubview(receipt)
+        // Neither the cell nor its content view clips, so a cleared line can fade out below the row
+        // as it collapses; `prepareForReuse`'s `reset()` takes the copy away with the row.
+        receipt.exitHost = contentView
         metadata.isHidden = true
         column.addArrangedSubview(metadata)
         column.translatesAutoresizingMaskIntoConstraints = false
@@ -226,6 +231,7 @@ public class ChatColumnCell: UICollectionViewCell {
         // A row recycled mid-swipe (or while the swipe's settle animation is still running) would
         // otherwise be dequeued still translated sideways, and draw its new message offset.
         swipeOffset = 0
+        landGrowFromTyping()
         currentMessageID = nil
         retryID = nil
         retryTap?.isEnabled = false
@@ -253,7 +259,7 @@ public class ChatColumnCell: UICollectionViewCell {
     ///   its bubble.
     func updateColumn(for message: ChatMessage, authorImageData: Data? = nil, showsEditedMarker: Bool = false) {
         // Cross-fade the receipt only when the *same* row changes in place (Delivered→Read, the settling
-        // line revealing). A recycled or freshly dequeued cell renders a different row, so its line is set
+        // line revealing, the line leaving for a newer row). A recycled or freshly dequeued cell renders a different row, so its line is set
         // directly — otherwise the cross-fade would replay this cell's prior line (a reused failed cell
         // flashing red "Not Delivered" before resolving to the real line).
         let isInPlaceUpdate = currentMessageID == message.id
@@ -262,10 +268,18 @@ public class ChatColumnCell: UICollectionViewCell {
         retryID = message.isFailed ? message.messageID : nil
         retryTap?.isEnabled = message.isFailed
         receipt.setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
-        editedMarker.isHidden = !showsEditedMarker
-        // Collapsed when it holds neither piece, or the column's 4pt spacing leaves a gap under every
-        // row that carries no metadata at all.
-        metadata.isHidden = editedMarker.isHidden && receipt.isHidden
+        // Outside the batch update's animation, though the row's resize still rides it. A stack view
+        // hiding an arranged subview inside an animation first lays itself out without animation at a
+        // halfway height (the row at zero, its spacing kept), then animates on from there. The
+        // column's centre animates from where it really was but its height from that halfway point,
+        // so its top, and the bubble on it, drops by half the difference and eases back: the row
+        // giving its receipt to a newer one visibly bobs.
+        UIView.performWithoutAnimation {
+            editedMarker.isHidden = !showsEditedMarker
+            // Collapsed when it holds neither piece, or the column's 4pt spacing leaves a gap under
+            // every row that carries no metadata at all.
+            metadata.isHidden = editedMarker.isHidden && receipt.isHidden
+        }
         // The receipt carries its own trailing padding inside its faces; a marker standing alone has
         // none, and would sit 10pt further out than the line it replaces.
         metadata.directionalLayoutMargins.trailing = receipt.isHidden ? ChatReceiptView.trailingPadding : 0
@@ -306,6 +320,107 @@ public class ChatColumnCell: UICollectionViewCell {
             authorAvatar.configure(with: author, imageData: authorImageData)
         }
     }
+
+    // MARK: - Growing out of the typing bubble
+
+    private static let growKey = "typingGrow"
+
+    /// Plays this row's arrival as the typing bubble growing into it: the chrome grows out of the
+    /// dots bubble on `spring`, the content fades in after `textDelay` over `textFade`, the dots
+    /// fade out where they stood over `remnantFade`, and the author's face travels over from the
+    /// typists' stack on `spring`.
+    ///
+    /// Core Animation throughout, with nothing changed on the model: this runs just after the
+    /// transcript's batch update, whose `UIView` spring any view animation here would join.
+    func grow(
+        from handoff: ChatTypingHandoff,
+        on spring: ChatSpring,
+        textDelay: TimeInterval,
+        textFade: TimeInterval,
+        remnantFade: TimeInterval
+    ) {
+        guard let content, window != nil else { return }
+        UIView.performWithoutAnimation { contentView.layoutIfNeeded() }
+        let now = CACurrentMediaTime()
+
+        let chrome = content as? BubbleBackgroundView
+            ?? content.subviews.lazy.compactMap { $0 as? BubbleBackgroundView }.first
+        if let chrome, chrome.isDrawingBubble {
+            chrome.grow(from: chrome.convert(handoff.bubbleFrame, from: nil), on: spring)
+        }
+
+        // Everything the bubble carries, and the name above it, arrives by opacity alone.
+        let carried = content === chrome ? content.subviews : content.subviews.filter { $0 !== chrome }
+        var arriving = carried + [authorName, metadata].filter { !$0.isHidden }
+
+        if !authorAvatar.isHidden, let from = handoff.faceFrame {
+            let start = contentView.convert(from, from: nil)
+            let travel = CGPoint(x: start.midX - authorAvatar.center.x, y: start.midY - authorAvatar.center.y)
+            // Additive, so the reply swipe's transform and any layout pass keep composing with it.
+            let move = spring.layerAnimation(keyPath: "position", from: NSValue(cgPoint: travel), to: NSValue(cgPoint: .zero))
+            move.isAdditive = true
+            authorAvatar.layer.add(move, forKey: Self.growKey)
+        } else if !authorAvatar.isHidden {
+            arriving.append(authorAvatar)
+        }
+
+        for view in arriving where view.alpha > 0 {
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0
+            fade.toValue = view.layer.opacity
+            fade.beginTime = now + textDelay
+            fade.duration = max(textFade, 0.01)
+            fade.fillMode = .backwards
+            fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            view.layer.add(fade, forKey: Self.growKey)
+        }
+
+        for remnant in handoff.remnants {
+            let view = remnant.view
+            UIView.performWithoutAnimation {
+                view.isUserInteractionEnabled = false
+                view.frame = contentView.convert(remnant.frame, from: nil)
+                view.alpha = 0
+                contentView.addSubview(view)
+            }
+            typingRemnants.append(view)
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 1
+            fade.toValue = 0
+            fade.duration = max(remnantFade, 0.01)
+            fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { [weak self, weak view] in
+                view?.removeFromSuperview()
+                self?.typingRemnants.removeAll { $0 === view }
+            }
+            view.layer.add(fade, forKey: Self.growKey)
+            CATransaction.commit()
+        }
+    }
+
+    /// Lands a grow from the typing bubble still in flight, for a cell being recycled.
+    private func landGrowFromTyping() {
+        typingRemnants.forEach { $0.removeFromSuperview() }
+        typingRemnants = []
+        authorAvatar.layer.removeAnimation(forKey: Self.growKey)
+        authorName.layer.removeAnimation(forKey: Self.growKey)
+        metadata.layer.removeAnimation(forKey: Self.growKey)
+        guard let content else { return }
+        for view in [content] + content.subviews {
+            view.layer.removeAnimation(forKey: Self.growKey)
+            (view as? BubbleBackgroundView)?.cancelGrow()
+        }
+    }
+
+    // MARK: - Test hooks
+
+    /// The copies of the typing row still fading out over this one.
+    var fadingTypingRemnants: [UIView] { typingRemnants }
+    /// The gutter face, for watching it travel over from the typing row.
+    var authorFace: UIView { authorAvatar }
+    /// The author's name above the bubble.
+    var authorNameLabel: UIView { authorName }
 
     @objc private func retryTapped() {
         guard let retryID else { return }

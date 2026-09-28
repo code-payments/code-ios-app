@@ -120,6 +120,7 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
 
     public override func prepareForReuse() {
         super.prepareForReuse()
+        contentView.isHidden = false
         stopAvatarMotion()
         entries.forEach { $0.view.removeFromSuperview() }
         entries = []
@@ -337,6 +338,34 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
         entry.ring.contents = image.cgImage
     }
 
+    // MARK: - Handing over to a message
+
+    /// Hands the bubble to the incoming message replacing it: returns where its pieces stand, and
+    /// copies of the ones that fade out in place, then hides this row so only the message draws from
+    /// here on. Nil when the row is not in a window.
+    ///
+    /// `author` is whose face the message draws beside its bubble, if any. That face travels over
+    /// from the stack rather than fading out, so the stack is left out of the copies.
+    func handOff(keepingFaceOf author: UserID?) -> ChatTypingHandoff? {
+        guard let window else { return nil }
+        let face = author.flatMap { id in entries.first { $0.id == id && !$0.isLeaving } }
+        var remnants: [ChatTypingHandoff.Remnant] = []
+        // The copies are taken from what is on screen, mid-wave, so a dot that was lit leaves lit.
+        if let dots = dotsRow.snapshotView(afterScreenUpdates: false) {
+            remnants.append(.init(view: dots, frame: dotsRow.convert(dotsRow.bounds, to: window)))
+        }
+        if face == nil, !entries.isEmpty, let faces = avatarRow.snapshotView(afterScreenUpdates: false) {
+            remnants.append(.init(view: faces, frame: avatarRow.convert(avatarRow.bounds, to: window)))
+        }
+        let handoff = ChatTypingHandoff(
+            bubbleFrame: bubble.convert(bubble.bounds, to: window),
+            faceFrame: face.map { $0.view.convert($0.view.bounds, to: window) },
+            remnants: remnants
+        )
+        UIView.performWithoutAnimation { contentView.isHidden = true }
+        return handoff
+    }
+
     @objc private func restartAnimationIfVisible() {
         if window != nil { startAnimating() }
     }
@@ -381,5 +410,24 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
             layoutAvatars()
         }
     }
+}
+
+/// What the typing bubble hands to the incoming message that grows out of it, in window
+/// coordinates.
+struct ChatTypingHandoff {
+
+    /// A copy of a piece of the typing row that fades out where it stood.
+    struct Remnant {
+        let view: UIView
+        let frame: CGRect
+    }
+
+    /// Where the dots bubble stood.
+    let bubbleFrame: CGRect
+    /// Where the face the message takes over stood in the typists' stack, or nil when the message
+    /// draws none.
+    let faceFrame: CGRect?
+    /// The dots, and the typists' faces when the message takes none of them over.
+    let remnants: [Remnant]
 }
 #endif

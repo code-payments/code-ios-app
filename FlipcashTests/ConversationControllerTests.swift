@@ -29,6 +29,7 @@ struct ConversationControllerTests {
         database: Database? = nil,
         typingHeartbeatInterval: Duration = .seconds(3),
         incomingTypingExpiry: Duration = .seconds(10),
+        typingStoppedLinger: Duration = .zero,
         typingExpiryClock: TypingExpiryClock = .continuous
     ) -> ConversationController {
         ConversationController(
@@ -38,6 +39,7 @@ struct ConversationControllerTests {
             owner: .generate()!, selfUserID: selfUserID,
             typingHeartbeatInterval: typingHeartbeatInterval,
             incomingTypingExpiry: incomingTypingExpiry,
+            typingStoppedLinger: typingStoppedLinger,
             typingExpiryClock: typingExpiryClock
         )
     }
@@ -260,6 +262,117 @@ struct ConversationControllerTests {
         clock.advance(by: .milliseconds(150))
         try await waitUntil { controller.typists(in: .test(1)).isEmpty }
         #expect(!controller.isCounterpartTyping(in: .test(1)))
+    }
+
+    // MARK: - STOPPED linger and arriving messages -
+
+    private func typing(_ userID: UserID, _ active: Bool, in mock: MockConversations) {
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: userID, isActive: active)]))
+    }
+
+    private func textMessage(_ id: UInt64, from senderID: UserID) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: id), senderID: senderID, content: .text("hi"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+    }
+
+    @Test("a STOPPED keeps the typist for the linger, then drops them")
+    func stoppedLingers_thenDrops() async throws {
+        let them = UUID()
+        let mock = MockConversations()
+        let clock = ManualTypingClock()
+        let controller = makeController(mock, typingStoppedLinger: .milliseconds(300), typingExpiryClock: clock.clock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        typing(them, true, in: mock)
+        try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
+        typing(them, false, in: mock)
+        // The sweep re-arms on the linger's deadline rather than the typist leaving at once.
+        try await waitUntil { clock.nextDeadline == .milliseconds(300) }
+        #expect(controller.isCounterpartTyping(in: .test(1)))
+
+        clock.advance(by: .milliseconds(300))
+        try await waitUntil { !controller.isCounterpartTyping(in: .test(1)) }
+    }
+
+    @Test("a STILL during the linger restores the normal deadline")
+    func stillDuringLinger_restoresDeadline() async throws {
+        let them = UUID()
+        let mock = MockConversations()
+        let clock = ManualTypingClock()
+        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(1000), typingStoppedLinger: .milliseconds(300), typingExpiryClock: clock.clock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        typing(them, true, in: mock)
+        try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
+        typing(them, false, in: mock)
+        try await waitUntil { clock.nextDeadline == .milliseconds(300) }
+        typing(them, true, in: mock)
+        try await waitUntil { clock.nextDeadline == .milliseconds(1000) }
+
+        clock.advance(by: .milliseconds(300))
+        #expect(controller.isCounterpartTyping(in: .test(1)), "the typist must outlive the cancelled linger")
+        clock.advance(by: .milliseconds(700))
+        try await waitUntil { !controller.isCounterpartTyping(in: .test(1)) }
+    }
+
+    @Test("a STOPPED from someone who isn't typing adds nothing")
+    func stoppedForNonTypist_addsNothing() async throws {
+        let them = UUID()
+        let mock = MockConversations()
+        let clock = ManualTypingClock()
+        let controller = makeController(mock, typingStoppedLinger: .milliseconds(300), typingExpiryClock: clock.clock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        typing(them, false, in: mock)
+        // A message behind it is the marker that the STOPPED has been consumed too.
+        mock.emit(.sent([textMessage(1, from: UUID())], in: .test(1)))
+        try await waitUntil { !controller.messages(for: .test(1)).isEmpty }
+        #expect(controller.typists(in: .test(1)).isEmpty)
+        #expect(clock.nextDeadline == nil)
+    }
+
+    @Test("a message from a typist takes them out of the typists in the same turn it lands")
+    func messageFromTypist_removesThemWithTheMessage() async throws {
+        let them = UUID()
+        let mock = MockConversations()
+        let clock = ManualTypingClock()
+        let controller = makeController(mock, typingStoppedLinger: .milliseconds(800), typingExpiryClock: clock.clock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        typing(them, true, in: mock)
+        try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
+        // The sender's composer clearing sends STOPPED ahead of the message: the dots hold.
+        typing(them, false, in: mock)
+        try await waitUntil { clock.nextDeadline == .milliseconds(800) }
+        mock.emit(.sent([textMessage(1, from: them)], in: .test(1)))
+
+        // Every turn sees either the dots and no message, or the message and no dots.
+        for _ in 0..<50 {
+            let arrived = !controller.messages(for: .test(1)).isEmpty
+            #expect(arrived != controller.isCounterpartTyping(in: .test(1)))
+            if arrived { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(!controller.messages(for: .test(1)).isEmpty)
+        #expect(controller.typists(in: .test(1)).isEmpty)
+    }
+
+    @Test("a message from someone else leaves the typists alone")
+    func messageFromOther_keepsTypists() async throws {
+        let a = UUID(), b = UUID()
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        typing(a, true, in: mock)
+        try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
+        mock.emit(.sent([textMessage(1, from: b)], in: .test(1)))
+        try await waitUntil { !controller.messages(for: .test(1)).isEmpty }
+        #expect(controller.typists(in: .test(1)) == [a])
     }
 
     @Test("a STOPPED never overtakes an in-flight earlier send")

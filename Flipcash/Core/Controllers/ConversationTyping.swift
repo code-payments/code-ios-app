@@ -38,6 +38,8 @@ final class ConversationTyping {
     private let heartbeatInterval: Duration
     private let timeout: Duration
     private let incomingExpiry: Duration
+    /// How long a typist who sent STOPPED stays on screen.
+    private let stoppedLinger: Duration
     @ObservationIgnored private let expiryClock: TypingExpiryClock
 
     /// OTHER members typing per conversation, each with when they started and their staleness deadline.
@@ -59,6 +61,7 @@ final class ConversationTyping {
         heartbeatInterval: Duration = .seconds(3),
         timeout: Duration = .seconds(5),
         incomingExpiry: Duration = .seconds(10),
+        stoppedLinger: Duration = ConversationTyping.defaultStoppedLinger,
         expiryClock: TypingExpiryClock = .continuous
     ) {
         self.messaging = messaging
@@ -67,8 +70,17 @@ final class ConversationTyping {
         self.heartbeatInterval = heartbeatInterval
         self.timeout = timeout
         self.incomingExpiry = incomingExpiry
+        self.stoppedLinger = stoppedLinger
         self.expiryClock = expiryClock
     }
+
+    /// How long a typist lingers after their STOPPED arrives.
+    ///
+    /// The sender's composer empties on submit, which sends STOPPED before the message itself
+    /// goes out, so STOPPED routinely lands first. Holding the dots through that gap lets the
+    /// message arrive in the same update that takes them away, so it can grow out of their bubble;
+    /// a STOPPED with no message behind it (the draft was deleted) just leaves this much later.
+    static let defaultStoppedLinger: Duration = .milliseconds(800)
 
     // MARK: - Incoming
 
@@ -99,9 +111,21 @@ final class ConversationTyping {
                     deadline: now + incomingExpiry
                 )
             case false:
-                removeTypist(notification.userID, in: conversationID)
+                // Lingers rather than leaving at once (see `defaultStoppedLinger`); someone who is
+                // not typing is never added back by it.
+                guard typists[conversationID]?[notification.userID] != nil else { continue }
+                typists[conversationID]?[notification.userID]?.deadline = expiryClock.now() + stoppedLinger
             }
         }
+        scheduleExpirySweep()
+    }
+
+    /// Takes `senderID` out of the conversation's typists as their message arrives, so the dots
+    /// and the message change in the same observation cycle. Call in the same main-actor turn
+    /// that puts the message in the store.
+    func messageArrived(from senderID: UserID, in conversationID: ConversationID) {
+        guard senderID != selfUserID, typists[conversationID]?[senderID] != nil else { return }
+        removeTypist(senderID, in: conversationID)
         scheduleExpirySweep()
     }
 

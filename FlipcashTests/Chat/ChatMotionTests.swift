@@ -26,7 +26,7 @@ struct ChatSpringPhysicsTests {
     }
 
     static let rows: [Row] = [
-        Row(name: "insertion",      spring: ChatMotion.insertion,      dampingRatio: 0.73, stiffness: 746.3,  damping: 39.88),
+        Row(name: "insertion",      spring: ChatMotion.insertion,      dampingRatio: 0.85, stiffness: 541.5,  damping: 39.56),
         Row(name: "scroll",         spring: ChatMotion.scroll,         dampingRatio: 0.88, stiffness: 438.6,  damping: 36.86),
         Row(name: "keyboardScroll", spring: ChatMotion.keyboardScroll, dampingRatio: 1.00, stiffness: 438.6,  damping: 41.89),
         Row(name: "delivered",      spring: ChatMotion.delivered,      dampingRatio: 0.88, stiffness: 246.7,  damping: 27.65),
@@ -34,6 +34,8 @@ struct ChatSpringPhysicsTests {
         Row(name: "swap",           spring: ChatMotion.swap,           dampingRatio: 0.69, stiffness: 541.5,  damping: 32.11),
         Row(name: "sendButton",     spring: ChatMotion.sendButton,     dampingRatio: 0.66, stiffness: 1366.0, damping: 48.79),
         Row(name: "corner",         spring: ChatMotion.corner,         dampingRatio: 0.68, stiffness: 195.0,  damping: 18.99),
+        Row(name: "reflow",         spring: ChatMotion.reflow,         dampingRatio: 1.00, stiffness: 322.3,  damping: 35.90),
+        Row(name: "fromTyping",     spring: ChatMotion.fromTyping,     dampingRatio: 0.79, stiffness: 987.0,  damping: 49.64),
     ]
 
     @Test("Derived physics match the spec's table", arguments: rows)
@@ -83,7 +85,7 @@ struct ChatInsertionStateTests {
 
     @Test("An outgoing insert is anchored to the trailing edge, an incoming one to the leading edge")
     func insertionStateAnchorsToSendersEdge() {
-        // Scaling a 400pt row to 0.95 loses 20pt of width; half of that is the translation needed to
+        // Scaling a 400pt row to 0.90 loses 40pt of width; half of that is the translation needed to
         // hold one edge still.
         let half: CGFloat = 200
 
@@ -121,5 +123,64 @@ struct ChatInsertionStateTests {
         #expect(attributes.alpha == 0)
         #expect(attributes.transform.a == ChatMotion.insertionScale)
         #expect(attributes.transform.tx == 0)
+    }
+
+    @Test("A bubble grows out of its bottom corner: the bottom edge holds still")
+    func insertionAnchorsToBottomEdge() {
+        // The fixture row is 50pt tall, so its bottom edge sits 25pt below the centre.
+        let outgoing = attributes()
+        ChatMotion.applyInsertionState(to: outgoing, sender: .me)
+        #expect(abs(CGPoint(x: 0, y: 25).applying(outgoing.transform).y - 25) < 0.001)
+    }
+
+    @Test("A rise starts the row that far below its slot, and keeps the sender's edge still")
+    func insertionRiseTranslatesDown() {
+        let half: CGFloat = 200
+        let outgoing = attributes()
+        ChatMotion.applyInsertionState(to: outgoing, sender: .me, rise: 44)
+        #expect(abs(CGPoint(x: 0, y: 25).applying(outgoing.transform).y - (25 + 44)) < 0.001)
+        #expect(abs(mappedEdge(half, of: outgoing) - half) < 0.001)
+
+        let separator = attributes()
+        ChatMotion.applyInsertionState(to: separator, sender: nil, rise: 30)
+        #expect(separator.transform.ty == 30)
+    }
+
+}
+
+@MainActor
+@Suite("Bottom append detection")
+struct ChatAppendStartTests {
+
+    private func row(_ id: String) -> ChatItem {
+        .message(ChatMessage(id: id, text: id, sender: .me))
+    }
+
+    @Test("A row added at the bottom starts the appended block")
+    func appendAtBottom() {
+        #expect(ChatViewController.appendStart(from: [row("a"), row("b")], to: [row("a"), row("b"), row("c")]) == 2)
+    }
+
+    @Test("Two rows added at the bottom form one block")
+    func appendTwo() {
+        #expect(ChatViewController.appendStart(from: [row("a")], to: [row("a"), row("b"), row("c")]) == 1)
+    }
+
+    @Test("A reply that replaces the typing dots is still an append")
+    func replyReplacesDots() {
+        let old: [ChatItem] = [row("a"), .typingIndicator(typists: [])]
+        #expect(ChatViewController.appendStart(from: old, to: [row("a"), row("b")]) == 1)
+    }
+
+    @Test("A prepended page or an in-place change appends nothing")
+    func noAppend() {
+        #expect(ChatViewController.appendStart(from: [row("b")], to: [row("a"), row("b")]) == nil)
+        let changed = ChatItem.message(ChatMessage(id: "b", text: "edited", sender: .me))
+        #expect(ChatViewController.appendStart(from: [row("a"), row("b")], to: [row("a"), changed]) == nil)
+    }
+
+    @Test("A first load appends nothing, since it isn't animated")
+    func firstLoad() {
+        #expect(ChatViewController.appendStart(from: [], to: [row("a")]) == nil)
     }
 }

@@ -24,7 +24,7 @@ enum ChatBackdrop {
     /// is paused part-way, which is the only handle on its strength. At full strength the transcript
     /// smears into flat colour; Android frosts the same screen at a 25dp radius and reads far softer,
     /// and this is matched to that.
-    static let blurFraction: CGFloat = 0.4
+    static let blurFraction: CGFloat = 0.25
 
     /// The black that goes with the blur wherever nothing else is darkening the screen.
     ///

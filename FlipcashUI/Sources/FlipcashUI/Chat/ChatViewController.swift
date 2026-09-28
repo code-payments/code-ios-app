@@ -195,6 +195,15 @@ public final class ChatViewController: UICollectionViewController {
     private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
+    /// The first row of the new block appended at the bottom by the batch in flight, or nil when the
+    /// batch appends nothing there. Those rows start below their slots (see `insertionRise(for:frame:)`).
+    private var appendedFrom: Int?
+    /// How far that appended block starts below its slots, worked out once from its first row so
+    /// every row in it travels the same distance.
+    private var appendedRise: CGFloat?
+    /// The row the batch in flight grows out of the typing bubble, or nil. It starts in its slot,
+    /// whole and unscaled, since its cell plays the arrival itself (see `ChatColumnCell.grow`).
+    private var growingFromTyping: Int?
     /// Set while `setBottomInset` writes the content inset — that write synchronously fires
     /// `scrollViewDidChangeAdjustedContentInset`, and this stops the delegate re-entering `scrollToBottom`
     /// → `restoreContentOffset` mid-write, a nested layout pass that crashes ChatLayout.
@@ -218,11 +227,9 @@ public final class ChatViewController: UICollectionViewController {
     /// A transcript pushed while the menu was up, applied once it closes (so an arriving message can't
     /// reflow the content mid-preview). Mirrors ChatLayout deferring updates while `.showingPreview`.
     private var deferredItems: [ChatItem]?
-    /// A bottom inset requested while the inset was not the caller's to change — the menu had it
-    /// frozen, or a batch update was in flight — applied as soon as it is. The bar can grow from a
-    /// menu action (choosing Edit opens the editing banner) and can shrink from a send (a multiline
-    /// draft collapsing), and both land inside one of those windows; without holding the request the
-    /// transcript keeps the old bar's inset until some later layout pass corrects it.
+    /// A bottom inset requested while the menu had the inset frozen, applied once it closes. The bar
+    /// can grow from a menu action (choosing Edit opens the editing banner); without holding the
+    /// request the transcript keeps the old bar's inset until some later layout pass corrects it.
     private var pendingBottomInset: CGFloat?
 
     /// Called as a context menu is presented and again as it starts to dismiss, each carrying the
@@ -429,10 +436,15 @@ public final class ChatViewController: UICollectionViewController {
             return
         }
         isUpdating = true
+        appendedFrom = Self.appendStart(from: items, to: newItems)
+        appendedRise = nil
+        let handoff = handOffTypingBubble(from: items, to: newItems)
+        growingFromTyping = handoff?.row
         // `performBatchUpdates` inherits the enclosing animation's timing, which is the only way to
         // give ChatLayout's insertion a spring: the layout delegate below supplies the *starting*
         // state, this supplies the curve it travels on.
-        ChatMotion.insertion.animate { [self] in
+        let spring = handoff == nil ? Self.batchSpring(for: changeset) : ChatMotion.fromTyping
+        spring.animate { [self] in
             collectionView.reload(
                 using: changeset,
                 // A change too large to animate falls back to a reload that keeps the bottom-anchored
@@ -449,10 +461,9 @@ public final class ChatViewController: UICollectionViewController {
                 completion: { [weak self] _ in
                     guard let self else { return }
                     isUpdating = false
-                    if let inset = pendingBottomInset {
-                        pendingBottomInset = nil
-                        setBottomInset(inset)
-                    }
+                    appendedFrom = nil
+                    appendedRise = nil
+                    growingFromTyping = nil
                     performPendingScrollIfLanded()
                     // A message arriving while the reader sits at the bottom moves nothing, so
                     // no scroll event would report it.
@@ -463,6 +474,79 @@ public final class ChatViewController: UICollectionViewController {
                 }
             )
         }
+        // After the batch rather than inside it: the arriving cell exists now, laid out where it
+        // lands, and the grow is its own Core Animation rather than a passenger on the batch's spring.
+        if let handoff, let cell = collectionView.cellForItem(at: IndexPath(item: handoff.row, section: 0)) as? ChatColumnCell {
+            cell.grow(
+                from: handoff.typing,
+                on: spring,
+                textDelay: ChatMotion.fromTypingTextDelay,
+                textFade: ChatMotion.fromTypingTextFade,
+                remnantFade: ChatMotion.fromTypingDotsFade
+            )
+        }
+    }
+
+    /// Hands the typing bubble to the incoming message replacing it in this update, returning the
+    /// message's row and what the bubble handed over, or nil when the update is not that handoff or
+    /// the dots are not on screen to hand anything over.
+    private func handOffTypingBubble(from old: [ChatItem], to new: [ChatItem]) -> (row: Int, typing: ChatTypingHandoff)? {
+        guard let row = Self.typingHandoffRow(from: old, to: new),
+              let message = message(at: row, in: new),
+              let cell = collectionView.cellForItem(at: IndexPath(item: old.count - 1, section: 0)) as? ChatTypingIndicatorCell
+        else { return nil }
+        // The face the message will draw beside its bubble, which the dots' stack hands over.
+        let face = message.isContinuationFromPrevious ? nil : message.author?.id
+        return cell.handOff(keepingFaceOf: face).map { (row, $0) }
+    }
+
+    /// The row of the incoming message that takes the typing bubble's place in an update from `old`
+    /// to `new`, or nil when there is none: exactly one row appended at the bottom, a message from
+    /// someone else, in the update that drops the typing indicator trailing `old`.
+    static func typingHandoffRow(from old: [ChatItem], to new: [ChatItem]) -> Int? {
+        guard let trailing = old.last, isTypingIndicator(trailing),
+              !new.contains(where: isTypingIndicator),
+              let start = appendStart(from: old, to: new), start == new.count - 1
+        else { return nil }
+        switch new[start] {
+        case .message(let message):
+            switch message.sender {
+            case .other: return start
+            case .me:    return nil
+            }
+        case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard:
+            return nil
+        }
+    }
+
+    private static func isTypingIndicator(_ item: ChatItem) -> Bool {
+        switch item {
+        case .typingIndicator: true
+        case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard: false
+        }
+    }
+
+    private func message(at index: Int, in items: [ChatItem]) -> ChatMessage? {
+        guard items.indices.contains(index) else { return nil }
+        switch items[index] {
+        case .message(let message): return message
+        case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard: return nil
+        }
+    }
+
+    /// The spring a batch update travels on: `insertion` when rows arrive, leave or move, `reflow`
+    /// when the diff only reconfigures rows already in place.
+    ///
+    /// A reconfigure changes a row's height at most (a receipt moving, a status resolving, an
+    /// edit), and the arrival spring's bounce would lurch the whole transcript for it.
+    static func batchSpring(for changeset: StagedChangeset<[ChatItem]>) -> ChatSpring {
+        let changesRows = changeset.contains { stage in
+            !stage.elementInserted.isEmpty
+                || !stage.elementDeleted.isEmpty
+                || !stage.elementMoved.isEmpty
+                || stage.sectionChangeCount > 0
+        }
+        return changesRows ? ChatMotion.insertion : ChatMotion.reflow
     }
 
     // MARK: - Data source
@@ -888,18 +972,17 @@ public final class ChatViewController: UICollectionViewController {
             pendingBottomInset = inset
             return
         }
-        // Never change the inset mid-batch-update: ChatLayout can't account for an inset change
-        // during `performBatchUpdates`, which is what made an append (a send) overshoot. Hold it for
-        // the update's completion rather than waiting for whatever layout pass happens to run next —
-        // a send that also collapses a multiline field lands the bar's new height inside the update,
-        // and dropping the request there left the bar animating to a height the transcript only
-        // matched a pass later, as a snap.
-        guard !isUpdating else {
-            pendingBottomInset = inset
-            return
-        }
         let target = inset + Self.bottomContentPadding
         guard isViewLoaded, abs(collectionView.contentInset.bottom - target) > 0.5 else { return }
+        // A send that collapses a multiline draft lands the bar's new height inside the insert's
+        // batch update. The snapshot re-anchor below can't run there — it reads ChatLayout's
+        // mid-update attributes and forces a layout pass, which is what made an append overshoot —
+        // and holding the inset for the update's completion left the transcript a whole beat behind
+        // the bar, then snapped it.
+        guard !isUpdating else {
+            followBottomInset(to: target)
+            return
+        }
         let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
         isAdjustingBottomInset = true // suppress the delegate re-entry from the inset write below
         collectionView.contentInset.bottom = target
@@ -908,6 +991,38 @@ public final class ChatViewController: UICollectionViewController {
         if let snapshot {
             chatLayout.restoreContentOffset(with: snapshot)
         }
+    }
+
+    /// Moves the bottom inset to `target` while a batch update is in flight, carrying the content
+    /// by the same amount on `keyboardScroll`: the same result the snapshot re-anchor gives, since
+    /// the edge the transcript is anchored to moved by exactly that much, worked out from the
+    /// scroll view's own numbers so no layout pass is forced mid-update.
+    private func followBottomInset(to target: CGFloat) {
+        let change = target - collectionView.contentInset.bottom
+        let from = collectionView.contentOffset
+        isAdjustingBottomInset = true
+        collectionView.contentInset.bottom = target
+        collectionView.verticalScrollIndicatorInsets.bottom = target
+        // A shrinking inset clamps the offset into the new range there and then, which is the snap
+        // this is here to avoid; the glide below starts from where the content really was.
+        collectionView.contentOffset = from
+        isAdjustingBottomInset = false
+        let top = -collectionView.adjustedContentInset.top
+        let bottom = chatLayout.collectionViewContentSize.height - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
+        let offset = min(max(from.y + change, top), max(bottom, top))
+        guard abs(offset - from.y) > 0.5 else { return }
+        ChatMotion.keyboardScroll.animate {
+            self.collectionView.setContentOffset(CGPoint(x: 0, y: offset), animated: false)
+        }
+    }
+
+    /// Whether the transcript sits at its newest message, within a point, on the scroll view's
+    /// resting geometry. Content shorter than the viewport always does.
+    public var isAtBottom: Bool {
+        guard isViewLoaded else { return true }
+        let top = -collectionView.adjustedContentInset.top
+        let bottom = chatLayout.collectionViewContentSize.height - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
+        return max(bottom, top) - collectionView.contentOffset.y <= 1
     }
 
     /// Holds the adjusted bottom inset at its current (keyboard-up) value for the menu's lifetime, so
@@ -965,15 +1080,55 @@ extension ChatViewController: ChatLayoutDelegate {
         modifying originalAttributes: ChatLayoutAttributes,
         on state: InitialAttributesRequestType
     ) {
+        // Its cell plays the arrival instead: the chrome grows out of the dots in the slot it lands in.
+        guard indexPath.item != growingFromTyping else { return }
         switch state {
         case .initial:
-            ChatMotion.applyInsertionState(to: originalAttributes, sender: sender(at: indexPath))
+            ChatMotion.applyInsertionState(
+                to: originalAttributes,
+                sender: sender(at: indexPath),
+                rise: insertionRise(for: indexPath, frame: originalAttributes.frame)
+            )
         case .invalidation:
             // Still the same arrival — ChatLayout only asks this for an inserted row, once
             // self-sizing has resolved its real height. It overwrites the frame first, so the
-            // starting state has to be re-stated rather than assumed to have survived.
-            ChatMotion.applyInsertionState(to: originalAttributes, sender: sender(at: indexPath))
+            // starting state has to be re-stated rather than assumed to have survived. The rise is
+            // re-measured too, since the real height changes the room the block makes.
+            if indexPath.item == appendedFrom { appendedRise = nil }
+            ChatMotion.applyInsertionState(
+                to: originalAttributes,
+                sender: sender(at: indexPath),
+                rise: insertionRise(for: indexPath, frame: originalAttributes.frame)
+            )
         }
+    }
+
+    /// How far below its slot an inserted row starts: the room the appended block makes (its height
+    /// plus the gap above it), so it rides up with the rows it pushes. Zero for a row inserted
+    /// anywhere but the bottom, which pushes nothing up.
+    private func insertionRise(for indexPath: IndexPath, frame: CGRect) -> CGFloat {
+        guard let start = appendedFrom, indexPath.item >= start else { return 0 }
+        if let appendedRise { return appendedRise }
+        let gap = start > 0
+            ? interItemSpacing(chatLayout, after: IndexPath(item: start - 1, section: indexPath.section)) ?? RowGap.normal
+            : 0
+        // Measured from the block's first row to the bottom of the content. Asked for any later row
+        // first, the row's own height is the best estimate until the first row is measured.
+        let block = indexPath.item == start
+            ? chatLayout.collectionViewContentSize.height - frame.minY
+            : frame.height
+        let rise = min(max(block, frame.height) + gap, collectionView.bounds.height) * ChatMotion.insertionRise
+        if indexPath.item == start { appendedRise = rise }
+        return rise
+    }
+
+    /// The index where the block of rows appended at the bottom begins, or nil when the update adds
+    /// nothing there. Rows are matched by diff identity, so a row that only changed stays put.
+    static func appendStart(from old: [ChatItem], to new: [ChatItem]) -> Int? {
+        let known = Set(old.map(\.differenceIdentifier))
+        var start = new.count
+        while start > 0, !known.contains(new[start - 1].differenceIdentifier) { start -= 1 }
+        return start < new.count && start > 0 ? start : nil
     }
 
     public func interItemSpacing(_ chatLayout: CollectionViewChatLayout, after indexPath: IndexPath) -> CGFloat? {

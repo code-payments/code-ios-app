@@ -274,6 +274,7 @@ final class ConversationController {
         typingHeartbeatInterval: Duration = .seconds(3),
         typingTimeout: Duration = .seconds(5),
         incomingTypingExpiry: Duration = .seconds(10),
+        typingStoppedLinger: Duration = ConversationTyping.defaultStoppedLinger,
         typingExpiryClock: TypingExpiryClock = .continuous,
         receipts: ConversationReceiptReporter? = nil
     ) {
@@ -295,6 +296,7 @@ final class ConversationController {
             heartbeatInterval: typingHeartbeatInterval,
             timeout: typingTimeout,
             incomingExpiry: incomingTypingExpiry,
+            stoppedLinger: typingStoppedLinger,
             expiryClock: typingExpiryClock
         )
         self.reactions = ConversationReactions(
@@ -395,6 +397,9 @@ final class ConversationController {
             for await event in events {
                 guard let self else { return }
                 let gap = self.store.apply(event)
+                // Same turn as the store write, so the transcript's next push carries the dots
+                // leaving and the message arriving as one change.
+                self.clearTypistsWhoSent(event)
                 self.persist(event: event)
                 // Before `hydrateIfUnknown`: the user's own join carries the chat's metadata, so
                 // seating it here spares a `GetChat` for a group the feed hasn't reached yet.
@@ -664,6 +669,20 @@ final class ConversationController {
                 "messageID": "\(pointer.value.value)",
                 "readAt": "\(pointer.date.map { "\($0)" } ?? "nil")",
             ])
+        }
+    }
+
+    /// Takes the sender of each newly arrived message out of that conversation's typists.
+    private func clearTypistsWhoSent(_ event: ConversationStreamEvent) {
+        guard case .chatEvents(let conversationID, let events) = event else { return }
+        for mutation in events.flatMap(\.mutations) {
+            switch mutation {
+            case .sent(let message):
+                guard let senderID = message.senderID else { continue }
+                typing.messageArrived(from: senderID, in: conversationID)
+            case .edited, .deleted:
+                continue
+            }
         }
     }
 
