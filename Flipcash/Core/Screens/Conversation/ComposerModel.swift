@@ -209,12 +209,13 @@ final class ComposerModel {
         mode = .new
     }
 
-    /// Stages `image` as a new chip and starts its upload through `uploader`, returning the chip, or
-    /// returns `nil` when the composer already holds `maxAttachments` chips.
+    /// Stages `image` as a new chip, drawn from `preview` until its thumbnail is ready, and starts its
+    /// upload through `uploader`, returning the chip, or returns `nil` when the composer already
+    /// holds `maxAttachments` chips.
     @discardableResult
-    func stageChip(image: UIImage, uploader: ChatMediaUploader) -> ComposerChip? {
+    func stageChip(image: UIImage, preview: UIImage? = nil, uploader: ChatMediaUploader) -> ComposerChip? {
         guard chips.count < Self.maxAttachments else { return nil }
-        let chip = ComposerChip(image: image)
+        let chip = ComposerChip(image: image, preview: preview)
         chips.append(chip)
         chip.startUpload(using: uploader)
         return chip

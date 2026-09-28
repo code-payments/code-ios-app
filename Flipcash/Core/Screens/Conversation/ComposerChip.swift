@@ -32,6 +32,9 @@ final class ComposerChip: Identifiable {
 
     let id = UUID()
     let image: UIImage
+    /// A display-ready copy decoded ahead of staging, so the chip can draw on its first frame — the
+    /// camera's capture shrinks into the chip before its own thumbnail could be decoded.
+    let preview: UIImage?
     var state: State = .preparing
 
     /// Pixel width of the image as it will be uploaded, known before the upload starts.
@@ -48,8 +51,9 @@ final class ComposerChip: Identifiable {
     /// composer has let go of the chip.
     @ObservationIgnored private var uploader: ChatMediaUploader?
 
-    init(image: UIImage) {
+    init(image: UIImage, preview: UIImage? = nil) {
         self.image = image
+        self.preview = preview
     }
 
     /// Uploads the image through `uploader`, replacing any earlier attempt; calling it again after

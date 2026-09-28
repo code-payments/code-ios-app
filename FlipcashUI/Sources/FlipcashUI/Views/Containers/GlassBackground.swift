@@ -34,6 +34,18 @@ extension View {
         }
     }
 
+    /// The app's glass surface for a panel that holds its own buttons: Liquid Glass on iOS 26, an
+    /// ultra-thin material below. Non-interactive, because `.interactive()` on the container competes
+    /// with its buttons for the tap.
+    @ViewBuilder
+    public func panelGlassBackground(cornerRadius: CGFloat) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+        } else {
+            background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
+        }
+    }
+
     /// The app's glass surface clipped to a capsule, for a control whose shape is
     /// fully rounded — the floating tab bar and the Scan tab's gallery button.
     @ViewBuilder

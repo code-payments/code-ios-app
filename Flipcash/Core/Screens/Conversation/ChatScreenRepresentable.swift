@@ -120,11 +120,14 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let authorAvatars: [UserID: Data]
     /// Whether the chat takes photos; false for an E2EE DM.
     var acceptsMedia: Bool = false
-    /// Receives a photo taken with the inline camera, which the representable opens in the
-    /// keyboard's place and closes again once the photo is handed over.
-    var onCameraCapture: (UIImage) -> Void = { _ in }
-    /// Receives the photos picked from the attach menu, in the order they were selected.
-    var onPhotosPicked: ([PhotosPickerItem]) -> Void = { _ in }
+    /// Receives a photo taken with the camera card, which the representable opens over the composer
+    /// and closes again once the photo is handed over.
+    /// Returns the chip the photo was staged as, which the capture shrinks into.
+    var onCameraCapture: (ChatCameraCapture) -> ComposerChip.ID? = { _ in nil }
+    /// Receives the photos added from the attach menu's photo card, in the order they were
+    /// selected, with the loader already reading them. Returns the chip the first was staged as,
+    /// which the card shrinks into, when it could be staged at once.
+    var onPhotosAdded: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> ComposerChip.ID? = { _, _ in nil }
     /// Mints a signed download URL for a photo in this chat. The transcript's resolver caches what it
     /// returns and never asks for a photo drawn only from its BlurHash.
     var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
@@ -290,7 +293,17 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     }
 
     private func bar(coordinator: Coordinator) -> AnyView {
-        AnyView(
+        coordinator.overlayActions = AttachOverlayActions(
+            onCash: onSendCash,
+            onCamera: { [weak coordinator] in coordinator?.openCard(.camera) },
+            onPhotos: { [weak coordinator] in coordinator?.openCard(.photos) },
+            onCameraCapture: { [weak coordinator] capture in coordinator?.closeCard { onCameraCapture(capture) } },
+            onCameraCancel: { [model = barModel] in model.returnToMenu() },
+            onPhotosAdd: { [weak coordinator] items, preloader in coordinator?.closeCard { onPhotosAdded(items, preloader) } },
+            onPhotosBack: { [model = barModel] in model.returnToMenu() },
+            onAllPhotos: { [weak coordinator] in coordinator?.overlay.handOffToBar() }
+        )
+        return AnyView(
             ConversationBottomBar(
                 showsSendCash: showsSendCash,
                 chatExists: chatExists,
@@ -308,21 +321,29 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 isJoiningChat: isJoiningChat,
                 mentions: mentions,
                 acceptsMedia: acceptsMedia,
-                onCamera: { [weak coordinator, camera = barModel.camera] in
-                    coordinator?.screen?.dismissKeyboard()
-                    camera.open()
+                onAttachOpen: { [weak coordinator] items in
+                    coordinator?.openAttach(items: items)
                 },
-                onCameraCapture: { [weak coordinator, camera = barModel.camera] image in
-                    onCameraCapture(image)
-                    camera.close()
-                    // Back to the keyboard, so the photo can be captioned.
-                    coordinator?.screen?.focusComposer()
+                onCamera: { [weak coordinator] in
+                    coordinator?.openCard(.camera)
                 },
-                onCameraCancel: { [weak coordinator, camera = barModel.camera] in
-                    camera.close()
-                    coordinator?.screen?.focusComposer()
+                onCameraCapture: { [weak coordinator] capture in
+                    coordinator?.closeCard { onCameraCapture(capture) }
                 },
-                onPhotosPicked: onPhotosPicked,
+                onCameraCancel: { [model = barModel] in
+                    // Back into the panel, with the keyboard left down.
+                    model.returnToMenu()
+                },
+                onPhotos: { [weak coordinator] in
+                    coordinator?.openCard(.photos)
+                },
+                onPhotosAdd: { [weak coordinator] items, preloader in
+                    coordinator?.closeCard { onPhotosAdded(items, preloader) }
+                },
+                onPhotosBack: { [model = barModel] in
+                    // Back into the panel, with the keyboard left down.
+                    model.returnToMenu()
+                },
                 // Only a member can aim a reply, so the viewer may see what it quotes.
                 quoteThumbnailURL: { [resolver = coordinator.mediaURLResolver] kind in
                     await resolver.thumbnailURL(for: kind, canReact: true)
@@ -339,14 +360,77 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                     }
                 }
             )
+            // Behind the bar and over the transcript, which the bar's host covers while the panel is
+            // up: a touch anywhere outside the panel takes it down.
+            .background {
+                if barModel.attachPanel.isOpen {
+                    AttachPanelDismissArea(panel: barModel.attachPanel)
+                }
+            }
+            .modifier(BarOverflowReporting(model: barModel) { [weak coordinator] in coordinator?.screen })
         )
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator { Coordinator(model: barModel, composer: composer) }
 
     @MainActor final class Coordinator {
         var barHost: UIHostingController<AnyView>?
         weak var screen: ChatScreenViewController?
+        let model: ConversationBarModel
+        let composer: ComposerModel
+        /// Draws the attach panel and cards over the keyboard while the composer keeps focus.
+        let overlay: AttachKeyboardOverlay
+        /// What the panel and cards drawn over the keyboard hand back, as of the latest render.
+        var overlayActions: AttachOverlayActions?
+
+        init(model: ConversationBarModel, composer: ComposerModel) {
+            self.model = model
+            self.composer = composer
+            self.overlay = AttachKeyboardOverlay(model: model)
+        }
+
+        /// `+` is opening the panel with `items` as its rows: over the keyboard while it is up and its
+        /// window or the field's input view can carry the panel, else with the keyboard taken down.
+        func openAttach(items: [AttachMenuItem]) {
+            guard let screen, let overlayActions else { return }
+            // Sized now, so the card's content is laid out at its final size while the menu is up.
+            model.attachCard.measure(screenHeight: screen.view.bounds.height)
+            let mode = overlay.begin(screen: screen, items: items, composer: composer, actions: overlayActions)
+            switch mode {
+            case .keyboardWindow, .inputView:
+                break
+            case .dismissKeyboard:
+                screen.dismissKeyboard()
+            }
+        }
+
+        /// Puts the camera or photo card up from the panel, over the keyboard if the panel is.
+        func openCard(_ content: AttachCard.Content) {
+            if overlay.mode == nil {
+                screen?.dismissKeyboard()
+            }
+            model.attachCard.open(content, screenHeight: screen?.view.bounds.height ?? 0)
+        }
+
+        /// Takes the card down into the chip `stage` returns, and puts focus back in the field so the
+        /// photo can be captioned. The chip waits hidden while the bar lays it out, and the surface
+        /// shrinks onto its frame once it has.
+        func closeCard(handingOffTo stage: () -> ComposerChip.ID?) {
+            let card = model.attachCard
+            guard let chipID = stage() else {
+                card.animate { card.close() }
+                screen?.focusComposer()
+                return
+            }
+            card.beginLanding(on: chipID)
+            screen?.focusComposer()
+            // A chip the bar never lays out leaves nothing to land on, so the card goes anyway.
+            DispatchQueue.main.asyncAfter(deadline: .now() + ChatMotion.attachCard.duration) {
+                guard card.isOpen, card.landingChipID == chipID else { return }
+                card.animate({ card.close() }, then: { card.endLanding() })
+            }
+        }
+
         var lastMessageID: String?
         /// The latest ``ChatScreenRepresentable/mintMediaURL``, read by the resolver.
         var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }

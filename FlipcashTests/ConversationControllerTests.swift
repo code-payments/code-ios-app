@@ -1609,6 +1609,43 @@ struct ConversationControllerTests {
         #expect(preview == "You received $1.00 of Jeffy")
     }
 
+    /// The Chats row for an end-to-end-encrypted chat whose newest message is `content`.
+    private func encryptedConversation(
+        _ content: ConversationMessage.Content,
+        from sender: UserID?,
+        failure: ConversationMessage.DecryptFailure? = nil
+    ) -> Conversation {
+        let sealed = ConversationMessage.Sealed(scheme: 1, nonce: Data([1]), ciphertext: Data([2]))
+        return Conversation(
+            id: ConversationID.test(1),
+            members: [],
+            lastMessage: ConversationMessage(
+                id: MessageID(value: 1),
+                senderID: sender,
+                content: content,
+                date: Date(timeIntervalSince1970: 1),
+                unreadSeq: 1,
+                sealed: sealed,
+                decryptFailure: failure
+            ),
+            lastActivity: Date(timeIntervalSince1970: 1),
+            useE2Ee: true
+        )
+    }
+
+    @Test("an encrypted chat previews its decrypted text, and nothing while it cannot be read")
+    func encryptedPreview() {
+        let me = UUID()
+        let them = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+        let ciphertext = ConversationMessage.Content.encrypted(scheme: 1, nonce: Data([1]), ciphertext: Data([2]))
+
+        #expect(controller.lastMessagePreview(for: encryptedConversation(.text("gm"), from: them)) { _ in nil } == "gm")
+        #expect(controller.lastMessagePreview(for: encryptedConversation(.text("gm"), from: me)) { _ in nil } == "You: gm")
+        #expect(controller.lastMessagePreview(for: encryptedConversation(ciphertext, from: them, failure: .authentication)) { _ in nil } == nil)
+        #expect(controller.lastMessagePreview(for: encryptedConversation(ciphertext, from: them)) { _ in nil } == nil)
+    }
+
     @Test("the viewer's own message is prefixed with You, in a DM as in a group")
     func textPreviewPrefixesSelf() {
         let me = UUID()

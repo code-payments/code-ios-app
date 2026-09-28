@@ -35,7 +35,7 @@ public final class ChatScreenViewController: UIViewController {
     /// capture, that put the composer row 24pt — half the strip's 48 — from where it belongs. Pinned
     /// to the bottom of a box that clips it, the bar's frame can jump to the strip's full height
     /// while the box uncovers it, and the composer row does not move at all.
-    private let barClip = UIView()
+    private let barClip = BarClipView()
     /// Carries the chat background on below the fade, so the keyboard has that behind it rather
     /// than the transcript.
     ///
@@ -59,6 +59,26 @@ public final class ChatScreenViewController: UIViewController {
     /// ramp's dark end never lands on the bubble the transcript just moved down.
     private var fadeTopConstraint: NSLayoutConstraint!
     private var barClipHeightConstraint: NSLayoutConstraint!
+
+    /// Whether the bar draws and takes touches above its own frame, for a panel it floats over the
+    /// transcript. While set, the bar's view reaches the top of the screen with its content still on
+    /// its bottom edge, the clip stops cutting it, and the transcript's inset is left alone.
+    public var barOverflowsTop = false {
+        didSet {
+            guard barOverflowsTop != oldValue, barClipHeightConstraint != nil else { return }
+            // The bar is already as tall as the screen and pinned to the clip's bottom, so letting
+            // it draw and take touches above the clip is all the overflow needs.
+            barClip.clipsToBounds = !barOverflowsTop
+            barClip.overflowTarget = barOverflowsTop ? bar : nil
+        }
+    }
+    /// Where, in window coordinates, the bar starts taking touches while it overflows, or `nil` for
+    /// everywhere it reaches. A card standing over the transcript takes touches on itself and lets the
+    /// rest through; a panel that dismisses on any outside touch takes them all.
+    public var barOverflowTouchTop: CGFloat? {
+        didSet { barClip.overflowTouchTop = barOverflowTouchTop }
+    }
+
     /// Keeps the bar above the keyboard. Not `view.keyboardLayoutGuide`: see `KeyboardFloor`.
     private var keyboardFloor: KeyboardFloor!
 
@@ -310,6 +330,8 @@ public final class ChatScreenViewController: UIViewController {
 
     /// The lift on screen, if any: its overlay and the message it raised.
     private var lift: (overlay: MessageLiftOverlay, message: ChatMessage)?
+    /// The layer over the transcript that takes its touches, if one is up.
+    private var transcriptShield: TranscriptShield?
 
     public override func viewDidLoad() {
         super.viewDidLoad()
@@ -661,6 +683,53 @@ public final class ChatScreenViewController: UIViewController {
     /// the mention list, sent whenever it changes.
     public var onMentionRoomChange: ((CGFloat) -> Void)?
 
+    /// How far the keyboard reaches up into the screen, in points; zero while it is down.
+    public var keyboardOverlap: CGFloat {
+        keyboardFloor?.overlap ?? 0
+    }
+
+    /// Whether the composer's field holds the keyboard and can take a replacement input view.
+    public var canReplaceComposerInputView: Bool {
+        guard let responder = bar.firstTextInputResponder, responder.isFirstResponder else { return false }
+        return responder is UITextView || responder is UITextField
+    }
+
+    /// Shows `inputView` in the keyboard's place under the composer's field, or the system keyboard
+    /// again for `nil`, without the field losing focus. Returns whether the field took it.
+    @discardableResult
+    public func setComposerInputView(_ inputView: UIView?) -> Bool {
+        switch bar.firstTextInputResponder {
+        case let textView as UITextView:
+            guard textView.inputView !== inputView else { return true }
+            textView.inputView = inputView
+            textView.reloadInputViews()
+            return true
+        case let textField as UITextField:
+            guard textField.inputView !== inputView else { return true }
+            textField.inputView = inputView
+            textField.reloadInputViews()
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Lays a clear layer over the transcript that takes every touch and fires `onTap` instead,
+    /// while `isActive` holds; `nil` takes it down. Nothing under it sees the touch, so the keyboard
+    /// stays up and no message reacts.
+    public func setTranscriptShield(isActive: @escaping () -> Bool, onTap: (() -> Void)?) {
+        transcriptShield?.removeFromSuperview()
+        transcriptShield = nil
+        guard let onTap else { return }
+        let shield = TranscriptShield()
+        shield.isActive = isActive
+        shield.onTap = onTap
+        shield.frame = transcript.view.frame
+        shield.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.insertSubview(shield, aboveSubview: transcript.view)
+        transcriptShield = shield
+    }
+
     /// Set the bar's height to its measured SwiftUI content height. `accessories` says which cards
     /// stand above the composer row, which decides what the clip around the bar does with that height.
     ///
@@ -849,7 +918,7 @@ private final class KeyboardFloor {
     private var observer: (any NSObjectProtocol)?
 
     /// The keyboard's current overlap of the view, in points; zero when it is down.
-    private var overlap: CGFloat = 0
+    private(set) var overlap: CGFloat = 0
 
     init(view: UIView, bottomConstraint: NSLayoutConstraint, keyboardEdgeConstraint: NSLayoutConstraint) {
         self.view = view
@@ -960,3 +1029,40 @@ private extension UIView {
 }
 
 #endif
+
+/// The box the bar is seen through, which also lets touches reach the bar where it reaches above the
+/// box — see ``ChatScreenViewController/barOverflowsTop``.
+private final class BarClipView: UIView {
+
+    /// The subview allowed to take touches outside the box's bounds, while the bar overflows.
+    weak var overflowTarget: UIView?
+    /// Where, in window coordinates, the target starts taking those touches; `nil` for all of it.
+    var overflowTouchTop: CGFloat?
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        if let overflowTarget {
+            var region = overflowTarget.frame
+            if let overflowTouchTop {
+                let top = max(region.minY, convert(CGPoint(x: 0, y: overflowTouchTop), from: nil).y)
+                region = CGRect(x: region.minX, y: top, width: region.width, height: max(0, region.maxY - top))
+            }
+            if region.contains(point) { return true }
+        }
+        return super.point(inside: point, with: event)
+    }
+}
+
+/// A clear layer that swallows touches while its predicate holds and passes them through otherwise.
+private final class TranscriptShield: UIView {
+
+    var isActive: () -> Bool = { false }
+    var onTap: () -> Void = {}
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        isActive() && bounds.contains(point) ? self : nil
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        onTap()
+    }
+}

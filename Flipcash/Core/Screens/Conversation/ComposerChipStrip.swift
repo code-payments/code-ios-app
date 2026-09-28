@@ -30,7 +30,7 @@ enum ComposerChipBadge: Equatable {
     }
 }
 
-/// The photos staged for the next send, as a row of thumbnails above the message field.
+/// The photos staged for the next send, as a row of thumbnails inside the message field, above its text.
 ///
 /// Part of the bar's own content rather than a reveal like the reply strip: its arrival changes the
 /// bar's height the way a draft wrapping to a second line does, which the screen takes in one frame.
@@ -40,8 +40,15 @@ struct ComposerChipStrip: View {
     static let chipSize: CGFloat = 56
 
     let chips: [ComposerChip]
+    /// The chip the attach surface is shrinking onto, held hidden until it has.
+    var landingChipID: ComposerChip.ID? = nil
+    /// Receives the landing chip's frame in window coordinates once it is laid out.
+    var onLandingChipFrame: (CGRect) -> Void = { _ in }
     let onRemove: (ComposerChip.ID) -> Void
     let onRetry: (ComposerChip) -> Void
+    /// How far the first and last chips sit in from the strip's edges, where the chips scrolling
+    /// past fade out instead of being cut off.
+    var edgeInset: CGFloat = 0
 
     /// Returns whether the strip is drawn: while chips are staged, and not during an edit, which
     /// takes the bar for itself and hands the chips back when it ends.
@@ -49,20 +56,50 @@ struct ComposerChipStrip: View {
         chipCount > 0 && !isEditing
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
+        let motion = AttachMotion(reduceMotion: reduceMotion)
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
                 ForEach(chips) { chip in
+                    let isLanding = chip.id == landingChipID
                     ComposerChipView(
                         chip: chip,
                         onRemove: { onRemove(chip.id) },
                         onRetry: { onRetry(chip) }
                     )
+                    .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { frame in
+                        if isLanding {
+                            onLandingChipFrame(frame)
+                        }
+                    }
+                    .opacity(isLanding ? 0 : 1)
+                    .animation(ChatMotion.attachContentIn, value: isLanding)
+                    // Arrives where it lies, so the frame it reports is where the card lands.
+                    .transition(motion.chipTransition(isLanding: isLanding))
+                }
+            }
+            // A chip arriving or leaving slides its neighbours over on the chip spring, unless the
+            // change came with an animation of its own.
+            .transaction(value: chips.map(\.id)) { transaction in
+                if transaction.animation == nil, !transaction.disablesAnimations {
+                    transaction.animation = ChatMotion.composerChip.animation
                 }
             }
         }
         .scrollIndicators(.hidden)
+        .contentMargins(.horizontal, edgeInset, for: .scrollContent)
         .frame(height: Self.chipSize)
+        .mask {
+            HStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: edgeInset)
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: edgeInset)
+            }
+        }
         .accessibilityIdentifier("composer-chip-strip")
     }
 }
@@ -82,17 +119,21 @@ private struct ComposerChipView: View {
 
     var body: some View {
         let size = ComposerChipStrip.chipSize
-        ZStack {
-            Color.backgroundSecondary
-            if let thumbnail {
-                Image(uiImage: thumbnail)
-                    .resizable()
-                    .scaledToFill()
+        // Sized by the colour alone: a filled photo reports its own aspect's height, and laid out
+        // beside the colour it stretched the chip past its square and over the row below.
+        Color.backgroundSecondary
+            .overlay {
+                // The capture's preview until the thumbnail is decoded, so a chip shrinking out of the
+                // camera has its photo from the first frame.
+                if let image = thumbnail ?? chip.preview {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                }
             }
-            badge
-        }
+            .overlay { badge }
+            .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .overlay(alignment: .topTrailing) {
             Button(action: onRemove) {
                 Image(systemName: SystemSymbol.closeCircle.rawValue)
