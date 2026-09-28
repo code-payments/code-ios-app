@@ -55,6 +55,10 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         case encrypted(scheme: Int, nonce: Data, ciphertext: Data)
         /// A widget: structured content the sender's client drew as a card rather than text.
         case widget(Widget)
+        /// Photos with an optional caption. A wire message carries exactly one attachment; a
+        /// redacted copy keeps its dimensions and blurhash and stays `.media`, with
+        /// ``ConversationMessage/redacted`` saying its bytes may not be fetched.
+        case media([MediaAttachment], caption: String?)
     }
 
     /// The widget a `.widget` message carries. Sent in the clear only: the E2EE allow-list is text,
@@ -104,7 +108,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// When the sender last edited this message, or `nil` if it has never been edited.
     public let lastEditedTs: Date?
     /// The message this one replies to, or `nil` when it replies to nothing. A reply is a
-    /// decoration on a text message rather than a content kind of its own: the wire nests the
+    /// decoration on a text or media message rather than a content kind of its own: the wire nests the
     /// body inside `ReplyContent`, and the initializer below unwraps it so every `case .text`
     /// path — link detection, the transcript mapper, the bubble, edit — sees the shape it
     /// always saw.
@@ -290,17 +294,27 @@ extension ConversationMessage {
             self.cashAction = nil
             repliedTo = nil
         case .reply(let replyContent):
-            // The wire nests the body one level down; unwrap it so the message is a text message
-            // that happens to point at another, not a second shape every `case .text` must learn.
+            // The wire nests the body one level down; unwrap it so the message is a text or media
+            // message that happens to point at another, not a second shape every case must learn.
             // `content` is repeated on the wire but carries exactly one entry in practice — a
             // reply with nothing inside has no body to draw, so it is dropped like any other
             // content the client cannot represent.
-            guard case .text(let textContent)? = replyContent.content.first?.type else {
+            switch replyContent.content.first?.type {
+            case .text(let textContent):
+                self.content = .text(textContent.text)
+            case .media(let mediaContent):
+                guard let content = Content(mediaContent) else { return nil }
+                self.content = content
+            case .cash, .deleted, .reply, .encrypted, .system, .widget, .none:
                 return nil
             }
-            self.content = .text(textContent.text)
             self.cashAction = nil
             repliedTo = replyContent.hasRepliedMessageID ? MessageID(replyContent.repliedMessageID) : nil
+        case .media(let mediaContent):
+            guard let content = Content(mediaContent) else { return nil }
+            self.content = content
+            self.cashAction = nil
+            repliedTo = nil
         case .encrypted(let encryptedContent):
             // Kept undecrypted here: decryption needs the chat's keys, which `ChatSeal.open` applies.
             self.content = .encrypted(
@@ -316,8 +330,8 @@ extension ConversationMessage {
             self.content = .widget(widgetContent.shareProfile.map(Widget.shareProfile) ?? .unrecognized)
             self.cashAction = nil
             repliedTo = nil
-        // `.media`/`.system` are dropped by design: the message is not stored and not shown.
-        case .media, .system, .none:
+        // `.system` is dropped by design: the message is not stored and not shown.
+        case .system, .none:
             return nil
         }
 
@@ -366,8 +380,31 @@ extension ConversationMessage.Content {
                     $0.ciphertext = ciphertext
                 })
             }
+        case .media(let attachments, let caption):
+            // Only a single uploaded attachment has a wire shape; staged or still-uploading
+            // attachments are fanned out and resolved before a send reaches this call.
+            guard attachments.count == 1, let media = attachments[0].proto else {
+                throw ConversationMessageContentEncodingError.unsupported(self)
+            }
+            return .with {
+                $0.type = .media(.with {
+                    $0.items = [media]
+                    if let caption {
+                        $0.caption = .with { $0.text = caption }
+                    }
+                })
+            }
         case .cash, .deleted, .widget:
             throw ConversationMessageContentEncodingError.unsupported(self)
         }
+    }
+
+    /// The `.media` content `proto` describes, or `nil` when its first item has no ORIGINAL rendition.
+    init?(_ proto: Flipcash_Messaging_V1_MediaContent) {
+        guard let attachment = proto.items.first.flatMap(MediaAttachment.init) else {
+            return nil
+        }
+        let caption = proto.caption.text
+        self = .media([attachment], caption: caption.isEmpty ? nil : caption)
     }
 }

@@ -53,6 +53,7 @@ extension MessageCapability {
     /// |---|---|
     /// | Another participant's text | yes |
     /// | Another participant's cash | yes |
+    /// | Another participant's photo | yes |
     /// | Own message, confirmed | no |
     /// | Own message, unconfirmed | no |
     /// | A tombstone | no |
@@ -93,6 +94,8 @@ extension MessageCapability {
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
+        // Media carries no text, so it offers neither copy nor edit — matching Android's resolver.
+        let hasText: Bool
         switch message.content {
         case .deleted, .encrypted:
             // Nothing is left to act on: a tombstone must not be re-deleted, and this client has no
@@ -113,11 +116,13 @@ extension MessageCapability {
             // chat's speaker rule like any message. Sharing is the card's own button, not a menu action.
             return [.reply]
         case .text:
-            break
+            hasText = true
+        case .media:
+            hasText = false
         }
 
         guard message.isFromSelf(selfUserID) else {
-            return [.copy, .reply, .report]
+            return hasText ? [.copy, .reply, .report] : [.reply, .report]
         }
 
         // An unconfirmed message has no `eventSequence` to send as `expected_event_sequence`, so no
@@ -127,9 +132,12 @@ extension MessageCapability {
             return []
         }
 
-        var capabilities: Set<MessageCapability> = [.copy, .reply]
-        if isWithin(policy.editWindow, of: message, at: now) {
-            capabilities.insert(.edit)
+        var capabilities: Set<MessageCapability> = [.reply]
+        if hasText {
+            capabilities.insert(.copy)
+            if isWithin(policy.editWindow, of: message, at: now) {
+                capabilities.insert(.edit)
+            }
         }
         if isWithin(policy.deleteWindow, of: message, at: now) {
             capabilities.insert(.delete)

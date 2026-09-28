@@ -170,14 +170,14 @@ final class ChatQuotePanelView: UIView {
             // A payment's amount is the whole of what was said, so it is read rather than glanced
             // at — a step brighter than the preview grey a quoted sentence gets.
             snippetLabel.textColor = UIColor.white.withAlphaComponent(0.75)
-        case .text, .unavailable:
+        case .text, .media, .unavailable:
             flagView.isHidden = true
             tokenLabel.isHidden = true
             snippetLabel.textColor = Self.snippetColor
         }
         let spoken = switch quote.kind {
         case .cash(let token, _):  "\(quote.snippet) \(token)"
-        case .text, .unavailable:  quote.snippet
+        case .text, .media, .unavailable:  quote.snippet
         }
         isUserInteractionEnabled = quote.isJumpable
         accessibilityLabel = quote.authorName.isEmpty

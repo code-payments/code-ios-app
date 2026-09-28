@@ -1096,6 +1096,11 @@ struct ConversationScreen: View {
                 fiat.nativeAmount.formatted(),
                 .cash(token: token(fiat), flagImageName: ChatItem.flagImageName(for: fiat))
             )
+        case .media(let attachments, let caption):
+            (
+                ChatQuote.snippet(forText: caption ?? "Photo"),
+                .media(thumbnailBlobID: message.redacted ? nil : attachments.first?.blobID)
+            )
         case .deleted:
             (ChatQuote.deletedSnippet, .unavailable)
         case .widget(.shareProfile):
@@ -1187,7 +1192,7 @@ struct ConversationScreen: View {
         case .cash(let fiat):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: fiat.mint)
             router.push(.currencyInfo(fiat.mint))
-        case .text, .deleted, .encrypted, .widget:
+        case .text, .deleted, .encrypted, .widget, .media:
             break
         }
     }
