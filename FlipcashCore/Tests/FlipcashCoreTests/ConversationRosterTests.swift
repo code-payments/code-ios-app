@@ -291,4 +291,79 @@ struct ConversationRosterTests {
 
         #expect(store.conversations[0].members.map(\.userID) == [userID(1), userID(2)])
     }
+
+    // MARK: - Partial rosters
+
+    @Test("A metadata refresh carrying a roster subset keeps the members it leaves out")
+    func metadataRefreshKeepsOmittedMembers() {
+        var store = ConversationStore()
+        store.setFeed([group(1, members: [member(1), member(2), member(3)], memberCount: 3, version: 4)])
+
+        store.apply(.metadataRefresh(group(1, members: [member(1)], memberCount: 3, version: 4)))
+
+        #expect(Set(store.conversations[0].members.compactMap(\.userID)) == [userID(1), userID(2), userID(3)])
+    }
+
+    @Test("A group feed carrying a roster subset keeps the members it leaves out")
+    func groupFeedKeepsOmittedMembers() {
+        var store = ConversationStore()
+        store.setGroupFeed([group(1, members: [member(1), member(2), member(3)], memberCount: 3, version: 4)])
+
+        store.setGroupFeed([group(1, members: [member(1)], memberCount: 3, version: 4)])
+
+        #expect(Set(store.conversations[0].members.compactMap(\.userID)) == [userID(1), userID(2), userID(3)])
+    }
+
+    @Test("A member learned from a join survives the next group feed load")
+    func joinedMemberSurvivesGroupFeed() {
+        var store = ConversationStore()
+        store.setGroupFeed([group(1, members: [member(1)], memberCount: 1, version: 4)])
+        store.applyRosterUpdates([joined(member(2), memberCount: 2, version: 5)], in: conversationID(1))
+
+        store.setGroupFeed([group(1, members: [member(1)], memberCount: 2, version: 5)])
+
+        #expect(store.conversations[0].members.contains { $0.userID == userID(2) })
+    }
+
+    @Test("A refreshed member's record replaces the stored one")
+    func refreshedMemberWins() {
+        var store = ConversationStore()
+        store.setFeed([group(1, members: [member(1, name: "Old"), member(2)], memberCount: 2, version: 4)])
+
+        store.apply(.metadataRefresh(group(1, members: [member(1, name: "New")], memberCount: 2, version: 4)))
+
+        let members = store.conversations[0].members
+        #expect(members.filter { $0.userID == userID(1) }.map(\.displayName) == ["New"])
+        #expect(members.contains { $0.userID == userID(2) })
+    }
+
+    @Test("A leave still removes a member after a merging refresh")
+    func leaveRemovesMemberAfterMerge() {
+        var store = ConversationStore()
+        store.setFeed([group(1, members: [member(1), member(2), member(3)], memberCount: 3, version: 4)])
+        store.apply(.metadataRefresh(group(1, members: [member(1)], memberCount: 3, version: 4)))
+
+        store.applyRosterUpdates([left(userID(2), memberCount: 2, version: 5)], in: conversationID(1))
+
+        #expect(Set(store.conversations[0].members.compactMap(\.userID)) == [userID(1), userID(3)])
+    }
+
+    @Test("A DM refresh still replaces its roster outright")
+    func dmRefreshReplacesRoster() {
+        var store = ConversationStore()
+        let dm = { (members: [ConversationMember]) in
+            Conversation(
+                id: self.conversationID(1),
+                members: members,
+                lastMessage: nil,
+                lastActivity: Date(timeIntervalSince1970: 0),
+                type: .tipDm
+            )
+        }
+        store.setFeed([dm([member(1), member(2)])])
+
+        store.apply(.metadataRefresh(dm([member(1)])))
+
+        #expect(store.conversations[0].members.map(\.userID) == [userID(1)])
+    }
 }
