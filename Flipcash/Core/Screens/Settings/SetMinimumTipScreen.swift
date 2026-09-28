@@ -17,12 +17,6 @@ private let logger = Logger(label: "flipcash.minimum-tip")
 /// behaviour node 9553:113241 asks for.
 struct SetMinimumTipScreen: View {
 
-    /// The floor, stated under the amount so a rejection is the exception
-    /// rather than the flow. Client-side: the contract carries no minimum, and
-    /// the server reports a breach as `ErrorSetMinDmChatInitFee.invalidAmount`,
-    /// which lands on the same dialog.
-    private static let minimumValue: Decimal = 1
-
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(RatesController.self) private var ratesController
@@ -49,10 +43,6 @@ struct SetMinimumTipScreen: View {
     }
 
     private var currency: CurrencyCode { ratesController.balanceCurrency }
-
-    private var minimum: FiatAmount {
-        FiatAmount(value: Self.minimumValue, currency: currency)
-    }
 
     /// The fee already on the profile, in the currency being entered. A fee set
     /// in another currency isn't comparable, so it seeds nothing.
@@ -107,12 +97,18 @@ struct SetMinimumTipScreen: View {
         guard let value = AmountValidator().validate(enteredAmount),
               submitTask == nil else { return }
 
-        guard value >= Self.minimumValue else {
-            dialog = minimumDialog()
+        let fee = FiatAmount(value: value, currency: currency)
+
+        // The contract carries no minimum; the server's regional tip floor is
+        // the one it enforces, reported as `ErrorSetMinDmChatInitFee.invalidAmount`.
+        if let floor = Self.unmetMinimum(
+            for: fee,
+            presets: sessionContainer.session.userFlags?.tipPresets(for: currency),
+            rate: ratesController.rateForBalanceCurrency()
+        ) {
+            dialog = minimumDialog(floor)
             return
         }
-
-        let fee = FiatAmount(value: value, currency: currency)
 
         // Only a replacement is confirmed. A first fee gives nothing up, and
         // this screen is how the profile checklist sets one. Read off the
@@ -155,7 +151,12 @@ struct SetMinimumTipScreen: View {
 
                 switch error as? ErrorSetMinDmChatInitFee {
                 case .invalidAmount:
-                    dialog = minimumDialog()
+                    // The local floor already passed, so naming it again would
+                    // invite the same entry back.
+                    dialog = .info(
+                        title: "Amount Too Low",
+                        subtitle: "Please enter a higher amount"
+                    )
                 case .ok, .denied, .unknown, .transportFailure, .cancelled, .rejected, .none:
                     dialog = .error(
                         title: "Couldn't Save Your Minimum",
@@ -166,11 +167,19 @@ struct SetMinimumTipScreen: View {
         }
     }
 
-    private func minimumDialog() -> DialogItem {
+    private func minimumDialog(_ floor: TipFloor) -> DialogItem {
         .info(
-            title: "\(minimum.formatted()) Minimum",
+            title: "\(floor.displayed.formatted()) Minimum Tip",
             subtitle: "Please enter a higher amount"
         )
+    }
+
+    /// The regional tip minimum `fee` falls short of, or nil when it clears —
+    /// or when presets or a rate are missing and the server stays the authority.
+    static func unmetMinimum(for fee: FiatAmount, presets: UserFlags.TipPresets?, rate: Rate?) -> TipFloor? {
+        guard let rate, rate.currency == fee.currency,
+              let floor = TipFloor.systemMinimum(presets: presets) else { return nil }
+        return floor.isMet(by: ExchangedFiat(nativeAmount: fee, rate: rate)) ? nil : floor
     }
 
     // MARK: - Seeding -

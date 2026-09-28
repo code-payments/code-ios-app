@@ -196,7 +196,11 @@ final class ProfileService: Sendable {
             let response = try await service.setMinDmChatInitFee(request, options: .unaryDefault)
             let error = ErrorSetMinDmChatInitFee(rawValue: response.result.rawValue) ?? .unknown
             guard error == .ok else {
-                logger.error("Failed to set minimum DM chat init fee", metadata: ["error": "\(error)"])
+                logger.error("Failed to set minimum DM chat init fee", metadata: [
+                    "error": "\(error)",
+                    "currency": "\(fee.currency.rawValue)",
+                    "amount": "\(fee.value)",
+                ])
                 throw error
             }
             logger.info("Minimum DM chat init fee set")
