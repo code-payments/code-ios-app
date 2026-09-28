@@ -57,8 +57,6 @@ private struct LargeButtonIcon: View {
     /// animates out, instead of flashing "0".
     @State private var shownCount = 0
 
-    private var displayCount: Int { min(shownCount, 100) }
-    private var showsMore: Bool { shownCount > 100 }
     private var isVisible: Bool { badgeCount > 0 }
 
     var body: some View {
@@ -67,7 +65,7 @@ private struct LargeButtonIcon: View {
             .scaledToFit()
             .frame(width: 40, height: 40)
             .overlay(alignment: .topTrailing) {
-                Bubble(size: .regular, count: displayCount, hasMore: showsMore, color: .unreadIndicator)
+                Bubble(size: .regular, count: shownCount, color: .unreadIndicator)
                     // The count already reads through the button's
                     // `accessibilityValue` ("N unread"); letting the pill's text
                     // merge into the label turns "Send" into "1, Send".

@@ -240,6 +240,7 @@ struct UnreadDividerTests {
         (2, "2 Unread Messages"),
         (99, "99 Unread Messages"),
         (100, "99+ Unread Messages"),
+        (150, "99+ Unread Messages"),
     ])
     func label_formatsCount(_ count: Int, _ expected: String) {
         #expect(ChatItem.unreadDividerText(count: count) == expected)

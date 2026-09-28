@@ -65,12 +65,7 @@ struct HomeTabBar: View {
                                 .opacity(selection == tab ? 1 : 0.5)
                                 .overlay(alignment: .topTrailing) {
                                     if let count = badgeCounts[tab], count > 0 {
-                                        Bubble(
-                                            size: .regular,
-                                            count: min(count, 100),
-                                            hasMore: count > 100,
-                                            color: .unreadIndicator
-                                        )
+                                        Bubble(size: .regular, count: count, color: .unreadIndicator)
                                         .fixedSize()
                                         // Overlap the icon's top-right corner to
                                         // match the native bar's badge placement.

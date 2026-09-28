@@ -57,8 +57,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     public static func unreadDividerText(count: Int) -> String {
         switch count {
         case 1: "1 Unread Message"
-        case 100...: "99+ Unread Messages"
-        default: "\(count) Unread Messages"
+        default: "\(UnreadCountLabel.text(for: count)) Unread Messages"
         }
     }
 }
