@@ -147,6 +147,11 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onOpenURL = newValue }
     }
 
+    public var onMentionTap: ((Username) -> Void)? {
+        get { transcript.onMentionTap }
+        set { transcript.onMentionTap = newValue }
+    }
+
     public var onLinkCardTap: ((LinkCard, String) -> Void)? {
         get { transcript.onLinkCardTap }
         set { transcript.onLinkCardTap = newValue }

@@ -261,7 +261,8 @@ final class ConversationLoadCoordinator {
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory,
-            unreadBoundary: unreadBoundary(in: window)
+            unreadBoundary: unreadBoundary(in: window),
+            detectsMentions: BetaFlags.shared.hasEnabled(.chatMentions)
         )
     }
 
@@ -321,6 +322,7 @@ final class ConversationLoadCoordinator {
             // card is the link's identity, and the card view looks it up for itself. So nothing
             // here touches the network, and an answer landing cannot re-diff this window.
             linkCard: { links in classifier.firstCard(in: links) },
+            detectsMentions: inputs.detectsMentions,
             unreadBoundary: inputs.unreadBoundary
         )
         if !inputs.typists.isEmpty {
@@ -427,6 +429,8 @@ final class ConversationLoadCoordinator {
         var headsHistory: Bool
         /// Where the divider goes; `.none` draws none.
         var unreadBoundary: UnreadBoundary
+        /// Whether `@handles` become tappable mentions; read from the beta flag so a toggle re-maps.
+        var detectsMentions: Bool
 
         struct Branding: Equatable, Sendable {
             var token: String

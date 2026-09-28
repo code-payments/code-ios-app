@@ -76,6 +76,65 @@ struct LinkableBubbleViewTests {
         #expect(linked == 0)
     }
 
+    @Test("A mention is tagged with its handle and padded for its pill, without becoming a link")
+    func linkedText_tagsMentions() throws {
+        let message = ChatMessage(
+            id: "1",
+            text: "ask @jeff",
+            sender: .me,
+            linkPreview: LinkPreview(links: [], mentions: [
+                DetectedMention(range: NSRange(location: 4, length: 5), username: Username("jeff")!),
+            ])
+        )
+
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        let mention = NSRange(location: 4, length: 5)
+        var effective = NSRange()
+        let tag = rendered.attribute(.textItemTag, at: 4, longestEffectiveRange: &effective, in: NSRange(location: 0, length: rendered.length)) as? String
+        #expect(tag == "jeff")
+        #expect(effective == mention)
+        #expect(rendered.attribute(.underlineStyle, at: 4, effectiveRange: nil) == nil)
+        #expect(rendered.attribute(.kern, at: 3, effectiveRange: nil) as? CGFloat == MentionPill.spacing)
+        #expect(rendered.attribute(.kern, at: 8, effectiveRange: nil) as? CGFloat == MentionPill.spacing)
+        #expect(rendered.attribute(.kern, at: 4, effectiveRange: nil) == nil)
+        #expect(rendered.attribute(.link, at: 4, effectiveRange: nil) == nil)
+        #expect(rendered.attribute(.textItemTag, at: 0, effectiveRange: nil) == nil)
+    }
+
+    @Test("A mention's pill reaches past the handle by the same padding on both sides")
+    func mentionPill_rect() {
+        let line = CGRect(x: 40, y: 10, width: 50, height: 20)
+        #expect(MentionPill.rect(around: line) == CGRect(x: 40 - MentionPill.padding, y: 10, width: 50 + 2 * MentionPill.padding, height: 20))
+    }
+
+    @Test("A tap resolves to the link or mention under it, and to nothing off every span")
+    func span_findsTheTappedItem() throws {
+        let message = ChatMessage(
+            id: "1",
+            text: "ask @jeff at https://apple.com",
+            sender: .me,
+            linkPreview: LinkPreview(
+                links: [DetectedLink(range: NSRange(location: 13, length: 17), url: url("https://apple.com"))],
+                mentions: [DetectedMention(range: NSRange(location: 4, length: 5), username: Username("jeff")!)]
+            )
+        )
+
+        let rendered = try #require(LinkableBubbleView.linkedText(for: message))
+        #expect(LinkableBubbleView.span(in: rendered, at: 4) == .mention(Username("jeff")!))
+        #expect(LinkableBubbleView.span(in: rendered, at: 8) == .mention(Username("jeff")!))
+        #expect(LinkableBubbleView.span(in: rendered, at: 20) == .url(url("https://apple.com")))
+        #expect(LinkableBubbleView.span(in: rendered, at: 0) == nil)
+        #expect(LinkableBubbleView.span(in: rendered, at: 10) == nil)
+        #expect(LinkableBubbleView.span(in: rendered, at: rendered.length) == nil)
+    }
+
+    @Test("The text view carries its own span tap, so a tap that lowers the keyboard still opens the span")
+    func textView_carriesSpanTap() {
+        let view = LinkableBubbleView()
+        let textView = view.descendants(of: UITextView.self).first
+        #expect(textView?.gestureRecognizers?.contains { $0.delegate === view } == true)
+    }
+
     // MARK: - A card row
 
     private static let cashLink = "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
@@ -268,5 +327,29 @@ struct LinkableBubbleViewTests {
                                          linkPreview: LinkPreview(url: url("https://apple.com"))))
         #expect(chrome(view)?.isDrawingBubble == true)
         #expect(view.descendants(of: UITextView.self).first?.isHidden == false)
+    }
+
+    @Test(
+        "A mention's pill is its handle's width plus the same padding on both sides",
+        arguments: ["@erik", "Talk to @erik about that", "hey @erik, did it", "(@erik)", "ask @erik", "@jeff @erik"]
+    )
+    func mentionPill_evenPadding(text: String) throws {
+        // The kern either side of a handle leaks into its selection rect, differently mid-line and at
+        // the end of a line, so a pill sized from that rect comes out lopsided.
+        let links = LinkDetector().webLinks(in: text)
+        let mentions = MentionDetector.mentions(in: text, excluding: links)
+        let view = LinkableBubbleView()
+        view.configure(with: ChatMessage(id: "1", text: text, sender: .me,
+                                         linkPreview: LinkPreview(links: links, mentions: mentions)))
+        view.frame = CGRect(x: 0, y: 0, width: 330, height: 200)
+        view.layoutIfNeeded()
+
+        let textView = try #require(view.descendants(of: LinkTextView.self).first)
+        let mention = try #require(mentions.last)
+        let pill = try #require(textView.mentionPillRects.last)
+        let handle = NSMutableAttributedString(attributedString: textView.attributedText.attributedSubstring(from: mention.range))
+        handle.removeAttribute(.kern, range: NSRange(location: 0, length: handle.length))
+
+        #expect(abs(pill.width - (handle.size().width + 2 * MentionPill.padding)) < 0.5)
     }
 }

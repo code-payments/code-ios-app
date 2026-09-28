@@ -13,7 +13,8 @@ import FlipcashCore
 /// A chat bubble that renders text with tappable links, over the shared `BubbleBackgroundView`, or
 /// the link card a message was split around, drawn bare. Used only for messages that contain a link;
 /// plain text stays on the cheaper `ChatBubbleView` (a `UILabel`). Link taps are reported through
-/// `onOpenURL` and card taps through `onLinkCardTap`; the bubble itself opens nothing.
+/// `onOpenURL`, `@handle` taps through `onMentionTap`, and card taps through `onLinkCardTap`; the
+/// bubble itself opens nothing.
 public final class LinkableBubbleView: UIView {
 
     private let background = BubbleBackgroundView()
@@ -23,6 +24,9 @@ public final class LinkableBubbleView: UIView {
 
     /// Called when the user taps a detected link.
     var onOpenURL: ((URL) -> Void)?
+
+    /// Called when the user taps an `@handle`, with the handle it names.
+    var onMentionTap: ((Username) -> Void)?
 
     /// Called when the user taps the card standing in for a link. The whole card goes back rather
     /// than its URL, because where a tap should land differs by kind and only the owner knows the
@@ -43,6 +47,10 @@ public final class LinkableBubbleView: UIView {
 
     /// The whole-card tap. Off for a group or person card, which handle their own taps.
     private lazy var cardTap = UITapGestureRecognizer(target: self, action: #selector(cardTapped))
+
+    /// The tap on a link or mention span. A plain recognizer rather than the text view's own item
+    /// action, which is lost when the transcript's tap lowers the keyboard mid-touch.
+    private lazy var spanTap = UITapGestureRecognizer(target: self, action: #selector(spanTapped))
 
     private(set) var quotePanel = ChatQuotePanelView()
 
@@ -115,12 +123,11 @@ public final class LinkableBubbleView: UIView {
         textView.dataDetectorTypes = []
         textView.font = .default(size: 16, weight: .medium)
         textView.textColor = .white
-        textView.linkTextAttributes = [
-            .foregroundColor: UIColor.white,
-            .underlineStyle: NSUnderlineStyle.single.rawValue,
-        ]
+        textView.linkTextAttributes = Self.linkAttributes
         textView.delegate = self
         textView.translatesAutoresizingMaskIntoConstraints = false
+        spanTap.delegate = self
+        textView.addGestureRecognizer(spanTap)
         addSubview(textView)
 
         addSubview(editedLabel)
@@ -212,6 +219,24 @@ public final class LinkableBubbleView: UIView {
     @objc func cardTapped() {
         card.map { onLinkCardTap?($0) }
     }
+
+    /// Hands a tapped link or mention to its callback. Taps off every span fall through to nothing.
+    @objc private func spanTapped(_ tap: UITapGestureRecognizer) {
+        let point = tap.location(in: textView)
+        guard let character = textView.characterRange(at: point),
+              textView.firstRect(for: character).insetBy(dx: -Self.spanTapSlop, dy: -Self.spanTapSlop).contains(point),
+              let text = textView.attributedText
+        else { return }
+        let index = textView.offset(from: textView.beginningOfDocument, to: character.start)
+        switch Self.span(in: text, at: index) {
+        case .url(let url): onOpenURL?(url)
+        case .mention(let username): onMentionTap?(username)
+        case nil: break
+        }
+    }
+
+    /// How far outside a character's box a tap still lands on it.
+    private static let spanTapSlop: CGFloat = 4
 
     /// Whether this bubble is currently flashing.
     var isFlashingAttention: Bool { background.isFlashingAttention }
@@ -324,12 +349,18 @@ public final class LinkableBubbleView: UIView {
 
 extension LinkableBubbleView {
 
-    /// The bubble's body with every detected link underlined.
+    /// How a link reads in a bubble.
+    static let linkAttributes: [NSAttributedString.Key: Any] = [
+        .foregroundColor: UIColor.white,
+        .underlineStyle: NSUnderlineStyle.single.rawValue,
+    ]
+
+    /// The bubble's body with every detected link underlined and every mention tagged for its pill.
     ///
     /// `DetectedLink.range` is already UTF-16 offsets into the same string `displayText` renders, so
     /// the ranges apply straight to the attributed string. They are clamped anyway: the preview is
     /// derived from the message text at map time, and a row that somehow carries a stale preview
-    /// should lose its underline rather than trap.
+    /// should lose its styling rather than trap.
     static func linkedText(for message: ChatMessage) -> NSAttributedString? {
         guard let text = ChatBubbleView.displayText(for: message) else { return nil }
 
@@ -338,17 +369,72 @@ extension LinkableBubbleView {
             guard link.location >= 0, link.location + link.length <= result.length else { continue }
             result.addAttribute(.link, value: link.url, range: link.range)
         }
+        for mention in message.linkPreview?.mentions ?? [] where mention.length > 0 {
+            guard mention.location >= 0, mention.location + mention.length <= result.length else { continue }
+            result.addAttribute(.textItemTag, value: mention.username.value, range: mention.range)
+            // Widens the space on both sides, so the pill grows into room the text gave up rather
+            // than over the neighbouring words.
+            if mention.location > 0 {
+                result.addAttribute(.kern, value: MentionPill.spacing, range: NSRange(location: mention.location - 1, length: 1))
+            }
+            result.addAttribute(.kern, value: MentionPill.spacing, range: NSRange(location: mention.location + mention.length - 1, length: 1))
+        }
         return result
     }
 }
 
+extension LinkableBubbleView {
+
+    /// What a tap on the bubble's text lands on.
+    enum Span: Equatable {
+        case url(URL)
+        case mention(Username)
+    }
+
+    /// The link or mention covering the UTF-16 offset `index` of `text`, if any.
+    static func span(in text: NSAttributedString, at index: Int) -> Span? {
+        guard index >= 0, index < text.length else { return nil }
+        let attributes = text.attributes(at: index, effectiveRange: nil)
+        if let url = attributes[.link] as? URL { return .url(url) }
+        if let tag = attributes[.textItemTag] as? String, let username = Username(tag) { return .mention(username) }
+        return nil
+    }
+}
+
+extension LinkableBubbleView: UIGestureRecognizerDelegate {
+    /// The span tap runs beside the transcript's keyboard-lowering tap, so one tap does both.
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        true
+    }
+}
+
 extension LinkableBubbleView: UITextViewDelegate {
-    /// Route the tap to `onOpenURL` instead of the system's Safari open.
+    /// Route a link to `onOpenURL` instead of the system's Safari open, and a mention to
+    /// `onMentionTap`.
+    ///
+    /// Touches reach them through `spanTap`, so the text view's own action stands down unless
+    /// VoiceOver or Switch Control is running: those activate a link through this action rather than
+    /// a touch, and a touch path running beside it would open everything twice.
     public func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
-        if case .link(let url) = textItem.content {
-            return UIAction { [weak self] _ in self?.onOpenURL?(url) }
+        guard UIAccessibility.isVoiceOverRunning || UIAccessibility.isSwitchControlRunning else {
+            switch textItem.content {
+            case .link, .tag: return nil
+            case .textAttachment: return defaultAction
+            @unknown default: return defaultAction
+            }
         }
-        return defaultAction
+        switch textItem.content {
+        case .link(let url):
+            return UIAction { [weak self] _ in self?.onOpenURL?(url) }
+        case .tag(let tag):
+            // The only tag `linkedText(for:)` sets is a mention's handle.
+            guard let username = Username(tag) else { return nil }
+            return UIAction { [weak self] _ in self?.onMentionTap?(username) }
+        case .textAttachment:
+            return defaultAction
+        @unknown default:
+            return defaultAction
+        }
     }
 
     /// Suppress the per-link context menu so the cell's long-press "Copy" menu isn't shadowed.
@@ -357,10 +443,99 @@ extension LinkableBubbleView: UITextViewDelegate {
     }
 }
 
+/// The rounded background drawn behind an `@handle`.
+enum MentionPill {
+    static let fill = UIColor.white.withAlphaComponent(0.14)
+    /// Horizontal room between the handle's glyphs and the pill's edge.
+    static let padding: CGFloat = 6
+    /// Space between the pill's edge and the neighbouring words.
+    static let gap: CGFloat = 3
+    /// Kern either side of the handle, making room for the padding and the gap.
+    static let spacing: CGFloat = padding + gap
+    static let cornerRadius: CGFloat = 6
+
+    /// The pill for one line of a mention, from that line's selection rect.
+    static func rect(around line: CGRect) -> CGRect {
+        line.insetBy(dx: -padding, dy: 0)
+    }
+}
+
 /// A `UITextView` that shows text and taps links but refuses selection, the loupe, and the edit menu —
 /// so the cell's long-press "Copy" context menu and the context-menu lift keep working. Mirrors
 /// ChatLayout's own `MessageTextView` recipe.
-private final class LinkTextView: UITextView {
+final class LinkTextView: UITextView {
+    private let pills = CAShapeLayer()
+
+    override init(frame: CGRect, textContainer: NSTextContainer?) {
+        super.init(frame: frame, textContainer: textContainer)
+        pills.fillColor = MentionPill.fill.cgColor
+        layer.insertSublayer(pills, at: 0)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override var attributedText: NSAttributedString! {
+        didSet { setNeedsLayout() }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        drawPills()
+    }
+
+    /// One pill per line a mention covers, behind the text, so a wrapped handle gets one on each line.
+    private func drawPills() {
+        let path = UIBezierPath()
+        for rect in mentionPillRects {
+            path.append(UIBezierPath(roundedRect: rect, cornerRadius: MentionPill.cornerRadius))
+        }
+        pills.path = path.cgPath
+        pills.frame = bounds
+    }
+
+    /// The pill behind each line of each mention, in the text view's coordinates.
+    var mentionPillRects: [CGRect] {
+        guard let text = attributedText, text.length > 0 else { return [] }
+        var result: [CGRect] = []
+        text.enumerateAttribute(.textItemTag, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+            guard value != nil, let lines = lineRects(for: range), let line = lines.first else { return }
+            // The kern that opens room either side of the handle leaks into its selection rect: some
+            // of the kern before it on the left, and the kern on its last letter on the right, except
+            // at the end of a line where the text system drops it. So a handle on one line is sized
+            // from its own letters, ending where its last letter does. One too long for a line keeps
+            // its selection rects.
+            guard lines.count == 1, let end = glyphEnd(ofLastCharacterIn: range, of: text) else {
+                result += lines.map(MentionPill.rect(around:))
+                return
+            }
+            let width = Self.unkerned(text.attributedSubstring(from: range)).size().width
+            result.append(MentionPill.rect(around: CGRect(x: end - width, y: line.minY, width: width, height: line.height)))
+        }
+        return result
+    }
+
+    private func lineRects(for range: NSRange) -> [CGRect]? {
+        guard let start = position(from: beginningOfDocument, offset: range.location),
+              let end = position(from: start, offset: range.length),
+              let span = textRange(from: start, to: end)
+        else { return nil }
+        return selectionRects(for: span).map(\.rect).filter { $0.width > 0 }
+    }
+
+    /// Where the last letter of `range` ends, from where it starts plus its width without kern.
+    private func glyphEnd(ofLastCharacterIn range: NSRange, of text: NSAttributedString) -> CGFloat? {
+        let last = NSRange(location: range.location + range.length - 1, length: 1)
+        guard let rect = lineRects(for: last)?.first else { return nil }
+        return rect.minX + Self.unkerned(text.attributedSubstring(from: last)).size().width
+    }
+
+    private static func unkerned(_ text: NSAttributedString) -> NSAttributedString {
+        let result = NSMutableAttributedString(attributedString: text)
+        result.removeAttribute(.kern, range: NSRange(location: 0, length: result.length))
+        return result
+    }
+
     override var isFocused: Bool { false }
     override var canBecomeFirstResponder: Bool { false }
     override var canBecomeFocused: Bool { false }

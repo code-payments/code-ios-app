@@ -28,7 +28,7 @@ struct UserProfileChatActionsTests {
 
     @Test(
         "The viewer's own profile hides the chat actions from either origin",
-        arguments: [UserProfileOrigin.groupMember, .directMessage]
+        arguments: [UserProfileOrigin.groupMember, .directMessage, .mention]
     )
     func ownProfile_hidesChatActions(_ origin: UserProfileOrigin) {
         let me = UUID()

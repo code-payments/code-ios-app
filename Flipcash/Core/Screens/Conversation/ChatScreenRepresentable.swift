@@ -29,6 +29,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
+    /// Fired when the user taps an `@handle` in a message. The owner looks the handle up and opens
+    /// that person's profile.
+    let onMentionTap: (Username) -> Void
     /// Fired when the user taps the card drawn in place of a link, with the whole card and the
     /// stable id of the message it came on. The owner decides where it lands, which differs by kind.
     let onLinkCardTap: (LinkCard, String) -> Void
@@ -123,6 +126,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
+        screen.onMentionTap = onMentionTap
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
         screen.onContactAction = onContactAction
@@ -163,6 +167,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
+        screen.onMentionTap = onMentionTap
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
         screen.onContactAction = onContactAction

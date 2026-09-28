@@ -47,7 +47,7 @@ actor LinkCardResolver {
     private var cashQueries: [String: Task<LinkCard.Cash.State, Never>] = [:]
     private var tokenQueries: [PublicKey: Task<LinkCard.Token.State, Never>] = [:]
     private var groupQueries: [ConversationID: Task<GroupLinkFacts?, Never>] = [:]
-    private var userQueries: [LinkCard.User.Identity: Task<UserLinkFacts?, Never>] = [:]
+    private var userQueries: [LinkCard.User.Identity: Task<Result<UserLinkFacts, any Error>, Never>] = [:]
 
     init(
         cashLookup: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved,
@@ -96,17 +96,24 @@ actor LinkCardResolver {
 
     /// The person a tip card link names, or nil if nobody owns it or the lookup failed.
     func user(_ identity: LinkCard.User.Identity) async -> UserLinkFacts? {
+        try? await userResult(identity).get()
+    }
+
+    /// The person `identity` names, or why the lookup found nobody. A tapped `@handle` needs the
+    /// reason, because an unclaimed handle and a dropped connection read differently; a card does
+    /// not, and goes through ``user(_:)``. Both share one memo, so either warms the other.
+    func userResult(_ identity: LinkCard.User.Identity) async -> Result<UserLinkFacts, any Error> {
         if let query = userQueries[identity] { return await query.value }
 
         let lookup = userLookup
-        let query = Task<UserLinkFacts?, Never> {
-            try? await lookup(identity)
+        let query = Task<Result<UserLinkFacts, any Error>, Never> {
+            do { return .success(try await lookup(identity)) } catch { return .failure(error) }
         }
         userQueries[identity] = query
 
-        let facts = await query.value
-        if facts == nil, userQueries[identity] == query { userQueries[identity] = nil }
-        return facts
+        let result = await query.value
+        if case .failure = result, userQueries[identity] == query { userQueries[identity] = nil }
+        return result
     }
 
     /// Forgets what a cash link's lookup answered, so the next ask goes back to the server.

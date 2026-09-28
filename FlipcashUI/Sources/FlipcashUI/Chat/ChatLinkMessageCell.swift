@@ -31,6 +31,11 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         didSet { bubble.onOpenURL = onOpenURL }
     }
 
+    /// Called when the user taps an `@handle` in the bubble.
+    var onMentionTap: ((Username) -> Void)? {
+        didSet { bubble.onMentionTap = onMentionTap }
+    }
+
     /// Called when the user taps the card the bubble drew in place of a link.
     var onLinkCardTap: ((LinkCard) -> Void)? {
         didSet { bubble.onLinkCardTap = onLinkCardTap }

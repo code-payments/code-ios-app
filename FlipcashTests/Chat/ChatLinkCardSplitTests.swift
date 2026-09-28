@@ -48,12 +48,13 @@ struct ChatLinkCardSplitTests {
         }
     }
 
-    private func rows(_ messages: [ConversationMessage]) -> [ChatMessage] {
+    private func rows(_ messages: [ConversationMessage], detectsMentions: Bool = true) -> [ChatMessage] {
         ChatItem.from(
             messages,
             selfUserID: me,
             quotedMessage: { id in messages.first { $0.id == id } },
-            linkCard: cashCard
+            linkCard: cashCard,
+            detectsMentions: detectsMentions
         )
         .compactMap { if case .message(let message) = $0 { message } else { nil } }
     }
@@ -151,6 +152,36 @@ struct ChatLinkCardSplitTests {
         #expect(rows.count == 1)
         #expect(rows[0].part == nil)
         #expect(rows[0].id == rows[0].messageID)
+    }
+
+    // MARK: - Mentions
+
+    @Test("A message with only a mention takes the link cell, with the mention's span")
+    func mentionOnly_carriesPreview() throws {
+        let rows = rows([text(1, me, "ask @jeff")])
+        let preview = try #require(rows.first?.linkPreview)
+        #expect(preview.links.isEmpty)
+        #expect(preview.mentions.map(\.username.value) == ["jeff"])
+        #expect(preview.mentions.first?.range == NSRange(location: 4, length: 5))
+    }
+
+    @Test("With mentions off, a mention-only message stays plain text and a link keeps no mentions")
+    func mentionsOff_carryNothing() {
+        #expect(rows([text(1, me, "ask @jeff")], detectsMentions: false).first?.linkPreview == nil)
+        let linked = rows([text(1, me, "@jeff see https://apple.com")], detectsMentions: false)
+        #expect(linked.first?.linkPreview?.mentions.isEmpty == true)
+    }
+
+    @Test("A mention past the card moves into its own row's frame")
+    func mentionRebasedIntoTrailingRow() throws {
+        let rows = rows([text(1, me, "here \(Self.cashLink) from @jeff")])
+        #expect(rows.map(\.part?.kind) == [.leadingText, .card, .trailingText])
+
+        #expect(rows[0].linkPreview == nil)
+        #expect(rows[1].linkPreview?.mentions.isEmpty == true)
+        let trailing = try #require(rows[2].linkPreview)
+        #expect(body(rows[2]) == "from @jeff")
+        #expect(trailing.mentions.first?.range == NSRange(location: 5, length: 5))
     }
 
     // MARK: - Ids
