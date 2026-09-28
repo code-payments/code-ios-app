@@ -67,6 +67,10 @@ final class ReactionPillView: UIView {
         addGestureRecognizer(longPress)
     }
 
+    /// Marks the long-press that opens the reactors, the one long-press on a pill row that does
+    /// something; "N more" and "+" play none.
+    private let longPressHaptic = UIImpactFeedbackGenerator(style: .medium)
+
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
@@ -127,8 +131,9 @@ final class ReactionPillView: UIView {
     }
 
     @objc private func longPressed(_ recognizer: UILongPressGestureRecognizer) {
-        guard recognizer.state == .began else { return }
-        onLongPress?()
+        guard recognizer.state == .began, let onLongPress else { return }
+        longPressHaptic.impactOccurred(at: recognizer.location(in: self))
+        onLongPress()
     }
 }
 #endif

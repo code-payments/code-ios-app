@@ -46,7 +46,7 @@ public final class ChatViewController: UICollectionViewController {
     public var onRetry: ((String) -> Void)?
 
     /// Called when the user taps a cash card; the argument is the message's stable id. The owner opens
-    /// that token's currency info. Only cash rows are selectable (see `shouldHighlightItemAt`).
+    /// that token's currency info, a double tap's timeout after the touch (see `cashCardTapped`).
     public var onCashCardTap: ((String) -> Void)?
 
     /// Called when the user taps a URL in a text bubble; the owner opens it.
@@ -246,6 +246,7 @@ public final class ChatViewController: UICollectionViewController {
     /// Fired when a bubble that can take a reaction is double-tapped, to present the strip on its own.
     var onBubbleDoubleTap: ((ChatMessage) -> Void)?
     private weak var bubbleDoubleTap: UITapGestureRecognizer?
+    private weak var cashCardTap: UITapGestureRecognizer?
     /// The preview a lift with strip room hands UIKit: a copy of the bubble at the bottom of a clear
     /// box that also holds the strip's room. Kept so the dismissal flies the same box home.
     private var liftContainer: UIView?
@@ -301,6 +302,13 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.addGestureRecognizer(doubleTap)
         dismissKeyboardTap.require(toFail: doubleTap)
         bubbleDoubleTap = doubleTap
+        // The cash card's tap waits on the double tap, which a selection can't, so it is a
+        // recognizer of its own rather than `didSelectItemAt`.
+        let cashTap = UITapGestureRecognizer(target: self, action: #selector(cashCardTapped))
+        cashTap.delegate = self
+        cashTap.require(toFail: doubleTap)
+        collectionView.addGestureRecognizer(cashTap)
+        cashCardTap = cashTap
         // The adjusted content inset (safe area + the bar inset the owner sets) is how the keyboard
         // and bar reserve space; ChatLayout reads it for positioning, so let UIKit manage it.
         collectionView.contentInsetAdjustmentBehavior = .always
@@ -552,19 +560,16 @@ public final class ChatViewController: UICollectionViewController {
 
     // MARK: - Selection
 
-    /// Only cash cards are tappable — they open the token's currency info. Text bubbles and date
-    /// separators opt out (a text row's only tap is retry, handled by its own recognizer). Gating
-    /// highlight is enough to gate selection too: UIKit won't select a row it didn't highlight, and
-    /// `didSelectItemAt` re-checks for cash as a backstop.
+    /// Only cash cards highlight under a press — they open the token's currency info. Text bubbles
+    /// and date separators opt out (a text row's only tap is retry, handled by its own recognizer).
     public override func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
         cashMessageID(at: indexPath) != nil
     }
 
-    public override func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        // Selection here is a momentary tap action, not a persisted state — clear it immediately.
-        collectionView.deselectItem(at: indexPath, animated: false)
-        guard let id = cashMessageID(at: indexPath) else { return }
-        onCashCardTap?(id)
+    /// Nothing selects: the cash card's highlight is only press feedback, and its tap is
+    /// `cashCardTapped`, which waits out a double tap first.
+    public override func collectionView(_ collectionView: UICollectionView, shouldSelectItemAt indexPath: IndexPath) -> Bool {
+        false
     }
 
     /// The stable id of the cash message at `indexPath`, or nil if that row isn't a cash card. The
@@ -603,26 +608,33 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     /// The message whose bubble is at `point` if a double tap there should present the reaction
-    /// strip. Only text bubbles take one: link cards, cash cards, quote panels and reaction pills
-    /// keep their instant single tap.
+    /// strip. Every bubble that can take a reaction does, cards and quote panels included; the
+    /// reaction pills and the buttons inside a card keep their instant tap and take none.
     private func doubleTapTarget(at point: CGPoint) -> ChatMessage? {
         guard !isUpdating, !isShowingContextMenu,
               let indexPath = collectionView.indexPathForItem(at: point),
               let message = message(at: indexPath),
-              message.offersReactionStrip, !message.rendersAsBareLinkCard,
+              message.offersReactionStrip,
               let cell = collectionView.cellForItem(at: indexPath) as? BubbleCarrying else { return nil }
         switch message.content {
-        case .text: break
-        case .cash, .deleted: return nil
+        case .text, .cash: break
+        case .deleted: return nil
         }
         let bubble = cell.liftPreviewView
         guard bubble.bounds.contains(bubble.convert(point, from: collectionView)) else { return nil }
         var view = collectionView.hitTest(point, with: nil)
         while let current = view, current !== bubble {
-            if current is ReactionPillRowView || current is ChatQuotePanelView || current is LinkCardView { return nil }
+            if current is ReactionPillRowView || current is UIControl { return nil }
+            if let card = current as? LinkCardView, card.actionContains(card.convert(point, from: collectionView)) { return nil }
             view = current.superview
         }
         return message
+    }
+
+    @objc private func cashCardTapped(_ tap: UITapGestureRecognizer) {
+        guard let indexPath = collectionView.indexPathForItem(at: tap.location(in: collectionView)),
+              let id = cashMessageID(at: indexPath) else { return }
+        onCashCardTap?(id)
     }
 
     // MARK: - Scrolling
@@ -1037,8 +1049,26 @@ extension ChatViewController: UIGestureRecognizerDelegate {
     /// Keeps the double tap to bubbles that present the reaction strip, so a tap anywhere else lowers
     /// the keyboard without waiting on it.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        guard gestureRecognizer === bubbleDoubleTap else { return true }
-        return doubleTapTarget(at: touch.location(in: collectionView)) != nil
+        let point = touch.location(in: collectionView)
+        if gestureRecognizer === bubbleDoubleTap { return doubleTapTarget(at: point) != nil }
+        if gestureRecognizer === cashCardTap {
+            guard let indexPath = collectionView.indexPathForItem(at: point) else { return false }
+            return cashMessageID(at: indexPath) != nil && !isInReactionRow(point)
+        }
+        return true
+    }
+
+    /// Makes a card's or quote panel's own tap wait out the double tap, so a double tap there
+    /// presents the strip without first opening what the single tap opens. Only touches the double
+    /// tap receives are held up, so elsewhere these taps stay instant.
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer === bubbleDoubleTap else { return false }
+        var view = otherGestureRecognizer.view
+        while let current = view, current !== collectionView {
+            if current is LinkCardView || current is ChatQuotePanelView { return true }
+            view = current.superview
+        }
+        return false
     }
 
     /// Lets the tap-to-dismiss recognizer fire alongside the collection view's own scroll and

@@ -49,6 +49,9 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
     private let scrollView = UIScrollView()
     private let stack = UIStackView()
     private let addButton = UIButton(type: .system)
+    /// Frosts the emoji that scroll under the "+" where the glass button doesn't; nil from iOS 26,
+    /// whose glass button does it itself.
+    private var addFrost: UIVisualEffectView?
     private let fade = CAGradientLayer()
     /// Set by `configure`, so the next layout pass scrolls the row to its leading end once the
     /// content has a size.
@@ -107,6 +110,14 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
             addButton.backgroundColor = UIColor.white.withAlphaComponent(0.18)
             addButton.layer.cornerRadius = Self.addSize / 2
             addButton.clipsToBounds = true
+            // A blur of what passes beneath, tinted toward the strip's surface, under the fill.
+            let frost = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+            frost.contentView.backgroundColor = surface.backgroundColor?.withAlphaComponent(0.6)
+            frost.layer.cornerRadius = Self.addSize / 2
+            frost.clipsToBounds = true
+            frost.translatesAutoresizingMaskIntoConstraints = false
+            content.addSubview(frost)
+            addFrost = frost
         }
         addButton.translatesAutoresizingMaskIntoConstraints = false
         addButton.addTarget(self, action: #selector(addTapped), for: .touchUpInside)
@@ -149,6 +160,14 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
             addButton.widthAnchor.constraint(equalToConstant: Self.addSize),
             addButton.heightAnchor.constraint(equalToConstant: Self.addSize),
         ])
+        if let addFrost {
+            NSLayoutConstraint.activate([
+                addFrost.leadingAnchor.constraint(equalTo: addButton.leadingAnchor),
+                addFrost.trailingAnchor.constraint(equalTo: addButton.trailingAnchor),
+                addFrost.topAnchor.constraint(equalTo: addButton.topAnchor),
+                addFrost.bottomAnchor.constraint(equalTo: addButton.bottomAnchor),
+            ])
+        }
     }
 
     @available(*, unavailable)

@@ -124,6 +124,13 @@ final class LinkCardView: UIView {
         fixedHeight.isActive = true
     }
 
+    /// Whether `point`, in this view's coordinates, lands on a group card's button, which keeps its
+    /// instant tap rather than waiting out a double tap.
+    func actionContains(_ point: CGPoint) -> Bool {
+        guard !groupView.isHidden else { return false }
+        return groupView.actionContains(groupView.convert(point, from: self))
+    }
+
     /// Switches the slot between the fixed proportions of a cash or token card (nil), the content-set
     /// height over a minimum of a group card, and the content-set height of a person card.
     private func setSized(_ sized: Sized?) {

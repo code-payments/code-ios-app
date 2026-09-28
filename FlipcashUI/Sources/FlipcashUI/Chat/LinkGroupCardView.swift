@@ -28,6 +28,9 @@ final class LinkGroupCardView: UIView {
     /// again.
     var onHeightChange: (() -> Void)?
 
+    /// Where the content last laid out its button, in this view's coordinates.
+    private var actionFrame: CGRect?
+
     /// What the card last drew, so a repeat of it is not reported as a change.
     private var shown: (state: LinkCard.Group.State?, loading: Bool)?
 
@@ -134,11 +137,21 @@ final class LinkGroupCardView: UIView {
         return true
     }
 
+    /// Whether `point`, in this view's coordinates, lands on the card's button.
+    func actionContains(_ point: CGPoint) -> Bool {
+        actionFrame?.contains(point) ?? false
+    }
+
     private func renderContent() {
         let display = shown?.state ?? .unavailable
         let radii = cornerRadii
         content.configuration = UIHostingConfiguration {
-            LinkGroupCardContent(state: display, cornerRadii: radii, onAction: { [weak self] in self?.onStart?() })
+            LinkGroupCardContent(
+                state: display,
+                cornerRadii: radii,
+                onAction: { [weak self] in self?.onStart?() },
+                onActionFrame: { [weak self] in self?.actionFrame = $0 }
+            )
         }
         .margins(.all, 0)
     }
@@ -168,6 +181,9 @@ struct LinkGroupCardContent: View {
     var ctaTitle: String? = Copy.view
     /// Called when the button is tapped.
     var onAction: () -> Void = {}
+    /// Called with the button's frame in the card's own coordinates whenever it moves, so a UIKit
+    /// host can tell a tap on the button from a tap on the card around it.
+    var onActionFrame: (CGRect) -> Void = { _ in }
     /// The button's UI-test handle, which differs by host.
     var ctaAccessibilityIdentifier: String = "group-card-cta"
     /// Taps the picture/title band open, same as the head card's own chevron used to. Nil leaves
@@ -198,6 +214,8 @@ struct LinkGroupCardContent: View {
         static let unavailable = "Group Unavailable"
     }
 
+    private static let cardSpace = "link-group-card"
+
     var body: some View {
         VStack(spacing: 0) {
             band
@@ -214,6 +232,7 @@ struct LinkGroupCardContent: View {
                 Spacer(minLength: Layout.buttonGap)
 
                 button
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.cardSpace)) } action: { onActionFrame($0) }
                     .padding(.horizontal, GroupCardView.Layout.horizontalPadding)
                     .padding(.bottom, GroupCardView.Layout.horizontalPadding)
             } else {
@@ -221,6 +240,7 @@ struct LinkGroupCardContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .coordinateSpace(.named(Self.cardSpace))
         .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous))
         .overlay {
             UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous)
