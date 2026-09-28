@@ -773,3 +773,159 @@ struct ConversationMessageContentEncodingTests {
         #expect(throws: ConversationMessageContentEncodingError.self) { try widget.asProto() }
     }
 }
+
+@Suite("Media proto mapping")
+struct ConversationMessageMediaMappingTests {
+
+    private let blobID = BlobID(data: Data([1, 2, 3]))
+    private let blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+
+    private func media(withDownloadURL: Bool = true) -> Flipcash_Blob_V1_Media {
+        .with {
+            $0.renditions = [
+                .with {
+                    $0.role = .thumbnail
+                    $0.blobID = .with { $0.value = Data([9]) }
+                    $0.blob.image.width = 50
+                    $0.blob.image.height = 100
+                },
+                .with {
+                    $0.role = .original
+                    $0.blobID = .with { $0.value = blobID.data }
+                    $0.blob.image.width = 100
+                    $0.blob.image.height = 200
+                    $0.blob.image.blurhash = blurhash
+                    if withDownloadURL {
+                        $0.blob.downloadURL = .with { $0.url = "https://example.com/blob" }
+                    }
+                },
+            ]
+        }
+    }
+
+    private func mediaProto(caption: String?, redacted: Bool = false) -> Flipcash_Messaging_V1_Message {
+        .with {
+            $0.messageID = .with { $0.value = 50 }
+            $0.redacted = redacted
+            $0.content = [.with {
+                $0.media = .with {
+                    $0.items = [media(withDownloadURL: !redacted)]
+                    if let caption {
+                        $0.caption = .with { $0.text = caption }
+                    }
+                }
+            }]
+        }
+    }
+
+    @Test("A media message maps its ORIGINAL rendition and caption")
+    func mediaMapsOriginalAndCaption() throws {
+        let message = try #require(ConversationMessage(mediaProto(caption: "from today")))
+
+        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash)
+        #expect(message.content == .media([expected], caption: "from today"))
+        #expect(message.repliedTo == nil)
+        #expect(message.redacted == false)
+    }
+
+    @Test("A media message without a caption, or with an empty one, has a nil caption")
+    func mediaWithoutCaption() throws {
+        for caption in [nil, ""] as [String?] {
+            let message = try #require(ConversationMessage(mediaProto(caption: caption)))
+            guard case .media(_, let mapped) = message.content else {
+                Issue.record("expected .media content")
+                return
+            }
+            #expect(mapped == nil)
+        }
+    }
+
+    @Test("A redacted media message stays .media with its blurhash, flagged redacted — never a tombstone")
+    func redactedMediaStaysMedia() throws {
+        let message = try #require(ConversationMessage(mediaProto(caption: "hidden", redacted: true)))
+
+        guard case .media(let attachments, _) = message.content else {
+            Issue.record("expected .media content, got \(message.content)")
+            return
+        }
+        #expect(attachments.first?.blurhash == blurhash)
+        #expect(attachments.first?.width == 100)
+        #expect(message.redacted)
+        #expect(!message.isDeleted)
+    }
+
+    @Test("A media item with no ORIGINAL rendition is dropped")
+    func mediaWithoutOriginalIsDropped() {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 51 }
+            $0.content = [.with {
+                $0.media = .with {
+                    $0.items = [.with { $0.renditions = [.with { $0.role = .thumbnail }] }]
+                }
+            }]
+        }
+        #expect(ConversationMessage(proto) == nil)
+    }
+
+    @Test("A reply carrying media unwraps to .media with the replied-to id")
+    func replyWithMediaUnwraps() throws {
+        let inner = media()
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 52 }
+            $0.content = [.with { content in
+                content.reply = .with { reply in
+                    reply.repliedMessageID = .with { $0.value = 7 }
+                    reply.content = [.with { $0.media = .with { $0.items = [inner] } }]
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash)
+        #expect(message.content == .media([expected], caption: nil))
+        #expect(message.repliedTo == MessageID(value: 7))
+    }
+
+    @Test("Media content encodes to a single ORIGINAL rendition with its caption")
+    func mediaEncodes() throws {
+        let attachment = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash)
+        let proto = try ConversationMessage.Content.media([attachment], caption: "from today").asProto()
+
+        guard case .media(let media) = proto.type else {
+            Issue.record("Expected media content")
+            return
+        }
+        #expect(media.items.count == 1)
+        #expect(media.items.first?.renditions.map(\.role) == [.original])
+        #expect(media.items.first?.renditions.first?.blobID.value == blobID.data)
+        #expect(media.caption.text == "from today")
+    }
+
+    @Test("Media without a caption encodes no caption")
+    func mediaEncodesWithoutCaption() throws {
+        let attachment = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: nil)
+        let proto = try ConversationMessage.Content.media([attachment], caption: nil).asProto()
+
+        guard case .media(let media) = proto.type else {
+            Issue.record("Expected media content")
+            return
+        }
+        #expect(!media.hasCaption)
+    }
+
+    @Test("Media with no blob, or more than one attachment, throws rather than sending a partial message")
+    func stagedMediaThrows() {
+        let uploaded = MediaAttachment(blobID: blobID, width: 1, height: 1, blurhash: nil)
+        let pending = MediaAttachment(blobID: nil, width: 1, height: 1, blurhash: nil)
+
+        #expect(throws: ConversationMessageContentEncodingError.self) {
+            try ConversationMessage.Content.media([pending], caption: nil).asProto()
+        }
+        #expect(throws: ConversationMessageContentEncodingError.self) {
+            try ConversationMessage.Content.media([uploaded, uploaded], caption: nil).asProto()
+        }
+        #expect(throws: ConversationMessageContentEncodingError.self) {
+            try ConversationMessage.Content.media([], caption: nil).asProto()
+        }
+    }
+}

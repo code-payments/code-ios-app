@@ -372,6 +372,8 @@ nonisolated public struct ConversationMessageTable: Sendable {
     public let deletedAt      = Expression <Double?>       ("deletedAt")
     // JSON-encoded `ReactionState` (its confirmed server state only); nil when none is known.
     public let reactionsJson  = Expression <Data?>         ("reactionsJson")
+    // JSON-encoded `.media` payload (attachments, caption, redaction); nil for a non-media row.
+    public let mediaJson      = Expression <Data?>         ("mediaJson")
 }
 
 
@@ -648,6 +650,7 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.encryptedCiphertext)
                     t.column(conversationMessageTable.decryptFailure)
                     t.column(conversationMessageTable.reactionsJson)
+                    t.column(conversationMessageTable.mediaJson)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
                 })
             }

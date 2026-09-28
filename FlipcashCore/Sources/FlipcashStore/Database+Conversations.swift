@@ -550,6 +550,7 @@ nonisolated extension Database {
             var encryptedScheme: Int?
             var encryptedNonce: Data?
             var encryptedCiphertext: Data?
+            var mediaJson: Data?
             if let sealed = message.sealed {
                 encryptedScheme = sealed.scheme
                 encryptedNonce = sealed.nonce
@@ -582,6 +583,11 @@ nonisolated extension Database {
                 case .shareProfile(let share): text = share.username.value
                 case .unrecognized:            text = nil
                 }
+            case .media(let attachments, let caption):
+                kind = 5
+                mediaJson = try JSONEncoder().encode(
+                    StoredMedia(attachments: attachments, caption: caption, redacted: message.redacted)
+                )
             }
 
             let cashAction: Int? = switch message.cashAction {
@@ -615,7 +621,8 @@ nonisolated extension Database {
                     m.encryptedNonce      <- encryptedNonce,
                     m.encryptedCiphertext <- encryptedCiphertext,
                     m.decryptFailure      <- message.decryptFailure?.rawValue,
-                    m.reactionsJson       <- Self.encodeReactions(message.reactionState)
+                    m.reactionsJson       <- Self.encodeReactions(message.reactionState),
+                    m.mediaJson           <- mediaJson
                 )
             )
         }
@@ -690,6 +697,15 @@ nonisolated extension Database {
         data.flatMap { try? JSONDecoder().decode(ReactionState.self, from: $0) }
     }
 
+    /// The `mediaJson` payload of a `.media` row. `redacted` rides here rather than in a column of
+    /// its own because only media acts on it: a redacted photo must reload redacted, or its bytes
+    /// would be fetched after a relaunch.
+    nonisolated private struct StoredMedia: Codable {
+        let attachments: [MediaAttachment]
+        let caption: String?
+        let redacted: Bool
+    }
+
     // MARK: - Decode -
 
     /// Returns nil unless both rendition columns are present — the pair is
@@ -758,6 +774,7 @@ nonisolated extension Database {
         let date = Date(timeIntervalSinceReferenceDate: row[m.date])
 
         let content: ConversationMessage.Content
+        var redacted = false
         switch row[m.kind] {
         case 0:
             guard let text = row[m.text] else { return nil }
@@ -800,6 +817,13 @@ nonisolated extension Database {
             content = .widget(
                 row[m.text].flatMap(Username.init).map { .shareProfile(ShareProfileWidget(username: $0)) } ?? .unrecognized
             )
+        case 5:
+            guard let data = row[m.mediaJson],
+                  let media = try? JSONDecoder().decode(StoredMedia.self, from: data) else {
+                return nil
+            }
+            content = .media(media.attachments, caption: media.caption)
+            redacted = media.redacted
         default:
             return nil
         }
@@ -820,6 +844,7 @@ nonisolated extension Database {
             lastEditedTs: row[m.lastEditedTs].map(Date.init(timeIntervalSinceReferenceDate:)),
             repliedTo: row[m.repliedToId].map(MessageID.init(value:)),
             clientMessageID: row[m.clientMessageID],
+            redacted: redacted,
             reactionState: Self.decodeReactions(row[m.reactionsJson]),
             sealed: sealed,
             decryptFailure: row[m.decryptFailure].flatMap(ConversationMessage.DecryptFailure.init(rawValue:))
