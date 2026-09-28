@@ -10,17 +10,15 @@ import FlipcashUI
 private let logger = Logger(label: "flipcash.tip-flow")
 
 /// Session-scoped orchestrator for opening someone's tipcard. Entered from a
-/// scanned tipcode or a tipcard link, it gates the entry (profile), resolves
+/// scanned tipcode or a legacy `/tip/<userId>` link, it gates the entry (profile), resolves
 /// the recipient, shows the card, and hands over to their chat — where the
 /// amount is chosen and sent (node 10074:18893).
 @Observable
 final class TipFlow {
 
     /// A recipient held while the user creates a profile; resumed by
-    /// ``resumeAfterProfileCreation()`` once `isTippable` flips true. Holds
-    /// whichever identifier the entry carried — a scanned code's user id or a
-    /// vanity link's handle.
-    @ObservationIgnored private(set) var pendingRecipient: ProfileIdentifier?
+    /// ``resumeAfterProfileCreation()`` once `isTippable` flips true.
+    @ObservationIgnored private(set) var pendingRecipient: UserID?
 
     @ObservationIgnored private var prepTask: Task<Void, Never>?
 
@@ -69,30 +67,18 @@ final class TipFlow {
             showOwnTipCard()
             return
         }
-        begin(.userID(userID))
+        start(userID)
     }
 
-    /// Handles a vanity tipcard link — `flipcash.com/<handle>`. The handle
-    /// resolves to the same card a scanned code opens; the own-handle case is
-    /// caught here when the local profile knows its handle, and again after the
-    /// resolve when it doesn't.
-    func begin(username: Username) {
-        guard session.profile?.username != username else {
-            showOwnTipCard()
-            return
-        }
-        begin(.username(username))
-    }
-
-    private func begin(_ identifier: ProfileIdentifier) {
+    private func start(_ userID: UserID) {
         guard pendingRecipient == nil, prepTask == nil, routeTask == nil else { return }
         // A dialog is already asking the user something (commonly this flow's
         // own balance gate) — don't churn it on every decoded camera frame.
         guard session.dialogItem == nil else { return }
 
         guard session.profile?.isTippable == true else {
-            pendingRecipient = identifier
-            logger.info("Tip held for profile creation", metadata: ["recipient": "\(identifier)"])
+            pendingRecipient = userID
+            logger.info("Tip held for profile creation", metadata: ["userID": "\(userID)"])
             // Deliberately unsuppressed: profile creation focuses its name
             // field on appear, and that keyboard is wanted.
             router.present(.tips)
@@ -100,7 +86,7 @@ final class TipFlow {
         }
 
         keyboard.suppress()
-        prepare(identifier)
+        prepare(userID)
     }
 
     private func showOwnTipCard() {
@@ -113,7 +99,7 @@ final class TipFlow {
         guard let pendingRecipient, session.profile?.isTippable == true else { return }
         self.pendingRecipient = nil
         router.dismissSheet()
-        begin(pendingRecipient)
+        start(pendingRecipient)
     }
 
     /// Drops a held recipient — the user backed out of profile creation.
@@ -136,134 +122,63 @@ final class TipFlow {
 
     // MARK: - Recipient -
 
-    /// Thrown when a handle resolved to a profile the server didn't stamp with
-    /// a user id — a tip has nobody to pay without one. `fetchProfile` answers
-    /// an unclaimed handle with `Profile.empty` rather than throwing, so this
-    /// is the shape that case arrives in.
-    private struct UnidentifiedRecipient: ServerError {
-        var reportingLevel: ErrorReportingLevel { .info }
-    }
-
-    private func prepare(_ identifier: ProfileIdentifier) {
-        // Whether the link named a handle rather than an id decides both the
-        // retry policy below and which copy a failure gets.
-        let handle: Username?
-        switch identifier {
-        case .userID:                 handle = nil
-        case .username(let username): handle = username
-        }
-
+    private func prepare(_ userID: UserID) {
         prepTask = Task {
             defer { prepTask = nil }
             do {
                 // The gRPC channel is often still connecting when a tipcard deep
                 // link fires on a cold foreground (it races `warmUpChannel()`),
                 // so the first resolve fails `.unavailable`; a just-made-tippable
-                // recipient's destination may also not have propagated yet.
-                // Retry both transient conditions before surfacing a hard error —
-                // mirroring the cash-link claim path — so the user isn't told to
-                // "try again" for a tap that a second attempt would have resolved.
-                // A definitive `.denied`/anomaly is not retried.
-                let resolved = try await Task.retry(
+                // recipient's destination may also not have propagated yet
+                // (`.notFound`). Retry both transient conditions before surfacing
+                // a hard error — mirroring the cash-link claim path — so the user
+                // isn't told to "try again" for a tap that a second attempt would
+                // have resolved. A definitive `.denied`/anomaly is not retried.
+                let profile = try await Task.retry(
                     maxAttempts: 3,
                     delay: .milliseconds(500),
                     shouldRetry: { error in
                         if let error = error as? ErrorResolve {
-                            // `.notFound` is retried for an id only: there it means a
-                            // just-made-tippable recipient whose destination hasn't
-                            // propagated yet. For a handle it is the settled answer,
-                            // so retrying only spends the backoff before saying so.
-                            if error == .notFound { return handle == nil }
-                            return error.isRetryable
+                            return error == .notFound || error.isRetryable
                         }
                         if let error = error as? ErrorFetchProfile { return error.isRetryable }
                         return false
                     }
                 ) {
-                    async let profile = flipClient.fetchProfile(identifier, owner: session.ownerKeyPair)
-                    async let destination = flipClient.resolve(identifier, owner: session.ownerKeyPair)
+                    async let profile = flipClient.fetchProfile(.userID(userID), owner: session.ownerKeyPair)
+                    async let destination = flipClient.resolve(.userID(userID), owner: session.ownerKeyPair)
                     // The destination is re-resolved (and cached) by the send
                     // itself; here it only proves the user can be paid at all.
                     _ = try await destination
                     return try await profile
                 }
 
-                let userID: UserID
-                switch identifier {
-                case .userID(let resolvedUserID):
-                    userID = resolvedUserID
-                case .username:
-                    // A handle link learns whose card it is only from the
-                    // response, so the id is load-bearing rather than
-                    // confirmatory here.
-                    guard let responseUserID = resolved.userID else {
-                        throw UnidentifiedRecipient()
-                    }
-                    userID = responseUserID
-                }
-
                 guard !Task.isCancelled else { return }
-                // The second half of the own-handle check `begin(username:)`
-                // starts: a link to your own handle followed before the local
-                // profile has loaded its handle only shows itself here.
-                guard userID != session.userID else {
-                    showOwnTipCard()
-                    return
-                }
-
                 // The chat is created by the first tip, so until then the
                 // conversation's only source for the counterpart's name,
                 // picture, and handle is the profile this resolve fetched.
-                session.cacheUserProfile(resolved, for: userID)
-                guard !Task.isCancelled else { return }
-                present(userID: userID, profile: resolved)
-                await loadAvatar(userID: userID, picture: resolved.profilePicture)
+                session.cacheUserProfile(profile, for: userID)
+                present(userID: userID, profile: profile)
+                await loadAvatar(userID: userID, picture: profile.profilePicture)
             } catch {
                 guard !Task.isCancelled else { return }
                 logger.error("Failed to prepare tip recipient", metadata: [
-                    "recipient": "\(identifier)",
+                    "userID": "\(userID)",
                     "error": "\(error)",
                 ])
                 ErrorReporting.captureError(error, reason: "Failed to prepare tip recipient")
-                session.dialogItem = Self.failureDialog(for: error, handle: handle)
+                session.dialogItem = Self.failureDialog
             }
         }
     }
 
-    /// The dialog a failed resolve earns.
-    ///
-    /// An id comes off a code the camera just read, so a miss there is a fetch
-    /// that didn't land. A handle is the opposite: it is typed, printed on
-    /// merch, or pasted out of a bio, and it goes stale the moment its owner
-    /// changes it. An unclaimed one is therefore a fact about the link rather
-    /// than a fault in the app — informational, and specific about whose handle
-    /// went nowhere. Only the network case is ours to apologise for.
-    ///
-    /// Copy is shared with Android, which splits the same two cases.
-    static func failureDialog(for error: Error, handle: Username?) -> DialogItem {
-        if let handle, isUnclaimed(error) {
-            return .info(
-                title: "No Such Account",
-                subtitle: "Nobody has claimed @\(handle.value)"
-            )
-        }
-
-        return .error(
+    /// The dialog a failed resolve earns. The id came off a code the camera just
+    /// read, so a miss is a fetch that didn't land rather than a wrong address.
+    static var failureDialog: DialogItem {
+        .error(
             title: "Couldn't Open Tip Card",
             subtitle: "Please check your connection and try again"
         )
-    }
-
-    /// Whether `error` means the handle belongs to nobody. Both halves of the
-    /// resolve can say so: `resolve` throws `.notFound`, while `fetchProfile`
-    /// returns an id-less `Profile.empty` that becomes `UnidentifiedRecipient`.
-    private static func isUnclaimed(_ error: Error) -> Bool {
-        switch error {
-        case is UnidentifiedRecipient:      true
-        case let error as ErrorResolve:     error == .notFound
-        case let error as ErrorFetchProfile: error == .notFound
-        default:                            false
-        }
     }
 
     /// Shows the resolved card, holds it long enough to read whose it is, then
