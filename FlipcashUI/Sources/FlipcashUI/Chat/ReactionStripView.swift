@@ -9,30 +9,39 @@
 import UIKit
 import FlipcashCore
 
-/// The row of emoji offered above a long-pressed bubble, alongside the existing `UIMenu`, on a
-/// Liquid Glass capsule. The emoji scroll sideways under the trailing "+", which stays pinned and
-/// fades the row out beneath it. Tapping an emoji toggles the reaction and dismisses the menu; "+"
-/// dismisses and opens the picker instead.
+/// The row of emoji offered above a long-pressed or double-tapped bubble, on a Liquid Glass capsule.
+/// The emoji scroll sideways toward the trailing "+", which stays pinned; each edge fades only while
+/// there is more of the row to scroll to on that side. Tapping an emoji toggles the reaction and
+/// dismisses the strip; "+" dismisses and opens the picker instead.
 ///
 /// A plain view, not a context-menu preview accessory — `UIContextMenuConfiguration` has no slot for
 /// one, and the menu's container already sits above the window root (see
 /// `ChatScreenViewController.handOffComposerFocusAroundContextMenu`), so this is added as a sibling
 /// above that container instead, positioned over the lifted bubble's frame.
-final class ReactionStripView: UIView {
+final class ReactionStripView: UIView, UIScrollViewDelegate {
 
     /// Fired with the tapped emoji.
     var onSelect: ((String) -> Void)?
     var onAdd: (() -> Void)?
 
-    // Sizes from the strip in node 9779:105563.
+    // Sizes from the strip in node 9779:105563. Android's `QuickReactionStrip` uses the same values.
     static let height: CGFloat = 55
     static let maxWidth: CGFloat = 313
+    /// The space between the strip and the lifted bubble it sits above.
+    static let bubbleGap: CGFloat = 16
+    /// The room a lifted bubble keeps above itself for the strip.
+    static let headroom: CGFloat = height + bubbleGap
     private static let itemSize: CGFloat = 40
     private static let itemSpacing: CGFloat = 4
     private static let inset: CGFloat = 8
-    private static let addSize: CGFloat = 38
-    /// How far the fade reaches left of the "+" before the row is fully drawn.
-    private static let fadeLead: CGFloat = 28
+    private static let addSize: CGFloat = 40
+    /// How far the leading fade reaches in from the edge, and how much scroll either fade takes to
+    /// grow in, so neither snaps on.
+    private static let edgeFade: CGFloat = 20
+    /// The trailing fade's run, from the middle of the "+" to where its circle is last as tall as an
+    /// emoji. Past that the row is hidden, so no emoji shows around the circle's curve.
+    private static let trailingFade: CGFloat = 14
+    private static let emojiFont = UIFont.systemFont(ofSize: 28)
 
     private let surface: UIView
     /// Holds the fade mask; on the scroll view itself the mask would ride its moving bounds.
@@ -41,6 +50,9 @@ final class ReactionStripView: UIView {
     private let stack = UIStackView()
     private let addButton = UIButton(type: .system)
     private let fade = CAGradientLayer()
+    /// Set by `configure`, so the next layout pass scrolls the row to its leading end once the
+    /// content has a size.
+    private var needsRestingOffset = false
 
     override init(frame: CGRect) {
         if #available(iOS 26, *) {
@@ -62,20 +74,19 @@ final class ReactionStripView: UIView {
 
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.alwaysBounceHorizontal = true
-        // Room to bring the last emoji out from under the "+" and its fade.
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.delegate = self
+        // Scrolled to the end, the last emoji stops `itemSpacing` short of the "+".
+        let plusSide = Self.inset + Self.addSize + Self.itemSpacing
         scrollView.contentInset = UIEdgeInsets(
-            top: 0, left: Self.inset, bottom: 0,
-            right: Self.inset + Self.addSize + Self.fadeLead
+            top: 0, left: isRightToLeft ? plusSide : Self.inset,
+            bottom: 0, right: isRightToLeft ? Self.inset : plusSide
         )
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         fadeHost.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(fadeHost)
         fadeHost.addSubview(scrollView)
 
-        fade.startPoint = CGPoint(x: 0, y: 0.5)
-        fade.endPoint = CGPoint(x: 1, y: 0.5)
-        // Clear at the leading inset too, so scrolled-past emoji don't poke out of the capsule's curve.
-        fade.colors = [UIColor.clear.cgColor, UIColor.black.cgColor, UIColor.black.cgColor, UIColor.clear.cgColor, UIColor.clear.cgColor]
         fadeHost.layer.mask = fade
 
         stack.axis = .horizontal
@@ -145,14 +156,57 @@ final class ReactionStripView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        if needsRestingOffset {
+            scrollView.layoutIfNeeded()
+            if scrollView.contentSize.width > 0 {
+                needsRestingOffset = false
+                scrollView.contentOffset.x = isRightToLeft
+                    ? scrollView.contentSize.width + scrollView.contentInset.right - scrollView.bounds.width
+                    : -scrollView.contentInset.left
+            }
+        }
+        updateFade()
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateFade()
+    }
+
+    private var isRightToLeft: Bool {
+        effectiveUserInterfaceLayoutDirection == .rightToLeft
+    }
+
+    /// Fades each end only while the row can scroll that way, growing in over the first `edgeFade`
+    /// of travel. The leading fade runs `edgeFade` in from the edge; the trailing one runs
+    /// `trailingFade` from the middle of the "+", and the rest of the row under the "+" is hidden to
+    /// the same strength. At rest, with nothing to scroll back to, the leading edge draws solid.
+    private func updateFade() {
         let width = fadeHost.bounds.width
         guard width > 0 else { return }
+        let offset = scrollView.contentOffset.x
+        let lowest = -scrollView.contentInset.left
+        let highest = max(lowest, scrollView.contentSize.width + scrollView.contentInset.right - scrollView.bounds.width)
+        let back = isRightToLeft ? highest - offset : offset - lowest
+        let forward = isRightToLeft ? offset - lowest : highest - offset
+        let leading = min(1, max(0, back / Self.edgeFade))
+        let trailing = min(1, max(0, forward / Self.edgeFade))
+        let clearFrom = width - Self.inset - Self.addSize / 2 + Self.trailingFade
+
+        // Measured from the leading edge; flipped into the layer's left-to-right space below.
+        let stops = [0, Self.edgeFade, clearFrom - Self.trailingFade, clearFrom, width].map { min(1, max(0, $0 / width)) }
+        let alphas = [1 - leading, 1, 1, 1 - trailing, 1 - trailing]
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         fade.frame = fadeHost.bounds
-        let clearFrom = width - Self.inset - Self.addSize / 2
-        let solidUntil = width - Self.inset - Self.addSize - Self.fadeLead
-        fade.locations = [0, Self.inset / width, solidUntil / width, clearFrom / width, 1].map { NSNumber(value: Double($0)) }
+        if isRightToLeft {
+            fade.startPoint = CGPoint(x: 1, y: 0.5)
+            fade.endPoint = CGPoint(x: 0, y: 0.5)
+        } else {
+            fade.startPoint = CGPoint(x: 0, y: 0.5)
+            fade.endPoint = CGPoint(x: 1, y: 0.5)
+        }
+        fade.colors = alphas.map { UIColor.black.withAlphaComponent($0).cgColor }
+        fade.locations = stops.map { NSNumber(value: Double($0)) }
         CATransaction.commit()
     }
 
@@ -162,9 +216,12 @@ final class ReactionStripView: UIView {
             $0.removeFromSuperview()
         }
         for entry in entries {
-            let button = UIButton(type: .system)
-            button.setTitle(entry.emoji, for: .normal)
-            button.titleLabel?.font = .systemFont(ofSize: 28)
+            // Drawn as an image cropped to the glyph's ink, so the button centers the emoji itself
+            // rather than the taller line box a title label would center.
+            var configuration = UIButton.Configuration.plain()
+            configuration.image = Self.glyphImage(entry.emoji)
+            configuration.contentInsets = .zero
+            let button = UIButton(configuration: configuration)
             button.backgroundColor = entry.highlighted ? UIColor.white.withAlphaComponent(0.18) : .clear
             button.layer.cornerRadius = Self.itemSize / 2
             button.clipsToBounds = true
@@ -174,7 +231,55 @@ final class ReactionStripView: UIView {
             button.accessibilityLabel = entry.emoji
             stack.addArrangedSubview(button)
         }
-        scrollView.contentOffset = CGPoint(x: -Self.inset, y: 0)
+        needsRestingOffset = true
+        setNeedsLayout()
+    }
+
+    private static var glyphImages: [String: UIImage] = [:]
+
+    /// `emoji` at the strip's size, cropped to its drawn pixels.
+    private static func glyphImage(_ emoji: String) -> UIImage {
+        if let cached = glyphImages[emoji] { return cached }
+        let text = NSAttributedString(string: emoji, attributes: [.font: emojiFont])
+        let box = text.size()
+        let line = UIGraphicsImageRenderer(size: CGSize(width: ceil(box.width), height: ceil(box.height))).image { _ in
+            text.draw(at: .zero)
+        }
+        // Cropped by pixel rather than by `usesDeviceMetrics`, which stops Apple Color Emoji at the
+        // baseline and would cut off everything below it.
+        let image: UIImage
+        if let cgImage = line.cgImage, let ink = inkBounds(of: cgImage), let cropped = cgImage.cropping(to: ink) {
+            image = UIImage(cgImage: cropped, scale: line.scale, orientation: .up)
+        } else {
+            image = line
+        }
+        glyphImages[emoji] = image.withRenderingMode(.alwaysOriginal)
+        return glyphImages[emoji]!
+    }
+
+    /// The smallest pixel rect holding every non-transparent pixel of `image`, or `nil` if it has none.
+    private static func inkBounds(of image: CGImage) -> CGRect? {
+        let width = image.width, height = image.height
+        var alpha = [UInt8](repeating: 0, count: width * height)
+        let drawn = alpha.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue
+            ) else { return false }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+        var minX = width, minY = height, maxX = -1, maxY = -1
+        for y in 0..<height {
+            for x in 0..<width where alpha[y * width + x] > 0 {
+                minX = min(minX, x); maxX = max(maxX, x)
+                minY = min(minY, y); maxY = max(maxY, y)
+            }
+        }
+        guard maxX >= 0 else { return nil }
+        // The context's rows run top to bottom in memory, the same order `cropping(to:)` counts.
+        return CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
     }
 
     /// Pops the emoji in one after another, starting from the side the strip grows out of. Only the
