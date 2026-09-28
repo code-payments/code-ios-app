@@ -19,6 +19,17 @@ extension View {
     public func softScrollEdge(for edges: Edge.Set = .top) -> some View {
         modifier(SoftScrollEdge(edges: edges))
     }
+
+    /// Pins `bar` to `edge` so the scroll content below it runs underneath. On iOS 26+ the bar joins
+    /// the scroll edge effect; before that it's a plain safe-area inset.
+    @ViewBuilder
+    public func scrollEdgeBar(_ edge: VerticalEdge, @ViewBuilder _ bar: () -> some View) -> some View {
+        if #available(iOS 26.0, *) {
+            safeAreaBar(edge: edge, spacing: 0, content: bar)
+        } else {
+            safeAreaInset(edge: edge, spacing: 0, content: bar)
+        }
+    }
 }
 
 private struct SoftScrollEdge: ViewModifier {
