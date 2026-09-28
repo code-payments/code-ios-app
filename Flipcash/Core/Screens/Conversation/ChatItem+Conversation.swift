@@ -39,10 +39,10 @@ nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLink
     return cache
 }()
 
-nonisolated private func detectedLink(in text: String, detectsMentions: Bool, card: ([DetectedLink]) -> LinkCard?) -> LinkPreview? {
+nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) -> LinkCard?) -> LinkPreview? {
     let key = text as NSString
     let links: [DetectedLink]
-    var mentions: [DetectedMention]
+    let mentions: [DetectedMention]
     if let cached = linkPreviewCache.object(forKey: key) {
         links = cached.links
         mentions = cached.mentions
@@ -51,7 +51,6 @@ nonisolated private func detectedLink(in text: String, detectsMentions: Bool, ca
         mentions = MentionDetector.mentions(in: text, excluding: links)
         linkPreviewCache.setObject(DetectedLinkBox(links, mentions), forKey: key)
     }
-    if !detectsMentions { mentions = [] }
     guard !links.isEmpty || !mentions.isEmpty else { return nil }
     return LinkPreview(links: links, card: card(links), mentions: mentions)
 }
@@ -88,8 +87,6 @@ extension ChatItem {
         /// defaults to no card. Takes the detected links rather than the text so the detector runs
         /// once per message, here.
         linkCard: ([DetectedLink]) -> LinkCard? = { _ in nil },
-        /// Whether `@handles` in text become tappable mentions. Gated by a beta flag while the style settles.
-        detectsMentions: Bool = true,
         /// Where the viewer's unread messages began at open; the divider heads the first message
         /// after it that someone else sent.
         unreadBoundary: UnreadBoundary = .none
@@ -143,7 +140,7 @@ extension ChatItem {
         // split around it.
         let layouts = messages.map { message in
             switch message.content {
-            case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, detectsMentions: detectsMentions, card: linkCard))
+            case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard))
             case .cash, .deleted, .encrypted: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
