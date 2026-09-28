@@ -72,7 +72,9 @@ struct ConversationScreen: View {
     @State private var restoredDraftID: ConversationID?
     @State private var barModel = ConversationBarModel()
     @State private var composer = ComposerModel()
-    @State private var navBarWidth: CGFloat = 0
+    /// Seeded from the scene so the title has its full width on the first frame; the measurement
+    /// below only corrects it.
+    @State private var navBarWidth: CGFloat = UIApplication.shared.firstWindowScene?.coordinateSpace.bounds.width ?? 0
     @State private var presentedCard: ContactCard?
     @State private var startChattingRequest: StartChattingRequest?
     @State private var coordinator: ConversationLoadCoordinator?
@@ -108,10 +110,10 @@ struct ConversationScreen: View {
     /// The catalog's first category, in catalog order, that fills the strip after the recents.
     @State private var stripCatalog: [String] = []
 
-    /// Horizontal space the back button (leading) reserves on each side of the
-    /// centered title item, so the avatar + name can left-align inside a
-    /// centered, full-width principal stack.
-    private static let titleSideInset: CGFloat = 72
+    /// Where the title starts: clear of the back button.
+    private static let titleLeadingInset: CGFloat = 72
+    /// Where the title ends: the bar's trailing margin, since nothing sits on that side.
+    private static let titleTrailingInset: CGFloat = 16
 
     /// The synced contact for the counterpart, resolved live from the directory
     /// so a `dmChatID` stored after the first payment flows in. Falls back to
@@ -634,7 +636,9 @@ struct ConversationScreen: View {
                             ?? sessionContainer.profileAvatars.data(for: tipCounterpart?.userID),
                         blurhash: groupConversation.map { $0.picture?.thumbnailBlurhash }
                             ?? tipCounterpart?.profilePicture?.thumbnailBlurhash,
-                        width: max(navBarWidth - Self.titleSideInset * 2, 0),
+                        // Too wide to centre, the bar lays the item out from just past the back
+                        // button, so the width alone sets where it ends; no offset is needed.
+                        width: max(navBarWidth - Self.titleLeadingInset - Self.titleTrailingInset, 0),
                         mute: viewerMute,
                         onTap: titleTapAction,
                         opensProfile: profileTapAction != nil
@@ -732,10 +736,9 @@ struct ConversationScreen: View {
             }
         }
         .background {
-            // Measure the bar width so the centered title item can be sized to
-            // (almost) fill it — the system toolbar won't honor maxWidth on a
-            // principal item, so an explicit width is the only way to let the
-            // avatar + name left-align inside a centered, full-width stack.
+            // Measure the bar width so the title item can be sized to fill it past the back
+            // button — the system toolbar won't honor maxWidth on a principal item, so an explicit
+            // width is the only way to let the avatar + name left-align across the bar.
             GeometryReader { proxy in
                 Color.clear
                     .onAppear { navBarWidth = proxy.size.width }
@@ -1462,10 +1465,10 @@ struct ConversationScreen: View {
 
 // MARK: - Title -
 
-/// Avatar + name, left-aligned inside the centered principal slot (sized to
-/// the measured bar width; the system toolbar won't honor maxWidth on a
-/// principal item). When `onTap` is non-nil the whole item becomes a button
-/// that opens the counterpart's contact card or profile screen.
+/// Avatar + name, left-aligned in the principal slot and sized to run from the back button to the
+/// bar's trailing margin (the system toolbar won't honor maxWidth on a principal item). When
+/// `onTap` is non-nil the whole item becomes a button that opens the counterpart's contact card or
+/// profile screen.
 private struct ConversationTitleItem: View {
 
     let title: String
@@ -1550,7 +1553,6 @@ private struct ConversationTitleLabel: View {
                 }
             }
             .accessibilityElement(children: .combine)
-            Spacer(minLength: 0)
         }
         .frame(width: width, alignment: .leading)
     }
