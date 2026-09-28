@@ -42,6 +42,7 @@ struct UserProfileScreen: View {
                 blocklistController: blocklistController,
                 router: router,
                 blockReturnsToOpener: origin.blockReturnsToOpener,
+                arrivesFetched: origin.arrivesFetched,
                 session: sessionContainer.session,
                 profileAvatars: sessionContainer.profileAvatars,
                 seed: seed
@@ -225,6 +226,15 @@ nonisolated enum UserProfileOrigin: Hashable {
         }
     }
 
+    /// Whether the profile was fetched and cached just before the screen opened, so the screen
+    /// reads the cache instead of fetching again. A link is looked up before it navigates.
+    var arrivesFetched: Bool {
+        switch self {
+        case .deeplink:                               return true
+        case .directMessage, .groupMember, .mention:  return false
+        }
+    }
+
     /// Whether blocking closes just the profile rather than resetting its stack. From a chat the
     /// stack beneath can hold the blocked person's DM, so it resets; a link opened the profile over
     /// whatever the user was on, and that is where blocking returns them.
@@ -267,6 +277,7 @@ final class UserProfileViewModel {
     @ObservationIgnored private let blocklistController: BlocklistController
     @ObservationIgnored private let router: AppRouter
     @ObservationIgnored private let blockReturnsToOpener: Bool
+    @ObservationIgnored private let arrivesFetched: Bool
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let profileAvatars: ProfileAvatarStore
     @ObservationIgnored private let seedImageData: Data?
@@ -279,13 +290,14 @@ final class UserProfileViewModel {
         profileAvatars.data(for: userID) ?? seedImageData
     }
 
-    init(userID: UserID, flipClient: FlipClient, owner: KeyPair, blocklistController: BlocklistController, router: AppRouter, blockReturnsToOpener: Bool, session: Session, profileAvatars: ProfileAvatarStore, seed: CounterpartSeed) {
+    init(userID: UserID, flipClient: FlipClient, owner: KeyPair, blocklistController: BlocklistController, router: AppRouter, blockReturnsToOpener: Bool, arrivesFetched: Bool, session: Session, profileAvatars: ProfileAvatarStore, seed: CounterpartSeed) {
         self.userID = userID
         self.flipClient = flipClient
         self.owner = owner
         self.blocklistController = blocklistController
         self.router = router
         self.blockReturnsToOpener = blockReturnsToOpener
+        self.arrivesFetched = arrivesFetched
         self.session = session
         self.profileAvatars = profileAvatars
         self.name = seed.name
@@ -296,11 +308,12 @@ final class UserProfileViewModel {
 
     /// Fetches the profile for a fresh name, join date, and avatar. Seeds from
     /// the shared profile cache first for instant display, then caches the
-    /// freshly fetched profile.
+    /// freshly fetched profile. A profile that arrived fetched stops at the cache.
     func loadProfile() async {
         if let cached = session.cachedUserProfile(for: userID) {
             apply(cached)
             await profileAvatars.load(userID: userID, picture: cached.profilePicture)
+            if arrivesFetched { return }
         }
         guard let profile = try? await flipClient.fetchProfile(userID: userID, owner: owner) else { return }
         session.cacheUserProfile(profile, for: userID)

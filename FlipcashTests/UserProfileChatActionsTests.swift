@@ -60,6 +60,14 @@ struct UserProfileChatActionsTests {
         #expect(!origin.blockReturnsToOpener)
     }
 
+    @Test("Only a link-opened profile arrives already fetched")
+    func arrivesFetched_onlyFromDeeplink() {
+        #expect(UserProfileOrigin.deeplink.arrivesFetched)
+        #expect(!UserProfileOrigin.directMessage.arrivesFetched)
+        #expect(!UserProfileOrigin.groupMember.arrivesFetched)
+        #expect(!UserProfileOrigin.mention.arrivesFetched)
+    }
+
     // MARK: - Destinations -
 
     @Test("The origin is part of the profile destination's identity but not its log keys")

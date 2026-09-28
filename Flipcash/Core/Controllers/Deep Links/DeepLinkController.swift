@@ -303,6 +303,10 @@ struct DeepLinkAction {
             if isScan {
                 container.tipFlow.begin(userID: userID)
             } else {
+                // The screen reads this rather than asking again; see `UserProfileOrigin.arrivesFetched`.
+                if case .success(let facts) = lookup {
+                    session.cacheUserProfile(facts.profile, for: userID)
+                }
                 container.appRouter.navigateOver(.userProfile(userID, origin: profileOrigin))
             }
         case .noSuchAccount:
