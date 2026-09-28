@@ -10,6 +10,7 @@ import GRPCCore
 final class BlobService: Sendable {
 
     private let service: Flipcash_Blob_V1_BlobStorage.Client<AppTransport>
+    private let policyCache = UploadPolicyCache()
 
     init(client: GRPCClient<AppTransport>) {
         self.service = Flipcash_Blob_V1_BlobStorage.Client(wrapping: client)
@@ -43,8 +44,10 @@ extension BlobService: BlobReserving {
             case .denied:
                 throw ErrorBlob.uploadDenied
             case .unsupportedType:
+                await observePolicyVersion(of: response)
                 throw ErrorBlob.unsupportedType
             case .tooLarge:
+                await observePolicyVersion(of: response)
                 throw ErrorBlob.tooLarge
             case .quotaExceeded:
                 throw ErrorBlob.quotaExceeded
@@ -81,6 +84,39 @@ extension BlobService: BlobReserving {
         } catch {
             throw ErrorBlob.network(error)
         }
+    }
+
+    /// Returns the upload policy in force for `owner`, from the cache while it
+    /// is still valid.
+    func uploadPolicy(owner: KeyPair) async throws -> UploadPolicy {
+        try await policyCache.policy(for: owner) { [service] in
+            var request = Flipcash_Blob_V1_GetUploadPolicyRequest()
+            request.auth = owner.authFor(message: request)
+
+            do {
+                let response = try await service.getUploadPolicy(request, options: .unaryDefault)
+
+                switch response.result {
+                case .ok:
+                    return UploadPolicy(response.policy)
+                case .denied:
+                    throw ErrorBlob.uploadDenied
+                case .UNRECOGNIZED:
+                    throw ErrorBlob.unknown
+                }
+            } catch let error as ErrorBlob {
+                throw error
+            } catch {
+                throw ErrorBlob.network(error)
+            }
+        }
+    }
+
+    /// A policy-driven denial echoes the version in force, which retires a
+    /// stale cached policy.
+    private func observePolicyVersion(of response: Flipcash_Blob_V1_InitiateExternalUploadResponse) async {
+        guard response.hasPolicyVersion else { return }
+        await policyCache.observe(version: response.policyVersion.value)
     }
 
     /// Returns a freshly minted download URL for a blob the caller owns, or —
@@ -185,12 +221,18 @@ public enum BlobAccessContext: Sendable {
     /// through it.
     case chatProfile(ConversationID)
 
+    /// Reading media shared into `conversationID` as a message. Authorized
+    /// while the caller is a member of the chat.
+    case chatMessage(ConversationID)
+
     var proto: Flipcash_Blob_V1_AccessContext {
         switch self {
         case .userProfile(let userID):
             return .with { $0.userProfile = .with { $0.value = userID.data } }
         case .chatProfile(let conversationID):
             return .with { $0.chatProfile = conversationID.proto }
+        case .chatMessage(let conversationID):
+            return .with { $0.chat = conversationID.proto }
         }
     }
 }
