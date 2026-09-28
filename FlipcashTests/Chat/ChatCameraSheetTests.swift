@@ -40,6 +40,37 @@ struct ChatCameraSheetTests {
         #expect(ChatPhotoCamera.flipped(from) == to)
     }
 
+    @Test("The flash toggles between off and on", arguments: [
+        (AVCaptureDevice.FlashMode.off, AVCaptureDevice.FlashMode.on),
+        (.on, .off),
+        (.auto, .off),
+    ])
+    func flashToggles(from: AVCaptureDevice.FlashMode, to: AVCaptureDevice.FlashMode) {
+        #expect(ChatPhotoCamera.toggled(from) == to)
+    }
+
+    @Test("A shot asks for the flash only when the lens can fire it", arguments: [
+        (AVCaptureDevice.FlashMode.on, [AVCaptureDevice.FlashMode.off, .on, .auto], AVCaptureDevice.FlashMode.on),
+        (.on, [.off], .off),
+        (.on, [], .off),
+        (.off, [.off, .on], .off),
+    ])
+    func flashResolvesAgainstSupport(
+        requested: AVCaptureDevice.FlashMode,
+        supported: [AVCaptureDevice.FlashMode],
+        expected: AVCaptureDevice.FlashMode
+    ) {
+        #expect(ChatPhotoCamera.resolvedFlashMode(requested, supported: supported) == expected)
+    }
+
+    @Test("A fresh camera starts with the flash off and toggles it on")
+    func freshCameraFlashOff() {
+        let camera = ChatPhotoCamera()
+        #expect(camera.flashMode == .off)
+        camera.toggleFlash()
+        #expect(camera.flashMode == .on)
+    }
+
     @Test("The shutter on a camera that never started returns no photo")
     func captureBeforeStartReturnsNil() async {
         let camera = ChatPhotoCamera()

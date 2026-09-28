@@ -15,8 +15,129 @@ import FlipcashUI
 /// `ComposerModel`, which also knows whether it is a new message or an edit.
 @MainActor @Observable final class ConversationBarModel {
     var isComposing = false
-    /// The inline camera, which takes the keyboard's place under the composer.
-    let camera = ChatCameraSlot()
+    /// The camera or photo card the attach panel expands into.
+    let attachCard = AttachCard()
+    /// The attach menu's floating panel, grown out of `+`.
+    let attachPanel = AttachPanel()
+    /// Gets the camera running ahead of the camera card.
+    let attachWarmUp = AttachWarmUp()
+    /// The photo card's pick, kept across Back so its picker is mounted once per panel.
+    let photosPick = AttachPhotosPick()
+    /// Whether the panel and cards are drawn over the keyboard instead of in the bar.
+    let overKeyboard = AttachOverKeyboard()
+
+    /// The card's top edge in window coordinates, as last laid out.
+    var cardTop: CGFloat = 0
+
+    /// What the attach surface is showing.
+    var attachSurfacePhase: AttachSurfacePhase {
+        AttachSurfacePhase(
+            isMenuOpen: attachPanel.isOpen,
+            card: attachCard.content,
+            isLanding: attachCard.landingChipID != nil
+        )
+    }
+
+    /// Whether the attach surface is on screen: from the panel opening until the last exit, a card's
+    /// or a landing's, has run.
+    var attachSurfaceIsMounted: Bool {
+        attachPanel.holdsOverflow || attachCard.holdsOverflow || attachCard.landingChipID != nil
+    }
+
+    /// Whether the surface is drawn where `+` stands, as `+`: from the panel opening until it has
+    /// collapsed back, except while it shrinks onto a chip and leaves `+` to show again.
+    var surfaceStandsInForPlus: Bool {
+        attachSurfaceIsMounted && attachSurfacePhase != .landing
+    }
+
+    /// What the screen has to give the bar above its own frame for the panel and the card.
+    var overflow: BarOverflow {
+        guard attachPanel.holdsOverflow || attachCard.holdsOverflow else { return .none }
+        // A panel or card over the keyboard draws in the keyboard's window and takes its own
+        // touches there.
+        if overKeyboard.isActive { return .none }
+        if attachPanel.isOpen { return .everywhere }
+        // A leaving card takes no touches: the band closes to the bar's own frame.
+        return .band(top: attachCard.isOpen ? cardTop : .greatestFiniteMagnitude)
+    }
+
+    /// Takes the camera or photo card back into the attach panel, discarding any pick: one
+    /// transaction, so the surface springs from the card's frame to the menu's.
+    func returnToMenu() {
+        guard attachCard.isOpen else { return }
+        photosPick.reset()
+        withAnimation(ChatMotion.attachCard.animation, completionCriteria: .logicallyComplete) {
+            attachCard.close()
+            attachPanel.open()
+        } completion: { [weak self] in
+            self?.attachCard.exitDidFinish()
+        }
+    }
+
+    /// Takes the panel and the card down at once, with nothing to animate out: the keyboard they were
+    /// drawn over went, or the app left the foreground.
+    func resetAttach() {
+        attachPanel.dismiss()
+        attachPanel.exitDidFinish()
+        attachCard.close()
+        attachCard.exitDidFinish()
+        attachCard.endLanding()
+        photosPick.reset()
+    }
+
+    /// The landing chip was laid out at `frame`, in window coordinates: the card shrinks onto it the
+    /// first time, and follows it on the card's spring if it moves while the card is shrinking.
+    func landingChipDidLayout(_ frame: CGRect) {
+        let card = attachCard
+        let wasPlaced = card.landingChipFrame != nil
+        guard !wasPlaced else {
+            withAnimation(ChatMotion.attachCard.animation) { _ = card.landingChipDidLayout(frame) }
+            return
+        }
+        guard card.landingChipDidLayout(frame) else { return }
+        card.animate({ card.close() }, then: { card.endLanding() })
+    }
+}
+
+/// How the bar reaches above its own frame: not at all, everywhere for a panel that dismisses on any
+/// outside touch, or from a window-space `top` down for a card that lets touches above it through to
+/// the transcript.
+enum BarOverflow: Equatable {
+    case none
+    case everywhere
+    case band(top: CGFloat)
+
+    /// Whether the bar draws above its own frame.
+    var overflows: Bool {
+        switch self {
+        case .none:                 false
+        case .everywhere, .band:    true
+        }
+    }
+
+    /// Where, in window coordinates, the bar starts taking touches, or `nil` for everywhere it reaches.
+    var touchTop: CGFloat? {
+        switch self {
+        case .none:                 .greatestFiniteMagnitude
+        case .everywhere:           nil
+        case .band(let top):        top
+        }
+    }
+}
+
+/// Hands the bar's ``BarOverflow`` to the screen hosting it whenever it changes.
+struct BarOverflowReporting: ViewModifier {
+    let model: ConversationBarModel
+    let screen: () -> ChatScreenViewController?
+
+    func body(content: Content) -> some View {
+        content.onChange(of: model.overflow) { _, overflow in
+            guard let screen = screen() else { return }
+            // The band first, so the bar never overflows with the last one's touches.
+            screen.barOverflowTouchTop = overflow.touchTop
+            screen.barOverflowsTop = overflow.overflows
+        }
+    }
 }
 
 /// Single spring driving the whole bar: the button morph, the composer's
@@ -122,14 +243,22 @@ struct ConversationBottomBar: View {
     @State private var composerRowHeight: CGFloat = 0
     /// Whether the chat takes photos; false for an E2EE DM, whose encryption does not cover media.
     var acceptsMedia: Bool = false
+    /// Fired as `+` opens the attach panel with the given rows: the panel goes up over the keyboard,
+    /// or the keyboard goes down under it.
+    var onAttachOpen: ([AttachMenuItem]) -> Void = { _ in }
     /// Opens the camera from the attach menu.
     var onCamera: () -> Void = {}
     /// Receives a photo the inline camera took.
-    var onCameraCapture: (UIImage) -> Void = { _ in }
-    /// Fired by the inline camera's back chevron.
+    var onCameraCapture: (ChatCameraCapture) -> Void = { _ in }
+    /// Fired by the camera card's back chevron.
     var onCameraCancel: () -> Void = {}
-    /// Receives the photos picked from the attach menu, in the order they were selected.
-    var onPhotosPicked: ([PhotosPickerItem]) -> Void = { _ in }
+    /// Opens the photo card from the attach menu.
+    var onPhotos: () -> Void = {}
+    /// Receives the photos added from the photo card, in the order they were selected, with the
+    /// loader already reading them.
+    var onPhotosAdd: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> Void = { _, _ in }
+    /// Fired by the photo card's back chevron and escape gesture.
+    var onPhotosBack: () -> Void = {}
     /// Where the reply strip's quoted photo loads its thumbnail from.
     var quoteThumbnailURL: (ChatQuote.Kind) async -> URL? = { _ in nil }
 
@@ -143,6 +272,8 @@ struct ConversationBottomBar: View {
 
     /// How much further in than ``BarMetrics/edgeInset`` the controls and the reply quote sit.
     private var compactExtraInset: CGFloat { isCompact ? BarMetrics.compactInset - BarMetrics.edgeInset : 0 }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         // The gate panel takes the bar whole rather than sitting inside it: none of the composer's
@@ -174,21 +305,15 @@ struct ConversationBottomBar: View {
         // gained or lost. Nothing animates that travel — the bar's springs key on `chatExists` and
         // `isEditing`, neither of which moves during a send — so it snapped while the bar's height
         // sprang underneath it.
+        let motion = AttachMotion(reduceMotion: reduceMotion)
         let content = VStack(alignment: .leading, spacing: Self.rowSpacing) {
-            // Below the reply strip and above the field, as the spec orders them.
-            if ComposerChipStrip.isShown(chipCount: composer.chips.count, isEditing: composer.isEditing) {
-                ComposerChipStrip(
-                    chips: composer.chips,
-                    onRemove: { composer.removeChip($0) },
-                    onRetry: { $0.retryUpload() }
-                )
-            }
             HStack(alignment: .bottom, spacing: 10) {
                 // An edit takes over the bar: the leading control becomes the way out of it and the
                 // attach menu steps aside until it resolves, the way WhatsApp hides its accessory controls.
                 switch leadingControl {
                 case .cancelEdit:
                     CancelEditButton { composer.endEditing() }
+                        .hiddenUnderAttachCard(showsCard)
                 case .sendCash:
                     SendCashMorphButton(
                         symbol: symbol,
@@ -205,28 +330,39 @@ struct ConversationBottomBar: View {
                         expandedTitle: isTipDm ? startChattingTitle : nil,
                         action: onSendCash
                     )
+                    .hiddenUnderAttachCard(showsCard)
                 case .attach(let items):
                     AttachMenu(
                         items: items,
-                        photosSelectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
-                        onCash: onSendCash,
-                        onCamera: onCamera,
-                        onPhotos: onPhotosPicked
+                        panel: model.attachPanel,
+                        hidesButton: showsCard,
+                        // Swapped out in one frame for the surface, which is drawn as `+` where it stands.
+                        isStoodInFor: model.surfaceStandsInForPlus && motion.animatesGeometry,
+                        onOpen: onAttachOpen,
+                        onPlusFrame: { model.overKeyboard.plusFrame = $0 }
                     )
+                    // Over the field beside it, which its panel floats across.
+                    .zIndex(1)
                 case .none:
                     EmptyView()
                 }
                 if chatExists {
                     ConversationComposer(conversationID: conversationID, model: model, composer: composer)
+                        .hiddenUnderAttachCard(showsCard)
                         .transition(.opacity)
                 }
             }
-            // In the keyboard's place: the screen lowers the keyboard as this opens, and the bar
-            // grows by what the keyboard held, so the field stays where it was.
-            if model.camera.isOpen {
-                ChatCameraSheet(onCapture: onCameraCapture, onCancel: onCameraCancel)
-                    .frame(height: max(0, model.camera.height - Self.rowSpacing))
-                    .transition(.opacity)
+            // Kept mounted under the card, so `+` is there for the surface to shrink back into and the
+            // field is there to take focus the moment the card closes. Each control fades on its own
+            // rather than the row, which holds the surface. An open panel lets a touch on the row —
+            // send included — fall through to the dismiss area behind the bar, so it only closes the panel.
+            .allowsHitTesting(!showsCard && !model.attachPanel.isOpen)
+            .accessibilityHidden(showsCard)
+            // After the row's own opacity, so the surface does not fade with it.
+            .overlay(alignment: .topLeading) {
+                if model.attachSurfaceIsMounted, !model.overKeyboard.isActive, case .attach(let items) = leadingControl {
+                    attachSurface(items: items)
+                }
             }
         }
         // The Send Cash button morphs on the reply's spring. Inside the row's padding, so it covers
@@ -240,7 +376,46 @@ struct ConversationBottomBar: View {
         .padding(.bottom, BarMetrics.contentPadding)
         .animation(barMorphSpring, value: chatExists)
         .animation(barMorphSpring, value: composer.isEditing)
-        .animation(barMorphSpring, value: model.camera.isOpen)
+        // The strip arriving with its first chip and leaving with its last, on the chip spring unless
+        // a capture's animation is already carrying it.
+        .transaction(value: ComposerChipStrip.isShown(chipCount: composer.chips.count, isEditing: composer.isEditing)) { transaction in
+            if transaction.animation == nil, !transaction.disablesAnimations {
+                transaction.animation = ChatMotion.composerChip.animation
+            }
+        }
+        .onChange(of: wantsCameraWarm) { _, wanted in
+            model.attachWarmUp.update(wanted: wanted)
+        }
+        // A panel closed without a choice leaves no pick behind for the next one.
+        .onChange(of: model.attachSurfaceIsMounted) { _, isMounted in
+            if !isMounted {
+                model.photosPick.reset()
+            }
+        }
+        .onDisappear {
+            model.attachWarmUp.update(wanted: false)
+        }
+        // Typing takes the attach panel down, as a tap outside it does.
+        .onChange(of: composer.draft) {
+            guard model.attachPanel.isOpen else { return }
+            model.attachPanel.animate { $0.dismiss() }
+        }
+        // An edit takes `+`'s slot, and the panel or card with it, so Back has no panel to return to.
+        .onChange(of: composer.isEditing) { _, isEditing in
+            guard isEditing else { return }
+            if model.attachCard.isOpen {
+                model.attachCard.close()
+                model.attachCard.exitDidFinish()
+            }
+            if model.attachPanel.isOpen {
+                model.attachPanel.animate { $0.dismiss() }
+            }
+        }
+        // So does focusing the field, whose send-button end the panel leaves uncovered.
+        .onChange(of: model.isComposing) { _, isComposing in
+            guard isComposing, model.attachPanel.isOpen else { return }
+            model.attachPanel.animate { $0.dismiss() }
+        }
 
         // No shared GlassEffectContainer: the composer's glass is a background
         // layer behind an editable text field, and a container composites its
@@ -328,9 +503,62 @@ struct ConversationBottomBar: View {
         return listedCandidates
     }
 
-    /// The gap between the bar's rows. The camera's height gives it back, so the bar grows by
-    /// exactly the keyboard's height.
+    /// The gap between the bar's rows.
     private static let rowSpacing: CGFloat = 8
+
+    /// Whether the camera or photo card is up over the composer row.
+    private var showsCard: Bool {
+        model.attachCard.isOpen
+    }
+
+    /// The attach surface in the bar: the menu standing on `+`, and the card standing on the composer
+    /// row's bottom edge, a fixed share of the screen tall and as wide as the bar's controls are with
+    /// the keyboard up. An overlay, so the bar's measured height — and with it the transcript's inset
+    /// — stays the composer's.
+    private func attachSurface(items: [AttachMenuItem]) -> some View {
+        GeometryReader { proxy in
+            let origin = proxy.frame(in: .global).origin
+            let toRow: (CGRect) -> CGRect = { $0.offsetBy(dx: -origin.x, dy: -origin.y) }
+            AttachSurface(
+                model: model,
+                items: items,
+                plus: toRow(model.overKeyboard.plusFrame),
+                card: AttachSurfaceLayout.barCardRect(row: proxy.size, outset: compactExtraInset, height: model.attachCard.height),
+                landing: model.attachCard.landingChipFrame.map(toRow),
+                menuPlacement: .standsOnPlus,
+                selectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
+                actions: AttachOverlayActions(
+                    onCash: onSendCash,
+                    onCamera: onCamera,
+                    onPhotos: onPhotos,
+                    onCameraCapture: onCameraCapture,
+                    onCameraCancel: onCameraCancel,
+                    onPhotosAdd: onPhotosAdd,
+                    onPhotosBack: onPhotosBack
+                ),
+                opensLibraryOnAppear: model.overKeyboard.opensLibraryInBar
+            ) { region, rect in
+                if region == .card, let rect {
+                    model.cardTop = rect.minY + origin.y
+                }
+            }
+            .onAppear {
+                // A turn later, so the card has read it first.
+                DispatchQueue.main.async { model.overKeyboard.opensLibraryInBar = false }
+            }
+        }
+    }
+
+    /// Whether the camera should be warm: while the open panel offers it, or its card shows it.
+    private var wantsCameraWarm: Bool {
+        let showsCamera = model.attachCard.content == .camera
+        switch leadingControl {
+        case .attach(let items):
+            return showsCamera || (model.attachPanel.isOpen && items.contains(.camera))
+        case .cancelEdit, .sendCash, .none:
+            return showsCamera
+        }
+    }
 
     private var leadingControl: ConversationBarLeadingControl {
         ConversationBarLeadingControl(
@@ -716,9 +944,14 @@ struct ConversationComposer: View {
 
     /// Send button scale-in/out as text appears/clears.
     private static let sendButtonSpring = ChatMotion.sendButton.animation
+    private static let leadingInset: CGFloat = 14
+    private static let trailingInset: CGFloat = 8
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let field = HStack(alignment: .bottom, spacing: 10) {
+        let motion = AttachMotion(reduceMotion: reduceMotion)
+        let textRow = HStack(alignment: .bottom, spacing: 10) {
             TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
@@ -761,9 +994,29 @@ struct ConversationComposer: View {
             .animation(Self.sendButtonSpring, value: showsSubmit)
         }
 
+        // The staged photos ride inside the field, above the text, so the field reads as one message.
+        let field = VStack(alignment: .leading, spacing: BarMetrics.fieldVerticalPadding) {
+            if ComposerChipStrip.isShown(chipCount: composer.chips.count, isEditing: composer.isEditing) {
+                ComposerChipStrip(
+                    chips: composer.chips,
+                    landingChipID: model.attachCard.landingChipID,
+                    onLandingChipFrame: { model.landingChipDidLayout($0) },
+                    onRemove: { composer.removeChip($0) },
+                    onRetry: { $0.retryUpload() },
+                    edgeInset: Self.leadingInset
+                )
+                // Out to the field's own edges, so chips scroll under a fade rather than a hard margin.
+                .padding(.leading, -Self.leadingInset)
+                .padding(.trailing, -Self.trailingInset)
+                .padding(.top, BarMetrics.fieldVerticalPadding / 2)
+                .transition(motion.stripTransition(isLanding: model.attachCard.landingChipID != nil))
+            }
+            textRow
+        }
+
         return field
-        .padding(.leading, 14)
-        .padding(.trailing, 8)
+        .padding(.leading, Self.leadingInset)
+        .padding(.trailing, Self.trailingInset)
         .padding(.vertical, BarMetrics.fieldVerticalPadding)
         // Glass *behind* the field, not wrapping it: wrapping an editable
         // TextField in `glassEffect` reparents its text view into the glass
@@ -803,6 +1056,10 @@ struct ConversationComposer: View {
 
     private func submit() {
         guard let conversationID else { return }
+        // A photo-only send leaves the draft as it was, so the draft's own dismissal never fires.
+        if model.attachPanel.isOpen {
+            model.attachPanel.animate { $0.dismiss() }
+        }
 
         // Fire-and-forget in both branches: the change applies optimistically and resolves on its own,
         // so the composer stays ready immediately. Emptying the field up front makes a double-tap a
