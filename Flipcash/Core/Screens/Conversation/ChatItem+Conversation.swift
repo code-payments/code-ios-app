@@ -151,7 +151,7 @@ extension ChatItem {
         func isEmojiOnlyBody(_ message: ConversationMessage) -> Bool {
             switch message.content {
             case .text(let text): EmojiOnlyDetector.isEmojiOnly(text)
-            case .cash, .deleted, .encrypted, .widget: false
+            case .cash, .deleted, .encrypted, .widget, .media: false
             }
         }
         func rendersBare(_ message: ConversationMessage) -> Bool {
@@ -164,7 +164,7 @@ extension ChatItem {
         let layouts = messages.map { message in
             switch message.content {
             case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard))
-            case .cash, .deleted, .encrypted, .widget: [RowLayout(part: nil, text: nil, preview: nil)]
+            case .cash, .deleted, .encrypted, .widget, .media: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
         // A status line under a message sits between it and the next bubble, so it ends the bubble
@@ -263,6 +263,10 @@ extension ChatItem {
                     isFromSelf: isFromSelf,
                     senderName: counterpartName
                 ))
+            case .media(_, let caption):
+                // A text stand-in until the transcript has a media cell; a redacted photo stays a
+                // photo row rather than a tombstone.
+                content = .text("📷 " + (caption ?? "Photo"))
             }
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean
@@ -426,6 +430,15 @@ extension ChatItem {
                 authorName: authorName,
                 snippet: ChatQuote.unavailableSnippet,
                 kind: .unavailable,
+                authorID: original.senderID
+            )
+        case .media(let attachments, let caption):
+            // A redacted original's bytes may not be fetched, so its quote carries no thumbnail.
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: ChatQuote.snippet(forText: caption ?? "Photo"),
+                kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.blobID),
                 authorID: original.senderID
             )
         case .encrypted:

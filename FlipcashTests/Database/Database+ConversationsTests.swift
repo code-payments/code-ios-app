@@ -103,7 +103,7 @@ struct DatabaseConversationsTests {
         switch loadedMessage.content {
         case .cash(let loadedExchanged):
             #expect(loadedExchanged.nativeAmount.value == amount)
-        case .text, .deleted, .encrypted, .widget:
+        case .text, .deleted, .encrypted, .widget, .media:
             Issue.record("Expected cash message content")
         }
     }
@@ -476,6 +476,48 @@ struct DatabaseConversationsTests {
         #expect(scheme == 1)
         #expect(nonce == Data(repeating: 0xAB, count: 24))
         #expect(ciphertext == Data([0x01, 0x02, 0x03, 0x04]))
+    }
+
+    @Test("A media message round-trips its attachment, caption, and reply target")
+    func mediaMessageRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let attachment = MediaAttachment(blobID: BlobID(data: Data([9, 8, 7])), width: 300, height: 400, blurhash: "LEHV6nWB2yk8")
+        let captioned = ConversationMessage(
+            id: MessageID(value: 1), senderID: otherID,
+            content: .media([attachment], caption: "hi"),
+            date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 3,
+            repliedTo: MessageID(value: 7)
+        )
+        let bare = ConversationMessage(
+            id: MessageID(value: 2), senderID: selfID,
+            content: .media([MediaAttachment(blobID: BlobID(data: Data([1])), width: 1, height: 2, blurhash: nil)], caption: nil),
+            date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 4
+        )
+
+        try database.upsertConversationMessages([captioned, bare], conversationID: id)
+
+        #expect(try database.getConversationMessages(conversationID: id) == [captioned, bare])
+    }
+
+    @Test("A redacted media message reloads still redacted, so its bytes stay unfetched after a relaunch")
+    func redactedMediaRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let message = ConversationMessage(
+            id: MessageID(value: 1), senderID: otherID,
+            content: .media([MediaAttachment(blobID: BlobID(data: Data([9])), width: 300, height: 400, blurhash: "LEHV6nWB2yk8")], caption: nil),
+            date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 3,
+            redacted: true
+        )
+
+        try database.upsertConversationMessages([message], conversationID: id)
+
+        let loaded = try #require(try database.getConversationMessages(conversationID: id).first)
+        #expect(loaded == message)
+        #expect(loaded.redacted)
     }
 
     @Test("the catch-up cursor round-trips and survives a feed replace")

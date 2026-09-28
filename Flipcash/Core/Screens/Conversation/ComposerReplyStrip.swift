@@ -137,7 +137,7 @@ struct ComposerReplyStrip: View {
                     .foregroundStyle(Color.textSecondary)
             }
             .lineLimit(1)
-        case .text, .unavailable:
+        case .text, .media, .unavailable:
             Text(target.snippet)
                 .font(.default(size: 14, weight: .medium))
                 .foregroundStyle(Color.textMain)
@@ -150,7 +150,7 @@ struct ComposerReplyStrip: View {
     private var spokenSnippet: String {
         switch target.kind {
         case .cash(let token, _):  "\(target.snippet) \(token)"
-        case .text, .unavailable:  target.snippet
+        case .text, .media, .unavailable:  target.snippet
         }
     }
 }

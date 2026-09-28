@@ -79,6 +79,24 @@ struct MessageCapabilityTests {
         #expect(resolve(cash(from: them), isMember: false) == [.report])
     }
 
+    @Test("My own photo can be replied to and deleted, but has no text to copy or edit")
+    func ownMediaOffersReplyAndDelete() {
+        #expect(resolve(media(from: me)) == [.reply, .delete])
+    }
+
+    @Test("Someone else's photo can be replied to and reported, but not copied")
+    func otherPersonsMediaIsReportable() {
+        #expect(resolve(media(from: them)) == [.reply, .report])
+    }
+
+    private func media(from sender: UUID) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: 4), senderID: sender,
+            content: .media([MediaAttachment(blobID: BlobID(data: Data([1])), width: 1, height: 1, blurhash: nil)], caption: "hi"),
+            date: now, unreadSeq: 1, eventSequence: 2
+        )
+    }
+
     private func cash(from sender: UUID) -> ConversationMessage {
         ConversationMessage(
             id: MessageID(value: 3), senderID: sender,

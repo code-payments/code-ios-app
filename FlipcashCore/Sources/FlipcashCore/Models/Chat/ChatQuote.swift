@@ -20,6 +20,9 @@ public struct ChatQuote: Hashable, Sendable, Codable {
         /// as a bare number — `token` is the mint's name ("Cash" for USDF) and `flagImageName` is
         /// the currency's asset name, `nil` when the currency has no flag.
         case cash(token: String, flagImageName: String?)
+        /// A photo. The snippet is its caption, or "Photo" when it has none; `thumbnailBlobID` is the
+        /// blob the panel draws beside it, `nil` when there is none to fetch.
+        case media(thumbnailBlobID: BlobID?)
         /// The original is not in the local database, or it has been deleted. The panel renders
         /// the placeholder copy and the row is not tappable.
         case unavailable

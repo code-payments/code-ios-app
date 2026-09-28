@@ -33,6 +33,7 @@ struct ConversationStoreMutationTests {
             case .cash:            "<cash>"
             case .encrypted:       "<encrypted>"
             case .widget:          "<widget>"
+            case .media:           "<media>"
             }
         }
     }

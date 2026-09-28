@@ -1527,6 +1527,12 @@ final class ConversationController {
             // the chat and the viewer may have got none of it, so the amount stands on its own.
             return conversation.type == .group ? label : "You received \(label)"
 
+        case .media(_, let caption):
+            let body = "📷 " + (caption ?? "Photo")
+            if isFromSelf { return "You: \(body)" }
+            guard let senderName else { return body }
+            return "\(senderName): \(body)"
+
         case .deleted:
             return nil
 
@@ -1958,7 +1964,7 @@ final class ConversationController {
         case .text(let text):
             store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
             _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
-        case .encrypted, .cash, .deleted, .widget:
+        case .encrypted, .cash, .deleted, .widget, .media:
             if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
                 logger.error("Cannot retry a send this client has no path to re-send", metadata: [
                     "conversationID": "\(conversationID)",
