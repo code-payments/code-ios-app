@@ -315,6 +315,9 @@ final class ConversationController {
 
     /// Keeps the words of a send that failed — see ``FailedSendDrafts``.
     @ObservationIgnored private var failedSends: FailedSendDrafts?
+    /// The chip behind each photo send not yet confirmed, keyed by its client id: its local image
+    /// draws the pending bubble, and a failed send uploads or posts again through it.
+    @ObservationIgnored private var pendingMediaChips: [UUID: ComposerChip] = [:]
     /// The receive-side analytics concern (cumulative counters + received events),
     /// owned by its own unit. Exposed so `SessionContainer` can wire its rate lookup.
     @ObservationIgnored let receipts: ConversationReceiptReporter
@@ -1563,7 +1566,7 @@ final class ConversationController {
             return conversation.type == .group ? label : "You received \(label)"
 
         case .media(_, let caption):
-            let body = "📷 " + (caption ?? "Photo")
+            let body = ChatMediaStrings.listPreview(caption: caption)
             if isFromSelf { return "You: \(body)" }
             guard let senderName else { return body }
             return "\(senderName): \(body)"
@@ -1989,25 +1992,25 @@ final class ConversationController {
     func retry(clientMessageID: UUID, in conversationID: ConversationID) async {
         guard let pending = store.pendingMessage(clientMessageID: clientMessageID, in: conversationID),
               pending.status == .failed else { return }
-        // Only `.text` is ever sent by this client today -- `deliver(text:)` is the only send path,
-        // and `send(_:to:)` only ever creates a `.text` pending row -- so this is unreachable in
-        // practice. It's a `switch` rather than the narrow `guard case .text` it replaces so a future
-        // pending shape (e.g. an outbox that can hold `.encrypted`) fails loudly via the log below
-        // instead of silently never retrying, and so `Content.asProto()`'s own crash-free contract
-        // (no fatalError/force-unwrap for `.encrypted`/`.cash`/`.deleted`) is exercised here too.
+        // A `switch` rather than a `guard case` so a pending shape with no send path (an outbox that
+        // could hold `.encrypted`, say) fails loudly via the log below instead of silently never
+        // retrying, and so `Content.asProto()`'s crash-free contract for `.encrypted`/`.cash`/
+        // `.deleted` is exercised here too.
         switch pending.content {
         case .text(let text):
             store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
             _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
-        case .encrypted, .cash, .deleted, .widget, .media:
+        case .media(_, let caption):
+            await retryMedia(clientMessageID: clientMessageID, caption: caption, repliedTo: pending.repliedTo, in: conversationID)
+        case .encrypted, .cash, .deleted, .widget:
             if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
                 logger.error("Cannot retry a send this client has no path to re-send", metadata: [
                     "conversationID": "\(conversationID)",
                     "error": "\(error)",
                 ])
             }
-            // Nothing to resend over the existing text-only send RPC; leave it `.failed` rather than
-            // looping forever or crashing.
+            // Nothing to resend over the send RPCs; leave it `.failed` rather than looping forever
+            // or crashing.
         }
     }
 
@@ -2053,6 +2056,157 @@ final class ConversationController {
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to send conversation message")
+            Analytics.sentMessage(chatType: chatType, error: error)
+            return false
+        }
+    }
+
+    /// Sends each staged chip as its own message, in chip order, with `caption` under the last and
+    /// `repliedTo` on the first; returns whether every one was delivered.
+    ///
+    /// Every pending bubble appears at once, even for a chip still uploading. Each message is then
+    /// posted only once its own chip's upload settles, so a later photo never lands before an
+    /// earlier one. A chip that fails marks only its own bubble `.failed`, and the next chip still
+    /// gets its turn.
+    @discardableResult
+    func sendMedia(
+        _ chips: [ComposerChip],
+        caption: String?,
+        to conversationID: ConversationID,
+        repliedTo: MessageID? = nil
+    ) async -> Bool {
+        let sends = ChatMediaSendPlan.mediaMessages(chips: chips, caption: caption, replyTo: repliedTo).map { message in
+            (message: message, clientMessageID: insertPendingMedia(message, into: conversationID))
+        }
+
+        var deliveredAll = true
+        for send in sends {
+            let delivered = await deliverMedia(
+                clientMessageID: send.clientMessageID,
+                chip: send.message.chip,
+                caption: send.message.caption,
+                repliedTo: send.message.replyTo,
+                to: conversationID
+            )
+            deliveredAll = deliveredAll && delivered
+        }
+        return deliveredAll
+    }
+
+    /// The local image drawing the pending photo bubble whose transcript id is `messageID`, or `nil`
+    /// once the send is confirmed or when the row is not a photo this device is sending.
+    func pendingMediaImage(forMessageID messageID: String) -> UIImage? {
+        UUID(uuidString: messageID).flatMap { pendingMediaChips[$0]?.image }
+    }
+
+    private func insertPendingMedia(_ message: ChatMediaSendPlan.MediaMessage<ComposerChip>, into conversationID: ConversationID) -> UUID {
+        let clientMessageID = UUID()
+        let chip = message.chip
+        // A chip still preparing has no upload size yet; the source's own pixels carry the same
+        // aspect ratio, which is all the bubble's clamp reads.
+        let pixels = CGSize(width: chip.image.size.width * chip.image.scale, height: chip.image.size.height * chip.image.scale)
+        let attachment = MediaAttachment(
+            blobID: nil,
+            width: chip.preparedWidth ?? Int(pixels.width.rounded()),
+            height: chip.preparedHeight ?? Int(pixels.height.rounded()),
+            blurhash: nil
+        )
+        let pending = ConversationMessage(
+            id: .unassigned,
+            senderID: selfUserID,
+            content: .media([attachment], caption: message.caption),
+            date: .now,
+            unreadSeq: 0,
+            repliedTo: message.replyTo,
+            status: .sending,
+            clientMessageID: clientMessageID
+        )
+        let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
+        store.insertPending(pending, anchoredTo: anchor, into: conversationID)
+        receiptSettle.hold(clientMessageID.uuidString)
+        pendingMediaChips[clientMessageID] = chip
+        return clientMessageID
+    }
+
+    /// Re-sends a failed photo: posts again when its blob is finalized, uploads again first when the
+    /// upload is what failed, and leaves a photo the server refused for good as it is.
+    private func retryMedia(clientMessageID: UUID, caption: String?, repliedTo: MessageID?, in conversationID: ConversationID) async {
+        guard let chip = pendingMediaChips[clientMessageID] else {
+            logger.error("Cannot retry a photo send with no staged image", metadata: [
+                "conversationID": "\(conversationID)",
+            ])
+            return
+        }
+        switch chip.state {
+        case .preparing, .uploading, .uploaded:
+            break
+        case .failed(.retryable):
+            chip.retryUpload()
+        case .failed(.notRetryable):
+            return
+        }
+        store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+        _ = await deliverMedia(clientMessageID: clientMessageID, chip: chip, caption: caption, repliedTo: repliedTo, to: conversationID)
+    }
+
+    /// Awaits `chip`'s upload, then posts its message; any failure marks the pending row `.failed`.
+    private func deliverMedia(
+        clientMessageID: UUID,
+        chip: ComposerChip,
+        caption: String?,
+        repliedTo: MessageID?,
+        to conversationID: ConversationID
+    ) async -> Bool {
+        // Read at await time: a retry replaces the chip's task.
+        guard let upload = chip.uploadTask else {
+            store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
+            logger.error("Photo send has no upload to await", metadata: ["conversationID": "\(conversationID)"])
+            return false
+        }
+        let blobID: BlobID
+        do {
+            blobID = try await upload.value
+        } catch {
+            store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
+            logger.error("Failed to upload conversation photo", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to upload conversation photo")
+            return false
+        }
+
+        let chatType = conversation(withID: conversationID)?.type
+        do {
+            let message = try await messaging.sendMediaMessage(
+                owner: owner,
+                conversationID: conversationID,
+                blobID: blobID,
+                caption: caption,
+                repliedTo: repliedTo,
+                clientMessageID: clientMessageID
+            )
+            var confirmed = message
+            confirmed.clientMessageID = clientMessageID
+            let ok = persist(operation: "send-media-message") { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
+            if ok {
+                store.dropPending(clientMessageID: clientMessageID, confirmedAt: message.id, in: conversationID)
+                pendingMediaChips[clientMessageID] = nil
+            } else {
+                scheduleGapCatchUp(conversationID)
+            }
+            store.advanceLastActivity(to: message.date, in: conversationID)
+            refreshFeedPreview(for: conversationID)
+            persistConversation(conversationID)
+            Analytics.sentMessage(chatType: chatType)
+            return true
+        } catch {
+            store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
+            logger.error("Failed to send conversation photo", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to send conversation photo")
             Analytics.sentMessage(chatType: chatType, error: error)
             return false
         }

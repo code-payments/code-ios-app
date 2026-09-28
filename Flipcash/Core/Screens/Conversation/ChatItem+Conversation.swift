@@ -263,10 +263,18 @@ extension ChatItem {
                     isFromSelf: isFromSelf,
                     senderName: counterpartName
                 ))
-            case .media(_, let caption):
-                // A text stand-in until the transcript has a media cell; a redacted photo stays a
-                // photo row rather than a tombstone.
-                content = .text("📷 " + (caption ?? "Photo"))
+            case .media(let attachments, let caption):
+                // A redacted photo stays a photo row, drawn from its BlurHash, rather than a tombstone.
+                // A send carries one attachment (see `ChatMediaSendPlan`); the row draws the first.
+                let attachment = attachments.first
+                content = .media(ChatMediaContent(
+                    blobID: attachment?.blobID,
+                    width: attachment?.width ?? 0,
+                    height: attachment?.height ?? 0,
+                    blurhash: attachment?.blurhash,
+                    caption: caption,
+                    isRedacted: message.redacted
+                ))
             }
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean
@@ -437,7 +445,7 @@ extension ChatItem {
             return ChatQuote(
                 stableID: original.stableID,
                 authorName: authorName,
-                snippet: ChatQuote.snippet(forText: caption ?? "Photo"),
+                snippet: ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption)),
                 kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.blobID),
                 authorID: original.senderID
             )

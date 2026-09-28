@@ -5,6 +5,7 @@
 //  Copyright © 2026 Code Inc. All rights reserved.
 //
 
+import PhotosUI
 import SwiftUI
 import UIKit
 import Combine
@@ -536,8 +537,62 @@ struct ConversationScreen: View {
             onGateJoin: joinChat,
             isJoiningChat: isJoiningChat,
             mentions: mentions,
-            authorAvatars: authorAvatars
+            authorAvatars: authorAvatars,
+            acceptsMedia: acceptsMedia,
+            onCameraCapture: stageCapturedPhoto,
+            onPhotosPicked: stagePickedPhotos,
+            mintMediaURL: mintMediaURL,
+            onMediaTap: openMediaViewer
         )
+    }
+
+    /// Whether the chat takes photos: any chat this device has a record of, except an E2EE DM, whose
+    /// encryption does not cover media. False until the record loads, so the menu never offers a
+    /// photo the chat may refuse.
+    private var acceptsMedia: Bool {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID) else { return false }
+        return !conversation.useE2Ee
+    }
+
+    /// Uploads chat photos on behalf of the signed-in owner.
+    private var mediaUploader: ChatMediaUploader {
+        ChatMediaUploader(blob: SessionChatMediaBlobStore(session: session, flipClient: container.flipClient))
+    }
+
+    /// Stages photos picked from the library, in the order they were picked.
+    private func stagePickedPhotos(_ items: [PhotosPickerItem]) {
+        let uploader = mediaUploader
+        Task {
+            await ChatPhotoStaging.stage(items, into: composer, uploader: uploader, load: ChatPhotoStaging.loadImage)
+        }
+    }
+
+    /// Stages a photo taken with the inline camera.
+    private func stageCapturedPhoto(_ image: UIImage) {
+        composer.stageChip(image: image, uploader: mediaUploader)
+    }
+
+    /// Opens a tapped photo full screen, zooming out of its row, with share through the system sheet.
+    /// The transcript only hands over a request for a photo the viewer may see, so nothing here can
+    /// open or download a BlurHash-only one.
+    private func openMediaViewer(_ request: ChatMediaViewerRequest) {
+        guard var presenter = UIApplication.shared.currentKeyWindow?.rootViewController else { return }
+        while let presented = presenter.presentedViewController {
+            presenter = presented
+        }
+        let viewer = ChatMediaViewerController(request: request) { image in
+            ShareSheet.present(activityItems: [image]) { _ in }
+        }
+        presenter.present(viewer, animated: true)
+    }
+
+    /// Mints a download URL for a photo in this chat, read through the chat's access context.
+    private var mintMediaURL: (BlobID) async throws -> URL? {
+        { [flipClient = container.flipClient, owner = session.ownerKeyPair, conversationID] blobID in
+            guard let conversationID else { return nil }
+            return try await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+        }
     }
 
     var body: some View {
@@ -1098,7 +1153,7 @@ struct ConversationScreen: View {
             )
         case .media(let attachments, let caption):
             (
-                ChatQuote.snippet(forText: caption ?? "Photo"),
+                ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption)),
                 .media(thumbnailBlobID: message.redacted ? nil : attachments.first?.blobID)
             )
         case .deleted:

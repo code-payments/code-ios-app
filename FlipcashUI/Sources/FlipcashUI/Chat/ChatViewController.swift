@@ -118,6 +118,16 @@ public final class ChatViewController: UICollectionViewController {
     /// Fired when a message row's trailing "+" reaction pill is tapped, to open the picker for that
     /// row's stable id.
     public var onReactionAdd: ((String) -> Void)?
+    /// Fired when a photo row's image is tapped, to open the full-screen viewer. Never fires for a
+    /// BlurHash-only or failed row, or one with nothing to show yet.
+    public var onMediaTap: ((ChatMediaViewerRequest) -> Void)?
+
+    /// Where a photo row gets its download URL. Nil draws every photo from its BlurHash.
+    public var mediaURLResolver: ChatMediaURLResolver?
+
+    /// The local image of a photo this device is still sending, by the pending row's id; the row draws
+    /// it until the send confirms and the download takes over.
+    public var pendingMediaImage: ((String) -> UIImage?)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
@@ -325,6 +335,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatLinkMessageCell.self, forCellWithReuseIdentifier: ChatLinkMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatShareProfileCell.self, forCellWithReuseIdentifier: ChatShareProfileCell.reuseIdentifier)
+        collectionView.register(ChatMediaCell.self, forCellWithReuseIdentifier: ChatMediaCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
         collectionView.register(ChatEncryptionMarkerCell.self, forCellWithReuseIdentifier: ChatEncryptionMarkerCell.reuseIdentifier)
@@ -637,12 +648,17 @@ public final class ChatViewController: UICollectionViewController {
         let authorImageData = message.author.flatMap { authorAvatars[$0.id] }
         (cell as? ChatColumnCell)?.onAuthorTap = { [weak self] userID in self?.onAuthorTap?(userID) }
         switch cell {
-        // Only text messages are sent optimistically, so only they can reach the failed state
-        // that arms retry (wired on both text cells). Cash messages are always server-confirmed.
+        // Text and photo messages are sent optimistically, so only they can reach the failed state
+        // that arms retry. Cash messages are always server-confirmed.
         case let cell as ChatLinkMessageCell:
             // Before `configure`, which is where the card subscribes.
             cell.linkCardSource = linkCardSource
-            cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
+            cell.configure(
+                with: message,
+                maxWidth: maxWidth,
+                authorImageData: authorImageData,
+                quoteThumbnailURL: quoteThumbnailURL(for: message)
+            )
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
             cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
@@ -652,7 +668,12 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         case let cell as ChatMessageCell:
-            cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
+            cell.configure(
+                with: message,
+                maxWidth: maxWidth,
+                authorImageData: authorImageData,
+                quoteThumbnailURL: quoteThumbnailURL(for: message)
+            )
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
@@ -673,9 +694,65 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+        case let cell as ChatMediaCell:
+            guard case .media(let media) = message.content else { return }
+            let remoteURL = mediaURLResolver?.url(for: media, canReact: message.canReact) { [weak self] _ in
+                self?.reconfigureVisibleMessage(id: message.id)
+            }
+            let localImage = pendingMediaImage?(message.id)
+            cell.configure(
+                with: message,
+                maxWidth: maxWidth,
+                localImage: localImage,
+                remoteURL: remoteURL,
+                authorImageData: authorImageData
+            )
+            cell.onImageTap = { [weak self, weak cell] in
+                guard let self, let request = ChatMediaViewerRequest(
+                    message: message,
+                    localImage: localImage,
+                    remoteURL: remoteURL,
+                    placeholder: cell?.imageView.image,
+                    sourceView: { [weak self] in self?.mediaSourceView(forMessageID: message.id) }
+                ) else { return }
+                onMediaTap?(request)
+            }
+            cell.onRetry = { [weak self] id in self?.onRetry?(id) }
+            cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
+            cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
+            cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         default:
             assertionFailure("Unhandled chat cell class for message row")
         }
+    }
+
+    /// Where a reply's quoted photo draws its thumbnail from, or nil when it has none or is not yet
+    /// resolved; a resolution redraws the reply.
+    private func quoteThumbnailURL(for message: ChatMessage) -> URL? {
+        guard let quote = message.quote else { return nil }
+        return mediaURLResolver?.thumbnailURL(for: quote.kind, canReact: message.canReact) { [weak self] _ in
+            self?.reconfigureVisibleMessage(id: message.id)
+        }
+    }
+
+    /// Re-runs `configure` on the on-screen row for `id`, if there is one. A row off screen picks the
+    /// change up on its next dequeue.
+    private func reconfigureVisibleMessage(id: String) {
+        for cell in collectionView.visibleCells {
+            guard let indexPath = collectionView.indexPath(for: cell),
+                  items.indices.contains(indexPath.item),
+                  case .message(let message) = items[indexPath.item],
+                  message.id == id else { continue }
+            configure(cell, with: message)
+        }
+    }
+
+    /// The on-screen photo of the row for `id`, or nil when that row is scrolled away.
+    private func mediaSourceView(forMessageID id: String) -> UIView? {
+        guard let index = items.firstIndex(where: { item in
+            if case .message(let message) = item { message.id == id } else { false }
+        }) else { return nil }
+        return (collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? ChatMediaCell)?.imageView
     }
 
     // MARK: - Selection
@@ -768,7 +845,7 @@ public final class ChatViewController: UICollectionViewController {
               let cell = collectionView.cellForItem(at: indexPath) as? BubbleCarrying else { return nil }
         switch message.content {
         case .text: break
-        case .cash, .deleted, .unavailable, .shareProfile: return nil
+        case .cash, .deleted, .unavailable, .shareProfile, .media: return nil
         }
         let bubble = cell.liftPreviewView
         guard bubble.bounds.contains(bubble.convert(point, from: collectionView)) else { return nil }

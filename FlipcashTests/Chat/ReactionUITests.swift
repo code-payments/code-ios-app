@@ -58,6 +58,13 @@ struct ReactionUITests {
         #expect(message.offersReactionStrip == false)
     }
 
+    @Test("A redacted photo never offers the strip; a viewable one does", arguments: [true, false])
+    func redactedPhotoNoStrip(isRedacted: Bool) {
+        let media = ChatMediaContent(blobID: nil, width: 100, height: 100, blurhash: nil, caption: nil, isRedacted: isRedacted)
+        let message = Self.makeMessage(content: .media(media), sender: .other)
+        #expect(message.offersReactionStrip == !isRedacted)
+    }
+
     @Test("The viewer's own message still in flight never offers the strip")
     func inFlightSendNoStrip() {
         let message = Self.makeMessage(content: .text("hi"), sender: .me, receipt: nil, isUnsent: true)

@@ -285,4 +285,31 @@ struct ChatPreviewMappingTests {
 
         #expect(decoded == items)
     }
+
+    // MARK: - Photos
+
+    @Test("A photo maps to the transcript's photo row, redaction included")
+    func photoMapsToMediaRow() {
+        let blobID = BlobID(data: Data([7]))
+        let attachment = MediaAttachment(blobID: blobID, width: 30, height: 20, blurhash: "LEHV6nWB2yk8")
+        let messages = [
+            ConversationMessage(
+                id: MessageID(value: 1), senderID: otherID,
+                content: .media([attachment], caption: "from today"),
+                date: Date(timeIntervalSince1970: 1), unreadSeq: 0
+            ),
+            ConversationMessage(
+                id: MessageID(value: 2), senderID: otherID,
+                content: .media([attachment], caption: nil),
+                date: Date(timeIntervalSince1970: 2), unreadSeq: 0, redacted: true
+            ),
+        ]
+
+        let rows = messageRows(ChatItem.preview(from: messages, selfUserID: meID))
+
+        #expect(rows.map(\.content) == [
+            .media(ChatMediaContent(blobID: blobID, width: 30, height: 20, blurhash: "LEHV6nWB2yk8", caption: "from today", isRedacted: false)),
+            .media(ChatMediaContent(blobID: blobID, width: 30, height: 20, blurhash: "LEHV6nWB2yk8", caption: nil, isRedacted: true)),
+        ])
+    }
 }
