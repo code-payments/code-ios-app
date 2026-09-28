@@ -13,8 +13,7 @@ import FlipcashUI
 /// chat's head card or its navigation title, the way a DM's title opens the counterpart's profile.
 ///
 /// It carries the actions a member has over a group: handing out the invite link, silencing its
-/// notifications, and leaving. The head card offers the invite as well, but only while the group is
-/// still empty (node 10127:118280), so once anyone else has joined this is the only way to the link.
+/// notifications, and leaving. The head card at the top of the transcript offers the invite as well.
 struct ChatProfileScreen: View {
 
     let conversationID: ConversationID
