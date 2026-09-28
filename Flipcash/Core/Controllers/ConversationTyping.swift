@@ -44,7 +44,8 @@ final class ConversationTyping {
     private var typists: [ConversationID: [UserID: Typist]] = [:]
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
 
-    @ObservationIgnored private var isSelfTyping = false
+    /// The conversation the user is broadcasting typing in, or nil when not typing.
+    @ObservationIgnored private var selfTypingConversationID: ConversationID?
     @ObservationIgnored private var selfTypingTask: Task<Void, Never>?
     @ObservationIgnored private var lastSentAt: ContinuousClock.Instant?
     /// At most one pending state per conversation; later states supersede in place.
@@ -154,10 +155,10 @@ final class ConversationTyping {
             return
         }
         selfTypingTask = Task { [weak self] in
-            // Cancelled before running (fast type-then-clear): send nothing, or `isSelfTyping` wedges.
+            // Cancelled before running (fast type-then-clear): send nothing, or `selfTypingConversationID` wedges.
             guard let self, !Task.isCancelled else { return }
-            if !self.isSelfTyping {
-                self.isSelfTyping = true
+            if self.selfTypingConversationID == nil {
+                self.selfTypingConversationID = conversationID
                 self.send(.started, in: conversationID)
             } else if let last = self.lastSentAt,
                       last.duration(to: ContinuousClock.now) >= self.heartbeatInterval {
@@ -174,7 +175,7 @@ final class ConversationTyping {
                     self.send(.still, in: conversationID)
                 }
             }
-            self.isSelfTyping = false
+            self.selfTypingConversationID = nil
             self.send(.stopped, in: conversationID)
         }
     }
@@ -183,9 +184,22 @@ final class ConversationTyping {
     func stopSelfTyping(in conversationID: ConversationID) {
         selfTypingTask?.cancel()
         selfTypingTask = nil
-        guard isSelfTyping else { return }
-        isSelfTyping = false
+        guard selfTypingConversationID != nil else { return }
+        selfTypingConversationID = nil
         send(.stopped, in: conversationID)
+    }
+
+    /// Stops broadcasting the user's typing state and returns once every queued
+    /// notification has been attempted.
+    func stopSelfTypingAndDrain() async {
+        if let selfTypingConversationID {
+            stopSelfTyping(in: selfTypingConversationID)
+        }
+        // A send queued while awaiting joins the running drainer, so this re-checks until none is left.
+        while let task = sendTask {
+            await task.value
+            if sendTask == task { break }
+        }
     }
 
     /// Serialized so a STOPPED can never be overtaken by an in-flight STILL. Failures are
@@ -227,16 +241,44 @@ final class ConversationTyping {
 
     // MARK: - Teardown
 
-    /// Clears all typing state and cancels any in-flight work.
+    /// Clears all typing state and cancels any in-flight work, sending a last
+    /// best-effort STOPPED wherever counterparts may still see the user typing.
     func stop() {
         typists.removeAll()
         expiryTask?.cancel()
         expiryTask = nil
         selfTypingTask?.cancel()
         selfTypingTask = nil
-        isSelfTyping = false
+        // Any conversation with a send still queued, or an open typing session, may be showing
+        // the user as typing, and counterparts have no expiry of their own to clear it.
+        var stoppedConversationIDs = pendingSends.map(\.conversationID)
+        if let selfTypingConversationID, !stoppedConversationIDs.contains(selfTypingConversationID) {
+            stoppedConversationIDs.append(selfTypingConversationID)
+        }
+        selfTypingConversationID = nil
         pendingSends.removeAll()
         sendTask?.cancel()
         sendTask = nil
+        sendFinalStops(in: stoppedConversationIDs)
+    }
+
+    /// Detached from teardown so sign-out never waits on the network. The owner's keys still
+    /// sign at this point; a deleted account's rejection is only logged.
+    private func sendFinalStops(in conversationIDs: [ConversationID]) {
+        guard !conversationIDs.isEmpty else { return }
+        let messaging = messaging
+        let owner = owner
+        Task {
+            for conversationID in conversationIDs {
+                do {
+                    try await messaging.notifyIsTyping(owner: owner, conversationID: conversationID, state: .stopped)
+                } catch {
+                    logger.warning("Final typing stop failed", metadata: [
+                        "conversationID": "\(conversationID)",
+                        "error": "\(error)",
+                    ])
+                }
+            }
+        }
     }
 }

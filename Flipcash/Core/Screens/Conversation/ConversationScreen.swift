@@ -818,9 +818,14 @@ struct ConversationScreen: View {
         // worth saving swaps between the field and the draft the edit displaced.
         .onChange(of: composer.mode) { _, _ in saveDraft() }
         // Neither a pop nor a background kill guarantees a later callback, so both write through
-        // rather than waiting out the debounce.
+        // rather than waiting out the debounce. The idle-stop task suspends with the app, so leaving
+        // the foreground stops typing now; `AppDelegate` holds the app awake until it is sent.
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { saveDraft(flushing: true) }
+            guard phase != .active else { return }
+            saveDraft(flushing: true)
+            if let conversationID {
+                conversationController.stopSelfTyping(in: conversationID)
+            }
         }
         .onDisappear {
             saveDraft(flushing: true)

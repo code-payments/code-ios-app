@@ -121,6 +121,59 @@ struct ConversationControllerTests {
         #expect(mock.typingCalls.contains { $0.state == .started })
     }
 
+    @Test("leaving the foreground while typing sends STOPPED before returning, and the next draft starts again")
+    func stopSelfTypingForBackground_whileTyping_sendsStoppedThenRestarts() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        controller.draftDidChange("hey", in: .test(1))
+        try await waitUntil { mock.typingCalls.contains { $0.state == .started } }
+
+        await controller.stopSelfTypingForBackground()
+        #expect(mock.typingCalls.map(\.state) == [.started, .stopped])
+
+        controller.draftDidChange("hey again", in: .test(1))
+        try await waitUntil { mock.typingCalls.count == 3 }
+        #expect(mock.typingCalls.last?.state == .started)
+    }
+
+    @Test("leaving the foreground while not typing sends nothing")
+    func stopSelfTypingForBackground_notTyping_sendsNothing() async {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        await controller.stopSelfTypingForBackground()
+        #expect(mock.typingCalls.isEmpty)
+    }
+
+    @Test("stop() while typing sends a final STOPPED")
+    func stop_whileTyping_sendsStopped() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        controller.draftDidChange("hey", in: .test(1))
+        try await waitUntil { mock.typingCalls.contains { $0.state == .started } }
+
+        controller.stop()
+        try await waitUntil { mock.typingCalls.last?.state == .stopped }
+        #expect(mock.typingCalls.map(\.state) == [.started, .stopped])
+    }
+
+    @Test("stop() still delivers a STOPPED queued behind an in-flight send")
+    func stop_withQueuedStopped_sendsStopped() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        mock.holdTyping(.started)
+
+        controller.draftDidChange("hey", in: .test(1))
+        try await waitUntil { mock.typingCallsBegun == 1 }
+        controller.stopSelfTyping(in: .test(1))
+
+        controller.stop()
+        try await waitUntil { mock.typingCalls.contains { $0.state == .stopped } }
+        mock.releaseTyping(.started)
+    }
+
     @Test("an active typist expires locally when no further notification arrives")
     func typistExpiresWithoutStop() async throws {
         let them = UUID()

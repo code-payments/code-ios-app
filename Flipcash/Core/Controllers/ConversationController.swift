@@ -1841,6 +1841,12 @@ final class ConversationController {
     func stopSelfTyping(in conversationID: ConversationID) {
         typing.stopSelfTyping(in: conversationID)
     }
+
+    /// Stops broadcasting the user's typing state and returns once the notification has been
+    /// attempted, so a caller holding a background assertion can release it afterwards.
+    func stopSelfTypingForBackground() async {
+        await typing.stopSelfTypingAndDrain()
+    }
 }
 
 /// Seed data for the profile screen before the live profile fetch returns.
