@@ -12,10 +12,10 @@ import Kingfisher
 
 /// A recycled cell for a cash payment row: a card (shared `BubbleBackgroundView` chrome) with the
 /// token name + optional coin icon in the top-left and a centered "You sent / You received" caption
-/// above the currency flag + amount, hosted in a `ChatColumnCell`. The card is capped at a *constant*
-/// max width supplied by the owner — same as `ChatMessageCell`/`ChatLinkMessageCell` — so it tracks
-/// the shared bubble width instead of a fixed footprint. `configure(with:maxWidth:)` is the only
-/// input; the strings, flag name, and icon URL all arrive on the `ChatMessage`.
+/// above the currency flag + amount, hosted in a `ChatColumnCell`. The card's width is supplied by
+/// the owner, as `ChatMessageCell`/`ChatLinkMessageCell` take theirs, so it tracks the transcript
+/// width instead of a fixed footprint. `configure(with:maxWidth:)` is the only input; the strings,
+/// flag name, and icon URL all arrive on the `ChatMessage`.
 public final class ChatCashCardCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
@@ -143,8 +143,8 @@ public final class ChatCashCardCell: ChatColumnCell {
         reactionRow.prepareForReuse()
     }
 
-    /// - Parameter maxWidth: the widest the card may grow, in points. The owner derives it from the
-    ///   collection view's width, the same fraction it uses for text bubbles.
+    /// - Parameter maxWidth: the card's width, in points. The owner derives it from the collection
+    ///   view's width: 0.64 of the row between the column insets, matching Android's cash card.
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         guard case .cash(let cash) = message.content else { return }
         cardWidthConstraint.constant = maxWidth
@@ -226,7 +226,7 @@ private final class ChatCashCardCellPreviewController: UICollectionViewControlle
 
     override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ChatCashCardCell.reuseIdentifier, for: indexPath) as! ChatCashCardCell
-        cell.configure(with: messages[indexPath.item], maxWidth: collectionView.bounds.width * 0.78)
+        cell.configure(with: messages[indexPath.item], maxWidth: (collectionView.bounds.width - 24) * 0.64)
         return cell
     }
 }

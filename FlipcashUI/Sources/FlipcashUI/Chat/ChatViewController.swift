@@ -103,6 +103,11 @@ public final class ChatViewController: UICollectionViewController {
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
+    /// A cash card's width as a fraction of the row between the column insets — narrower than a
+    /// bubble, and taken of the inset row rather than the full width. Matches Android's
+    /// `CASH_CARD_WIDTH_FRACTION` so the card reads the same size on both.
+    private static let cashCardWidthFraction: CGFloat = 0.64
+
     /// Avatar bytes for the transcript's authors and typists, keyed by user id. Empty in a DM, where
     /// no row is attributed. The owner fills it as pictures download; rows already on screen pick the
     /// new bytes up without a diff, since nothing about the row itself changed.
@@ -509,7 +514,8 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         case let cell as ChatCashCardCell:
-            cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
+            let cardWidth = (available - ChatColumnCell.rowInset * 2) * Self.cashCardWidthFraction
+            cell.configure(with: message, maxWidth: cardWidth, authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
