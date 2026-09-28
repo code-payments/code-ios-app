@@ -1179,6 +1179,65 @@ struct ConversationControllerTests {
         #expect(!controller.hasResolvedFeed)
     }
 
+    private func partialGroup(_ members: [ConversationMember], memberCount: UInt64, version: UInt64) -> Conversation {
+        Conversation(
+            id: .test(1), members: members, lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 100), type: .group,
+            rosterSummary: ConversationRosterSummary(memberCount: memberCount, version: version)
+        )
+    }
+
+    private func cachedMemberIDs(_ database: Database) throws -> Set<UserID> {
+        let cached = try #require(try database.getConversations().first { $0.id == .test(1) })
+        return Set(cached.members.compactMap(\.userID))
+    }
+
+    @Test("A group feed carrying a roster subset keeps a joined member in the cache")
+    func groupFeed_partialRoster_persistsMergedMembers() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let a = UUID(), b = UUID()
+        let mock = MockConversations()
+        mock.groupFeed = [partialGroup([ConversationMember(userID: a, displayName: "A")], memberCount: 1, version: 1)]
+        let controller = makeController(mock, database: database)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+        await controller.loadGroupFeed()
+
+        mock.emit(.rosterChanged(conversationID: .test(1), updates: [
+            DecodedRosterUpdate(
+                rosterSummary: ConversationRosterSummary(memberCount: 2, version: 2),
+                change: .joined(member: ConversationMember(userID: b, displayName: "B"), chat: nil)
+            ),
+        ]))
+        try await waitUntil { (try? self.cachedMemberIDs(database))?.contains(b) == true }
+
+        mock.groupFeed = [partialGroup([ConversationMember(userID: a, displayName: "A")], memberCount: 2, version: 2)]
+        await controller.loadGroupFeed()
+
+        #expect(try cachedMemberIDs(database) == [a, b])
+    }
+
+    @Test("A metadata refresh carrying a roster subset keeps the omitted members in the cache")
+    func metadataRefresh_partialRoster_persistsMergedMembers() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let a = UUID(), b = UUID(), c = UUID()
+        let mock = MockConversations()
+        mock.groupFeed = [partialGroup([a, b, c].map { ConversationMember(userID: $0, displayName: "") }, memberCount: 3, version: 1)]
+        let controller = makeController(mock, database: database)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+        await controller.loadGroupFeed()
+
+        var refresh = partialGroup([ConversationMember(userID: a, displayName: "")], memberCount: 3, version: 1)
+        refresh.title = "Renamed"
+        mock.emit(.metadataRefresh(refresh))
+        try await waitUntil { controller.conversation(withID: .test(1))?.title == "Renamed" }
+
+        #expect(try cachedMemberIDs(database) == [a, b, c])
+    }
+
     @Test("hydrateIfReady does not lay an applied cache back over the server's feed")
     func hydrateIfReady_afterFeed_keepsServerFeed() async throws {
         let (database, url) = try Database.makeTemp()

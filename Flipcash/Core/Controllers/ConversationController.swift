@@ -805,7 +805,9 @@ final class ConversationController {
             let groups = try await fetching.getGroupChatFeed(owner: owner)
             let departed = store.setGroupFeed(groups)
             reconcileHidden()
-            persist(operation: "replace-group-feed") { try database.replaceGroupFeed(groups, departed: departed) }
+            persist(operation: "replace-group-feed") {
+                try database.replaceGroupFeed(groups.map(withStoreMembers), departed: departed)
+            }
             resendUnsyncedReadPointers()
             // Same repair the DM feeds need: the store refuses a tombstone as a preview, so a chat whose
             // newest message is deleted seats blank without this.
@@ -1204,7 +1206,21 @@ final class ConversationController {
     }
 
     private func persistConversation(_ conversation: Conversation) {
-        persist(operation: "upsert-conversation") { try database.upsertConversation(conversation) }
+        persist(operation: "upsert-conversation") { try database.upsertConversation(withStoreMembers(conversation)) }
+    }
+
+    /// A server copy of a group carrying the store's member list instead of its own. A group's server
+    /// list is only part of the roster, and the store merges it over the members this device already
+    /// knows; the database replaces a conversation's members on every write, so writing the server list
+    /// would drop those members from the cache. Call after the copy has been applied to the store.
+    private func withStoreMembers(_ conversation: Conversation) -> Conversation {
+        guard conversation.type == .group,
+              let stored = store.conversations.first(where: { $0.id == conversation.id }) else {
+            return conversation
+        }
+        var conversation = conversation
+        conversation.members = stored.members
+        return conversation
     }
 
     @discardableResult
