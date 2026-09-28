@@ -102,10 +102,6 @@ private struct UserProfileContent: View {
                                 .font(.appTextSmall)
                                 .foregroundStyle(.textSecondary)
                         }
-
-                        if let conversationID {
-                            ChatMuteStatusLabel(conversationID: conversationID)
-                        }
                     }
 
                     // Centered between the join date and the first row's text, 25pt each side;
@@ -144,6 +140,13 @@ private struct UserProfileContent: View {
                         .accessibilityIdentifier("profile-share")
                     }
                     .padding(.top, 25)
+
+                    // Under the actions rather than the name, so the actions sit at the same height on
+                    // every profile; only a DM's profile, the one with a mute, holds the chip's line.
+                    if let conversationID {
+                        ChatMuteStatusLabel(conversationID: conversationID)
+                            .padding(.top, 16)
+                    }
 
                     VStack(spacing: 0) {
                         // Mute, then report, then block: the reversible and routine first, then the
