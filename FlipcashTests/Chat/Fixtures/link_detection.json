@@ -182,6 +182,124 @@
         "mint": "So11111111111111111111111111111111111111112"
       },
       "note": "A token link renders as that token's bill. The mint is taken from the path and is not validated here -- an unknown mint is a card that never resolves, not a rejected one."
+    },
+    {
+      "name": "uppercase-scheme",
+      "text": "HTTPS://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 54,
+          "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "A scheme matches in any case and resolves lowercase. Android used to prepend a second scheme (https://HTTPS://...), which parsed with HTTPS as the host; NSDataDetector hands the scheme back as written, so iOS lowercases it itself."
+    },
+    {
+      "name": "mixed-case-scheme",
+      "text": "see Https://app.flipcash.com/token/So11111111111111111111111111111111111111112",
+      "spans": [
+        {
+          "start": 4,
+          "end": 78,
+          "url": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112"
+        }
+      ],
+      "card": {
+        "kind": "token",
+        "url": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112",
+        "mint": "So11111111111111111111111111111111111111112"
+      },
+      "note": "Only the scheme is lowercased. The rest of the URL is kept as written."
+    },
+    {
+      "name": "trailing-full-stop",
+      "text": "Here you go https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3.",
+      "spans": [
+        {
+          "start": 12,
+          "end": 66,
+          "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "A full stop ending the sentence is not part of the link. Kept, it would land in the cash link's fragment, after the entropy."
+    },
+    {
+      "name": "trailing-punctuation-run",
+      "text": "flipcash.com/download!!...",
+      "spans": [
+        {
+          "start": 0,
+          "end": 21,
+          "url": "https://flipcash.com/download"
+        }
+      ],
+      "card": null,
+      "note": "A run of dropped characters is dropped whole: . , ; ! and a double quote."
+    },
+    {
+      "name": "bracketed-link",
+      "text": "(https://app.flipcash.com/token/So11111111111111111111111111111111111111112), then lunch",
+      "spans": [
+        {
+          "start": 1,
+          "end": 75,
+          "url": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112"
+        }
+      ],
+      "card": {
+        "kind": "token",
+        "url": "https://app.flipcash.com/token/So11111111111111111111111111111111111111112",
+        "mint": "So11111111111111111111111111111111111111112"
+      },
+      "note": "A closing bracket the link did not open belongs to the sentence."
+    },
+    {
+      "name": "balanced-brackets-kept",
+      "text": "see https://en.wikipedia.org/wiki/Foo_(bar).",
+      "spans": [
+        {
+          "start": 4,
+          "end": 43,
+          "url": "https://en.wikipedia.org/wiki/Foo_(bar)"
+        }
+      ],
+      "card": null,
+      "note": "A closing bracket the link opened is part of it. The full stop after it is not."
+    },
+    {
+      "name": "trailing-question-mark-kept",
+      "text": "https://flipcash.com/download?!",
+      "spans": [
+        {
+          "start": 0,
+          "end": 30,
+          "url": "https://flipcash.com/download?"
+        }
+      ],
+      "card": null,
+      "note": "? and : stay in the link, because NSDataDetector keeps them (it reads a trailing ? as an empty query). Pinned so neither side drops more than the other."
+    },
+    {
+      "name": "single-quoted-link",
+      "text": "'https://flipcash.com/download' enjoy",
+      "spans": [
+        {
+          "start": 1,
+          "end": 30,
+          "url": "https://flipcash.com/download"
+        }
+      ],
+      "card": null,
+      "note": "A single quote is dropped only when one opened the link. Unopened, it stays, as NSDataDetector keeps it."
     }
   ]
 }
