@@ -12,8 +12,8 @@ import FlipcashUI
 /// The counterpart's Flipcash profile, carrying the actions the viewer has over the person rather
 /// than over one chat: muting the DM with them, and blocking them outright.
 ///
-/// Reached from a tip DM's title and from a face in a group transcript. Both land here because both
-/// are the same question — who is this — so Block works on the person either way. The mute row
+/// Reached from a tip DM's title, from a face in a group transcript, and from a person link. All land
+/// here because all are the same question — who is this — so Block works on the person either way. The mute row
 /// silences the DM with them, so it shows only when the profile was opened from that DM.
 struct UserProfileScreen: View {
     let userID: UserID
@@ -192,14 +192,16 @@ nonisolated enum UserProfileOrigin: Hashable {
     case groupMember
     /// Their `@handle` tapped in a message, in a chat that is not a DM with them.
     case mention
+    /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.
+    case deeplink
 
     /// Whether the profile offers Message and Send Cash: not from the DM they would lead back
     /// into, and never on the viewer's own profile.
     func showsChatActions(profileUserID: UserID, selfUserID: UserID) -> Bool {
         guard profileUserID != selfUserID else { return false }
         switch self {
-        case .directMessage:        return false
-        case .groupMember, .mention: return true
+        case .directMessage:                    return false
+        case .groupMember, .mention, .deeplink: return true
         }
     }
 
@@ -207,8 +209,8 @@ nonisolated enum UserProfileOrigin: Hashable {
     /// group the row would read as muting the group.
     var showsMute: Bool {
         switch self {
-        case .directMessage:        return true
-        case .groupMember, .mention: return false
+        case .directMessage:                    return true
+        case .groupMember, .mention, .deeplink: return false
         }
     }
 }

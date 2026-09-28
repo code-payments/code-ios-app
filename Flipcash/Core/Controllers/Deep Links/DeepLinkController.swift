@@ -169,8 +169,11 @@ final class DeepLinkController {
         case .tip(let userID):
             return action(.tip(userID))
 
+        case .profile(let userID):
+            return action(.profile(.userID(userID)))
+
         case .username(let username):
-            return action(.username(username))
+            return action(.profile(.username(username)))
 
         case .give:
             return action(.openSheet(.give))
@@ -250,6 +253,87 @@ struct DeepLinkAction {
         }
     }
 
+    /// Where a person link lands without a lookup, or nil when the handle has to be resolved first.
+    ///
+    /// Only the viewer's own id or handle is known locally; a link to it keeps opening the viewer's
+    /// own tip card, as it did before person links opened a profile. Anyone else's id goes straight
+    /// to their profile, and whether anyone owns it is the profile screen's to discover.
+    static func profileDestination(
+        for identifier: ProfileIdentifier,
+        selfUserID: UserID,
+        selfUsername: Username?
+    ) -> MentionDestination? {
+        switch identifier {
+        case .userID(let userID):
+            return userID == selfUserID ? .ownTipCard : .profile(userID, origin: .deeplink)
+        case .username(let username):
+            return username == selfUsername ? .ownTipCard : nil
+        }
+    }
+
+    /// Opens the profile a person link names, resolving a handle first.
+    private static func routeProfile(_ identifier: ProfileIdentifier, in container: SessionContainer) async {
+        let session = container.session
+        let destination: MentionDestination
+        if let known = profileDestination(for: identifier, selfUserID: session.userID, selfUsername: session.profile?.username) {
+            destination = known
+        } else if case .username(let username) = identifier {
+            let lookup = await lookUpPerson(named: username, in: container)
+            if case .failure(let error) = lookup {
+                logger.error("Failed to resolve profile link", metadata: [
+                    "recipient": "\(identifier)",
+                    "error": "\(error)",
+                ])
+                ErrorReporting.captureError(error, reason: "Failed to resolve profile link")
+            }
+            destination = MentionDestination.destination(for: lookup, counterpart: nil, origin: .deeplink)
+        } else {
+            return
+        }
+
+        switch destination {
+        case .ownTipCard:
+            container.appRouter.showOwnTipCard()
+        case .profile(let userID, let origin):
+            // `navigate` rather than `push`: a link lands over whichever tab is up, and a profile
+            // belongs on the Tips stack with the chat its Message button opens.
+            container.appRouter.navigate(to: .userProfile(userID, origin: origin))
+        case .noSuchAccount:
+            // `lookUpPerson` is the only source of this case, so the identifier is a handle.
+            guard case .username(let username) = identifier else { return }
+            session.dialogItem = .info(
+                title: "No Such Account",
+                subtitle: "Nobody has claimed \(username.handle)"
+            )
+        case .lookupFailed:
+            session.dialogItem = .error(
+                title: "Couldn't Open Profile",
+                subtitle: "Please check your connection and try again"
+            )
+        }
+    }
+
+    /// Looks a handle up through the same memo a person card or a tapped mention uses.
+    ///
+    /// A link followed on a cold foreground races the gRPC channel coming up, so a transport
+    /// failure is retried before it becomes a dialog; an unclaimed handle is the settled answer
+    /// and is not.
+    private static func lookUpPerson(named username: Username, in container: SessionContainer) async -> Result<UserLinkFacts, any Error> {
+        let feed = container.linkCardFeed
+        do {
+            let facts = try await Task.retry(
+                maxAttempts: 3,
+                delay: .milliseconds(500),
+                shouldRetry: { error in (error as? ErrorFetchProfile)?.isRetryable ?? false }
+            ) {
+                try await feed.person(named: username).get()
+            }
+            return .success(facts)
+        } catch {
+            return .failure(error)
+        }
+    }
+
     func executeAction() async throws {
         logger.info("Executing deep link action", metadata: ["kind": "\(kind.analyticsName)"])
 
@@ -323,12 +407,10 @@ struct DeepLinkAction {
                 container.tipFlow.begin(userID: userID)
             }
 
-        case .username(let username):
+        case .profile(let identifier):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
-                // Same destination as `.tip`, reached by handle — including the
-                // own-handle case, which `begin` routes to the user's own card.
-                container.tipFlow.begin(username: username)
+                await Self.routeProfile(identifier, in: container)
             }
 
         case .wallet:
@@ -376,8 +458,10 @@ extension DeepLinkAction {
         case currencyInfo(PublicKey)
         case chat(ConversationID)
         case chatSendCash(ConversationID)
+        /// The tipcard for the legacy `/tip/<userId>` link.
         case tip(UserID)
-        case username(Username)
+        /// The profile a `flipcash.com/<userId>` or `flipcash.com/<handle>` link names.
+        case profile(ProfileIdentifier)
         /// The Wallet tab, at its root.
         case wallet
         /// Discover, pushed onto the Wallet tab.
@@ -396,7 +480,7 @@ extension DeepLinkAction.Kind {
         case .chat:                 "Chat"
         case .chatSendCash:         "ChatSendCash"
         case .tip:                  "Tip"
-        case .username:             "Username"
+        case .profile:              "Profile"
         case .wallet:               "Wallet"
         case .discoverCurrencies:   "DiscoverCurrencies"
         case .openSheet(let sheet): "Sheet:\(sheet)"

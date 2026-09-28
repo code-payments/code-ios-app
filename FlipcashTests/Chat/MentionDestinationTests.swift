@@ -36,6 +36,11 @@ import FlipcashCore
         #expect(destination == .profile(Self.otherID, origin: .mention))
     }
 
+    @Test func aPersonLinkOpensTheProfileWithItsOwnOrigin() {
+        let destination = MentionDestination.destination(for: Self.facts(Self.otherID), counterpart: nil, origin: .deeplink)
+        #expect(destination == .profile(Self.otherID, origin: .deeplink))
+    }
+
     @Test func theDMCounterpartOpensTheWayTheTitleDoes() {
         let destination = MentionDestination.destination(for: Self.facts(Self.counterpartID), counterpart: Self.counterpartID)
         #expect(destination == .profile(Self.counterpartID, origin: .directMessage))

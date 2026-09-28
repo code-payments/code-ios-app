@@ -145,13 +145,15 @@ nonisolated extension Route {
         case token(PublicKey)
         case chat(ConversationID)
         case chatSendCash(ConversationID)
-        /// A tipcard link for a user who hasn't claimed a handle —
-        /// `flipcash.com/<userId>`. Also reached by the older `/tip/<userId>`
-        /// form, which stays parseable for links already shared.
+        /// The older tipcard link, `/tip/<userId>`, which stays parseable for
+        /// links already shared and still opens the tipcard.
         case tip(UserID)
-        /// A vanity tipcard link — `flipcash.com/<handle>`, no `@`. The same
-        /// destination as ``tip(_:)``, reached by the handle its owner claimed
-        /// rather than by their user id.
+        /// A person link for a user who hasn't claimed a handle —
+        /// `flipcash.com/<userId>`. Opens their profile.
+        case profile(UserID)
+        /// A vanity person link — `flipcash.com/<handle>`, no `@`. The same
+        /// destination as ``profile(_:)``, reached by the handle its owner
+        /// claimed rather than by their user id.
         case username(Username)
         case give
         case balance
@@ -236,13 +238,13 @@ nonisolated extension Route {
                 guard components.count == 1 else {
                     return .unknown(url.lastPathComponent)
                 }
-                // A single unmatched segment is a tipcard: the user id when its
+                // A single unmatched segment is a person: the user id when its
                 // owner has no handle, otherwise the handle itself. A uuid can
                 // never be mistaken for a handle — dashes aren't in the handle
                 // character set, and 36 characters overruns its length — so the
                 // two forms share the root without ambiguity.
                 if let userID = UUID(uuidString: components[0]) {
-                    return .tip(userID)
+                    return .profile(userID)
                 }
                 // Lowercased first: handles are stored lowercase, and a link a
                 // messaging app auto-capitalized is still the same link.

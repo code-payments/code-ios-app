@@ -322,10 +322,21 @@ struct RouteTests {
         }
     }
 
-    @Test("Tip route parses the user id from every host and scheme", arguments: [
+    @Test("A bare user id parses as a profile link from every host and scheme", arguments: [
         "https://flipcash.com/11111111-2222-3333-4444-555555555555",
         "https://app.flipcash.com/11111111-2222-3333-4444-555555555555",
         "flipcash://11111111-2222-3333-4444-555555555555",
+    ])
+    func profileRoute(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        guard case .profile(let userID) = path else {
+            Issue.record("\(urlString) should parse as .profile")
+            return
+        }
+        #expect(userID == UUID(uuidString: "11111111-2222-3333-4444-555555555555"))
+    }
+
+    @Test("The legacy /tip/ form still parses as a tip route", arguments: [
         // The `/tip/` form links already shared still carry.
         "https://app.flipcash.com/tip/11111111-2222-3333-4444-555555555555",
         "flipcash://tip/11111111-2222-3333-4444-555555555555",

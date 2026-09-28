@@ -28,11 +28,17 @@ struct UserProfileChatActionsTests {
 
     @Test(
         "The viewer's own profile hides the chat actions from either origin",
-        arguments: [UserProfileOrigin.groupMember, .directMessage, .mention]
+        arguments: [UserProfileOrigin.groupMember, .directMessage, .mention, .deeplink]
     )
     func ownProfile_hidesChatActions(_ origin: UserProfileOrigin) {
         let me = UUID()
         #expect(!origin.showsChatActions(profileUserID: me, selfUserID: me))
+    }
+
+    @Test("A profile opened from a person link offers the chat actions but not mute")
+    func deeplink_showsChatActionsButNotMute() {
+        #expect(UserProfileOrigin.deeplink.showsChatActions(profileUserID: UUID(), selfUserID: UUID()))
+        #expect(!UserProfileOrigin.deeplink.showsMute)
     }
 
     @Test("Only a profile opened from the DM offers muting it")

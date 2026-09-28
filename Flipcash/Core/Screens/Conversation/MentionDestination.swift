@@ -6,7 +6,8 @@
 import Foundation
 import FlipcashCore
 
-/// Where a tapped `@handle` lands, once the handle has been looked up.
+/// Where a tapped `@handle` or a followed `flipcash.com/<handle>` link lands, once the handle has
+/// been looked up.
 nonisolated enum MentionDestination: Equatable {
     /// The handle is the viewer's own. Matches a person card linking to the viewer.
     case ownTipCard
@@ -16,15 +17,20 @@ nonisolated enum MentionDestination: Equatable {
     /// The lookup never got an answer.
     case lookupFailed
 
-    /// Where a mention lands, given its lookup and the person the open DM is with, if any.
+    /// Where a handle lands, given its lookup, the person the open DM is with, if any, and the
+    /// origin anyone else's profile opens with.
     ///
     /// The counterpart opens the way the DM's own title does, with Mute and without Message, since
     /// Message would lead straight back here. Anyone else gets Message and Send Cash.
-    static func destination(for lookup: Result<UserLinkFacts, any Error>, counterpart: UserID?) -> Self {
+    static func destination(
+        for lookup: Result<UserLinkFacts, any Error>,
+        counterpart: UserID?,
+        origin: UserProfileOrigin = .mention
+    ) -> Self {
         switch lookup {
         case .success(let facts):
             if facts.isOwn { return .ownTipCard }
-            return .profile(facts.userID, origin: facts.userID == counterpart ? .directMessage : .mention)
+            return .profile(facts.userID, origin: facts.userID == counterpart ? .directMessage : origin)
         case .failure(let error):
             return isUnclaimed(error) ? .noSuchAccount : .lookupFailed
         }
