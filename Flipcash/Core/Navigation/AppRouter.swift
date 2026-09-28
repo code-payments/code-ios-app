@@ -543,6 +543,17 @@ final class AppRouter {
         setPath([destination], on: targetStack)
     }
 
+    /// Like `navigate(to:)`, but when the destination's stack is already the visible surface the
+    /// destination is pushed onto it rather than replacing its path, so backing out returns to the
+    /// screen the user was on when the link was followed.
+    func navigateOver(_ destination: Destination) {
+        guard presentedSheets.isEmpty, activeTabStack == destination.owningStack else {
+            navigate(to: destination)
+            return
+        }
+        push(destination)
+    }
+
     /// Surfaces the wallet at its root — where a grabbed deposit lands after
     /// "Put in Wallet".
     ///

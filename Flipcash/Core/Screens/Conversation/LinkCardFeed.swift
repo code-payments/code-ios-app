@@ -118,11 +118,11 @@ final class LinkCardFeed: LinkCardSource {
 
     // MARK: - Mentions -
 
-    /// Who a tapped `@handle` names, or why nobody. Asks the question a person card for that handle
-    /// asks, through the same memo, so a handle already drawn as a card or tapped before answers
-    /// without going back to the server.
-    func person(named username: Username) async -> Result<UserLinkFacts, any Error> {
-        await resolver.userResult(.username(username))
+    /// Who a tapped `@handle` or a followed person link names, or why nobody. Asks the question a
+    /// person card for that identity asks, through the same memo, so one already drawn as a card or
+    /// tapped before answers without going back to the server.
+    func person(_ identity: LinkCard.User.Identity) async -> Result<UserLinkFacts, any Error> {
+        await resolver.userResult(identity)
     }
 
     // MARK: - Asking -

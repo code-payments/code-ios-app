@@ -253,80 +253,98 @@ struct DeepLinkAction {
         }
     }
 
-    /// Where a person link lands without a lookup, or nil when the handle has to be resolved first.
-    ///
-    /// Only the viewer's own id or handle is known locally; a link to it keeps opening the viewer's
-    /// own tip card, as it did before person links opened a profile. Anyone else's id goes straight
-    /// to their profile, and whether anyone owns it is the profile screen's to discover.
-    static func profileDestination(
-        for identifier: ProfileIdentifier,
+    /// Whether a person link names the viewer, answerable without a lookup only when the id or the
+    /// handle is already known locally. A link to the viewer keeps opening their own tip card, as it
+    /// did before person links opened a profile.
+    static func isOwnLink(
+        _ identifier: ProfileIdentifier,
         selfUserID: UserID,
         selfUsername: Username?
-    ) -> MentionDestination? {
+    ) -> Bool {
         switch identifier {
-        case .userID(let userID):
-            return userID == selfUserID ? .ownTipCard : .profile(userID, origin: .deeplink)
-        case .username(let username):
-            return username == selfUsername ? .ownTipCard : nil
+        case .userID(let userID):     userID == selfUserID
+        case .username(let username): username == selfUsername
         }
     }
 
-    /// Opens the profile a person link names, resolving a handle first.
-    private static func routeProfile(_ identifier: ProfileIdentifier, in container: SessionContainer) async {
+    /// Opens the person a link names: their profile, or their tip card when the link was scanned,
+    /// since a printed code is there to be paid.
+    ///
+    /// An id is looked up like a handle, so a link to an id nobody owns reads as an error rather
+    /// than as a profile with no one behind it.
+    private static func routeProfile(_ identifier: ProfileIdentifier, origin: DeepLinkOrigin, in container: SessionContainer) async {
         let session = container.session
-        let destination: MentionDestination
-        if let known = profileDestination(for: identifier, selfUserID: session.userID, selfUsername: session.profile?.username) {
-            destination = known
-        } else if case .username(let username) = identifier {
-            let lookup = await lookUpPerson(named: username, in: container)
-            if case .failure(let error) = lookup {
-                logger.error("Failed to resolve profile link", metadata: [
-                    "recipient": "\(identifier)",
-                    "error": "\(error)",
-                ])
-                ErrorReporting.captureError(error, reason: "Failed to resolve profile link")
-            }
-            destination = MentionDestination.destination(for: lookup, counterpart: nil, origin: .deeplink)
-        } else {
+        let isScan = origin == .qr
+
+        if isOwnLink(identifier, selfUserID: session.userID, selfUsername: session.profile?.username) {
+            container.appRouter.showOwnTipCard()
             return
         }
 
-        switch destination {
+        // `TipFlow` looks the id up itself and owns its failure dialog.
+        if isScan, case .userID(let userID) = identifier {
+            container.tipFlow.begin(userID: userID)
+            return
+        }
+
+        let lookup = await lookUpPerson(identifier, in: container)
+        if case .failure(let error) = lookup {
+            logger.error("Failed to resolve profile link", metadata: [
+                "recipient": "\(identifier)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to resolve profile link")
+        }
+
+        switch MentionDestination.destination(for: lookup, counterpart: nil, origin: .deeplink) {
         case .ownTipCard:
             container.appRouter.showOwnTipCard()
-        case .profile(let userID, let origin):
-            // `navigate` rather than `push`: a link lands over whichever tab is up, and a profile
-            // belongs on the Tips stack with the chat its Message button opens.
-            container.appRouter.navigate(to: .userProfile(userID, origin: origin))
+        case .profile(let userID, let profileOrigin):
+            if isScan {
+                container.tipFlow.begin(userID: userID)
+            } else {
+                container.appRouter.navigateOver(.userProfile(userID, origin: profileOrigin))
+            }
         case .noSuchAccount:
-            // `lookUpPerson` is the only source of this case, so the identifier is a handle.
-            guard case .username(let username) = identifier else { return }
+            // Only a handle has a name to say nobody claimed; an id nobody owns is a bad link.
+            guard case .username(let username) = identifier else {
+                showLookupFailed(isScan: isScan, on: session)
+                return
+            }
             session.dialogItem = .info(
                 title: "No Such Account",
                 subtitle: "Nobody has claimed \(username.handle)"
             )
         case .lookupFailed:
-            session.dialogItem = .error(
-                title: "Couldn't Open Profile",
-                subtitle: "Please check your connection and try again"
-            )
+            showLookupFailed(isScan: isScan, on: session)
         }
     }
 
-    /// Looks a handle up through the same memo a person card or a tapped mention uses.
+    private static func showLookupFailed(isScan: Bool, on session: Session) {
+        session.dialogItem = .error(
+            title: isScan ? "Couldn't Open Tip Card" : "Couldn't Open Profile",
+            subtitle: "Please check your connection and try again"
+        )
+    }
+
+    /// Looks a person up through the same memo a person card or a tapped mention uses.
     ///
     /// A link followed on a cold foreground races the gRPC channel coming up, so a transport
-    /// failure is retried before it becomes a dialog; an unclaimed handle is the settled answer
+    /// failure is retried before it becomes a dialog; nobody owning the link is the settled answer
     /// and is not.
-    private static func lookUpPerson(named username: Username, in container: SessionContainer) async -> Result<UserLinkFacts, any Error> {
+    private static func lookUpPerson(_ identifier: ProfileIdentifier, in container: SessionContainer) async -> Result<UserLinkFacts, any Error> {
         let feed = container.linkCardFeed
+        let identity: LinkCard.User.Identity = switch identifier {
+        case .userID(let userID):     .userID(userID)
+        case .username(let username): .username(username)
+        }
         do {
             let facts = try await Task.retry(
                 maxAttempts: 3,
                 delay: .milliseconds(500),
                 shouldRetry: { error in (error as? ErrorFetchProfile)?.isRetryable ?? false }
             ) {
-                try await feed.person(named: username).get()
+                try await feed.person(identity).get()
             }
             return .success(facts)
         } catch {
@@ -410,7 +428,7 @@ struct DeepLinkAction {
         case .profile(let identifier):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
-                await Self.routeProfile(identifier, in: container)
+                await Self.routeProfile(identifier, origin: origin, in: container)
             }
 
         case .wallet:

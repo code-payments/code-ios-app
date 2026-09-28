@@ -41,6 +41,7 @@ struct UserProfileScreen: View {
                 owner: sessionContainer.session.ownerKeyPair,
                 blocklistController: blocklistController,
                 router: router,
+                blockReturnsToOpener: origin.blockReturnsToOpener,
                 session: sessionContainer.session,
                 profileAvatars: sessionContainer.profileAvatars,
                 seed: seed
@@ -106,10 +107,10 @@ private struct UserProfileContent: View {
                         }
                     }
 
-                    if showsChatActions {
-                        // Centered between the join date and the first row's text, 25pt each side;
-                        // the row's own top inset supplies the lower 25.
-                        HStack(spacing: 0) {
+                    // Centered between the join date and the first row's text, 25pt each side;
+                    // the row's own top inset supplies the lower 25.
+                    HStack(spacing: 0) {
+                        if showsChatActions {
                             ProfileActionButton(title: "Message") {
                                 Image(systemName: "bubble.left.fill")
                                     .font(.appTextLarge)
@@ -129,8 +130,19 @@ private struct UserProfileContent: View {
                             // }
                             // .accessibilityIdentifier("profile-send-cash")
                         }
-                        .padding(.top, 25)
+
+                        ProfileActionButton(title: "Share") {
+                            Image.asset(.shareOS)
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                        } action: {
+                            model.share()
+                        }
+                        .accessibilityIdentifier("profile-share")
                     }
+                    .padding(.top, 25)
 
                     VStack(spacing: 0) {
                         // Mute, then report, then block: the reversible and routine first, then the
@@ -154,7 +166,6 @@ private struct UserProfileContent: View {
                         .accessibilityIdentifier("chat-block")
                     }
                     .font(.appDisplayXS)
-                    .padding(.top, showsChatActions ? 0 : 40)
                 }
 
                 Spacer()
@@ -190,7 +201,7 @@ nonisolated enum UserProfileOrigin: Hashable {
     case directMessage
     /// Their face in a group transcript.
     case groupMember
-    /// Their `@handle` tapped in a message, in a chat that is not a DM with them.
+    /// Their `@handle` or person link card tapped in a message, in a chat that is not a DM with them.
     case mention
     /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.
     case deeplink
@@ -211,6 +222,16 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .directMessage:                    return true
         case .groupMember, .mention, .deeplink: return false
+        }
+    }
+
+    /// Whether blocking closes just the profile rather than resetting its stack. From a chat the
+    /// stack beneath can hold the blocked person's DM, so it resets; a link opened the profile over
+    /// whatever the user was on, and that is where blocking returns them.
+    var blockReturnsToOpener: Bool {
+        switch self {
+        case .deeplink:                               return true
+        case .directMessage, .groupMember, .mention:  return false
         }
     }
 }
@@ -245,6 +266,7 @@ final class UserProfileViewModel {
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let blocklistController: BlocklistController
     @ObservationIgnored private let router: AppRouter
+    @ObservationIgnored private let blockReturnsToOpener: Bool
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let profileAvatars: ProfileAvatarStore
     @ObservationIgnored private let seedImageData: Data?
@@ -257,12 +279,13 @@ final class UserProfileViewModel {
         profileAvatars.data(for: userID) ?? seedImageData
     }
 
-    init(userID: UserID, flipClient: FlipClient, owner: KeyPair, blocklistController: BlocklistController, router: AppRouter, session: Session, profileAvatars: ProfileAvatarStore, seed: CounterpartSeed) {
+    init(userID: UserID, flipClient: FlipClient, owner: KeyPair, blocklistController: BlocklistController, router: AppRouter, blockReturnsToOpener: Bool, session: Session, profileAvatars: ProfileAvatarStore, seed: CounterpartSeed) {
         self.userID = userID
         self.flipClient = flipClient
         self.owner = owner
         self.blocklistController = blocklistController
         self.router = router
+        self.blockReturnsToOpener = blockReturnsToOpener
         self.session = session
         self.profileAvatars = profileAvatars
         self.name = seed.name
@@ -294,11 +317,26 @@ final class UserProfileViewModel {
         }
     }
 
-    /// Blocks the user and returns to the Tips list; the blocklist reconcile hides the conversation.
+    /// Opens the share sheet on this person's public link, the one their own You tab shares.
+    func share() {
+        let item = TipCodeShareItem(
+            url: .tipcard(for: userID, username: username),
+            title: displayName,
+            preview: nil
+        )
+        ShareSheet.present(activityItem: item) { _ in }
+    }
+
+    /// Blocks the user and closes the profile — see ``UserProfileOrigin/blockReturnsToOpener``. The
+    /// blocklist reconcile hides the conversation.
     func block() async {
         do {
             try await blocklistController.block(userID: userID, displayName: displayName, avatarBlurhash: blurhash)
-            router.popToRoot()
+            if blockReturnsToOpener {
+                router.popTopmost()
+            } else {
+                router.popToRoot()
+            }
         } catch {
             session.dialogItem = .error(title: "Something Went Wrong", subtitle: "We were unable to block the user. Please try again")
             ErrorReporting.captureError(error, reason: "Failed to block user")

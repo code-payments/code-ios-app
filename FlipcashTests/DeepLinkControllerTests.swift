@@ -112,27 +112,24 @@ struct DeepLinkControllerTests {
         #expect(userID == Self.userID)
     }
 
-    @Test("Someone else's id goes straight to their profile with the chat actions")
-    func otherUserID_destination() {
-        let destination = DeepLinkAction.profileDestination(for: .userID(Self.userID), selfUserID: UUID(), selfUsername: nil)
-        #expect(destination == .profile(Self.userID, origin: .deeplink))
-    }
-
-    @Test("The viewer's own id or handle keeps opening their own tip card")
-    func ownLink_opensOwnTipCard() throws {
+    @Test("The viewer's own id or handle is known to be their own without a lookup")
+    func ownLink_isOwn() throws {
         let me = try #require(Username("me"))
-        #expect(DeepLinkAction.profileDestination(for: .userID(Self.userID), selfUserID: Self.userID, selfUsername: me) == .ownTipCard)
-        #expect(DeepLinkAction.profileDestination(for: .username(me), selfUserID: Self.userID, selfUsername: me) == .ownTipCard)
+        #expect(DeepLinkAction.isOwnLink(.userID(Self.userID), selfUserID: Self.userID, selfUsername: me))
+        #expect(DeepLinkAction.isOwnLink(.username(me), selfUserID: Self.userID, selfUsername: me))
     }
 
-    @Test("Someone else's handle needs a lookup before it has a destination")
-    func otherHandle_needsLookup() throws {
-        let destination = DeepLinkAction.profileDestination(
-            for: .username(try #require(Username("taylor"))),
-            selfUserID: Self.userID,
-            selfUsername: Username("me")
-        )
-        #expect(destination == nil)
+    @Test("Someone else's id or handle is not the viewer's own")
+    func otherLink_isNotOwn() throws {
+        let me = try #require(Username("me"))
+        #expect(!DeepLinkAction.isOwnLink(.userID(UUID()), selfUserID: Self.userID, selfUsername: me))
+        #expect(!DeepLinkAction.isOwnLink(.username(try #require(Username("taylor"))), selfUserID: Self.userID, selfUsername: me))
+    }
+
+    @Test("A handle can't be matched to the viewer before their own profile has loaded")
+    func ownHandle_beforeProfileLoads_isNotOwn() throws {
+        let me = try #require(Username("me"))
+        #expect(!DeepLinkAction.isOwnLink(.username(me), selfUserID: Self.userID, selfUsername: nil))
     }
 
     @Test("A duplicate in-flight open is reported handled without re-processing")

@@ -47,6 +47,19 @@ struct UserProfileChatActionsTests {
         #expect(!UserProfileOrigin.groupMember.showsMute)
     }
 
+    @Test("Blocking from a link-opened profile returns to where the link was followed")
+    func deeplink_blockReturnsToOpener() {
+        #expect(UserProfileOrigin.deeplink.blockReturnsToOpener)
+    }
+
+    @Test(
+        "Blocking from a chat-opened profile resets the stack, which can hold the blocked DM",
+        arguments: [UserProfileOrigin.directMessage, .groupMember, .mention]
+    )
+    func chatOrigins_blockResetsStack(_ origin: UserProfileOrigin) {
+        #expect(!origin.blockReturnsToOpener)
+    }
+
     // MARK: - Destinations -
 
     @Test("The origin is part of the profile destination's identity but not its log keys")

@@ -53,6 +53,47 @@ struct AppRouterCrossStackTests {
         )
     }
 
+    @Test("navigateOver pushes onto the owning stack when its tab is already up")
+    func navigateOver_onOwningTab_pushes() {
+        let router = AppRouter()
+        let chatID = ConversationID(uuidString: UUID().uuidString)!
+        let profile = AppRouter.Destination.userProfile(UUID(), origin: .deeplink)
+        router.activeTabStack = .tips
+        router.setPath([.tipConversation(chatID)], on: .tips)
+
+        router.navigateOver(profile)
+
+        #expect(router.presentedSheets.isEmpty)
+        #expect(router[.tips] == AppRouter.navigationPath(.tipConversation(chatID), profile))
+    }
+
+    @Test("navigateOver from another tab navigates, replacing the owning stack's path")
+    func navigateOver_fromOtherTab_navigates() {
+        let router = AppRouter()
+        let chatID = ConversationID(uuidString: UUID().uuidString)!
+        let profile = AppRouter.Destination.userProfile(UUID(), origin: .deeplink)
+        router.activeTabStack = .balance
+        router.setPath([.tipConversation(chatID)], on: .tips)
+
+        router.navigateOver(profile)
+
+        #expect(router.requestedTabStack == .tips)
+        #expect(router[.tips] == AppRouter.navigationPath(profile))
+    }
+
+    @Test("navigateOver with a sheet up navigates, dismissing the sheet")
+    func navigateOver_withSheet_navigates() {
+        let router = AppRouter()
+        let profile = AppRouter.Destination.userProfile(UUID(), origin: .deeplink)
+        router.activeTabStack = .tips
+        router.present(.give)
+
+        router.navigateOver(profile)
+
+        #expect(router.presentedSheets.isEmpty)
+        #expect(router[.tips] == AppRouter.navigationPath(profile))
+    }
+
     @Test("Same-stack navigate replaces the path on that stack")
     func navigate_sameStack_replacesPath() {
         let router = AppRouter()

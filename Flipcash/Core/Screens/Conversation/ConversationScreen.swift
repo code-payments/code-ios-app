@@ -584,7 +584,7 @@ struct ConversationScreen: View {
         // on whatever screen is up by then. The lookup itself carries on and warms the memo.
         .task(id: tappedMention) {
             guard let username = tappedMention else { return }
-            let lookup = await sessionContainer.linkCardFeed.person(named: username)
+            let lookup = await sessionContainer.linkCardFeed.person(.username(username))
             guard !Task.isCancelled else { return }
             tappedMention = nil
             open(MentionDestination.destination(for: lookup, counterpart: tipCounterpart?.userID), for: username)
@@ -1329,9 +1329,8 @@ struct ConversationScreen: View {
             }
             // A link to the person this DM is already with has nowhere to go.
             guard user.userID != tipCounterpart?.userID else { return }
-            // Straight to the DM, without `TipFlow`'s bill overlay. The chat's own fee sheet still
-            // asks for the minimum before the first message goes out.
-            router.push(.tipConversationForUser(user.userID))
+            // Their profile, as a tapped `@handle` opens it; its Message button leads on to the DM.
+            router.push(.userProfile(user.userID, origin: .mention))
         }
     }
 
