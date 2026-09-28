@@ -71,6 +71,43 @@ struct TipFloorTests {
         #expect(floor == .preset(presets))
     }
 
+    @Test("A fee below the regional minimum is raised to the minimum")
+    func feeBelowPresetUsesPreset() {
+        let floor = TipFloor.toOpenDM(
+            recipientFee: FiatAmount(value: Decimal(string: "0.50")!, currency: .usd),
+            presets: presets,
+            in: .usd,
+            rates: rates
+        )
+
+        #expect(floor == .preset(presets))
+    }
+
+    @Test("A fee below the USD fallback minimum is raised to it")
+    func feeBelowFallbackPresetUsesPreset() {
+        // CAD 1 is USD 0.50, under the USD row's minimum of 1.
+        let floor = TipFloor.toOpenDM(
+            recipientFee: FiatAmount(value: 1, currency: .cad),
+            presets: presets,
+            in: .cad,
+            rates: rates
+        )
+
+        #expect(floor == .preset(presets))
+    }
+
+    @Test("A fee at the regional minimum stays the fee")
+    func feeAtPresetStaysFee() {
+        let floor = TipFloor.toOpenDM(
+            recipientFee: FiatAmount(value: 2, currency: .cad),
+            presets: presets,
+            in: .cad,
+            rates: rates
+        )
+
+        #expect(floor == .recipientFee(FiatAmount(value: 2, currency: .cad)))
+    }
+
     @Test("No fee and no presets leaves no floor")
     func nilWithoutEither() {
         #expect(TipFloor.toOpenDM(recipientFee: nil, presets: nil, in: .usd, rates: rates) == nil)
