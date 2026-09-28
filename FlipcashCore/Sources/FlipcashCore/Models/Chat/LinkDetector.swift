@@ -81,15 +81,21 @@ public struct LinkDetector {
         return LinkPreview(url: last.url)
     }
 
-    /// A schemeless match resolves to `https`, not `http`. `NSDataDetector` hands back `http://` for
-    /// a bare domain and Android prepends `https://`, and a message that says `flipcash.com/download`
-    /// should not become a cleartext link on one platform and a secure one on the other.
+    /// The scheme written lowercase, and a schemeless match resolved to `https`, not `http`.
+    ///
+    /// `NSDataDetector` returns the scheme as typed, so `HTTPS://flipcash.com/someone` came back with
+    /// `HTTPS`, while Android lowercases it. Only the scheme changes; the rest stays as written.
+    ///
+    /// For a bare domain `NSDataDetector` hands back `http://` and Android prepends `https://`, and a
+    /// message that says `flipcash.com/download` should not become a cleartext link on one platform
+    /// and a secure one on the other.
     private static func normalized(_ url: URL, matchText: String) -> URL {
-        guard !matchText.contains("://"),
-              url.scheme?.lowercased() == "http",
+        guard let scheme = url.scheme?.lowercased(),
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else { return url }
-        components.scheme = "https"
+        let resolved = !matchText.contains("://") && scheme == "http" ? "https" : scheme
+        guard resolved != url.scheme else { return url }
+        components.scheme = resolved
         return components.url ?? url
     }
 
