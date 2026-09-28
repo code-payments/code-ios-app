@@ -1,0 +1,639 @@
+{
+  "algorithm": "chat-media-photos",
+  "note": "Behavior fixture for docs/superpowers/specs/2026-09-28-chat-media-photos-design.md. Heights are points or dp as floats; compare with a 0.001 tolerance.",
+  "maxAttachments": 10,
+  "minAspect": 0.5,
+  "maxAspect": 2.0,
+  "jpegQualityLadder": [
+    0.9,
+    0.8,
+    0.7,
+    0.6
+  ],
+  "uploadMimeType": "image/jpeg",
+  "fanOut": [
+    {
+      "name": "text-only",
+      "chips": [],
+      "text": "hello",
+      "replyTo": null,
+      "messages": [
+        {
+          "kind": "text",
+          "chip": null,
+          "caption": null,
+          "text": "hello",
+          "replyTo": null
+        }
+      ],
+      "note": "No chips: a text message, exactly as today."
+    },
+    {
+      "name": "text-only-reply",
+      "chips": [],
+      "text": "hello",
+      "replyTo": "m1",
+      "messages": [
+        {
+          "kind": "text",
+          "chip": null,
+          "caption": null,
+          "text": "hello",
+          "replyTo": "m1"
+        }
+      ],
+      "note": "No chips, with a reply: a text reply, exactly as today."
+    },
+    {
+      "name": "empty",
+      "chips": [],
+      "text": "",
+      "replyTo": null,
+      "messages": [],
+      "note": "Nothing to send. Send is disabled, so this pins that the builder agrees."
+    },
+    {
+      "name": "one-photo",
+      "chips": [
+        "a"
+      ],
+      "text": "",
+      "replyTo": null,
+      "messages": [
+        {
+          "kind": "media",
+          "chip": "a",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        }
+      ],
+      "note": "One chip, no text: one media message with no caption."
+    },
+    {
+      "name": "one-photo-caption",
+      "chips": [
+        "a"
+      ],
+      "text": "look",
+      "replyTo": null,
+      "messages": [
+        {
+          "kind": "media",
+          "chip": "a",
+          "caption": "look",
+          "text": null,
+          "replyTo": null
+        }
+      ],
+      "note": "One chip with text: the text is the caption."
+    },
+    {
+      "name": "three-photos-caption",
+      "chips": [
+        "a",
+        "b",
+        "c"
+      ],
+      "text": "from today",
+      "replyTo": null,
+      "messages": [
+        {
+          "kind": "media",
+          "chip": "a",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "b",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "c",
+          "caption": "from today",
+          "text": null,
+          "replyTo": null
+        }
+      ],
+      "note": "The caption rides on the last message, so it lands under the last image."
+    },
+    {
+      "name": "three-photos-reply",
+      "chips": [
+        "a",
+        "b",
+        "c"
+      ],
+      "text": "",
+      "replyTo": "m1",
+      "messages": [
+        {
+          "kind": "media",
+          "chip": "a",
+          "caption": null,
+          "text": null,
+          "replyTo": "m1"
+        },
+        {
+          "kind": "media",
+          "chip": "b",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "c",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        }
+      ],
+      "note": "The reply attaches to the first message only."
+    },
+    {
+      "name": "three-photos-caption-reply",
+      "chips": [
+        "a",
+        "b",
+        "c"
+      ],
+      "text": "these?",
+      "replyTo": "m1",
+      "messages": [
+        {
+          "kind": "media",
+          "chip": "a",
+          "caption": null,
+          "text": null,
+          "replyTo": "m1"
+        },
+        {
+          "kind": "media",
+          "chip": "b",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "c",
+          "caption": "these?",
+          "text": null,
+          "replyTo": null
+        }
+      ],
+      "note": "Reply on the first, caption on the last."
+    },
+    {
+      "name": "one-photo-caption-reply",
+      "chips": [
+        "a"
+      ],
+      "text": "this one",
+      "replyTo": "m1",
+      "messages": [
+        {
+          "kind": "media",
+          "chip": "a",
+          "caption": "this one",
+          "text": null,
+          "replyTo": "m1"
+        }
+      ],
+      "note": "With one chip, the same message carries both reply and caption."
+    },
+    {
+      "name": "ten-photos",
+      "chips": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j"
+      ],
+      "text": "",
+      "replyTo": null,
+      "messages": [
+        {
+          "kind": "media",
+          "chip": "a",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "b",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "c",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "d",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "e",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "f",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "g",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "h",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "i",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        },
+        {
+          "kind": "media",
+          "chip": "j",
+          "caption": null,
+          "text": null,
+          "replyTo": null
+        }
+      ],
+      "note": "The composer maximum. Order is chip order."
+    }
+  ],
+  "bubble": [
+    {
+      "name": "square",
+      "imageWidth": 1000,
+      "imageHeight": 1000,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 240.0,
+        "cropped": false
+      },
+      "note": "1:1 fills the width, same height."
+    },
+    {
+      "name": "landscape-4-3",
+      "imageWidth": 4032,
+      "imageHeight": 3024,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 180.0,
+        "cropped": false
+      },
+      "note": "Landscape phone photo."
+    },
+    {
+      "name": "portrait-3-4",
+      "imageWidth": 3024,
+      "imageHeight": 4032,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 320.0,
+        "cropped": false
+      },
+      "note": "Portrait phone photo."
+    },
+    {
+      "name": "wide-at-limit",
+      "imageWidth": 2000,
+      "imageHeight": 1000,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 120.0,
+        "cropped": false
+      },
+      "note": "Exactly 1:2 is not cropped."
+    },
+    {
+      "name": "panorama",
+      "imageWidth": 8000,
+      "imageHeight": 1000,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 120.0,
+        "cropped": true
+      },
+      "note": "Wider than 1:2 clamps to 1:2 and crops."
+    },
+    {
+      "name": "tall-at-limit",
+      "imageWidth": 1000,
+      "imageHeight": 2000,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 480.0,
+        "cropped": false
+      },
+      "note": "Exactly 2:1 is not cropped."
+    },
+    {
+      "name": "screenshot",
+      "imageWidth": 1179,
+      "imageHeight": 2556,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 480.0,
+        "cropped": true
+      },
+      "note": "An iPhone screenshot is taller than 2:1 and crops."
+    },
+    {
+      "name": "tiny-upscaled",
+      "imageWidth": 40,
+      "imageHeight": 30,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 180.0,
+        "cropped": false
+      },
+      "note": "Small images still take the full width. The bubble never shrinks to the image."
+    },
+    {
+      "name": "missing-metadata",
+      "imageWidth": 0,
+      "imageHeight": 0,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 240.0,
+        "cropped": false
+      },
+      "note": "No dimensions (should not happen after READY): a square placeholder."
+    },
+    {
+      "name": "android-dp",
+      "imageWidth": 4032,
+      "imageHeight": 3024,
+      "maxWidth": 264.5,
+      "expected": {
+        "width": 264.5,
+        "height": 198.375,
+        "cropped": false
+      },
+      "note": "Fractional widths are fine; compare with 0.001 tolerance."
+    }
+  ],
+  "downscale": [
+    {
+      "name": "within-bounds",
+      "sourceWidth": 1200,
+      "sourceHeight": 900,
+      "maxWidth": 2048,
+      "maxHeight": 2048,
+      "maxPixels": 0,
+      "expected": {
+        "width": 1200,
+        "height": 900
+      },
+      "note": "Already fits: unchanged."
+    },
+    {
+      "name": "edge-bound-landscape",
+      "sourceWidth": 4032,
+      "sourceHeight": 3024,
+      "maxWidth": 2048,
+      "maxHeight": 2048,
+      "maxPixels": 0,
+      "expected": {
+        "width": 2048,
+        "height": 1536
+      },
+      "note": "Long edge binds."
+    },
+    {
+      "name": "edge-bound-portrait",
+      "sourceWidth": 3024,
+      "sourceHeight": 4032,
+      "maxWidth": 2048,
+      "maxHeight": 2048,
+      "maxPixels": 0,
+      "expected": {
+        "width": 1536,
+        "height": 2048
+      },
+      "note": "Long edge binds, portrait."
+    },
+    {
+      "name": "asymmetric-bounds",
+      "sourceWidth": 4000,
+      "sourceHeight": 4000,
+      "maxWidth": 3000,
+      "maxHeight": 1000,
+      "maxPixels": 0,
+      "expected": {
+        "width": 1000,
+        "height": 1000
+      },
+      "note": "The tighter of width and height binds."
+    },
+    {
+      "name": "pixels-bind-first",
+      "sourceWidth": 4032,
+      "sourceHeight": 3024,
+      "maxWidth": 4096,
+      "maxHeight": 4096,
+      "maxPixels": 4000000,
+      "expected": {
+        "width": 2309,
+        "height": 1732
+      },
+      "note": "Edges would allow the original; max_pixels binds instead."
+    },
+    {
+      "name": "pixels-and-edges",
+      "sourceWidth": 8000,
+      "sourceHeight": 6000,
+      "maxWidth": 2048,
+      "maxHeight": 2048,
+      "maxPixels": 2000000,
+      "expected": {
+        "width": 1632,
+        "height": 1224
+      },
+      "note": "max_pixels is tighter than the edge limit here."
+    },
+    {
+      "name": "unbounded",
+      "sourceWidth": 5000,
+      "sourceHeight": 3000,
+      "maxWidth": 0,
+      "maxHeight": 0,
+      "maxPixels": 0,
+      "expected": {
+        "width": 5000,
+        "height": 3000
+      },
+      "note": "No constraints: unchanged."
+    },
+    {
+      "name": "never-upscale",
+      "sourceWidth": 300,
+      "sourceHeight": 200,
+      "maxWidth": 2048,
+      "maxHeight": 2048,
+      "maxPixels": 16000000,
+      "expected": {
+        "width": 300,
+        "height": 200
+      },
+      "note": "Small source: unchanged."
+    },
+    {
+      "name": "panorama-min-edge",
+      "sourceWidth": 20000,
+      "sourceHeight": 10,
+      "maxWidth": 2048,
+      "maxHeight": 2048,
+      "maxPixels": 0,
+      "expected": {
+        "width": 2048,
+        "height": 1
+      },
+      "note": "An edge never goes below 1."
+    },
+    {
+      "name": "odd-pixels",
+      "sourceWidth": 3001,
+      "sourceHeight": 2999,
+      "maxWidth": 0,
+      "maxHeight": 0,
+      "maxPixels": 1000000,
+      "expected": {
+        "width": 1000,
+        "height": 999
+      },
+      "note": "Floor rounding still fits max_pixels."
+    }
+  ],
+  "constraintSelection": [
+    {
+      "name": "exact-first",
+      "patterns": [
+        "image/jpeg",
+        "image/*",
+        "*/*"
+      ],
+      "mimeType": "image/jpeg",
+      "expectedIndex": 0,
+      "note": "Exact match wins when listed first."
+    },
+    {
+      "name": "wildcard-image",
+      "patterns": [
+        "image/png",
+        "image/*",
+        "*/*"
+      ],
+      "mimeType": "image/jpeg",
+      "expectedIndex": 1,
+      "note": "image/png does not match; image/* does."
+    },
+    {
+      "name": "catch-all",
+      "patterns": [
+        "video/*",
+        "*/*"
+      ],
+      "mimeType": "image/jpeg",
+      "expectedIndex": 1,
+      "note": "Only */* matches."
+    },
+    {
+      "name": "none",
+      "patterns": [
+        "video/*",
+        "application/pdf"
+      ],
+      "mimeType": "image/jpeg",
+      "expectedIndex": null,
+      "note": "No entry: do not upload."
+    },
+    {
+      "name": "policy-order-wins",
+      "patterns": [
+        "*/*",
+        "image/jpeg"
+      ],
+      "mimeType": "image/jpeg",
+      "expectedIndex": 0,
+      "note": "Policy order is authoritative, even if a later entry is more specific."
+    }
+  ],
+  "strings": [
+    {
+      "name": "no-caption",
+      "caption": null,
+      "expected": {
+        "snippet": "Photo",
+        "preview": "📷 Photo"
+      },
+      "note": "No caption: the word Photo."
+    },
+    {
+      "name": "caption",
+      "caption": "from today",
+      "expected": {
+        "snippet": "from today",
+        "preview": "📷 from today"
+      },
+      "note": "The caption replaces the word Photo."
+    },
+    {
+      "name": "emoji-caption",
+      "caption": "🎉 done",
+      "expected": {
+        "snippet": "🎉 done",
+        "preview": "📷 🎉 done"
+      },
+      "note": "Captions are used as written."
+    }
+  ]
+}
