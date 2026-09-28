@@ -117,7 +117,7 @@ struct ReactionUITests {
     @Test("Empty search groups by category, in catalog order, with a leading Frequently Used row")
     @MainActor
     func groupsByCategory() {
-        let sections = EmojiPickerModel.sections(catalog: Self.catalog, undrawable: [], recents: ["😂"], query: "")
+        let sections = EmojiPickerModel.sections(index: .init(catalog: Self.catalog, undrawable: []), recents: ["😂"], query: "")
         #expect(sections.map(\.id) == [EmojiPickerModel.frequentlyUsedID, "Smileys", "Animals"])
         #expect(sections[0].entries.map(\.emoji) == ["😂"])
         #expect(sections[1].entries.map(\.emoji) == ["😀", "😂"])
@@ -127,27 +127,84 @@ struct ReactionUITests {
     @Test("No recents means no Frequently Used row")
     @MainActor
     func noFrequentRowWithoutRecents() {
-        let sections = EmojiPickerModel.sections(catalog: Self.catalog, undrawable: [], recents: [], query: "")
+        let sections = EmojiPickerModel.sections(index: .init(catalog: Self.catalog, undrawable: []), recents: [], query: "")
         #expect(sections.contains { $0.id == EmojiPickerModel.frequentlyUsedID } == false)
     }
 
     @Test("A search matches name and keywords case-insensitively, and drops the Frequently Used row")
     @MainActor
     func searchMatchesNameAndKeywords() {
-        let byName = EmojiPickerModel.sections(catalog: Self.catalog, undrawable: [], recents: ["😀"], query: "DOG")
+        let byName = EmojiPickerModel.sections(index: .init(catalog: Self.catalog, undrawable: []), recents: ["😀"], query: "DOG")
         #expect(byName.count == 1)
         #expect(byName[0].entries.map(\.emoji) == ["🐶"])
 
-        let byKeyword = EmojiPickerModel.sections(catalog: Self.catalog, undrawable: [], recents: [], query: "kitten")
+        let byKeyword = EmojiPickerModel.sections(index: .init(catalog: Self.catalog, undrawable: []), recents: [], query: "kitten")
         #expect(byKeyword[0].entries.map(\.emoji) == ["🐱"])
     }
 
     @Test("Undrawable entries are filtered from both categories and the Frequently Used row")
     @MainActor
     func undrawableFilteredEverywhere() {
-        let sections = EmojiPickerModel.sections(catalog: Self.catalog, undrawable: ["😂"], recents: ["😂", "😀"], query: "")
+        let sections = EmojiPickerModel.sections(index: .init(catalog: Self.catalog, undrawable: ["😂"]), recents: ["😂", "😀"], query: "")
         #expect(sections[0].entries.map(\.emoji) == ["😀"])
         #expect(sections[1].entries.map(\.emoji) == ["😀"])
+    }
+
+    private static let toneCatalog = EmojiCatalogContents(
+        categories: ["People"],
+        emoji: [
+            EmojiCatalogEntry(emoji: "👍", name: "thumbs up", category: "People", version: "0.6", skinTone: false, keywords: ["+1"]),
+            EmojiCatalogEntry(emoji: "👍🏻", name: "thumbs up: light skin tone", category: "People", version: "1.0", skinTone: true, keywords: ["thumbs", "light"]),
+            EmojiCatalogEntry(emoji: "👍🏿", name: "thumbs up: dark skin tone", category: "People", version: "1.0", skinTone: true, keywords: ["thumbs", "dark"]),
+            EmojiCatalogEntry(emoji: "🤝", name: "handshake", category: "People", version: "3.0", skinTone: false, keywords: ["deal"]),
+            EmojiCatalogEntry(emoji: "🫱🏻‍🫲🏿", name: "handshake: light skin tone, dark skin tone", category: "People", version: "14.0", skinTone: true, keywords: []),
+            EmojiCatalogEntry(emoji: "👯", name: "people with bunny ears", category: "People", version: "1.0", skinTone: false, keywords: []),
+            EmojiCatalogEntry(emoji: "👯‍♀️", name: "women with bunny ears", category: "People", version: "4.0", skinTone: false, keywords: []),
+            EmojiCatalogEntry(emoji: "🧑🏻‍🐰‍🧑🏿", name: "people with bunny ears: light skin tone, dark skin tone", category: "People", version: "16.0", skinTone: true, keywords: []),
+            EmojiCatalogEntry(emoji: "👋", name: "waving hand", category: "People", version: "0.6", skinTone: false, keywords: []),
+        ]
+    )
+
+    @Test("The grid holds base emoji only, and a search matches bases, not their tones")
+    @MainActor
+    func gridShowsBasesOnly() {
+        let index = EmojiPickerModel.Index(catalog: Self.toneCatalog, undrawable: [])
+        let sections = EmojiPickerModel.sections(index: index, recents: [], query: "")
+        #expect(sections.map { $0.entries.map(\.emoji) } == [["👍", "🤝", "👯", "👯‍♀️", "👋"]])
+
+        let search = EmojiPickerModel.sections(index: index, recents: [], query: "thumbs")
+        #expect(search[0].entries.map(\.emoji) == ["👍"])
+    }
+
+    @Test("A tone family is its base then its drawable tones, whichever member it's asked about")
+    @MainActor
+    func toneFamilies() {
+        let index = EmojiPickerModel.Index(catalog: Self.toneCatalog, undrawable: ["👍🏿"])
+        #expect(index.toneFamily(of: "👍").map(\.emoji) == ["👍", "👍🏻"])
+        #expect(index.toneFamily(of: "👍🏻").map(\.emoji) == ["👍", "👍🏻"])
+        #expect(index.toneFamily(of: "🤝").map(\.emoji) == ["🤝", "🫱🏻‍🫲🏿"])
+        // The name, not catalog order, places a pair under its own base.
+        #expect(index.toneFamily(of: "👯").map(\.emoji) == ["👯", "🧑🏻‍🐰‍🧑🏿"])
+        #expect(index.toneFamily(of: "👯‍♀️").isEmpty)
+        #expect(index.toneFamily(of: "👋").isEmpty)
+    }
+
+    @Test("A recent pick keeps its skin tone in the Frequently Used row")
+    @MainActor
+    func recentKeepsTone() {
+        let index = EmojiPickerModel.Index(catalog: Self.toneCatalog, undrawable: [])
+        let sections = EmojiPickerModel.sections(index: index, recents: ["👍🏻", "🤝"], query: "")
+        #expect(sections[0].entries.map(\.emoji) == ["👍🏻", "🤝"])
+    }
+
+    @Test("The bundled catalog's tones all fold into a base, leaving 1,914 in the grid")
+    func bundledCatalogFoldsTones() async throws {
+        let catalog = try await EmojiCatalog().load()
+        let index = EmojiPickerModel.Index(catalog: catalog, undrawable: [])
+        #expect(index.bases.count == 1914)
+        #expect(index.bases.allSatisfy { !$0.skinTone })
+        #expect(index.toneFamily(of: "💏").count == 26)
+        #expect(index.toneFamily(of: "🧑🏻‍❤️‍💋‍🧑🏼").first?.emoji == "💏")
     }
 
     // MARK: - Reactors paging and per-emoji lists (ReactorsListModel)
