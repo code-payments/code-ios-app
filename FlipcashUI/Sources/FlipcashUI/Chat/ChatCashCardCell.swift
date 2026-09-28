@@ -10,16 +10,18 @@ import UIKit
 import FlipcashCore
 import Kingfisher
 
-/// A recycled cell for a cash payment row: a fixed-size card (shared `BubbleBackgroundView` chrome)
-/// with the token name + optional coin icon in the top-left and a centered "You sent / You received"
-/// caption above the currency flag + amount, hosted in a `ChatColumnCell`. Dumb — `configure(with:)`
-/// is the only input; the strings, flag name, and icon URL all arrive on the `ChatMessage`.
+/// A recycled cell for a cash payment row: a card (shared `BubbleBackgroundView` chrome) with the
+/// token name + optional coin icon in the top-left and a centered "You sent / You received" caption
+/// above the currency flag + amount, hosted in a `ChatColumnCell`. The card's width is supplied by
+/// the owner, as `ChatMessageCell`/`ChatLinkMessageCell` take theirs, so it tracks the transcript
+/// width instead of a fixed footprint. `configure(with:maxWidth:)` is the only input; the strings,
+/// flag name, and icon URL all arrive on the `ChatMessage`.
 public final class ChatCashCardCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
 
-    /// The card's fixed footprint.
-    static let cardSize = CGSize(width: 232, height: 170)
+    /// The card's fixed height; width now tracks `maxWidth`.
+    static let cardHeight: CGFloat = 170
 
     private let card = BubbleBackgroundView()
     private let reactionRow = ReactionPillRowView()
@@ -28,6 +30,8 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let flag = UIImageView()
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
+    private var cardWidthConstraint: NSLayoutConstraint!
+    private var reactionRowWidthConstraint: NSLayoutConstraint!
 
     /// Dim the card while pressed so the tap-to-open-currency-info affordance reads as a button.
     /// Driven by the collection view's selection machinery (`shouldHighlightItemAt`), not a gesture.
@@ -83,12 +87,15 @@ public final class ChatCashCardCell: ChatColumnCell {
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
 
         // Below required so the card height yields to the cell's self-sizing height instead of fighting it.
-        let cardHeight = card.heightAnchor.constraint(equalToConstant: Self.cardSize.height)
+        let cardHeight = card.heightAnchor.constraint(equalToConstant: Self.cardHeight)
         cardHeight.priority = UILayoutPriority(999)
 
+        cardWidthConstraint = card.widthAnchor.constraint(equalToConstant: 232)
+        reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 232)
+
         NSLayoutConstraint.activate([
-            card.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
-            reactionRow.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
+            cardWidthConstraint,
+            reactionRowWidthConstraint,
             cardHeight,
 
             tokenRow.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 11),
@@ -104,7 +111,7 @@ public final class ChatCashCardCell: ChatColumnCell {
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    /// Scopes the row's touch target to the fixed-width card. The cell spans the full transcript
+    /// Scopes the row's touch target to the card, not the cell. The cell spans the full transcript
     /// width, so without this the selection machinery opens currency info from a tap in the dead
     /// space beside the card — the same reason the retry gesture on text rows hugs the bubble.
     public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
@@ -136,8 +143,12 @@ public final class ChatCashCardCell: ChatColumnCell {
         reactionRow.prepareForReuse()
     }
 
-    public func configure(with message: ChatMessage, authorImageData: Data? = nil) {
+    /// - Parameter maxWidth: the card's width, in points. The owner derives it from the collection
+    ///   view's width: 0.64 of the row between the column insets, matching Android's cash card.
+    public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         guard case .cash(let cash) = message.content else { return }
+        cardWidthConstraint.constant = maxWidth
+        reactionRowWidthConstraint.constant = maxWidth
         tokenLabel.text = cash.token
         captionLabel.text = ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
         amountLabel.text = cash.amount
@@ -158,7 +169,7 @@ public final class ChatCashCardCell: ChatColumnCell {
             ),
             identity: message.id
         )
-        reactionRow.layoutWidth = Self.cardSize.width
+        reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = message.sender == .me
         reactionRow.configure(pills: message.reactions, canReact: message.canReact)
         updateColumn(for: message, authorImageData: authorImageData)
@@ -215,7 +226,7 @@ private final class ChatCashCardCellPreviewController: UICollectionViewControlle
 
     override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ChatCashCardCell.reuseIdentifier, for: indexPath) as! ChatCashCardCell
-        cell.configure(with: messages[indexPath.item])
+        cell.configure(with: messages[indexPath.item], maxWidth: (collectionView.bounds.width - 24) * 0.64)
         return cell
     }
 }
