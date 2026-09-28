@@ -1265,14 +1265,18 @@ final class ConversationController {
     /// counterpart types, the message text, or the cash summary, attributed to
     /// whoever wrote it. `currencyName` resolves a mint to its display name; nil —
     /// or the reserve, whose formatted amount already names itself — drops the
-    /// "of …" suffix.
-    func lastMessagePreview(for conversation: Conversation, currencyName: (PublicKey) -> String?) -> String? {
+    /// "of …" suffix. `knownAuthors` names a group sender the chat's roster subset leaves out.
+    func lastMessagePreview(
+        for conversation: Conversation,
+        knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
+        currencyName: (PublicKey) -> String?
+    ) -> String? {
         if isCounterpartTyping(in: conversation.id) {
             return "Typing…"
         }
         guard let message = conversation.lastMessage else { return nil }
         let isFromSelf = message.isFromSelf(selfUserID)
-        let senderName = groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf)
+        let senderName = groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf, knownAuthors: knownAuthors)
 
         switch message.content {
         case .text(let text):
@@ -1312,21 +1316,45 @@ final class ConversationController {
         }
     }
 
+    /// The group senders of `conversations`' last messages that neither their chat's roster nor
+    /// `knownAuthors` can name, in feed order and without repeats — what the Chats list asks
+    /// ``KnownAuthorDirectory/resolve(_:)`` for.
+    func unnamedLastMessageSenders(
+        in conversations: [Conversation],
+        knownAuthors: KnownAuthorDirectory.Snapshot
+    ) -> [UserID] {
+        var seen: Set<UserID> = []
+        return conversations.compactMap { conversation in
+            guard conversation.type == .group,
+                  let message = conversation.lastMessage,
+                  let senderID = message.senderID,
+                  !message.isFromSelf(selfUserID),
+                  groupSenderName(for: message, in: conversation, isFromSelf: false, knownAuthors: knownAuthors) == nil,
+                  seen.insert(senderID).inserted
+            else { return nil }
+            return senderID
+        }
+    }
+
     /// The name a group row attributes its last message to, or `nil` when it should carry no
-    /// attribution: the viewer's own message is covered by "You", a DM's other party is what the
-    /// row is already titled after, and a sender the feed's roster subset omits has no name to
-    /// print — this list fetches no profiles, so leaving the body unattributed is the honest
-    /// fallback.
+    /// attribution: the viewer's own message is covered by "You", and a DM's other party is what
+    /// the row is already titled after. A sender the chat's roster subset omits is named from
+    /// `knownAuthors`, and left unattributed until the directory has a name for them.
     private func groupSenderName(
         for message: ConversationMessage,
         in conversation: Conversation,
-        isFromSelf: Bool
+        isFromSelf: Bool,
+        knownAuthors: KnownAuthorDirectory.Snapshot
     ) -> String? {
         guard conversation.type == .group, !isFromSelf, let senderID = message.senderID else {
             return nil
         }
-        let name = conversation.members.first { $0.userID == senderID }?.displayName
-        return (name?.isEmpty ?? true) ? nil : name
+        let rosterName = conversation.members.first { $0.userID == senderID }?.displayName
+        if let rosterName, !rosterName.isEmpty {
+            return rosterName
+        }
+        let knownName = knownAuthors.membersByUserID[senderID]?.displayName
+        return (knownName?.isEmpty ?? true) ? nil : knownName
     }
 
     func displayName(forConversationID conversationID: ConversationID) -> String {

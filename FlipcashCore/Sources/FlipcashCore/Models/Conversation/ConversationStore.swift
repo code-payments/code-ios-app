@@ -558,13 +558,33 @@ public struct ConversationStore: Sendable {
     }
 
     private mutating func upsert(_ conversation: Conversation) {
-        let conversation = keepingSelfReadPointer(seated(conversation))
+        var conversation = keepingSelfReadPointer(seated(conversation))
         if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
+            if conversation.type == .group {
+                conversation.members = mergedMembers(conversation.members, over: conversations[index].members)
+            }
             conversations[index] = conversation
         } else {
             conversations.append(conversation)
         }
         sort()
+    }
+
+    /// A group's `incoming` roster laid over the one the store holds: incoming wins per user, and
+    /// every other known member is kept. A large group's metadata embeds only a subset of its roster,
+    /// so a member missing from it has not left — a departure arrives as a `.left` roster update.
+    /// Replacing the list instead would drop members learned from `.joined` updates, and the chat
+    /// list would stop naming them as the sender of the last message.
+    ///
+    /// Runs after ``keepingSelfReadPointer(_:)``, so a viewer entry kept from the stored list is never
+    /// read as the server acknowledging the local READ pointer.
+    private func mergedMembers(_ incoming: [ConversationMember], over existing: [ConversationMember]) -> [ConversationMember] {
+        let incomingIDs = Set(incoming.compactMap(\.userID))
+        let retained = existing.filter { member in
+            guard let userID = member.userID else { return false }
+            return !incomingIDs.contains(userID)
+        }
+        return incoming + retained
     }
 
     /// `conversation` with a feed preview the row can actually draw: the newest message that still
