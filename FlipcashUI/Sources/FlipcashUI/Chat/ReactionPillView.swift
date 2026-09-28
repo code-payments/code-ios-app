@@ -11,13 +11,16 @@ import SwiftUI
 import FlipcashCore
 
 /// One reaction pill: emoji + count, capsule-shaped over the same wash a received bubble sits on.
-/// A self-reacted pill draws a grey outline. Tap toggles the reaction; long-press opens the reactors sheet scoped to this
+/// A self-reacted pill draws a grey outline, which never changes its width. Tap toggles the reaction; long-press opens the reactors sheet scoped to this
 /// emoji — there is no cross-emoji "All" view to open instead.
 final class ReactionPillView: UIView {
 
     private let stack = UIStackView()
     private let emojiLabel = UILabel()
     private let countLabel = UILabel()
+    /// Holds the count label at the width its reserved digits need, so a count change inside that
+    /// room never resizes the pill.
+    private lazy var countWidth = countLabel.widthAnchor.constraint(equalToConstant: Self.countWidth(digits: 2))
 
     /// Fired on a plain tap. Nil (rather than swallowing the tap in `configure`) so a viewer who
     /// cannot react — a group previewer — still gets a working long-press.
@@ -49,8 +52,9 @@ final class ReactionPillView: UIView {
         addSubview(stack)
 
         emojiLabel.font = .systemFont(ofSize: 15)
-        countLabel.font = .default(size: 13, weight: .medium)
+        countLabel.font = Self.countFont
         countLabel.textColor = UIColor(Color.textMain)
+        countLabel.textAlignment = .center
         stack.addArrangedSubview(emojiLabel)
         stack.addArrangedSubview(countLabel)
 
@@ -59,6 +63,7 @@ final class ReactionPillView: UIView {
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.horizontalPadding),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.horizontalPadding),
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            countWidth,
         ])
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
@@ -74,9 +79,10 @@ final class ReactionPillView: UIView {
     ///   - canReact: false withholds nothing here — the pill always draws and always opens the
     ///     reactors sheet on long-press. Only the tap-to-toggle is disabled, per spec (a group
     ///     previewer's tap is inert).
+    ///   - countDigits: the digits of room the count keeps, which sets the pill's width.
     ///   - animated: whether a change to a pill already on screen animates: the count rolls to its new
     ///     value and the selected fill and border fade.
-    func configure(with pill: ReactionPill, canReact: Bool, animated: Bool = false) {
+    func configure(with pill: ReactionPill, countDigits: Int = 2, canReact: Bool, animated: Bool = false) {
         let previous = self.pill
         self.pill = pill
         emojiLabel.text = pill.emoji
@@ -84,6 +90,7 @@ final class ReactionPillView: UIView {
             rollCount(up: pill.count > previous.count)
         }
         countLabel.text = "\(pill.count)"
+        countWidth.constant = Self.countWidth(digits: max(countDigits, "\(pill.count)".count))
 
         let fill = pill.selfReacted ? Self.selfReactedFill : Self.restingFill
         let borderWidth = pill.selfReacted ? Self.selfReactedBorderWidth : 0
@@ -106,6 +113,16 @@ final class ReactionPillView: UIView {
         accessibilityLabel = "\(pill.emoji), \(pill.count) reaction\(pill.count == 1 ? "" : "s")"
         accessibilityTraits = canReact ? .button : []
     }
+
+    /// The width `digits` digits of the count font can take, whichever digits they are.
+    static func countWidth(digits: Int) -> CGFloat {
+        ceil(widestDigit * CGFloat(digits))
+    }
+
+    private static let countFont = UIFont.default(size: 13, weight: .medium)
+    private static let widestDigit: CGFloat = (0...9)
+        .map { ("\($0)" as NSString).size(withAttributes: [.font: countFont]).width }
+        .max() ?? 0
 
     /// Rolls the count to its next value: up for a rise, down for a fall, the way a counter turns.
     /// Reduce Motion gets a crossfade instead.

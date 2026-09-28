@@ -15,6 +15,9 @@ import FlipcashCore
 /// pill at the end of the second line, which expands the row to show them all. Collapses to zero height
 /// when there are no reactions, so a plain message's layout is unaffected; otherwise it leads with
 /// its own gap to the bubble, which the column leaves out (see `installColumn`).
+///
+/// Counts change live, but order, joins, departures and pill widths change only on the
+/// `ReactionSettler`'s beat, and a touch on the row holds it still, so pills don't move under a thumb.
 final class ReactionPillRowView: UIView {
 
     /// Fired with the tapped emoji. Only reachable through a pill whose `canReact` allowed the tap —
@@ -61,24 +64,38 @@ final class ReactionPillRowView: UIView {
     private(set) var isEmpty = true
 
     /// - Parameters:
-    ///   - pills: the message's reactions, already in display order.
+    ///   - pills: the message's reactions. The row settles their order itself.
     ///   - canReact: false withholds the trailing "+" and disables tap-to-toggle on existing pills,
     ///     but every pill still draws and long-press still opens the reactors sheet — a group
     ///     previewer's read of a message's reactions is otherwise unchanged.
     func configure(pills: [ReactionPill], canReact: Bool) {
+        self.canReact = canReact
+        if settler == nil {
+            settler = ReactionSettler(pills: pills, clock: Self.now)
+        } else {
+            settler?.update(pills)
+        }
+        render()
+        scheduleBeat()
+    }
+
+    /// Draws what the settler shows now.
+    private func render() {
+        let pills = settler?.pills ?? []
         // Kept by emoji, so a count change or a reorder moves the pill that is already there and only
         // an emoji new to the row springs in.
         var reusable = Dictionary(pillViews.map { ($0.emoji, $0) }, uniquingKeysWith: { first, _ in first })
-        pillViews = pills.map { pill in
-            let view = reusable.removeValue(forKey: pill.emoji) ?? {
+        pillViews = pills.map { settled in
+            let emoji = settled.pill.emoji
+            let view = reusable.removeValue(forKey: emoji) ?? {
                 let view = ReactionPillView()
                 addSubview(view)
                 if animatesChanges { entering.insert(ObjectIdentifier(view)) }
                 return view
             }()
-            view.configure(with: pill, canReact: canReact, animated: animatesChanges)
-            view.onTap = canReact ? { [weak self] in self?.onToggle?(pill.emoji) } : nil
-            view.onLongPress = { [weak self] in self?.onLongPress?(pill.emoji) }
+            view.configure(with: settled.pill, countDigits: settled.countDigits, canReact: canReact, animated: animatesChanges)
+            view.onTap = canReact ? { [weak self] in self?.resolveTap(.emoji(emoji)) } : nil
+            view.onLongPress = { [weak self] in self?.onLongPress?(emoji) }
             return view
         }
         for view in reusable.values {
@@ -99,6 +116,12 @@ final class ReactionPillRowView: UIView {
 
     /// Clears the row without animating, for a cell about to draw a different message.
     func prepareForReuse() {
+        beatTask?.cancel()
+        beatTask = nil
+        settler = nil
+        graceTarget = nil
+        slotFrames = SlotFrames()
+        graceSlotFrames = SlotFrames()
         pillViews.forEach { $0.removeFromSuperview() }
         pillViews = []
         exiting.forEach { $0.removeFromSuperview() }
@@ -117,6 +140,95 @@ final class ReactionPillRowView: UIView {
         animatesChanges = false
         pendingChange = false
         lastComputedHeight = 0
+    }
+
+    // MARK: - Settling
+
+    /// Where the row's order and widths come from; nil until the row first draws a message.
+    private var settler: ReactionSettler?
+    private var canReact = false
+    private var beatTask: Task<Void, Never>?
+
+    /// Where the pills and the "+" sit in the latest layout, and where they sat before the last beat
+    /// changed it, for a tap aimed at the old layout.
+    private var slotFrames = SlotFrames()
+    private var graceSlotFrames = SlotFrames()
+    /// What a tap that began during the tap grace lands on, resolved at touch-down.
+    private var graceTarget: TapTarget?
+
+    private struct SlotFrames {
+        var pills: [CGRect] = []
+        var add: CGRect?
+    }
+
+    private enum TapTarget {
+        case emoji(String)
+        case add
+    }
+
+    private static let clockOrigin = ContinuousClock.now
+
+    private static func now() -> Duration {
+        clockOrigin.duration(to: .now)
+    }
+
+    /// Sleeps until the settler's next beat, while the row is on screen and has one due.
+    private func scheduleBeat() {
+        beatTask?.cancel()
+        beatTask = nil
+        guard window != nil, let due = settler?.nextBeat else { return }
+        let delay = max(due - Self.now(), .milliseconds(16))
+        beatTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.beat()
+        }
+    }
+
+    private func beat() {
+        let before = slotFrames
+        if settler?.settle() == true {
+            graceSlotFrames = before
+            let height = currentLayout(width: bounds.width).height
+            render()
+            if currentLayout(width: bounds.width).height != height { resizeCell() }
+        }
+        scheduleBeat()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        scheduleBeat()
+    }
+
+    /// Every touch that lands on the row holds it still, and one during the tap grace is resolved here
+    /// against the layout from before the last beat.
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        if hit != nil, event?.type == .touches, settler != nil {
+            settler?.touch()
+            graceTarget = settler?.isInTapGrace == true ? graceTarget(at: point) : nil
+        }
+        return hit
+    }
+
+    private func graceTarget(at point: CGPoint) -> TapTarget? {
+        if let slot = graceSlotFrames.pills.firstIndex(where: { $0.contains(point) }) {
+            return settler?.hit(slot: slot).map(TapTarget.emoji)
+        }
+        if let add = graceSlotFrames.add, add.contains(point) { return .add }
+        return nil
+    }
+
+    private func resolveTap(_ tapped: TapTarget) {
+        let target = graceTarget ?? tapped
+        graceTarget = nil
+        switch target {
+        case .emoji(let emoji):
+            if canReact { onToggle?(emoji) }
+        case .add:
+            if canReact { onAdd?() }
+        }
     }
 
     /// Whether the "+" belongs in the row. Its visibility follows this in `layoutSubviews`, where an
@@ -181,6 +293,12 @@ final class ReactionPillRowView: UIView {
         }
         if let frame = layout.overflowFrame { placed.append((overflowButton, frame)) }
         if let frame = layout.addFrame { placed.append((addButton, frame)) }
+        if bounds.width > 0 {
+            slotFrames = SlotFrames(
+                pills: layout.pillFrames.map { $0.offsetBy(dx: 0, dy: Self.topGap) },
+                add: layout.addFrame?.offsetBy(dx: 0, dy: Self.topGap)
+            )
+        }
 
         // The buttons leave the way a pill does; a pill folded into "N more" just goes, since the
         // "N more" count changing is what shows where it went.
@@ -228,13 +346,14 @@ final class ReactionPillRowView: UIView {
                 moves.append((view, frame))
             }
         }
+        // Pills move while the tap grace is open, so a touch on one mid-flight must still count.
         if !moves.isEmpty {
-            ChatMotion.reactionReflow.animate {
+            ChatMotion.reactionReflow.animate(options: .allowUserInteraction) {
                 for (view, frame) in moves { Self.place(view, at: frame) }
             }
         }
         if !arrivals.isEmpty {
-            ChatMotion.reaction.animate {
+            ChatMotion.reaction.animate(options: .allowUserInteraction) {
                 for view in arrivals {
                     view.alpha = 1
                     view.transform = .identity
@@ -300,12 +419,17 @@ final class ReactionPillRowView: UIView {
     private static let topGap: CGFloat = 4
 
     @objc private func addTapped() {
-        onAdd?()
+        resolveTap(.add)
     }
 
     @objc private func overflowTapped() {
         isExpanded = true
         pendingChange = true
+        resizeCell()
+    }
+
+    /// Animates the enclosing cell to the row's new height.
+    private func resizeCell() {
         invalidateIntrinsicContentSize()
         setNeedsLayout()
         // The transcript re-measures a cell only when its content view's intrinsic size is invalidated,
@@ -317,7 +441,7 @@ final class ReactionPillRowView: UIView {
         var container: UIView? = cell.superview
         while let current = container, !(current is UICollectionView) { container = current.superview }
         let collectionView = container as? UICollectionView
-        ChatMotion.reactionReflow.animate {
+        ChatMotion.reactionReflow.animate(options: .allowUserInteraction) {
             collectionView?.performBatchUpdates(nil)
             self.layoutIfNeeded()
         }

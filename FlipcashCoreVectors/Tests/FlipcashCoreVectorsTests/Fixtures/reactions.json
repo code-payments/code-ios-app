@@ -1293,6 +1293,1231 @@
       "note": "The case that separates byte order from a platform's default string compare. Both start U+261D. Next, ☝️ has U+FE0F (UTF-8 EF B8 8F) and ☝🏻 has U+1F3FB (F0 9F 8F BB): EF < F0 in UTF-8, but in UTF-16 the surrogate D83C < FE0F, which would flip them."
     }
   ],
+  "settleDefaults": {
+    "settleMs": 1000,
+    "maxSwaps": 3,
+    "countMargin": 1,
+    "flapCooldownMs": 3000,
+    "holdAfterTouchMs": 1500,
+    "maxHoldMs": 4000,
+    "hitGraceMs": 450
+  },
+  "settle": [
+    {
+      "name": "first-render-is-target-order",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "👍": {
+              "count": 1,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 3,
+              "boostTotal": 0
+            },
+            "😂": {
+              "count": 2,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "🔥",
+            "😂",
+            "👍"
+          ]
+        },
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 5,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        }
+      ],
+      "note": "A row coming on screen shows `order` exactly, UTF-8 tiebreak included. Settling only governs changes after that."
+    },
+    {
+      "name": "counts-live-positions-on-the-beat",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 300,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 7,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 600,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        }
+      ],
+      "note": "🔥 shows 7 from 300 ms, but moves only on the first beat, 1000 ms after the last one."
+    },
+    {
+      "name": "climb-three-places-per-beat",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "❤️": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "👍": {
+              "count": 4,
+              "boostTotal": 0
+            },
+            "😂": {
+              "count": 3,
+              "boostTotal": 0
+            },
+            "💯": {
+              "count": 2,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 1,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "❤️",
+            "👍",
+            "😂",
+            "💯",
+            "🔥"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "pills",
+          "pills": {
+            "❤️": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "👍": {
+              "count": 4,
+              "boostTotal": 0
+            },
+            "😂": {
+              "count": 3,
+              "boostTotal": 0
+            },
+            "💯": {
+              "count": 2,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 1,
+              "boostTotal": 10
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "❤️",
+            "🔥",
+            "👍",
+            "😂",
+            "💯"
+          ]
+        },
+        {
+          "at": 2000,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "❤️",
+            "👍",
+            "😂",
+            "💯"
+          ]
+        }
+      ],
+      "note": "A boost puts 🔥 first in `order`. It climbs three places per beat, so the climb is visible and each move is next door."
+    },
+    {
+      "name": "top-inversion-first",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 1,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "❤️": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "👍": {
+              "count": 4,
+              "boostTotal": 0
+            },
+            "😂": {
+              "count": 3,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 2,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "❤️",
+            "👍",
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "pills",
+          "pills": {
+            "❤️": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "👍": {
+              "count": 6,
+              "boostTotal": 0
+            },
+            "😂": {
+              "count": 3,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "👍",
+            "❤️",
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 2000,
+          "op": "settle",
+          "expect": [
+            "👍",
+            "❤️",
+            "🔥",
+            "😂"
+          ]
+        }
+      ],
+      "note": "Two pairs are out of order and the beat allows one swap: the pair nearer the top goes first."
+    },
+    {
+      "name": "touch-holds-the-row",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 500,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 6,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 900,
+          "op": "touch"
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 2399,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 2400,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        }
+      ],
+      "note": "A touch at 900 ms holds the row until 2400 ms. The beat due at 1000 ms waits for it."
+    },
+    {
+      "name": "hold-is-capped",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 6,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 500,
+          "op": "touch"
+        },
+        {
+          "at": 1500,
+          "op": "touch"
+        },
+        {
+          "at": 2500,
+          "op": "touch"
+        },
+        {
+          "at": 3500,
+          "op": "touch"
+        },
+        {
+          "at": 4400,
+          "op": "touch"
+        },
+        {
+          "at": 4499,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 4500,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        }
+      ],
+      "note": "Each touch extends the hold, but not past 4000 ms from the touch that began it (500 ms). Someone tapping every second cannot freeze the row."
+    },
+    {
+      "name": "new-hold-after-a-gap",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "touch"
+        },
+        {
+          "at": 1600,
+          "op": "touch"
+        },
+        {
+          "at": 1700,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 6,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 3099,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 3100,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        }
+      ],
+      "note": "The first hold ends at 1600 ms, so the touch at 1600 ms begins a new one rather than extending the old one."
+    },
+    {
+      "name": "no-swap-back-inside-cooldown",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 6,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        },
+        {
+          "at": 1200,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 7,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 6,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 2000,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        },
+        {
+          "at": 3000,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        },
+        {
+          "at": 4000,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        }
+      ],
+      "note": "🔥 and 😂 swapped at 1000 ms, so they cannot swap back until 4000 ms, whatever the counts do."
+    },
+    {
+      "name": "count-margin",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 2,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 6,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 1100,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 7,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 2000,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        }
+      ],
+      "note": "With a margin of 2, a lead of 1 is not enough to pass. The shipped value is 1; this pins the knob for anyone who changes it."
+    },
+    {
+      "name": "money-ignores-count-margin",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 2,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 1
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        }
+      ],
+      "note": "Any boost lead passes, the smallest one included."
+    },
+    {
+      "name": "live-tie-keeps-place",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 5,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 6,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 5,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 1100,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 5,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 9000,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        }
+      ],
+      "note": "Back to a tie, 😂 stays ahead of 🔥 on screen although `order` puts 🔥 first. The UTF-8 tiebreak decides where pills start, never a move."
+    },
+    {
+      "name": "emptied-pill-waits-for-the-beat",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            },
+            "👍": {
+              "count": 2,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥",
+            "👍"
+          ]
+        },
+        {
+          "at": 300,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            },
+            "👍": {
+              "count": 0,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 600,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥",
+            "👍"
+          ]
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        }
+      ],
+      "note": "👍 shows 0 in place until the beat, so the pills after it do not slide early."
+    },
+    {
+      "name": "new-emoji-joins-at-the-end",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 300,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            },
+            "💯": {
+              "count": 1,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 600,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥",
+            "💯"
+          ]
+        }
+      ],
+      "note": "A new emoji appears on the beat, after the last pill, where it moves nothing but the \"+\" pill."
+    },
+    {
+      "name": "new-boosted-emoji-climbs",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "❤️": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "👍": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "❤️",
+            "👍",
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 300,
+          "op": "pills",
+          "pills": {
+            "❤️": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "👍": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            },
+            "💯": {
+              "count": 1,
+              "boostTotal": 5
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "❤️",
+            "💯",
+            "👍",
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 2000,
+          "op": "settle",
+          "expect": [
+            "💯",
+            "❤️",
+            "👍",
+            "😂",
+            "🔥"
+          ]
+        }
+      ],
+      "note": "It joins at the end and spends that beat's three swaps climbing, then climbs on."
+    },
+    {
+      "name": "tap-grace-hits-the-old-layout",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 100,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 6,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "🔥",
+            "😂"
+          ]
+        },
+        {
+          "at": 1000,
+          "op": "hit",
+          "index": 0,
+          "expect": "😂"
+        },
+        {
+          "at": 1449,
+          "op": "hit",
+          "index": 0,
+          "expect": "😂"
+        },
+        {
+          "at": 1449,
+          "op": "hit",
+          "index": 2,
+          "expect": null
+        },
+        {
+          "at": 1450,
+          "op": "hit",
+          "index": 0,
+          "expect": "🔥"
+        }
+      ],
+      "note": "A thumb already on its way to 😂 in the first slot still gets 😂 for 450 ms after the swap. Slot 2 is the \"+\" pill in both layouts."
+    },
+    {
+      "name": "tap-grace-covers-the-plus-pill",
+      "config": {
+        "settleMs": 1000,
+        "maxSwaps": 3,
+        "countMargin": 1,
+        "flapCooldownMs": 3000,
+        "holdAfterTouchMs": 1500,
+        "maxHoldMs": 4000,
+        "hitGraceMs": 450
+      },
+      "steps": [
+        {
+          "at": 0,
+          "op": "start",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            }
+          },
+          "expect": [
+            "😂",
+            "🔥"
+          ]
+        },
+        {
+          "at": 300,
+          "op": "pills",
+          "pills": {
+            "😂": {
+              "count": 5,
+              "boostTotal": 0
+            },
+            "🔥": {
+              "count": 4,
+              "boostTotal": 0
+            },
+            "💯": {
+              "count": 1,
+              "boostTotal": 0
+            }
+          }
+        },
+        {
+          "at": 1000,
+          "op": "settle",
+          "expect": [
+            "😂",
+            "🔥",
+            "💯"
+          ]
+        },
+        {
+          "at": 1200,
+          "op": "hit",
+          "index": 2,
+          "expect": null
+        },
+        {
+          "at": 1450,
+          "op": "hit",
+          "index": 2,
+          "expect": "💯"
+        }
+      ],
+      "note": "A joining emoji takes the \"+\" pill's place, so a tap there during the grace still opens the picker."
+    }
+  ],
   "strip": [
     {
       "name": "no-reactions",

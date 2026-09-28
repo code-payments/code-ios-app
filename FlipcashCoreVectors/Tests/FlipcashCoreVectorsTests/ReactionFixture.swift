@@ -105,6 +105,69 @@ struct ReactionFixture: Decodable {
         let note: String
     }
 
+    struct SettleConfig: Decodable, Equatable {
+        let settleMs: Int64
+        let maxSwaps: Int
+        let countMargin: UInt64
+        let flapCooldownMs: Int64
+        let holdAfterTouchMs: Int64
+        let maxHoldMs: Int64
+        let hitGraceMs: Int64
+    }
+
+    struct SettleVector: Decodable {
+        struct Pill: Decodable {
+            let count: UInt64
+            let boostTotal: UInt64
+        }
+
+        /// `at` is milliseconds and never decreases across a vector's steps.
+        enum Step: Decodable {
+            case start(at: Int64, pills: [String: Pill], expect: [String])
+            case pills(at: Int64, pills: [String: Pill])
+            case touch(at: Int64)
+            case settle(at: Int64, expect: [String])
+            case hit(at: Int64, index: Int, expect: String?)
+
+            private enum CodingKeys: String, CodingKey {
+                case at, op, pills, expect, index
+            }
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                let at = try c.decode(Int64.self, forKey: .at)
+                let op = try c.decode(String.self, forKey: .op)
+                switch op {
+                case "start":
+                    self = .start(
+                        at: at,
+                        pills: try c.decode([String: Pill].self, forKey: .pills),
+                        expect: try c.decode([String].self, forKey: .expect)
+                    )
+                case "pills":
+                    self = .pills(at: at, pills: try c.decode([String: Pill].self, forKey: .pills))
+                case "touch":
+                    self = .touch(at: at)
+                case "settle":
+                    self = .settle(at: at, expect: try c.decode([String].self, forKey: .expect))
+                case "hit":
+                    self = .hit(
+                        at: at,
+                        index: try c.decode(Int.self, forKey: .index),
+                        expect: try c.decodeIfPresent(String.self, forKey: .expect)
+                    )
+                default:
+                    throw DecodingError.dataCorruptedError(forKey: .op, in: c, debugDescription: "unknown op \(op)")
+                }
+            }
+        }
+
+        let name: String
+        let config: SettleConfig
+        let steps: [Step]
+        let note: String
+    }
+
     struct StripVector: Decodable {
         struct SelfReaction: Decodable {
             let emoji: String
@@ -143,6 +206,8 @@ struct ReactionFixture: Decodable {
     let defaults: [String]
     let merge: [MergeVector]
     let order: [OrderVector]
+    let settleDefaults: SettleConfig
+    let settle: [SettleVector]
     let strip: [StripVector]
     let recents: [RecentsVector]
     let drawability: [DrawabilityVector]
