@@ -127,7 +127,8 @@ private struct NotificationTextBubble: View {
     }
 }
 
-/// A payment "cash card" matching `ChatCashCardCell` (232×170): a token row top-left, a centered
+/// A payment "cash card" styled like `ChatCashCardCell`, fixed at 232×170 here (there is no
+/// transcript width to size off in a notification banner): a token row top-left, a centered
 /// "You sent / You received" caption over the currency flag + amount, and the same bubble chrome.
 private struct NotificationCashCard: View {
 

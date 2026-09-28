@@ -509,7 +509,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         case let cell as ChatCashCardCell:
-            cell.configure(with: message, authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: maxWidth, authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
