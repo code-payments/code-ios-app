@@ -346,13 +346,14 @@ final class ReactionPillRowView: UIView {
                 moves.append((view, frame))
             }
         }
+        // Pills move while the tap grace is open, so a touch on one mid-flight must still count.
         if !moves.isEmpty {
-            ChatMotion.reactionReflow.animate {
+            ChatMotion.reactionReflow.animate(options: .allowUserInteraction) {
                 for (view, frame) in moves { Self.place(view, at: frame) }
             }
         }
         if !arrivals.isEmpty {
-            ChatMotion.reaction.animate {
+            ChatMotion.reaction.animate(options: .allowUserInteraction) {
                 for view in arrivals {
                     view.alpha = 1
                     view.transform = .identity
@@ -440,7 +441,7 @@ final class ReactionPillRowView: UIView {
         var container: UIView? = cell.superview
         while let current = container, !(current is UICollectionView) { container = current.superview }
         let collectionView = container as? UICollectionView
-        ChatMotion.reactionReflow.animate {
+        ChatMotion.reactionReflow.animate(options: .allowUserInteraction) {
             collectionView?.performBatchUpdates(nil)
             self.layoutIfNeeded()
         }

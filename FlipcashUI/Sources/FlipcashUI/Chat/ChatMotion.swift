@@ -62,6 +62,7 @@ public nonisolated struct ChatSpring: Hashable, Sendable {
     @MainActor public func animate(
         delay: TimeInterval = 0,
         initialVelocity: CGFloat = 0,
+        options: UIView.AnimationOptions = [],
         _ animations: @escaping () -> Void,
         completion: ((Bool) -> Void)? = nil
     ) {
@@ -70,6 +71,7 @@ public nonisolated struct ChatSpring: Hashable, Sendable {
             bounce: bounce,
             initialSpringVelocity: initialVelocity,
             delay: delay,
+            options: options,
             animations: animations,
             completion: completion
         )
