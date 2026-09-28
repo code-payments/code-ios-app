@@ -157,7 +157,7 @@ struct NewPublicGroupModelTests {
 
     // MARK: - Currency choice -
 
-    @Test("The form opens on All Currencies")
+    @Test("The form opens on Total Balance")
     func opensOnAllCurrencies() {
         let model = NewPublicGroupModel()
 
@@ -165,7 +165,7 @@ struct NewPublicGroupModelTests {
         #expect(model.currency.mint == nil, "No token row reads as selected in the picker")
     }
 
-    @Test("Picking a token replaces All Currencies")
+    @Test("Picking a token replaces Total Balance")
     func pickingATokenReplacesAll() {
         let model = NewPublicGroupModel()
 
@@ -175,7 +175,7 @@ struct NewPublicGroupModelTests {
         #expect(model.currency.mint == .jeffy)
     }
 
-    @Test("Choosing All Currencies after a token clears the token")
+    @Test("Choosing Total Balance after a token clears the token")
     func choosingAllClearsTheToken() {
         let model = NewPublicGroupModel()
         model.select(balance: .makeTest(mint: .jeffy))
@@ -188,7 +188,7 @@ struct NewPublicGroupModelTests {
 
     // MARK: - Rules -
 
-    @Test("All Currencies maps to a requirement with no mints")
+    @Test("Total Balance maps to a requirement with no mints")
     func allCurrenciesRulesCarryNoMints() {
         let model = NewPublicGroupModel()
         model.select(minimumBalance: .usd(100))
@@ -211,7 +211,7 @@ struct NewPublicGroupModelTests {
         #expect(model.rules?.speaker.isEmpty == true)
     }
 
-    @Test("Switching back to All Currencies drops the mint from the rules")
+    @Test("Switching back to Total Balance drops the mint from the rules")
     func switchingBackToAllDropsTheMint() {
         let model = filledModel()
 
@@ -232,7 +232,7 @@ struct NewPublicGroupModelTests {
         #expect(model.rules != nil)
     }
 
-    @Test("Create sends an All Currencies group with no mints")
+    @Test("Create sends a Total Balance group with no mints")
     func createSendsEmptyMints() async throws {
         let model = NewPublicGroupModel()
         model.title = "Ballers"
@@ -271,7 +271,7 @@ struct NewPublicGroupModelTests {
         #expect(model.canCreate(session: StubHoldings(usd: 10_000), rates: noRates) == false)
     }
 
-    @Test("All Currencies counts every holding toward the creator's own requirement")
+    @Test("Total Balance counts every holding toward the creator's own requirement")
     func allCurrenciesSumsTheCreatorsHoldings() {
         let model = NewPublicGroupModel()
         model.title = "Ballers"
@@ -284,7 +284,7 @@ struct NewPublicGroupModelTests {
         #expect(model.canCreate(session: spread, rates: noRates))
     }
 
-    @Test("All Currencies stays short when the holdings added together are short")
+    @Test("Total Balance stays short when the holdings added together are short")
     func allCurrenciesShortWhenTheTotalIsShort() {
         let model = NewPublicGroupModel()
         model.title = "Ballers"
@@ -304,7 +304,7 @@ struct NewPublicGroupModelTests {
         #expect(model.satisfiesOwnRules(session: spread, rates: noRates) == false)
     }
 
-    @Test("The All Currencies card weighs the total even while a token is picked")
+    @Test("The Total Balance card weighs the total even while a token is picked")
     func allCurrenciesCardWeighsTheTotal() {
         let model = filledModel(minimum: 100)
 
