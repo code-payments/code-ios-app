@@ -176,11 +176,8 @@ private struct UnreadCountPill: View {
 
     let count: Int
 
-    /// The tab bar's badge caps at the same point.
-    private static let cap = 100
-
     var body: some View {
-        Text(count > Self.cap ? "\(Self.cap)+" : "\(count)")
+        Text(UnreadCountLabel.text(for: count))
             .font(.appTextHeading)
             .tracking(-0.72)
             .foregroundStyle(Color.backgroundMain)

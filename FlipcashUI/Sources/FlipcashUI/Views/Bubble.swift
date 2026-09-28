@@ -7,31 +7,23 @@
 //
 
 import SwiftUI
+import FlipcashCore
 
+/// A count badge in a capsule; counts above 99 read "99+".
 public struct Bubble: View {
     
     public let size: Size
     public let count: Int
-    public let hasMore: Bool
     public let color: Color
 
-    private var decoration: String {
-        if hasMore {
-            return "+"
-        } else {
-            return ""
-        }
-    }
-
-    public init(size: Size, count: Int, hasMore: Bool = false, color: Color = .textSuccess) {
+    public init(size: Size, count: Int, color: Color = .textSuccess) {
         self.size = size
         self.count = count
-        self.hasMore = hasMore
         self.color = color
     }
 
     public var body: some View {
-        Text("\(count)\(decoration)")
+        Text(UnreadCountLabel.text(for: count))
             .foregroundStyle(.textMain)
             .font(size.font)
             .lineLimit(1)
