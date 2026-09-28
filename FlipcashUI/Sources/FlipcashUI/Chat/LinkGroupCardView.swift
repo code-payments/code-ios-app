@@ -241,6 +241,9 @@ struct LinkGroupCardContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .coordinateSpace(.named(Self.cardSpace))
+        // Its own ground rather than the transcript's showing through, so a lifted copy over the
+        // menu's dim keeps the card's colour instead of going black.
+        .background(Color.backgroundMain)
         .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous))
         .overlay {
             UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous)
