@@ -29,8 +29,12 @@ struct GroupInviteSheet: View {
     /// row holds.
     private static let confirmationDuration: Duration = .seconds(1.5)
 
+    /// How far the composer slides from: past the home indicator, off the sheet.
+    private static let composerDrop: CGFloat = 120
+
     @State private var model: InvitePeopleViewModel
     @State private var didCopy = false
+    @State private var headerHeight: CGFloat = 0
     @FocusState private var isMessageFocused: Bool
 
     init(conversationID: ConversationID, isPresented: Binding<Bool>, onInvited: @escaping (ConversationID) -> Void) {
@@ -74,8 +78,6 @@ struct GroupInviteSheet: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                header
-
                 // A List (not a ScrollView of Buttons) so a drag over a row scrolls and never
                 // toggles it on release.
                 List {
@@ -84,35 +86,55 @@ struct GroupInviteSheet: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
 
-                    Section {
-                        ForEach(recentChats) { chat in
-                            InviteChatRow(
-                                conversation: chat,
-                                isSelected: model.isSelected(chat.id)
-                            ) {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    model.toggleSelection(chat.id)
-                                }
+                    // A row rather than a section header, which a plain List pins to the top.
+                    sectionHeader
+                        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+
+                    ForEach(recentChats) { chat in
+                        InviteChatRow(
+                            conversation: chat,
+                            isSelected: model.isSelected(chat.id)
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                model.toggleSelection(chat.id)
                             }
-                            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
                         }
-                    } header: {
-                        sectionHeader
+                        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .scrollDismissesKeyboard(.interactively)
+                .softScrollEdge(for: [.top, .bottom])
+                .bar(edge: .top) {
+                    header
+                }
+                // The edge effect draws only under a bar with drawn content, and drops out while that
+                // content moves. So the bar holds a still, invisible copy of the field, pick or no
+                // pick, and the real field slides over it from outside the bar.
+                .bar(edge: .bottom) {
+                    composerStandIn
+                }
+                .overlay(alignment: .bottom) {
+                    ZStack {
+                        if model.showsComposer {
+                            composer
+                                // Slides rather than fades: Liquid Glass switches partway through an
+                                // opacity change instead of following it.
+                                .transition(.offset(y: Self.composerDrop))
+                        }
+                    }
+                    .animation(.spring(duration: 0.35), value: model.showsComposer)
+                }
+                // Down to the screen edge, so the bottom blur spans the same height as the top one
+                // rather than the field plus the home indicator.
+                .ignoresSafeArea(.container, edges: .bottom)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
-        .safeAreaInset(edge: .bottom) {
-            if model.showsComposer {
-                composer
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
         }
         .presentationDetents([.large])
         .presentationBackground(Color.backgroundMain)
@@ -139,15 +161,17 @@ struct GroupInviteSheet: View {
             }
         }
         .padding(16)
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { headerHeight = $0 }
     }
 
-    /// Share and Copy Invite Link, as the profile's action buttons, laid out as the profile lays
-    /// out its own: fixed columns side by side, centred.
+    /// Share and Copy Invite Link as two tiles side by side, sized to the taller of the two.
     private var shareTiles: some View {
-        HStack(alignment: .top, spacing: 0) {
-            ProfileActionButton(title: "Share") {
+        HStack(spacing: 10) {
+            ShareTile(title: "Share") {
                 Image.asset(.shareOS)
                     .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
             } action: {
                 Analytics.groupInviteShared(method: .share)
                 ShareSheet.present(
@@ -156,19 +180,23 @@ struct GroupInviteSheet: View {
             }
             .accessibilityIdentifier("group-invite-send")
 
-            ProfileActionButton(title: didCopy ? "Copied" : "Copy Invite Link") {
+            ShareTile(title: didCopy ? "Copied" : "Copy Invite Link") {
                 if didCopy {
                     Image.system(.circleCheck)
+                        .resizable()
+                        .scaledToFit()
                 } else {
                     Image.asset(.squareBehindSquare)
                         .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
                 }
             } action: {
                 copy()
             }
             .accessibilityIdentifier("group-invite-copy")
         }
-        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var sectionHeader: some View {
@@ -182,19 +210,21 @@ struct GroupInviteSheet: View {
                     .fill(Color.rowSeparator)
                     .frame(height: 1)
             }
-            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-            .background(Color.backgroundMain)
     }
 
     /// The message field and Invite button, shown once a chat is picked (Figma: "Bottom bar pops up
-    /// after selecting someone").
+    /// after selecting someone"). Built as the chat composer is: the button sits inside one glass
+    /// field that floats over the list.
     private var composer: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .bottom, spacing: 10) {
             TextField("Add a message", text: $model.message, axis: .vertical)
-                .font(.default(size: 17, weight: .medium))
+                .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
+                .tint(.white)
                 .lineLimit(1...4)
                 .focused($isMessageFocused)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minHeight: BarMetrics.fieldMinHeight)
                 .disabled(model.isSending)
                 .accessibilityIdentifier("group-invite-message")
 
@@ -208,19 +238,55 @@ struct GroupInviteSheet: View {
                 .font(.default(size: 17, weight: .medium))
                 .foregroundStyle(Color.textAction)
                 .padding(.horizontal, 14)
-                .frame(height: 34)
+                .frame(height: BarMetrics.fieldMinHeight)
                 .background(Color.action, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             }
             .buttonStyle(.plain)
             .disabled(model.isSending)
             .accessibilityIdentifier("group-invite-submit")
         }
-        .padding(.leading, 16)
+        .padding(.leading, 14)
         .padding(.trailing, 8)
-        .padding(.vertical, 8)
-        .modifier(ComposerGlass())
-        .padding(.horizontal, 22)
-        .padding(.bottom, 8)
+        .padding(.vertical, BarMetrics.fieldVerticalPadding)
+        // Behind the field rather than wrapping it, which would break the text-selection grabbers.
+        .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+        .padding(.horizontal, 12)
+        .padding(.top, BarMetrics.contentPadding)
+        .padding(.bottom, bottomPadding)
+    }
+
+    /// Lifts a one-line field so it and the stand-in fill exactly the header's height from the
+    /// screen edge.
+    private var bottomPadding: CGFloat {
+        let fieldHeight = BarMetrics.contentHeight + BarMetrics.contentPadding
+        return max(BarMetrics.contentPadding, headerHeight - fieldHeight)
+    }
+
+    /// The composer's shape and size with nothing live in it, drawn invisibly under the bottom bar.
+    private var composerStandIn: some View {
+        // Mirrors the field's text and button so it grows line for line with the real composer.
+        HStack(alignment: .bottom, spacing: 10) {
+            Text(model.message.isEmpty ? "Add a message" : model.message)
+                .font(.appTextMessage)
+                .lineLimit(1...4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minHeight: BarMetrics.fieldMinHeight)
+
+            Text("Invite")
+                .font(.default(size: 17, weight: .medium))
+                .padding(.horizontal, 14)
+                .frame(height: BarMetrics.fieldMinHeight)
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 8)
+        .padding(.vertical, BarMetrics.fieldVerticalPadding)
+        .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+        .padding(.horizontal, 12)
+        .padding(.top, BarMetrics.contentPadding)
+        .padding(.bottom, bottomPadding)
+        .opacity(0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private func invite() {
@@ -246,6 +312,37 @@ struct GroupInviteSheet: View {
                 didCopy = false
             }
         }
+    }
+}
+
+/// A share action as a tile (Figma node 10330:19400): a 28pt glyph over a dimmed, centred label
+/// that wraps rather than truncates.
+private struct ShareTile<Icon: View>: View {
+
+    let title: String
+    @ViewBuilder let icon: () -> Icon
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                icon()
+                    .frame(width: 28, height: 28)
+                Text(title)
+                    .font(.appTextSmall)
+                    .opacity(0.5)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(Color.textMain)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, minHeight: 95)
+            .background(Color.white.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -322,14 +419,16 @@ private struct InviteChatRow: View {
     }
 }
 
-/// The composer's translucent shell: Liquid Glass where the OS has it.
-private struct ComposerGlass: ViewModifier {
-    func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+private extension View {
+
+    /// Floats `bar` over one edge of the list. On iOS 26+ the bar joins the scroll edge effect, so
+    /// rows blur progressively beneath it as they do under a navigation bar or the chat composer.
+    @ViewBuilder
+    func bar(edge: VerticalEdge, @ViewBuilder _ bar: () -> some View) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: shape)
+            safeAreaBar(edge: edge, spacing: 0, content: bar)
         } else {
-            content.background(.ultraThinMaterial, in: shape)
+            safeAreaInset(edge: edge, spacing: 0, content: bar)
         }
     }
 }
