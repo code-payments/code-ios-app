@@ -138,6 +138,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.pushController.clearBadgeCount()
             shutDownForBackground()
             flushLogsForBackground()
+            stopTypingForBackground()
         case .active:
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
@@ -227,6 +228,37 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             defer { self?.endLogFlushTask() }
 
             await LogStore.shared.flush()
+        }
+    }
+
+    private var typingStopTaskID: UIBackgroundTaskIdentifier = .invalid
+
+    private func endTypingStopTask() {
+        guard typingStopTaskID != .invalid else {
+            return
+        }
+
+        UIApplication.shared.endBackgroundTask(typingStopTaskID)
+        typingStopTaskID = .invalid
+    }
+
+    /// Sends the user's typing STOPPED before suspension.
+    ///
+    /// The idle timeout that would otherwise send it is a `Task.sleep`, which freezes with the
+    /// app, and counterparts keep a typist on screen until a STOPPED arrives.
+    private func stopTypingForBackground() {
+        guard let conversationController = sessionContainer?.conversationController else {
+            return
+        }
+
+        typingStopTaskID = UIApplication.shared.beginBackgroundTask(withName: "typing.stop") { [weak self] in
+            MainActor.assumeIsolated { self?.endTypingStopTask() }
+        }
+
+        Task { @MainActor [weak self] in
+            defer { self?.endTypingStopTask() }
+
+            await conversationController.stopSelfTypingForBackground()
         }
     }
 
