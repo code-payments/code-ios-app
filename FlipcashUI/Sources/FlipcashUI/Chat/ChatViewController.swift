@@ -240,16 +240,10 @@ public final class ChatViewController: UICollectionViewController {
     /// of the time.
     private(set) var contextMenuMessage: ChatMessage?
 
-    /// Whether a long-pressed row should lift with room above it for the reaction strip. The screen
-    /// sets this, since it owns what the strip offers.
-    var liftReservesStripRoom: ((ChatMessage) -> Bool)?
     /// Fired when a bubble that can take a reaction is double-tapped, to present the strip on its own.
     var onBubbleDoubleTap: ((ChatMessage) -> Void)?
     private weak var bubbleDoubleTap: UITapGestureRecognizer?
-    /// The preview a lift with strip room hands UIKit: a copy of the bubble at the bottom of a clear
-    /// box that also holds the strip's room. Kept so the dismissal flies the same box home.
-    private var liftContainer: UIView?
-    /// The copy inside `liftContainer`, or the one a strip-only lift handed out.
+    /// The copy a strip-only lift handed out.
     private weak var liftStandIn: UIView?
     /// The row's own bubble, hidden while a copy stands in for it. UIKit hides the source of a
     /// preview it lifts itself, but not one it is handed a detached copy for.
@@ -1184,7 +1178,6 @@ extension ChatViewController {
     private func resumeAfterLift() {
         hiddenLiftSource?.alpha = 1
         hiddenLiftSource = nil
-        liftContainer = nil
         liftStandIn = nil
         // Restore the inset while the flag is still set, so the behavior switch's inset change is
         // suppressed (no stray scroll); then drop the flag and apply any held update.
@@ -1230,27 +1223,6 @@ extension ChatViewController {
     func endStripLift() {
         guard isShowingContextMenu, contextMenuMessage == nil else { return }
         resumeAfterLift()
-    }
-
-    /// Where the lifted bubble sits on screen, in window coordinates, or `nil` when none is up. UIKit
-    /// draws the lift through a portal of the box, so the box's own frame says nothing about where it
-    /// landed; the platter is found instead as the view outside the transcript that matches the box's
-    /// size, and the bubble is its bottom part.
-    func liftedBubbleFrame() -> CGRect? {
-        guard let container = liftContainer, let copy = liftStandIn,
-              let scene = collectionView.window?.windowScene else { return nil }
-        let size = container.bounds.size
-        var pending: [UIView] = scene.windows
-        while let next = pending.popLast() {
-            guard next !== container, next !== collectionView else { continue }
-            if !next.isHidden, abs(next.bounds.width - size.width) < 1, abs(next.bounds.height - size.height) < 1 {
-                let platter = next.convert(next.bounds, to: nil)
-                let height = platter.height * copy.frame.height / size.height
-                return CGRect(x: platter.minX, y: platter.maxY - height, width: platter.width, height: height)
-            }
-            pending.append(contentsOf: next.subviews)
-        }
-        return nil
     }
 
     /// A raised copy of `cell`'s bubble.
@@ -1359,10 +1331,6 @@ extension ChatViewController {
         // An empty path turns off UIKit's own preview shadow, which on iOS 27 traces the view's square
         // bounds and outlasts the dismissal. The bubble-shaped shadow below is the only one.
         parameters.shadowPath = UIBezierPath()
-        if let message = message(at: IndexPath(item: item, section: section)), liftReservesStripRoom?(message) == true,
-           let preview = stripRoomPreview(for: cell, parameters: parameters, raising: raising) {
-            return preview
-        }
         // The lift's elevation, put on the bubble itself because the preview won't carry one: a clear
         // background casts nothing, `shadowPath` or not. Taken off again in `willEndContextMenu`'s
         // completion — this is a live cell subview, not a copy.
@@ -1371,39 +1339,6 @@ extension ChatViewController {
             BubbleBackgroundView.raise(cell.liftPreviewView, shape: cell.liftPreviewMaskingPath)
         }
         return UITargetedPreview(view: cell.liftPreviewView, parameters: parameters)
-    }
-
-    /// The lift for a row the strip will sit above: the bubble's copy at the bottom of a clear box
-    /// `ReactionStripView.headroom` taller than the bubble, centered so the copy starts over the row.
-    /// UIKit keeps the whole box on screen, which moves a bubble near the top down far enough for the
-    /// strip, and puts the menu clear of the box. The dismissal reuses the box raised with the lift.
-    private func stripRoomPreview(for cell: BubbleCarrying, parameters: UIPreviewParameters, raising: Bool) -> UITargetedPreview? {
-        let bubble = cell.liftPreviewView
-        let headroom = ReactionStripView.headroom
-        let container: UIView
-        if !raising, let existing = liftContainer {
-            container = existing
-        } else {
-            guard let copy = liftCopy(of: cell) else { return nil }
-            container = UIView(frame: CGRect(x: 0, y: 0, width: bubble.bounds.width, height: bubble.bounds.height + headroom))
-            container.backgroundColor = .clear
-            copy.frame.origin = CGPoint(x: 0, y: headroom)
-            container.addSubview(copy)
-            liftContainer = container
-            liftStandIn = copy
-            liftedBubble = copy
-            hideLiftSource(bubble)
-        }
-        let shape = cell.liftPreviewMaskingPath.map { $0.copy() as! UIBezierPath }
-            ?? UIBezierPath(rect: bubble.bounds)
-        shape.apply(CGAffineTransform(translationX: 0, y: headroom))
-        // UIKit sizes the lifted platter to this path's bounds, so the clear headroom goes in too;
-        // without it the platter is the bubble alone and the menu can cover the strip.
-        shape.append(UIBezierPath(rect: CGRect(x: 0, y: 0, width: bubble.bounds.width, height: headroom)))
-        parameters.visiblePath = shape
-        let frame = collectionView.convert(bubble.bounds, from: bubble)
-        let target = UIPreviewTarget(container: collectionView, center: CGPoint(x: frame.midX, y: frame.midY - headroom / 2))
-        return UITargetedPreview(view: container, parameters: parameters, target: target)
     }
 }
 
