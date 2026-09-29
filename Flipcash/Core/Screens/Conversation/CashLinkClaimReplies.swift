@@ -22,6 +22,10 @@ final class CashLinkClaimReplies {
 
     static let thanks = "Thanks for the cash!"
 
+    /// Whether a collected claim is actually answered. Off for now; taps and claims are still
+    /// tracked, so turning this back on is the only change needed.
+    static let isEnabled = false
+
     private let claims: CashLinkClaimLog
     private let reply: @MainActor (MessageID) -> Void
 

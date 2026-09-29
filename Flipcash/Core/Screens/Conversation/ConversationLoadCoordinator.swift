@@ -99,6 +99,7 @@ final class ConversationLoadCoordinator {
         self.openingUnreadBoundary = boundary
         self.newestAtOpen = controller.lastConfirmedMessage(for: conversationID)?.id
         self.claimReplies = CashLinkClaimReplies(claims: session.cashLinkClaims) { [controller] messageID in
+            guard CashLinkClaimReplies.isEnabled else { return }
             Task { await controller.send(CashLinkClaimReplies.thanks, to: conversationID, repliedTo: messageID) }
         }
 
