@@ -32,7 +32,7 @@ struct TipsUIScreen {
     /// The empty state, shown until the first tip conversation exists.
     var emptyState: XCUIElement { app.staticTexts["No Chats Yet"] }
 
-    /// The tip-conversation rows. Every cell is a conversation — there is no
+    /// The conversation rows, tip DMs and groups alike. Every cell is a conversation — there is no
     /// leading call-to-action row to skip.
     private var conversationCells: [XCUIElement] {
         app.cells.allElementsBoundByIndex
@@ -62,5 +62,13 @@ struct TipsUIScreen {
             Thread.sleep(forTimeInterval: 0.5)
         }
         return nil
+    }
+
+    /// The first tip-DM row, skipping groups, which share the list but have no
+    /// counterpart to open. Waits out the list's hydration, then
+    /// returns `nil` when the account has no tip DM — the caller skips.
+    func firstTipDMRow(timeout: TimeInterval = 15) -> XCUIElement? {
+        let row = app.buttons.matching(identifier: "chat-row-tip-dm").firstMatch
+        return row.waitForExistence(timeout: timeout) ? row : nil
     }
 }

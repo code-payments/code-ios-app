@@ -260,6 +260,7 @@ private struct TipConversationRow: View {
                 unreadCount: unreadCount
             )
         }
+        .accessibilityIdentifier(chatTypeIdentifier)
         .task(id: avatarSubject) {
             await sessionContainer.profileAvatars.load(avatarSubject, picture: avatarPicture)
         }
@@ -287,6 +288,15 @@ private struct TipConversationRow: View {
         // Not an emphasis intent: the bundled Avenir has no italic, so asking for one renders upright.
         placeholder.font = .defaultOblique(size: 14, weight: .bold, dynamicTypeSize: dynamicTypeSize)
         return placeholder
+    }
+
+    /// Names the row's chat type, so UI tests can tell a tip DM from a group — the label is only a name.
+    private var chatTypeIdentifier: String {
+        switch conversation.type {
+        case .tipDm:     "chat-row-tip-dm"
+        case .contactDm: "chat-row-contact-dm"
+        case .group:     "chat-row-group"
+        }
     }
 
     /// The row reads as one element, so the bell's own label is discarded — it has to be said here.
