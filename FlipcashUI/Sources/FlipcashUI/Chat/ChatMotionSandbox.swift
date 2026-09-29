@@ -73,15 +73,22 @@ public final class ChatMotionSandboxViewController: UIViewController {
     private let transcript = ChatViewController()
     private let runButton = UIButton(type: .system)
     private let loopSwitch = UISwitch()
+    private let caption = UILabel()
     private var run: Task<Void, Never>?
+
+    /// Plays the group script instead of the DM one.
+    private let isGroup: Bool
 
     /// `autoplay` starts the script looping as soon as the screen appears. The recording path uses
     /// it — a recording that depends on a tap lands the beat at a different offset every take, and
     /// two takes that don't line up can't be compared frame for frame.
     private let autoplay: Bool
 
-    public init(autoplay: Bool = false) {
+    /// `group` plays ``GroupScript`` — the group rows of the shared typing-dots handoff table, one
+    /// scene each — instead of the DM exchange.
+    public init(autoplay: Bool = false, group: Bool = false) {
         self.autoplay = autoplay
+        self.isGroup = group
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -106,10 +113,19 @@ public final class ChatMotionSandboxViewController: UIViewController {
         loopLabel.font = .default(size: 13, weight: .medium)
         loopLabel.textColor = .white.withAlphaComponent(0.5)
 
-        let controls = UIStackView(arrangedSubviews: [runButton, UIView(), loopLabel, loopSwitch])
-        controls.axis = .horizontal
-        controls.alignment = .center
-        controls.spacing = 8
+        caption.font = .default(size: 13, weight: .medium)
+        caption.textColor = .white.withAlphaComponent(0.7)
+        caption.numberOfLines = 2
+        caption.isHidden = !isGroup
+
+        let buttons = UIStackView(arrangedSubviews: [runButton, UIView(), loopLabel, loopSwitch])
+        buttons.axis = .horizontal
+        buttons.alignment = .center
+        buttons.spacing = 8
+
+        let controls = UIStackView(arrangedSubviews: [caption, buttons])
+        controls.axis = .vertical
+        controls.spacing = 4
         controls.isLayoutMarginsRelativeArrangement = true
         controls.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
         controls.translatesAutoresizingMaskIntoConstraints = false
@@ -126,7 +142,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
             controls.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
 
-        transcript.update(items: items(at: .reset), animated: false)
+        resetTranscript()
     }
 
     public override func viewDidAppear(_ animated: Bool) {
@@ -148,7 +164,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
         guard run == nil else {
             run?.cancel()
             run = nil
-            transcript.update(items: items(at: .reset), animated: false)
+            resetTranscript()
             return
         }
         start()
@@ -168,6 +184,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
     /// plain diff against the last one — which is the condition the receipt and the corners
     /// animate on.
     private func play() async {
+        guard !isGroup else { return await playGroup() }
         for beat in Self.script {
             try? await Task.sleep(for: beat.delay)
             guard !Task.isCancelled else { return }
@@ -178,6 +195,30 @@ public final class ChatMotionSandboxViewController: UIViewController {
                 transcript.update(items: items(at: beat))
             }
         }
+    }
+
+    private func resetTranscript() {
+        if isGroup {
+            caption.text = nil
+            transcript.update(items: GroupScript.items(GroupScript.base, typing: []), animated: false)
+        } else {
+            transcript.update(items: items(at: .reset), animated: false)
+        }
+    }
+
+    /// Plays the group script once, captioning each scene with the table row it shows.
+    private func playGroup() async {
+        var messages = GroupScript.base
+        for scene in GroupScript.scenes {
+            try? await Task.sleep(for: scene.delay)
+            guard !Task.isCancelled else { return }
+            messages += scene.arrivals
+            caption.text = scene.caption
+            transcript.update(items: GroupScript.items(messages, typing: scene.typing))
+        }
+        try? await Task.sleep(for: .seconds(2))
+        guard !Task.isCancelled else { return }
+        resetTranscript()
     }
 
     /// The whole transcript as of `beat`.
@@ -217,8 +258,8 @@ public final class ChatMotionSandboxViewController: UIViewController {
     private static func grouped(_ messages: [ChatMessage], held: (id: String, receipt: ChatReceipt?)?) -> [ChatMessage] {
         let receipts = messages.map { $0.id == held?.id ? held?.receipt : $0.receipt }
         return messages.enumerated().map { index, message in
-            let above = index > 0 && messages[index - 1].sender == message.sender
-            let below = index < messages.count - 1 && messages[index + 1].sender == message.sender
+            let above = index > 0 && sameRun(messages[index - 1], message)
+            let below = index < messages.count - 1 && sameRun(messages[index + 1], message)
             return ChatMessage(
                 id: message.id,
                 content: message.content,
@@ -229,8 +270,83 @@ public final class ChatMotionSandboxViewController: UIViewController {
                 joinsBubbleAbove: above && receipts[index - 1] == nil,
                 joinsBubbleBelow: below && receipts[index] == nil,
                 receipt: receipts[index],
-                linkPreview: message.linkPreview
+                linkPreview: message.linkPreview,
+                author: message.author,
+                isAttributedTranscript: message.isAttributedTranscript
             )
+        }
+    }
+
+    /// Adjacent rows share a run when the same person wrote both. A DM's rows carry no author, so
+    /// there the side alone decides.
+    private static func sameRun(_ a: ChatMessage, _ b: ChatMessage) -> Bool {
+        a.sender == b.sender && a.author?.id == b.author?.id
+    }
+
+    /// The group rows of the shared typing-dots handoff table (`docs/cross-platform-parity.md` in
+    /// flipcash-client-orchestrator), played one scene at a time on a named-author transcript.
+    private enum GroupScript {
+
+        struct Scene {
+            let delay: Duration
+            let caption: String
+            /// Appended in the same update the typist set changes in.
+            let arrivals: [ChatMessage]
+            /// Who is typing after the update, oldest first.
+            let typing: [ChatAuthor]
+        }
+
+        static let ada = author(0, "Ada Lovelace")
+        static let grace = author(1, "Grace Hopper")
+        static let alan = author(2, "Alan Turing")
+
+        private static func author(_ index: Int, _ name: String) -> ChatAuthor {
+            ChatAuthor(id: UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", index)) ?? UUID(), name: name)
+        }
+
+        /// Every scripted text is distinct, so it doubles as the row id.
+        private static func from(_ author: ChatAuthor?, _ text: String) -> ChatMessage {
+            ChatMessage(
+                id: "group-\(text)",
+                text: text,
+                sender: author == nil ? .me : .other,
+                author: author,
+                isAttributedTranscript: true
+            )
+        }
+
+        static let base: [ChatMessage] = [
+            from(ada, "Lunch at noon?"),
+            from(grace, "I'm in"),
+            from(nil, "Same, where?"),
+        ]
+
+        static let scenes: [Scene] = [
+            Scene(delay: .seconds(1.2), caption: "Ada and Grace start typing", arrivals: [], typing: [ada, grace]),
+            Scene(delay: .seconds(2.6), caption: "One of two sends: inserts above, dots stay for Grace",
+                  arrivals: [from(ada, "The taco place?")], typing: [grace]),
+            Scene(delay: .seconds(2.6), caption: "Non-typist sends: inserts above, dots stay",
+                  arrivals: [from(alan, "Count me in")], typing: [grace]),
+            Scene(delay: .seconds(2.6), caption: "Viewer sends: inserts above, dots stay",
+                  arrivals: [from(nil, "Tacos it is")], typing: [grace]),
+            Scene(delay: .seconds(2.2), caption: "Ada types again", arrivals: [], typing: [grace, ada]),
+            Scene(delay: .seconds(2.6), caption: "Both send together: Ada (newest) takes the dots",
+                  arrivals: [from(grace, "Booking a table"), from(ada, "Perfect")], typing: []),
+            Scene(delay: .seconds(2.2), caption: "Ada types", arrivals: [], typing: [ada]),
+            Scene(delay: .seconds(2.6), caption: "Newest arrival wasn't typing: both insert, dots exit",
+                  arrivals: [from(ada, "12:15 works too"), from(alan, "See you there")], typing: []),
+            Scene(delay: .seconds(2.2), caption: "Grace types", arrivals: [], typing: [grace]),
+            Scene(delay: .seconds(2.6), caption: "The only typist sends: Grace takes the dots",
+                  arrivals: [from(grace, "Table for four at noon")], typing: []),
+        ]
+
+        /// `messages` regrouped, with the dots row trailing them while anyone types.
+        static func items(_ messages: [ChatMessage], typing: [ChatAuthor]) -> [ChatItem] {
+            var items = ChatMotionSandboxViewController.grouped(messages, held: nil).map { ChatItem.message($0) }
+            if !typing.isEmpty {
+                items.append(.typingIndicator(typists: typing))
+            }
+            return items
         }
     }
 }

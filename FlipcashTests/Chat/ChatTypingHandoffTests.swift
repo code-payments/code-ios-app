@@ -10,32 +10,128 @@ import UIKit
 import FlipcashCore
 @testable import FlipcashUI
 
+/// One row of the shared case table in `docs/cross-platform-parity.md` (flipcash-client-orchestrator,
+/// "Shared rule: typing-dots handoff with several typists"). Android encodes the same eight rows.
+struct TypingHandoffCase: CustomTestStringConvertible, Sendable {
+
+    /// What the dots row does in the update.
+    enum DotsAfter: Sendable {
+        /// Handed to the arrival that takes its frame.
+        case gone
+        /// There were no dots before the update either.
+        case notShown
+        /// Survives as the newest row, showing these typists.
+        case stays([String])
+        /// Leaves on its normal exit; nobody takes its frame.
+        case exits
+    }
+
+    let name: String
+    /// A DM: its dots and incoming rows carry no author.
+    let isDM: Bool
+    let typingBefore: [String]
+    /// Senders, oldest first; `self` is the viewer.
+    let arrivals: [String]
+    let takesFrame: String?
+    let dotsAfter: DotsAfter
+
+    var testDescription: String { name }
+
+    var typingAfter: [String] {
+        switch dotsAfter {
+        case .gone, .notShown, .exits: []
+        case .stays(let typists): typists
+        }
+    }
+
+    static let viewer = "self"
+
+    static let table: [TypingHandoffCase] = [
+        .init(name: "DM reply", isDM: true, typingBefore: ["A"], arrivals: ["A"], takesFrame: "A", dotsAfter: .gone),
+        // Lingering after STOPPED keeps A in the typist set, so it reads the same as the row above.
+        .init(name: "DM reply during linger", isDM: true, typingBefore: ["A"], arrivals: ["A"], takesFrame: "A", dotsAfter: .gone),
+        .init(name: "Linger already expired", isDM: true, typingBefore: [], arrivals: ["A"], takesFrame: nil, dotsAfter: .notShown),
+        .init(name: "Group, one of two sends", isDM: false, typingBefore: ["A", "B"], arrivals: ["A"], takesFrame: nil, dotsAfter: .stays(["B"])),
+        .init(name: "Group, non-typist sends", isDM: false, typingBefore: ["A"], arrivals: ["B"], takesFrame: nil, dotsAfter: .stays(["A"])),
+        .init(name: "Viewer sends", isDM: false, typingBefore: ["A"], arrivals: [viewer], takesFrame: nil, dotsAfter: .stays(["A"])),
+        .init(name: "Group, both send together", isDM: false, typingBefore: ["A", "B"], arrivals: ["A", "B"], takesFrame: "B", dotsAfter: .gone),
+        .init(name: "Newest arrival wasn't typing", isDM: false, typingBefore: ["A"], arrivals: ["A", "B"], takesFrame: nil, dotsAfter: .exits),
+    ]
+}
+
+@Suite("Typing dots handoff rule")
+struct TypingDotsHandoffRuleTests {
+
+    @Test("The shared case table", arguments: TypingHandoffCase.table)
+    func sharedCase(_ c: TypingHandoffCase) {
+        let taker = TypingDotsHandoff.takerIndex(
+            typingBefore: Set(c.typingBefore),
+            arrivals: c.arrivals,
+            typingAfter: Set(c.typingAfter)
+        )
+        #expect(taker.map { c.arrivals[$0] } == c.takesFrame)
+    }
+}
+
 @MainActor
 @Suite("Typing handoff detection")
 struct ChatTypingHandoffDetectionTests {
 
-    private func row(_ id: String, _ sender: ChatMessage.Sender = .other) -> ChatItem {
-        .message(ChatMessage(id: id, text: id, sender: sender))
+    private static let authors = Dictionary(uniqueKeysWithValues: ["A", "B"].map { ($0, ChatAuthor(id: UserID(), name: $0)) })
+
+    private func row(_ id: String, _ sender: ChatMessage.Sender = .other, author: String? = nil, part: ChatMessagePart.Kind? = nil) -> ChatItem {
+        .message(ChatMessage(
+            id: id, text: id, sender: sender,
+            author: author.flatMap { Self.authors[$0] }, isAttributedTranscript: author != nil,
+            part: part.map { ChatMessagePart(messageID: "split", kind: $0, messageText: id) }
+        ))
     }
 
     private let dots = ChatItem.typingIndicator(typists: [])
 
-    @Test("An incoming message replacing the trailing dots takes their place")
-    func incomingReplacesDots() {
-        #expect(ChatViewController.typingHandoffRow(from: [row("a"), dots], to: [row("a"), row("b")]) == 1)
+    private func dots(_ typists: [String], dm: Bool) -> ChatItem {
+        .typingIndicator(typists: dm ? [] : typists.compactMap { Self.authors[$0] })
     }
 
-    @Test("An own message, the dots leaving alone, or dots that stay are not a handoff")
+    /// The case as the transcript hands it over: one earlier row, the dots trailing it while anyone
+    /// types, and the arrivals appended above wherever the dots still are.
+    @Test("The shared case table, as transcript updates", arguments: TypingHandoffCase.table)
+    func sharedCase(_ c: TypingHandoffCase) {
+        let base = row("base", .me)
+        let old = [base] + (c.typingBefore.isEmpty ? [] : [dots(c.typingBefore, dm: c.isDM)])
+        let arrivals = c.arrivals.enumerated().map { index, sender in
+            sender == TypingHandoffCase.viewer
+                ? row("m\(index)", .me, author: nil)
+                : row("m\(index)", author: c.isDM ? nil : sender)
+        }
+        let new = [base] + arrivals + (c.typingAfter.isEmpty ? [] : [dots(c.typingAfter, dm: c.isDM)])
+        let expected = c.takesFrame.flatMap { taker in c.arrivals.lastIndex(of: taker) }.map { 1 + $0 }
+        #expect(ChatViewController.typingHandoffRow(from: old, to: new) == expected)
+    }
+
+    @Test("An own message, the dots leaving alone, or no dots to hand over are not a handoff")
     func notAHandoff() {
         #expect(ChatViewController.typingHandoffRow(from: [row("a"), dots], to: [row("a"), row("b", .me)]) == nil)
         #expect(ChatViewController.typingHandoffRow(from: [row("a"), dots], to: [row("a")]) == nil)
-        #expect(ChatViewController.typingHandoffRow(from: [row("a"), dots], to: [row("a"), row("b"), dots]) == nil)
         #expect(ChatViewController.typingHandoffRow(from: [row("a")], to: [row("a"), row("b")]) == nil)
     }
 
-    @Test("Two rows arriving at once fall back to the ordinary arrival")
-    func twoRowsFallBack() {
-        #expect(ChatViewController.typingHandoffRow(from: [row("a"), dots], to: [row("a"), row("b"), row("c")]) == nil)
+    @Test("A non-typist's message landing as the last typist's dots leave inserts normally")
+    func nonTypistAsDotsLeave() {
+        let old = [row("a"), dots(["A"], dm: false)]
+        #expect(ChatViewController.typingHandoffRow(from: old, to: [row("a"), row("b", author: "B")]) == nil)
+    }
+
+    @Test("A date heading arriving ahead of the reply does not stop the handoff")
+    func headingAhead() {
+        let heading = ChatItem.dateSeparator(id: "day", text: "Today")
+        #expect(ChatViewController.typingHandoffRow(from: [row("a"), dots], to: [row("a"), heading, row("b")]) == 2)
+    }
+
+    @Test("A reply split around its link card inserts normally")
+    func splitReplyFallsBack() {
+        let new = [row("a"), row("b.text", part: .leadingText), row("b.card", part: .card)]
+        #expect(ChatViewController.typingHandoffRow(from: [row("a"), dots], to: new) == nil)
     }
 }
 

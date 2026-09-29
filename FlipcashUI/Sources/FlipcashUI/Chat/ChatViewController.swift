@@ -504,28 +504,52 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     /// The row of the incoming message that takes the typing bubble's place in an update from `old`
-    /// to `new`, or nil when there is none: exactly one row appended at the bottom, a message from
-    /// someone else, in the update that drops the typing indicator trailing `old`.
+    /// to `new`, or nil when there is none. The rows appended at the bottom are the arrivals, and
+    /// `TypingDotsHandoff` picks among them against who was typing before and after.
     static func typingHandoffRow(from old: [ChatItem], to new: [ChatItem]) -> Int? {
-        guard let trailing = old.last, isTypingIndicator(trailing),
-              !new.contains(where: isTypingIndicator),
-              let start = appendStart(from: old, to: new), start == new.count - 1
+        guard let trailing = old.last, let typingBefore = typing(in: trailing),
+              let start = appendStart(from: old, to: new)
         else { return nil }
-        switch new[start] {
-        case .message(let message):
-            switch message.sender {
-            case .other: return start
-            case .me:    return nil
+        let typingAfter = new.lazy.compactMap(typing(in:)).first ?? []
+        let arrivals = (start..<new.count).compactMap { row -> (row: Int, message: ChatMessage)? in
+            switch new[row] {
+            case .message(let message): (row, message)
+            case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: nil
             }
-        case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker:
-            return nil
+        }
+        guard let taker = TypingDotsHandoff.takerIndex(
+            typingBefore: typingBefore,
+            arrivals: arrivals.map { speaker(of: $0.message) },
+            typingAfter: typingAfter
+        ) else { return nil }
+        let (row, message) = arrivals[taker]
+        // The grow is drawn for one bubble, so a message split around its link card inserts normally.
+        guard row == new.count - 1, message.part == nil else { return nil }
+        return row
+    }
+
+    /// Who a row speaks for, as the handoff compares senders with typists. A DM's dots and its
+    /// incoming rows carry no author, so both stand for the one counterpart.
+    private enum Speaker: Hashable {
+        case viewer
+        case counterpart
+        case member(UserID)
+    }
+
+    /// Who the typing indicator shows as typing, or nil when `item` is not the typing indicator.
+    private static func typing(in item: ChatItem) -> Set<Speaker>? {
+        switch item {
+        case .typingIndicator(let typists):
+            typists.isEmpty ? [.counterpart] : Set(typists.map { .member($0.id) })
+        case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker:
+            nil
         }
     }
 
-    private static func isTypingIndicator(_ item: ChatItem) -> Bool {
-        switch item {
-        case .typingIndicator: true
-        case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: false
+    private static func speaker(of message: ChatMessage) -> Speaker {
+        switch message.sender {
+        case .me:    .viewer
+        case .other: message.author.map { .member($0.id) } ?? .counterpart
         }
     }
 
