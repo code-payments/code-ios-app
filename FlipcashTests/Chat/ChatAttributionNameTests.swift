@@ -29,4 +29,17 @@ struct ChatAttributionNameTests {
         let member = ConversationMember(userID: UserID(), displayName: "")
         #expect(ConversationLoadCoordinator.attributionName(for: member) == ConversationController.fallbackCounterpartName)
     }
+
+    @Test("A tip DM with no chat yet titles a nameless profile by its handle, not a blank")
+    @MainActor func dmCounterpart_emptyName_usesHandle() throws {
+        let username = try #require(Username("grace"))
+        let profile = Profile(displayName: "", phone: Phone?.none, email: nil, username: username)
+        #expect(ConversationScreen.counterpart(userID: UserID(), profile: profile).displayName == username.handle)
+    }
+
+    @Test("A tip DM with no chat yet titles a nameless profile without a handle as Flipcash User")
+    @MainActor func dmCounterpart_emptyNameNoHandle_usesFallback() {
+        let profile = Profile(displayName: "", phone: Phone?.none, email: nil)
+        #expect(ConversationScreen.counterpart(userID: UserID(), profile: profile).displayName == ConversationController.fallbackCounterpartName)
+    }
 }
