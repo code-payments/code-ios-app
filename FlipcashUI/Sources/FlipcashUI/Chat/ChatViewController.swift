@@ -700,7 +700,7 @@ public final class ChatViewController: UICollectionViewController {
               let cell = collectionView.cellForItem(at: indexPath) as? BubbleCarrying else { return nil }
         switch message.content {
         case .text: break
-        case .cash, .deleted: return nil
+        case .cash, .deleted, .unavailable: return nil
         }
         let bubble = cell.liftPreviewView
         guard bubble.bounds.contains(bubble.convert(point, from: collectionView)) else { return nil }

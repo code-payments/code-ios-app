@@ -26,7 +26,26 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         /// A deleted message's placeholder copy, already resolved for the viewer — "You deleted this
         /// message" or "This message was deleted". The mapper decides which; the view just draws it.
         case deleted(String)
+        /// A message this client cannot display — today, an encrypted one it cannot decrypt. Drawn
+        /// as a dashed "This message can't be displayed" bubble with `hint` beneath it.
+        case unavailable(UnavailableHint)
     }
+
+    /// The line under an unavailable message's bubble, chosen by why it can't be shown.
+    public enum UnavailableHint: Hashable, Sendable, Codable {
+        /// A newer client can read it: "Update Flipcash to see it".
+        case updateApp
+
+        /// The hint's copy.
+        public var text: String {
+            switch self {
+            case .updateApp: "Update Flipcash to see it"
+            }
+        }
+    }
+
+    /// The bubble copy for an unavailable message.
+    public static let unavailableCopy = "This message can\u{2019}t be displayed"
 
     public let id: String
     /// The server's id for the message this row draws, or nil while the send is still pending. A
@@ -102,15 +121,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         guard isEmojiOnly, quote == nil, linkPreview == nil else { return false }
         switch content {
         case .text:           return true
-        case .cash, .deleted: return false
+        case .cash, .deleted, .unavailable: return false
         }
     }
-
-    /// Placeholder copy for content this client has no way to render -- today, an encrypted
-    /// message it cannot decrypt. Reuses the tombstone's `.deleted` display case (same
-    /// non-interactive bubble style) with wording that says "unsupported" rather than "deleted",
-    /// matching Android's copy for the same content.
-    public static let unsupportedContentCopy = "This message isn't supported on this version"
 
     /// Whether this row draws as the link card on its own, with no bubble behind it.
     ///
@@ -128,8 +141,10 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// nothing to record a reaction against until the send lands. A row with no context menu at all
     /// never reaches this check, since the menu itself is what hosts the strip.
     public var offersReactionStrip: Bool {
-        guard case .deleted = content else { return !isUnsent }
-        return false
+        switch content {
+        case .deleted, .unavailable: return false
+        case .text, .cash: return !isUnsent
+        }
     }
 
     public init(

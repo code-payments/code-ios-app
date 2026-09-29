@@ -72,6 +72,17 @@ struct ChatMessageMappingTests {
         ConversationMessage(id: MessageID(value: id), senderID: sender, content: .deleted(.init(deletedBy: deletedBy ?? sender, deletedAt: base.addingTimeInterval(offset))), date: base.addingTimeInterval(offset), unreadSeq: id, eventSequence: id)
     }
 
+    @Test("an encrypted message draws as unavailable, asking for an update")
+    func encryptedMessageIsUnavailable() {
+        let encrypted = ConversationMessage(
+            id: MessageID(value: 1), senderID: them,
+            content: .encrypted(scheme: 1, nonce: Data(), ciphertext: Data()),
+            date: base, unreadSeq: 1
+        )
+        let rows = messageRows(ChatItem.from([encrypted], selfUserID: me))
+        #expect(rows.map(\.content) == [.unavailable(.updateApp)])
+    }
+
     @Test("a deleted tombstone is dropped: no stray separator, no grouping to an invisible row, receipt intact")
     func deletedTombstoneIsDroppedCleanly() {
         // A tombstone opens the transcript, then a real same-sender message shortly after.

@@ -139,6 +139,9 @@ struct ChatProfileScreen: View {
             }
             .padding(.horizontal, 20)
         }
+        .safeAreaInset(edge: .bottom) {
+            E2eeFooter(kind: .group)
+        }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {

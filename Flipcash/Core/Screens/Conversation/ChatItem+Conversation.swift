@@ -238,9 +238,8 @@ extension ChatItem {
                 )
             case .encrypted:
                 // Decryption isn't implemented on this client -- a cross-platform parity hotspot --
-                // so an encrypted message renders as the same non-interactive placeholder bubble a
-                // tombstone does, with copy matching Android's unsupported-content bubble.
-                content = .deleted(ChatMessage.unsupportedContentCopy)
+                // so an encrypted message renders as the unavailable bubble, asking for an update.
+                content = .unavailable(.updateApp)
             }
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean

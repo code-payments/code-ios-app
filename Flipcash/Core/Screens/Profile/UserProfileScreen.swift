@@ -60,6 +60,7 @@ private struct UserProfileContent: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(RatesController.self) private var ratesController
+    @Environment(ConversationController.self) private var conversationController
 
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
@@ -176,10 +177,23 @@ private struct UserProfileContent: View {
             }
             .padding(.horizontal, 20)
         }
+        .safeAreaInset(edge: .bottom) {
+            if showsE2eeFooter {
+                E2eeFooter(kind: .dm)
+            }
+        }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialogItem)
         .task { await model.loadProfile() }
+    }
+
+    /// Only a DM that will actually be encrypted claims to be — see ``E2eePolicy``.
+    private var showsE2eeFooter: Bool {
+        guard let conversationID, let conversation = conversationController.conversation(withID: conversationID) else {
+            return false
+        }
+        return E2eePolicy.shouldEncrypt(conversation)
     }
 
     private var rowInsets: EdgeInsets {
