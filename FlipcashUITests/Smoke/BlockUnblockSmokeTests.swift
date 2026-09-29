@@ -46,13 +46,17 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
 
         // MARK: Reach a tip DM (skip when the account has none).
         tips.open(from: self)
-        guard let row = tips.firstConversationRow() else {
+        // The Chat tab lists groups too; only a tip DM has a counterpart to block.
+        guard let row = tips.firstTipDMRow() else {
             throw XCTSkip("No tip DM in the standing account's Chat tab — skipping the block/unblock round-trip")
         }
-        // The row label is the counterpart's display name, plus an ", unread
-        // messages" suffix when unread. Strip it to the bare name, which the
-        // conversation title, the block dialog, and the blocked-list row share.
-        let name = row.label.replacingOccurrences(of: ", unread messages", with: "")
+        // The row label is the counterpart's display name, then ", <n> unread
+        // messages" when unread and ", muted" when muted. Strip it to the bare
+        // name, which the conversation title, the block dialog, and the
+        // blocked-list row share.
+        let name = row.label
+            .replacingOccurrences(of: #", (\d+ )?unread messages?"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: ", muted", with: "")
         XCTAssertFalse(name.isEmpty, "Expected the tip conversation row to carry the counterpart's name")
         row.tap()
 
