@@ -104,7 +104,7 @@ public nonisolated enum ChatMotion {
 
     /// A bubble arriving in the transcript. The quickest of the set — the message should feel
     /// already-there rather than flown-in.
-    public static let insertion = ChatSpring(duration: 0.23, bounce: 0.27)
+    public static let insertion = ChatSpring(duration: 0.27, bounce: 0.15)
     /// The list settling at the bottom after content is appended.
     public static let scroll = ChatSpring(duration: 0.30, bounce: 0.12)
     /// The transcript following the bottom chrome — the keyboard, or the bar resizing around a
@@ -136,22 +136,29 @@ public nonisolated enum ChatMotion {
     /// A bubble's corners flattening as a bubble run forms. Deliberately the slowest of the
     /// set, so the regrouping reads as settling rather than as a second event.
     public static let corner = ChatSpring(duration: 0.45, bounce: 0.32)
+    /// Rows resizing in place (a receipt moving, a reaction, a status or an edit changing a row's
+    /// height), which glides the transcript to its new layout and never bounces it.
+    public static let reflow = ChatSpring(duration: 0.35, bounce: 0)
+    /// The typing bubble growing into the incoming message that replaces it. The whole update rides
+    /// it, so the rows above make room on the same curve the bubble grows on and its top edge never
+    /// runs into the row above.
+    public static let fromTyping = ChatSpring(duration: 0.20, bounce: 0.21)
     /// A reaction pill arriving under its bubble. A touch more bounce than a bubble's arrival, since
     /// the pill is small and the tap that made it wants an answer.
     public static let reaction = ChatSpring(duration: 0.32, bounce: 0.35)
     /// A reaction pill leaving. Quicker than its arrival and without bounce: a removal is an
     /// acknowledgement, not an event, and an overshoot would read as the pill coming back.
     public static let reactionExit = ChatSpring(duration: 0.2, bounce: 0)
-    /// Pills sliding to make room, or closing a gap. The transcript resizes the cell on `insertion`,
-    /// so the pills travel on the same spring as the space they move into.
-    public static let reactionReflow = insertion
+    /// Pills sliding to make room, or closing a gap. The transcript resizes a row in place on
+    /// `reflow`, so the pills travel on the same spring as the space they move into.
+    public static let reactionReflow = reflow
     /// A pill's count or selected state changing in place.
     public static let reactionChange = ChatSpring(duration: 0.24, bounce: 0)
 
     // MARK: - Scales
 
-    /// A bubble's starting scale as it is inserted, grown from its own aligned edge.
-    public static let insertionScale: CGFloat = 0.95
+    /// A bubble's starting scale as it is inserted, grown from its bottom corner on the sender's side.
+    public static let insertionScale: CGFloat = 0.90
     /// "Delivered"'s starting scale as it appears.
     public static let deliveredScale: CGFloat = 0.95
     /// "Delivered"'s ending scale as it gives way to "Read".
@@ -165,6 +172,9 @@ public nonisolated enum ChatMotion {
     /// A reaction pill's ending scale as it leaves. Shrinks less than it grew, so the exit is felt
     /// as the pill stepping back rather than collapsing.
     public static let reactionExitScale: CGFloat = 0.6
+    /// How far below its slot a row appended at the bottom starts, as a share of the room its arrival
+    /// makes. At 1 it rides up in step with the rows it pushes, so it never overlaps the one above.
+    public static let insertionRise: CGFloat = 0.35
 
     // MARK: - Timing
 
@@ -184,34 +194,58 @@ public nonisolated enum ChatMotion {
     /// How long a sent message holds before its "Delivered" line appears. A floor, not a fixed
     /// delay: the line waits for server confirmation too, whichever is later.
     public static let deliveredDelay: TimeInterval = 0.70
+    /// How long a line a row has just given up takes to fade out as the next row's line reveals.
+    ///
+    /// Bound by the geometry, not by taste: the row below glides up into the line's place on
+    /// `reflow` and draws over it, so the line must be gone before that row's top edge arrives. In a
+    /// bubble run that edge sits one tight row gap under the line and gets there about 40 % into the
+    /// glide, 0.08 s on the 0.35 s reflow; a longer fade is cut off by the arriving bubble.
+    public static let receiptExitFade: TimeInterval = 0.08
+
+    /// How long a message growing out of the typing bubble keeps its text hidden, so the words
+    /// arrive into a bubble that has mostly taken its shape rather than spilling out of the dots'.
+    public static let fromTypingTextDelay: TimeInterval = 0.058
+    /// How long that text takes to fade in once it starts.
+    public static let fromTypingTextFade: TimeInterval = 0.155
+    /// How long the dots take to fade out where they stood as their bubble grows away from them.
+    public static let fromTypingDotsFade: TimeInterval = 0.08
 
     // MARK: - Insertion geometry
 
     /// Where an inserted row starts before it springs into place: transparent and scaled down by
-    /// `insertionScale` about the sender's own edge, so the bubble grows out of its side of the
-    /// thread rather than out of thin air. A row with no sender (a date separator, the profile card)
-    /// scales about its centre.
+    /// `insertionScale` about its bottom corner on the sender's side, so the bubble grows out of its
+    /// side of the thread rather than out of thin air. A row with no sender (a date separator, the
+    /// profile card) scales about its centre.
     ///
     /// The off-centre anchor rides in the transform rather than in `center`, because ChatLayout
     /// overwrites the pending animation's `frame` — and with it `center` — when a self-sizing insert
     /// re-measures mid-flight. `transform` is what survives that, so the anchor has to live there.
     /// Assignment is absolute, so re-applying on a re-measure is safe.
     ///
+    /// `rise` starts the row that many points below its slot. A row appended at the bottom passes
+    /// the room its arrival makes: the rows above are carried up by exactly that much on the same
+    /// spring, so the two travel together and the arrival reads as pushing the thread up rather than
+    /// appearing on top of the row above while that row is still getting out of the way.
+    ///
     /// Takes the attributes rather than reaching for a collection view, so the geometry is testable
     /// without a layout pass.
-    public static func applyInsertionState(to attributes: ChatLayoutAttributes, sender: ChatMessage.Sender?) {
+    @MainActor public static func applyInsertionState(to attributes: ChatLayoutAttributes, sender: ChatMessage.Sender?, rise: CGFloat = 0) {
         attributes.alpha = 0
         let scale = CGAffineTransform(scaleX: insertionScale, y: insertionScale)
+        let lift = CGAffineTransform(translationX: 0, y: rise)
         guard let sender else {
-            attributes.transform = scale
+            attributes.transform = scale.concatenating(lift)
             return
         }
         // A row is full-width, so scaling about its centre pulls both edges in by half the lost
         // width. Translating back out by that much holds the sender's edge still — and holds it at
         // every point of the spring, overshoot included, because both parts interpolate together.
+        // The same goes for the bottom edge, so the bubble grows out of its bottom corner on the
+        // sender's side: the corner nearest the composer it came from.
         let anchor = (1 - insertionScale) * attributes.frame.width / 2
+        let bottom = (1 - insertionScale) * attributes.frame.height / 2
         attributes.transform = scale.concatenating(
-            CGAffineTransform(translationX: sender == .me ? anchor : -anchor, y: 0)
+            CGAffineTransform(translationX: sender == .me ? anchor : -anchor, y: bottom + rise)
         )
     }
 }

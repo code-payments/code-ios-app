@@ -204,14 +204,17 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         }
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
-        // (skipping any trailing receipt) that is from me. Received messages and prepended history
-        // leave the position alone.
+        // (skipping any trailing receipt) that is from me — and the reader was scrolled up in
+        // history. Received messages and prepended history leave the position alone. At the bottom,
+        // ChatLayout's keep-at-bottom already follows the append on the batch's own spring, and a
+        // second scroll on top of it fights that spring for the same offset.
         let newLastMessage = lastMessage(of: items)
         let newLastMessageID = newLastMessage?.id
         let lastIsOwnMessage = if case .message(let message) = newLastMessage { message.sender == .me } else { false }
         let appendedOwn = newLastMessageID != context.coordinator.lastMessageID && lastIsOwnMessage
+        let wasAtBottom = screen.isTranscriptAtBottom
         screen.update(items: items)
-        if appendedOwn {
+        if appendedOwn, !wasAtBottom {
             screen.scrollToBottom(animated: true)
         }
         context.coordinator.lastMessageID = newLastMessageID

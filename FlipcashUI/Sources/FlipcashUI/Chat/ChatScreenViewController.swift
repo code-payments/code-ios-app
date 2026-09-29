@@ -934,6 +934,9 @@ public final class ChatScreenViewController: UIViewController {
     public func update(items: [ChatItem]) { transcript.update(items: items) }
     public func scrollToBottom(animated: Bool = true) { transcript.scrollToBottom(animated: animated) }
 
+    /// Whether the transcript sits at its newest message — see ``ChatViewController/isAtBottom``.
+    public var isTranscriptAtBottom: Bool { transcript.isAtBottom }
+
     /// Brings a row into view, deferring until the update that contains it lands.
     public func scrollToMessage(id: String) { transcript.scrollToMessage(id: id) }
 
