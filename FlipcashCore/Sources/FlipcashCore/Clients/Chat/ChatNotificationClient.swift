@@ -20,6 +20,8 @@ public final class ChatNotificationClient: Sendable {
     private let paymentsHost: String
     private let port: Int
     private let messagingService: ChatMessagingService
+    private let chatService: ChatService
+    private let resolverService: ResolverService
     private let coreClient: GRPCClient<AppTransport>
     /// The core client's connection loop; retained for its lifetime — dropping it makes the client
     /// inert and every RPC hangs.
@@ -43,6 +45,8 @@ public final class ChatNotificationClient: Sendable {
             catch { logger.error("Core connection loop terminated", metadata: ["error": "\(error)"]) }
         }
         self.messagingService = ChatMessagingService(client: coreClient)
+        self.chatService = ChatService(client: coreClient)
+        self.resolverService = ResolverService(client: coreClient)
     }
 
     deinit {
@@ -50,6 +54,56 @@ public final class ChatNotificationClient: Sendable {
         // task ends the connection loop.
         coreClient.beginGracefulShutdown()
         coreConnectionTask.cancel()
+    }
+
+    // MARK: - Chats -
+
+    /// Fetches one chat, with its members.
+    public func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
+        try await withCheckedThrowingContinuation { continuation in
+            chatService.getChat(owner: owner, conversationID: conversationID, viewMode: .full) {
+                continuation.resume(with: $0)
+            }
+        }
+    }
+
+    /// A ``ChatKeyring`` for `owner` that fetches peers' keys over this client's connection.
+    public func keyring(owner: KeyPair, selfUserID: UserID) -> ChatKeyring {
+        ChatKeyring(owner: owner, selfUserID: selfUserID) { [resolverService] userID in
+            try await withCheckedThrowingContinuation { continuation in
+                resolverService.resolveUserID(userID, owner: owner) { continuation.resume(with: $0) }
+            }
+        }
+    }
+
+    // MARK: - Encryption -
+
+    /// `messages` with those in an encrypted DM decrypted or marked with why they couldn't be. When
+    /// the chat or the peer's key can't be fetched they come back still awaiting decryption.
+    public func open(
+        _ messages: [ConversationMessage],
+        in conversationID: ConversationID,
+        owner: KeyPair,
+        selfUserID: UserID
+    ) async -> [ConversationMessage] {
+        guard
+            messages.contains(where: \.isAwaitingDecryption),
+            let conversation = try? await getChat(owner: owner, conversationID: conversationID)
+        else {
+            return messages
+        }
+        return await keyring(owner: owner, selfUserID: selfUserID).open(messages, in: conversation)
+    }
+
+    /// The seal to send into `conversationID` with, or nil when it is sent in plaintext. Throws when
+    /// the chat or the peer's key can't be fetched, since the message must not go out in plaintext.
+    public func sealForSending(
+        in conversationID: ConversationID,
+        owner: KeyPair,
+        selfUserID: UserID
+    ) async throws -> ChatSeal? {
+        let conversation = try await getChat(owner: owner, conversationID: conversationID)
+        return try await keyring(owner: owner, selfUserID: selfUserID).sealForSending(in: conversation)
     }
 
     // MARK: - Messages -
@@ -95,13 +149,24 @@ public final class ChatNotificationClient: Sendable {
         }
     }
 
-    /// Sends a text message and returns the server-confirmed `ConversationMessage`. `clientMessageID`
-    /// must stay stable across retries so the server dedups the send — generate it once at the call site.
+    /// Fetches one message by id, or nil when the chat has no such message.
+    public func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
+        try await withCheckedThrowingContinuation { continuation in
+            messagingService.getMessage(owner: owner, conversationID: conversationID, messageID: messageID, viewMode: .full) {
+                continuation.resume(with: $0)
+            }
+        }
+    }
+
+    /// Sends a text message, encrypted with `seal` when set, and returns the server-confirmed
+    /// `ConversationMessage`. `clientMessageID` must stay stable across retries so the server dedups
+    /// the send — generate it once at the call site.
     @discardableResult
     public func sendMessage(
         owner: KeyPair,
         conversationID: ConversationID,
         text: String,
+        seal: ChatSeal?,
         clientMessageID: UUID
     ) async throws -> ConversationMessage {
         try await withCheckedThrowingContinuation { continuation in
@@ -112,6 +177,7 @@ public final class ChatNotificationClient: Sendable {
                 // A notification quick-reply is a plain message: the extension has no transcript
                 // to quote from.
                 repliedTo: nil,
+                seal: seal,
                 clientMessageID: clientMessageID
             ) { continuation.resume(with: $0) }
         }

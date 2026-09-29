@@ -35,11 +35,34 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     public enum UnavailableHint: Hashable, Sendable, Codable {
         /// A newer client can read it: "Update Flipcash to see it".
         case updateApp
+        /// It failed to decrypt and only a resend can fix it: "Ask {first name} to send it again".
+        case askToResend(firstName: String)
+        /// The viewer's own message failed to decrypt: "Try sending it again".
+        case resend
 
         /// The hint's copy.
         public var text: String {
             switch self {
             case .updateApp: "Update Flipcash to see it"
+            case .askToResend(let firstName): "Ask \(firstName) to send it again"
+            case .resend: "Try sending it again"
+            }
+        }
+
+        /// The hint under a message that failed to decrypt for `failure`, sent by the viewer or by
+        /// `senderName`.
+        public static func decryptFailure(
+            _ failure: ConversationMessage.DecryptFailure?,
+            isFromSelf: Bool,
+            senderName: String
+        ) -> Self {
+            switch failure {
+            case .unsupported, nil:
+                return .updateApp
+            case .authentication:
+                if isFromSelf { return .resend }
+                let firstName = senderName.split(separator: " ").first.map(String.init) ?? ""
+                return .askToResend(firstName: firstName.isEmpty ? "them" : firstName)
             }
         }
     }

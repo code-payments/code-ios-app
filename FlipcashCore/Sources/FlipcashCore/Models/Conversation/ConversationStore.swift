@@ -314,15 +314,16 @@ public struct ConversationStore: Sendable {
     }
 
     /// Set the feed row's preview to the caller-supplied newest visible message (computed from the
-    /// database), never regressing: an older or equal-versioned candidate is ignored, so a stale
-    /// re-delivery can't overwrite a newer preview. `force` bypasses the guard for the one legitimate
+    /// database), never regressing: an older or equal-versioned candidate is ignored, unless it decrypts
+    /// the current one, so a stale re-delivery can't overwrite a newer preview. `force` bypasses the guard for the one legitimate
     /// regression — the newest message was tombstoned, so the preview must fall back to the previous
     /// visible one instead of showing deleted content. Never touches `lastActivity` or the feed order.
     public mutating func setFeedPreview(_ newest: ConversationMessage?, in conversationID: ConversationID, force: Bool = false) {
         guard let newest, let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
         if !force,
            let current = conversations[index].lastMessage,
-           (current.id, current.eventSequence) >= (newest.id, newest.eventSequence) { return }
+           (current.id, current.eventSequence) >= (newest.id, newest.eventSequence),
+           !(current.isAwaitingDecryption && (current.id, current.eventSequence) == (newest.id, newest.eventSequence)) { return }
         conversations[index].lastMessage = newest
     }
 

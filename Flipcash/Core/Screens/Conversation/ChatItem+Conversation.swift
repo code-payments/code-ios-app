@@ -89,14 +89,24 @@ extension ChatItem {
         linkCard: ([DetectedLink]) -> LinkCard? = { _ in nil },
         /// Where the viewer's unread messages began at open; the divider heads the first message
         /// after it that someone else sent.
-        unreadBoundary: UnreadBoundary = .none
+        unreadBoundary: UnreadBoundary = .none,
+        /// Whether `messages` starts at the chat's first message. The encryption marker heads an
+        /// all-encrypted transcript only then, since older history may still be plaintext.
+        headsHistory: Bool = true
     ) -> [ChatItem] {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
         // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
         // bubble to an invisible row, or steal the "Delivered"/"Read" receipt anchor below.
+        // A message still waiting on the peer's key is left out until it decrypts.
         let messages: [ConversationMessage] = switch deletedPresentation {
-        case .hidden:      messages.filter { !$0.isDeleted }
-        case .placeholder: messages
+        case .hidden:      messages.filter { !$0.isDeleted && !$0.isAwaitingDecryption }
+        case .placeholder: messages.filter { !$0.isAwaitingDecryption }
+        }
+
+        // The marker goes where the ciphertext starts: above the first encrypted message with
+        // plaintext before it, or at the head of a history that is encrypted from the start.
+        let markerIndex = messages.firstIndex(where: \.isEncrypted).flatMap { index in
+            index > 0 || headsHistory ? index : nil
         }
 
         // "Delivered"/"Read" rides the latest *confirmed* self message, so an in-flight or failed send
@@ -181,6 +191,10 @@ extension ChatItem {
 
             // A separator opens the transcript and breaks any run longer than the gap.
             let showsSeparator = previous.map { separates(message, from: $0) } ?? true
+            let showsMarker = index == markerIndex
+            if showsMarker {
+                items.append(.encryptionMarker)
+            }
             if showsSeparator {
                 items.append(.dateSeparator(id: "sep-\(message.stableID)", text: message.date.formattedChatSeparator()))
             }
@@ -200,10 +214,11 @@ extension ChatItem {
             // separator is already the heading of what follows it, so a second, shorter threshold
             // would flatten runs the transcript still draws as continuous.
             let groupedAbove = previous.map {
-                $0.senderID == message.senderID && !showsSeparator && !showsDivider
+                $0.senderID == message.senderID && !showsSeparator && !showsDivider && !showsMarker
             } ?? false
             let groupedBelow = next.map {
                 $0.senderID == message.senderID && !separates($0, from: message) && !divides($0, from: message)
+                    && index + 1 != markerIndex
             } ?? false
 
             // The bubble run, which is not the author run. A bubble stacked above a bare emoji would
@@ -237,9 +252,12 @@ extension ChatItem {
                         : "This message was deleted"
                 )
             case .encrypted:
-                // Decryption isn't implemented on this client -- a cross-platform parity hotspot --
-                // so an encrypted message renders as the unavailable bubble, asking for an update.
-                content = .unavailable(.updateApp)
+                // Still encrypted here means decryption failed; the awaiting ones were dropped above.
+                content = .unavailable(.decryptFailure(
+                    message.decryptFailure,
+                    isFromSelf: isFromSelf,
+                    senderName: counterpartName
+                ))
             }
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean

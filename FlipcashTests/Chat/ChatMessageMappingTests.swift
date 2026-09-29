@@ -72,15 +72,81 @@ struct ChatMessageMappingTests {
         ConversationMessage(id: MessageID(value: id), senderID: sender, content: .deleted(.init(deletedBy: deletedBy ?? sender, deletedAt: base.addingTimeInterval(offset))), date: base.addingTimeInterval(offset), unreadSeq: id, eventSequence: id)
     }
 
-    @Test("an encrypted message draws as unavailable, asking for an update")
-    func encryptedMessageIsUnavailable() {
-        let encrypted = ConversationMessage(
-            id: MessageID(value: 1), senderID: them,
-            content: .encrypted(scheme: 1, nonce: Data(), ciphertext: Data()),
-            date: base, unreadSeq: 1
+    /// A message that arrived encrypted: decrypted to `body`, failed for `failure`, or still
+    /// waiting on the peer's key when both are nil.
+    private func encrypted(
+        _ id: UInt64,
+        _ sender: UUID,
+        _ body: String? = nil,
+        failure: ConversationMessage.DecryptFailure? = nil,
+        after offset: TimeInterval = 0
+    ) -> ConversationMessage {
+        let sealed = ConversationMessage.Sealed(scheme: 1, nonce: Data([1]), ciphertext: Data([2]))
+        return ConversationMessage(
+            id: MessageID(value: id),
+            senderID: sender,
+            content: body.map { .text($0) } ?? .encrypted(scheme: sealed.scheme, nonce: sealed.nonce, ciphertext: sealed.ciphertext),
+            date: base.addingTimeInterval(offset),
+            unreadSeq: id,
+            sealed: sealed,
+            decryptFailure: failure
         )
-        let rows = messageRows(ChatItem.from([encrypted], selfUserID: me))
-        #expect(rows.map(\.content) == [.unavailable(.updateApp)])
+    }
+
+    private func markerIndex(_ items: [ChatItem]) -> Int? {
+        items.firstIndex { if case .encryptionMarker = $0 { true } else { false } }
+    }
+
+    private func index(of body: String, in items: [ChatItem]) -> Int? {
+        items.firstIndex { if case .message(let message) = $0 { message.content == .text(body) } else { false } }
+    }
+
+    @Test("a message that failed to decrypt draws as unavailable, with the hint its cause calls for")
+    func decryptFailureHints() {
+        func hint(_ sender: UUID, _ failure: ConversationMessage.DecryptFailure) -> [ChatMessage.Content] {
+            messageRows(ChatItem.from([encrypted(1, sender, failure: failure)], selfUserID: me, counterpartName: "Ada Lovelace"))
+                .map(\.content)
+        }
+        #expect(hint(them, .unsupported) == [.unavailable(.updateApp)])
+        #expect(hint(me, .unsupported) == [.unavailable(.updateApp)])
+        #expect(hint(them, .authentication) == [.unavailable(.askToResend(firstName: "Ada"))])
+        #expect(hint(me, .authentication) == [.unavailable(.resend)])
+    }
+
+    @Test("a message waiting on the peer's key is left out, not drawn as unavailable")
+    func awaitingDecryptionIsHidden() {
+        let items = ChatItem.from([text(1, them, "hi", after: 0), encrypted(2, them, after: 30)], selfUserID: me)
+        #expect(messageRows(items).map(\.content) == [.text("hi")])
+        #expect(markerIndex(items) == nil)
+    }
+
+    @Test("the marker sits above the first encrypted message, below the plaintext before it")
+    func markerWhereCiphertextStarts() throws {
+        let items = ChatItem.from(
+            [text(1, them, "old", after: 0), encrypted(2, them, "new", after: 30), encrypted(3, me, "newer", after: 60)],
+            selfUserID: me,
+            headsHistory: false
+        )
+        let marker = try #require(markerIndex(items))
+        let old = try #require(index(of: "old", in: items))
+        let new = try #require(index(of: "new", in: items))
+        #expect(old < marker && marker < new)
+        #expect(items.filter { if case .encryptionMarker = $0 { true } else { false } }.count == 1)
+        // The marker breaks the run: the first encrypted message doesn't group onto the plaintext above.
+        #expect(messageRows(items).first { $0.content == .text("new") }?.isContinuationFromPrevious == false)
+    }
+
+    @Test("an all-encrypted transcript gets the marker at its head only once the head is loaded")
+    func markerAtHeadOfHistory() {
+        let messages = [encrypted(1, them, "a", after: 0), encrypted(2, me, "b", after: 30)]
+        let whole = ChatItem.from(messages, selfUserID: me, headsHistory: true)
+        #expect(markerIndex(whole) == 0)
+        #expect(markerIndex(ChatItem.from(messages, selfUserID: me, headsHistory: false)) == nil)
+    }
+
+    @Test("a plaintext transcript has no marker, whatever the chat's flag says")
+    func noMarkerWithoutCiphertext() {
+        #expect(markerIndex(ChatItem.from([text(1, them, "hi", after: 0)], selfUserID: me)) == nil)
     }
 
     @Test("a deleted tombstone is dropped: no stray separator, no grouping to an invisible row, receipt intact")

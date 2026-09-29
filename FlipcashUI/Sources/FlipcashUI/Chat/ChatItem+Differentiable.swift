@@ -35,6 +35,8 @@ extension ChatItem {
             ChatDateSeparatorCell.reuseIdentifier
         case .unreadDivider:
             ChatUnreadDividerCell.reuseIdentifier
+        case .encryptionMarker:
+            ChatEncryptionMarkerCell.reuseIdentifier
         case .message(let message):
             switch message.content {
             case .text:

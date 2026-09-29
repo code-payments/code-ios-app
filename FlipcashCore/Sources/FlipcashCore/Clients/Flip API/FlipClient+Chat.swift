@@ -174,10 +174,11 @@ extension FlipClient {
         }
     }
 
+    /// Sends `text`, encrypted with `seal` when set, and returns the server's copy (decrypted).
     @discardableResult
-    public func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+    public func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, seal: ChatSeal?, clientMessageID: UUID) async throws -> ConversationMessage {
         try await withCheckedThrowingContinuation { c in
-            chatMessagingService.sendMessage(owner: owner, conversationID: conversationID, text: text, repliedTo: repliedTo, clientMessageID: clientMessageID) { c.resume(with: $0) }
+            chatMessagingService.sendMessage(owner: owner, conversationID: conversationID, text: text, repliedTo: repliedTo, seal: seal, clientMessageID: clientMessageID) { c.resume(with: $0) }
         }
     }
 
@@ -186,6 +187,7 @@ extension FlipClient {
         conversationID: ConversationID,
         messageID: MessageID,
         text: String,
+        seal: ChatSeal?,
         expectedEventSequence: UInt64
     ) async throws -> MessageMutation {
         try await withCheckedThrowingContinuation { c in
@@ -194,6 +196,7 @@ extension FlipClient {
                 conversationID: conversationID,
                 messageID: messageID,
                 text: text,
+                seal: seal,
                 expectedEventSequence: expectedEventSequence
             ) { c.resume(with: $0) }
         }

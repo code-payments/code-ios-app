@@ -27,6 +27,9 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     /// The group's own card at the head of a short group transcript — picture, title, and the
     /// rule the chat runs on.
     case groupCard(ChatGroupCard)
+    /// The "Encrypted" line above the first end-to-end-encrypted message in the transcript, or at
+    /// its head when every message is encrypted. At most one per transcript.
+    case encryptionMarker
 
     public var id: String {
         switch self {
@@ -37,6 +40,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
         case .typingIndicator: "typing-indicator"
         case .profileCard: "profile-card"
         case .groupCard: "group-card"
+        case .encryptionMarker: "encryption-marker"
         }
     }
 
@@ -48,7 +52,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     public var messageID: String? {
         switch self {
         case .message(let message): message.messageID
-        case .dateSeparator, .unreadDivider, .typingIndicator, .profileCard, .groupCard: nil
+        case .dateSeparator, .unreadDivider, .typingIndicator, .profileCard, .groupCard, .encryptionMarker: nil
         }
     }
 

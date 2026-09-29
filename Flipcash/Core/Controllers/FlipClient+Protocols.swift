@@ -166,5 +166,5 @@ extension FlipClient {
 }
 
 extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing,
-                      ConversationFetching, ConversationMembership, ConversationMessaging,
+                      ConversationFetching, ConversationMembership,
                       ConversationViewerSettings, ConversationEventStreaming {}

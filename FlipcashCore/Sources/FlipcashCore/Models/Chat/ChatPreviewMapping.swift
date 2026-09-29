@@ -35,17 +35,20 @@ extension ChatItem {
     ///   - mintBranding: Resolved token branding (name + coin icon) keyed by mint, used to label
     ///     and illustrate cash rows (e.g. "Jeffy" with its icon). The caller resolves these over
     ///     the network; a cash row whose mint is absent shows no token label or icon.
+    ///   - counterpartName: The other party's name, for the hint under a message that failed to decrypt.
     public static func preview(
         from messages: [ConversationMessage],
         selfUserID: UserID,
         limit: Int = 3,
-        mintBranding: [PublicKey: MintBrandingInfo] = [:]
+        mintBranding: [PublicKey: MintBrandingInfo] = [:],
+        counterpartName: String = ""
     ) -> [ChatItem] {
         // Drop tombstones before slicing so the preview keeps the newest `limit` *visible* messages —
         // filtering after `.suffix` would let a recent delete crowd out a real message (or blank the
         // preview) and leave an orphaned leading separator.
         let sorted = messages
-            .filter { if case .deleted = $0.content { false } else { true } }
+            // Nor messages still waiting on the peer's key, which the transcript doesn't show either.
+            .filter { if case .deleted = $0.content { false } else { !$0.isAwaitingDecryption } }
             .sorted { $0.id < $1.id }
         let slice = sorted.suffix(limit)
 
@@ -78,9 +81,12 @@ extension ChatItem {
                     isTip: message.cashAction == .tipped
                 ))
             case .encrypted:
-                // Not filtered above (only tombstones are): an encrypted message stays a real,
-                // visible row, same as the in-app transcript, just with no plaintext to preview.
-                content = .unavailable(.updateApp)
+                // Only one that failed to decrypt gets here; it stays a visible row, as in the transcript.
+                content = .unavailable(.decryptFailure(
+                    message.decryptFailure,
+                    isFromSelf: message.senderID == selfUserID,
+                    senderName: counterpartName
+                ))
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
             }

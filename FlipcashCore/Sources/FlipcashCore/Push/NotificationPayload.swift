@@ -55,12 +55,7 @@ public enum NotificationPayload {
     /// It carries the same `eventSequence` the transcript fetch would return for it, so it merges
     /// with a fetched message rather than competing with one.
     ///
-    /// TODO(push/v1/model.proto ChatMetadata.message_ref): when only `messageID` is present, this
-    /// returns nil rather than fetching the message via `Messaging.GetMessage`. The notification
-    /// service extension's transcript prefetch (`NotificationService.cachePreview`) already fetches
-    /// the chat's recent messages independently of this value, so the id-only case is not silently
-    /// dropped in practice — it just doesn't get the "needs no network" fast path this doc comment
-    /// describes. Wire up a `GetMessage` fetch here (or at the call site) if that gap matters.
+    /// When only the message's id is present, ``chatMessageID(_:)`` names it for a `GetMessage` fetch.
     public static func chatMessage(_ userInfo: [AnyHashable: Any]) -> ConversationMessage? {
         guard let payload = decode(userInfo), payload.category == .chat, payload.hasChatMetadata else {
             return nil
@@ -69,6 +64,37 @@ public enum NotificationPayload {
         case .message(let message):
             return ConversationMessage(message)
         case .messageID, nil:
+            return nil
+        }
+    }
+
+    /// The id of the message a CHAT push is about, whether the push embeds it or only names it.
+    /// Nil when the push isn't a chat message or carries no message reference.
+    public static func chatMessageID(_ userInfo: [AnyHashable: Any]) -> MessageID? {
+        guard let payload = decode(userInfo), payload.category == .chat, payload.hasChatMetadata else {
+            return nil
+        }
+        switch payload.chatMetadata.messageRef {
+        case .message(let message):
+            return MessageID(message.messageID)
+        case .messageID(let id):
+            return MessageID(id)
+        case nil:
+            return nil
+        }
+    }
+
+    /// The banner body for an end-to-end-encrypted push: the plaintext of message `messageID` when it
+    /// arrived encrypted and decrypted to text. Nil keeps the server's body — the message is missing,
+    /// was never encrypted, isn't text, or didn't decrypt.
+    public static func decryptedBody(of messageID: MessageID?, in messages: [ConversationMessage]) -> String? {
+        guard let messageID, let message = messages.first(where: { $0.id == messageID }), message.isEncrypted else {
+            return nil
+        }
+        switch message.content {
+        case .text(let text):
+            return text
+        case .cash, .deleted, .encrypted:
             return nil
         }
     }
