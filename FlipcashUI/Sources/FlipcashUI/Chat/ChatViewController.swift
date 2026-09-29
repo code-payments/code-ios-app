@@ -211,8 +211,8 @@ public final class ChatViewController: UICollectionViewController {
     /// The bubble a context menu has raised, held so the lift's elevation comes off the same view when
     /// the menu goes. Weak: the cell it belongs to can be recycled out from under the menu.
     private weak var liftedBubble: UIView?
-    /// The inset state captured when the menu opened, restored when it closes.
-    private var savedInsetBehavior: UIScrollView.ContentInsetAdjustmentBehavior?
+    /// The adjusted bottom inset held while a menu is up, and the content inset it replaced.
+    private var frozenBottomInset: CGFloat?
     private var savedContentInset: UIEdgeInsets?
     private var savedScrollIndicatorInsets: UIEdgeInsets?
     /// A transcript pushed while the menu was up, applied once it closes (so an arriving message can't
@@ -350,13 +350,16 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     public override func scrollViewDidChangeAdjustedContentInset(_ scrollView: UIScrollView) {
+        if let frozenBottomInset, !isAdjustingBottomInset {
+            holdBottomInset(at: frozenBottomInset)
+            return
+        }
         // The system changed the adjusted inset — on-device this is the keyboard showing or hiding.
         // If the user was at the bottom, follow it so the newest message stays just above the
         // keyboard; a reader who scrolled up is left where they are.
         //
-        // While a context menu is up the inset is frozen (`freezeInset`), so this shouldn't fire for the
-        // keyboard — but guard anyway, since taking the inset over and handing it back each toggles the
-        // adjusted inset, and following those would move the content the freeze is holding in place.
+        // While a context menu is up the bottom inset is held (`holdBottomInset`) above; handing it back
+        // on close fires this once more, and following that would move the content the hold kept still.
         guard !isAdjustingBottomInset, !isShowingContextMenu, wasAtBottom, !needsInitialScroll, !isUpdating, !items.isEmpty else { return }
         // This fires inside UIKit's keyboard-adjustment animation block. Following
         // the bottom via ChatLayout's `restoreContentOffset` forces a layout pass
@@ -907,47 +910,47 @@ public final class ChatViewController: UICollectionViewController {
         }
     }
 
-    /// Take over the inset at its current (keyboard-up) value so the keyboard leaving under the menu
-    /// can't shrink the adjusted inset — the keyboard's space stays reserved and the content holds its
-    /// exact position.
+    /// Holds the adjusted bottom inset at its current (keyboard-up) value for the menu's lifetime, so
+    /// the keyboard leaving under the menu can't shrink it — the keyboard's space stays reserved and
+    /// the content holds its exact position.
+    ///
+    /// The adjustment behavior stays `.always`: switching the transcript to `.never` changes how UIKit
+    /// hands the safe area down to its rows, and a SwiftUI-hosted card sitting under the navigation bar
+    /// re-lays its content for it — the card jumped onto its own reaction pills on every long press.
     private func freezeInset() {
-        guard savedInsetBehavior == nil else { return }
-        let frozen = collectionView.adjustedContentInset
-        savedInsetBehavior = collectionView.contentInsetAdjustmentBehavior
+        guard frozenBottomInset == nil else { return }
+        frozenBottomInset = collectionView.adjustedContentInset.bottom
         savedContentInset = collectionView.contentInset
         savedScrollIndicatorInsets = collectionView.verticalScrollIndicatorInsets
-        // Order matters: copy the inset in *before* taking the behavior over. Switching to `.never`
-        // first would drop the keyboard's contribution for one pass, shrinking the scrollable range
-        // under a transcript that sits at its bottom — UIKit clamps the offset there and then, and
-        // re-growing the inset does not put it back. Raising `contentInset` first only ever grows
-        // the adjusted inset, so nothing clamps on the way through.
-        collectionView.contentInset = frozen
-        collectionView.verticalScrollIndicatorInsets = frozen
-        collectionView.contentInsetAdjustmentBehavior = .never
-        // No `restoreContentOffset` re-anchor here: forcing ChatLayout's layout
-        // pass during the context-menu inset/keyboard transition aborts on
-        // iOS 26 (a UICollectionView bounds-change "fading" assertion), whether
-        // called synchronously or deferred. The inset takeover above already
-        // pins the adjusted inset at its keyboard-up value, so the content holds
-        // its position without a forced re-anchor.
     }
 
-    /// Hand the inset back to the system, which re-derives the adjusted inset from wherever the
-    /// keyboard is by then: back up behind the menu, in which case nothing moves, or gone, in which
-    /// case the transcript settles into the space it vacated.
+    /// Re-sizes the content inset so the system's share plus ours still adds up to `bottom`. Runs from
+    /// the adjusted-inset callback, before the scroll view lays out, so a transcript sitting at its
+    /// bottom never sees the shrunken range and has nothing to clamp.
+    private func holdBottomInset(at bottom: CGFloat) {
+        let system = collectionView.adjustedContentInset.bottom - collectionView.contentInset.bottom
+        let own = max(0, bottom - system)
+        guard abs(collectionView.contentInset.bottom - own) > 0.5 else { return }
+        isAdjustingBottomInset = true
+        collectionView.contentInset.bottom = own
+        collectionView.verticalScrollIndicatorInsets.bottom = own
+        isAdjustingBottomInset = false
+    }
+
+    /// Hands the bottom inset back to the system, which re-derives it from wherever the keyboard is by
+    /// then: back up behind the menu, in which case nothing moves, or gone, in which case the
+    /// transcript settles into the space it vacated.
     private func restoreInset() {
-        guard let behavior = savedInsetBehavior else { return }
-        collectionView.contentInsetAdjustmentBehavior = behavior
+        guard frozenBottomInset != nil else { return }
+        frozenBottomInset = nil
         if let inset = savedContentInset { collectionView.contentInset = inset }
         if let indicator = savedScrollIndicatorInsets { collectionView.verticalScrollIndicatorInsets = indicator }
-        savedInsetBehavior = nil
         savedContentInset = nil
         savedScrollIndicatorInsets = nil
-        // No `restoreContentOffset` re-anchor (see `freezeInset`): forcing the
-        // layout pass here aborts on iOS 26. Handing the inset behavior back lets
-        // the system re-grow the adjusted inset as the keyboard returns; the
-        // at-bottom follow in `scrollViewDidChangeAdjustedContentInset` settles
-        // the position through the normal path once the menu flag is cleared.
+        // No `restoreContentOffset` re-anchor: forcing ChatLayout's layout pass during the
+        // context-menu keyboard transition aborts on iOS 26 (a UICollectionView bounds-change
+        // "fading" assertion). The at-bottom follow in `scrollViewDidChangeAdjustedContentInset`
+        // settles the position through the normal path once the menu flag is cleared.
     }
 }
 
@@ -1184,6 +1187,13 @@ extension ChatViewController {
     private func resumeAfterLift() {
         hiddenLiftSource?.alpha = 1
         hiddenLiftSource = nil
+        // UIKit keeps the copy's platter above the transcript until its completion, about 0.4s after
+        // the bubble lands, so it covered the bar's soft edge in the meantime and a bubble partly
+        // under it sat sharp until the platter went. Fading the copy hands over to the row's bubble,
+        // which the edge effect blurs.
+        if let liftStandIn {
+            UIView.animate(withDuration: 0.12) { liftStandIn.alpha = 0 }
+        }
         liftContainer = nil
         liftStandIn = nil
         // Restore the inset while the flag is still set, so the behavior switch's inset change is
@@ -1360,6 +1370,7 @@ extension ChatViewController {
         // bounds and outlasts the dismissal. The bubble-shaped shadow below is the only one.
         parameters.shadowPath = UIBezierPath()
         if let message = message(at: IndexPath(item: item, section: section)), liftReservesStripRoom?(message) == true,
+           lacksStripRoomAbove(cell.liftPreviewView),
            let preview = stripRoomPreview(for: cell, parameters: parameters, raising: raising) {
             return preview
         }
@@ -1371,6 +1382,15 @@ extension ChatViewController {
             BubbleBackgroundView.raise(cell.liftPreviewView, shape: cell.liftPreviewMaskingPath)
         }
         return UITargetedPreview(view: cell.liftPreviewView, parameters: parameters)
+    }
+
+    /// Whether `bubble` sits too close to the top of the screen for the reaction strip to fit above
+    /// it. Only then does the lift carry the strip's room: elsewhere the room is free anyway, and when
+    /// UIKit puts the menu above the bubble the strip goes below it, leaving reserved room as a gap.
+    private func lacksStripRoomAbove(_ bubble: UIView) -> Bool {
+        guard let window = bubble.window else { return true }
+        let top = bubble.convert(bubble.bounds, to: nil).minY
+        return top < window.safeAreaInsets.top + ReactionStripView.bubbleGap + ReactionStripView.headroom
     }
 
     /// The lift for a row the strip will sit above: the bubble's copy at the bottom of a clear box

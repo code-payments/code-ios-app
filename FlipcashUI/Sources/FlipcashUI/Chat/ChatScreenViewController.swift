@@ -264,6 +264,8 @@ public final class ChatScreenViewController: UIViewController {
     private var reactionStripWindow: UIWindow?
     /// The side the live strip grows from, so it collapses back the same way.
     private var stripHugsTrailing = false
+    /// Whether the live strip sits below its bubble, so it collapses back toward it.
+    private var stripSitsBelowBubble = false
     /// The raised copy of a double-tapped bubble and the frame it returns to, while the strip is up
     /// without a menu.
     private var stripOnlyLift: (copy: UIView, home: CGRect)?
@@ -337,9 +339,8 @@ public final class ChatScreenViewController: UIViewController {
         return entries
     }
 
-    /// Adds the reaction strip above the just-lifted bubble, in a window above the context menu's own
-    /// container — see `reactionStripWindow`. The lift already reserved the strip's room above the
-    /// bubble (see `ChatViewController.liftReservesStripRoom`), so UIKit has put the menu clear of it.
+    /// Adds the reaction strip beside the just-lifted bubble, on the side the menu isn't, in a window
+    /// above the context menu's own container — see `reactionStripWindow`.
     private func presentReactionStrip() {
         guard let message = transcript.contextMenuMessage, let entries = stripEntries(for: message),
               let scene = view.window?.windowScene,
@@ -349,11 +350,28 @@ public final class ChatScreenViewController: UIViewController {
         let bubble = view.convert(bubbleFrame, to: nil)
         let strip = installStrip(entries: entries, for: message, in: host, besides: bubble)
 
-        // The lifted copy carries its final frame from the menu's first layout pass, before its
-        // spring has played out, so reading it one turn later lets the strip arrive with the menu.
-        DispatchQueue.main.async { [weak self, weak strip] in
-            guard let self, let strip, reactionStrip === strip else { return }
-            placeStrip(strip, above: transcript.liftedBubbleFrame() ?? bubble)
+        // UIKit picks the menu's side, and not only by the room left below the bubble, so the strip
+        // takes whichever side the menu didn't. The menu's views carry their final frames from the
+        // first layout pass, before its spring has played out, so reading them one turn later lets
+        // the strip arrive alongside the menu rather than after it.
+        let titles = Set(message.actions.map(\.title))
+        DispatchQueue.main.async { [weak self, weak strip, weak window] in
+            guard let self, let strip, let window, reactionStrip === strip else { return }
+            let menu = Self.contextMenuFrame(in: scene, excluding: [view, window], titles: titles)
+            // UIKit may slide the lifted bubble away from its row to make room for the menu, so the
+            // strip goes by where the lifted bubble sits rather than where the row does.
+            let lifted = transcript.liftedBubbleFrame()
+                ?? Self.liftedPreviewFrame(in: scene, excluding: [view, window], size: bubble.size)
+                ?? bubble
+            let menuIsAbove = menu.map { $0.midY < lifted.midY } ?? false
+            // The same gap UIKit left on the menu's side, so the bubble sits centered between the two.
+            let menuGap = menu.map { menuIsAbove ? lifted.minY - $0.maxY : $0.minY - lifted.maxY }
+            let gap = menuGap.flatMap { (0...40).contains($0) ? $0 : nil } ?? Self.fallbackStripGap
+            if menuIsAbove {
+                placeStrip(strip, below: lifted, gap: gap)
+            } else {
+                placeStrip(strip, above: lifted, gap: gap)
+            }
         }
         strip.onSelect = { [weak self] emoji in
             self?.transcript.dismissContextMenu()
@@ -478,15 +496,28 @@ public final class ChatScreenViewController: UIViewController {
         return strip
     }
 
-    /// Sits `strip` `ReactionStripView.bubbleGap` above `lifted` (window coordinates), no higher than
-    /// the safe area allows, and grows it out of the bubble's corner.
-    private func placeStrip(_ strip: ReactionStripView, above lifted: CGRect) {
+    /// Sits `strip` `gap` above `lifted` (window coordinates), no higher than the safe area allows,
+    /// and grows it out of the bubble's corner.
+    private func placeStrip(_ strip: ReactionStripView, above lifted: CGRect, gap: CGFloat = ReactionStripView.bubbleGap) {
         guard let host = strip.superview, let window = host.window else { return }
         let highest = window.safeAreaInsets.top + Self.stripTopMargin
-        let top = max(highest, lifted.minY - ReactionStripView.bubbleGap - ReactionStripView.height)
+        let top = max(highest, lifted.minY - gap - ReactionStripView.height)
         strip.topAnchor.constraint(equalTo: host.topAnchor, constant: top).isActive = true
-        host.layoutIfNeeded()
-        strip.transform = Self.collapsedStripTransform(strip.bounds.size, towardTrailing: stripHugsTrailing)
+        reveal(strip, sittingBelow: false)
+    }
+
+    /// Sits `strip` `gap` below `lifted` (window coordinates), for a bubble the menu sits above.
+    private func placeStrip(_ strip: ReactionStripView, below lifted: CGRect, gap: CGFloat) {
+        guard let host = strip.superview else { return }
+        strip.topAnchor.constraint(equalTo: host.topAnchor, constant: lifted.maxY + gap).isActive = true
+        reveal(strip, sittingBelow: true)
+    }
+
+    /// Grows a placed strip out of the bubble's corner.
+    private func reveal(_ strip: ReactionStripView, sittingBelow: Bool) {
+        strip.superview?.layoutIfNeeded()
+        stripSitsBelowBubble = sittingBelow
+        strip.transform = Self.collapsedStripTransform(strip.bounds.size, towardTrailing: stripHugsTrailing, towardTop: sittingBelow)
         strip.revealEntries(fromTrailing: stripHugsTrailing)
         UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.78, initialSpringVelocity: 0) {
             strip.transform = .identity
@@ -494,12 +525,57 @@ public final class ChatScreenViewController: UIViewController {
         }
     }
 
-    /// The strip shrunk into its bottom corner on the bubble's side, so it grows out of the bubble.
-    private static func collapsedStripTransform(_ size: CGSize, towardTrailing: Bool) -> CGAffineTransform {
+    /// The strip shrunk into the corner nearest the bubble's side, so it grows out of the bubble.
+    private static func collapsedStripTransform(_ size: CGSize, towardTrailing: Bool, towardTop: Bool) -> CGAffineTransform {
         let scale: CGFloat = 0.3
         let dx = size.width * (1 - scale) / 2 * (towardTrailing ? 1 : -1)
-        let dy = size.height * (1 - scale) / 2
+        let dy = size.height * (1 - scale) / 2 * (towardTop ? -1 : 1)
         return CGAffineTransform(translationX: dx, y: dy).scaledBy(x: scale, y: scale)
+    }
+
+    /// The strip's gap from the bubble when the menu's own gap can't be measured.
+    private static let fallbackStripGap: CGFloat = 16
+
+    /// Where the presented context menu's platter sits on screen, or `nil` if it isn't found. UIKit
+    /// exposes no frame for the menu, but its rows are plain `UILabel`s carrying the action titles,
+    /// and the platter is the outermost view around them that is still narrower than the screen.
+    /// `excluded` subtrees are skipped, so a message whose text matches an action title can't be
+    /// mistaken for the menu.
+    private static func contextMenuFrame(in scene: UIWindowScene, excluding excluded: [UIView], titles: Set<String>) -> CGRect? {
+        var labels: CGRect?
+        var platter: CGRect?
+        var pending: [UIView] = scene.windows
+        while let next = pending.popLast() {
+            guard !excluded.contains(where: { $0 === next }) else { continue }
+            if let label = next as? UILabel, let text = label.text, titles.contains(text), !label.isHidden {
+                let rect = label.convert(label.bounds, to: nil)
+                labels = labels.map { $0.union(rect) } ?? rect
+                if platter == nil, let screen = next.window?.bounds {
+                    var outer: UIView = label
+                    while let parent = outer.superview, parent.bounds.width < screen.width * 0.95 {
+                        outer = parent
+                    }
+                    platter = outer.convert(outer.bounds, to: nil)
+                }
+            }
+            pending.append(contentsOf: next.subviews)
+        }
+        guard let labels else { return nil }
+        return platter.map { $0.union(labels) } ?? labels
+    }
+
+    /// Where UIKit put the lifted copy of the bubble, found as the view in the menu's container
+    /// that matches the bubble's size, or `nil` if none does.
+    private static func liftedPreviewFrame(in scene: UIWindowScene, excluding excluded: [UIView], size: CGSize) -> CGRect? {
+        var pending: [UIView] = scene.windows
+        while let next = pending.popLast() {
+            guard !excluded.contains(where: { $0 === next }) else { continue }
+            if !next.isHidden, abs(next.bounds.width - size.width) < 1, abs(next.bounds.height - size.height) < 1 {
+                return next.convert(next.bounds, to: nil)
+            }
+            pending.append(contentsOf: next.subviews)
+        }
+        return nil
     }
 
     /// The strip's distance from the screen's sides.
@@ -513,7 +589,7 @@ public final class ChatScreenViewController: UIViewController {
         reactionStrip = nil
         let window = reactionStripWindow
         reactionStripWindow = nil
-        let collapsed = Self.collapsedStripTransform(strip.bounds.size, towardTrailing: stripHugsTrailing)
+        let collapsed = Self.collapsedStripTransform(strip.bounds.size, towardTrailing: stripHugsTrailing, towardTop: stripSitsBelowBubble)
         let collapse = {
             strip.transform = collapsed
             strip.alpha = 0
