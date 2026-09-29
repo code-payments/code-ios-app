@@ -127,8 +127,17 @@ final class ConversationLoadCoordinator {
     /// chat's roster nor the local cache can name them. The composer's reply strip resolves through
     /// this so it names the same person the quoted bubble does.
     func attributedName(for senderID: UserID) -> String? {
-        let name = attributedMembers.first { $0.userID == senderID }?.displayName
-        return (name?.isEmpty ?? true) ? nil : name
+        attributedMembers.first { $0.userID == senderID }.map(Self.attributionName(for:))
+    }
+
+    /// The name a sender's rows carry: their display name, else their handle, else the generic
+    /// fallback. Accounts that onboarded before the name step have neither, and a blank here draws
+    /// a row with no name above an avatar with no initials.
+    nonisolated static func attributionName(for member: ConversationMember) -> String {
+        if !member.displayName.isEmpty {
+            return member.displayName
+        }
+        return member.username?.handle ?? ConversationController.fallbackCounterpartName
     }
 
     // Tracks exactly the inputs `map` reads; on the next change to any of them it re-maps off the
@@ -383,7 +392,7 @@ final class ConversationLoadCoordinator {
             guard let userID = member.userID else { continue }
             authors[userID] = ChatAuthor(
                 id: userID,
-                name: member.displayName,
+                name: attributionName(for: member),
                 blurhash: member.profilePicture?.thumbnailBlurhash
             )
         }

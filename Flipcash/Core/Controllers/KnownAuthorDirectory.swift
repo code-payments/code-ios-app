@@ -43,6 +43,11 @@ final class KnownAuthorDirectory {
     /// removed again, so reopening the chat retries it.
     @ObservationIgnored private var requested: Set<UserID> = []
 
+    /// Senders whose profile came back with no display name, held for this launch only. They still
+    /// need a row attributed to them — under their handle or the generic fallback — but caching them
+    /// would stop a later launch asking again once they have picked a name.
+    @ObservationIgnored private var nameless: [UserID: ConversationMember] = [:]
+
     /// The reload in flight, so concurrent requests collapse onto one read of the same store.
     @ObservationIgnored private var reloadTask: Task<Void, Never>?
 
@@ -81,7 +86,7 @@ final class KnownAuthorDirectory {
                     logger.info("Failed to read known chat authors", metadata: ["error": "\(error)"])
                     return [UserID: ConversationMember]()
                 }
-            }.value
+            }.value.merging(nameless) { cached, _ in cached }
             guard members != snapshot.membersByUserID else { return }
             snapshot = Snapshot(membersByUserID: members)
         }
@@ -105,12 +110,20 @@ final class KnownAuthorDirectory {
         guard !missing.isEmpty else { return }
 
         var fetched: [(userID: UserID, profile: Profile)] = []
+        var foundNameless = false
         for userID in missing {
             do {
                 let profile = try await fetch(userID)
-                // A user the server has no profile for comes back empty. There is nothing to name
-                // their rows with, and caching it would hold a blank line above every one of them.
-                guard profile.displayName?.isEmpty == false else { continue }
+                guard profile.displayName?.isEmpty == false else {
+                    nameless[userID] = ConversationMember(
+                        userID: userID,
+                        displayName: "",
+                        profilePicture: profile.profilePicture,
+                        username: profile.username
+                    )
+                    foundNameless = true
+                    continue
+                }
                 fetched.append((userID, profile))
             } catch {
                 // Their rows stay unattributed, and the next open asks again.
@@ -121,7 +134,10 @@ final class KnownAuthorDirectory {
                 ])
             }
         }
-        guard !fetched.isEmpty else { return }
+        guard !fetched.isEmpty else {
+            if foundNameless { await reload() }
+            return
+        }
 
         let landed = fetched
         await Task.detached { [cache] in

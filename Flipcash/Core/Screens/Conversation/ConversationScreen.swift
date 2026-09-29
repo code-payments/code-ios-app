@@ -1394,11 +1394,12 @@ struct ConversationScreen: View {
     /// profile. Gives the title, card, and Send Cash target the same member
     /// shape a synced conversation would supply.
     static func counterpart(userID: UserID, profile: Profile) -> ConversationMember {
-        ConversationMember(
+        // A name-less account can still be tipped, and the chat has to be
+        // titled either way. The server sends such a name as "", not nil.
+        let name = profile.displayName.flatMap { $0.isEmpty ? nil : $0 }
+        return ConversationMember(
             userID: userID,
-            // A name-less account can still be tipped, and the chat has to be
-            // titled either way — the same fallback a conversation gets.
-            displayName: profile.displayName ?? ConversationController.fallbackCounterpartName,
+            displayName: name ?? profile.username?.handle ?? ConversationController.fallbackCounterpartName,
             profilePicture: profile.profilePicture,
             username: profile.username
         )
