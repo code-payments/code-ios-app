@@ -13,9 +13,9 @@ import FlipcashUI
 /// colour, the author's name over one or two lines of what they said, and the way out on the
 /// trailing edge. Dismissing it takes back the target without touching the draft.
 ///
-/// The quote carries the reply's elevation, because the bar cannot. The bar's slab has to stay the
-/// chat background to match the keyboard it sits on — see `BarSurfaceBackground` — so the ground
-/// that sets a reply apart is drawn here, inset from the bar's edges, in Liquid Glass.
+/// The quote carries the reply's elevation, because the bar has no surface of its own — the screen's
+/// fade runs behind it — so the ground that sets a reply apart is drawn here, inset from the bar's
+/// edges, in Liquid Glass.
 ///
 /// The colour is the person's, not the surface's — `ComplementaryPalette` derives it from their user
 /// id, so the same person is the same colour here, inside a sent bubble, and on Android.
@@ -168,7 +168,7 @@ private struct QuoteRule: View {
 }
 
 /// What the quote sits on: Liquid Glass at the bar's radius, so the quote is the same shape as the
-/// field and the Send Cash button, and the bar's slab stays flat against the keyboard.
+/// field and the Send Cash button.
 ///
 /// The clip goes on the content and the ground goes behind it, rather than one clip over both. Both
 /// halves need that. The author's rule runs flush to the leading edge and squares off the two

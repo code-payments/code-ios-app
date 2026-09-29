@@ -117,10 +117,15 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // The bar's content is pinned to the bottom of this view and overhangs the top while the
         // height constraint catches up, so the overhang has to be allowed to draw.
         barHost.view.clipsToBounds = false
+        // The screen places the bar, clear of the keyboard and resting partway into the home
+        // indicator's safe area. Left to respect that safe area, the bar pushes its content up by
+        // however far it rests into it, past the clip's top edge.
+        barHost.safeAreaRegions = []
         let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
+        screen.barRestingDrop = chatExists ? BarMetrics.compactDrop : 0
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
@@ -162,6 +167,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.barHost?.rootView = bar(coordinator: context.coordinator)
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
+        screen.barRestingDrop = chatExists ? BarMetrics.compactDrop : 0
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry

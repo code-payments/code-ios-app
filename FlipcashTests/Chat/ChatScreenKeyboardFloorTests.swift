@@ -91,4 +91,31 @@ struct ChatScreenKeyboardFloorTests {
         postKeyboard(endFrame: .zero, isLocal: false)
         #expect(barLift(bar, screen, window) == resting)
     }
+
+    @Test("The transcript follows the bar when the safe area shrinks under it")
+    func safeAreaShrinks_transcriptFollowsTheBar() throws {
+        let (screen, bar, window) = makeScreen()
+        screen.barRestingDrop = 8
+        let transcript = try #require(firstCollectionView(in: screen.view))
+        let clip = try #require(bar.superview)
+        // What the transcript reserves beyond the bar it sits under; constant wherever the bar rests.
+        func slack() -> CGFloat {
+            transcript.adjustedContentInset.bottom - (screen.view.bounds.maxY - clip.frame.minY)
+        }
+
+        // Opening a chat from the Chats tab: the tab bar's inset first, the home indicator's a
+        // pass later.
+        screen.additionalSafeAreaInsets.bottom = 83
+        window.layoutIfNeeded()
+        let settled = slack()
+        screen.additionalSafeAreaInsets.bottom = 34
+        window.layoutIfNeeded()
+
+        #expect(slack() == settled)
+    }
+
+    private func firstCollectionView(in view: UIView) -> UICollectionView? {
+        if let collectionView = view as? UICollectionView { return collectionView }
+        return view.subviews.lazy.compactMap { firstCollectionView(in: $0) }.first
+    }
 }
