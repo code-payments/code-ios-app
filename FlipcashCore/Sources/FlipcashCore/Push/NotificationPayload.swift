@@ -84,6 +84,21 @@ public enum NotificationPayload {
         }
     }
 
+    /// The banner body for an end-to-end-encrypted push: the plaintext of message `messageID` when it
+    /// arrived encrypted and decrypted to text. Nil keeps the server's body — the message is missing,
+    /// was never encrypted, isn't text, or didn't decrypt.
+    public static func decryptedBody(of messageID: MessageID?, in messages: [ConversationMessage]) -> String? {
+        guard let messageID, let message = messages.first(where: { $0.id == messageID }), message.isEncrypted else {
+            return nil
+        }
+        switch message.content {
+        case .text(let text):
+            return text
+        case .cash, .deleted, .encrypted:
+            return nil
+        }
+    }
+
     /// Whether the recipient had the chat muted when a CHAT push was sent. The push is still
     /// delivered so the client can store the message, but the client must not present a
     /// notification for it. `false` when the push isn't a chat message or carries no chat metadata

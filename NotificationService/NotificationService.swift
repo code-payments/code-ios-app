@@ -373,7 +373,7 @@ final class NotificationService: UNNotificationServiceExtension {
             )
             let messages = Array(opened.prefix(fetched.count))
             if embedded != nil { embedded = opened.last }
-            if let body = decryptedBody(of: messageID, in: messages + (embedded.map { [$0] } ?? [])) {
+            if let body = NotificationPayload.decryptedBody(of: messageID, in: messages + (embedded.map { [$0] } ?? [])) {
                 replaceBody(body)
             }
             guard !messages.isEmpty else {
@@ -412,19 +412,6 @@ final class NotificationService: UNNotificationServiceExtension {
             ExtensionReporting.capture(error, reason: "Notification preview prefetch failed")
             await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
             deliver()
-        }
-    }
-
-    /// The plaintext of the pushed message when it arrived encrypted and decrypted to text.
-    private static func decryptedBody(of messageID: MessageID?, in messages: [ConversationMessage]) -> String? {
-        guard let messageID, let message = messages.first(where: { $0.id == messageID }), message.isEncrypted else {
-            return nil
-        }
-        switch message.content {
-        case .text(let text):
-            return text
-        case .cash, .deleted, .encrypted:
-            return nil
         }
     }
 

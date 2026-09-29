@@ -170,13 +170,15 @@ struct NotificationPayloadTests {
 
     private static func chatPush(
         category: Flipcash_Push_V1_Payload.Category = .chat,
-        message: Flipcash_Messaging_V1_Message?
+        message: Flipcash_Messaging_V1_Message?,
+        messageID: UInt64? = nil
     ) throws -> [String: String] {
         let payload = Flipcash_Push_V1_Payload.with {
             $0.category = category
             $0.chatMetadata = .with {
                 $0.type = .contactDm
                 if let message { $0.message = message }
+                if let messageID { $0.messageID = .with { $0.value = messageID } }
             }
         }
         return [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
@@ -244,5 +246,94 @@ struct NotificationPayloadTests {
     @Test("chatMessage is nil when no payload is present")
     func chatMessageNilWhenNoPayload() {
         #expect(NotificationPayload.chatMessage([:]) == nil)
+    }
+
+    // MARK: - chatMessageID -
+
+    @Test("chatMessageID names the embedded message")
+    func chatMessageIDFromEmbeddedMessage() throws {
+        let embedded = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 42 }
+            $0.content = [.with { $0.text = .with { $0.text = "hi" } }]
+        }
+        #expect(NotificationPayload.chatMessageID(try Self.chatPush(message: embedded)) == MessageID(value: 42))
+    }
+
+    /// An encrypted DM's push can carry only the id; the extension fetches the message by it.
+    @Test("chatMessageID names a message the push only references")
+    func chatMessageIDFromReference() throws {
+        let userInfo = try Self.chatPush(message: nil, messageID: 7)
+        #expect(NotificationPayload.chatMessage(userInfo) == nil)
+        #expect(NotificationPayload.chatMessageID(userInfo) == MessageID(value: 7))
+    }
+
+    @Test("chatMessageID is nil when the push references no message")
+    func chatMessageIDNilWhenAbsent() throws {
+        #expect(NotificationPayload.chatMessageID(try Self.chatPush(message: nil)) == nil)
+    }
+
+    @Test("chatMessageID is nil for a non-chat category")
+    func chatMessageIDNilForNonChatCategory() throws {
+        #expect(NotificationPayload.chatMessageID(try Self.chatPush(category: .default, message: nil, messageID: 7)) == nil)
+    }
+
+    @Test("chatMessageID is nil when no payload is present")
+    func chatMessageIDNilWhenNoPayload() {
+        #expect(NotificationPayload.chatMessageID([:]) == nil)
+    }
+
+    // MARK: - decryptedBody -
+
+    private static let sealed = ConversationMessage.Sealed(scheme: 1, nonce: Data([1]), ciphertext: Data([2]))
+
+    private static func message(
+        _ id: UInt64,
+        _ content: ConversationMessage.Content,
+        sealed: ConversationMessage.Sealed? = Self.sealed,
+        failure: ConversationMessage.DecryptFailure? = nil
+    ) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: id),
+            senderID: UUID(),
+            content: content,
+            date: Date(timeIntervalSince1970: 1_000_000),
+            unreadSeq: id,
+            sealed: sealed,
+            decryptFailure: failure
+        )
+    }
+
+    private static let stillSealed = ConversationMessage.Content.encrypted(scheme: 1, nonce: Data([1]), ciphertext: Data([2]))
+
+    @Test("decryptedBody is the plaintext of the pushed message once it decrypts")
+    func decryptedBodyIsPlaintext() {
+        let messages = [Self.message(1, .text("earlier")), Self.message(2, .text("see you there"))]
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 2), in: messages) == "see you there")
+    }
+
+    /// The server's body is already right for a plaintext message; replacing it gains nothing.
+    @Test("decryptedBody is nil for a message that was never encrypted")
+    func decryptedBodyNilForPlaintext() {
+        let messages = [Self.message(1, .text("hi"), sealed: nil)]
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 1), in: messages) == nil)
+    }
+
+    @Test("decryptedBody keeps the server's body when the message didn't decrypt")
+    func decryptedBodyNilWhenUndecrypted() {
+        let messages = [
+            Self.message(1, Self.stillSealed),
+            Self.message(2, Self.stillSealed, failure: .authentication),
+            Self.message(3, Self.stillSealed, failure: .unsupported),
+        ]
+        for id in 1...3 {
+            #expect(NotificationPayload.decryptedBody(of: MessageID(value: UInt64(id)), in: messages) == nil)
+        }
+    }
+
+    @Test("decryptedBody is nil when the pushed message isn't among those fetched")
+    func decryptedBodyNilWhenMissing() {
+        let messages = [Self.message(1, .text("hi"))]
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 9), in: messages) == nil)
+        #expect(NotificationPayload.decryptedBody(of: nil, in: messages) == nil)
     }
 }
