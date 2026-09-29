@@ -353,32 +353,29 @@ struct YouScreen: View {
     ///
     /// The link and the Share/Download pair all address a card that a name-less
     /// profile does not have, so they sit out until it does; the settings rows
-    /// take up the slack.
+    /// take up the slack. The checklist shows either way, since naming the
+    /// profile is one of its chores.
     private var pageContent: some View {
         VStack(spacing: 0) {
+            if profileTutorialState.isVisible {
+                TutorialChecklistCard(
+                    title: "Finish Your Profile",
+                    items: profileTutorialState.items,
+                    onTap: handleProfileTutorialTap
+                )
+                .padding(.top, 32)
+                .accessibilityIdentifier("you-profile-tutorial-card")
+
+                // Fences the checklist off from the block below it — the two are
+                // unrelated chores that would otherwise read as one list.
+                Color.rowSeparator
+                    .frame(height: 1)
+                    .padding(.top, 20)
+            }
+
             if displayName != nil {
-                if profileTutorialState.isVisible {
-                    TutorialChecklistCard(
-                        title: "Finish Your Profile",
-                        items: profileTutorialState.items,
-                        onTap: handleProfileTutorialTap
-                    )
-                    .padding(.top, 32)
-                    .accessibilityIdentifier("you-profile-tutorial-card")
-
-                    // Fences the checklist off from the tip-card block below it
-                    // — the two are unrelated chores that would otherwise read
-                    // as one list.
-                    Color.rowSeparator
-                        .frame(height: 1)
-                        .padding(.top, 20)
-
-                    TipCardLinkRow(url: url)
-                        .padding(.top, 20)
-                } else {
-                    TipCardLinkRow(url: url)
-                        .padding(.top, 70)
-                }
+                TipCardLinkRow(url: url)
+                    .padding(.top, profileTutorialState.isVisible ? 20 : 70)
 
                 HStack(spacing: 10) {
                     TipCardActionButton(asset: .shareOS, title: "Share", action: shareTipCard)
@@ -399,7 +396,7 @@ struct YouScreen: View {
             }
 
             settingsList
-                .padding(.top, displayName == nil ? 48 : 19)
+                .padding(.top, displayName == nil && !profileTutorialState.isVisible ? 48 : 19)
 
             // v2 scrolls the version string with the content rather than
             // pinning it above the tab bar (the v1 Settings sheet pinned it).
@@ -683,6 +680,8 @@ struct YouScreen: View {
 
     private func handleProfileTutorialTap(_ item: ProfileTutorialItem) {
         switch item {
+        case .displayName:
+            router.push(.changeDisplayName)
         case .profilePicture:
             router.push(.changeProfilePicture)
         case .minimumTipAmount:
