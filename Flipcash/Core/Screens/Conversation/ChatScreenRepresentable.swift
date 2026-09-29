@@ -117,10 +117,15 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // The bar's content is pinned to the bottom of this view and overhangs the top while the
         // height constraint catches up, so the overhang has to be allowed to draw.
         barHost.view.clipsToBounds = false
+        // The screen places the bar, clear of the keyboard and resting partway into the home
+        // indicator's safe area. Left to respect that safe area, the bar pushes its content up by
+        // however far it rests into it, past the clip's top edge.
+        barHost.safeAreaRegions = []
         let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
+        screen.barRestingDrop = chatExists ? BarMetrics.compactDrop : 0
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
@@ -162,6 +167,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.barHost?.rootView = bar(coordinator: context.coordinator)
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
+        screen.barRestingDrop = chatExists ? BarMetrics.compactDrop : 0
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
@@ -198,14 +204,17 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         }
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
-        // (skipping any trailing receipt) that is from me. Received messages and prepended history
-        // leave the position alone.
+        // (skipping any trailing receipt) that is from me — and the reader was scrolled up in
+        // history. Received messages and prepended history leave the position alone. At the bottom,
+        // ChatLayout's keep-at-bottom already follows the append on the batch's own spring, and a
+        // second scroll on top of it fights that spring for the same offset.
         let newLastMessage = lastMessage(of: items)
         let newLastMessageID = newLastMessage?.id
         let lastIsOwnMessage = if case .message(let message) = newLastMessage { message.sender == .me } else { false }
         let appendedOwn = newLastMessageID != context.coordinator.lastMessageID && lastIsOwnMessage
+        let wasAtBottom = screen.isTranscriptAtBottom
         screen.update(items: items)
-        if appendedOwn {
+        if appendedOwn, !wasAtBottom {
             screen.scrollToBottom(animated: true)
         }
         context.coordinator.lastMessageID = newLastMessageID

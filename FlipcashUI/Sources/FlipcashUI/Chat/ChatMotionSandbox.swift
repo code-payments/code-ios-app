@@ -21,26 +21,28 @@ public final class ChatMotionSandboxViewController: UIViewController {
 
     /// The scripted exchange, beat by beat. Each beat's delay is the wait *before* it runs.
     private enum Beat {
-        /// The row lands in the transcript with no receipt: insertion spring, scroll-to-bottom.
-        case send
-        /// The settle floor expires and the receipt reveals.
+        /// The row lands in the transcript with no receipt while the row above keeps its
+        /// "Delivered": insertion spring, scroll-to-bottom.
+        case sending
+        /// The settle floor expires and the line moves, in one update: the row above gives it up as
+        /// the new row reveals it.
         case delivered
         /// Delivered gives way to Read: the in-place swap.
         case read
         /// The counterpart starts typing: the dots bubble arrives off the leading edge.
         case typing
-        /// The dots give way to the reply — one update, so the incoming bubble takes the tail the
-        /// dots were holding.
+        /// The dots turn into the reply — one update, so the reply's bubble grows out of the dots'
+        /// where they stood (`ChatViewController.typingHandoffRow`).
         case reply
         /// Back to the resting transcript, un-animated, ready to run again.
         case reset
 
         var delay: Duration {
             switch self {
-            case .send:      .seconds(1)
-            // Mirrors `ReceiptSettleGate.defaultDelay`, which lives in the app target and isn't
-            // reachable from here. If that floor moves, move this with it.
-            case .delivered: .milliseconds(700)
+            case .sending:   .seconds(1)
+            // The floor a real send's receipt is held for. `ReceiptSettleGate.defaultDelay` lives in the
+            // app target and isn't reachable from here, so the two move together by hand.
+            case .delivered: .seconds(ChatMotion.deliveredDelay)
             case .read:      .seconds(1.4)
             case .typing:    .seconds(0.9)
             // Two full turns of the dot wave (`ChatTypingIndicatorCell.wavePeriod`) before the
@@ -51,11 +53,14 @@ public final class ChatMotionSandboxViewController: UIViewController {
         }
     }
 
-    private static let script: [Beat] = [.send, .delivered, .read, .typing, .reply, .reset]
+    private static let script: [Beat] = [.sending, .delivered, .read, .typing, .reply, .reset]
 
     /// The resting transcript the script runs on top of. Ends on a `.me` run, so the scripted send
     /// is a continuation and its top corner flattens — which is what makes the corner morph visible.
     private let base: [ChatMessage] = ChatMessage.previewConversation(count: 8)
+
+    /// The line `base`'s trailing own row carries until the scripted send takes it over.
+    private static let baseReceipt = ChatReceipt.delivered
 
     private static let readTime = "3:42 PM"
 
@@ -169,7 +174,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
             switch beat {
             case .reset:
                 transcript.update(items: items(at: beat), animated: false)
-            case .send, .delivered, .read, .typing, .reply:
+            case .sending, .delivered, .read, .typing, .reply:
                 transcript.update(items: items(at: beat))
             }
         }
@@ -178,8 +183,8 @@ public final class ChatMotionSandboxViewController: UIViewController {
     /// The whole transcript as of `beat`.
     private func items(at beat: Beat) -> [ChatItem] {
         switch beat {
-        case .reset:     items(appending: [])
-        case .send:      items(appending: [Self.sent(receipt: nil)])
+        case .reset:     items(appending: [], baseReceipt: Self.baseReceipt)
+        case .sending:   items(appending: [Self.sent(receipt: nil)], baseReceipt: Self.baseReceipt)
         case .delivered: items(appending: [Self.sent(receipt: .delivered)])
         case .read:      items(appending: [Self.sent(receipt: .read(time: Self.readTime))])
         case .typing:    items(appending: [Self.sent(receipt: .read(time: Self.readTime))], typing: true)
@@ -190,8 +195,12 @@ public final class ChatMotionSandboxViewController: UIViewController {
     /// `base` plus `tail`, regrouped, with the dots bubble on the end when the counterpart is
     /// typing. The dots are appended after the grouping pass and never join a run, matching
     /// `ConversationLoadCoordinator.map`.
-    private func items(appending tail: [ChatMessage], typing: Bool = false) -> [ChatItem] {
-        var items = Self.grouped(base + tail).map { ChatItem.message($0) }
+    ///
+    /// `baseReceipt` is the line `base`'s last row still carries: its own until the scripted send
+    /// takes it, as the transcript mapping keeps it there while a send settles.
+    private func items(appending tail: [ChatMessage], baseReceipt: ChatReceipt? = nil, typing: Bool = false) -> [ChatItem] {
+        let held = base.last.map { (id: $0.id, receipt: baseReceipt) }
+        var items = Self.grouped(base + tail, held: held).map { ChatItem.message($0) }
         if typing {
             items.append(.typingIndicator(typists: []))
         }
@@ -200,11 +209,14 @@ public final class ChatMotionSandboxViewController: UIViewController {
 
     /// Recomputes the same-sender grouping flags across the whole list from sender adjacency alone.
     /// No sandbox row renders bare, so unlike `ChatItem.from` this never breaks the bubble run around
-    /// one — the two run flags stay identical here. Without recomputing at all, the row above an
+    /// one; only a receipt does. Without recomputing at all, the row above an
     /// arrival keeps the flags it was built with, so its inner corner never flattens and the morph
     /// has nothing to animate.
-    private static func grouped(_ messages: [ChatMessage]) -> [ChatMessage] {
-        messages.enumerated().map { index, message in
+    ///
+    /// `held` overrides one row's receipt.
+    private static func grouped(_ messages: [ChatMessage], held: (id: String, receipt: ChatReceipt?)?) -> [ChatMessage] {
+        let receipts = messages.map { $0.id == held?.id ? held?.receipt : $0.receipt }
+        return messages.enumerated().map { index, message in
             let above = index > 0 && messages[index - 1].sender == message.sender
             let below = index < messages.count - 1 && messages[index + 1].sender == message.sender
             return ChatMessage(
@@ -213,9 +225,10 @@ public final class ChatMotionSandboxViewController: UIViewController {
                 sender: message.sender,
                 isContinuationFromPrevious: above,
                 isContinuedByNext: below,
-                joinsBubbleAbove: above,
-                joinsBubbleBelow: below,
-                receipt: message.receipt,
+                // A receipt sits between the two bubbles, so it ends the run as the transcript's does.
+                joinsBubbleAbove: above && receipts[index - 1] == nil,
+                joinsBubbleBelow: below && receipts[index] == nil,
+                receipt: receipts[index],
                 linkPreview: message.linkPreview
             )
         }

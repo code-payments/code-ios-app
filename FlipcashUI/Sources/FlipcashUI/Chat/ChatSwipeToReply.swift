@@ -23,6 +23,8 @@ final class ChatSwipeToReply: NSObject {
     nonisolated static let maxTranslation: CGFloat = 64
     /// Offset at which the reply arms — marked by a haptic, sent on release.
     nonisolated static let triggerThreshold: CGFloat = 48
+    /// The arrow's scale at rest, which it grows from to full size as the drag reaches the threshold.
+    private static let arrowStartScale: CGFloat = 0.35
     /// Width of the leading strip left to the system's interactive-pop gesture. The reply swipe runs
     /// in the same direction as back-navigation, so the two would otherwise fight over every drag
     /// that starts at the screen edge — and the row would win, leaving no way back.
@@ -152,7 +154,7 @@ final class ChatSwipeToReply: NSObject {
         haptics.prepare()
 
         affordance.alpha = 0
-        affordance.transform = CGAffineTransform(scaleX: 0.6, y: 0.6)
+        affordance.transform = CGAffineTransform(scaleX: Self.arrowStartScale, y: Self.arrowStartScale)
         affordance.center = Self.affordanceCenter(inRowOfHeight: row.cell.bounds.height)
         row.cell.contentView.addSubview(affordance)
     }
@@ -165,7 +167,8 @@ final class ChatSwipeToReply: NSObject {
         let progress = min(1, offset / Self.triggerThreshold)
         affordance.center = Self.affordanceCenter(inRowOfHeight: draggedCell.bounds.height, offset: offset)
         affordance.alpha = progress
-        affordance.transform = CGAffineTransform(scaleX: 0.6 + 0.4 * progress, y: 0.6 + 0.4 * progress)
+        let scale = Self.arrowStartScale + (1 - Self.arrowStartScale) * progress
+        affordance.transform = CGAffineTransform(scaleX: scale, y: scale)
         updateHaptic(isPastThreshold: Self.triggers(offset: offset))
     }
 
@@ -190,7 +193,7 @@ final class ChatSwipeToReply: NSObject {
             cell?.swipeOffset = 0
             self.affordance.center = restingCenter
             self.affordance.alpha = 0
-            self.affordance.transform = CGAffineTransform(scaleX: 0.6, y: 0.6)
+            self.affordance.transform = CGAffineTransform(scaleX: Self.arrowStartScale, y: Self.arrowStartScale)
         } completion: { _ in
             // Only when no newer drag has claimed it: the arrow is one shared view, so an unguarded
             // removal here tears it out of the row a second swipe has already started on.

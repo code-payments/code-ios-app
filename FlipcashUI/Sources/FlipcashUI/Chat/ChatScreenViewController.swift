@@ -36,7 +36,7 @@ public final class ChatScreenViewController: UIViewController {
     /// to the bottom of a box that clips it, the bar's frame can jump to the strip's full height
     /// while the box uncovers it, and the composer row does not move at all.
     private let barClip = UIView()
-    /// Carries the bar's surface on below the clip, so the keyboard has the bar behind it rather
+    /// Carries the chat background on below the fade, so the keyboard has that behind it rather
     /// than the transcript.
     ///
     /// The keyboard's top corners are rounded, and what shows through them is whatever the app draws
@@ -46,10 +46,9 @@ public final class ChatScreenViewController: UIViewController {
     /// photo avatar. The bar cannot fill them itself: it sits on ``barClip``'s bottom edge and the
     /// clip cuts everything below it.
     ///
-    /// Tied to the clip's bottom rather than given a height, so it is exactly the region the bar has
-    /// been lifted off the screen bottom — the whole keyboard when one is up, nothing at all when the
-    /// keyboard is down and the bar is already on the bottom edge. Nothing else can see it: every
-    /// point it covers is a point the keyboard is covering.
+    /// Tied to the fade's bottom — the keyboard's top edge — rather than given a height, so it is
+    /// exactly the keyboard's region: the whole keyboard when one is up, nothing at all when it is
+    /// down. Nothing else can see it: every point it covers is a point the keyboard is covering.
     private let keyboardCornerCover = UIView()
     /// The bar's height is driven by its *measured* SwiftUI height, so the frame matches its
     /// content exactly — a hosting controller's intrinsic size mis-measures multiline growth and
@@ -112,6 +111,22 @@ public final class ChatScreenViewController: UIViewController {
     /// The pop gestures switched off for the length of an edit, kept so only those are switched back
     /// on and one that was already off stays off.
     private var suspendedPopGestures: [UIGestureRecognizer] = []
+    /// The dissolve from the transcript into the bottom of the screen. See ``ComposerFadeView``.
+    private let fade = ComposerFadeView()
+    /// How much closer to the bar the newest message sits while the keyboard is up.
+    private static let raisedTranscriptDrop: CGFloat = 8
+    /// How far into the bottom safe area the bar rests while the keyboard is down. Moves on the
+    /// reply strip's spring when it changes on screen.
+    public var barRestingDrop: CGFloat = 0 {
+        didSet {
+            guard barRestingDrop != oldValue, let keyboardFloor else { return }
+            keyboardFloor.restingDrop = barRestingDrop
+            guard view.window != nil, keyboardFloor.refresh() else { return }
+            ChatMotion.replySurface.animate {
+                self.view.layoutIfNeeded()
+            }
+        }
+    }
 
     /// - Parameters:
     ///   - bar: pinned to the bottom of the view; rides the keyboard.
@@ -294,7 +309,8 @@ public final class ChatScreenViewController: UIViewController {
 
         barHeightConstraint = constraints.height
         barClipHeightConstraint = constraints.clipHeight
-        keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom)
+        keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom, keyboardEdgeConstraint: constraints.keyboardEdge)
+        keyboardFloor.restingDrop = barRestingDrop
         lowerComposerOnResignActive()
         handOffComposerFocusAroundContextMenu()
         backdrop.onTap = { [weak self] in self?.onCancelEdit?() }
@@ -706,11 +722,12 @@ public final class ChatScreenViewController: UIViewController {
     private func addBar(
         _ bar: UIView,
         controller: UIViewController?
-    ) -> (height: NSLayoutConstraint, clipHeight: NSLayoutConstraint, bottom: NSLayoutConstraint) {
+    ) -> (height: NSLayoutConstraint, clipHeight: NSLayoutConstraint, bottom: NSLayoutConstraint, keyboardEdge: NSLayoutConstraint) {
         if let controller { addChild(controller) }
         barClip.translatesAutoresizingMaskIntoConstraints = false
         barClip.clipsToBounds = true
         view.addSubview(barClip)
+        let keyboardEdge = addComposerFade(below: barClip)
         addKeyboardCornerCover(below: barClip)
         bar.translatesAutoresizingMaskIntoConstraints = false
         barClip.addSubview(bar)
@@ -731,7 +748,22 @@ public final class ChatScreenViewController: UIViewController {
             bar.bottomAnchor.constraint(equalTo: barClip.bottomAnchor),
             heightConstraint,
         ])
-        return (heightConstraint, clipHeightConstraint, bottomConstraint)
+        return (heightConstraint, clipHeightConstraint, bottomConstraint, keyboardEdge)
+    }
+
+    /// Adds the fade from the bar's top edge down to the keyboard's top edge, or the screen's bottom
+    /// with the keyboard down. Returns the bottom constraint, which `KeyboardFloor` drives.
+    private func addComposerFade(below clip: UIView) -> NSLayoutConstraint {
+        fade.translatesAutoresizingMaskIntoConstraints = false
+        view.insertSubview(fade, belowSubview: clip)
+        let bottom = fade.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        NSLayoutConstraint.activate([
+            fade.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            fade.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            fade.topAnchor.constraint(equalTo: clip.topAnchor),
+            bottom,
+        ])
+        return bottom
     }
 
     /// Fills the gap the keyboard's rounded corners open up behind the bar — see
@@ -744,7 +776,7 @@ public final class ChatScreenViewController: UIViewController {
         NSLayoutConstraint.activate([
             keyboardCornerCover.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             keyboardCornerCover.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            keyboardCornerCover.topAnchor.constraint(equalTo: clip.bottomAnchor),
+            keyboardCornerCover.topAnchor.constraint(equalTo: fade.bottomAnchor),
             keyboardCornerCover.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
     }
@@ -786,10 +818,8 @@ public final class ChatScreenViewController: UIViewController {
         // it the transcript is cut at a hard line where the bar's background ends; with it the
         // transcript blurs progressively as it passes under the bar, as the Chats list does.
         //
-        // The bottom edge is the composer's, and it softens the same way. It has to carry the
-        // dissolve on its own now: the bar's surface finishes ramping to opaque in the margin above
-        // the controls, because the field is glass and samples whatever the surface still lets
-        // through — see `BarSurface.fadeHeight`. Both edge regions follow the scroll view's adjusted
+        // The bottom edge is the composer's, and it softens the same way, under the screen's own
+        // dissolve — see `ComposerFadeView`. Both edge regions follow the scroll view's adjusted
         // inset, so this one tracks the keyboard without being told about it.
         if #available(iOS 26.0, *) {
             transcript.collectionView.topEdgeEffect.style = .soft
@@ -869,6 +899,7 @@ public final class ChatScreenViewController: UIViewController {
             travels = closesReply
             if !closesReply { replyStripHeight = 0 }
         }
+        fade.isHidden = height <= 0
 
         guard !isFirst, view.window != nil, travels else {
             guard barHeightConstraint.constant != height || barClipHeightConstraint.constant != clipHeight else { return }
@@ -903,20 +934,34 @@ public final class ChatScreenViewController: UIViewController {
     public func update(items: [ChatItem]) { transcript.update(items: items) }
     public func scrollToBottom(animated: Bool = true) { transcript.scrollToBottom(animated: animated) }
 
+    /// Whether the transcript sits at its newest message — see ``ChatViewController/isAtBottom``.
+    public var isTranscriptAtBottom: Bool { transcript.isAtBottom }
+
     /// Brings a row into view, deferring until the update that contains it lands.
     public func scrollToMessage(id: String) { transcript.scrollToMessage(id: id) }
 
     // MARK: - Bar inset
 
+    public override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        // Before the pass, not after it: the safe area can change between passes — opening a chat
+        // from the Chats tab starts it with the tab bar's inset and drops to the home indicator's a
+        // pass later — and a bar moved after the pass leaves the transcript's inset below reading
+        // the bar's old frame, with nothing to lay it out again.
+        keyboardFloor.refresh()
+    }
+
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        keyboardFloor.refresh()
         backdrop.layoutHeld()
         refreshEditSpotlight()
-        // Reserve only the bar's own height. On-device the system already grows the collection
-        // view's adjusted content inset by the keyboard when it's up, so adding the keyboard here
-        // too (via the bar's risen position) double-counts it and overscrolls by a whole keyboard.
-        transcript.setBottomInset(barClip.frame.height)
+        // Reserve what the bar covers beyond what the system already reserves. The system grows the
+        // collection view's adjusted inset by the safe area, or by the keyboard when it's up, so
+        // counting those again overscrolls by a whole keyboard. Measured from the bar's top edge
+        // rather than taken as its height, so a bar resting into the safe area gives that back.
+        let covered = view.bounds.maxY - barClip.frame.minY
+        let drop = keyboardFloor.isKeyboardUp ? Self.raisedTranscriptDrop : 0
+        transcript.setBottomInset(max(0, covered - keyboardFloor.systemInset - drop))
     }
 }
 
@@ -933,15 +978,18 @@ public final class ChatScreenViewController: UIViewController {
 private final class KeyboardFloor {
 
     private let bottomConstraint: NSLayoutConstraint
+    /// Tracks the keyboard's top edge itself: the screen's bottom with the keyboard down.
+    private let keyboardEdgeConstraint: NSLayoutConstraint
     private weak var view: UIView?
     private var observer: (any NSObjectProtocol)?
 
     /// The keyboard's current overlap of the view, in points; zero when it is down.
     private var overlap: CGFloat = 0
 
-    init(view: UIView, bottomConstraint: NSLayoutConstraint) {
+    init(view: UIView, bottomConstraint: NSLayoutConstraint, keyboardEdgeConstraint: NSLayoutConstraint) {
         self.view = view
         self.bottomConstraint = bottomConstraint
+        self.keyboardEdgeConstraint = keyboardEdgeConstraint
 
         // `willChangeFrame` alone covers showing, hiding, height changes and the interactive
         // drag-to-dismiss, all of which post it.
@@ -976,8 +1024,9 @@ private final class KeyboardFloor {
     }
 
     /// Re-applies the current overlap. Called from layout so the resting inset picks up a safe
-    /// area that wasn't known yet when the bar was added.
-    func refresh() {
+    /// area that wasn't known yet when the bar was added. Returns whether the bar moved.
+    @discardableResult
+    func refresh() -> Bool {
         setInset(max(overlap, restingInset))
     }
 
@@ -987,7 +1036,9 @@ private final class KeyboardFloor {
         // Keyboard frames arrive in window coordinates.
         let frameInView = view.convert(endFrame, from: nil)
         overlap = max(0, view.bounds.maxY - frameInView.minY)
-        guard setInset(max(overlap, restingInset)) else { return }
+        let edgeMoved = keyboardEdgeConstraint.constant != -overlap
+        keyboardEdgeConstraint.constant = -overlap
+        guard setInset(max(overlap, restingInset)) || edgeMoved else { return }
 
         let options: UIView.AnimationOptions = [
             .beginFromCurrentState,
@@ -998,11 +1049,28 @@ private final class KeyboardFloor {
         }
     }
 
-    /// The keyboard-down resting inset. Zero wherever the host already ends the view at the safe
-    /// area, which is what the SwiftUI container hosting this screen does — taking the window's
-    /// inset instead counts the home indicator twice and parks the bar over the transcript.
-    private var restingInset: CGFloat {
+    /// How far into the bottom safe area the bar rests with the keyboard down.
+    var restingDrop: CGFloat = 0
+
+    /// What the system itself reserves at the bottom of a scroll view in this view: the keyboard
+    /// while it is up, the safe area otherwise.
+    var systemInset: CGFloat {
+        max(overlap, safeAreaBottom)
+    }
+
+    /// Whether the keyboard reaches above the safe area, and so holds the bar up.
+    var isKeyboardUp: Bool {
+        overlap > safeAreaBottom
+    }
+
+    private var safeAreaBottom: CGFloat {
         view?.safeAreaInsets.bottom ?? 0
+    }
+
+    /// The keyboard-down resting inset: the safe area less the drop, never below the screen's edge.
+    /// The host runs this screen under the home indicator, so the safe area is the window's.
+    private var restingInset: CGFloat {
+        max(0, safeAreaBottom - restingDrop)
     }
 
     /// Returns whether the constraint actually moved, so callers can skip a no-op animation.

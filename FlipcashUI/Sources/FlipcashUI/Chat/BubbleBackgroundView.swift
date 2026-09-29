@@ -141,6 +141,38 @@ final class BubbleBackgroundView: UIView {
         }
     }
 
+    // MARK: - Growing out of the typing bubble
+
+    private static let growKey = "typingGrow"
+
+    /// Grows the chrome out of `rect`, in this view's coordinates, to its own shape on `spring`.
+    ///
+    /// Only the outline moves — the mask and the hairline — so whatever the bubble holds is never
+    /// scaled, and the fill is revealed rather than stretched. `rect` is drawn with the typing
+    /// bubble's corners, which are the incoming ones with nothing grouped.
+    func grow(from rect: CGRect, on spring: ChatSpring) {
+        layoutIfNeeded()
+        guard let end = shapeMask.path else { return }
+        let start = UnevenRoundedRectangle(
+            cornerRadii: Self.radii(isFromSelf: false, groupedAbove: false, groupedBelow: false),
+            style: .continuous
+        ).path(in: rect).cgPath
+        for layer in [shapeMask, borderLayer] {
+            layer.add(spring.layerAnimation(keyPath: "path", from: start, to: end), forKey: Self.growKey)
+        }
+    }
+
+    /// Lands a grow still in flight, for a view being recycled.
+    func cancelGrow() {
+        shapeMask.removeAnimation(forKey: Self.growKey)
+        borderLayer.removeAnimation(forKey: Self.growKey)
+    }
+
+    /// The outline the chrome is drawn inside right now, mid-grow included, in its own coordinates.
+    var presentedOutline: CGRect? {
+        (shapeMask.presentation() ?? shapeMask).path?.boundingBoxOfPath
+    }
+
     // MARK: - Attention
 
     private static let attentionKey = "attention"
@@ -176,7 +208,7 @@ final class BubbleBackgroundView: UIView {
     var isFlashingAttention: Bool { attentionLayer.animation(forKey: Self.attentionKey) != nil }
 
     /// The lift the flash adds on top of the sender's resting wash. Sized to read on both fills —
-    /// a received bubble sits at 0.02 white, so the same absolute lift is the larger relative jump
+    /// a received bubble sits at 0.05 white, so the same absolute lift is the larger relative jump
     /// there, which is right: the message being pointed at is usually the other person's.
     private static let attentionWash = UIColor.white.withAlphaComponent(0.10)
 
@@ -187,7 +219,7 @@ final class BubbleBackgroundView: UIView {
     /// flat against the transcript, measured at rgb 17 right up to its edge on all sides. Owning the
     /// values here also means the menu's lift and the edit that follows it share one shadow rather
     /// than one of them guessing at a system default the other inherited.
-    private static let liftShadowOpacity: Float = 0.65
+    private static let liftShadowOpacity: Float = 0.135
     private static let liftShadowRadius: CGFloat = 20
     private static let liftShadowOffset = CGSize(width: 0, height: 10)
 
@@ -229,8 +261,8 @@ final class BubbleBackgroundView: UIView {
     /// White-opacity wash for a sender, composited over the conversation background by `apply`.
     static func fill(isFromSelf: Bool) -> UIColor {
         isFromSelf
-            ? UIColor.white.withAlphaComponent(0.08)
-            : UIColor.white.withAlphaComponent(0.02)
+            ? UIColor.white.withAlphaComponent(0.10)
+            : UIColor.white.withAlphaComponent(0.05)
     }
 
     /// Every corner at `baseRadius`: a bubble, or a link card, that stands alone.

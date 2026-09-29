@@ -232,6 +232,72 @@ struct ChatMessageMappingTests {
         #expect(receiptText(items) == "Read")
     }
 
+    @Test("Read stays on the last read message while a newer one shows Delivered")
+    func readAndDeliveredSplit() {
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), text(2, me, "b", after: 60), text(3, me, "c", after: 120)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 2), date: nil)
+        )
+        #expect(messageRows(items).map { $0.receipt?.status } == [nil, "Read", "Delivered"])
+    }
+
+    @Test("When the newest message is read, it carries the only line")
+    func readReachesNewest() {
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), text(2, me, "b", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 2), date: nil)
+        )
+        #expect(messageRows(items).map { $0.receipt?.status } == [nil, "Read"])
+    }
+
+    @Test("Read skips the counterpart's own messages to land on the last read self message")
+    func readSkipsCounterpart() {
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), text(2, them, "b", after: 60), text(3, me, "c", after: 120)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 2), date: nil)
+        )
+        #expect(messageRows(items).map { $0.receipt?.status } == ["Read", nil, "Delivered"])
+    }
+
+    @Test("A receipt between two of my bubbles keeps them apart; once it moves on they join")
+    func receiptBreaksBubbleRun() {
+        let messages = [text(1, me, "a", after: 0), text(2, me, "b", after: 60)]
+        let settling = messageRows(ChatItem.from(messages, selfUserID: me, suppressReceiptFor: "2"))
+        #expect(settling.map { $0.receipt?.status } == ["Delivered", nil])
+        #expect(!settling[0].joinsBubbleBelow)
+        #expect(!settling[1].joinsBubbleAbove)
+
+        let handedOff = messageRows(ChatItem.from(messages, selfUserID: me))
+        #expect(handedOff.map { $0.receipt?.status } == [nil, "Delivered"])
+        #expect(handedOff[0].joinsBubbleBelow)
+        #expect(handedOff[1].joinsBubbleAbove)
+    }
+
+    @Test("A Read line left above a Delivered one keeps the run broken there")
+    func readLineBreaksBubbleRun() {
+        let rows = messageRows(ChatItem.from(
+            [text(1, me, "a", after: 0), text(2, me, "b", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 1), date: nil)
+        ))
+        #expect(rows.map { $0.receipt?.status } == ["Read", "Delivered"])
+        #expect(!rows[0].joinsBubbleBelow)
+    }
+
+    @Test("A settling send keeps the Read line where it is and shows no Delivered yet")
+    func settlingSendKeepsRead() {
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), text(2, me, "b", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 1), date: nil),
+            suppressReceiptFor: "2"
+        )
+        #expect(messageRows(items).map { $0.receipt?.status } == ["Read", nil])
+    }
+
     @Test("Appending one sent message is a single clean insert — the receipt rides on the message")
     func appendingOneMessageIsACleanInsert() {
         // Two of my messages, then I append a third (same sender, within the grouping gap).
@@ -319,6 +385,90 @@ struct ChatMessageMappingTests {
         // Once the gate clears, "Delivered" appears.
         let settled = ChatItem.from([text(1, me, "hi", after: 0)], selfUserID: me, counterpartRead: read)
         #expect(receiptText(settled) == "Delivered")
+    }
+
+    /// A send the server has confirmed, still identified by the client id the settle gate holds.
+    private func confirmedSend(_ id: UInt64, _ clientID: UUID, _ body: String, after offset: TimeInterval) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: id), senderID: me, content: .text(body),
+            date: base.addingTimeInterval(offset), unreadSeq: id,
+            status: .sent, clientMessageID: clientID
+        )
+    }
+
+    @Test("A confirmed send that is still settling leaves the receipt on the previous confirmed row")
+    func settlingSendLeavesReceiptOnPreviousRow() {
+        let clientID = UUID()
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), text(2, them, "b", after: 30), confirmedSend(3, clientID, "c", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil),
+            suppressReceiptFor: clientID.uuidString
+        )
+        let rows = messageRows(items)
+        #expect(rows.map(\.receipt) == [.delivered, nil, nil])
+    }
+
+    @Test("Once the settle gate releases, the receipt is on the new row only")
+    func releasedSendTakesTheReceipt() {
+        let clientID = UUID()
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), text(2, them, "b", after: 30), confirmedSend(3, clientID, "c", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil)
+        )
+        let rows = messageRows(items)
+        #expect(rows.map(\.receipt) == [nil, nil, .delivered])
+    }
+
+    @Test("The held line reads as whatever the previous row has earned, Read included")
+    func settlingSendKeepsPreviousRead() {
+        let clientID = UUID()
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), confirmedSend(2, clientID, "b", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 1), date: nil),
+            suppressReceiptFor: clientID.uuidString
+        )
+        #expect(messageRows(items).map(\.receipt) == [.read(time: nil), nil])
+    }
+
+    @Test("A sending row behind a settling hold leaves the previous row's receipt as it was")
+    func sendingRowWhileHeldKeepsPreviousReceipt() {
+        let clientID = UUID()
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), sending(clientID, "b", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil),
+            suppressReceiptFor: clientID.uuidString
+        )
+        #expect(messageRows(items).map(\.receipt) == [.delivered, nil])
+    }
+
+    @Test("A failed row behind a settling hold shows its own line and keeps the previous receipt")
+    func failedRowWhileHeldKeepsPreviousReceipt() {
+        let clientID = UUID()
+        var failed = sending(clientID, "b", after: 60)
+        failed.status = .failed
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), failed],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil),
+            suppressReceiptFor: clientID.uuidString
+        )
+        #expect(messageRows(items).map(\.receipt) == [.delivered, .failed("Not Delivered. Tap to retry")])
+    }
+
+    @Test("A settling first send shows no receipt anywhere until the gate releases")
+    func settlingFirstSendShowsNothing() {
+        let clientID = UUID()
+        let items = ChatItem.from(
+            [text(1, them, "a", after: 0), confirmedSend(2, clientID, "b", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil),
+            suppressReceiptFor: clientID.uuidString
+        )
+        #expect(messageRows(items).map(\.receipt) == [nil, nil])
     }
 
     @Test("A text message containing a URL carries the trailing link as its preview")

@@ -104,9 +104,22 @@ extension ChatItem {
         // nothing; a failed row shows its own "Not Delivered" line (each independently retryable).
         // A tombstone has nothing to acknowledge, so it must not take the receipt from the last row
         // that does — it is skipped here even when it is the newest self message.
+        //
+        // A confirmed send that is still settling (`suppressReceiptFor`) doesn't take it yet either:
+        // the row above keeps its line until the settle gate releases, or until confirmation if that
+        // lands later, and then the line moves to the new row in one diff — the old line leaves as
+        // the new one arrives, rather than dropping at confirmation and reappearing a beat later.
         let latestSentFromSelfID = messages.last {
-            $0.isFromSelf(selfUserID) && $0.status == .sent && !$0.isDeleted
+            $0.isFromSelf(selfUserID) && $0.status == .sent && !$0.isDeleted && $0.stableID != suppressReceiptFor
         }?.stableID
+        // "Read" stays on the newest self message the counterpart has read, iMessage-style, when a
+        // newer one has only been delivered: the two lines sit under their own bubbles rather than
+        // one line claiming the whole run is read. When the newest is read too, they're the same row.
+        let latestReadFromSelfID: String? = counterpartRead.flatMap { read in
+            messages.last {
+                $0.isFromSelf(selfUserID) && $0.status == .sent && !$0.isDeleted && $0.id <= read.pointer
+            }?.stableID
+        }
         // A separator heads `message` when the pause before `earlier` ran longer than the gap, or
         // when the two fall on different days — the second is what keeps a late-night exchange from
         // reading as one run across midnight, which the gap alone would let through.
@@ -144,6 +157,22 @@ extension ChatItem {
             case .cash, .deleted, .encrypted: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
+        // A status line under a message sits between it and the next bubble, so it ends the bubble
+        // run there too: the two keep their round corners and the normal gap until the line moves
+        // on, and then they join.
+        func carriesReceipt(_ index: Int) -> Bool {
+            let message = messages[index]
+            switch message.status {
+            case .sent:
+                return message.stableID == latestSentFromSelfID
+                    || (counterpartRead != nil && message.stableID == latestReadFromSelfID)
+            case .failed:
+                return true
+            case .sending:
+                return false
+            }
+        }
+
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -182,9 +211,11 @@ extension ChatItem {
             // and take the tight row gap, pointing at a bubble that is not there — while the name and
             // the gutter face stay where they are.
             // A card row is no break: it is cut to the same per-corner shape a bubble is, so it joins
-            // the bubbles around it like one.
+            // the bubbles around it like one. A receipt line between two bubbles is one.
             let joinsBubbleAbove = groupedAbove && !rendersBare(message) && !(previous.map(rendersBare) ?? false)
+                && !(index > 0 && carriesReceipt(index - 1))
             let joinsBubbleBelow = groupedBelow && !rendersBare(message) && !(next.map(rendersBare) ?? false)
+                && !carriesReceipt(index)
 
             let content: ChatMessage.Content
             switch message.content {
@@ -219,12 +250,16 @@ extension ChatItem {
             switch message.status {
             case .sent:
                 isUnsent = false
-                // "Delivered"/"Read" rides only the latest confirmed self message — preserved even when
-                // a later send is in flight or failed, and held back while the row is still settling in.
-                // `latestSentFromSelfID` is already a self+sent row, so matching it implies both.
-                receipt = message.stableID == latestSentFromSelfID && message.stableID != suppressReceiptFor
-                    ? Self.receipt(for: message.id, counterpartRead: counterpartRead)
-                    : nil
+                // The newest confirmed, unsettled self message carries its status; the newest one the
+                // counterpart has read carries "Read" even when a newer one is only delivered, so the
+                // thread shows both lines at once.
+                if message.stableID == latestSentFromSelfID {
+                    receipt = Self.receipt(for: message.id, counterpartRead: counterpartRead)
+                } else if message.stableID == latestReadFromSelfID, let read = counterpartRead {
+                    receipt = Self.readReceipt(at: read.date)
+                } else {
+                    receipt = nil
+                }
             case .sending:
                 isUnsent = true
                 // No status line while in flight — the bubble sits there until it resolves to
@@ -477,7 +512,12 @@ extension ChatItem {
     /// read pointer reaches the message, else "Delivered".
     nonisolated private static func receipt(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> ChatReceipt {
         guard let read = counterpartRead, read.pointer >= messageID else { return .delivered }
-        guard let date = read.date else { return .read(time: nil) }
+        return readReceipt(at: read.date)
+    }
+
+    /// "Read", with the time the counterpart read up to when it's known.
+    nonisolated private static func readReceipt(at date: Date?) -> ChatReceipt {
+        guard let date else { return .read(time: nil) }
         return .read(time: date.formattedRelatively(useTimeForToday: true))
     }
 }

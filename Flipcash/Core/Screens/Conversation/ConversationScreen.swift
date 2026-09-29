@@ -595,13 +595,11 @@ struct ConversationScreen: View {
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
         // what lets the iOS 26 toolbar scroll-edge effect materialize. The collection view keeps a
         // top content inset (it adjusts for the safe area) so messages stay readable below the bar.
-        .ignoresSafeArea(.container, edges: .top)
-        // The bar's surface stops where the hosted view does, at the bottom safe area. This carries
-        // it the rest of the way down, so the bar reads as running off the bottom of the display
-        // rather than as a card with an edge above the home indicator.
-        .background {
-            BarSurfaceFloor()
-        }
+        //
+        // The bottom too, so the transcript runs under the home indicator and the composer's fade
+        // reaches the display's bottom edge. The screen still holds the bar clear of the home
+        // indicator itself — see `KeyboardFloor`.
+        .ignoresSafeArea(.container, edges: [.top, .bottom])
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
