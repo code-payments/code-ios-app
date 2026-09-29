@@ -62,7 +62,8 @@ struct FlipcashApp: App {
 }
 
 #if DEBUG
-/// The motion sandbox, standing in for the whole app when launched with `--motion-sandbox`.
+/// The motion sandbox, standing in for the whole app when launched with `--motion-sandbox`, or
+/// `--motion-sandbox-group` for the group typing-dots scenes.
 ///
 /// A launch argument rather than a hidden menu entry because the point is a *repeatable recording*:
 /// one `xcrun simctl launch` line puts the device on the scripted send with nothing else on screen,
@@ -70,11 +71,15 @@ struct FlipcashApp: App {
 private struct MotionSandbox: UIViewControllerRepresentable {
 
     static var isRequested: Bool {
-        ProcessInfo.processInfo.arguments.contains("--motion-sandbox")
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("--motion-sandbox") || arguments.contains("--motion-sandbox-group")
     }
 
     func makeUIViewController(context: Context) -> ChatMotionSandboxViewController {
-        ChatMotionSandboxViewController(autoplay: true)
+        ChatMotionSandboxViewController(
+            autoplay: true,
+            group: ProcessInfo.processInfo.arguments.contains("--motion-sandbox-group")
+        )
     }
 
     func updateUIViewController(_ controller: ChatMotionSandboxViewController, context: Context) {}
