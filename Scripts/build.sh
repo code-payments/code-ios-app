@@ -16,6 +16,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
+source "$SCRIPT_DIR/lib/xcodebuild.sh"
 
 # Ensure the repo's versioned pre-commit hook is active. Idempotent — first
 # build of a fresh clone wires it up; subsequent runs are silent.
@@ -77,7 +78,7 @@ fi
 DESTINATION="${DESTINATION:-generic/platform=iOS}"
 
 echo "+ xcodebuild build -scheme Flipcash -destination '$DESTINATION' $*"
-exec xcodebuild build \
+run_xcodebuild build \
     -scheme Flipcash \
     -destination "$DESTINATION" \
     "$@"

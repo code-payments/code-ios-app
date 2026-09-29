@@ -40,6 +40,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
+source "$SCRIPT_DIR/lib/xcodebuild.sh"
 
 args=()
 for target in "$@"; do
@@ -57,7 +58,7 @@ if [ -z "$sim_udid" ]; then
 fi
 
 echo "+ xcodebuild test -scheme Flipcash -destination 'id=$sim_udid' -parallel-testing-enabled NO ${args[*]}"
-exec xcodebuild test \
+run_xcodebuild test \
     -scheme Flipcash \
     -destination "id=$sim_udid" \
     -parallel-testing-enabled NO \

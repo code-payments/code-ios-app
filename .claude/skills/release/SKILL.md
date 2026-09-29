@@ -109,9 +109,10 @@ Display for sanity check.
 
 ### 6. Run all tests
 ```bash
+set -o pipefail
 xcodebuild test -scheme Flipcash \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -testPlan AllTargets
+  -testPlan AllTargets 2>&1 | xcsift -f toon
 ```
 The `AllTargets` test plan already includes UI tests. Do NOT run UI tests separately.
 
@@ -122,8 +123,10 @@ The `AllTargets` test plan already includes UI tests. Do NOT run UI tests separa
 ```bash
 xcodebuild test -scheme Flipcash \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -testPlan Sanitizers 2>&1 | tee /tmp/sanitizers.log
+  -testPlan Sanitizers > /tmp/sanitizers.log 2>&1; echo "exit=$?"
 ```
+
+The greps below need the raw log, so it goes to a file instead of the conversation.
 
 `Sanitizers` covers `FlipcashTests` + `FlipcashCoreTests` only; TSan cannot run against the UI
 tests.
