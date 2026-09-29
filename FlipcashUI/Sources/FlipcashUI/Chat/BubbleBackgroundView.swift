@@ -24,6 +24,9 @@ import SwiftUI
 /// no hosted SwiftUI views) and drawn into a `CAShapeLayer`.
 final class BubbleBackgroundView: UIView {
 
+    private static let hairlineStroke = UIColor.white.withAlphaComponent(0.03)
+    private static let dashedStroke = UIColor.white.withAlphaComponent(0.2)
+
     /// Base corner radius; the inner corner of a grouped run uses `groupedRadius`.
     static let baseRadius: CGFloat = 12
     static let groupedRadius: CGFloat = 4
@@ -55,7 +58,7 @@ final class BubbleBackgroundView: UIView {
         attentionLayer.actions = ["position": NSNull(), "bounds": NSNull()]
         layer.addSublayer(attentionLayer)
         borderLayer.fillColor = UIColor.clear.cgColor
-        borderLayer.strokeColor = UIColor.white.withAlphaComponent(0.03).cgColor
+        borderLayer.strokeColor = Self.hairlineStroke.cgColor
         borderLayer.lineWidth = 1
         borderLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
         layer.addSublayer(borderLayer)
@@ -83,13 +86,18 @@ final class BubbleBackgroundView: UIView {
     /// keeps a reused cell from animating in someone else's shape.
     ///
     /// `bare` draws no bubble at all, for a row that is only its content.
-    func apply(fill: UIColor, radii: RectangleCornerRadii, bare: Bool = false, identity: String? = nil) {
+    ///
+    /// `dashedBorder` swaps the wash and hairline for a dashed outline, the look of a bubble that
+    /// stands in for a message it cannot show.
+    func apply(fill: UIColor, radii: RectangleCornerRadii, bare: Bool = false, dashedBorder: Bool = false, identity: String? = nil) {
         // The opaque base goes too, not just the wash and the border: it is there so a bubble reads
         // the same under the context menu's dim and the edit blur, and behind a bare row the same
         // base would be a rectangular patch against both.
         backgroundColor = bare ? .clear : UIColor(Color.backgroundMain)
-        washLayer.isHidden = bare
+        washLayer.isHidden = bare || dashedBorder
         borderLayer.isHidden = bare
+        borderLayer.strokeColor = (dashedBorder ? Self.dashedStroke : Self.hairlineStroke).cgColor
+        borderLayer.lineDashPattern = dashedBorder ? [5, 4] : nil
         washLayer.backgroundColor = fill.cgColor
         // A recycled view taking a new row drops any flash still running, so the attention never
         // finishes on a message it wasn't meant for.
@@ -105,7 +113,7 @@ final class BubbleBackgroundView: UIView {
     /// Whether this chrome draws a bubble: the opaque base, the wash and the hairline border. False
     /// for a bare row, which keeps only the shape mask and the attention layer — the mask because
     /// an unclipped flash would be a rectangle floating where no bubble is.
-    var isDrawingBubble: Bool { !washLayer.isHidden }
+    var isDrawingBubble: Bool { !borderLayer.isHidden }
 
     /// The bubble's continuous, per-corner rounded shape in its own coordinate space — the same
     /// geometry used for the layer mask. Clips the context-menu lift preview to the bubble.

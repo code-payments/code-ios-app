@@ -18,6 +18,8 @@ public final class ChatBubbleView: UIView {
     private let background = BubbleBackgroundView()
     private let label = UILabel()
     private let editedLabel = EditedMarker.makeLabel()
+    /// The line under an unavailable message's bubble; hidden for every other row.
+    private let hintLabel = UILabel()
     private(set) var quotePanel = ChatQuotePanelView()
 
     /// Forwarded from the panel: the stable id of the message to jump to.
@@ -35,12 +37,19 @@ public final class ChatBubbleView: UIView {
     private var labelLeading: NSLayoutConstraint!
     private var labelTrailing: NSLayoutConstraint!
     private var labelBottom: NSLayoutConstraint!
+    /// The background reaches the view's bottom edge, except on an unavailable row where the hint
+    /// hangs below the bubble and the background stops under the body.
+    private var backgroundBottomToBounds: NSLayoutConstraint!
+    private var backgroundBottomToLabel: NSLayoutConstraint!
+    private var hintBottom: NSLayoutConstraint!
     /// Whether the row currently draws bare, so `maskingPath` can decline to clip a lift preview to
     /// a bubble that is not drawn.
     private var isBare = false
 
     private static let bodyInset: CGFloat = 12
     private static let bodyPadding: CGFloat = 9
+    private static let hintTopSpacing: CGFloat = 8
+    private static let hintLeadingInset: CGFloat = 4
     /// A bare row's padding. Smaller than a bubble's because the emoji carries its own margin
     /// inside its line box, and the transcript's rhythm is what is being matched, not the bubble's.
     private static let barePadding: CGFloat = 4
@@ -72,6 +81,13 @@ public final class ChatBubbleView: UIView {
 
         addSubview(editedLabel)
 
+        hintLabel.font = .default(size: 12, weight: .semibold)
+        hintLabel.textColor = UIColor.white.withAlphaComponent(0.7)
+        hintLabel.numberOfLines = 0
+        hintLabel.isHidden = true
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(hintLabel)
+
         quotePanel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(quotePanel)
 
@@ -91,12 +107,15 @@ public final class ChatBubbleView: UIView {
         )
 
         labelBottom = label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.bodyPadding)
+        backgroundBottomToBounds = background.bottomAnchor.constraint(equalTo: bottomAnchor)
+        backgroundBottomToLabel = background.bottomAnchor.constraint(equalTo: label.bottomAnchor, constant: Self.bodyPadding)
+        hintBottom = hintLabel.bottomAnchor.constraint(equalTo: bottomAnchor)
         labelLeading = label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.bodyInset)
         labelTrailing = label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.bodyInset)
 
         NSLayoutConstraint.activate(quoteCollapse + [
             background.topAnchor.constraint(equalTo: topAnchor),
-            background.bottomAnchor.constraint(equalTo: bottomAnchor),
+            backgroundBottomToBounds,
             background.leadingAnchor.constraint(equalTo: leadingAnchor),
             background.trailingAnchor.constraint(equalTo: trailingAnchor),
 
@@ -106,6 +125,10 @@ public final class ChatBubbleView: UIView {
             labelBottom,
             labelLeading,
             labelTrailing,
+
+            hintLabel.topAnchor.constraint(equalTo: label.bottomAnchor, constant: Self.bodyPadding + Self.hintTopSpacing),
+            hintLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.hintLeadingInset),
+            hintLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
 
             // Bottom-trailing corner: the body's reservation run keeps the space clear, so the
             // marker lands on the last line where it fits and on the wrapped line where it doesn't.
@@ -129,6 +152,26 @@ public final class ChatBubbleView: UIView {
         label.attributedText = Self.displayText(for: message)
         editedLabel.isHidden = !Self.showsEditedMarker(for: message) || message.rendersAsLargeEmoji
         isBare = message.rendersAsLargeEmoji
+
+        // Deactivate before activating, as with the quote's top constraints below.
+        let hint: String?
+        switch message.content {
+        case .unavailable(let unavailableHint): hint = unavailableHint.text
+        case .text, .cash, .deleted:            hint = nil
+        }
+        hintLabel.text = hint
+        hintLabel.isHidden = hint == nil
+        if hint != nil {
+            labelBottom.isActive = false
+            backgroundBottomToBounds.isActive = false
+            backgroundBottomToLabel.isActive = true
+            hintBottom.isActive = true
+        } else {
+            hintBottom.isActive = false
+            backgroundBottomToLabel.isActive = false
+            backgroundBottomToBounds.isActive = true
+            labelBottom.isActive = true
+        }
         labelTopToBubble.constant = isBare ? Self.barePadding : Self.bodyPadding
         labelBottom.constant = isBare ? -Self.barePadding : -Self.bodyPadding
         labelLeading.constant = isBare ? 0 : Self.bodyInset
@@ -160,6 +203,7 @@ public final class ChatBubbleView: UIView {
                 groupedBelow: message.joinsBubbleBelow
             ),
             bare: isBare,
+            dashedBorder: Self.isUnavailable(message),
             identity: message.id
         )
     }
@@ -171,7 +215,38 @@ public final class ChatBubbleView: UIView {
         case .text:    message.isEdited
         case .deleted: false
         case .cash:    false
+        case .unavailable: false
         }
+    }
+
+    private static func isUnavailable(_ message: ChatMessage) -> Bool {
+        switch message.content {
+        case .unavailable:              true
+        case .text, .cash, .deleted:    false
+        }
+    }
+
+    /// The unavailable bubble's line: an alert glyph, then the copy, both muted.
+    private static func unavailableText() -> NSAttributedString {
+        let color = UIColor.white.withAlphaComponent(0.55)
+        let font = UIFont.default(size: 15, weight: .medium)
+        let symbol = UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        let attachment = NSTextAttachment()
+        attachment.image = UIImage(systemName: "exclamationmark.circle", withConfiguration: symbol)?
+            .withTintColor(color, renderingMode: .alwaysOriginal)
+        attachment.bounds = CGRect(x: 0, y: -2, width: 16, height: 16)
+
+        let result = NSMutableAttributedString(attachment: attachment)
+        result.append(NSAttributedString(string: " ", attributes: [.font: font, .kern: 4]))
+        result.append(NSAttributedString(
+            string: ChatMessage.unavailableCopy,
+            attributes: [.font: font, .foregroundColor: color]
+        ))
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = 22
+        style.maximumLineHeight = 22
+        result.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: result.length))
+        return result
     }
 
     /// The bubble's rendered text: the body, a muted italic placeholder for a tombstone, and the
@@ -188,6 +263,8 @@ public final class ChatBubbleView: UIView {
         case .deleted(let placeholder):
             body = placeholder
             isPlaceholder = true
+        case .unavailable:
+            return unavailableText()
         case .cash:
             return nil
         }

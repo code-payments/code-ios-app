@@ -80,7 +80,7 @@ extension ChatItem {
             case .encrypted:
                 // Not filtered above (only tombstones are): an encrypted message stays a real,
                 // visible row, same as the in-app transcript, just with no plaintext to preview.
-                content = .deleted(ChatMessage.unsupportedContentCopy)
+                content = .unavailable(.updateApp)
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
             }

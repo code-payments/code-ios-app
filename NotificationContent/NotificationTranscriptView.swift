@@ -80,6 +80,8 @@ private struct NotificationMessageRow: View {
                 NotificationTextBubble(text: text, isFromSelf: message.sender == .me)
             case .deleted(let placeholder):
                 NotificationTextBubble(text: placeholder, isFromSelf: message.sender == .me)
+            case .unavailable:
+                NotificationTextBubble(text: ChatMessage.unavailableCopy, isFromSelf: message.sender == .me)
             case .cash(let cash):
                 NotificationCashCard(cash: cash, isFromSelf: message.sender == .me)
             }
