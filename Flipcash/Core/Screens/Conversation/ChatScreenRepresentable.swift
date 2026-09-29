@@ -47,6 +47,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps the group head card's "Invite People". The card draws the
     /// button only when it both asks for it and this is set.
     let onGroupInvite: (() -> Void)?
+    /// Fired when the user taps the "Encrypted" marker above a DM's first encrypted message.
+    let onEncryptionMarkerTap: () -> Void
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
     let onAuthorTap: (UserID) -> Void
     /// Fired when a context-menu action is chosen on a row, with the row's stable id. Copy never
@@ -137,6 +139,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onGroupInvite = onGroupInvite
+        screen.onEncryptionMarkerTap = onEncryptionMarkerTap
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in
@@ -179,6 +182,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onGroupInvite = onGroupInvite
+        screen.onEncryptionMarkerTap = onEncryptionMarkerTap
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in

@@ -646,12 +646,22 @@ final class SessionContainer {
         )
         self.chatDrafts = chatDrafts
 
+        let chatClient = EncryptedChatClient(
+            client: flipClient,
+            keyring: ChatKeyring(
+                owner: session.ownerKeyPair,
+                selfUserID: session.userID,
+                resolveKey: { [flipClient, owner = session.ownerKeyPair] userID in
+                    try await flipClient.resolveUserID(userID, owner: owner)
+                }
+            )
+        )
         let conversationController = ConversationController(
-            fetching: flipClient,
+            fetching: chatClient,
             membership: flipClient,
             viewerSettings: flipClient,
-            messaging: flipClient,
-            streaming: flipClient,
+            messaging: chatClient,
+            streaming: chatClient,
             contactNaming: contactSyncController,
             database: database,
             owner: session.ownerKeyPair,

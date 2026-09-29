@@ -48,12 +48,33 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         case text(String)
         case cash(ExchangedFiat)
         case deleted(Deletion)
-        /// End-to-end-encrypted content this client cannot decrypt (decryption isn't implemented
-        /// yet -- a cross-platform parity hotspot). `scheme` is the wire `EncryptedContent.Scheme`
-        /// raw value, kept as `Int` so this model doesn't depend on the generated proto enum.
-        /// Stored verbatim -- nonce and ciphertext are never inspected -- so the message round-trips
-        /// byte for byte back to the wire on re-send/edit, and renders as an "unsupported" bubble.
+        /// End-to-end-encrypted content not yet decrypted: either decryption failed (see
+        /// ``ConversationMessage/decryptFailure``) or the peer's key hasn't been fetched yet. `scheme`
+        /// is the wire `EncryptedContent.Scheme` raw value, kept as `Int` so this model doesn't depend
+        /// on the generated proto enum. A decrypted message carries `.text` instead.
         case encrypted(scheme: Int, nonce: Data, ciphertext: Data)
+    }
+
+    /// The `EncryptedContent` a message arrived as, kept beside its decrypted text.
+    public struct Sealed: Hashable, Sendable {
+        /// The wire `EncryptedContent.Scheme` raw value.
+        public let scheme: Int
+        public let nonce: Data
+        public let ciphertext: Data
+
+        public init(scheme: Int, nonce: Data, ciphertext: Data) {
+            self.scheme = scheme
+            self.nonce = nonce
+            self.ciphertext = ciphertext
+        }
+    }
+
+    /// Why an encrypted message could not be decrypted.
+    public enum DecryptFailure: Int, Error, Hashable, Sendable {
+        /// An unknown scheme, or plaintext of a type this client can't show; a newer client can read it.
+        case unsupported = 0
+        /// Authentication failed on a supported scheme; only a resend can fix it.
+        case authentication = 1
     }
 
     public let id: MessageID
@@ -92,6 +113,12 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// The message's reactions; nil when this copy carries no reaction summary, so a store merging
     /// it keeps the reactions it already holds.
     public var reactionState: ReactionState?
+    /// The ciphertext this message arrived as, or nil for a message sent in plaintext. Set on a
+    /// decrypted message too, whose `content` is the plaintext.
+    public let sealed: Sealed?
+    /// Why `content` is still `.encrypted`, or nil when it isn't, or when decryption is waiting on
+    /// the peer's key.
+    public let decryptFailure: DecryptFailure?
 
     public init(
         id: MessageID,
@@ -106,7 +133,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         status: SendStatus = .sent,
         clientMessageID: UUID? = nil,
         redacted: Bool = false,
-        reactionState: ReactionState? = nil
+        reactionState: ReactionState? = nil,
+        sealed: Sealed? = nil,
+        decryptFailure: DecryptFailure? = nil
     ) {
         self.id = id
         self.senderID = senderID
@@ -121,6 +150,13 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.clientMessageID = clientMessageID
         self.redacted = redacted
         self.reactionState = reactionState
+        // Content still encrypted is its own ciphertext, so it always carries it as `sealed`.
+        if sealed == nil, case .encrypted(let scheme, let nonce, let ciphertext) = content {
+            self.sealed = Sealed(scheme: scheme, nonce: nonce, ciphertext: ciphertext)
+        } else {
+            self.sealed = sealed
+        }
+        self.decryptFailure = decryptFailure
     }
 }
 
@@ -154,7 +190,53 @@ extension ConversationMessage {
             status: status,
             clientMessageID: clientMessageID,
             redacted: redacted,
-            reactionState: reactionState
+            reactionState: reactionState,
+            sealed: sealed,
+            decryptFailure: decryptFailure
+        )
+    }
+
+    /// Whether this message was sent end-to-end encrypted, decrypted or not.
+    public var isEncrypted: Bool { sealed != nil }
+
+    /// Whether this message is encrypted and still waiting on the peer's key to decrypt. Such a
+    /// message is stored but not shown.
+    public var isAwaitingDecryption: Bool {
+        if case .encrypted = content { decryptFailure == nil } else { false }
+    }
+
+    /// A copy carrying the outcome of decrypting it: the plaintext and the message it replies to,
+    /// or the reason it failed. Everything else is kept, including the ciphertext.
+    public func opened(_ outcome: Result<(text: String, repliedTo: MessageID?), DecryptFailure>) -> ConversationMessage {
+        let content: Content
+        let repliedTo: MessageID?
+        let failure: DecryptFailure?
+        switch outcome {
+        case .success(let plaintext):
+            content = .text(plaintext.text)
+            repliedTo = plaintext.repliedTo
+            failure = nil
+        case .failure(let reason):
+            content = self.content
+            repliedTo = self.repliedTo
+            failure = reason
+        }
+        return ConversationMessage(
+            id: id,
+            senderID: senderID,
+            content: content,
+            cashAction: cashAction,
+            date: date,
+            unreadSeq: unreadSeq,
+            eventSequence: eventSequence,
+            lastEditedTs: lastEditedTs,
+            repliedTo: repliedTo,
+            status: status,
+            clientMessageID: clientMessageID,
+            redacted: redacted,
+            reactionState: reactionState,
+            sealed: sealed,
+            decryptFailure: failure
         )
     }
 }
@@ -209,10 +291,7 @@ extension ConversationMessage {
             self.cashAction = nil
             repliedTo = replyContent.hasRepliedMessageID ? MessageID(replyContent.repliedMessageID) : nil
         case .encrypted(let encryptedContent):
-            // EncryptedContent is a cross-platform parity hotspot (X25519/HKDF/XChaCha20); decrypting
-            // it is not implemented here. Unlike `.media`/`.system`, the message is kept -- stored
-            // verbatim and rendered as an "unsupported" bubble -- so it doesn't silently vanish from
-            // the transcript the way Android's client no longer does either.
+            // Kept undecrypted here: decryption needs the chat's keys, which `ChatSeal.open` applies.
             self.content = .encrypted(
                 scheme: encryptedContent.scheme.rawValue,
                 nonce: encryptedContent.nonce,
@@ -236,6 +315,12 @@ extension ConversationMessage {
         self.clientMessageID = nil
         self.redacted = proto.redacted
         self.reactionState = proto.hasReactions ? ReactionState(proto.reactions) : nil
+        if case .encrypted(let scheme, let nonce, let ciphertext) = content {
+            self.sealed = Sealed(scheme: scheme, nonce: nonce, ciphertext: ciphertext)
+        } else {
+            self.sealed = nil
+        }
+        self.decryptFailure = nil
     }
 }
 

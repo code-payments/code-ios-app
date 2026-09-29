@@ -150,13 +150,19 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
                     // would post duplicate messages.
                     let clientMessageID = UUID()
                     _ = try await Task.retry(maxAttempts: 3, delay: .milliseconds(400)) {
-                        try await client.sendMessage(owner: ownerKeyPair, conversationID: conversationID, text: text, clientMessageID: clientMessageID)
+                        let seal = try await client.sealForSending(in: conversationID, owner: ownerKeyPair, selfUserID: selfUserID)
+                        return try await client.sendMessage(owner: ownerKeyPair, conversationID: conversationID, text: text, seal: seal, clientMessageID: clientMessageID)
                     }
                     // Re-fetch so the sent message appears, and refresh the cache for the next open.
-                    let messages = try await client.getMessages(
+                    let messages = await client.open(
+                        try await client.getMessages(
+                            owner: ownerKeyPair,
+                            conversationID: conversationID,
+                            limit: NotificationPreviewCache.previewLimit
+                        ),
+                        in: conversationID,
                         owner: ownerKeyPair,
-                        conversationID: conversationID,
-                        limit: NotificationPreviewCache.previewLimit
+                        selfUserID: selfUserID
                     )
                     // An empty post-send read (lost the read-after-write race) would otherwise blank the
                     // transcript and overwrite the good cache with []; keep what's already shown instead.
@@ -186,11 +192,16 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         guard let conversationID, let ownerKeyPair, let selfUserID else { return }
         do {
             let client = try ChatNotificationClient()
-            let messages = try await client.getMessages(
+            let messages = await client.open(
+                try await client.getMessages(
+                    owner: ownerKeyPair,
+                    conversationID: conversationID,
+                    limit: NotificationPreviewCache.previewLimit,
+                    retryingEmpty: true
+                ),
+                in: conversationID,
                 owner: ownerKeyPair,
-                conversationID: conversationID,
-                limit: NotificationPreviewCache.previewLimit,
-                retryingEmpty: true
+                selfUserID: selfUserID
             )
             if messages.isEmpty {
                 showStatusLabel("No messages")

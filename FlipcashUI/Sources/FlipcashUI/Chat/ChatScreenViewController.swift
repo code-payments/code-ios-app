@@ -203,6 +203,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onGroupInvite = newValue }
     }
 
+    /// Forwards the "Encrypted" marker's tap from the transcript to the owner.
+    public var onEncryptionMarkerTap: (() -> Void)? {
+        get { transcript.onEncryptionMarkerTap }
+        set { transcript.onEncryptionMarkerTap = newValue }
+    }
+
     /// Forwards gutter-avatar taps from the transcript to the owner — see
     /// ``ChatViewController/onAuthorTap``.
     public var onAuthorTap: ((UserID) -> Void)? {

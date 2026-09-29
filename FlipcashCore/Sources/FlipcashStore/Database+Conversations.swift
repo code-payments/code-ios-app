@@ -116,7 +116,8 @@ nonisolated extension Database {
     private func latestMessage(conversationId: Data) throws -> ConversationMessage? {
         let m = ConversationMessageTable()
         guard let row = try reader.pluck(
-            m.table.filter(m.conversationId == conversationId && m.kind != 2).order(m.id.desc)
+            // Neither a tombstone nor an encrypted row still waiting on the peer's key.
+            m.table.filter(m.conversationId == conversationId && m.kind != 2 && (m.kind != 3 || m.decryptFailure != nil)).order(m.id.desc)
         ) else {
             return nil
         }
@@ -491,7 +492,9 @@ nonisolated extension Database {
                 }
                 return
             }
-            if existingSequence == message.eventSequence {
+            // A copy that decrypts a row stored while waiting on the peer's key is not a re-delivery.
+            let opensStoredRow = existing[m.kind] == 3 && existing[m.decryptFailure] == nil && !message.isAwaitingDecryption
+            if existingSequence == message.eventSequence && !opensStoredRow {
                 // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
                 // copy landing after a stream echo, or vice versa) so identity stays stable.
                 if existing[m.clientMessageID] == nil, let clientMessageID = message.clientMessageID {
@@ -520,6 +523,11 @@ nonisolated extension Database {
         var encryptedScheme: Int?
         var encryptedNonce: Data?
         var encryptedCiphertext: Data?
+        if let sealed = message.sealed {
+            encryptedScheme = sealed.scheme
+            encryptedNonce = sealed.nonce
+            encryptedCiphertext = sealed.ciphertext
+        }
 
         switch message.content {
         case .text(let value):
@@ -572,6 +580,7 @@ nonisolated extension Database {
                 m.encryptedScheme     <- encryptedScheme,
                 m.encryptedNonce      <- encryptedNonce,
                 m.encryptedCiphertext <- encryptedCiphertext,
+                m.decryptFailure      <- message.decryptFailure?.rawValue,
                 m.reactionsJson       <- Self.encodeReactions(message.reactionState)
             )
         )
@@ -741,6 +750,11 @@ nonisolated extension Database {
             return nil
         }
 
+        let sealed: ConversationMessage.Sealed? = switch (row[m.encryptedScheme], row[m.encryptedNonce], row[m.encryptedCiphertext]) {
+        case let (scheme?, nonce?, ciphertext?): ConversationMessage.Sealed(scheme: scheme, nonce: nonce, ciphertext: ciphertext)
+        default: nil
+        }
+
         return ConversationMessage(
             id: MessageID(value: row[m.id]),
             senderID: row[m.senderId],
@@ -752,7 +766,9 @@ nonisolated extension Database {
             lastEditedTs: row[m.lastEditedTs].map(Date.init(timeIntervalSinceReferenceDate:)),
             repliedTo: row[m.repliedToId].map(MessageID.init(value:)),
             clientMessageID: row[m.clientMessageID],
-            reactionState: Self.decodeReactions(row[m.reactionsJson])
+            reactionState: Self.decodeReactions(row[m.reactionsJson]),
+            sealed: sealed,
+            decryptFailure: row[m.decryptFailure].flatMap(ConversationMessage.DecryptFailure.init(rawValue:))
         )
     }
 }

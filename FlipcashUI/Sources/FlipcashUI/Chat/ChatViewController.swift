@@ -76,6 +76,8 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the user taps the group card's "Invite People"; the owner hands out the
     /// chat's invite link. nil leaves the card without the offer.
     public var onGroupInvite: (() -> Void)?
+    /// Called when the "Encrypted" marker is tapped; nil leaves it inert.
+    public var onEncryptionMarkerTap: (() -> Void)?
 
     /// Called when the user taps an author's face in the gutter; the argument is that author's user
     /// id. Never fires in a DM, where no row draws one.
@@ -122,7 +124,7 @@ public final class ChatViewController: UICollectionViewController {
                     configure(cell, with: message)
                 case .typingIndicator(let typists):
                     (cell as? ChatTypingIndicatorCell)?.configure(typists: typists, imageData: authorAvatars)
-                case .dateSeparator, .unreadDivider, .profileCard, .groupCard:
+                case .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker:
                     continue
                 }
             }
@@ -323,6 +325,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
+        collectionView.register(ChatEncryptionMarkerCell.self, forCellWithReuseIdentifier: ChatEncryptionMarkerCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
         collectionView.register(ChatProfileCardCell.self, forCellWithReuseIdentifier: ChatProfileCardCell.reuseIdentifier)
         collectionView.register(ChatGroupCardCell.self, forCellWithReuseIdentifier: ChatGroupCardCell.reuseIdentifier)
@@ -514,7 +517,7 @@ public final class ChatViewController: UICollectionViewController {
             case .other: return start
             case .me:    return nil
             }
-        case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard:
+        case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker:
             return nil
         }
     }
@@ -522,7 +525,7 @@ public final class ChatViewController: UICollectionViewController {
     private static func isTypingIndicator(_ item: ChatItem) -> Bool {
         switch item {
         case .typingIndicator: true
-        case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard: false
+        case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: false
         }
     }
 
@@ -530,7 +533,7 @@ public final class ChatViewController: UICollectionViewController {
         guard items.indices.contains(index) else { return nil }
         switch items[index] {
         case .message(let message): return message
-        case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard: return nil
+        case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: return nil
         }
     }
 
@@ -585,6 +588,9 @@ public final class ChatViewController: UICollectionViewController {
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .unreadDivider(let count):
             (cell as! ChatUnreadDividerCell).configure(count: count)
+        case .encryptionMarker:
+            let tap: (() -> Void)? = onEncryptionMarkerTap == nil ? nil : { [weak self] in self?.onEncryptionMarkerTap?() }
+            (cell as! ChatEncryptionMarkerCell).configure(onTap: tap)
         case .message(let message):
             configure(cell, with: message)
         }
@@ -1168,7 +1174,7 @@ extension ChatViewController: ChatLayoutDelegate {
     private func isHeading(at indexPath: IndexPath) -> Bool {
         guard items.indices.contains(indexPath.item) else { return false }
         switch items[indexPath.item] {
-        case .dateSeparator, .unreadDivider: return true
+        case .dateSeparator, .unreadDivider, .encryptionMarker: return true
         case .message, .typingIndicator, .profileCard, .groupCard: return false
         }
     }
@@ -1186,7 +1192,7 @@ extension ChatViewController: ChatLayoutDelegate {
         switch items[indexPath.item] {
         case .message(let message): return message.sender
         case .typingIndicator: return .other
-        case .dateSeparator, .unreadDivider, .profileCard, .groupCard: return nil
+        case .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: return nil
         }
     }
 }

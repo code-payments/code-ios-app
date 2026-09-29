@@ -355,11 +355,16 @@ nonisolated public struct ConversationMessageTable: Sendable {
     // because the schema version can only be bumped once per rebuild, and adding it later would
     // cost users a second full resync.
     public let repliedToId    = Expression <UInt64?>       ("repliedToId")
-    // `.encrypted` content, decomposed the way cash amounts are. All three nil for a non-encrypted
-    // row. `encryptedScheme` is the wire `EncryptedContent.Scheme` raw value.
+    // The `EncryptedContent` a message arrived as, decomposed the way cash amounts are. All three nil
+    // for a message sent in plaintext. A decrypted row is `kind` 0 with its plaintext in `text` and
+    // these still set; an undecrypted one is `kind` 3. `encryptedScheme` is the wire
+    // `EncryptedContent.Scheme` raw value.
     public let encryptedScheme     = Expression <Int?>     ("encryptedScheme")
     public let encryptedNonce      = Expression <Data?>    ("encryptedNonce")
     public let encryptedCiphertext = Expression <Data?>    ("encryptedCiphertext")
+    // `ConversationMessage.DecryptFailure` raw value for a `kind` 3 row that failed to decrypt; nil
+    // for one still waiting on the peer's key, and for every other row.
+    public let decryptFailure      = Expression <Int?>     ("decryptFailure")
     // When the sender last edited this message; nil if never edited.
     public let lastEditedTs   = Expression <Double?>       ("lastEditedTs")
     // Tombstone detail. Both nil for a message that has not been deleted.
@@ -640,6 +645,7 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.encryptedScheme)
                 t.column(conversationMessageTable.encryptedNonce)
                 t.column(conversationMessageTable.encryptedCiphertext)
+                t.column(conversationMessageTable.decryptFailure)
                 t.column(conversationMessageTable.reactionsJson)
                 t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
             })

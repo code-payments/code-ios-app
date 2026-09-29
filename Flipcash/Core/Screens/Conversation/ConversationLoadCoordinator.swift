@@ -331,7 +331,8 @@ final class ConversationLoadCoordinator {
             // card is the link's identity, and the card view looks it up for itself. So nothing
             // here touches the network, and an answer landing cannot re-diff this window.
             linkCard: { links in classifier.firstCard(in: links) },
-            unreadBoundary: inputs.unreadBoundary
+            unreadBoundary: inputs.unreadBoundary,
+            headsHistory: inputs.headsHistory
         )
         if !inputs.typists.isEmpty {
             // Only a group draws faces ahead of the dots; a DM's bubble stays as it was. A typist no

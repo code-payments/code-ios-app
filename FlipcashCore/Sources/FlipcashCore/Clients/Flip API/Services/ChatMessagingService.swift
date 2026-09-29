@@ -157,21 +157,22 @@ final class ChatMessagingService: Sendable {
         }
     }
 
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
+    /// Sends `text`, as a reply to `repliedTo` when set. With a `seal` the text goes out as
+    /// `EncryptedContent` and the server's copy comes back decrypted.
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, seal: ChatSeal?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
+        let content: Flipcash_Messaging_V1_Content
+        do {
+            content = try seal?.seal(text: text, repliedTo: repliedTo) ?? .plaintext(text: text, repliedTo: repliedTo)
+        } catch {
+            logger.error("Failed to encrypt message")
+            completion(.failure(.encryptionFailed))
+            return
+        }
         let request = Flipcash_Messaging_V1_SendMessageRequest.with {
             $0.chatID = conversationID.proto
-            // A reply wraps the same text one level deeper on the wire. The domain model keeps it
-            // flat — see `ConversationMessage.init?(_:)`, which unwraps it back.
-            if let repliedTo {
-                $0.content = [.with {
-                    $0.reply = .with {
-                        $0.repliedMessageID = repliedTo.proto
-                        $0.content = [.with { $0.text = .with { $0.text = text } }]
-                    }
-                }]
-            } else {
-                $0.content = [.with { $0.text = .with { $0.text = text } }]
-            }
+            // A reply wraps the text one level deeper on the wire. The domain model keeps it flat —
+            // see `ConversationMessage.init?(_:)`, which unwraps it back.
+            $0.content = [content]
             $0.clientMessageID = .with { $0.value = clientMessageID.data }
             $0.auth = owner.authFor(message: $0)
         }
@@ -181,7 +182,8 @@ final class ChatMessagingService: Sendable {
                 let response = try await service.sendMessage(request, options: .unaryDefault)
                 let error = ErrorSendMessage(rawValue: response.result.rawValue) ?? .unknown
                 if error == .ok, response.hasMessage, let message = ConversationMessage(response.message) {
-                    await MainActor.run { completion(.success(message)) }
+                    let opened = seal?.open(message) ?? message
+                    await MainActor.run { completion(.success(opened)) }
                 } else {
                     logger.error("Failed to send message")
                     await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
@@ -199,13 +201,22 @@ final class ChatMessagingService: Sendable {
         conversationID: ConversationID,
         messageID: MessageID,
         text: String,
+        seal: ChatSeal?,
         expectedEventSequence: UInt64,
         completion: @Sendable @escaping (Result<MessageMutation, ErrorEditMessage>) -> Void
     ) {
+        let content: Flipcash_Messaging_V1_Content
+        do {
+            content = try seal?.seal(text: text, repliedTo: nil) ?? .plaintext(text: text, repliedTo: nil)
+        } catch {
+            logger.error("Failed to encrypt edited message")
+            completion(.failure(.encryptionFailed))
+            return
+        }
         let request = Flipcash_Messaging_V1_EditMessageRequest.with {
             $0.chatID = conversationID.proto
             $0.messageID = messageID.proto
-            $0.content = [.with { $0.text = .with { $0.text = text } }]
+            $0.content = [content]
             $0.expectedEventSequence = expectedEventSequence
             $0.auth = owner.authFor(message: $0)
         }
@@ -221,10 +232,11 @@ final class ChatMessagingService: Sendable {
                         await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
                         return
                     }
+                    let opened = seal?.open(message) ?? message
                     await MainActor.run {
-                        completion(.success(MessageMutation(message: message, isConflict: error == .conflict)))
+                        completion(.success(MessageMutation(message: opened, isConflict: error == .conflict)))
                     }
-                case .denied, .messageNotFound, .cannotEdit, .encryptionNotAllowed, .unknown, .transportFailure, .cancelled, .rejected:
+                case .denied, .messageNotFound, .cannotEdit, .encryptionNotAllowed, .encryptionFailed, .unknown, .transportFailure, .cancelled, .rejected:
                     logger.error("Failed to edit message")
                     await MainActor.run { completion(.failure(error)) }
                 }
@@ -515,6 +527,8 @@ public enum ErrorSendMessage: Int, Error {
     case transportFailure = -2
     case cancelled = -3
     case rejected = -4
+    /// This client could not encrypt the message, so it was not sent.
+    case encryptionFailed = -5
 }
 
 public enum ErrorEditMessage: Int, Error {
@@ -529,6 +543,8 @@ public enum ErrorEditMessage: Int, Error {
     case transportFailure = -2
     case cancelled = -3
     case rejected = -4
+    /// This client could not encrypt the edit, so it was not sent.
+    case encryptionFailed = -5
 }
 
 public enum ErrorDeleteMessage: Int, Error {
@@ -605,6 +621,8 @@ extension ErrorSendMessage: ServerError, TransportClassifiableError {
         // contract violation (sending EncryptedContent outside a DM), not a server hiccup.
         case .denied: .info
         case .encryptionNotAllowed: .error
+        // Shared-core refused to encrypt, which only malformed keys cause.
+        case .encryptionFailed: .error
         case .unknown, .rejected: .error
         }
     }
@@ -620,6 +638,8 @@ extension ErrorEditMessage: ServerError, TransportClassifiableError {
         case .denied, .messageNotFound, .cannotEdit, .conflict: .info
         // A client-side contract violation (sending EncryptedContent outside a DM), not a server hiccup.
         case .encryptionNotAllowed: .error
+        // Shared-core refused to encrypt, which only malformed keys cause.
+        case .encryptionFailed: .error
         case .unknown, .rejected: .error
         }
     }

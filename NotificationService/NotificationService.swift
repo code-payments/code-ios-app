@@ -57,6 +57,15 @@ final class NotificationService: UNNotificationServiceExtension {
             }
         }
 
+        /// Replaces the body of the content still waiting to be delivered; a no-op once delivered.
+        func replaceBody(_ body: String) {
+            lock.withLock {
+                guard contentHandler != nil, let mutable = content?.mutableCopy() as? UNMutableNotificationContent else { return }
+                mutable.body = body
+                content = mutable
+            }
+        }
+
         func setPrefetchTask(_ task: Task<Void, Never>) {
             lock.withLock { prefetchTask = task }
         }
@@ -197,7 +206,8 @@ final class NotificationService: UNNotificationServiceExtension {
         Self.startPrefetch(
             into: delivery,
             for: conversationID,
-            embedded: NotificationPayload.chatMessage(request.content.userInfo)
+            embedded: NotificationPayload.chatMessage(request.content.userInfo),
+            messageID: NotificationPayload.chatMessageID(request.content.userInfo)
         )
     }
 
@@ -207,10 +217,17 @@ final class NotificationService: UNNotificationServiceExtension {
     private nonisolated static func startPrefetch(
         into delivery: DeliveryBox,
         for conversationID: ConversationID,
-        embedded: ConversationMessage?
+        embedded: ConversationMessage?,
+        messageID: MessageID?
     ) {
         let task = Task {
-            await cachePreview(for: conversationID, embedded: embedded, deliver: { delivery.deliver() })
+            await cachePreview(
+                for: conversationID,
+                embedded: embedded,
+                messageID: messageID,
+                replaceBody: { delivery.replaceBody($0) },
+                deliver: { delivery.deliver() }
+            )
         }
         delivery.setPrefetchTask(task)
     }
@@ -323,20 +340,42 @@ final class NotificationService: UNNotificationServiceExtension {
     /// connection. Calls `deliver` once the transcript is cached (or the fetch can't proceed) so the
     /// banner isn't gated on the slower branding round-trip. Best-effort: any failure just leaves the
     /// content extension to fetch live.
+    ///
+    /// An end-to-end-encrypted DM's push arrives with the server's generic body; once the message it
+    /// is about decrypts, `replaceBody` swaps in the plaintext. On any failure the server's body stays.
     private static func cachePreview(
         for conversationID: ConversationID,
         embedded: ConversationMessage?,
+        messageID: MessageID?,
+        replaceBody: @Sendable (String) -> Void,
         deliver: @Sendable () -> Void
     ) async {
         guard let account = OwnerKeyStore.loadOwnerAccount() else { return deliver() }
+        let owner = account.keyAccount.owner
+        var embedded = embedded
         do {
             let client = try ChatNotificationClient()
-            let messages = try await client.getMessages(
-                owner: account.keyAccount.owner,
+            let fetched = try await client.getMessages(
+                owner: owner,
                 conversationID: conversationID,
                 limit: NotificationPreviewCache.previewLimit,
                 retryingEmpty: true
             )
+            // The pushed message, fetched by id when the push only named it and the preview missed it.
+            if embedded == nil, let messageID, !fetched.contains(where: { $0.id == messageID }) {
+                embedded = try? await client.getMessage(owner: owner, conversationID: conversationID, messageID: messageID)
+            }
+            let opened = await client.open(
+                fetched + (embedded.map { [$0] } ?? []),
+                in: conversationID,
+                owner: owner,
+                selfUserID: account.userID
+            )
+            let messages = Array(opened.prefix(fetched.count))
+            if embedded != nil { embedded = opened.last }
+            if let body = decryptedBody(of: messageID, in: messages + (embedded.map { [$0] } ?? [])) {
+                replaceBody(body)
+            }
             guard !messages.isEmpty else {
                 // The fetch came back empty but the push still carried a message. Write that one
                 // rather than nothing.
@@ -373,6 +412,19 @@ final class NotificationService: UNNotificationServiceExtension {
             ExtensionReporting.capture(error, reason: "Notification preview prefetch failed")
             await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
             deliver()
+        }
+    }
+
+    /// The plaintext of the pushed message when it arrived encrypted and decrypted to text.
+    private static func decryptedBody(of messageID: MessageID?, in messages: [ConversationMessage]) -> String? {
+        guard let messageID, let message = messages.first(where: { $0.id == messageID }), message.isEncrypted else {
+            return nil
+        }
+        switch message.content {
+        case .text(let text):
+            return text
+        case .cash, .deleted, .encrypted:
+            return nil
         }
     }
 

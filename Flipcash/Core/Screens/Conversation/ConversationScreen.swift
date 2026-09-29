@@ -89,6 +89,8 @@ struct ConversationScreen: View {
     /// Whether the invite sheet is up. A link is the only way into a group, so a member's head card
     /// hands one out.
     @State private var isInviting = false
+    /// Whether the encryption explainer opened from the transcript's marker is showing.
+    @State private var isShowingEncryptionInfo = false
     @State private var messageReport: MessageReportRequest?
     /// Whether `startSendCash` has been acted on, so a re-render or a return from the sheet it
     /// opened doesn't start it again.
@@ -484,6 +486,7 @@ struct ConversationScreen: View {
             onContactAction: openContactCard,
             onProfileTap: profileTapAction,
             onGroupInvite: openGroupInvite,
+            onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
@@ -718,6 +721,9 @@ struct ConversationScreen: View {
         }
         .sheet(item: $startChattingRequest) { request in
             StartChattingSheet(target: request.target, fee: request.fee)
+        }
+        .sheet(isPresented: $isShowingEncryptionInfo) {
+            E2eeLearnMoreSheet(kind: .dm, isPresented: $isShowingEncryptionInfo)
         }
         .sheet(isPresented: $isInviting) {
             if let conversationID {
