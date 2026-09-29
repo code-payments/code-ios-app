@@ -1,5 +1,22 @@
 What to test in this build
 
+New in this release — please exercise these end to end:
+• Launch the app — it should open on the Chat tab
+• React to a message from the reaction strip and by double-tapping it; open the emoji sheet and long-press for skin tones
+• Mention someone with an @handle and tap it — it should open their profile
+• Send cash into a group chat — it should arrive as a cash link card
+• Create a group through the new invite flow; every group should start with its invite card
+• Create a group that requires a balance across all currencies, then join one by buying exactly the required amount
+• Open a group you qualify for but haven't joined — you should be able to read the conversation
+• From a gated group chat, buy, deposit, or convert — you should land back in that chat
+• Open a group member's profile and tap Message
+• Open a person link and a tip card link — each should show a person card and open their profile
+• Tap a link in a message that leaves Flipcash — you should be warned first
+• Swipe a chat in the list to mute it
+• Check unread counts: each chat row, the Chats tab badge (groups included, capped at 99+), and the divider where unread messages start
+• Scan a group invite QR and open a Flipcash universal link from outside the app — each should land in the right place
+• Send a DM with a fee in a non-USD region — the minimum should respect the regional tip minimum
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
