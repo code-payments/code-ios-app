@@ -25,7 +25,13 @@ struct SessionTests {
 
 ## Running the App & Tests
 
-Use the project scripts — they encode the correct scheme and destination:
+Use the project scripts — they encode the correct scheme and destination, and when xcsift is
+installed (`brew install xcsift`) they pipe the log through `xcsift -f toon`, which keeps errors,
+test results, and a warning count. A cold build of `main` reports about 100 warnings, so add `-w`
+(the full warning list) only when you're checking whether your change added one. A raw log is tens
+of thousands of tokens that stay in context for the rest of the session. `RAW_XCODEBUILD=1` gets the
+full log. When you run `xcodebuild` directly, filter it yourself: `set -o pipefail; xcodebuild …
+2>&1 | xcsift -f toon`.
 
 - **Build the app:** `./Scripts/build.sh` (generic iOS) or `./Scripts/build.sh --device` (paired physical iPhone)
 - **Targeted tests (for your changes):** `./Scripts/test.sh <Target>/<Suite>[/<TestName>] [...]` — runs on this checkout's own simulator (below)

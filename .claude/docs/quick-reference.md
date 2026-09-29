@@ -59,7 +59,7 @@ BondingCurve.maxSupply   // 21,000,000 tokens
 
 **Prefer Xcode MCP tools over `xcodebuild` shell commands** when the Xcode MCP server is available. It provides direct integration with the open Xcode workspace for building, testing, reading/writing project files, rendering SwiftUI previews, and searching Apple documentation.
 
-**Fall back to `./Scripts/build.sh` and `./Scripts/test.sh`** when the MCP server is not connected. See [Running the App & Tests](testing.md#running-the-app--tests) for usage. For edge cases the scripts don't cover (e.g., a one-off destination, `xcodebuild clean`), drop down to raw `xcodebuild`.
+**Fall back to `./Scripts/build.sh` and `./Scripts/test.sh`** when the MCP server is not connected. See [Running the App & Tests](testing.md#running-the-app--tests) for usage. For edge cases the scripts don't cover (e.g., a one-off destination, `xcodebuild clean`), drop down to raw `xcodebuild`, piped through `2>&1 | xcsift -f toon` (see [testing.md](testing.md#running-the-app--tests)). `xcsift mcp --install` puts the same filter in front of Xcode's MCP server.
 
 **Device builds.** XcodeBuildMCP ships device tools (`build_device`, `build_run_device`, `test_device`, `list_devices`, etc.) in its `device` workflow. They're available whenever `device` is in the `XCODEBUILDMCP_ENABLED_WORKFLOWS` list in your `.mcp.json` (that file is per-developer and gitignored — add `device` to the comma-separated list to turn them on). Use device tools the same way as the simulator ones. If they're not present (workflow not enabled, or the MCP server hasn't reloaded its config), silently fall back to `./Scripts/build.sh --device` — **never narrate which path you took.**
 

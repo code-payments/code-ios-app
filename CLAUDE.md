@@ -63,7 +63,7 @@ and is linked from the map below. **Read the relevant doc before working in that
 
 ### Working Style
 
-- **Understand the context.** Before editing, read the callers and neighbors of what you change. If the right fix needs a refactor beyond the task, say so in the report instead of doing it.
+- **Understand the context.** Before editing, read the callers and neighbors of what you change, and check module boundaries. If the right fix needs a refactor beyond the task, say so in the report instead of doing it.
 - **Done means the Before Committing checklist passes** ([code-style.md](.claude/docs/code-style.md#before-committing)).
 - **Ask only when the answer would change what you build.** Otherwise pick the most reasonable reading, name it in the report, and keep going.
 
@@ -74,12 +74,16 @@ End every long run with three headings, in this order:
 - **Changed** — files and commits, one line each.
 - **Found** — bugs, risks, or doc drift noticed along the way that were out of scope.
 
-### Before Making Changes
+### Keeping Context Small
 
-1. Read the relevant files first - never propose changes to code you haven't read
-2. Understand the existing patterns and conventions in the current file but also any related or dependant files
-3. Check module boundaries (see Hard Rules below)
-4. Consider impact on other parts of the codebase
+Every file read and build log stays in context and is re-sent on each later step.
+
+- Build and test through `./Scripts/build.sh` / `./Scripts/test.sh`, which filter the log through xcsift (`brew install xcsift`). Filter a raw `xcodebuild` or `swift test` the same way ([testing.md](.claude/docs/testing.md#running-the-app--tests)).
+- Run the narrowest suite first (`./Scripts/test.sh <Target>/<Suite>/<Test>`), then widen only as far as the change reaches.
+- Search first, then read only the lines you need. Don't re-read a file that hasn't changed.
+- Wait inside one command (a `--watch` flag, an `until` loop), not in repeated sleep-and-check turns.
+- Hand self-contained searches to an `Explore` subagent so their reads stay out of this conversation.
+- After two failed attempts at the same fix, stop and report what you learned.
 
 ### Communication
 

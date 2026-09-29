@@ -12,8 +12,9 @@ Report expected vs. observed, and if they differ, which step.
 
 ```bash
 # Sim build reuses the worktree's own DerivedData (warm after any test.sh run).
+set -o pipefail
 xcodebuild -project Code.xcodeproj -scheme Flipcash \
-  -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug build
+  -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug build 2>&1 | xcsift -f toon
 
 # Locate the .app by BUILD_DIR (never newest-mtime — other worktrees' DerivedData collides):
 xcodebuild -project Code.xcodeproj -showBuildSettings -scheme Flipcash | grep -m1 BUILD_DIR
