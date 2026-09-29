@@ -127,13 +127,22 @@ struct UsernameLookupRoutingTests {
         #expect(member.username == Username("fred_wilson"))
     }
 
-    @Test("A name-less account still titles the chat")
-    func counterpart_fallsBackForANamelessAccount() {
+    @Test("A name-less account is titled by its handle")
+    func counterpart_fallsBackToTheHandleForANamelessAccount() {
         // Claiming a handle doesn't require a display name, so this is a real
         // account, not a malformed response — the chat needs a title regardless.
         let member = ConversationScreen.counterpart(
             userID: UUID(),
             profile: Self.profile(displayName: nil, username: "fred_wilson")
+        )
+        #expect(member.displayName == "@fred_wilson")
+    }
+
+    @Test("An account with neither a name nor a handle gets the fallback title")
+    func counterpart_fallsBackForAnAccountWithNoNameOrHandle() {
+        let member = ConversationScreen.counterpart(
+            userID: UUID(),
+            profile: Self.profile(displayName: nil)
         )
         #expect(member.displayName == ConversationController.fallbackCounterpartName)
     }
