@@ -1253,7 +1253,7 @@ final class ConversationController {
 
     /// Counterpart name shown when neither the synced contacts, the feed, nor a
     /// shared phone number provides one.
-    static let fallbackCounterpartName = "Flipcash User"
+    nonisolated static let fallbackCounterpartName = "Flipcash User"
 
     /// The counterpart's name for a conversation: the synced contact's
     /// address-book name, else the server-provided member name from the feed,

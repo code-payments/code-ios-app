@@ -25,6 +25,7 @@ struct KnownAuthorDirectoryTests {
             var requests: [UserID] = []
             var cached: [UserID: Profile] = [:]
             var failing: Set<UserID> = []
+            var nameless: Set<UserID> = []
         }
 
         func withState<Value>(_ body: (inout State) -> Value) -> Value {
@@ -43,11 +44,14 @@ struct KnownAuthorDirectoryTests {
         KnownAuthorDirectory(
             read: { recorder.withState { $0.table } },
             fetch: { userID in
-                let fails = recorder.withState { state in
+                let (fails, isNameless) = recorder.withState { state in
                     state.requests.append(userID)
-                    return state.failing.contains(userID)
+                    return (state.failing.contains(userID), state.nameless.contains(userID))
                 }
                 if fails { throw Unreachable.offline }
+                if isNameless {
+                    return try Profile(displayName: nil, phone: String?.none, email: nil, userID: userID, username: Username("ada"))
+                }
                 return try Profile(displayName: "Ada", phone: String?.none, email: nil, userID: userID)
             },
             cache: { profile, userID in
@@ -131,5 +135,22 @@ struct KnownAuthorDirectoryTests {
             }
             await directory.resolve([sender])
         }
+    }
+
+    @Test("A nameless sender is attributed for this launch, without being cached or asked again")
+    func resolve_namelessSender_heldForLaunchNotCached() async {
+        let recorder = Recorder()
+        let sender = UserID()
+        recorder.withState { $0.nameless = [sender] }
+        let directory = directory(recorder)
+
+        await directory.resolve([sender])
+        await directory.resolve([sender])
+
+        #expect(recorder.requests == [sender])
+        #expect(recorder.cached[sender] == nil)
+        let member = directory.snapshot.membersByUserID[sender]
+        #expect(member?.displayName == "")
+        #expect(member?.username == Username("ada"))
     }
 }
