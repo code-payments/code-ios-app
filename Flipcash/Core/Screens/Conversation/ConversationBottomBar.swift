@@ -20,8 +20,7 @@ import FlipcashUI
 /// appearance when the chat materializes, and the send-arrow pop.
 private let barMorphSpring = ChatMotion.swap.animation
 
-/// The curve the bar grows and shrinks on around the reply strip, and the one the surface changes
-/// colour on. The slab itself is permanent, so nothing mounts or unmounts over the transcript.
+/// The curve the bar grows and shrinks on around the reply strip.
 ///
 /// Separate from `barMorphSpring` because `swap` overshoots, and the transcript's bottom inset
 /// tracks this height every frame — a bar that overshoots drags the messages past their resting
@@ -40,6 +39,12 @@ enum BarMetrics {
     static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
     /// The bar's own margin around its controls, above and below.
     static let contentPadding: CGFloat = 8
+    /// The margin between the bar's controls and the screen's sides while the keyboard is up.
+    static let edgeInset: CGFloat = 12
+    /// How far into the home indicator's safe area the compact bar rests while the keyboard is down.
+    static let compactDrop: CGFloat = 8
+    /// The margin between the compact bar's controls and the screen's sides.
+    static let compactInset: CGFloat = 32
 }
 
 /// The unified bottom bar: Send Cash (morphing) beside the message field.
@@ -71,10 +76,20 @@ struct ConversationBottomBar: View {
     /// Whether a join is in flight, so the gate panel's button can stop taking taps.
     var isJoiningChat: Bool = false
 
+    /// The curve the bar narrows and widens on as the keyboard goes and comes.
+    private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
+
+    /// Whether the bar sits inset from the screen's sides: at rest with the keyboard down. It widens
+    /// to the full edge inset as the keyboard comes up. Only once there is a composer; the pre-chat
+    /// CTA keeps its full-width button.
+    private var isCompact: Bool { chatExists && !model.isComposing }
+
+    /// How much further in than ``BarMetrics/edgeInset`` the controls and the reply quote sit.
+    private var compactExtraInset: CGFloat { isCompact ? BarMetrics.compactInset - BarMetrics.edgeInset : 0 }
+
     var body: some View {
         // The gate panel takes the bar whole rather than sitting inside it: none of the composer's
-        // springs key on state a gated user can change, and the surface underneath is the same slab
-        // either way, so the bar still reads as the bottom of the screen.
+        // springs key on state a gated user can change.
         switch gate {
         case .undetermined:
             // Nothing is drawn at all until the rules land. A composer would be an affordance the
@@ -90,7 +105,6 @@ struct ConversationBottomBar: View {
                 onJoin: onGateJoin,
                 isJoining: isJoiningChat
             )
-                .modifier(BarSurfaceBackground())
 
         case .open:
             composerBar
@@ -133,7 +147,9 @@ struct ConversationBottomBar: View {
                     .transition(.opacity)
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, BarMetrics.edgeInset)
+        .padding(.horizontal, compactExtraInset)
+        .animation(Self.widthSpring, value: isCompact)
         .padding(.top, BarMetrics.contentPadding)
         .padding(.bottom, BarMetrics.contentPadding)
         .animation(barMorphSpring, value: chatExists)
@@ -149,11 +165,10 @@ struct ConversationBottomBar: View {
             // already drives this state in both directions, and wrapping the dismissal in a second
             // transaction gave the exit a curve the entry never had.
             ComposerReplyReveal(target: composer.replyTarget) { composer.endReplying() }
-            // On the composer row alone, not on the stack. The surface's job is to dissolve the
-            // transcript into the input; anchoring it to the stack moved the dissolve up to the reply
-            // strip's top edge, so a reply slid the fade 50pt up the screen and put an opaque slab
-            // behind the quote. The quote is meant to sit over the transcript, not over the slab.
-            content.modifier(BarSurfaceBackground())
+                // The quote narrows with the row below it, so the two keep one margin.
+                .padding(.horizontal, compactExtraInset)
+                .animation(Self.widthSpring, value: isCompact)
+            content
         }
         .animation(replySpring, value: composer.replyTarget)
     }
@@ -452,98 +467,6 @@ private struct CancelEditButton: View {
         .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
         .accessibilityLabel("Cancel editing")
         .accessibilityIdentifier("cancel-edit-button")
-    }
-}
-
-/// The bar's own surface: one square-edged, full-bleed slab under the quote and the controls,
-/// running past the safe area to the bottom of the display.
-///
-/// Permanent *geometry*, and that is the point. The reply surface used to be a rounded panel that
-/// appeared behind the bar and left again, and no amount of curve-matching stopped it reading as a
-/// second object crossfading over the messages — because it *was* one. Nothing here mounts or
-/// unmounts: the slab is always drawn, always full width, always pinned to the bottom. A reply
-/// changes one thing about it — how tall it is — so what moves is the bar itself rather than
-/// something arriving over the messages.
-///
-/// The colour is one of the things a reply must *not* change. `background` is (25,25,26) and the
-/// keyboard's own container paints within a level of that, which is why the slab and the keyboard
-/// read as one surface. Lifting the slab to `backgroundSecondary` (37,37,38) for a reply drew a hard
-/// horizontal line across the screen at the keyboard's top edge — not a gap in the bleed, which
-/// already runs past the safe area, but a colour step against a system surface we cannot repaint. So
-/// the elevation a reply needs goes on the quote instead; see ``ComposerReplyStrip``.
-private struct BarSurfaceBackground: ViewModifier {
-
-    func body(content: Content) -> some View {
-        // Nothing the bar paints below its own bottom edge survives: it is pinned to the bottom of a
-        // box that clips, so the surface can only ever be as tall as the bar. The strip behind the
-        // keyboard's rounded corners is painted by the screen instead — see
-        // `ChatScreenViewController.keyboardCornerCover`.
-        content.background(alignment: .top) {
-            BarSurface.restingFade
-            // Scope the safe-area bleed to the bottom edge only. The bar is a measured,
-            // keyboard-guide-pinned hosted view; an all-edges ignore makes the bar read as
-            // extending to the screen bottom, which collapses the scroll-content inset by the
-            // home-indicator height and drops the newest message under the bar.
-            .ignoresSafeArea(edges: .bottom)
-        }
-    }
-}
-
-/// What the bar's surface is made of.
-///
-/// The slab is not a slab at its top edge: it ramps from the chat background up to nothing over
-/// ``fadeHeight``, so a message scrolling under the bar dissolves into it rather than meeting a hard
-/// line. Opaque instead, the bar reads as a toolbar bolted across the transcript. The ramp lives
-/// entirely in the bar's margin above its controls — see ``fadeHeight``.
-///
-/// One paint, in every state — see `BarSurfaceBackground` for why a reply may not change it. It is
-/// painted in two places: the bar draws it, and the screen paints the same colour below the bar so
-/// it reaches the bottom of the display. See `BarSurfaceFloor`.
-enum BarSurface {
-
-    /// How far the resting surface takes to ramp from nothing to the chat background: the bar's own
-    /// margin above its controls, so the slab is at full opacity by the time the controls start.
-    ///
-    /// It has to end there. The field is Liquid Glass and glass samples what is behind it, so a
-    /// surface still part-transparent at the field's top edge hands the glass the transcript instead
-    /// of the slab and a bubble scrolling under the bar shows *through* the field. At the 33pt this
-    /// replaces (half the resting bar) the ramp crossed the field's top edge by 25pt, which is most
-    /// of the field's height: a coloured bubble read straight through the placeholder.
-    ///
-    /// Fixed rather than a fraction of the bar, because a fraction ties the dissolve to the draft: a
-    /// four-line message doubled the fade and softened the transcript twice as far up the screen,
-    /// for no reason a reader can see.
-    static let fadeHeight: CGFloat = BarMetrics.contentPadding
-
-    /// The composer at rest: clear at the top edge, chat background below it. The flexible tail is
-    /// what lets the slab bleed past the safe area without stretching the ramp.
-    static var restingFade: some View {
-        VStack(spacing: 0) {
-            LinearGradient(colors: [.clear, .backgroundMain], startPoint: .top, endPoint: .bottom)
-                .frame(height: fadeHeight)
-            Color.backgroundMain
-        }
-    }
-
-}
-
-/// The bar surface's continuation below the bar, painted by the screen.
-///
-/// The bar is a hosted view held off the bottom safe area, so its own background stops at the home
-/// indicator. The screen owns the rest; filling it with the same colour is what makes the bar read as
-/// running off the bottom of the display instead of floating above it.
-///
-/// It paints the whole screen, not just the strip, and is placed behind the transcript — which is
-/// opaque — so only the region below the transcript's own bottom edge is ever visible. Sizing it to
-/// the inset instead does not work: `ignoresSafeArea` grows the region offered to a *flexible* view,
-/// and a view already fixed to a height keeps that height and stays inside the safe area.
-///
-struct BarSurfaceFloor: View {
-
-    var body: some View {
-        Color.backgroundMain
-            .ignoresSafeArea(.container, edges: .bottom)
-            .allowsHitTesting(false)
     }
 }
 
