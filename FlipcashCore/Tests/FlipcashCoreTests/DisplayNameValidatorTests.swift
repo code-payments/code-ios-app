@@ -88,4 +88,37 @@ struct DisplayNameValidatorTests {
     func remainingIgnoresSurroundingWhitespace() {
         #expect(validator.remaining(in: "  Ted  ") == DisplayNameValidator.maxScalars - 3)
     }
+
+    // MARK: - ASCII-only (onboarding) -
+
+    private let asciiValidator = DisplayNameValidator(asciiOnly: true)
+
+    @Test("ASCII-only accepts letters, digits, and spaces, trimmed",
+          arguments: [
+              (input: "Taylor Smith 2", expected: "Taylor Smith 2"),
+              (input: "  Taylor ", expected: "Taylor"),
+              (input: "A  B", expected: "A  B"),
+          ])
+    func asciiOnlyAccepts(input: String, expected: String) {
+        #expect(asciiValidator.validate(input) == expected)
+    }
+
+    @Test("ASCII-only rejects accents, punctuation, emoji, other whitespace, and over-limit",
+          arguments: [
+              "Jos\u{00E9}",
+              "Taylor!",
+              "\u{1F600}",
+              "Tay\tlor",
+              "Tay\u{00A0}lor",
+              "   ",
+              String(repeating: "a", count: 65),
+          ])
+    func asciiOnlyRejects(input: String) {
+        #expect(asciiValidator.validate(input) == nil)
+    }
+
+    @Test("Default validator still accepts accented names")
+    func defaultAcceptsAccents() {
+        #expect(validator.validate("Jos\u{00E9}") == "Jos\u{00E9}")
+    }
 }
