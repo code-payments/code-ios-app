@@ -208,6 +208,8 @@ struct ShareProfileWidgetView: View {
         /// Between the name and the handle.
         static let lineGap: CGFloat = 2
         static let handleOpacity: Double = 0.5
+        /// The avatar monogram's strength, muted per the design.
+        static let initialsOpacity: Double = 0.4
         static let iconGap: CGFloat = 4
     }
 
@@ -262,7 +264,9 @@ struct ShareProfileWidgetView: View {
             displayName: resolved?.displayName ?? "",
             imageData: resolved?.imageData,
             blurhash: resolved?.blurHash,
-            size: Layout.avatar
+            size: Layout.avatar,
+            // The design mutes the monogram to 40% (node 10588:1979), unlike the app's other avatars.
+            initialsColor: Color.textMain.opacity(Layout.initialsOpacity)
         )
         .accessibilityHidden(true)
     }
