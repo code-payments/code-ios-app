@@ -187,11 +187,14 @@ nonisolated open class Database: @unchecked Sendable {
     /// The schema version this build writes.
     ///
     /// A launch that finds a lower version recorded beside the store deletes the store and rebuilds
-    /// it from sync, which is the project's substitute for schema migrations. Bump this whenever a
-    /// table definition in `Schema.swift` changes, and equally whenever the *encoding* of a value
+    /// it from sync, which is the project's substitute for schema migrations. Bump this whenever an
+    /// existing table definition in `Schema.swift` changes, and equally whenever the *encoding* of a value
     /// already stored in a column changes — a new non-optional property on a `Codable` persisted as
     /// a JSON blob leaves the column's SQL type untouched, but rows written by an earlier build stop
     /// decoding, and the `try?` at the read sites turns that into a silent nil for the whole value.
+    ///
+    /// A brand-new table that starts empty and fills from the server doesn't need a bump:
+    /// `createTablesIfNeeded()` adds it to an existing store on the next open.
     ///
     /// This used to be the `SQLiteVersion` key in the app's `Info.plist`. It moved into code because
     /// the notification service extension needs the same number to decide whether the store on disk

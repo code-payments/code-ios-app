@@ -73,7 +73,11 @@ app can fix itself belongs in the service files that wrap the generated code.
 migrations — when the version number increases, the database is deleted and rebuilt from server data
 on next login (`SessionAuthenticator.initializeDatabase`). This means:
 
-- Adding/removing tables or columns → bump version
+- Removing a table, or adding/removing/changing columns on an existing table → bump version
+- **Adding a new table does not bump**, as long as it starts empty and fills from the server.
+  `createTablesIfNeeded()` runs on every open with `create(ifNotExists: true)`, so an existing store
+  gains the table in place and keeps its data. Code reading the new table must treat "empty" as
+  "never synced". Any change to an existing table's columns still bumps.
 - Changing which table a query reads from → bump version if the old schema can't satisfy the new query
 - **Changing the encoding of a value already stored in a column → bump version.** The column's SQL
   type is unchanged, so nothing about `Schema.swift` looks different, but rows written by an earlier
