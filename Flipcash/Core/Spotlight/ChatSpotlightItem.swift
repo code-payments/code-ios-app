@@ -59,7 +59,8 @@ nonisolated struct ChatSpotlightItem {
         switch message?.content {
         case .text(let text):    text
         case .cash(let amount):  "Cash · \(amount.nativeAmount.formatted())"
-        case .deleted, .encrypted, nil: nil
+        case .widget(.shareProfile): "Shared a profile"
+        case .deleted, .encrypted, .widget(.unrecognized), nil: nil
         }
     }
 

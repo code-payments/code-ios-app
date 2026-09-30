@@ -32,6 +32,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps an `@handle` in a message. The owner looks the handle up and opens
     /// that person's profile.
     let onMentionTap: (Username) -> Void
+    /// Fired when the Share button on a shared-profile widget is tapped.
+    let onShareProfile: (LinkCard.User) -> Void
     /// Fired when the user taps the card drawn in place of a link, with the whole card and the
     /// stable id of the message it came on. The owner decides where it lands, which differs by kind.
     let onLinkCardTap: (LinkCard, String) -> Void
@@ -134,6 +136,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
+        screen.onShareProfile = onShareProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
         screen.onContactAction = onContactAction
@@ -177,6 +180,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
+        screen.onShareProfile = onShareProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
         screen.onContactAction = onContactAction

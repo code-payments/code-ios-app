@@ -99,6 +99,12 @@ extension MessageCapability {
             // a payment record. Someone else's payment is still reportable — a payment is a thing
             // a person did to you.
             return message.isFromSelf(selfUserID) ? [.reply] : [.reply, .report]
+        case .widget(.unrecognized):
+            // Drawn as an unsupported message: nothing this client can act on.
+            return []
+        case .widget(.shareProfile):
+            // Like cash: no text to copy or edit, and reply is what the quote panel supports.
+            return message.isFromSelf(selfUserID) ? [.reply] : [.reply, .report]
         case .text:
             break
         }

@@ -51,6 +51,9 @@ public struct ChatQuote: Hashable, Sendable, Codable {
     /// Copy for an original the client cannot show.
     public static let unavailableSnippet = "Original message unavailable"
 
+    /// The line a quoted shared-profile widget shows: it has no text of its own.
+    public static let sharedProfileSnippet = "Shared a profile"
+
     /// Copy for an original that has since been deleted.
     public static let deletedSnippet = "This message was deleted"
 

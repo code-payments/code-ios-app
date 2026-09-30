@@ -157,7 +157,7 @@ public final class ChatBubbleView: UIView {
         let hint: String?
         switch message.content {
         case .unavailable(let unavailableHint): hint = unavailableHint.text
-        case .text, .cash, .deleted:            hint = nil
+        case .text, .cash, .deleted, .shareProfile: hint = nil
         }
         hintLabel.text = hint
         hintLabel.isHidden = hint == nil
@@ -215,14 +215,14 @@ public final class ChatBubbleView: UIView {
         case .text:    message.isEdited
         case .deleted: false
         case .cash:    false
-        case .unavailable: false
+        case .unavailable, .shareProfile: false
         }
     }
 
     private static func isUnavailable(_ message: ChatMessage) -> Bool {
         switch message.content {
         case .unavailable:              true
-        case .text, .cash, .deleted:    false
+        case .text, .cash, .deleted, .shareProfile: false
         }
     }
 
@@ -265,7 +265,7 @@ public final class ChatBubbleView: UIView {
             isPlaceholder = true
         case .unavailable:
             return unavailableText()
-        case .cash:
+        case .cash, .shareProfile:
             return nil
         }
 

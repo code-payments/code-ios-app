@@ -722,14 +722,31 @@ struct ConversationMessageContentEncodingTests {
         #expect(Flipcash_Messaging_V1_WidgetContent().shareProfile == nil)
     }
 
-    @Test("A widget message is dropped like other content this client can't draw")
-    func widgetMessageIsDropped() {
+    @Test("A share-profile widget message is kept as a widget")
+    func widgetMessageIsKept() throws {
         let proto = Flipcash_Messaging_V1_Message.with {
             $0.messageID = .with { $0.value = 9 }
             $0.content = [.with {
                 $0.widget = .with { $0.shareProfile = .with { $0.username = .with { $0.value = "alice" } } }
             }]
         }
-        #expect(ConversationMessage(proto) == nil)
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.content == .widget(.shareProfile(ShareProfileWidget(username: try #require(Username("alice"))))))
+    }
+
+    @Test("A widget of an unknown variant is kept as unrecognized, not dropped")
+    func unknownWidgetIsUnrecognized() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.content = [.with { $0.widget = .init() }]
+        }
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.content == .widget(.unrecognized))
+    }
+
+    @Test("A widget can't be sent through the content encoder")
+    func widgetIsNotEncodable() throws {
+        let widget = ConversationMessage.Content.widget(.shareProfile(ShareProfileWidget(username: try #require(Username("alice")))))
+        #expect(throws: ConversationMessageContentEncodingError.self) { try widget.asProto() }
     }
 }

@@ -1344,6 +1344,14 @@ final class ConversationController {
         case .deleted:
             return nil
 
+        case .widget(.shareProfile):
+            if isFromSelf { return "You shared a profile" }
+            guard let senderName else { return "Shared a profile" }
+            return "\(senderName) shared a profile"
+
+        case .widget(.unrecognized):
+            return nil
+
         case .encrypted:
             // No plaintext to preview -- the row still surfaces (it's still the newest activity),
             // just with a blank subtitle, same as an empty text body above.
@@ -1763,7 +1771,7 @@ final class ConversationController {
         case .text(let text):
             store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
             _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
-        case .encrypted, .cash, .deleted:
+        case .encrypted, .cash, .deleted, .widget:
             if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
                 logger.error("Cannot retry a send this client has no path to re-send", metadata: [
                     "conversationID": "\(conversationID)",

@@ -481,6 +481,7 @@ struct ConversationScreen: View {
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
             onMentionTap: openMention,
+            onShareProfile: shareProfile,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
             onContactAction: openContactCard,
@@ -1074,7 +1075,9 @@ struct ConversationScreen: View {
             )
         case .deleted:
             (ChatQuote.deletedSnippet, .unavailable)
-        case .encrypted:
+        case .widget(.shareProfile):
+            (ChatQuote.sharedProfileSnippet, .text)
+        case .encrypted, .widget(.unrecognized):
             (ChatQuote.unavailableSnippet, .unavailable)
         }
     }
@@ -1161,7 +1164,7 @@ struct ConversationScreen: View {
         case .cash(let fiat):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: fiat.mint)
             router.push(.currencyInfo(fiat.mint))
-        case .text, .deleted, .encrypted:
+        case .text, .deleted, .encrypted, .widget:
             break
         }
     }
@@ -1273,6 +1276,12 @@ struct ConversationScreen: View {
             openDeepLink: { container.deepLinkController.open($0) },
             openExternally: { ExternalLinkOpener(session: session).open($0) }
         ).open(url)
+    }
+
+    /// Opens the share sheet on the widget's person, with the public link their own You tab shares.
+    private func shareProfile(_ card: LinkCard.User) {
+        let item = TipCodeShareItem(url: card.url, title: card.linkedHandle ?? card.url.absoluteString, preview: nil)
+        ShareSheet.present(activityItem: item) { _ in }
     }
 
     /// Looks up a tapped `@handle` and opens whoever it names. Resolved on tap rather than as the

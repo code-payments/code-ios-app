@@ -84,6 +84,9 @@ private struct NotificationMessageRow: View {
                 NotificationTextBubble(text: ChatMessage.unavailableCopy, isFromSelf: message.sender == .me)
             case .cash(let cash):
                 NotificationCashCard(cash: cash, isFromSelf: message.sender == .me)
+            case .shareProfile(let profile):
+                // The extension has no profile lookup; the handle is what the widget names.
+                NotificationTextBubble(text: profile.linkedHandle ?? "Shared a profile", isFromSelf: message.sender == .me)
             }
             if message.sender == .other { Spacer(minLength: 44) }
         }

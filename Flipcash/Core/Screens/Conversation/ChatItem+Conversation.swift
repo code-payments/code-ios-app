@@ -151,7 +151,7 @@ extension ChatItem {
         func isEmojiOnlyBody(_ message: ConversationMessage) -> Bool {
             switch message.content {
             case .text(let text): EmojiOnlyDetector.isEmojiOnly(text)
-            case .cash, .deleted, .encrypted: false
+            case .cash, .deleted, .encrypted, .widget: false
             }
         }
         func rendersBare(_ message: ConversationMessage) -> Bool {
@@ -164,7 +164,7 @@ extension ChatItem {
         let layouts = messages.map { message in
             switch message.content {
             case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard))
-            case .cash, .deleted, .encrypted: [RowLayout(part: nil, text: nil, preview: nil)]
+            case .cash, .deleted, .encrypted, .widget: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
         // A status line under a message sits between it and the next bubble, so it ends the bubble
@@ -251,6 +251,11 @@ extension ChatItem {
                         ? "You deleted this message"
                         : "This message was deleted"
                 )
+            case .widget(.shareProfile(let share)):
+                content = .shareProfile(LinkCard.User(profileOf: share.username))
+            case .widget(.unrecognized):
+                // A widget variant this build doesn't draw; a newer one will.
+                content = .unavailable(.updateApp)
             case .encrypted:
                 // Still encrypted here means decryption failed; the awaiting ones were dropped above.
                 content = .unavailable(.decryptFailure(
@@ -404,6 +409,22 @@ extension ChatItem {
                 stableID: nil,
                 authorName: authorName,
                 snippet: ChatQuote.deletedSnippet,
+                kind: .unavailable,
+                authorID: original.senderID
+            )
+        case .widget(.shareProfile):
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: ChatQuote.sharedProfileSnippet,
+                kind: .text,
+                authorID: original.senderID
+            )
+        case .widget(.unrecognized):
+            return ChatQuote(
+                stableID: nil,
+                authorName: authorName,
+                snippet: ChatQuote.unavailableSnippet,
                 kind: .unavailable,
                 authorID: original.senderID
             )
