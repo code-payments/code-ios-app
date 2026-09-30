@@ -160,6 +160,30 @@ struct ProfileTests {
         #expect(profile.tipCardCustomization == nil)
     }
 
+    // MARK: - Auto-assigned username -
+
+    @Test("isUsernameAutoAssigned maps from the proto and round-trips")
+    func autoAssignedFlagMapsAndRoundTrips() throws {
+        var proto = Flipcash_Profile_V1_UserProfile()
+        proto.isUsernameAutoAssigned = true
+
+        let profile = try Profile(proto)
+        #expect(profile.isUsernameAutoAssigned)
+
+        let restored = try JSONDecoder().decode(Profile.self, from: try JSONEncoder().encode(profile))
+        #expect(restored.isUsernameAutoAssigned)
+    }
+
+    @Test("A row persisted before isUsernameAutoAssigned decodes it as false")
+    func decodesProfilePersistedBeforeAutoAssignedFlag() throws {
+        let legacy = Data(#"{"displayName":"Ted Livingston","email":"ted@example.com"}"#.utf8)
+
+        let profile = try JSONDecoder().decode(Profile.self, from: legacy)
+
+        #expect(profile.isUsernameAutoAssigned == false)
+        #expect(try Profile(Flipcash_Profile_V1_UserProfile()).isUsernameAutoAssigned == false)
+    }
+
     // MARK: - Username -
 
     @Test("Username round-trips")

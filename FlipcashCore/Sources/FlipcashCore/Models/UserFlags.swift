@@ -155,7 +155,7 @@ extension UserFlags {
             enablePhoneNumberSend: proto.enablePhoneNumberSend,
             requireCoinbaseEmailVerification: proto.requireCoinbaseEmailVerification,
             preferredOnrampUsdcLiquidityPool: UsdcLiquidityPool(proto.preferredOnRampUsdcLiquidityPool),
-            tipPresets: proto.tipPresets.compactMap { TipPresets($0) },
+            tipPresets: proto.sendPresets.compactMap { TipPresets($0) },
             messageEditWindow: proto.hasMessageEditWindow ? TimeInterval(proto.messageEditWindow.seconds) : nil,
             messageDeleteWindow: proto.hasMessageDeleteWindow ? TimeInterval(proto.messageDeleteWindow.seconds) : nil
         )
@@ -165,7 +165,7 @@ extension UserFlags {
 extension UserFlags.TipPresets {
 
     /// Returns nil for a region code this client doesn't recognize.
-    init?(_ proto: Flipcash_Account_V1_TipPresets) {
+    init?(_ proto: Flipcash_Account_V1_SendPresets) {
         guard let currency = CurrencyCode(rawValue: proto.region.value) else {
             return nil
         }

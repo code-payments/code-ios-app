@@ -51,8 +51,8 @@ extension FlipClient {
 
     /// Updates the caller's Tip Card customization. The server validates the
     /// colour and falls back to the default for anything left unset.
-    public func updateTipCard(_ customization: TipCardCustomization, owner: KeyPair) async throws {
-        try await profileService.updateTipCard(color: customization.colorProto, owner: owner)
+    public func updateFlipcard(_ customization: TipCardCustomization, owner: KeyPair) async throws {
+        try await profileService.updateFlipcard(color: customization.colorProto, owner: owner)
     }
 
     /// Sets the minimum fee another user must pay to initialize a DM chat with

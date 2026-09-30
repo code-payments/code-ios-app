@@ -10,7 +10,7 @@ struct UserFlagsTipPresetsTests {
         _ rows: [(region: String, minimum: Double, low: Double, medium: Double, high: Double)]
     ) -> Flipcash_Account_V1_UserFlags {
         .with {
-            $0.tipPresets = rows.map { row in
+            $0.sendPresets = rows.map { row in
                 .with {
                     $0.region = .with { $0.value = row.region }
                     $0.minimum = row.minimum
