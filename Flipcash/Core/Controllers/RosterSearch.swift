@@ -22,8 +22,15 @@ protocol RosterSearchSource: AnyObject {
     func prepare(chatID: ConversationID) async
 
     /// Returns up to `limit` members of a group matching `query`, best match first, never the
-    /// signed-in user. An empty query returns the members who spoke most recently.
+    /// signed-in user or a blocked one. An empty query returns the members who spoke most recently.
     func search(chatID: ConversationID, query: String, limit: Int) async throws -> [MemberMatch]
+}
+
+extension RosterSearchSource {
+    /// Returns up to 20 members of a group matching `query`; see ``search(chatID:query:limit:)``.
+    func search(chatID: ConversationID, query: String) async throws -> [MemberMatch] {
+        try await search(chatID: chatID, query: query, limit: 20)
+    }
 }
 
 /// Answers roster searches from the roster ``RosterSync`` holds on device.
@@ -33,21 +40,23 @@ protocol RosterSearchSource: AnyObject {
 /// rank in three tiers:
 /// 1. members who sent one of the chat's newest held messages, most recent first;
 /// 2. the member whose username is exactly the query;
-/// 3. everyone else, by normalized display name in code point order.
-/// Ties fall to the lowercase user id.
+/// 3. everyone else, by normalized display name, then raw display name, both in code point order.
+/// Ties fall to the lowercase user id. The signed-in user and blocked users never match.
 final class LocalRosterSearch: RosterSearchSource {
 
     /// How many of the chat's newest held messages count toward "spoke recently".
-    static let recentMessageWindow = 200
+    static let recentMessageWindow = 50
 
     private let database: Database
     private let roster: RosterSync
     private let selfUserID: UserID
+    private let blockedUserIDs: () -> Set<UserID>
 
-    init(database: Database, roster: RosterSync, selfUserID: UserID) {
+    init(database: Database, roster: RosterSync, selfUserID: UserID, blockedUserIDs: @escaping () -> Set<UserID> = { [] }) {
         self.database = database
         self.roster = roster
         self.selfUserID = selfUserID
+        self.blockedUserIDs = blockedUserIDs
     }
 
     func prepare(chatID: ConversationID) async {
@@ -68,10 +77,11 @@ final class LocalRosterSearch: RosterSearchSource {
 
         let recency = Dictionary(recent.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
         let exactUsername = words.count == 1 ? words[0] : nil
+        let blocked = blockedUserIDs()
 
         let ranked = try database.rosterEntries(conversationID: chatID, userIDs: candidates)
             .compactMap { entry -> (Rank, RosterEntry, UserID)? in
-                guard let userID = entry.member.userID, userID != selfUserID else { return nil }
+                guard let userID = entry.member.userID, userID != selfUserID, !blocked.contains(userID) else { return nil }
                 let username = entry.member.username.map { RosterSearchText.normalize($0.value) }
                 let rank: Rank
                 if let position = recency[userID] {
@@ -87,6 +97,9 @@ final class LocalRosterSearch: RosterSearchSource {
                 if lhs.0 != rhs.0 { return lhs.0 < rhs.0 }
                 if lhs.1.sortKey != rhs.1.sortKey {
                     return lhs.1.sortKey.unicodeScalars.lexicographicallyPrecedes(rhs.1.sortKey.unicodeScalars)
+                }
+                if lhs.1.member.displayName != rhs.1.member.displayName {
+                    return lhs.1.member.displayName.unicodeScalars.lexicographicallyPrecedes(rhs.1.member.displayName.unicodeScalars)
                 }
                 return lhs.2.uuidString.lowercased() < rhs.2.uuidString.lowercased()
             }

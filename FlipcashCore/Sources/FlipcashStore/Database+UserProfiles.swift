@@ -29,11 +29,14 @@ nonisolated extension Database {
     public func upsertUserProfile(_ profile: Profile, userID: UserID) throws {
         let t = UserProfileTable()
         let data = try JSONEncoder().encode(profile)
-        try writer.run(t.table.upsert(
-            t.userID <- userID,
-            t.data   <- data,
-            onConflictOf: t.userID
-        ))
+        try writer.transaction {
+            try writer.run(t.table.upsert(
+                t.userID <- userID,
+                t.data   <- data,
+                onConflictOf: t.userID
+            ))
+            try refreshRosterProfile(profile, userID: userID)
+        }
     }
 
     // MARK: - Delete -

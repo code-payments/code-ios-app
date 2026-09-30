@@ -671,7 +671,6 @@ final class SessionContainer {
         )
         let rosterSync = RosterSync(fetching: flipClient, database: database, owner: session.ownerKeyPair)
         conversationController.roster = rosterSync
-        self.rosterSearch = LocalRosterSearch(database: database, roster: rosterSync, selfUserID: session.userID)
         // Chat cash arrives in the sender's native currency; the counters are USD.
         // Wired before `start()` so the first delivered message already normalises.
         conversationController.receipts.usdRate = { [weak ratesController] currency in
@@ -703,6 +702,14 @@ final class SessionContainer {
             database: database
         )
         self.blocklistController = blocklistController
+        self.rosterSearch = LocalRosterSearch(
+            database: database,
+            roster: rosterSync,
+            selfUserID: session.userID,
+            blockedUserIDs: { [weak blocklistController] in
+                Set(blocklistController?.blockedUsers.map(\.userID) ?? [])
+            }
+        )
 
         // The blocklist drives which conversations the feed hides: it supplies the
         // current set, reconciles the hidden flags on every change, and reconciles

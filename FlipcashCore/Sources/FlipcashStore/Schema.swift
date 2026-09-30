@@ -371,17 +371,20 @@ nonisolated public struct RosterSyncTable: Sendable {
 
     public init() {}
 
-    public let table          = Table(Self.name)
-    public let conversationId = Expression <Data>    ("conversationId")
-    // The greatest roster version applied, from a sync or the stream.
-    public let version        = Expression <UInt64>  ("version")
-    public let memberCount    = Expression <UInt64>  ("memberCount")
-    // When the last full sync finished; `nil` until one has.
-    public let syncedAt       = Expression <Double?> ("syncedAt")
-    // Whether the last full sync stopped at the page cap before `has_more` went false.
-    public let isCapped       = Expression <Bool>    ("isCapped")
-    // The greatest stream version that arrived after a skipped version; set means a re-sync is due.
-    public let gapVersion     = Expression <UInt64?> ("gapVersion")
+    public let table            = Table(Self.name)
+    public let conversationId   = Expression <Data>   ("conversationId")
+    // The last roster version a `Chat.GetRoster` read fully applied. Stream updates never move it,
+    // because the version is opaque and a skipped update can't be detected from the stream alone.
+    public let watermark        = Expression <UInt64> ("watermark")
+    // The greatest roster version seen from any source; above `watermark` means a catch-up is due.
+    public let observedVersion  = Expression <UInt64> ("observedVersion")
+    public let memberCount      = Expression <UInt64> ("memberCount")
+    // Whether a read from the first page to the end (or to the page cap) has ever finished.
+    public let fullySynced      = Expression <Bool>   ("fullySynced")
+    // Whether the last full read stopped at the page cap before `has_more` went false.
+    public let truncated        = Expression <Bool>   ("truncated")
+    // A leave went unseen, or a full read couldn't be trusted to drop members; the next open re-reads.
+    public let reconcilePending = Expression <Bool>   ("reconcilePending")
 }
 
 // One row per message; cash content is decomposed across the amount columns
@@ -709,11 +712,12 @@ nonisolated extension Database {
             try writer.run(rosterTokenTable.table.createIndex(rosterTokenTable.conversationId, rosterTokenTable.userId, ifNotExists: true))
             try writer.run(rosterSyncTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(rosterSyncTable.conversationId, primaryKey: true)
-                t.column(rosterSyncTable.version)
+                t.column(rosterSyncTable.watermark)
+                t.column(rosterSyncTable.observedVersion)
                 t.column(rosterSyncTable.memberCount)
-                t.column(rosterSyncTable.syncedAt)
-                t.column(rosterSyncTable.isCapped)
-                t.column(rosterSyncTable.gapVersion)
+                t.column(rosterSyncTable.fullySynced)
+                t.column(rosterSyncTable.truncated)
+                t.column(rosterSyncTable.reconcilePending)
             })
         }
 

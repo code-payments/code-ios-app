@@ -29,15 +29,27 @@ struct RosterSearchTextTests {
         #expect(RosterSearchText.normalize("ﬁona") == "fiona")
     }
 
+    @Test("Dotted capital I folds to a plain i")
+    func dottedCapitalI() {
+        #expect(RosterSearchText.normalize("İstanbul") == "istanbul")
+    }
+
+    @Test("Spacing marks are kept, so Devanagari vowels survive")
+    func keepsSpacingMarks() {
+        // U+093F DEVANAGARI VOWEL SIGN I is category Mc.
+        #expect(RosterSearchText.normalize("कि") == "कि")
+    }
+
     @Test("Tokens are each display name word plus the username")
     func tokens() {
         let tokens = RosterSearchText.tokens(displayName: "  Érica  de la Cruz ", username: "ecruz")
         #expect(tokens == ["erica", "de", "la", "cruz", "ecruz"])
+        #expect(RosterSearchText.tokens(displayName: "Bo", username: "＠bo_b") == ["bo", "bo_b"])
     }
 
-    @Test("A no-break space splits words like a space")
-    func noBreakSpaceSplits() {
-        #expect(RosterSearchText.words("Ana\u{00A0}Lima") == ["ana", "lima"])
+    @Test("Any whitespace or separator splits words", arguments: ["\u{00A0}", "\u{2028}", "\u{3000}", "\t"])
+    func separatorsSplit(separator: String) {
+        #expect(RosterSearchText.words("Ana\(separator)Lima") == ["ana", "lima"])
     }
 
     @Test("A query drops a leading @ of either width")
@@ -45,6 +57,7 @@ struct RosterSearchTextTests {
         #expect(RosterSearchText.queryWords("@Eri") == ["eri"])
         #expect(RosterSearchText.queryWords("＠eri") == ["eri"])
         #expect(RosterSearchText.queryWords("@") == [])
+        #expect(RosterSearchText.queryWords("@@eri") == ["@eri"])
         #expect(RosterSearchText.queryWords("") == [])
     }
 

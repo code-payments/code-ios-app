@@ -9,23 +9,34 @@ import SQLite
 
 /// Where a group's locally held roster stands against the server's.
 public struct RosterSyncState: Sendable, Equatable {
-    /// The greatest roster version applied, from a sync or the stream.
-    public let version: UInt64
-    /// The group's true member count, as the latest roster summary reported it.
+    /// The last roster version a `Chat.GetRoster` read fully applied.
+    public let watermark: UInt64
+    /// The greatest roster version seen from the stream, the chat feed, or a read.
+    public let observedVersion: UInt64
+    /// The group's member count, as the latest roster summary reported it.
     public let memberCount: UInt64
     /// How many current members are held locally.
     public let heldCount: Int
-    /// When the last full sync finished, or `nil` if none has.
-    public let syncedAt: Date?
-    /// Whether the last full sync stopped at the page cap.
-    public let isCapped: Bool
-    /// The stream version that revealed a skipped version, or `nil` when the stream has been contiguous.
-    public let gapVersion: UInt64?
+    /// Whether a full read has ever finished.
+    public let fullySynced: Bool
+    /// Whether the last full read stopped at the page cap.
+    public let truncated: Bool
+    /// Whether a full read is owed, from an unseen leave or a read that couldn't drop members.
+    public let reconcilePending: Bool
 
-    /// Whether the group's roster should be paged again from the start.
-    public var needsFullSync: Bool {
-        syncedAt == nil || gapVersion != nil || (!isCapped && UInt64(heldCount) < memberCount)
-    }
+    /// Whether the roster should be read from the first page to the end.
+    public var needsFullRead: Bool { !fullySynced || reconcilePending }
+
+    /// Whether the roster moved past what a read has applied, so the newest pages should be re-read.
+    public var needsCatchUp: Bool { observedVersion > watermark }
+}
+
+/// What a catch-up read found once merged.
+public enum RosterCatchUpOutcome: Sendable, Equatable {
+    /// The held roster agrees with the page's count; the watermark moved to the page's version.
+    case caughtUp
+    /// More members are held than the page counts, so someone left unseen; a full read is owed.
+    case reconcileNeeded
 }
 
 /// A current roster member as stored, with the key roster search sorts it by.
@@ -48,19 +59,20 @@ nonisolated extension Database {
             return nil
         }
         let held = try reader.scalar(r.table.filter(r.conversationId == conversationID.data && r.isMember == true).count)
-        let feedCount = try reader.pluck(c.table.select(c.rosterMemberCount).filter(c.id == conversationID.data))?[c.rosterMemberCount] ?? 0
+        let feedVersion = try reader.pluck(c.table.select(c.rosterVersion).filter(c.id == conversationID.data))?[c.rosterVersion] ?? 0
         return RosterSyncState(
-            version: row[s.version],
-            memberCount: max(row[s.memberCount], feedCount),
+            watermark: row[s.watermark],
+            observedVersion: max(row[s.observedVersion], feedVersion),
+            memberCount: row[s.memberCount],
             heldCount: held,
-            syncedAt: row[s.syncedAt].map(Date.init(timeIntervalSinceReferenceDate:)),
-            isCapped: row[s.isCapped],
-            gapVersion: row[s.gapVersion]
+            fullySynced: row[s.fullySynced],
+            truncated: row[s.truncated],
+            reconcilePending: row[s.reconcilePending]
         )
     }
 
-    /// Starts tracking a group's roster so stream updates are written from now on. Seeds the version
-    /// and count from the cached chat row; a no-op when the group is already tracked.
+    /// Starts tracking a group's roster so stream updates are written from now on. A no-op when the
+    /// group is already tracked.
     public func beginTrackingRoster(conversationID: ConversationID) throws {
         let s = RosterSyncTable()
         let c = ConversationTable()
@@ -69,81 +81,101 @@ nonisolated extension Database {
             try writer.run(s.table.insert(
                 or: .ignore,
                 s.conversationId <- conversationID.data,
-                s.version <- chat?[c.rosterVersion] ?? 0,
+                s.watermark <- 0,
+                s.observedVersion <- chat?[c.rosterVersion] ?? 0,
                 s.memberCount <- chat?[c.rosterMemberCount] ?? 0,
-                s.syncedAt <- nil,
-                s.isCapped <- false,
-                s.gapVersion <- nil
+                s.fullySynced <- false,
+                s.truncated <- false,
+                s.reconcilePending <- false
             ))
         }
     }
 
     // MARK: - Writes -
 
-    /// Merges a paged roster read into a tracked group's roster.
+    /// Merges a read from the first page to the end, or to the page cap, into a tracked group.
     ///
-    /// Per member, the greater version wins against what the stream already wrote. When `isComplete`,
-    /// a held row the snapshot lacks is dropped unless its version is newer than `summary.version`,
-    /// the version the snapshot is at least as fresh as. When the read stopped early, absent rows are
-    /// kept, because they may be on the pages not fetched.
-    public func mergeRosterSnapshot(
+    /// Per member, the greater version wins against what the stream already wrote. A held member the
+    /// read lacks is dropped only when the read reached the end, every page reported the same roster
+    /// version, and the held row's version is not above it. When the pages disagree, nothing is
+    /// dropped and a reconcile stays pending. A truncated read drops nothing and owes nothing: the
+    /// members past the cap were never held.
+    public func applyFullRosterRead(
         _ members: [ConversationMember],
-        summary: ConversationRosterSummary,
+        summaries: [ConversationRosterSummary],
         isComplete: Bool,
-        conversationID: ConversationID,
-        now: Date = .now
+        conversationID: ConversationID
     ) throws {
+        guard let oldest = summaries.min(by: { $0.version < $1.version }),
+              let newest = summaries.max(by: { $0.version < $1.version }) else { return }
+        let isConsistent = oldest.version == newest.version
         let s = RosterSyncTable()
-        let r = RosterMemberTable()
         try writer.transaction {
             guard let sync = try writer.pluck(s.table.filter(s.conversationId == conversationID.data)) else { return }
-            var held = try heldVersions(conversationID: conversationID)
+            var held = try mergeRosterMembers(members, conversationID: conversationID)
 
-            for member in members {
-                guard let userID = member.userID else { continue }
-                if let existing = held[userID], existing > member.version { continue }
-                try writeRosterMember(member, userID: userID, version: member.version, conversationID: conversationID)
-                held[userID] = member.version
-            }
-
-            if isComplete {
-                let snapshotIDs = Set(members.compactMap(\.userID))
-                for (userID, version) in held where !snapshotIDs.contains(userID) && version <= summary.version {
+            if isComplete && isConsistent {
+                let readIDs = Set(members.compactMap(\.userID))
+                for (userID, version) in held where !readIDs.contains(userID) && version <= oldest.version {
                     try deleteRosterMember(userID: userID, conversationID: conversationID)
+                    held[userID] = nil
                 }
             }
 
-            let version = sync[s.version]
-            let gap = sync[s.gapVersion].flatMap { $0 > summary.version + 1 ? $0 : nil }
             try writer.run(s.table.filter(s.conversationId == conversationID.data).update(
-                s.version <- max(version, summary.version),
-                s.memberCount <- summary.version >= version ? summary.memberCount : sync[s.memberCount],
-                s.syncedAt <- now.timeIntervalSinceReferenceDate,
-                s.isCapped <- !isComplete,
-                s.gapVersion <- gap
+                s.watermark <- max(sync[s.watermark], oldest.version),
+                s.observedVersion <- max(sync[s.observedVersion], newest.version),
+                s.memberCount <- oldest.memberCount,
+                s.fullySynced <- true,
+                s.truncated <- !isComplete,
+                s.reconcilePending <- !isConsistent
             ))
         }
     }
 
-    /// Rewrites the names and pictures of members a fresh roster page carries, for a tracked group.
-    /// A row the stream has since moved past is left alone. Nothing is removed.
-    public func refreshRosterMembers(_ members: [ConversationMember], conversationID: ConversationID) throws {
+    /// Merges a read of the newest pages into a tracked group and checks the page's count for leaves
+    /// the read can't show.
+    ///
+    /// `summary` is the page's roster summary; with several pages, the one with the lowest version.
+    /// When no more members are held than it counts, the watermark moves to its version: a join the
+    /// read missed is newer than the page and arrives on the stream. When more are held, someone left
+    /// unseen, so a reconcile is recorded and the watermark stays put.
+    public func applyRosterCatchUp(
+        _ members: [ConversationMember],
+        summary: ConversationRosterSummary,
+        conversationID: ConversationID
+    ) throws -> RosterCatchUpOutcome {
         let s = RosterSyncTable()
+        let r = RosterMemberTable()
+        var outcome = RosterCatchUpOutcome.caughtUp
         try writer.transaction {
-            guard try writer.pluck(s.table.filter(s.conversationId == conversationID.data)) != nil else { return }
-            let held = try heldVersions(conversationID: conversationID)
-            for member in members {
-                guard let userID = member.userID else { continue }
-                if let existing = held[userID], existing > member.version { continue }
-                try writeRosterMember(member, userID: userID, version: member.version, conversationID: conversationID)
+            guard let sync = try writer.pluck(s.table.filter(s.conversationId == conversationID.data)) else { return }
+            try mergeRosterMembers(members, conversationID: conversationID)
+            let held = try writer.scalar(r.table.filter(r.conversationId == conversationID.data && r.isMember == true).count)
+            let observed = max(sync[s.observedVersion], summary.version)
+
+            if UInt64(held) > summary.memberCount {
+                outcome = .reconcileNeeded
+                try writer.run(s.table.filter(s.conversationId == conversationID.data).update(
+                    s.observedVersion <- observed,
+                    s.reconcilePending <- true
+                ))
+            } else {
+                try writer.run(s.table.filter(s.conversationId == conversationID.data).update(
+                    s.watermark <- max(sync[s.watermark], summary.version),
+                    s.observedVersion <- observed,
+                    s.memberCount <- summary.memberCount
+                ))
             }
         }
+        return outcome
     }
 
     /// Applies live roster updates to a tracked group, returning `false` when the group is not tracked.
     ///
-    /// Each update wins against the member's row only with a greater version. An update more than one
-    /// past the greatest applied version records a gap, which ``RosterSyncState/needsFullSync`` reports.
+    /// Each update wins against the member's row only with a greater version. The watermark does not
+    /// move: the stream can't show whether an update was skipped, so the next open catches up from
+    /// the roster's first page instead.
     @discardableResult
     public func applyRosterUpdates(_ updates: [DecodedRosterUpdate], conversationID: ConversationID) throws -> Bool {
         let s = RosterSyncTable()
@@ -151,18 +183,14 @@ nonisolated extension Database {
         try writer.transaction {
             guard let sync = try writer.pluck(s.table.filter(s.conversationId == conversationID.data)) else { return }
             isTracked = true
-            var version = sync[s.version]
+            var observed = sync[s.observedVersion]
             var memberCount = sync[s.memberCount]
-            var gap = sync[s.gapVersion]
             let held = try heldVersions(conversationID: conversationID)
 
             for update in updates.sorted(by: { $0.rosterSummary.version < $1.rosterSummary.version }) {
                 let updateVersion = update.rosterSummary.version
-                if updateVersion > version + 1 {
-                    gap = max(gap ?? 0, updateVersion)
-                }
-                if updateVersion > version {
-                    version = updateVersion
+                if updateVersion > observed {
+                    observed = updateVersion
                     memberCount = update.rosterSummary.memberCount
                 }
 
@@ -178,12 +206,38 @@ nonisolated extension Database {
             }
 
             try writer.run(s.table.filter(s.conversationId == conversationID.data).update(
-                s.version <- version,
-                s.memberCount <- memberCount,
-                s.gapVersion <- gap
+                s.observedVersion <- observed,
+                s.memberCount <- memberCount
             ))
         }
         return isTracked
+    }
+
+    /// Must be called inside a `writer.transaction`. Rewrites a user's name, username, picture, and
+    /// search tokens in every group that holds them as a current member, keeping each row's version,
+    /// since a profile change doesn't move the roster version.
+    func refreshRosterProfile(_ profile: Profile, userID: UserID) throws {
+        let r = RosterMemberTable()
+        let t = RosterTokenTable()
+        let rows = try Array(writer.prepareRowIterator(
+            r.table.filter(r.userId == userID && r.isMember == true)
+        ))
+        for row in rows {
+            let conversationData = row[r.conversationId]
+            let displayName = profile.displayName ?? row[r.displayName]
+            try writer.run(r.table.filter(r.conversationId == conversationData && r.userId == userID).update(
+                r.displayName <- displayName,
+                r.username <- profile.username?.value,
+                r.profilePictureBlobID <- profile.profilePicture?.blobID.data,
+                r.profilePictureThumbnailBlobID <- profile.profilePicture?.thumbnailBlobID.data,
+                r.profilePictureThumbnailBlurhash <- profile.profilePicture?.thumbnailBlurhash,
+                r.sortKey <- RosterSearchText.normalize(displayName)
+            ))
+            try writer.run(t.table.filter(t.conversationId == conversationData && t.userId == userID).delete())
+            for token in RosterSearchText.tokens(displayName: displayName, username: profile.username?.value) {
+                try writer.run(t.table.insert(or: .ignore, t.conversationId <- conversationData, t.token <- token, t.userId <- userID))
+            }
+        }
     }
 
     /// Removes everything held for a group's roster, tracking included.
@@ -275,6 +329,20 @@ nonisolated extension Database {
             versions[row[r.userId]] = row[r.version]
         }
         return versions
+    }
+
+    /// Must be called inside a `writer.transaction`. Writes each member whose version is not below the
+    /// held row's, so an equal version refreshes a name or picture. Returns every held row's version.
+    @discardableResult
+    private func mergeRosterMembers(_ members: [ConversationMember], conversationID: ConversationID) throws -> [UserID: UInt64] {
+        var held = try heldVersions(conversationID: conversationID)
+        for member in members {
+            guard let userID = member.userID else { continue }
+            if let existing = held[userID], existing > member.version { continue }
+            try writeRosterMember(member, userID: userID, version: member.version, conversationID: conversationID)
+            held[userID] = member.version
+        }
+        return held
     }
 
     /// Must be called inside a `writer.transaction`.
