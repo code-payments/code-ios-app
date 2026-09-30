@@ -482,6 +482,7 @@ struct ConversationScreen: View {
             onOpenURL: openLink,
             onMentionTap: openMention,
             onShareProfile: shareProfile,
+            ownProfile: ownProfile,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
             onContactAction: openContactCard,
@@ -703,6 +704,11 @@ struct ConversationScreen: View {
                 groupAvatarSubject,
                 picture: groupConversation?.picture
             )
+        }
+        // Fetch the signed-in user's own avatar for a shared-profile widget that names them.
+        .task(id: sessionContainer.session.profile?.profilePicture?.thumbnailBlobID) {
+            guard let picture = sessionContainer.session.profile?.profilePicture else { return }
+            await sessionContainer.profileAvatars.load(userID: sessionContainer.session.userID, picture: picture)
         }
         // Fetch the tip counterpart's avatar for the title and profile card.
         .task(id: tipCounterpart?.userID) {
@@ -1282,6 +1288,25 @@ struct ConversationScreen: View {
     private func shareProfile(_ card: LinkCard.User) {
         let item = TipCodeShareItem(url: card.url, title: card.linkedHandle ?? card.url.absoluteString, preview: nil)
         ShareSheet.present(activityItem: item) { _ in }
+    }
+
+    /// The session profile as a card, for a widget naming the viewer's own handle. Read from `body`,
+    /// so a picture landing redraws it. Nil until the profile has a claimed handle.
+    private var ownProfile: OwnProfileCard? {
+        guard let profile = sessionContainer.session.profile, let username = profile.username else { return nil }
+        let userID = sessionContainer.session.userID
+        return OwnProfileCard(
+            username: username,
+            resolved: LinkCard.User.Resolved(
+                userID: userID,
+                isOwn: true,
+                displayName: profile.displayName ?? "",
+                handle: username.handle,
+                joined: nil,
+                imageData: sessionContainer.profileAvatars.data(for: userID),
+                blurHash: profile.profilePicture?.thumbnailBlurhash
+            )
+        )
     }
 
     /// Looks up a tapped `@handle` and opens whoever it names. Resolved on tap rather than as the

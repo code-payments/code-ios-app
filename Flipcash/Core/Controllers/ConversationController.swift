@@ -1345,9 +1345,8 @@ final class ConversationController {
             return nil
 
         case .widget(.shareProfile):
-            if isFromSelf { return "You shared a profile" }
-            guard let senderName else { return "Shared a profile" }
-            return "\(senderName) shared a profile"
+            // The server sends it; no user is the sender to name.
+            return "Shared a profile"
 
         case .widget(.unrecognized):
             return nil

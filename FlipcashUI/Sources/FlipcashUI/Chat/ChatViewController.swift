@@ -54,6 +54,20 @@ public final class ChatViewController: UICollectionViewController {
     /// Fired when a shared-profile widget's Share button is tapped.
     public var onShareProfile: ((LinkCard.User) -> Void)?
 
+    /// The viewer's own profile, which a shared-profile widget naming them draws from directly. Rows
+    /// on screen pick a change up without a diff.
+    public var ownProfile: OwnProfileCard? {
+        didSet {
+            guard ownProfile != oldValue, isViewLoaded else { return }
+            for cell in collectionView.visibleCells where cell is ChatShareProfileCell {
+                guard let indexPath = collectionView.indexPath(for: cell),
+                      items.indices.contains(indexPath.item),
+                      case .message(let message) = items[indexPath.item] else { continue }
+                configure(cell, with: message)
+            }
+        }
+    }
+
     /// Called when the user taps an `@handle` in a text bubble; the owner finds who it names.
     public var onMentionTap: ((Username) -> Void)?
 
@@ -651,6 +665,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         case let cell as ChatShareProfileCell:
             cell.linkCardSource = linkCardSource
+            cell.ownProfile = ownProfile
             cell.onShare = { [weak self] card in self?.onShareProfile?(card) }
             let cardWidth = available - ChatColumnCell.rowInset * 2
             cell.configure(with: message, maxWidth: cardWidth, authorImageData: authorImageData)

@@ -81,6 +81,18 @@ struct MessageCapabilityTests {
         )
     }
 
+    @Test("A share-profile widget is server-sent: Reply only, never Report, whoever the sender id says")
+    func shareProfileWidgetOffersReplyOnly() throws {
+        let widget = ConversationMessage.Content.widget(.shareProfile(ShareProfileWidget(username: try #require(Username("alice")))))
+        for sender in [me, them] {
+            let message = ConversationMessage(
+                id: MessageID(value: 4), senderID: sender, content: widget,
+                date: now, unreadSeq: 1, eventSequence: 2
+            )
+            #expect(resolve(message) == [.reply])
+        }
+    }
+
     // MARK: - Windows -
 
     private func windows(edit: TimeInterval?, delete: TimeInterval?) -> MessagePolicy {

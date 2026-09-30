@@ -10,6 +10,18 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
+/// The signed-in user's own profile card, taken from the session so a widget naming them needs no
+/// lookup. The widget's username decides whose card it is; this only answers for the viewer's own.
+public struct OwnProfileCard: Equatable, Sendable {
+    public let username: Username
+    public let resolved: LinkCard.User.Resolved
+
+    public init(username: Username, resolved: LinkCard.User.Resolved) {
+        self.username = username
+        self.resolved = resolved
+    }
+}
+
 /// A recycled cell for a shared-profile widget (node 10588:1979): a bubble-chrome card with the
 /// person's avatar, name and handle above a full-width Share button.
 ///
@@ -37,6 +49,11 @@ public final class ChatShareProfileCell: ChatColumnCell {
     private var reactionRowWidthConstraint: NSLayoutConstraint!
     private var subscription: Task<Void, Never>?
     private var shown: LinkCard.User?
+    private var shownOwn: OwnProfileCard?
+
+    /// The viewer's own profile: a widget naming the same handle is drawn from it, with no lookup.
+    /// Set before ``configure(with:maxWidth:authorImageData:)``.
+    var ownProfile: OwnProfileCard?
 
     public override init(frame: CGRect) {
         // Made with the content type `draw` sets later: a hosting content view traps when handed a
@@ -89,6 +106,7 @@ public final class ChatShareProfileCell: ChatColumnCell {
         subscription?.cancel()
         subscription = nil
         shown = nil
+        shownOwn = nil
         reactionRow.prepareForReuse()
     }
 
@@ -114,10 +132,17 @@ public final class ChatShareProfileCell: ChatColumnCell {
         updateColumn(for: message, authorImageData: authorImageData)
 
         // A reconfigure in place (a grouping or reaction change) keeps the subscription it has.
-        guard shown != profile else { return }
+        guard shown != profile || shownOwn != ownProfile else { return }
         shown = profile
+        shownOwn = ownProfile
         subscription?.cancel()
         subscription = nil
+
+        // The viewer's own handle is answered from the session profile: no lookup, no loading state.
+        if let own = ownProfile, case .username(let username) = profile.identity, username == own.username {
+            draw(profile, state: .resolved(own.resolved))
+            return
+        }
 
         let source = linkCardSource
         let known = source?.known(.user(profile))

@@ -103,8 +103,10 @@ extension MessageCapability {
             // Drawn as an unsupported message: nothing this client can act on.
             return []
         case .widget(.shareProfile):
-            // Like cash: no text to copy or edit, and reply is what the quote panel supports.
-            return message.isFromSelf(selfUserID) ? [.reply] : [.reply, .report]
+            // Server-authored, like cash: no text to copy or edit, and no user sender to report,
+            // so the only capability is Reply, which the quote panel supports. Sharing is the
+            // card's own button, not a menu action.
+            return [.reply]
         case .text:
             break
         }
