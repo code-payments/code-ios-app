@@ -7,7 +7,8 @@
 # Set RAW_XCODEBUILD=1 to get the unfiltered log.
 run_xcodebuild() {
     if [[ -t 1 || -n "${RAW_XCODEBUILD:-}" ]] || ! command -v xcsift >/dev/null 2>&1; then
-        exec xcodebuild "$@"
+        xcodebuild "$@"
+        return
     fi
     set -o pipefail
     xcodebuild "$@" 2>&1 | xcsift -f toon

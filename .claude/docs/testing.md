@@ -33,7 +33,7 @@ of thousands of tokens that stay in context for the rest of the session. `RAW_XC
 full log. When you run `xcodebuild` directly, filter it yourself: `set -o pipefail; xcodebuild …
 2>&1 | xcsift -f toon`.
 
-- **Build the app:** `./Scripts/build.sh` (generic iOS) or `./Scripts/build.sh --device` (paired physical iPhone)
+- **Build the app:** `./Scripts/build.sh` (generic iOS) or `./Scripts/build.sh --device [name]` (paired physical iPhone; defaults to `$FLIPCASH_DEVICE`). `--install [name]` also installs and launches the build on that device
 - **Targeted tests (for your changes):** `./Scripts/test.sh <Target>/<Suite>[/<TestName>] [...]` — runs on this checkout's own simulator (below)
   - One suite: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests`
   - Multiple suites: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests FlipcashCoreTests/FiatTests`
