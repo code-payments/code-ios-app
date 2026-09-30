@@ -127,19 +127,10 @@ struct TipcardScreen: View {
 
     // MARK: - Sharing -
 
-    /// The label iOS shows beside the preview; the sharer's name, not the URL.
-    private var shareTitle: String {
-        if let name = profile?.displayName, !name.isEmpty {
-            "Tip \(name)"
-        } else {
-            "My Tip Card"
-        }
-    }
-
     private func shareTipCard() {
-        let item = TipCodeShareItem(
+        let item = TipCodeShareItem.profile(
             url: url,
-            title: shareTitle,
+            displayName: profile?.displayName,
             preview: previewCache.preview(for: sessionContainer.session.userID)
         )
 

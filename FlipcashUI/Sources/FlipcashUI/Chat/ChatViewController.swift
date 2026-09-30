@@ -51,8 +51,9 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Called when the user taps a URL in a text bubble; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
-    /// Fired when a shared-profile widget's Share button is tapped.
-    public var onShareProfile: ((LinkCard.User) -> Void)?
+    /// Fired when a shared-profile widget's Share button is tapped, with the person's display name
+    /// once the lookup has resolved it.
+    public var onShareProfile: ((LinkCard.User, String?) -> Void)?
 
     /// The viewer's own profile, which a shared-profile widget naming them draws from directly. Rows
     /// on screen pick a change up without a diff.
@@ -666,7 +667,7 @@ public final class ChatViewController: UICollectionViewController {
         case let cell as ChatShareProfileCell:
             cell.linkCardSource = linkCardSource
             cell.ownProfile = ownProfile
-            cell.onShare = { [weak self] card in self?.onShareProfile?(card) }
+            cell.onShare = { [weak self] card, name in self?.onShareProfile?(card, name) }
             let cardWidth = available - ChatColumnCell.rowInset * 2
             cell.configure(with: message, maxWidth: cardWidth, authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }

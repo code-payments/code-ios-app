@@ -167,7 +167,7 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.ownProfile = newValue }
     }
 
-    public var onShareProfile: ((LinkCard.User) -> Void)? {
+    public var onShareProfile: ((LinkCard.User, String?) -> Void)? {
         get { transcript.onShareProfile }
         set { transcript.onShareProfile = newValue }
     }
