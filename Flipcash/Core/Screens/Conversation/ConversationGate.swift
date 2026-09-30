@@ -101,9 +101,10 @@ struct ConversationGate: Equatable {
 /// unless it equals the viewer, so an unknown creator fails closed. Staff get no bypass: only an
 /// explicit `.staff` rule looks at staff standing.
 ///
-/// `rules` is nil for every non-group chat and for a group whose metadata hasn't
-/// hydrated yet; both are open, as is an empty rule list — the contract
-/// documents empty as "anyone can". `rates` is `RatesController.cachedRates`,
+/// `rules` is nil for most DMs and for a group whose metadata hasn't hydrated
+/// yet; both are open, as is an empty rule list — the contract documents empty
+/// as "anyone can". Some DMs do carry rules (the Flipcash account's DM has a
+/// `never` speaker rule), and they are evaluated the same way. `rates` is `RatesController.cachedRates`,
 /// needed only to restate a requirement the server denominated in something
 /// other than USD.
 ///
