@@ -324,6 +324,66 @@ nonisolated public struct ConversationMemberTable: Sendable {
     public let username = Expression <String?> ("username")
 }
 
+// A group's full roster, as `RosterSync` pages it from `Chat.GetRoster` and keeps it current from the
+// stream. Its own table rather than `conversation_member`, which holds only the members the chat
+// metadata embeds and is replaced wholesale on every metadata write.
+//
+// A leave keeps the row with `isMember` false and the leave's version, so a roster page that trails
+// the stream cannot bring the member back: per user, the row with the greater `version` wins.
+nonisolated public struct RosterMemberTable: Sendable {
+    public static let name = "roster_member"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationId = Expression <Data>    ("conversationId")
+    public let userId         = Expression <UUID>    ("userId")
+    public let displayName    = Expression <String>  ("displayName")
+    public let username       = Expression <String?> ("username")
+    public let profilePictureBlobID            = Expression <Data?>   ("profilePictureBlobID")
+    public let profilePictureThumbnailBlobID   = Expression <Data?>   ("profilePictureThumbnailBlobID")
+    public let profilePictureThumbnailBlurhash = Expression <String?> ("profilePictureThumbnailBlurhash")
+    public let joinedAt       = Expression <Double?> ("joinedAt")
+    // The roster version of the member's latest join, or of their leave when `isMember` is false.
+    public let version        = Expression <UInt64>  ("version")
+    public let isMember       = Expression <Bool>    ("isMember")
+    // `RosterSearchText.normalize(displayName)`, the alphabetical sort key.
+    public let sortKey        = Expression <String>  ("sortKey")
+}
+
+// The roster search index: one row per normalized word of a member's display name, plus their
+// username. The primary key leads with `(conversationId, token)`, so a prefix lookup is a range scan.
+nonisolated public struct RosterTokenTable: Sendable {
+    public static let name = "roster_token"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationId = Expression <Data>   ("conversationId")
+    public let token          = Expression <String> ("token")
+    public let userId         = Expression <UUID>   ("userId")
+}
+
+// Per-group roster sync bookkeeping. A group with no row is not tracked: its stream roster updates
+// are not written to `roster_member` until the chat is first opened.
+nonisolated public struct RosterSyncTable: Sendable {
+    public static let name = "roster_sync"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationId = Expression <Data>    ("conversationId")
+    // The greatest roster version applied, from a sync or the stream.
+    public let version        = Expression <UInt64>  ("version")
+    public let memberCount    = Expression <UInt64>  ("memberCount")
+    // When the last full sync finished; `nil` until one has.
+    public let syncedAt       = Expression <Double?> ("syncedAt")
+    // Whether the last full sync stopped at the page cap before `has_more` went false.
+    public let isCapped       = Expression <Bool>    ("isCapped")
+    // The greatest stream version that arrived after a skipped version; set means a re-sync is due.
+    public let gapVersion     = Expression <UInt64?> ("gapVersion")
+}
+
 // One row per message; cash content is decomposed across the amount columns
 // the same way `activity` stores ExchangedFiat.
 nonisolated public struct ConversationMessageTable: Sendable {
@@ -617,6 +677,43 @@ nonisolated extension Database {
                 t.column(conversationMemberTable.profilePictureThumbnailBlobID)
                 t.column(conversationMemberTable.profilePictureThumbnailBlurhash)
                 t.column(conversationMemberTable.username)
+            })
+        }
+
+        let rosterMemberTable = RosterMemberTable()
+        let rosterTokenTable = RosterTokenTable()
+        let rosterSyncTable = RosterSyncTable()
+
+        try writer.transaction {
+            try writer.run(rosterMemberTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(rosterMemberTable.conversationId)
+                t.column(rosterMemberTable.userId)
+                t.column(rosterMemberTable.displayName)
+                t.column(rosterMemberTable.username)
+                t.column(rosterMemberTable.profilePictureBlobID)
+                t.column(rosterMemberTable.profilePictureThumbnailBlobID)
+                t.column(rosterMemberTable.profilePictureThumbnailBlurhash)
+                t.column(rosterMemberTable.joinedAt)
+                t.column(rosterMemberTable.version)
+                t.column(rosterMemberTable.isMember)
+                t.column(rosterMemberTable.sortKey)
+                t.primaryKey(rosterMemberTable.conversationId, rosterMemberTable.userId)
+            })
+            try writer.run(rosterTokenTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(rosterTokenTable.conversationId)
+                t.column(rosterTokenTable.token)
+                t.column(rosterTokenTable.userId)
+                t.primaryKey(rosterTokenTable.conversationId, rosterTokenTable.token, rosterTokenTable.userId)
+            })
+            // Rewriting one member's tokens looks them up by user, which the primary key can't serve.
+            try writer.run(rosterTokenTable.table.createIndex(rosterTokenTable.conversationId, rosterTokenTable.userId, ifNotExists: true))
+            try writer.run(rosterSyncTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(rosterSyncTable.conversationId, primaryKey: true)
+                t.column(rosterSyncTable.version)
+                t.column(rosterSyncTable.memberCount)
+                t.column(rosterSyncTable.syncedAt)
+                t.column(rosterSyncTable.isCapped)
+                t.column(rosterSyncTable.gapVersion)
             })
         }
 

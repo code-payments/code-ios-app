@@ -287,7 +287,7 @@ final class ChatService: Sendable {
     /// staleness contract) — callers must merge each page against what the event stream has already
     /// told them, by ``ConversationMember/version``, greater winning, rather than trusting a page to
     /// be a complete, current snapshot.
-    func getRoster(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<RosterFeedPage, ErrorGetRoster>) -> Void) {
+    func getRoster(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 100, pagingToken: Data?, completion: @Sendable @escaping (Result<RosterFeedPage, ErrorGetRoster>) -> Void) {
         let request = Flipcash_Chat_V1_GetRosterRequest.with {
             $0.chatID = conversationID.proto
             $0.queryOptions = .with {

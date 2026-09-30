@@ -98,7 +98,7 @@ extension FlipClient {
     }
 
     /// Represents one paged read of a chat's roster: the members returned, most recently joined
-    /// first, and the roster summary as of that page's read.
+    /// first, the roster summary as of that page's read, and how to continue.
     ///
     /// This is a single pinned read, not a merged view — a large group's roster can page from an
     /// index that trails the event stream (see `chat.v1.GetRoster`'s staleness contract), so the
@@ -108,28 +108,29 @@ extension FlipClient {
     public struct RosterPage: Sendable {
         public let members: [ConversationMember]
         public let rosterSummary: ConversationRosterSummary
+        /// The token to pass for the next page; `nil` on the last page.
+        public let nextPagingToken: Data?
+
+        public init(members: [ConversationMember], rosterSummary: ConversationRosterSummary, nextPagingToken: Data?) {
+            self.members = members
+            self.rosterSummary = rosterSummary
+            self.nextPagingToken = nextPagingToken
+        }
     }
 
-    /// Pages a chat's roster to exhaustion against a single pinned read. The caller must already be
-    /// consuming its `subscribeConversationStream` events — as with `getDmChatFeed`/
-    /// `getGroupChatFeed` — and must merge the result against them by ``ConversationMember/version``
-    /// rather than treating it as an authoritative snapshot; see ``RosterPage``.
-    public func getRoster(owner: KeyPair, conversationID: ConversationID) async throws -> RosterPage {
-        var members: [ConversationMember] = []
-        var rosterSummary = ConversationRosterSummary(memberCount: 0, version: 0)
-        var pagingToken: Data?
-
-        while true {
-            let page = try await withCheckedThrowingContinuation { c in
-                chatService.getRoster(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
-            }
-            members.append(contentsOf: page.members)
-            rosterSummary = page.rosterSummary
-            if !page.hasMore { break }
-            pagingToken = page.pagingToken
+    /// Fetches one page of a chat's roster, up to 100 members. Pass `nil` for the first page and the
+    /// previous page's ``RosterPage/nextPagingToken`` after that. The caller must already be consuming
+    /// its `subscribeConversationStream` events and must merge the result against them by
+    /// ``ConversationMember/version``; see ``RosterPage``.
+    public func getRosterPage(owner: KeyPair, conversationID: ConversationID, pagingToken: Data?) async throws -> RosterPage {
+        let page = try await withCheckedThrowingContinuation { c in
+            chatService.getRoster(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
         }
-
-        return RosterPage(members: members, rosterSummary: rosterSummary)
+        return RosterPage(
+            members: page.members,
+            rosterSummary: page.rosterSummary,
+            nextPagingToken: page.hasMore ? page.pagingToken : nil
+        )
     }
 
     /// Edits a group chat's title and/or picture; every parameter left `nil` leaves that field
