@@ -349,11 +349,7 @@ final class UserProfileViewModel {
 
     /// Opens the share sheet on this person's public link, the one their own You tab shares.
     func share() {
-        let item = TipCodeShareItem(
-            url: .tipcard(for: userID, username: username),
-            title: displayName,
-            preview: nil
-        )
+        let item = TipCodeShareItem.profile(url: .tipcard(for: userID, username: username), displayName: name)
         ShareSheet.present(activityItem: item) { _ in }
     }
 

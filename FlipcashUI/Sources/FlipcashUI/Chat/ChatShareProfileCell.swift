@@ -39,8 +39,9 @@ public final class ChatShareProfileCell: ChatColumnCell {
     /// which is where the card subscribes.
     weak var linkCardSource: (any LinkCardSource)?
 
-    /// Called when the Share button is tapped, with the card whose handle is being shared.
-    var onShare: ((LinkCard.User) -> Void)?
+    /// Called when the Share button is tapped, with the card being shared and the person's display
+    /// name, nil until the lookup resolves one.
+    var onShare: ((LinkCard.User, String?) -> Void)?
 
     private let card = BubbleBackgroundView()
     private let reactionRow = ReactionPillRowView()
@@ -167,10 +168,17 @@ public final class ChatShareProfileCell: ChatColumnCell {
         }
     }
 
+    private static func displayName(_ state: LinkCard.User.State?) -> String? {
+        switch state {
+        case .resolved(let resolved): resolved.displayName.isEmpty ? nil : resolved.displayName
+        case .notFound, nil: nil
+        }
+    }
+
     private func draw(_ profile: LinkCard.User, state: LinkCard.User.State?) {
         content.configuration = UIHostingConfiguration {
             ShareProfileWidgetView(username: profile.linkedHandle, state: state) { [weak self] in
-                self?.onShare?(profile)
+                self?.onShare?(profile, Self.displayName(state))
             }
         }
         .margins(.all, 0)

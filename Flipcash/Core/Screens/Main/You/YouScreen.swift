@@ -636,14 +636,10 @@ struct YouScreen: View {
         }
     }
 
-    private var shareTitle: String {
-        if let displayName { "Tip \(displayName)" } else { "My Tip Card" }
-    }
-
     private func shareTipCard() {
-        let item = TipCodeShareItem(
+        let item = TipCodeShareItem.profile(
             url: url,
-            title: shareTitle,
+            displayName: displayName,
             preview: previewCache.preview(for: sessionContainer.session.userID)
         )
         ShareSheet.present(activityItem: item) { _ in }

@@ -1285,8 +1285,8 @@ struct ConversationScreen: View {
     }
 
     /// Opens the share sheet on the widget's person, with the public link their own You tab shares.
-    private func shareProfile(_ card: LinkCard.User) {
-        let item = TipCodeShareItem(url: card.url, title: card.linkedHandle ?? card.url.absoluteString, preview: nil)
+    private func shareProfile(_ card: LinkCard.User, displayName: String?) {
+        let item = TipCodeShareItem.profile(url: card.url, displayName: displayName)
         ShareSheet.present(activityItem: item) { _ in }
     }
 
