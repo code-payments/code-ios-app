@@ -53,7 +53,7 @@ struct TipConversationsScreen: View {
         .sheet(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
         }
-        .navigationTitle("Chats")
+        .navigationTitle("Chat")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -139,7 +139,7 @@ private struct MuteTarget: Identifiable {
 
 // MARK: - NewChatButton -
 
-/// The Chat tab's new-chat affordance, a bar item beside the "Chats" title.
+/// The Chat tab's new-chat affordance, a bar item beside the "Chat" title.
 ///
 /// The title used to be a large flush headline drawn in the content (Android
 /// parity — `screenTitleLarge`) with this button laid out next to it, which

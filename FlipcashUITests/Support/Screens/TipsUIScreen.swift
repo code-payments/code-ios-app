@@ -27,7 +27,7 @@ struct TipsUIScreen {
 
     /// The tab's navigation-bar title — its presence means the list has
     /// rendered, whether or not the account has a conversation.
-    var title: XCUIElement { app.staticTexts["Chats"] }
+    var title: XCUIElement { app.staticTexts["Chat"] }
 
     /// The empty state, shown until the first tip conversation exists.
     var emptyState: XCUIElement { app.staticTexts["No Chats Yet"] }

@@ -48,13 +48,14 @@ enum HomeTab: Int, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// VoiceOver label for the tab's button.
-    var accessibilityLabel: String {
+    /// The label under the tab's icon, which is also its VoiceOver label
+    /// (node 10642:1325).
+    var title: String {
         switch self {
-        case .scan:    return "Scan"
-        case .chat:    return "Chat"
-        case .wallet:  return "Wallet"
-        case .tipCard: return "You"
+        case .scan:    return String(localized: "Scan", comment: "Home tab bar label")
+        case .chat:    return String(localized: "Chat", comment: "Home tab bar label")
+        case .wallet:  return String(localized: "Wallet", comment: "Home tab bar label")
+        case .tipCard: return String(localized: "You", comment: "Home tab bar label")
         }
     }
 }

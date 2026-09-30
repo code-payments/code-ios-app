@@ -27,13 +27,12 @@ struct HomeTabBar: View {
 
     private let tabs = HomeTab.allCases
 
-    // Figma tab bar (node 8966:1557): 32pt icons in 50pt-tall items (9pt above
-    // and below), inside a capsule with 4pt padding → 58pt overall.
-    private static let itemVerticalPadding: CGFloat = 9
-    private static let iconSize: CGFloat = 32
+    // Figma tab bar (node 10642:1325): a 28pt icon over a 10pt Demi label in
+    // 50pt-tall items, inside a capsule with 4pt padding → 58pt overall.
+    private static let itemHeight: CGFloat = 50
+    private static let iconSize: CGFloat = 28
+    private static let labelLineHeight: CGFloat = 12
     private static let capsulePadding: CGFloat = 4
-
-    private static var itemHeight: CGFloat { iconSize + itemVerticalPadding * 2 }
 
     /// Matches `UILongPressGestureRecognizer`'s default, which the iOS 26 bar uses.
     private static let longPressDuration: TimeInterval = 0.5
@@ -61,20 +60,29 @@ struct HomeTabBar: View {
                         Button {
                             selection = tab
                         } label: {
-                            icon(for: tab)
-                                .opacity(selection == tab ? 1 : 0.5)
-                                .overlay(alignment: .topTrailing) {
-                                    if let count = badgeCounts[tab], count > 0 {
-                                        Bubble(size: .regular, count: count, color: .unreadIndicator)
-                                        .fixedSize()
-                                        // Overlap the icon's top-right corner to
-                                        // match the native bar's badge placement.
-                                        .offset(x: 2, y: -2)
-                                        .accessibilityHidden(true)
+                            VStack(spacing: 0) {
+                                icon(for: tab)
+                                    .overlay(alignment: .topTrailing) {
+                                        if let count = badgeCounts[tab], count > 0 {
+                                            Bubble(size: .regular, count: count, color: .unreadIndicator)
+                                            .fixedSize()
+                                            // Overlap the icon's top-right corner to
+                                            // match the native bar's badge placement.
+                                            .offset(x: 2, y: -2)
+                                            .accessibilityHidden(true)
+                                        }
                                     }
-                                }
-                                .frame(width: itemWidth, height: Self.itemHeight)
-                                .contentShape(Capsule())
+
+                                Text(tab.title)
+                                    .font(.default(size: 10, weight: .semibold))
+                                    .foregroundStyle(Color.white)
+                                    .lineLimit(1)
+                                    .frame(height: Self.labelLineHeight)
+                                    .accessibilityHidden(true)
+                            }
+                            .opacity(selection == tab ? 1 : 0.5)
+                            .frame(width: itemWidth, height: Self.itemHeight)
+                            .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
                         // Simultaneous, not high-priority: a high-priority long
@@ -84,7 +92,7 @@ struct HomeTabBar: View {
                             LongPressGesture(minimumDuration: Self.longPressDuration)
                                 .onEnded { _ in onLongPress?(tab) }
                         )
-                        .accessibilityLabel(tab.accessibilityLabel)
+                        .accessibilityLabel(tab.title)
                         .accessibilityValue((badgeCounts[tab] ?? 0) > 0 ? "\(badgeCounts[tab] ?? 0) unread" : "")
                         .accessibilityAddTraits(selection == tab ? [.isSelected] : [])
                     }
@@ -102,6 +110,8 @@ struct HomeTabBar: View {
     private func icon(for tab: HomeTab) -> some View {
         if tab == .tipCard, let profileSlot {
             ProfileTabIcon(photo: profileSlot.preview, isSelected: tab == selection)
+                .scaleEffect(Self.iconSize / ProfileTabIcon.slotSize)
+                .frame(width: Self.iconSize, height: Self.iconSize)
         } else {
             Image(tab.iconName(isSelected: tab == selection))
                 .renderingMode(.template)

@@ -47,15 +47,10 @@ struct HomeTabView: View {
             let items = UITabBarItemAppearance()
             items.normal.iconColor = UIColor(Color.textSecondary)
             items.selected.iconColor = UIColor(Color.textMain)
-            // The unread-chat badge uses the app's blue indicator, not the
-            // system tab bar's default red.
-            items.normal.badgeBackgroundColor = UIColor(Color.unreadIndicator)
-            items.selected.badgeBackgroundColor = UIColor(Color.unreadIndicator)
-            // Nudge the system badge down onto the glyph's top-right corner to match
-            // the Figma spec (node 8966:1846); by default it floats detached above.
-            let badgeOffset = UIOffset(horizontal: 10, vertical: 8)
-            items.normal.badgePositionAdjustment = badgeOffset
-            items.selected.badgePositionAdjustment = badgeOffset
+            // Labels per node 10642:1325: 10pt Avenir Demi, colored like the glyph above.
+            let titleFont = UIFont.default(size: 10, weight: .semibold)
+            items.normal.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textSecondary)]
+            items.selected.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textMain)]
 
             let appearance = UITabBarAppearance()
             appearance.configureWithTransparentBackground()
@@ -140,6 +135,12 @@ struct HomeTabView: View {
     }
 
     /// `profileSlot` in the form the iOS 26 bar takes its item images in.
+    /// The Chat tab's glyphs with the unread count drawn in, or nil when
+    /// nothing is unread; see ``TabBarBadgedIcon``.
+    private var chatItemImages: TabBarProfilePhoto.ItemImages? {
+        TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount)
+    }
+
     private var profileItemImages: TabBarProfilePhoto.ItemImages? {
         guard let profileSlot else { return nil }
 
@@ -195,10 +196,8 @@ struct HomeTabView: View {
                         .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
                 } label: {
                     tabLabel(for: tab)
-                        .accessibilityLabel(tab.accessibilityLabel)
+                        .accessibilityLabel(tab.title)
                 }
-                // Unread-chat count on the Chat tab; a count of 0 hides the badge.
-                .badge(tab == .chat ? chatBadgeCount : 0)
             }
         }
         // Selected-tab highlight over a lightly tinted glass bar — echoes the old
@@ -213,6 +212,7 @@ struct HomeTabView: View {
         .background(TabBarSelectedIcons(
             tabs: HomeTab.allCases,
             profileImages: profileItemImages,
+            chatBadgeCount: chatBadgeCount,
             onLongPress: handleLongPress(on:)
         ))
     }
@@ -224,9 +224,19 @@ struct HomeTabView: View {
     /// This has to agree with what the probe writes. SwiftUI rewrites the item's
     /// image from this label whenever it rebuilds the bar, so a label that
     /// disagreed would take turns with the probe and flicker between the two.
-    @ViewBuilder private func tabLabel(for tab: HomeTab) -> some View {
+    private func tabLabel(for tab: HomeTab) -> some View {
+        Label {
+            Text(tab.title)
+        } icon: {
+            tabIcon(for: tab)
+        }
+    }
+
+    @ViewBuilder private func tabIcon(for tab: HomeTab) -> some View {
         if tab == .tipCard, let photo = profileItemImages?.normal {
             Image(uiImage: photo).renderingMode(.original)
+        } else if tab == .chat, let badged = chatItemImages?.normal {
+            Image(uiImage: badged).renderingMode(.original)
         } else {
             Image(tab.iconName(isSelected: false))
         }
@@ -409,16 +419,21 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     /// enclosing body observes it landing and this representable is updated.
     let profileImages: TabBarProfilePhoto.ItemImages?
 
+    /// Unread chats, drawn into the Chat glyph in place of the system badge,
+    /// which the glass lens draws beneath the glyph mid-drag.
+    let chatBadgeCount: Int
+
     /// Called with the tab whose item was held.
     let onLongPress: (HomeTab) -> Void
 
     func makeUIViewController(context: Context) -> Probe {
-        Probe(tabs: tabs, profileImages: profileImages, onLongPress: onLongPress)
+        Probe(tabs: tabs, profileImages: profileImages, chatBadgeCount: chatBadgeCount, onLongPress: onLongPress)
     }
 
     func updateUIViewController(_ probe: Probe, context: Context) {
         probe.tabs = tabs
         probe.profileImages = profileImages
+        probe.chatBadgeCount = chatBadgeCount
         probe.onLongPress = onLongPress
         probe.apply()
     }
@@ -426,11 +441,18 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     final class Probe: UIViewController, UIGestureRecognizerDelegate {
         var tabs: [HomeTab]
         var profileImages: TabBarProfilePhoto.ItemImages?
+        var chatBadgeCount: Int
         var onLongPress: (HomeTab) -> Void
 
-        init(tabs: [HomeTab], profileImages: TabBarProfilePhoto.ItemImages?, onLongPress: @escaping (HomeTab) -> Void) {
+        init(
+            tabs: [HomeTab],
+            profileImages: TabBarProfilePhoto.ItemImages?,
+            chatBadgeCount: Int,
+            onLongPress: @escaping (HomeTab) -> Void
+        ) {
             self.tabs = tabs
             self.profileImages = profileImages
+            self.chatBadgeCount = chatBadgeCount
             self.onLongPress = onLongPress
             super.init(nibName: nil, bundle: nil)
         }
@@ -467,6 +489,16 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
                     item.image = profileImages.normal
                     item.selectedImage = profileImages.selected
                     continue
+                }
+                if tab == .chat {
+                    // The drawn-in count is invisible to VoiceOver, so the item
+                    // carries it the way the system badge did.
+                    item.accessibilityValue = chatBadgeCount > 0 ? "\(chatBadgeCount) unread" : nil
+                    if let badged = TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount) {
+                        item.image = badged.normal
+                        item.selectedImage = badged.selected
+                        continue
+                    }
                 }
 
                 item.image = UIImage(named: tab.iconName(isSelected: false))?
