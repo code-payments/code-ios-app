@@ -210,18 +210,13 @@ public final class ChatViewController: UICollectionViewController {
     /// `scrollViewDidChangeAdjustedContentInset`, and this stops the delegate re-entering `scrollToBottom`
     /// → `restoreContentOffset` mid-write, a nested layout pass that crashes ChatLayout.
     private var isAdjustingBottomInset = false
-    /// True while a context menu is lifted from a bubble. Presenting the menu dismisses the keyboard;
-    /// without intervention the adjusted inset shrinks and the transcript reflows out from under the
-    /// lifted preview. So for the menu's lifetime the inset is taken over and frozen at its keyboard-up
-    /// value (see `freezeInset`): the keyboard's space stays reserved, so nothing moves — and the
-    /// keyboard sliding back on dismiss restores everything to exactly where it was, matching iMessage.
+    /// True while a bubble is lifted over the transcript for its menu or reaction strip. The lift
+    /// lowers the keyboard; without intervention the adjusted inset shrinks and the transcript
+    /// reflows out from under the lifted bubble. So for the lift's lifetime the inset is taken over
+    /// and frozen at its keyboard-up value (see `freezeInset`): the keyboard's space stays reserved,
+    /// so nothing moves — and the keyboard sliding back on dismiss restores everything to exactly
+    /// where it was, matching iMessage.
     private var isShowingContextMenu = false
-    /// Counts menus opened, so a menu's early resume (see `willEndContextMenuInteraction`) can tell
-    /// it still belongs to the menu on screen rather than to one opened while it was landing.
-    private var contextMenuGeneration = 0
-    /// The bubble a context menu has raised, held so the lift's elevation comes off the same view when
-    /// the menu goes. Weak: the cell it belongs to can be recycled out from under the menu.
-    private weak var liftedBubble: UIView?
     /// The adjusted bottom inset held while a menu is up, and the content inset it replaced.
     private var frozenBottomInset: CGFloat?
     private var savedContentInset: UIEdgeInsets?
@@ -234,39 +229,20 @@ public final class ChatViewController: UICollectionViewController {
     /// request the transcript keeps the old bar's inset until some later layout pass corrects it.
     private var pendingBottomInset: CGFloat?
 
-    /// Called as a context menu is presented and again as it starts to dismiss, each carrying the
-    /// transition's animator so the screen can fade its own backdrop alongside the menu. UIKit hides
-    /// the keyboard for the menu's lifetime but leaves the composer first responder, so the screen
-    /// also uses these to make that an ordinary dismissal and to put the keyboard back afterwards.
-    var onContextMenuWillPresent: ((UIContextMenuInteractionAnimating?) -> Void)?
-    var onContextMenuDidDismiss: ((UIContextMenuInteractionAnimating?) -> Void)?
-    /// Guards the lowering to once per menu — the display callback can fire for the lift and again
-    /// for the menu itself.
-    private var didLowerKeyboardForMenu = false
-    /// The message the currently-presented context menu belongs to, so a caller layering the
-    /// reaction strip over the menu knows what it's for. Set for the whole life of the menu —
-    /// `contextMenuConfigurationForItemAt` through `willEndContextMenuInteraction` — and nil the rest
-    /// of the time.
-    private(set) var contextMenuMessage: ChatMessage?
-
-    /// Whether a long-pressed row should lift with room above it for the reaction strip. The screen
-    /// sets this, since it owns what the strip offers.
-    var liftReservesStripRoom: ((ChatMessage) -> Bool)?
     /// Fired when a bubble that can take a reaction is double-tapped, to present the strip on its own.
     var onBubbleDoubleTap: ((ChatMessage) -> Void)?
     private weak var bubbleDoubleTap: UITapGestureRecognizer?
-    /// The preview a lift with strip room hands UIKit: a copy of the bubble at the bottom of a clear
-    /// box that also holds the strip's room. Kept so the dismissal flies the same box home.
-    private var liftContainer: UIView?
-    /// The copy inside `liftContainer`, or the one a strip-only lift handed out.
-    private weak var liftStandIn: UIView?
-    /// The row's own bubble, hidden while a copy stands in for it. UIKit hides the source of a
-    /// preview it lifts itself, but not one it is handed a detached copy for.
+    /// Fired when a message's row is long-pressed, to lift it with its menu and reaction strip.
+    var onBubbleLongPress: ((ChatMessage, _ press: CGPoint) -> Void)?
+    /// Fired as the finger that long-pressed a row moves, with its point in window coordinates and
+    /// whether it has just lifted, so the menu can follow it.
+    var onBubbleLongPressTrack: ((CGPoint, _ ended: Bool) -> Void)?
+    private weak var bubbleLongPress: UILongPressGestureRecognizer?
+    /// The row's own bubble, hidden while a lifted copy stands in for it.
     private weak var hiddenLiftSource: UIView?
 
-    /// Work handed over by a menu action to run, in order, once the menu has finished dismissing. A
-    /// `becomeFirstResponder` issued from a `UIAction` is rejected while the menu still owns the
-    /// screen, so choosing Edit parks the keyboard-raise here instead.
+    /// Work handed over by a menu action to run, in order, once the lift has landed, so an action
+    /// that raises the keyboard or reflows the transcript waits until the bubble is back in its row.
     private var pendingAfterContextMenu: [() -> Void] = []
 
     public init() {
@@ -310,6 +286,14 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.addGestureRecognizer(doubleTap)
         dismissKeyboardTap.require(toFail: doubleTap)
         bubbleDoubleTap = doubleTap
+        // Long-pressing a row lifts it with its menu. It only receives touches on a row that has a
+        // message (see `longPressTarget(at:)`), and it keeps tracking after it fires so a drag can
+        // choose a menu row.
+        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(bubbleLongPressed))
+        longPress.minimumPressDuration = 0.35
+        longPress.delegate = self
+        collectionView.addGestureRecognizer(longPress)
+        bubbleLongPress = longPress
         // The adjusted content inset (safe area + the bar inset the owner sets) is how the keyboard
         // and bar reserve space; ChatLayout reads it for positioning, so let UIKit manage it.
         collectionView.contentInsetAdjustmentBehavior = .always
@@ -712,7 +696,34 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.window?.endEditing(true)
     }
 
-    // MARK: - Double tap
+    // MARK: - Lift gestures
+
+    @objc private func bubbleLongPressed(_ press: UILongPressGestureRecognizer) {
+        switch press.state {
+        case .began:
+            guard let message = longPressTarget(at: press.location(in: collectionView)) else { return }
+            onBubbleLongPress?(message, press.location(in: nil))
+        case .changed:
+            onBubbleLongPressTrack?(press.location(in: nil), false)
+        case .ended:
+            onBubbleLongPressTrack?(press.location(in: nil), true)
+        case .possible, .cancelled, .failed:
+            break
+        @unknown default:
+            break
+        }
+    }
+
+    /// The message whose row is at `point` if a long press there should lift it. A reaction pill
+    /// keeps its own long press, which opens its reactors sheet.
+    private func longPressTarget(at point: CGPoint) -> ChatMessage? {
+        guard !isUpdating, !isShowingContextMenu,
+              let indexPath = collectionView.indexPathForItem(at: point),
+              let message = message(at: indexPath),
+              collectionView.cellForItem(at: indexPath) is BubbleCarrying,
+              !isInReactionRow(point) else { return nil }
+        return message
+    }
 
     @objc private func bubbleDoubleTapped(_ tap: UITapGestureRecognizer) {
         guard let message = doubleTapTarget(at: tap.location(in: collectionView)) else { return }
@@ -1223,10 +1234,15 @@ extension ChatViewController: ChatLayoutDelegate {
 
 extension ChatViewController: UIGestureRecognizerDelegate {
     /// Keeps the double tap to bubbles that present the reaction strip, so a tap anywhere else lowers
-    /// the keyboard without waiting on it.
+    /// the keyboard without waiting on it, and the long press to rows that can lift.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        guard gestureRecognizer === bubbleDoubleTap else { return true }
-        return doubleTapTarget(at: touch.location(in: collectionView)) != nil
+        if gestureRecognizer === bubbleDoubleTap {
+            return doubleTapTarget(at: touch.location(in: collectionView)) != nil
+        }
+        if gestureRecognizer === bubbleLongPress {
+            return longPressTarget(at: touch.location(in: collectionView)) != nil
+        }
+        return true
     }
 
     /// Lets the tap-to-dismiss recognizer fire alongside the collection view's own scroll and
@@ -1234,59 +1250,29 @@ extension ChatViewController: UIGestureRecognizerDelegate {
     ///
     /// Swipe-to-reply is the exception: it translates a cell, so running it beside the scroll would
     /// drag a row sideways mid-scroll, and running it beside the long-press would slide the row out
-    /// from under its own lift preview. It is exclusive in both directions.
+    /// from under its own lift. It is exclusive in both directions. So is the long press, against
+    /// everything: once it lifts a row, the taps under the finger must fail rather than fire on
+    /// release, and the scroll must not move the transcript under the lift.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        if gestureRecognizer === swipeToReply.recognizer || otherGestureRecognizer === swipeToReply.recognizer {
-            return false
-        }
-        return true
+        let exclusive: [UIGestureRecognizer?] = [swipeToReply.recognizer, bubbleLongPress]
+        return !exclusive.contains { $0 === gestureRecognizer || $0 === otherGestureRecognizer }
     }
 }
 
-// MARK: - Context menu
+// MARK: - Message menu
 
 extension ChatViewController {
 
-    /// Long-pressing a row offers exactly the actions the message carries, in the order the mapper
-    /// put them in. Rows with no actions — cash cards, tombstones, date separators — opt out.
-    public override func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
-        // Don't offer a menu mid-batch-update: the index path may not line up with the rendered cell.
-        guard !isUpdating else { return nil }
-        // A long-pressed reaction pill opens its reactors sheet, not the message's menu.
-        guard !isInReactionRow(point) else { return nil }
-        guard let menu = contextMenu(forItemAt: indexPath) else { return nil }
-
-        if indexPath.item < items.count, case .message(let message) = items[indexPath.item] {
-            contextMenuMessage = message
-        }
-
-        // Freeze the inset for the menu's lifetime so presenting it (which dismisses the keyboard)
-        // doesn't shrink the adjusted inset and reflow the content out from under the lifted preview.
-        isShowingContextMenu = true
-        contextMenuGeneration += 1
-        freezeInset()
-
-        // The section/item pair, encoded as an NSString, resolves the cell back in `preview(for:)`.
-        // ChatLayout's note: a custom NSCopying identifier crashes, so a plain string is used.
-        let identifier = "\(indexPath.section)|\(indexPath.item)" as NSString
-        return UIContextMenuConfiguration(identifier: identifier, previewProvider: nil) { _ in menu }
-    }
-
-    private func isInReactionRow(_ point: CGPoint) -> Bool {
-        var view = collectionView.hitTest(point, with: nil)
-        while let current = view {
-            if current is ReactionPillRowView { return true }
-            view = current.superview
-        }
-        return false
-    }
-
-    /// The menu a row offers, or `nil` if it offers none. Built separately from the configuration so
-    /// that presenting a menu and deciding what is in one stay independently answerable.
+    /// The actions a row offers, in the order the mapper put them in, or `nil` if it offers none.
+    /// Rows with no actions — cash cards, tombstones, date separators — opt out.
     func contextMenu(forItemAt indexPath: IndexPath) -> UIMenu? {
-        guard indexPath.item < items.count,
-              case .message(let message) = items[indexPath.item],
-              !message.actions.isEmpty else { return nil }
+        guard let message = message(at: indexPath) else { return nil }
+        return contextMenu(for: message)
+    }
+
+    /// The actions `message` offers, or `nil` if it offers none.
+    func contextMenu(for message: ChatMessage) -> UIMenu? {
+        guard !message.actions.isEmpty else { return nil }
 
         // A split row copies the whole message, not the piece of it the row happens to draw.
         let body: String? = if case .text(let text) = message.content { message.part?.messageText ?? text } else { nil }
@@ -1310,61 +1296,13 @@ extension ChatViewController {
         return UIMenu(title: "", children: children)
     }
 
-    public override func collectionView(_ collectionView: UICollectionView, previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
-        preview(for: configuration, raising: true)
-    }
-
-    public override func collectionView(_ collectionView: UICollectionView, previewForDismissingContextMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
-        // Not raised again: UIKit asks for this once the dismissal has begun, and raising here would
-        // cancel the fade `willEndContextMenuInteraction` started and land the bubble still lifted.
-        preview(for: configuration, raising: false)
-    }
-
-    /// The menu is coming on screen — take the keyboard down now, so it leaves as the menu arrives
-    /// rather than the instant the long press registers. The inset was frozen when the menu was
-    /// configured, so its space stays reserved and the transcript holds position while it goes.
-    /// Deliberately not inside the animator's block: the composer bar rides the keyboard's own
-    /// notifications, and folding the resign into the menu's animation leaves the bar stranded at
-    /// its keyboard-up position.
-    public override func collectionView(_ collectionView: UICollectionView, willDisplayContextMenu configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionAnimating?) {
-        guard !didLowerKeyboardForMenu else { return }
-        didLowerKeyboardForMenu = true
-        onContextMenuWillPresent?(animator)
-    }
-
-    /// The menu is closing — hand the inset back to the system (the keyboard slides back, restoring the
-    /// content to exactly where it was), then apply any update that was pushed while it was up. A `nil`
-    /// animator (no transition) runs immediately so the freeze can never get stuck on.
-    public override func collectionView(_ collectionView: UICollectionView, willEndContextMenuInteraction configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionAnimating?) {
-        // Ask for the keyboard back as the dismissal starts, not in its completion: waiting for the
-        // menu to finish leaves a beat of empty composer before the keyboard moves. The inset is
-        // still frozen at its keyboard-up value while it rises, so nothing reflows, and by the time
-        // the completion hands the inset back the keyboard is where the system expects it.
-        didLowerKeyboardForMenu = false
-        onContextMenuDidDismiss?(animator)
-        contextMenuMessage = nil
-
-        // The lift's elevation fades with the bubble's flight home rather than lingering on it after.
-        if let liftedBubble {
-            BubbleBackgroundView.fadeLift(liftedBubble, duration: ChatMotion.contextMenuLanding)
+    private func isInReactionRow(_ point: CGPoint) -> Bool {
+        var view = collectionView.hitTest(point, with: nil)
+        while let current = view {
+            if current is ReactionPillRowView { return true }
+            view = current.superview
         }
-
-        let generation = contextMenuGeneration
-        var resumed = false
-        let resume: () -> Void = { [weak self] in
-            guard let self, !resumed, generation == contextMenuGeneration else { return }
-            resumed = true
-            resumeAfterLift()
-        }
-        if let animator {
-            // UIKit's completion arrives well after the bubble is back in its row (about 0.7s on
-            // device), so held work — a reaction's pill above all — runs once the bubble has landed,
-            // and the completion only covers a landing that takes longer.
-            animator.addCompletion(resume)
-            DispatchQueue.main.asyncAfter(deadline: .now() + ChatMotion.contextMenuLanding, execute: resume)
-        } else {
-            resume()
-        }
+        return false
     }
 
     /// Hands the transcript back once a lift has landed: shows the row's bubble again, releases the
@@ -1372,23 +1310,10 @@ extension ChatViewController {
     private func resumeAfterLift() {
         hiddenLiftSource?.alpha = 1
         hiddenLiftSource = nil
-        // UIKit keeps the copy's platter above the transcript until its completion, about 0.4s after
-        // the bubble lands, so it covered the bar's soft edge in the meantime and a bubble partly
-        // under it sat sharp until the platter went. Fading the copy hands over to the row's bubble,
-        // which the edge effect blurs.
-        if let liftStandIn {
-            UIView.animate(withDuration: 0.12) { liftStandIn.alpha = 0 }
-        }
-        liftContainer = nil
-        liftStandIn = nil
         // Restore the inset while the flag is still set, so the behavior switch's inset change is
         // suppressed (no stray scroll); then drop the flag and apply any held update.
         restoreInset()
         isShowingContextMenu = false
-        if let liftedBubble {
-            BubbleBackgroundView.lower(liftedBubble)
-            self.liftedBubble = nil
-        }
         if let inset = pendingBottomInset {
             pendingBottomInset = nil
             setBottomInset(inset)
@@ -1402,56 +1327,48 @@ extension ChatViewController {
         for work in held { work() }
     }
 
-    /// Lifts the row drawing `message` for the reaction strip alone, with no menu. Holds the
-    /// transcript still as a context menu does and hides the row's bubble; returns a raised copy of
-    /// the bubble and where the bubble sits in `space`. Nil when the row is off screen or a lift or
-    /// update already holds the transcript. End it with `endStripLift()`.
-    func beginStripLift(for message: ChatMessage, in space: UICoordinateSpace) -> (copy: UIView, frame: CGRect)? {
+    /// Lifts the row drawing `message` out of the transcript. Holds the transcript still and hides
+    /// the row's bubble; returns a raised copy of the bubble and where the bubble sits in `space`.
+    /// Nil when the row is off screen or a lift or update already holds the transcript. End it with
+    /// `endLift()`.
+    func beginLift(for message: ChatMessage, in space: UICoordinateSpace) -> (copy: UIView, frame: CGRect)? {
         guard !isShowingContextMenu, !isUpdating,
               let item = items.firstIndex(where: { $0.id == message.id }),
               let cell = collectionView.cellForItem(at: IndexPath(item: item, section: 0)) as? BubbleCarrying,
               let copy = liftCopy(of: cell) else { return nil }
         isShowingContextMenu = true
-        contextMenuGeneration += 1
         freezeInset()
         let bubble = cell.liftPreviewView
         let frame = space.convert(bubble.bounds, from: bubble)
         hideLiftSource(bubble)
-        liftStandIn = copy
         return (copy, frame)
     }
 
-    /// Ends a strip-only lift once its copy is back over the row.
-    func endStripLift() {
-        guard isShowingContextMenu, contextMenuMessage == nil else { return }
-        resumeAfterLift()
+    /// Where the lifted row's bubble sits now, in `space`'s coordinates, or `nil` when no lift is up
+    /// or its row has left the screen. A lift lands here rather than where it started.
+    func liftSourceFrame(in space: UICoordinateSpace) -> CGRect? {
+        guard isShowingContextMenu, let bubble = hiddenLiftSource, bubble.window != nil else { return nil }
+        return space.convert(bubble.bounds, from: bubble)
     }
 
-    /// Where the lifted bubble sits on screen, in window coordinates, or `nil` when none is up. UIKit
-    /// draws the lift through a portal of the box, so the box's own frame says nothing about where it
-    /// landed; the platter is found instead as the view outside the transcript that matches the box's
-    /// size, and the bubble is its bottom part.
-    func liftedBubbleFrame() -> CGRect? {
-        guard let container = liftContainer, let copy = liftStandIn,
-              let scene = collectionView.window?.windowScene else { return nil }
-        let size = container.bounds.size
-        var pending: [UIView] = scene.windows
-        while let next = pending.popLast() {
-            guard next !== container, next !== collectionView else { continue }
-            if !next.isHidden, abs(next.bounds.width - size.width) < 1, abs(next.bounds.height - size.height) < 1 {
-                let platter = next.convert(next.bounds, to: nil)
-                let height = platter.height * copy.frame.height / size.height
-                return CGRect(x: platter.minX, y: platter.maxY - height, width: platter.width, height: height)
-            }
-            pending.append(contentsOf: next.subviews)
-        }
-        return nil
+    /// The view a landing copy flies inside, and where the lifted row's bubble sits in it; `nil` when
+    /// no lift is up or its row has left the screen.
+    func liftLanding() -> (container: UIView, frame: CGRect)? {
+        liftSourceFrame(in: collectionView).map { (collectionView, $0) }
+    }
+
+    /// Ends a lift once its copy is back over the row.
+    func endLift() {
+        guard isShowingContextMenu else { return }
+        resumeAfterLift()
     }
 
     /// A raised copy of `cell`'s bubble.
     private func liftCopy(of cell: BubbleCarrying) -> UIView? {
         let bubble = cell.liftPreviewView
-        guard !bubble.bounds.isEmpty, let copy = bubble.snapshotView(afterScreenUpdates: false) else { return nil }
+        // A bubble that hasn't rendered a frame yet has nothing to copy without the pending update.
+        guard !bubble.bounds.isEmpty,
+              let copy = bubble.snapshotView(afterScreenUpdates: false) ?? bubble.snapshotView(afterScreenUpdates: true) else { return nil }
         BubbleBackgroundView.raise(copy, shape: cell.liftPreviewMaskingPath)
         return copy
     }
@@ -1463,8 +1380,8 @@ extension ChatViewController {
         bubble.alpha = 0
     }
 
-    /// Run `work` once no context menu is on screen — immediately if none is up, otherwise after the
-    /// current one finishes dismissing.
+    /// Run `work` once no lift is on screen — immediately if none is up, otherwise after the
+    /// current one has landed.
     public func afterContextMenu(_ work: @escaping () -> Void) {
         guard isShowingContextMenu else { return work() }
         // Appended, not assigned: one menu action can queue several pieces of follow-up work — an
@@ -1480,10 +1397,10 @@ extension ChatViewController {
     func bubbleSnapshot(forStableID stableID: String) -> UIView? {
         guard let cell = bubbleCell(forStableID: stableID) else { return nil }
         let bubble = cell.liftPreviewView
-        // UIKit hides the row's own bubble for as long as its lifted preview is on screen and
-        // unhides it as the dismissal lands. Snapshotting in that window returns a view that is
-        // blank rather than nil, which would float an empty copy and never be retried — so report
-        // "not yet" and let the caller ask again.
+        // The row's own bubble is hidden for as long as a lift is on screen and shown again as it
+        // lands. Snapshotting in that window returns a view that is blank rather than nil, which
+        // would float an empty copy and never be retried — so report "not yet" and let the caller
+        // ask again.
         guard !bubble.isHidden, bubble.alpha > 0, !bubble.bounds.isEmpty else { return nil }
         guard let copy = bubble.snapshotView(afterScreenUpdates: true) else { return nil }
         // The snapshot renders the bubble's bounds, so the lift's shadow — drawn outside them — isn't
@@ -1502,17 +1419,6 @@ extension ChatViewController {
         return space.convert(bubble.bounds, from: bubble)
     }
 
-    /// Where the long-pressed row's bubble currently sits, in `space`'s coordinates, or `nil` when no
-    /// menu is open or the row is off screen. For a split message this is the row that was pressed,
-    /// not the message's first row.
-    func contextMenuBubbleFrame(in space: UICoordinateSpace) -> CGRect? {
-        guard let message = contextMenuMessage,
-              let item = items.firstIndex(where: { $0.id == message.id }),
-              let cell = collectionView.cellForItem(at: IndexPath(item: item, section: 0)) as? BubbleCarrying else { return nil }
-        let bubble = cell.liftPreviewView
-        return space.convert(bubble.bounds, from: bubble)
-    }
-
     /// The on-screen cell drawing the first row of the message with `stableID` — the row a split
     /// message's quote heads, and the one an edit spotlights.
     private func bubbleCell(forStableID stableID: String) -> BubbleCarrying? {
@@ -1526,89 +1432,6 @@ extension ChatViewController {
         items.indices
             .filter { items[$0].messageID == stableID }
             .compactMap { collectionView.cellForItem(at: IndexPath(item: $0, section: 0)) as? BubbleCarrying }
-    }
-
-    /// Closes the row's context menu programmatically — used when the reaction strip layered above
-    /// it (which the menu itself knows nothing about) is tapped. The collection view owns the
-    /// interaction behind its row menus, so it's found in the collection view's own `interactions`.
-    func dismissContextMenu() {
-        for case let menuInteraction as UIContextMenuInteraction in collectionView.interactions {
-            menuInteraction.dismissMenu()
-        }
-    }
-
-    /// Builds the lift preview from the bubble alone, clipped to its shape. Without it UIKit lifts the
-    /// whole side-hugging cell as a plain rectangle. Mirrors ChatLayout's `preview(for:)`.
-    private func preview(for configuration: UIContextMenuConfiguration, raising: Bool) -> UITargetedPreview? {
-        guard let identifier = configuration.identifier as? String else { return nil }
-        let components = identifier.split(separator: "|")
-        guard components.count == 2,
-              let section = Int(components[0]),
-              let item = Int(components[1]),
-              let cell = collectionView.cellForItem(at: IndexPath(item: item, section: section)) as? BubbleCarrying else {
-            return nil
-        }
-        let parameters = UIPreviewParameters()
-        parameters.visiblePath = cell.liftPreviewMaskingPath
-        parameters.backgroundColor = .clear
-        // An empty path turns off UIKit's own preview shadow, which on iOS 27 traces the view's square
-        // bounds and outlasts the dismissal. The bubble-shaped shadow below is the only one.
-        parameters.shadowPath = UIBezierPath()
-        if let message = message(at: IndexPath(item: item, section: section)), liftReservesStripRoom?(message) == true,
-           lacksStripRoomAbove(cell.liftPreviewView),
-           let preview = stripRoomPreview(for: cell, parameters: parameters, raising: raising) {
-            return preview
-        }
-        // The lift's elevation, put on the bubble itself because the preview won't carry one: a clear
-        // background casts nothing, `shadowPath` or not. Taken off again in `willEndContextMenu`'s
-        // completion — this is a live cell subview, not a copy.
-        if raising {
-            liftedBubble = cell.liftPreviewView
-            BubbleBackgroundView.raise(cell.liftPreviewView, shape: cell.liftPreviewMaskingPath)
-        }
-        return UITargetedPreview(view: cell.liftPreviewView, parameters: parameters)
-    }
-
-    /// Whether `bubble` sits too close to the top of the screen for the reaction strip to fit above
-    /// it. Only then does the lift carry the strip's room: elsewhere the room is free anyway, and when
-    /// UIKit puts the menu above the bubble the strip goes below it, leaving reserved room as a gap.
-    private func lacksStripRoomAbove(_ bubble: UIView) -> Bool {
-        guard let window = bubble.window else { return true }
-        let top = bubble.convert(bubble.bounds, to: nil).minY
-        return top < window.safeAreaInsets.top + ReactionStripView.bubbleGap + ReactionStripView.headroom
-    }
-
-    /// The lift for a row the strip will sit above: the bubble's copy at the bottom of a clear box
-    /// `ReactionStripView.headroom` taller than the bubble, centered so the copy starts over the row.
-    /// UIKit keeps the whole box on screen, which moves a bubble near the top down far enough for the
-    /// strip, and puts the menu clear of the box. The dismissal reuses the box raised with the lift.
-    private func stripRoomPreview(for cell: BubbleCarrying, parameters: UIPreviewParameters, raising: Bool) -> UITargetedPreview? {
-        let bubble = cell.liftPreviewView
-        let headroom = ReactionStripView.headroom
-        let container: UIView
-        if !raising, let existing = liftContainer {
-            container = existing
-        } else {
-            guard let copy = liftCopy(of: cell) else { return nil }
-            container = UIView(frame: CGRect(x: 0, y: 0, width: bubble.bounds.width, height: bubble.bounds.height + headroom))
-            container.backgroundColor = .clear
-            copy.frame.origin = CGPoint(x: 0, y: headroom)
-            container.addSubview(copy)
-            liftContainer = container
-            liftStandIn = copy
-            liftedBubble = copy
-            hideLiftSource(bubble)
-        }
-        let shape = cell.liftPreviewMaskingPath.map { $0.copy() as! UIBezierPath }
-            ?? UIBezierPath(rect: bubble.bounds)
-        shape.apply(CGAffineTransform(translationX: 0, y: headroom))
-        // UIKit sizes the lifted platter to this path's bounds, so the clear headroom goes in too;
-        // without it the platter is the bubble alone and the menu can cover the strip.
-        shape.append(UIBezierPath(rect: CGRect(x: 0, y: 0, width: bubble.bounds.width, height: headroom)))
-        parameters.visiblePath = shape
-        let frame = collectionView.convert(bubble.bounds, from: bubble)
-        let target = UIPreviewTarget(container: collectionView, center: CGPoint(x: frame.midX, y: frame.midY - headroom / 2))
-        return UITargetedPreview(view: container, parameters: parameters, target: target)
     }
 }
 

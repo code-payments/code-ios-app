@@ -14,10 +14,7 @@ import FlipcashCore
 /// there is more of the row to scroll to on that side. Tapping an emoji toggles the reaction and
 /// dismisses the strip; "+" dismisses and opens the picker instead.
 ///
-/// A plain view, not a context-menu preview accessory — `UIContextMenuConfiguration` has no slot for
-/// one, and the menu's container already sits above the window root (see
-/// `ChatScreenViewController.handOffComposerFocusAroundContextMenu`), so this is added as a sibling
-/// above that container instead, positioned over the lifted bubble's frame.
+/// `MessageLiftOverlay` places it above the lifted bubble.
 final class ReactionStripView: UIView, UIScrollViewDelegate {
 
     /// Fired with the tapped emoji.
