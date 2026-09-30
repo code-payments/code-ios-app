@@ -55,20 +55,24 @@ nonisolated enum MentionTrigger {
         return MentionQuery(range: range, text: String(text[text.index(after: start)..<cursor]))
     }
 
-    /// `text` with `query`'s word replaced by `@username ` as plain text, and the cursor after the
-    /// space.
+    /// `text` with `query`'s word replaced by `@username` as plain text, and the cursor after the
+    /// whitespace that follows it.
     ///
-    /// Always the ASCII `@`, whichever trigger was typed: only that form is detected as a mention
-    /// once the message is sent.
+    /// A trailing space is added only when the word isn't already followed by whitespace, so a pick
+    /// mid-text never leaves a double space. Always the ASCII `@`, whichever trigger was typed: only
+    /// that form is detected as a mention once the message is sent.
     static func inserting(
         username: String,
         replacing query: MentionQuery,
         in text: String
     ) -> (text: String, cursor: String.Index) {
-        let inserted = "@\(username) "
+        let followedByWhitespace = query.range.upperBound < text.endIndex
+            && text[query.range.upperBound].isWhitespace
+        let inserted = followedByWhitespace ? "@\(username)" : "@\(username) "
         var result = text
         result.replaceSubrange(query.range, with: inserted)
         let offset = text.distance(from: text.startIndex, to: query.range.lowerBound) + inserted.count
+            + (followedByWhitespace ? 1 : 0)
         return (result, result.index(result.startIndex, offsetBy: offset))
     }
 }

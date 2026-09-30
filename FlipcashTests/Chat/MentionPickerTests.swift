@@ -88,7 +88,7 @@ struct MentionInsertionTests {
         #expect(MentionTrigger.query(in: composer.draft, selection: cursor) == nil)
     }
 
-    @Test("A pick mid-text keeps the text after the word and puts the cursor after the space")
+    @Test("A pick before an existing space reuses it and puts the cursor after it")
     func midText() throws {
         let text = "hi @ma there"
         let cursor = text.index(text.startIndex, offsetBy: 6)
@@ -96,7 +96,31 @@ struct MentionInsertionTests {
 
         let result = MentionTrigger.inserting(username: "maria", replacing: query, in: text)
 
-        #expect(result.text == "hi @maria  there")
+        #expect(result.text == "hi @maria there")
+        #expect(result.text[result.text.startIndex..<result.cursor] == "hi @maria ")
+    }
+
+    @Test("A pick before a newline reuses it instead of adding a space")
+    func beforeNewline() throws {
+        let text = "hi @ma\nthere"
+        let cursor = text.index(text.startIndex, offsetBy: 6)
+        let query = try #require(MentionTrigger.query(in: text, cursor: cursor))
+
+        let result = MentionTrigger.inserting(username: "maria", replacing: query, in: text)
+
+        #expect(result.text == "hi @maria\nthere")
+        #expect(result.text[result.text.startIndex..<result.cursor] == "hi @maria\n")
+    }
+
+    @Test("A pick before a non-space character still adds the trailing space")
+    func beforeNonSpace() throws {
+        let text = "hi @ma,"
+        let cursor = text.index(text.startIndex, offsetBy: 6)
+        let query = try #require(MentionTrigger.query(in: text, cursor: cursor))
+
+        let result = MentionTrigger.inserting(username: "maria", replacing: query, in: text)
+
+        #expect(result.text == "hi @maria ,")
         #expect(result.text[result.text.startIndex..<result.cursor] == "hi @maria ")
     }
 }
