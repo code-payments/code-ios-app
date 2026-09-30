@@ -104,7 +104,8 @@ class AccountManager {
     }
     
     /// Stores the account's username and display name from `profile` on its historical
-    /// entry, so the account switcher can title a row for an account that isn't signed in.
+    /// entry, so the account switcher can title a row for an account that isn't signed in,
+    /// and fills in the entry's user ID from `profile` when none is stored yet.
     /// Does nothing when the account has no entry or the stored values already match.
     func cacheProfile(_ profile: Profile, ownerPublicKey: PublicKey) {
         let key = ownerPublicKey.base58
@@ -115,15 +116,21 @@ class AccountManager {
             return
         }
 
+        let backfillsUserID = accountDescription.userID == nil && profile.userID != nil
+
         guard
             accountDescription.username != profile.username ||
-            accountDescription.displayName != profile.displayName
+            accountDescription.displayName != profile.displayName ||
+            backfillsUserID
         else {
             return
         }
 
         accountDescription.username = profile.username
         accountDescription.displayName = profile.displayName
+        if backfillsUserID {
+            accountDescription.userID = profile.userID
+        }
         historicalAccounts[key] = accountDescription
         Keychain.historicalAccounts = historicalAccounts
     }

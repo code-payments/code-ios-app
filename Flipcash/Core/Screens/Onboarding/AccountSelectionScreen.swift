@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 struct AccountSelectionScreen: View {
     @EnvironmentObject private var client: Client
@@ -175,30 +176,45 @@ struct AccountSelectionScreen: View {
         }
     }
 
-    /// Titles every row from its live profile, signing as that row's own owner, and
-    /// refreshes the cached name so the next open is right before the fetch lands.
+    /// Titles each row from the profile in that account's own local database, then from its
+    /// live profile, refreshing the cached name so the next open is right before either lands.
+    ///
+    /// A row whose user ID is neither stored nor in its local database skips the live fetch:
+    /// resolving one would mean logging in as an account the user hasn't switched to.
     private func fetchProfiles() async {
+        let location = StoreLocation.resolved()
+
         await withTaskGroup(of: Void.self) { group in
             accounts.forEach { historicalAccount in
                 group.addTask {
                     let keyAccount = historicalAccount.details.account
-                    do {
-                        let userID: UserID
-                        if let stored = historicalAccount.details.userID {
-                            userID = stored
-                        } else {
-                            userID = try await flipClient.login(owner: keyAccount.owner)
-                            await accountManager.upsert(keyAccount: keyAccount, userID: userID)
-                        }
+                    let owner = keyAccount.ownerPublicKey
+                    var userID = historicalAccount.details.userID
 
+                    let storedProfile = Database.storedProfile(at: location.files(owner: owner).database)
+                        ?? Database.storedProfile(at: location.legacyFiles(owner: owner).database)
+
+                    if let storedProfile {
+                        await accountManager.cacheProfile(storedProfile, ownerPublicKey: owner)
+                        await update(owner: owner) {
+                            $0.setProfile(storedProfile)
+                        }
+                        userID = userID ?? storedProfile.userID
+                    }
+
+                    guard let userID else {
+                        return
+                    }
+
+                    do {
                         let profile = try await flipClient.fetchProfile(userID: userID, owner: keyAccount.owner)
 
-                        await accountManager.cacheProfile(profile, ownerPublicKey: keyAccount.ownerPublicKey)
-                        await update(owner: keyAccount.ownerPublicKey) {
+                        await accountManager.cacheProfile(profile, ownerPublicKey: owner)
+                        await update(owner: owner) {
                             $0.setProfile(profile)
                         }
                     } catch {
-                        // The row keeps its cached title.
+                        // The row keeps its stored or cached title.
                     }
                 }
             }

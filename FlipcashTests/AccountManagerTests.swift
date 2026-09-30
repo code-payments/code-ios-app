@@ -181,6 +181,38 @@ struct AccountManagerTests {
         #expect(historical.title == "Ted Lasso")
     }
 
+    /// A profile read from the account's own store carries its user ID, which is what lets
+    /// the switcher fetch the live profile without logging in as that account.
+    @Test("caching a profile fills in a missing user ID")
+    func cacheProfile_backfillsMissingUserID() throws {
+        let manager = AccountManager()
+        defer { manager.nukeForUITesting() }
+
+        manager.upsert(keyAccount: .mock)
+        manager.cacheProfile(
+            Profile(displayName: nil, phone: Optional<Phone>.none, email: nil, userID: Self.userID),
+            ownerPublicKey: KeyAccount.mock.ownerPublicKey
+        )
+
+        let historical = try #require(manager.fetchActiveHistorical().first)
+        #expect(historical.userID == Self.userID)
+    }
+
+    @Test("caching a profile keeps the user ID already stored")
+    func cacheProfile_keepsStoredUserID() throws {
+        let manager = AccountManager()
+        defer { manager.nukeForUITesting() }
+
+        manager.set(keyAccount: .mock, userID: Self.userID)
+        manager.cacheProfile(
+            Profile(displayName: nil, phone: Optional<Phone>.none, email: nil, userID: UUID()),
+            ownerPublicKey: KeyAccount.mock.ownerPublicKey
+        )
+
+        let historical = try #require(manager.fetchActiveHistorical().first)
+        #expect(historical.userID == Self.userID)
+    }
+
     @Test("an entry written before profiles were cached still decodes, with no username or display name")
     func decode_entryWithoutProfile_succeeds() throws {
         let legacy = """
