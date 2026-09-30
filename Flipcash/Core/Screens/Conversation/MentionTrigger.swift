@@ -88,13 +88,20 @@ nonisolated enum MentionRowCap {
     /// The transcript height the list must leave above it before it falls back.
     static let minimumTranscript: CGFloat = 120
 
-    /// The row count for a list whose rows are `rowHeight` tall and whose padding and ground add
+    /// The height of `count` rows `rowHeight` tall with a `divider` between each pair and none after
+    /// the last.
+    static func listHeight(rows count: Int, rowHeight: CGFloat, divider: CGFloat) -> CGFloat {
+        guard count > 0 else { return 0 }
+        return CGFloat(count) * rowHeight + CGFloat(count - 1) * divider
+    }
+
+    /// The row count for a list of `rowHeight` rows split by `divider`s, whose padding and ground add
     /// `chrome`, given `room`: the transcript's height without the list. Unmeasured room keeps the
     /// full count.
-    static func rows(replyOpen: Bool, room: CGFloat?, rowHeight: CGFloat, chrome: CGFloat) -> Int {
+    static func rows(replyOpen: Bool, room: CGFloat?, rowHeight: CGFloat, divider: CGFloat, chrome: CGFloat) -> Int {
         let full = replyOpen ? rowsWithReply : rows
         guard let room else { return full }
-        let list = CGFloat(full) * rowHeight + chrome
+        let list = listHeight(rows: full, rowHeight: rowHeight, divider: divider) + chrome
         return room - list < minimumTranscript ? fallbackRows : full
     }
 }

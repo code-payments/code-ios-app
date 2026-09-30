@@ -106,24 +106,38 @@ struct MentionInsertionTests {
 struct MentionRowCapTests {
 
     private let rowHeight: CGFloat = 56
+    private let divider: CGFloat = 1
     private let chrome: CGFloat = 16
+
+    private func rows(replyOpen: Bool, room: CGFloat?) -> Int {
+        MentionRowCap.rows(replyOpen: replyOpen, room: room, rowHeight: rowHeight, divider: divider, chrome: chrome)
+    }
 
     @Test("Four rows with no reply open, three with one")
     func fullCounts() {
-        #expect(MentionRowCap.rows(replyOpen: false, room: nil, rowHeight: rowHeight, chrome: chrome) == 4)
-        #expect(MentionRowCap.rows(replyOpen: true, room: nil, rowHeight: rowHeight, chrome: chrome) == 3)
-        #expect(MentionRowCap.rows(replyOpen: false, room: 400, rowHeight: rowHeight, chrome: chrome) == 4)
-        #expect(MentionRowCap.rows(replyOpen: true, room: 320, rowHeight: rowHeight, chrome: chrome) == 3)
+        #expect(rows(replyOpen: false, room: nil) == 4)
+        #expect(rows(replyOpen: true, room: nil) == 3)
+        #expect(rows(replyOpen: false, room: 400) == 4)
+        #expect(rows(replyOpen: true, room: 320) == 3)
     }
 
     @Test("Two rows when the full list would leave the transcript under 120pt")
     func fallback() {
-        // 4 rows = 240pt; 300 - 240 = 60 < 120.
-        #expect(MentionRowCap.rows(replyOpen: false, room: 300, rowHeight: rowHeight, chrome: chrome) == 2)
-        // 3 rows = 184pt; 300 - 184 = 116 < 120.
-        #expect(MentionRowCap.rows(replyOpen: true, room: 300, rowHeight: rowHeight, chrome: chrome) == 2)
+        // 4 rows = 224 + 3 dividers + 16 = 243pt; 300 - 243 = 57 < 120.
+        #expect(rows(replyOpen: false, room: 300) == 2)
+        // 3 rows = 168 + 2 dividers + 16 = 186pt; 300 - 186 = 114 < 120.
+        #expect(rows(replyOpen: true, room: 300) == 2)
         // Exactly 120pt left keeps the full count.
-        #expect(MentionRowCap.rows(replyOpen: false, room: 360, rowHeight: rowHeight, chrome: chrome) == 4)
+        #expect(rows(replyOpen: false, room: 363) == 4)
+    }
+
+    @Test("List heights count a divider between rows and none after the last")
+    func listHeights() {
+        #expect(MentionListMetrics.listHeight(rows: 4) == 203)
+        #expect(MentionListMetrics.listHeight(rows: 3) == 152)
+        #expect(MentionListMetrics.listHeight(rows: 2) == 101)
+        #expect(MentionListMetrics.listHeight(rows: 1) == 50)
+        #expect(MentionListMetrics.listHeight(rows: 0) == 0)
     }
 }
 

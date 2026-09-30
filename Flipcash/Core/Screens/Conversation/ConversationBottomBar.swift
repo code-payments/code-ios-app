@@ -171,6 +171,7 @@ struct ConversationBottomBar: View {
                         replyOpen: replyOpen,
                         room: mentions?.room,
                         rowHeight: MentionListMetrics.rowHeight,
+                        divider: MentionListMetrics.dividerHeight,
                         chrome: MentionListMetrics.chrome(replyOpen: replyOpen)
                     ),
                     replyOpen: replyOpen
