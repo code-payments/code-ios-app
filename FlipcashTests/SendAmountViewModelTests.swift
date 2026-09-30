@@ -1026,4 +1026,123 @@ struct SendAmountViewModelTests {
         #expect(!viewModel.opensTipDM)
         #expect(viewModel.tipFloor(in: .usd) == nil)
     }
+
+    // MARK: - Hint frozen through send
+
+    /// Rewrites the USDF holding and waits for the session to re-read it — the
+    /// refresh a send triggers, or the poller landing mid-send.
+    static func dropUSDFBalance(in container: SessionContainer, to quarks: UInt64) async throws {
+        try container.database.transaction { db in
+            try db.insertBalance(quarks: quarks, mint: .usdf, costBasis: 0, date: .now)
+        }
+        NotificationCenter.default.post(name: .databaseDidChange, object: nil)
+        try await waitUntil(container.session) { session in
+            session.balance(for: .usdf)?.quarks == quarks
+        }
+    }
+
+    /// Whether the header would redden: the same check `EnterAmountHeader` runs.
+    static func isExceeding(_ viewModel: SendAmountViewModel) -> Bool {
+        !EnterAmountCalculator.isWithinDisplayLimit(
+            enteredAmount: viewModel.enteredAmount,
+            max: viewModel.displayedAvailable.nativeAmount
+        )
+    }
+
+    @Test("The available hint holds its pre-send value through a send and after it lands")
+    func sendingSnapshot_success_holdsAvailableHint() async throws {
+        let container = try await Self.makeReadyToSendContainer() // $100 USDF
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in Self.recipient }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            target: .contact(Self.makeContact()),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "99"
+        let before = viewModel.displayedAvailable.nativeAmount
+        #expect(!Self.isExceeding(viewModel))
+
+        // The balance refresh lands while the swipe is still loading.
+        mock.sendHandler = { _, _, _ in
+            try await Self.dropUSDFBalance(in: container, to: 1_000_000)
+            #expect(viewModel.displayedAvailable.nativeAmount == before)
+            #expect(!Self.isExceeding(viewModel))
+            #expect(viewModel.swipeLabel == "Swipe to Send")
+        }
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(viewModel.liveAvailable.nativeAmount != before)
+        #expect(viewModel.displayedAvailable.nativeAmount == before)
+        #expect(!Self.isExceeding(viewModel))
+
+        // And again once the sheet is holding its checkmark.
+        try await Self.dropUSDFBalance(in: container, to: 500_000)
+        #expect(viewModel.displayedAvailable.nativeAmount == before)
+        #expect(!Self.isExceeding(viewModel))
+    }
+
+    @Test("A failed send hands the hint back to the live balance")
+    func sendingSnapshot_failure_returnsLiveHint() async throws {
+        let container = try await Self.makeReadyToSendContainer() // $100 USDF
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in
+            try await Self.dropUSDFBalance(in: container, to: 1_000_000)
+            throw URLError(.notConnectedToInternet)
+        }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            target: .contact(Self.makeContact()),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "99"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .failed)
+        #expect(viewModel.sendingSnapshot == nil)
+        #expect(viewModel.displayedAvailable.nativeAmount == viewModel.liveAvailable.nativeAmount)
+        #expect(viewModel.displayedAvailable.nativeAmount == .usd(1))
+        #expect(Self.isExceeding(viewModel))
+    }
+
+    @Test("The tip that opens the DM keeps its minimum and swipe label once the DM exists")
+    func sendingSnapshot_tipOpeningDM_holdsMinimumAndLabel() async throws {
+        let container = try await Self.makeFloorContainer()
+        let recipientID = UUID()
+        container.session.cacheUserProfile(
+            Self.makeRecipientProfile(fee: .usd(5)),
+            for: recipientID
+        )
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        // Sending creates the DM, so the entry stops being the one that opens it.
+        mock.sendHandler = { _, _, _ in
+            try await Self.seedTipDM(in: container, with: recipientID)
+        }
+        let viewModel = Self.makeTipViewModel(
+            container: container,
+            recipientID: recipientID,
+            origin: .chat,
+            mock: mock
+        )
+        viewModel.enteredAmount = "10"
+        #expect(viewModel.swipeLabel == "Swipe to Tip")
+        #expect(viewModel.displayedTipMinimum == .usd(5))
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(!viewModel.opensTipDM)
+        #expect(viewModel.tipMinimum == nil)
+        #expect(viewModel.swipeLabel == "Swipe to Tip")
+        #expect(viewModel.displayedTipMinimum == .usd(5))
+    }
 }
