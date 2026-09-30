@@ -34,11 +34,11 @@ struct ChatPaymentMetadataTests {
         let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.serializedAppMetadata())
 
         #expect(decoded.chat.chatID.value == chatID.data)
-        guard case .tipDmPayment(let payment) = decoded.chat.type else {
+        guard case .dmPayment(let payment) = decoded.chat.type else {
             Issue.record("Expected tipDmPayment, got \(String(describing: decoded.chat.type))")
             return
         }
-        #expect(payment.location == .tipcard)
+        #expect(payment.location == .flipcard)
         #expect(payment.action == .tip)
     }
 
@@ -49,7 +49,7 @@ struct ChatPaymentMetadataTests {
         let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.serializedAppMetadata())
 
         #expect(decoded.chat.chatID.value == chatID.data)
-        guard case .tipDmPayment(let payment) = decoded.chat.type else {
+        guard case .dmPayment(let payment) = decoded.chat.type else {
             Issue.record("Expected tipDmPayment, got \(String(describing: decoded.chat.type))")
             return
         }
@@ -76,7 +76,7 @@ struct ChatPaymentMetadataTests {
 
         let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.serializedAppMetadata())
 
-        guard case .tipDmPayment(let payment) = decoded.chat.type else {
+        guard case .dmPayment(let payment) = decoded.chat.type else {
             Issue.record("Expected tipDmPayment, got \(String(describing: decoded.chat.type))")
             return
         }
