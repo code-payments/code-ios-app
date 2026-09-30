@@ -44,6 +44,12 @@ public struct Profile: Codable, Equatable, Sendable {
     /// the user hasn't set one, in which case the server default applies.
     public let minDmChatInitFee: FiatAmount?
 
+    /// Whether the current username was assigned by the server from the display
+    /// name rather than chosen with `SetUsername`. Private: the server sets it
+    /// only on the caller's own profile, so it is `false` on anyone else's and
+    /// when there is no username.
+    public let isUsernameAutoAssigned: Bool
+
     public var isPhoneVerified: Bool {
         phone != nil
     }
@@ -61,7 +67,7 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil && phone?.e164 != previous?.phone?.e164
     }
 
-    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil) throws {
+    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false) throws {
 
         // Only parse phone if it's not empty
         var parsedPhone: Phone?
@@ -86,11 +92,12 @@ public struct Profile: Codable, Equatable, Sendable {
             tipCardCustomization: tipCardCustomization,
             userID: userID,
             username: username,
-            minDmChatInitFee: minDmChatInitFee
+            minDmChatInitFee: minDmChatInitFee,
+            isUsernameAutoAssigned: isUsernameAutoAssigned
         )
     }
 
-    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil) {
+    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false) {
         self.displayName = displayName
         self.phone = phone
         self.email = email
@@ -100,6 +107,23 @@ public struct Profile: Codable, Equatable, Sendable {
         self.userID = userID
         self.username = username
         self.minDmChatInitFee = minDmChatInitFee
+        self.isUsernameAutoAssigned = isUsernameAutoAssigned
+    }
+
+    /// `isUsernameAutoAssigned` is decoded with a default so rows persisted
+    /// before it existed still decode, without a `schemaVersion` bump.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.displayName = try c.decodeIfPresent(String.self, forKey: .displayName)
+        self.phone = try c.decodeIfPresent(Phone.self, forKey: .phone)
+        self.email = try c.decodeIfPresent(String.self, forKey: .email)
+        self.profilePicture = try c.decodeIfPresent(ProfilePicture.self, forKey: .profilePicture)
+        self.joinedAt = try c.decodeIfPresent(Date.self, forKey: .joinedAt)
+        self.tipCardCustomization = try c.decodeIfPresent(TipCardCustomization.self, forKey: .tipCardCustomization)
+        self.userID = try c.decodeIfPresent(UserID.self, forKey: .userID)
+        self.username = try c.decodeIfPresent(Username.self, forKey: .username)
+        self.minDmChatInitFee = try c.decodeIfPresent(FiatAmount.self, forKey: .minDmChatInitFee)
+        self.isUsernameAutoAssigned = try c.decodeIfPresent(Bool.self, forKey: .isUsernameAutoAssigned) ?? false
     }
 }
 
@@ -131,19 +155,20 @@ extension Profile {
             email: proto.emailAddress.value,
             profilePicture: proto.hasProfilePicture ? ProfilePicture(proto.profilePicture) : nil,
             joinedAt: proto.hasJoinTs ? proto.joinTs.date : nil,
-            tipCardCustomization: proto.hasTipCardCustomization ? TipCardCustomization(proto.tipCardCustomization) : nil,
+            tipCardCustomization: proto.hasFlipcardCustomization ? TipCardCustomization(proto.flipcardCustomization) : nil,
             userID: proto.hasUserID ? try? UUID(data: proto.userID.value) : nil,
             username: proto.hasUsername ? Username(proto.username) : nil,
             minDmChatInitFee: proto.hasMinDmChatInitFee ? FiatAmount(
                 value: Decimal(proto.minDmChatInitFee.nativeAmount),
                 currency: try CurrencyCode(currencyCode: proto.minDmChatInitFee.currency)
-            ) : nil
+            ) : nil,
+            isUsernameAutoAssigned: proto.isUsernameAutoAssigned
         )
     }
 }
 
 extension TipCardCustomization {
-    init(_ proto: Flipcash_Profile_V1_TipCardCustomization) {
+    init(_ proto: Flipcash_Profile_V1_FlipcardCustomization) {
         self.init(colorHex: proto.color.hex)
     }
 

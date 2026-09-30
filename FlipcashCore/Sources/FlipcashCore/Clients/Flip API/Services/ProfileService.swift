@@ -158,27 +158,27 @@ final class ProfileService: Sendable {
         }
     }
 
-    func updateTipCard(color: Flipcash_Common_V1_Color, owner: KeyPair) async throws {
-        logger.info("Updating tip card")
+    func updateFlipcard(color: Flipcash_Common_V1_Color, owner: KeyPair) async throws {
+        logger.info("Updating flipcard")
 
-        var request = Flipcash_Profile_V1_UpdateTipCardRequest()
+        var request = Flipcash_Profile_V1_UpdateFlipcardRequest()
         request.color = color
         request.auth  = owner.authFor(message: request)
 
         do {
-            let response = try await service.updateTipCard(request, options: .unaryDefault)
-            let error = ErrorUpdateTipCard(rawValue: response.result.rawValue) ?? .unknown
+            let response = try await service.updateFlipcard(request, options: .unaryDefault)
+            let error = ErrorUpdateFlipcard(rawValue: response.result.rawValue) ?? .unknown
             guard error == .ok else {
-                logger.error("Failed to update tip card", metadata: ["error": "\(error)"])
+                logger.error("Failed to update flipcard", metadata: ["error": "\(error)"])
                 throw error
             }
-            logger.info("Tip card updated")
-        } catch let error as ErrorUpdateTipCard {
+            logger.info("Flipcard updated")
+        } catch let error as ErrorUpdateFlipcard {
             throw error
         } catch let error as RPCError {
-            throw ErrorUpdateTipCard.from(transportError: error)
+            throw ErrorUpdateFlipcard.from(transportError: error)
         } catch {
-            throw ErrorUpdateTipCard.unknown
+            throw ErrorUpdateFlipcard.unknown
         }
     }
 
@@ -238,7 +238,7 @@ extension ErrorFetchProfile: ServerError, TransportClassifiableError {
     }
 }
 
-public enum ErrorUpdateTipCard: Int, Error {
+public enum ErrorUpdateFlipcard: Int, Error {
     case ok
     case denied
     /// The requested colour failed server-side validation (bad hex).
@@ -249,7 +249,7 @@ public enum ErrorUpdateTipCard: Int, Error {
     case rejected = -4
 }
 
-extension ErrorUpdateTipCard: ServerError, TransportClassifiableError {
+extension ErrorUpdateFlipcard: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
