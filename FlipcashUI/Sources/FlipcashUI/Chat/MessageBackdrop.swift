@@ -8,13 +8,13 @@
 #if canImport(UIKit)
 import UIKit
 
-/// The blur that sits behind a lifted message — the context menu's platter, and the edit that can
-/// follow it.
+/// The blur that sits behind a lifted message — its reaction strip and menu, and the edit that can
+/// follow them.
 ///
-/// UIKit only dims the content behind a context menu, leaving every bubble legible under the
-/// platter. WhatsApp — the reference for this interaction — blurs it, so the lifted bubble is the
-/// one sharp thing on screen. The blur covers whichever view it is presented over, and UIKit puts
-/// the menu itself in a container above the window's root, so the platter and the lift stay sharp.
+/// WhatsApp — the reference for this interaction — blurs the transcript behind a long-pressed
+/// message, so the lifted bubble is the one sharp thing on screen. The blur covers whichever view it
+/// is presented over, and the lift itself sits in a window above it (`MessageLiftOverlay`), so the
+/// bubble, strip and menu stay sharp.
 ///
 /// Choosing Edit holds the same blur past the menu rather than fading it and raising a second one,
 /// which is what keeps the transcript from flashing back to legible between the two states. Held, it
@@ -25,12 +25,12 @@ import UIKit
 @MainActor
 final class MessageBackdrop {
 
-    /// Matches the fade UIKit uses for its own dimming when no animator is supplied.
-    private static let fallbackDuration: TimeInterval = 0.2
+    /// How long the blur takes to fade in or out.
+    private static let fadeDuration: TimeInterval = 0.2
 
     /// Called when the held blur is tapped — the way out of an edit, as tapping outside the message
-    /// is in WhatsApp. Never fires while a context menu owns the screen: the menu's own container
-    /// sits above the blur and takes those taps.
+    /// is in WhatsApp. Never fires while a lift owns the screen: the lift's window sits above the
+    /// blur and takes those taps.
     var onTap: (() -> Void)?
 
     /// Whether the blur is being kept past the menu that raised it.
@@ -50,14 +50,12 @@ final class MessageBackdrop {
     /// The composer bar the floated copy stops short of, re-measured on every layout pass.
     private weak var clearance: UIView?
 
-    /// Fades the blur in over `host`, riding `animator` so it lands with the menu. Presenting twice
-    /// is a no-op: the display callback fires once for the lift and again for the menu.
-    func present(over host: UIView, animator: UIContextMenuInteractionAnimating?) {
+    /// Fades the blur in over `host`. Presenting twice is a no-op.
+    func present(over host: UIView) {
         guard effectView == nil else { return }
 
         let blur = UIVisualEffectView(effect: nil)
-        // Purely decorative until it is held — the menu's own container sits above this and owns
-        // every touch.
+        // Purely decorative until it is held — the lift's window sits above this and owns every touch.
         blur.isUserInteractionEnabled = false
         blur.frame = host.bounds
         blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -69,12 +67,7 @@ final class MessageBackdrop {
         // available to animate.
         blurStrength = ChatBackdrop.frost(blur)
 
-        let fadeIn = { blur.alpha = 1 }
-        if let animator {
-            animator.addAnimations(fadeIn)
-        } else {
-            UIView.animate(withDuration: Self.fallbackDuration, animations: fadeIn)
-        }
+        UIView.animate(withDuration: Self.fadeDuration) { blur.alpha = 1 }
     }
 
     /// Keeps the blur up after the menu that raised it goes, and starts taking taps. Nothing
@@ -105,7 +98,7 @@ final class MessageBackdrop {
         dim.isUserInteractionEnabled = false
         blur.contentView.addSubview(dim)
         self.dim = dim
-        UIView.animate(withDuration: Self.fallbackDuration) { dim.alpha = ChatBackdrop.dimAlpha }
+        UIView.animate(withDuration: Self.fadeDuration) { dim.alpha = ChatBackdrop.dimAlpha }
 
         let clip = UIView()
         clip.clipsToBounds = true
@@ -181,24 +174,22 @@ final class MessageBackdrop {
         return result
     }
 
-    /// Fades the blur out with the menu and takes it off screen once it has gone. A held blur
-    /// ignores this: the edit it belongs to outlives the menu, and ends it with `release`.
-    func dismiss(animator: UIContextMenuInteractionAnimating?) {
+    /// Fades the blur out and takes it off screen once it has gone, keeping a hole over `revealing`
+    /// as it moves so a copy landing underneath stays sharp. A held blur ignores this: the edit it
+    /// belongs to outlives the lift, and ends it with `release`.
+    func dismiss(revealing view: UIView? = nil) {
         guard !isHeld, let blur = effectView else { return }
         effectView = nil
         let strength = blurStrength
         blurStrength = nil
+        let hole = view.map { BlurHole(cutting: blur, around: $0) }
 
-        let fadeOut = { blur.alpha = 0 }
-        let takeDown = {
+        UIView.animate(withDuration: Self.fadeDuration) {
+            blur.alpha = 0
+        } completion: { _ in
+            hole?.stop()
             strength?.stopAnimation(true)
             blur.removeFromSuperview()
-        }
-        if let animator {
-            animator.addAnimations(fadeOut)
-            animator.addCompletion(takeDown)
-        } else {
-            UIView.animate(withDuration: Self.fallbackDuration, animations: fadeOut) { _ in takeDown() }
         }
     }
 
@@ -217,7 +208,7 @@ final class MessageBackdrop {
         self.dim = nil
         let strength = blurStrength
         blurStrength = nil
-        UIView.animate(withDuration: Self.fallbackDuration) {
+        UIView.animate(withDuration: Self.fadeDuration) {
             blur.alpha = 0
             bubble?.alpha = 0
             dim?.alpha = 0
@@ -230,6 +221,46 @@ final class MessageBackdrop {
 
     @objc private func handleTap() {
         onTap?()
+    }
+}
+
+/// Masks a hole out of a blur over wherever `target` is drawn, frame by frame, so a view animating
+/// underneath the blur shows through it unblurred.
+@MainActor
+private final class BlurHole {
+
+    private static let cornerRadius: CGFloat = 18
+
+    private weak var blur: UIView?
+    private weak var target: UIView?
+    private let shape = CAShapeLayer()
+    private var link: CADisplayLink?
+
+    init(cutting blur: UIView, around target: UIView) {
+        self.blur = blur
+        self.target = target
+        let mask = UIView(frame: blur.bounds)
+        shape.fillRule = .evenOdd
+        shape.fillColor = UIColor.black.cgColor
+        mask.layer.addSublayer(shape)
+        blur.mask = mask
+        update()
+        let link = CADisplayLink(target: self, selector: #selector(update))
+        link.add(to: .main, forMode: .common)
+        self.link = link
+    }
+
+    func stop() {
+        link?.invalidate()
+        link = nil
+    }
+
+    @objc private func update() {
+        guard let blur, let target, let container = target.superview?.layer else { return stop() }
+        let frame = container.convert(target.layer.presentation()?.frame ?? target.frame, to: blur.layer)
+        let path = UIBezierPath(rect: blur.bounds)
+        path.append(UIBezierPath(roundedRect: frame, cornerRadius: Self.cornerRadius))
+        shape.path = path.cgPath
     }
 }
 #endif

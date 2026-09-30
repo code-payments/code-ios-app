@@ -21,14 +21,6 @@ struct MessageCapabilityMenuTests {
         return controller
     }
 
-    private func configuration(_ controller: ChatViewController, at index: Int) -> UIContextMenuConfiguration? {
-        controller.collectionView(
-            controller.collectionView,
-            contextMenuConfigurationForItemAt: IndexPath(item: index, section: 0),
-            point: .zero
-        )
-    }
-
     private func menu(_ controller: ChatViewController, at index: Int) -> UIMenu? {
         controller.contextMenu(forItemAt: IndexPath(item: index, section: 0))
     }
@@ -50,7 +42,7 @@ struct MessageCapabilityMenuTests {
         let controller = loadedController([
             .message(ChatMessage(id: "1", text: "hi", sender: .other, actions: []))
         ])
-        #expect(configuration(controller, at: 0) == nil)
+        #expect(menu(controller, at: 0) == nil)
     }
 
     @Test("Delete is marked destructive")
@@ -144,6 +136,6 @@ struct MessageCapabilityMenuTests {
         let controller = loadedController([
             .message(ChatMessage(id: "1", content: .deleted("This message was deleted"), sender: .other))
         ])
-        #expect(configuration(controller, at: 0) == nil)
+        #expect(menu(controller, at: 0) == nil)
     }
 }

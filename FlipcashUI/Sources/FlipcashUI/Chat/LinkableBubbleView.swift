@@ -402,9 +402,10 @@ extension LinkableBubbleView {
 }
 
 extension LinkableBubbleView: UIGestureRecognizerDelegate {
-    /// The span tap runs beside the transcript's keyboard-lowering tap, so one tap does both.
+    /// The span tap runs beside the transcript's keyboard-lowering tap, so one tap does both. It
+    /// never runs beside a long press, so lifting the bubble doesn't also open the link.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        true
+        !(otherGestureRecognizer is UILongPressGestureRecognizer)
     }
 }
 

@@ -21,21 +21,25 @@ struct ChatMessageCopyTests {
         return controller
     }
 
-    private func configuration(_ controller: ChatViewController, at index: Int) -> UIContextMenuConfiguration? {
-        controller.collectionView(
-            controller.collectionView,
-            contextMenuConfigurationForItemAt: IndexPath(item: index, section: 0),
-            point: .zero
-        )
+    private func menu(_ controller: ChatViewController, at index: Int) -> UIMenu? {
+        controller.contextMenu(forItemAt: IndexPath(item: index, section: 0))
     }
 
-    /// Drives the close of the menu. A `nil` animator runs the controller's cleanup synchronously.
-    private func closeMenu(_ controller: ChatViewController) {
-        controller.collectionView(
-            controller.collectionView,
-            willEndContextMenuInteraction: UIContextMenuConfiguration(identifier: nil, previewProvider: nil, actionProvider: nil),
-            animator: nil
-        )
+    /// A controller in a window showing `message`, with its row lifted as a long press lifts it. The
+    /// window gives the row a cell to lift, and the few rendered frames give the lift something to
+    /// snapshot.
+    private func liftedController(_ message: ChatMessage) async -> (ChatViewController, UIWindow) {
+        let controller = ChatViewController()
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.update(items: [.message(message)], animated: false)
+        for _ in 0..<3 {
+            controller.view.layoutIfNeeded()
+            try? await Task.sleep(for: .milliseconds(40))
+        }
+        #expect(controller.beginLift(for: message, in: controller.view) != nil)
+        return (controller, window)
     }
 
     @Test("A text message offers a context menu")
@@ -43,16 +47,7 @@ struct ChatMessageCopyTests {
         let controller = loadedController([
             .message(ChatMessage(id: "a", text: "Hello there", sender: .other, actions: [.copy])),
         ])
-        #expect(configuration(controller, at: 0) != nil)
-    }
-
-    @Test("The configuration identifier encodes the section and item, so the preview can resolve the cell")
-    func configuration_identifierEncodesIndexPath() {
-        let controller = loadedController([
-            .message(ChatMessage(id: "a", text: "first", sender: .me, actions: [.copy])),
-            .message(ChatMessage(id: "b", text: "second", sender: .other, actions: [.copy])),
-        ])
-        #expect(configuration(controller, at: 1)?.identifier as? String == "0|1")
+        #expect(menu(controller, at: 0) != nil)
     }
 
     @Test("A cash card offers no context menu — nothing to copy")
@@ -63,42 +58,42 @@ struct ChatMessageCopyTests {
             sender: .me
         )
         let controller = loadedController([.message(cash)])
-        #expect(configuration(controller, at: 0) == nil)
+        #expect(menu(controller, at: 0) == nil)
     }
 
     @Test("A date separator offers no context menu")
     func dateSeparator_offersNoMenu() {
         let controller = loadedController([.dateSeparator(id: "sep", text: "Today 12:13 PM")])
-        #expect(configuration(controller, at: 0) == nil)
+        #expect(menu(controller, at: 0) == nil)
     }
 
-    @Test("A message arriving while the menu is open is held, not applied")
-    func openMenu_defersPushedUpdate() {
-        let controller = loadedController([.message(ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy]))])
-        #expect(controller.collectionView.numberOfItems(inSection: 0) == 1)
-
-        // Open the menu, then a new message is pushed while it's up.
-        #expect(configuration(controller, at: 0) != nil)
+    @Test("A message arriving while a row is lifted is held, not applied")
+    func lift_defersPushedUpdate() async {
+        let hello = ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy])
+        // Lift the row, then a new message is pushed while it's up.
+        let (controller, window) = await liftedController(hello)
+        defer { window.isHidden = true }
         controller.update(items: [
             .message(ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy])),
             .message(ChatMessage(id: "b", text: "Just arrived", sender: .other, actions: [.copy])),
         ])
 
-        // Held — the transcript doesn't reflow out from under the lifted preview.
+        // Held — the transcript doesn't reflow out from under the lift.
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 1)
     }
 
-    @Test("Closing the menu applies the update that arrived while it was open")
-    func closingMenu_appliesDeferredUpdate() {
-        let controller = loadedController([.message(ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy]))])
-        #expect(configuration(controller, at: 0) != nil)
+    @Test("Ending the lift applies the update that arrived while it was up")
+    func endingLift_appliesDeferredUpdate() async {
+        let hello = ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy])
+        let (controller, window) = await liftedController(hello)
+        defer { window.isHidden = true }
         controller.update(items: [
             .message(ChatMessage(id: "a", text: "Hello", sender: .me, actions: [.copy])),
             .message(ChatMessage(id: "b", text: "Just arrived", sender: .other, actions: [.copy])),
         ])
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 1) // held
 
-        closeMenu(controller)
+        controller.endLift()
 
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 2) // applied
     }
