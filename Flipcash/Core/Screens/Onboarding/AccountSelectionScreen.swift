@@ -201,7 +201,7 @@ private struct AccountRow: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .bottom, spacing: 10) {
-                        Text(account.mnemonic.name)
+                        Text(account.details.title)
 
                         if account.isNotFound {
                             Badge(decoration: .circle(.textError), text: "Not Found")
@@ -271,14 +271,11 @@ struct HistoricalAccount: Identifiable {
     nonisolated
     let details: AccountDescription
 
-    let mnemonic: MnemonicPhrase
-
     private(set) var totalBalance: ExchangedFiat?
     private(set) var isNotFound: Bool = false
 
     init(details: AccountDescription) {
-        self.details  = details
-        self.mnemonic = details.account.mnemonic
+        self.details = details
     }
 
     mutating func setBalance(_ exchangedFiat: ExchangedFiat) {

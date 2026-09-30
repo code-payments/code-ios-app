@@ -288,6 +288,9 @@ class Session {
 
         profile   = try? database.getProfile()
         userFlags = try? database.getUserFlags()
+        if let profile {
+            container.accountManager.cacheProfile(profile, ownerPublicKey: keyAccount.ownerPublicKey)
+        }
 
         // User flags are fetched by the poller (`fetchUserFlagsIfNeeded`).
         Task {
@@ -370,6 +373,7 @@ class Session {
 
         profile = fetched
         try? database.insertProfile(fetched)
+        container.accountManager.cacheProfile(fetched, ownerPublicKey: keyAccount.ownerPublicKey)
         Task { await linkPhoneForPaymentIfNeeded() }
 
         if didLinkPhone {
