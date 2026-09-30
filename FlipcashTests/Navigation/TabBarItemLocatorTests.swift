@@ -17,7 +17,7 @@ struct TabBarItemLocatorTests {
         let controller = UITabBarController()
         controller.viewControllers = HomeTab.allCases.map { tab in
             let child = UIViewController()
-            child.tabBarItem = UITabBarItem(title: tab.accessibilityLabel, image: nil, tag: tab.rawValue)
+            child.tabBarItem = UITabBarItem(title: tab.title, image: nil, tag: tab.rawValue)
             return child
         }
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
