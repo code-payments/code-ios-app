@@ -88,7 +88,7 @@ extension ConversationType {
     var proto: Flipcash_Chat_V1_ChatType {
         switch self {
         case .contactDm: .contactDm
-        case .tipDm:     .tipDm
+        case .tipDm:     .dm
         case .group:     .group
         }
     }
@@ -97,7 +97,7 @@ extension ConversationType {
     /// legacy-client contract for the DM feed.
     init(_ proto: Flipcash_Chat_V1_ChatType) {
         switch proto {
-        case .tipDm:
+        case .dm:
             self = .tipDm
         case .group:
             self = .group

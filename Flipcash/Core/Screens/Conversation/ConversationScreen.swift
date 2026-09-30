@@ -448,7 +448,7 @@ struct ConversationScreen: View {
     private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
         switch requirement {
         case .minimumBalance(_, let mint):  mint
-        case .staff:                        nil
+        case .staff, .never:                nil
         }
     }
 

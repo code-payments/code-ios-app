@@ -136,8 +136,8 @@ extension IntentTransferTests {
             return
         }
         #expect(chatMetadata.chatID.value == chatID.data)
-        #expect(chatMetadata.tipDmPayment.location == .chat)
-        #expect(chatMetadata.tipDmPayment.action == .send)
+        #expect(chatMetadata.dmPayment.location == .chat)
+        #expect(chatMetadata.dmPayment.action == .send)
     }
 
     private func makeIntent(

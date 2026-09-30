@@ -143,7 +143,7 @@ struct NotificationPayloadTests {
     func chatTypeFromMetadata() throws {
         let payload = Flipcash_Push_V1_Payload.with {
             $0.category = .chat
-            $0.chatMetadata = .with { $0.type = .tipDm }
+            $0.chatMetadata = .with { $0.type = .dm }
         }
         let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
         #expect(NotificationPayload.chatType(userInfo) == .tipDm)
@@ -160,7 +160,7 @@ struct NotificationPayloadTests {
     func chatTypeNilForNonChatCategory() throws {
         let payload = Flipcash_Push_V1_Payload.with {
             $0.category = .default
-            $0.chatMetadata = .with { $0.type = .tipDm }
+            $0.chatMetadata = .with { $0.type = .dm }
         }
         let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
         #expect(NotificationPayload.chatType(userInfo) == nil)

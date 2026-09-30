@@ -53,7 +53,7 @@ public enum ChatPaymentMetadata: Sendable {
                         $0.destination = .with { $0.value = destinationPhoneE164 }
                     }
                 case .tipDm(_, let origin, let action):
-                    $0.tipDmPayment = .with {
+                    $0.dmPayment = .with {
                         $0.location = origin.proto
                         $0.action = action.proto
                     }
@@ -74,9 +74,9 @@ public enum TipOrigin: Sendable {
     /// Sent from the Send Cash action inside an existing tip DM thread.
     case chat
 
-    var proto: Flipcash_Intent_V1_ChatMetadata.TipDmPayment.Location {
+    var proto: Flipcash_Intent_V1_ChatMetadata.DmPayment.Location {
         switch self {
-        case .tipcard: return .tipcard
+        case .tipcard: return .flipcard
         case .chat:    return .chat
         }
     }
@@ -87,11 +87,11 @@ public enum TipOrigin: Sendable {
 /// The proto's `Action.default` means "infer from location," which only
 /// exists so the server can stay compatible with clients built before this
 /// field shipped. This client has no such clients to be compatible with, so
-/// `.default` has no local representation here: every `TipDmPayment` this
+/// `.default` has no local representation here: every `DmPayment` this
 /// client builds sets `action` explicitly. That matters because proto3 gives
-/// `Location` a zero value too (`TIPCARD`), so an unset `action` alongside a
-/// `TIPCARD` location would be indistinguishable on the wire from a client
-/// that deliberately declared a tip — `DEFAULT` and `TIPCARD` are both 0.
+/// `Location` a zero value too (`FLIPCARD`), so an unset `action` alongside a
+/// `FLIPCARD` location would be indistinguishable on the wire from a client
+/// that deliberately declared a tip — `DEFAULT` and `FLIPCARD` are both 0.
 public enum TipDmAction: Sendable, CaseIterable {
 
     /// A Send Cash payment inside an already-initialized tip DM.
@@ -100,7 +100,7 @@ public enum TipDmAction: Sendable, CaseIterable {
     /// A payment from a tip card, or the payment that opens the tip DM.
     case tip
 
-    var proto: Flipcash_Intent_V1_ChatMetadata.TipDmPayment.Action {
+    var proto: Flipcash_Intent_V1_ChatMetadata.DmPayment.Action {
         switch self {
         case .send: return .send
         case .tip:  return .tip
