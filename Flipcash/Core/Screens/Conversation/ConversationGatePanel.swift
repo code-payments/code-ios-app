@@ -37,6 +37,36 @@ struct ConversationGatePanel: View {
     let isJoining: Bool
 
     var body: some View {
+        if case .readOnly(.never) = presentation {
+            neverPill
+        } else {
+            card
+        }
+    }
+
+    /// Nobody but Flipcash may send here (node 10588:1969): the composer's place is taken by a
+    /// disabled, full-width capsule of glass with one muted line — no field, no controls, no action.
+    /// The brand is named, not the chat, because this rule is what the welcome chat runs on.
+    private var neverPill: some View {
+        Text(Self.neverSentence)
+            .font(.appTextMedium)
+            .foregroundStyle(Color.textMain.opacity(Layout.neverTextOpacity))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity)
+            .frame(height: BarMetrics.contentHeight)
+            .padding(.horizontal, BarMetrics.edgeInset)
+            .capsuleGlassBackground(interactive: false)
+            .padding(.horizontal, BarMetrics.compactInset)
+            .padding(.vertical, BarMetrics.contentPadding)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(Self.neverSentence))
+            .accessibilityAddTraits(.isStaticText)
+    }
+
+    static let neverSentence = "Only Flipcash can send messages"
+
+    private var card: some View {
         VStack(spacing: Layout.gap) {
             if let sentence {
                 Text(sentence)
@@ -87,7 +117,8 @@ struct ConversationGatePanel: View {
             case .open, .undetermined, .join, .blocked:   return "This chat is for Flipcash staff"
             }
         case .never:
-            return "Messages can't be sent in this chat"
+            // Drawn as the composer-shaped pill instead of this card; see ``neverPill``.
+            return Self.neverSentence
         }
     }
 
@@ -148,5 +179,7 @@ struct ConversationGatePanel: View {
         static let cardTopPadding: CGFloat = 12
         static let cardPadding: CGFloat = 6
         static let gap: CGFloat = 12
+        /// The pill's line, muted as the design draws it (node 10588:1969).
+        static let neverTextOpacity: Double = 0.4
     }
 }
