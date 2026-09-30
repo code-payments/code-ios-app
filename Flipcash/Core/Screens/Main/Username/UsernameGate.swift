@@ -80,3 +80,10 @@ func usernameGate(session: some UsernameBalanceReading, minimum: TokenAmount?) -
     }
     return .proceed
 }
+
+/// Whether to offer the custom-username card: true unless the user holds a
+/// handle they chose themselves. A server-assigned handle still counts as
+/// unclaimed.
+func usernameNeedsClaim(username: Username?, isAutoAssigned: Bool) -> Bool {
+    username == nil || isAutoAssigned
+}
