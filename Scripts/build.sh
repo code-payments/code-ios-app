@@ -6,9 +6,11 @@
 # Usage:
 #   ./Scripts/build.sh [extra xcodebuild args...]            # generic iOS build (default)
 #   ./Scripts/build.sh --device [name] [extra args...]       # paired physical device
+#   ./Scripts/build.sh --install [name] [extra args...]      # build, install, launch
 #
-# --device with no argument picks the first paired iOS device. Pass a name
-# substring to disambiguate (e.g. --device "Raul's iPhone").
+# --device with no argument picks $FLIPCASH_DEVICE, or else the first paired
+# iOS device. Pass a name substring to disambiguate (e.g. --device "Raul's iPhone").
+# --install takes the same name and also installs and launches the build on it.
 #
 # Override the destination directly with DESTINATION env var.
 
@@ -59,9 +61,11 @@ PY
 
 DESTINATION="${DESTINATION:-}"
 
-if [[ "${1:-}" == "--device" ]]; then
+INSTALL=""
+if [[ "${1:-}" == "--device" || "${1:-}" == "--install" ]]; then
+    [[ "$1" == "--install" ]] && INSTALL=1
     shift
-    MATCH=""
+    MATCH="${FLIPCASH_DEVICE:-}"
     if [[ $# -gt 0 && "$1" != -* ]]; then
         MATCH="$1"
         shift
@@ -82,3 +86,33 @@ run_xcodebuild build \
     -scheme Flipcash \
     -destination "$DESTINATION" \
     "$@"
+
+[[ -z "$INSTALL" ]] && exit 0
+
+# Ask xcodebuild where the product landed rather than assuming a DerivedData
+# path, so extra args like -configuration or -derivedDataPath still resolve.
+IFS=$'\t' read -r APP_PATH BUNDLE_ID < <(
+    xcodebuild -showBuildSettings -json -scheme Flipcash -destination "$DESTINATION" "$@" 2>/dev/null |
+    python3 -c '
+import json, sys
+for target in json.load(sys.stdin):
+    s = target["buildSettings"]
+    if s.get("WRAPPER_EXTENSION") == "app":
+        print(s["TARGET_BUILD_DIR"] + "/" + s["WRAPPER_NAME"], s["PRODUCT_BUNDLE_IDENTIFIER"], sep="\t")
+        break
+'
+)
+if [[ -z "${APP_PATH:-}" || ! -d "$APP_PATH" ]]; then
+    echo "error: could not locate the built app${APP_PATH:+ at $APP_PATH}." >&2
+    exit 1
+fi
+
+# A locked device can make devicectl hang or fail with IXRemoteErrorDomain 6.
+echo "+ installing $APP_PATH on $UDID (unlock the device if this stalls)"
+xcrun devicectl device install app --device "$UDID" "$APP_PATH" >/dev/null
+echo "✓ installed $BUNDLE_ID"
+if xcrun devicectl device process launch --device "$UDID" "$BUNDLE_ID" >/dev/null 2>&1; then
+    echo "✓ launched $BUNDLE_ID"
+else
+    echo "warning: installed but could not launch; the device is probably locked." >&2
+fi
