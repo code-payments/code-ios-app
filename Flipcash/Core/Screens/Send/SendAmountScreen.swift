@@ -35,19 +35,6 @@ private struct SendAmountScreenContent: View {
     @State private var isShowingTokenSelection: Bool = false
     @State private var didSucceed: Bool = false
 
-    private var maxLimit: ExchangedFiat {
-        let rate = ratesController.rateForBalanceCurrency()
-        guard let mint = viewModel.selectedBalance?.stored.mint,
-              let balance = session.balance(for: mint) else {
-            return ExchangedFiat.compute(
-                onChainAmount: .zero(mint: .usdf),
-                rate: rate,
-                supplyQuarks: nil
-            )
-        }
-        return balance.computeExchangedValue(with: rate)
-    }
-
     // MARK: - Init -
 
     init(
@@ -65,12 +52,12 @@ private struct SendAmountScreenContent: View {
     /// The tip floor when one applies, otherwise what's left to spend. Only the
     /// payment that opens a tip DM carries a floor here — it states its minimum
     /// up front and reports a breach through a dialog on submit, so the hint
-    /// never reddens on that path.
+    /// never reddens on that path. Both hold still once a send commits.
     private var hint: EnterAmountHeader.Hint {
-        if let minimum = viewModel.tipMinimum {
+        if let minimum = viewModel.displayedTipMinimum {
             .caption("\(minimum.formatted()) minimum")
         } else {
-            .available(maxLimit)
+            .available(viewModel.displayedAvailable)
         }
     }
 
@@ -79,14 +66,14 @@ private struct SendAmountScreenContent: View {
             EnterAmountView(
                 mode: .currency,
                 enteredAmount: $viewModel.enteredAmount,
-                subtitle: .balanceWithLimit(maxLimit),
+                subtitle: .balanceWithLimit(viewModel.displayedAvailable),
                 actionEnabled: { _ in viewModel.canSend },
                 header: AnyView(EnterAmountHeader(
                     enteredAmount: $viewModel.enteredAmount,
                     hint: hint
                 ))
             ) {
-                SwipeControl(text: viewModel.opensTipDM ? "Swipe to Tip" : "Swipe to Send") {
+                SwipeControl(text: viewModel.swipeLabel) {
                     switch await viewModel.sendAction() {
                     case .success:
                         didSucceed = true

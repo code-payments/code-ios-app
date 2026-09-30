@@ -132,6 +132,54 @@ final class SendAmountViewModel {
         tipFloor(in: ratesController.balanceCurrency)?.displayed
     }
 
+    /// What the amount header states while a send is in flight or has landed,
+    /// captured when the send commits. Nil when no send is pending, so the
+    /// header tracks live state.
+    struct SendingSnapshot {
+        let available: ExchangedFiat
+        let tipMinimum: FiatAmount?
+        let opensTipDM: Bool
+    }
+
+    /// Held from the moment a send commits until it fails, so the balance
+    /// refresh and tip-DM creation a send triggers can't redden the hint or
+    /// relabel the swipe before the sheet dismisses. A success keeps it for
+    /// the life of the flow.
+    private(set) var sendingSnapshot: SendingSnapshot?
+
+    /// What's left to spend in the selected currency, read live.
+    var liveAvailable: ExchangedFiat {
+        let rate = ratesController.rateForBalanceCurrency()
+        guard let mint = selectedBalance?.stored.mint,
+              let balance = session.balance(for: mint) else {
+            return ExchangedFiat.compute(
+                onChainAmount: .zero(mint: .usdf),
+                rate: rate,
+                supplyQuarks: nil
+            )
+        }
+        return balance.computeExchangedValue(with: rate)
+    }
+
+    /// The balance the header states: the one captured at the swipe while a
+    /// send is pending, otherwise the live one.
+    var displayedAvailable: ExchangedFiat {
+        if let sendingSnapshot { sendingSnapshot.available } else { liveAvailable }
+    }
+
+    /// The tip floor the header states, frozen with the balance while a send
+    /// is pending.
+    var displayedTipMinimum: FiatAmount? {
+        if let sendingSnapshot { sendingSnapshot.tipMinimum } else { tipMinimum }
+    }
+
+    /// The swipe label, frozen while a send is pending so the payment that
+    /// opens the DM doesn't flip to "Swipe to Send" once the DM exists.
+    var swipeLabel: String {
+        let opensTipDM = if let sendingSnapshot { sendingSnapshot.opensTipDM } else { opensTipDM }
+        return opensTipDM ? "Swipe to Tip" : "Swipe to Send"
+    }
+
     /// The keypad buffer parsed to a positive amount, or nil.
     private var validatedEntered: Decimal? {
         guard let amount = amountValidator.validate(enteredAmount), amount > 0 else { return nil }
@@ -285,6 +333,21 @@ final class SendAmountViewModel {
     /// currency — the entry point the tip sheet's preset chips use directly.
     @discardableResult
     func submit(entered: Decimal) async -> SendOutcome {
+        // Captured before the first await: the send's own balance refresh can
+        // land while the swipe is still loading.
+        sendingSnapshot = SendingSnapshot(
+            available: liveAvailable,
+            tipMinimum: tipMinimum,
+            opensTipDM: opensTipDM
+        )
+        let outcome = await performSubmit(entered: entered)
+        if outcome != .success {
+            sendingSnapshot = nil
+        }
+        return outcome
+    }
+
+    private func performSubmit(entered: Decimal) async -> SendOutcome {
         guard let selectedBalance,
               let exchangedFiat = selectedBalance.enteredFiat(
                 for: entered,
