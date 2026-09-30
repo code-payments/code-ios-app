@@ -261,6 +261,10 @@ final class ConversationController {
     /// The emoji reactions concern: the user's taps, their calls, and the stream's updates.
     let reactions: ConversationReactions
 
+    /// Keeps opened groups' full rosters on device from the stream's roster updates. Set by the
+    /// session after init; `nil` leaves roster updates unpersisted.
+    @ObservationIgnored var roster: RosterSync?
+
     init(
         fetching: any ConversationFetching,
         membership: any ConversationMembership,
@@ -408,6 +412,7 @@ final class ConversationController {
                 self.logCounterpartRead(event)
                 self.applyTyping(event)
                 self.applyReactions(event)
+                self.roster?.apply(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }

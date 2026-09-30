@@ -680,6 +680,12 @@ struct ConversationScreen: View {
             guard groupConversation != nil else { return }
             await sessionContainer.knownAuthors.reload()
         }
+        // Page the group's full roster into the store for member search. Detached from this task
+        // inside `RosterSync`, so leaving the chat mid-sync doesn't discard the pages fetched.
+        .task(id: groupConversation?.id) {
+            guard let groupID = groupConversation?.id else { return }
+            await conversationController.roster?.syncIfNeeded(groupID)
+        }
         // Name the senders the chat's roster and the local cache both leave out. Keyed on that set,
         // so it runs when a page of older messages reveals a sender nothing here can name — and not
         // again once the fetch has landed them.

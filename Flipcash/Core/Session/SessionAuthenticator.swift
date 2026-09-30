@@ -530,6 +530,8 @@ final class SessionContainer {
     let profileAvatars: ProfileAvatarStore
     /// Identities for chat senders the chat's own roster leaves out — see ``KnownAuthorDirectory``.
     let knownAuthors: KnownAuthorDirectory
+    /// Group member search for the mention picker — see ``RosterSearchSource``.
+    let rosterSearch: any RosterSearchSource
     /// Fills cash link cards in for chat transcripts. Container-scoped so a link shared into two
     /// conversations is looked up once, and holding a `GiftCardAccountReading` rather than the
     /// `Client` it was built from — rendering a card must never reach a path that claims it.
@@ -667,6 +669,9 @@ final class SessionContainer {
             owner: session.ownerKeyPair,
             selfUserID: session.userID
         )
+        let rosterSync = RosterSync(fetching: flipClient, database: database, owner: session.ownerKeyPair)
+        conversationController.roster = rosterSync
+        self.rosterSearch = LocalRosterSearch(database: database, roster: rosterSync, selfUserID: session.userID)
         // Chat cash arrives in the sender's native currency; the counters are USD.
         // Wired before `start()` so the first delivered message already normalises.
         conversationController.receipts.usdRate = { [weak ratesController] currency in

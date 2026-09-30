@@ -67,6 +67,12 @@ protocol ConversationFetching: AnyObject, Sendable {
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
 }
 
+/// Roster read surface used by `RosterSync`. Maps 1:1 to `flipcash.chat.v1.Chat.GetRoster`.
+protocol RosterFetching: AnyObject, Sendable {
+    /// One page of a chat's roster, most recently joined first; see ``FlipClient/RosterPage``.
+    func getRosterPage(owner: KeyPair, conversationID: ConversationID, pagingToken: Data?) async throws -> FlipClient.RosterPage
+}
+
 /// Group membership surface used by `ConversationController`. Separate from ``ConversationFetching``
 /// because these write: they are the only chat RPCs that change what the caller is a member of.
 protocol ConversationMembership: AnyObject, Sendable {
@@ -166,5 +172,5 @@ extension FlipClient {
 }
 
 extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing,
-                      ConversationFetching, ConversationMembership,
+                      ConversationFetching, ConversationMembership, RosterFetching,
                       ConversationViewerSettings, ConversationEventStreaming {}
