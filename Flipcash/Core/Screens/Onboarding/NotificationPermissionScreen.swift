@@ -35,7 +35,7 @@ struct NotificationPermissionScreen: View {
                     Text("Push Notifications Required")
                         .font(.appTitle)
                         .foregroundStyle(Color.textMain)
-                    Text("Push notifications are used to update you on tips and messages")
+                    Text("Push notifications are used to update you on new messages")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
@@ -95,7 +95,7 @@ private struct NotificationBannerPreview: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack {
-                    Text("You received a $5.00 tip!")
+                    Text("Sally Smith")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -103,7 +103,7 @@ private struct NotificationBannerPreview: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.5))
                 }
-                Text("Your balance has been updated")
+                Text("Thanks for the cash!")
                     .font(.system(size: 12))
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
