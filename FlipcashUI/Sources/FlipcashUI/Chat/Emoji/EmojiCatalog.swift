@@ -62,9 +62,13 @@ public actor EmojiCatalog {
     public init() {}
 
     /// The catalog, decoded on first call and kept for the rest of the process.
-    public func load() throws -> EmojiCatalogContents {
+    public func load() async throws -> EmojiCatalogContents {
         if let contents { return contents }
-        guard let url = Bundle.module.url(forResource: "emoji_catalog", withExtension: "json") else {
+        // Xcode 26's SwiftPM gives `Bundle.module` this package's default MainActor isolation.
+        let url = await MainActor.run {
+            Bundle.module.url(forResource: "emoji_catalog", withExtension: "json")
+        }
+        guard let url else {
             throw CatalogError.missingResource
         }
         let file = try JSONDecoder().decode(File.self, from: Data(contentsOf: url))
