@@ -8,9 +8,11 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 struct AccountSelectionScreen: View {
     @EnvironmentObject private var client: Client
+    @EnvironmentObject private var flipClient: FlipClient
     @Environment(RatesController.self) private var ratesController: RatesController?
 
     private let sessionAuthenticator: SessionAuthenticator
@@ -69,7 +71,9 @@ struct AccountSelectionScreen: View {
         .toolbarTitleDisplayMode(.inline)
         .task {
             fetchAccounts()
-            await fetchBalances()
+            async let balances: Void = fetchBalances()
+            async let profiles: Void = fetchProfiles()
+            _ = await (balances, profiles)
         }
         .dialog(item: $dialogItem)
     }
@@ -172,6 +176,51 @@ struct AccountSelectionScreen: View {
         }
     }
 
+    /// Titles each row from the profile in that account's own local database, then from its
+    /// live profile, refreshing the cached name so the next open is right before either lands.
+    ///
+    /// A row whose user ID is neither stored nor in its local database skips the live fetch:
+    /// resolving one would mean logging in as an account the user hasn't switched to.
+    private func fetchProfiles() async {
+        let location = StoreLocation.resolved()
+
+        await withTaskGroup(of: Void.self) { group in
+            accounts.forEach { historicalAccount in
+                group.addTask {
+                    let keyAccount = historicalAccount.details.account
+                    let owner = keyAccount.ownerPublicKey
+                    var userID = historicalAccount.details.userID
+
+                    let storedProfile = Database.storedProfile(at: location.files(owner: owner).database)
+                        ?? Database.storedProfile(at: location.legacyFiles(owner: owner).database)
+
+                    if let storedProfile {
+                        await accountManager.cacheProfile(storedProfile, ownerPublicKey: owner)
+                        await update(owner: owner) {
+                            $0.setProfile(storedProfile)
+                        }
+                        userID = userID ?? storedProfile.userID
+                    }
+
+                    guard let userID else {
+                        return
+                    }
+
+                    do {
+                        let profile = try await flipClient.fetchProfile(userID: userID, owner: keyAccount.owner)
+
+                        await accountManager.cacheProfile(profile, ownerPublicKey: owner)
+                        await update(owner: owner) {
+                            $0.setProfile(profile)
+                        }
+                    } catch {
+                        // The row keeps its stored or cached title.
+                    }
+                }
+            }
+        }
+    }
+
     private func update(owner: PublicKey, handler: @MainActor (inout HistoricalAccount) -> Void) {
         let index = accounts.firstIndex { $0.details.account.ownerPublicKey == owner }
 
@@ -201,7 +250,7 @@ private struct AccountRow: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .bottom, spacing: 10) {
-                        Text(account.mnemonic.name)
+                        Text(account.title)
 
                         if account.isNotFound {
                             Badge(decoration: .circle(.textError), text: "Not Found")
@@ -271,14 +320,23 @@ struct HistoricalAccount: Identifiable {
     nonisolated
     let details: AccountDescription
 
-    let mnemonic: MnemonicPhrase
+    /// The row's name: from the cached profile at first, then from the live one.
+    private(set) var title: String
 
     private(set) var totalBalance: ExchangedFiat?
     private(set) var isNotFound: Bool = false
 
     init(details: AccountDescription) {
-        self.details  = details
-        self.mnemonic = details.account.mnemonic
+        self.details = details
+        self.title   = details.title
+    }
+
+    mutating func setProfile(_ profile: Profile) {
+        title = AccountDescription.title(
+            username: profile.username,
+            displayName: profile.displayName,
+            fallback: details.account.mnemonic.name
+        )
     }
 
     mutating func setBalance(_ exchangedFiat: ExchangedFiat) {

@@ -103,6 +103,38 @@ class AccountManager {
         }
     }
     
+    /// Stores the account's username and display name from `profile` on its historical
+    /// entry, so the account switcher can title a row for an account that isn't signed in,
+    /// and fills in the entry's user ID from `profile` when none is stored yet.
+    /// Does nothing when the account has no entry or the stored values already match.
+    func cacheProfile(_ profile: Profile, ownerPublicKey: PublicKey) {
+        let key = ownerPublicKey.base58
+        guard
+            var historicalAccounts = Keychain.historicalAccounts,
+            var accountDescription = historicalAccounts[key]
+        else {
+            return
+        }
+
+        let backfillsUserID = accountDescription.userID == nil && profile.userID != nil
+
+        guard
+            accountDescription.username != profile.username ||
+            accountDescription.displayName != profile.displayName ||
+            backfillsUserID
+        else {
+            return
+        }
+
+        accountDescription.username = profile.username
+        accountDescription.displayName = profile.displayName
+        if backfillsUserID {
+            accountDescription.userID = profile.userID
+        }
+        historicalAccounts[key] = accountDescription
+        Keychain.historicalAccounts = historicalAccounts
+    }
+
     func setDeleted(ownerPublicKey: PublicKey, deleted: Bool) {
         let key = ownerPublicKey.base58
         if
@@ -175,7 +207,32 @@ struct AccountDescription: Codable, Hashable, Equatable, Sendable {
     /// ``UserAccount`` locally instead of calling `login(owner:)` before the tabs can appear.
     /// `nil` on entries written before it was stored, and on mocks.
     var userID: UserID?
-    
+
+    /// The account's username as of its last profile fetch while signed in. `nil` when it
+    /// has none, or on entries written before it was stored.
+    var username: Username?
+
+    /// The account's display name as of its last profile fetch while signed in. `nil` when
+    /// it has none, or on entries written before it was stored.
+    var displayName: String?
+
+    /// The name the account switcher shows for this account.
+    var title: String {
+        Self.title(username: username, displayName: displayName, fallback: account.mnemonic.name)
+    }
+
+    /// Returns the username's handle if there is one, else a non-empty display name, else
+    /// `fallback`. Android's switcher uses the same order.
+    static func title(username: Username?, displayName: String?, fallback: String) -> String {
+        if let username {
+            return username.handle
+        }
+        if let displayName, !displayName.isEmpty {
+            return displayName
+        }
+        return fallback
+    }
+
     // MARK: - Init -
     
     fileprivate init(account: KeyAccount, creationDate: Date, deletionDate: Date? = nil, userID: UserID? = nil) {
