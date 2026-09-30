@@ -220,6 +220,41 @@ struct RosterSearchTests {
         #expect(try harness.heldIDs().contains(departed.userID!) == false)
     }
 
+    @Test("A stale leave, older than the held join, changes nothing")
+    func staleLeaveIgnored() async throws {
+        let harness = try Harness(pages: 1, perPage: 2)
+        await harness.sync.syncIfNeeded(harness.chatID)
+
+        let zed = member("Zed Quill", version: 5)
+        await harness.sync.apply(.rosterChanged(conversationID: harness.chatID, updates: [joined(zed, count: 3, version: 5)]))
+        await harness.sync.apply(.rosterChanged(conversationID: harness.chatID, updates: [
+            DecodedRosterUpdate(rosterSummary: ConversationRosterSummary(memberCount: 2, version: 3), change: .left(userID: zed.userID!)),
+        ]))
+
+        #expect(try await harness.search.search(chatID: harness.chatID, query: "qui").map(\.id) == [zed.userID!])
+        #expect(try harness.state().heldCount == 3)
+    }
+
+    @Test("A profile write after a leave doesn't bring the member back")
+    func profileAfterLeaveStaysOut() async throws {
+        let harness = try Harness(pages: 1, perPage: 2)
+        await harness.sync.syncIfNeeded(harness.chatID)
+        let departed = harness.fetching.members[0]
+        await harness.sync.apply(.rosterChanged(conversationID: harness.chatID, updates: [
+            DecodedRosterUpdate(rosterSummary: ConversationRosterSummary(memberCount: 1, version: 3), change: .left(userID: departed.userID!)),
+        ]))
+
+        try harness.database.upsertUserProfile(
+            Profile(displayName: "Zed Quill", phone: Phone?.none, email: nil, username: Username("zedq")),
+            userID: departed.userID!
+        )
+
+        #expect(try await harness.search.search(chatID: harness.chatID, query: "qui").isEmpty)
+        #expect(try await harness.search.search(chatID: harness.chatID, query: "zedq").isEmpty)
+        #expect(try harness.state().heldCount == 1)
+        #expect(try harness.heldIDs().contains(departed.userID!) == false)
+    }
+
     // MARK: - Profiles -
 
     @Test("Opening the picker re-reads the first page and re-tokenizes a rename")
@@ -337,6 +372,14 @@ struct RosterSearchTests {
         let harness = try Harness(members: [member("éva"), member("Eva")])
         await harness.sync.syncIfNeeded(harness.chatID)
         #expect(try await harness.names("eva") == ["Eva", "éva"])
+    }
+
+    @Test("Names sort by code point, so U+FFFD comes before an emoji")
+    func codePointOrder() async throws {
+        // UTF-16 order would put the emoji's surrogate (D83D) first; neither character decomposes.
+        let harness = try Harness(members: [member("Ann \u{1F600}"), member("Ann \u{FFFD}")])
+        await harness.sync.syncIfNeeded(harness.chatID)
+        #expect(try await harness.names("ann") == ["Ann \u{FFFD}", "Ann \u{1F600}"])
     }
 
     @Test("An empty query returns recent speakers only")
