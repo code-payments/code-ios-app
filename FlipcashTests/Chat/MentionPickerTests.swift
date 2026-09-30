@@ -139,17 +139,17 @@ struct MentionPickerModelTests {
         private(set) var prepareCount = 0
         private(set) var searches: [String] = []
         private var gate: CheckedContinuation<Void, Never>?
-        private var released = false
+        private var outcome: Bool?
 
-        func prepare(chatID: ConversationID) async {
+        func prepare(chatID: ConversationID) async -> Bool {
             prepareCount += 1
-            guard !released else { return }
-            await withCheckedContinuation { gate = $0 }
+            if outcome == nil { await withCheckedContinuation { gate = $0 } }
+            return outcome ?? false
         }
 
-        /// Lets the refresh finish, whether or not it has started waiting yet.
-        func release() {
-            released = true
+        /// Lets the refresh finish with `succeeding`, whether or not it has started waiting yet.
+        func release(succeeding: Bool = true) {
+            outcome = succeeding
             gate?.resume()
             gate = nil
         }
@@ -167,20 +167,54 @@ struct MentionPickerModelTests {
     @Test("A finished refresh re-runs the current query so new joiners appear")
     func refreshThenRequery() async throws {
         let source = FakeSource()
-        source.members = [member("Maria", username: "maria")]
+        source.members = [member("Érica", username: "erica")]
         let model = MentionPickerModel(source: source, chatID: chatID)
 
-        model.update(query: "ma")
+        model.update(query: "er")
         await model.searchTask?.value
-        #expect(model.candidates.map(\.displayName) == ["Maria"])
+        #expect(model.candidates.map(\.displayName) == ["Érica"])
 
-        source.members.append(member("Marco", username: "marco"))
+        source.members.append(member("Erin", username: "erin"))
         source.release()
         await model.refreshTask?.value
         await model.searchTask?.value
 
-        #expect(source.searches == ["ma", "ma"])
-        #expect(model.candidates.map(\.displayName) == ["Maria", "Marco"])
+        #expect(source.searches == ["er", "er"])
+        #expect(model.candidates.map(\.displayName) == ["Érica", "Erin"])
+    }
+
+    @Test("A refresh that lands after the picker closed leaves it closed")
+    func refreshAfterClose() async {
+        let source = FakeSource()
+        source.members = [member("Érica", username: "erica")]
+        let model = MentionPickerModel(source: source, chatID: chatID)
+
+        model.update(query: "er")
+        await model.searchTask?.value
+        model.update(query: nil)
+        source.release()
+        await model.refreshTask?.value
+        await model.searchTask?.value
+
+        #expect(source.searches == ["er"])
+        #expect(model.candidates.isEmpty)
+    }
+
+    @Test("A failed refresh doesn't search again")
+    func failedRefresh() async {
+        let source = FakeSource()
+        source.members = [member("Érica", username: "erica")]
+        let model = MentionPickerModel(source: source, chatID: chatID)
+
+        model.update(query: "er")
+        await model.searchTask?.value
+        source.members.append(member("Erin", username: "erin"))
+        source.release(succeeding: false)
+        await model.refreshTask?.value
+        await model.searchTask?.value
+
+        #expect(source.searches == ["er"])
+        #expect(model.candidates.map(\.displayName) == ["Érica"])
     }
 
     @Test("The source is prepared once per visit, not on every query")

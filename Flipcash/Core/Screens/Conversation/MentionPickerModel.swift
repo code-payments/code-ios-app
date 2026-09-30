@@ -57,9 +57,9 @@ final class MentionPickerModel {
         if !didRefresh {
             didRefresh = true
             refreshTask = Task { [source, chatID] in
-                await source.prepare(chatID: chatID)
-                guard !Task.isCancelled else { return }
-                // New joiners appear without another keystroke.
+                // A failed refresh changed nothing, so searching again would too.
+                guard await source.prepare(chatID: chatID), !Task.isCancelled else { return }
+                // New joiners appear without another keystroke; a picker closed meanwhile stays closed.
                 self.rerun()
             }
         }
