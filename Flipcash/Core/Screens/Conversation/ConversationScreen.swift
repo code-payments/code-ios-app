@@ -267,13 +267,18 @@ struct ConversationScreen: View {
     }
 
     /// The chat's participation rules weighed against the signed-in user: what the bottom of the
-    /// screen draws, and whether the transcript is readable at all. `.open` for every DM and for a
-    /// group with no rules.
+    /// screen draws, and whether the transcript is readable at all. `.open` for a chat with no rules.
+    ///
+    /// Not limited to groups: the server sends rules on some DMs too — the Flipcash account's DM
+    /// carries a `never` speaker rule — and a DM participant is always a member, so its speaker
+    /// rules close the composer the same way a group's do.
     ///
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
     private var gate: ConversationGatePresentation {
-        guard let conversation = groupConversation else {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID)
+        else {
             return awaitingMetadata ? .undetermined : .open
         }
         return conversationGatePresentation(gateVerdicts, isMember: conversationController.isMember(of: conversation))
@@ -301,7 +306,9 @@ struct ConversationScreen: View {
     /// advertised listener rule (``ConversationGate/headline``) whether or not the viewer is short
     /// of it, and the presentation only ever carries something unmet.
     private var gateVerdicts: ConversationGate {
-        guard let conversation = groupConversation else { return .open }
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID)
+        else { return .open }
         return conversationGate(
             session: session,
             rules: conversation.rules,
