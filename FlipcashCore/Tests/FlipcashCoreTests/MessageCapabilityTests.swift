@@ -106,9 +106,23 @@ struct MessageCapabilityTests {
         #expect(resolve(message, isMember: false, canSpeak: true) == [])
     }
 
-    @Test("The speaker rule gates only widgets: a person's text keeps its composer-based menu")
-    func speakerRuleDoesNotGateText() {
-        #expect(resolve(text("hi", from: them), canSpeak: false) == [.copy, .reply, .report])
+    @Test("The speaker rule removes Reply from text and cash, and nothing else")
+    func speakerRuleGatesReplyOnEveryMessage() {
+        // Can speak: the usual menus.
+        #expect(resolve(text("hi", from: them), canSpeak: true) == [.copy, .reply, .report])
+        #expect(resolve(cash(from: them), canSpeak: true) == [.reply, .report])
+        // Cannot speak: Reply goes; Copy and Report stay.
+        #expect(resolve(text("hi", from: them), canSpeak: false) == [.copy, .report])
+        #expect(resolve(cash(from: them), canSpeak: false) == [.report])
+        // Own messages keep Copy, Edit and Delete.
+        #expect(resolve(text("hi", from: me), canSpeak: false) == [.copy, .edit, .delete])
+        #expect(resolve(cash(from: me), canSpeak: false) == [])
+    }
+
+    @Test("A DM is never gated: canSpeak defaults to true")
+    func dmIsUngated() {
+        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report])
+        #expect(resolve(cash(from: them)) == [.reply, .report])
     }
 
     // MARK: - Windows -

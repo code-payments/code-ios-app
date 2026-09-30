@@ -82,8 +82,8 @@ extension ChatItem {
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
         /// they have not joined (see `ChatMessage.canReact`).
         canReact: Bool = true,
-        /// Whether the chat's speaker rule lets the viewer speak. A widget has no author to gate on,
-        /// so its reactions follow this in addition to `canReact`.
+        /// Whether the chat's speaker rule lets the viewer speak. Reactions follow it in addition to
+        /// `canReact`; a DM always passes.
         canSpeak: Bool = true,
         /// The card, if any, for a message's detected links. Injected like the other collaborators
         /// so the mapper stays pure; the screen supplies classification and nothing else, and it
@@ -355,7 +355,7 @@ extension ChatItem {
                     // last row, with its receipt.
                     reactions: isLast ? message.reactionState?.pills ?? [] : [],
                     selfReactions: message.reactionState?.selfReactions ?? [],
-                    canReact: canReact && (isWidget(message) ? canSpeak : true),
+                    canReact: canReact && canSpeak,
                     isUnsent: isUnsent
                 )))
             }
@@ -546,11 +546,6 @@ extension ChatItem {
     ///
     /// Report goes last: it is the rarest row and the only one that never appears on your own
     /// message, so the menu reads "yours ends with delete, theirs ends with report".
-    nonisolated private static func isWidget(_ message: ConversationMessage) -> Bool {
-        if case .widget = message.content { return true }
-        return false
-    }
-
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
         [.copy, .reply, .edit, .delete, .report].filter(capabilities.contains)
     }
