@@ -103,9 +103,29 @@ struct DatabaseConversationsTests {
         switch loadedMessage.content {
         case .cash(let loadedExchanged):
             #expect(loadedExchanged.nativeAmount.value == amount)
-        case .text, .deleted, .encrypted:
+        case .text, .deleted, .encrypted, .widget:
             Issue.record("Expected cash message content")
         }
+    }
+
+    @Test("Widget messages round-trip, and a widget with no username reads back as unrecognized")
+    func widgetMessageRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let alice = try #require(Username("alice"))
+        func widget(_ n: UInt64, _ content: ConversationMessage.Widget) -> ConversationMessage {
+            ConversationMessage(id: MessageID(value: n), senderID: UUID(), content: .widget(content),
+                                date: Date(timeIntervalSince1970: TimeInterval(n)), unreadSeq: n)
+        }
+        try database.upsertConversationMessages(
+            [widget(1, .shareProfile(ShareProfileWidget(username: alice))), widget(2, .unrecognized)],
+            conversationID: id
+        )
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded.map(\.content) == [
+            .widget(.shareProfile(ShareProfileWidget(username: alice))), .widget(.unrecognized),
+        ])
     }
 
     @Test("Cash message tip action round-trips", arguments: [CashAction.sent, .tipped])

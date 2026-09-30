@@ -94,7 +94,7 @@ public enum NotificationPayload {
         switch message.content {
         case .text(let text):
             return text
-        case .cash, .deleted, .encrypted:
+        case .cash, .deleted, .encrypted, .widget:
             return nil
         }
     }

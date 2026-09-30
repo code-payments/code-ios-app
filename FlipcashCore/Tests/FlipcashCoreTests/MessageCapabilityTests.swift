@@ -24,8 +24,8 @@ struct MessageCapabilityTests {
         )
     }
 
-    private func resolve(_ message: ConversationMessage, isMember: Bool = true, policy: MessagePolicy = .default) -> Set<MessageCapability> {
-        MessageCapability.resolve(for: message, in: nil, as: me, isMember: isMember, policy: policy, now: now)
+    private func resolve(_ message: ConversationMessage, isMember: Bool = true, canSpeak: Bool = true, policy: MessagePolicy = .default) -> Set<MessageCapability> {
+        MessageCapability.resolve(for: message, in: nil, as: me, isMember: isMember, canSpeak: canSpeak, policy: policy, now: now)
     }
 
     @Test("My own confirmed text can be copied, edited, and deleted")
@@ -79,6 +79,36 @@ struct MessageCapabilityTests {
             content: .cash(ExchangedFiat(nativeAmount: .usd(20), rate: .oneToOne)),
             cashAction: .sent, date: now, unreadSeq: 1, eventSequence: 2
         )
+    }
+
+    @Test("A share-profile widget is server-sent: Reply only, never Report, whoever the sender id says")
+    func shareProfileWidgetOffersReplyOnly() throws {
+        let widget = ConversationMessage.Content.widget(.shareProfile(ShareProfileWidget(username: try #require(Username("alice")))))
+        for sender in [me, them] {
+            let message = ConversationMessage(
+                id: MessageID(value: 4), senderID: sender, content: widget,
+                date: now, unreadSeq: 1, eventSequence: 2
+            )
+            #expect(resolve(message) == [.reply])
+        }
+    }
+
+    @Test("A share-profile widget's Reply follows the speaker rule: none when the viewer cannot speak")
+    func shareProfileWidgetReplyFollowsSpeakerRule() throws {
+        let widget = ConversationMessage.Content.widget(.shareProfile(ShareProfileWidget(username: try #require(Username("alice")))))
+        let message = ConversationMessage(
+            id: MessageID(value: 4), senderID: nil, content: widget,
+            date: now, unreadSeq: 1, eventSequence: 2
+        )
+        #expect(resolve(message, canSpeak: true) == [.reply])
+        #expect(resolve(message, canSpeak: false) == [])
+        // A non-member has no composer either, whatever the speaker rule says.
+        #expect(resolve(message, isMember: false, canSpeak: true) == [])
+    }
+
+    @Test("The speaker rule gates only widgets: a person's text keeps its composer-based menu")
+    func speakerRuleDoesNotGateText() {
+        #expect(resolve(text("hi", from: them), canSpeak: false) == [.copy, .reply, .report])
     }
 
     // MARK: - Windows -

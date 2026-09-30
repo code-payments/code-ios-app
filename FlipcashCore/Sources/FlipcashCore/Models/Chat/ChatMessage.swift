@@ -29,6 +29,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         /// A message this client cannot display — today, an encrypted one it cannot decrypt. Drawn
         /// as a dashed "This message can't be displayed" bubble with `hint` beneath it.
         case unavailable(UnavailableHint)
+        /// A shared profile, drawn as a card with a Share button. The card carries only the
+        /// handle's link; the name and picture are looked up by the view, as a link card's are.
+        case shareProfile(LinkCard.User)
     }
 
     /// The line under an unavailable message's bubble, chosen by why it can't be shown.
@@ -144,7 +147,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         guard isEmojiOnly, quote == nil, linkPreview == nil else { return false }
         switch content {
         case .text:           return true
-        case .cash, .deleted, .unavailable: return false
+        case .cash, .deleted, .unavailable, .shareProfile: return false
         }
     }
 
@@ -166,7 +169,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     public var offersReactionStrip: Bool {
         switch content {
         case .deleted, .unavailable: return false
-        case .text, .cash: return !isUnsent
+        case .text, .cash, .shareProfile: return !isUnsent
         }
     }
 

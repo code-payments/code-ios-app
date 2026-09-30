@@ -29,7 +29,7 @@ extension URL {
     static func tipcard(for userID: UserID, username: Username?) -> URL {
         let host = "https://flipcash.com"
         if let username {
-            return URL(string: "\(host)/\(username.value)")!
+            return username.profileURL
         }
         return URL(string: "\(host)/\(userID.uuidString.lowercased())")!
     }

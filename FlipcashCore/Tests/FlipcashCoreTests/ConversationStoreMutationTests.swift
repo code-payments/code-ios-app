@@ -32,6 +32,7 @@ struct ConversationStoreMutationTests {
             case .deleted:         "<deleted>"
             case .cash:            "<cash>"
             case .encrypted:       "<encrypted>"
+            case .widget:          "<widget>"
             }
         }
     }

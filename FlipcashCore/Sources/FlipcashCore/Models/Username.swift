@@ -33,6 +33,12 @@ public struct Username: Codable, Equatable, Hashable, Sendable {
     /// server or building a link wants ``value``.
     public var handle: String { "@\(value)" }
 
+    /// The public page that opens this handle's tip card, on the apex host. The one place the
+    /// handle form of the link is built; `URL.tipcard(for:username:)` in the app delegates here.
+    public var profileURL: URL {
+        URL(string: "https://flipcash.com/\(value)")!
+    }
+
     // Mirrors the `validate.rules.string.pattern` on `common.v1.Username`;
     // keep the two in step when the contract moves.
     private nonisolated(unsafe) static let pattern = /^[a-z0-9_]{2,15}$/

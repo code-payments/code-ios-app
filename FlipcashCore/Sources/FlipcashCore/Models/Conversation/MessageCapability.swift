@@ -66,16 +66,23 @@ extension MessageCapability {
     /// `isMember` is false for a non-member reading a group they have not joined. They get no Reply:
     /// the Join panel stands where the composer would, so there is nothing to reply with.
     ///
+    /// `canSpeak` is the chat's speaker rule as the viewer stands against it (`ConversationGate`'s
+    /// speaker verdict, with membership). It gates only the server-authored widget, whose Reply and
+    /// reactions have no other reason to be withheld: a person's message keeps the composer-based
+    /// gating above. A `never` rule, an unmet balance or an unmet staff requirement all arrive here
+    /// as false.
+    ///
     /// `now` is a parameter rather than `Date.now` so the result stays a function of its inputs.
     public static func resolve(
         for message: ConversationMessage,
         in conversation: Conversation?,
         as selfUserID: UserID,
         isMember: Bool,
+        canSpeak: Bool = true,
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
-        var capabilities = memberCapabilities(for: message, as: selfUserID, policy: policy, now: now)
+        var capabilities = memberCapabilities(for: message, as: selfUserID, canSpeak: canSpeak, policy: policy, now: now)
         if !isMember {
             capabilities.remove(.reply)
         }
@@ -85,6 +92,7 @@ extension MessageCapability {
     private static func memberCapabilities(
         for message: ConversationMessage,
         as selfUserID: UserID,
+        canSpeak: Bool,
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
@@ -99,6 +107,14 @@ extension MessageCapability {
             // a payment record. Someone else's payment is still reportable — a payment is a thing
             // a person did to you.
             return message.isFromSelf(selfUserID) ? [.reply] : [.reply, .report]
+        case .widget(.unrecognized):
+            // Drawn as an unsupported message: nothing this client can act on.
+            return []
+        case .widget(.shareProfile):
+            // Server-authored, like cash: no text to copy or edit, and no user sender to report,
+            // so the only capability is Reply, which the quote panel supports. Reply follows the
+            // chat's speaker rule like any message. Sharing is the card's own button, not a menu action.
+            return canSpeak ? [.reply] : []
         case .text:
             break
         }

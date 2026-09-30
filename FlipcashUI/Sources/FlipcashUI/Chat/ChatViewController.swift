@@ -51,6 +51,22 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Called when the user taps a URL in a text bubble; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
+    /// Fired when a shared-profile widget's Share button is tapped.
+    public var onShareProfile: ((LinkCard.User) -> Void)?
+
+    /// The viewer's own profile, which a shared-profile widget naming them draws from directly. Rows
+    /// on screen pick a change up without a diff.
+    public var ownProfile: OwnProfileCard? {
+        didSet {
+            guard ownProfile != oldValue, isViewLoaded else { return }
+            for cell in collectionView.visibleCells where cell is ChatShareProfileCell {
+                guard let indexPath = collectionView.indexPath(for: cell),
+                      items.indices.contains(indexPath.item),
+                      case .message(let message) = items[indexPath.item] else { continue }
+                configure(cell, with: message)
+            }
+        }
+    }
 
     /// Called when the user taps an `@handle` in a text bubble; the owner finds who it names.
     public var onMentionTap: ((Username) -> Void)?
@@ -307,6 +323,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatMessageCell.self, forCellWithReuseIdentifier: ChatMessageCell.reuseIdentifier)
         collectionView.register(ChatLinkMessageCell.self, forCellWithReuseIdentifier: ChatLinkMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
+        collectionView.register(ChatShareProfileCell.self, forCellWithReuseIdentifier: ChatShareProfileCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
         collectionView.register(ChatEncryptionMarkerCell.self, forCellWithReuseIdentifier: ChatEncryptionMarkerCell.reuseIdentifier)
@@ -646,6 +663,15 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+        case let cell as ChatShareProfileCell:
+            cell.linkCardSource = linkCardSource
+            cell.ownProfile = ownProfile
+            cell.onShare = { [weak self] card in self?.onShareProfile?(card) }
+            let cardWidth = available - ChatColumnCell.rowInset * 2
+            cell.configure(with: message, maxWidth: cardWidth, authorImageData: authorImageData)
+            cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
+            cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
+            cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         default:
             assertionFailure("Unhandled chat cell class for message row")
         }
@@ -741,7 +767,7 @@ public final class ChatViewController: UICollectionViewController {
               let cell = collectionView.cellForItem(at: indexPath) as? BubbleCarrying else { return nil }
         switch message.content {
         case .text: break
-        case .cash, .deleted, .unavailable: return nil
+        case .cash, .deleted, .unavailable, .shareProfile: return nil
         }
         let bubble = cell.liftPreviewView
         guard bubble.bounds.contains(bubble.convert(point, from: collectionView)) else { return nil }

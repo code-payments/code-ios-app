@@ -87,6 +87,10 @@ extension ChatItem {
                     isFromSelf: message.senderID == selfUserID,
                     senderName: counterpartName
                 ))
+            case .widget(.shareProfile(let share)):
+                content = .shareProfile(LinkCard.User(profileOf: share.username))
+            case .widget(.unrecognized):
+                content = .unavailable(.updateApp)
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
             }
@@ -97,7 +101,7 @@ extension ChatItem {
             let isEmojiOnly: Bool
             switch message.content {
             case .text(let text):            isEmojiOnly = EmojiOnlyDetector.isEmojiOnly(text)
-            case .cash, .deleted, .encrypted: isEmojiOnly = false
+            case .cash, .deleted, .encrypted, .widget: isEmojiOnly = false
             }
 
             items.append(.message(ChatMessage(

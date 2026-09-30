@@ -548,6 +548,13 @@ nonisolated extension Database {
             encryptedScheme = scheme
             encryptedNonce = nonce
             encryptedCiphertext = ciphertext
+        case .widget(let widget):
+            // The username rides in `text`; a widget with none is one this client can't draw.
+            kind = 4
+            switch widget {
+            case .shareProfile(let share): text = share.username.value
+            case .unrecognized:            text = nil
+            }
         }
 
         let cashAction: Int? = switch message.cashAction {
@@ -746,6 +753,10 @@ nonisolated extension Database {
                 return nil
             }
             content = .encrypted(scheme: scheme, nonce: nonce, ciphertext: ciphertext)
+        case 4:
+            content = .widget(
+                row[m.text].flatMap(Username.init).map { .shareProfile(ShareProfileWidget(username: $0)) } ?? .unrecognized
+            )
         default:
             return nil
         }

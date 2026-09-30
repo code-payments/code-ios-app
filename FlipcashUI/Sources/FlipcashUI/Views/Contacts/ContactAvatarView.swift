@@ -18,13 +18,17 @@ public struct ContactAvatarView: View {
     public let imageData: Data?
     public let blurhash: String?
     public let size: CGFloat
+    /// The monogram's color. Full-strength by default; a surface whose design mutes the initials
+    /// passes a dimmer one.
+    public let initialsColor: Color
 
-    public init(id: String, displayName: String, imageData: Data? = nil, blurhash: String? = nil, size: CGFloat = 44) {
+    public init(id: String, displayName: String, imageData: Data? = nil, blurhash: String? = nil, size: CGFloat = 44, initialsColor: Color = .textMain) {
         self.id = id
         self.displayName = displayName
         self.imageData = imageData
         self.blurhash = blurhash
         self.size = size
+        self.initialsColor = initialsColor
     }
 
     public var body: some View {
@@ -49,7 +53,7 @@ public struct ContactAvatarView: View {
                                 // Scales with the avatar, preserving the default (44pt) avatar's
                                 // 16pt monogram proportions at any size.
                                 .font(.default(size: size * 16 / 44, weight: .bold))
-                                .foregroundStyle(Color.textMain)
+                                .foregroundStyle(initialsColor)
                         case .placeholder:
                             PeopleSilhouette(size: size)
                         }

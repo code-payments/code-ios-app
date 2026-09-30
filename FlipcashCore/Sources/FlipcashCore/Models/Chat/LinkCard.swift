@@ -287,6 +287,12 @@ extension LinkCard {
             self.length = range.length
         }
 
+        /// The card for `username`'s profile link, standing on its own rather than over a span of
+        /// message text. What a shared-profile widget looks its person up with.
+        public init(profileOf username: Username) {
+            self.init(url: username.profileURL, identity: .username(username), range: NSRange(location: 0, length: 0))
+        }
+
         /// The `@handle` the link itself names, or nil for an id link. What a card with no account
         /// behind it shows as the name, since the link is all it has to go on.
         public var linkedHandle: String? {

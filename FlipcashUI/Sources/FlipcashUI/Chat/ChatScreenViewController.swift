@@ -162,6 +162,16 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onOpenURL = newValue }
     }
 
+    public var ownProfile: OwnProfileCard? {
+        get { transcript.ownProfile }
+        set { transcript.ownProfile = newValue }
+    }
+
+    public var onShareProfile: ((LinkCard.User) -> Void)? {
+        get { transcript.onShareProfile }
+        set { transcript.onShareProfile = newValue }
+    }
+
     public var onMentionTap: ((Username) -> Void)? {
         get { transcript.onMentionTap }
         set { transcript.onMentionTap = newValue }

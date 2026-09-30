@@ -481,6 +481,8 @@ struct ConversationScreen: View {
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
             onMentionTap: openMention,
+            onShareProfile: shareProfile,
+            ownProfile: ownProfile,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
             onContactAction: openContactCard,
@@ -702,6 +704,11 @@ struct ConversationScreen: View {
                 groupAvatarSubject,
                 picture: groupConversation?.picture
             )
+        }
+        // Fetch the signed-in user's own avatar for a shared-profile widget that names them.
+        .task(id: sessionContainer.session.profile?.profilePicture?.thumbnailBlobID) {
+            guard let picture = sessionContainer.session.profile?.profilePicture else { return }
+            await sessionContainer.profileAvatars.load(userID: sessionContainer.session.userID, picture: picture)
         }
         // Fetch the tip counterpart's avatar for the title and profile card.
         .task(id: tipCounterpart?.userID) {
@@ -1074,7 +1081,9 @@ struct ConversationScreen: View {
             )
         case .deleted:
             (ChatQuote.deletedSnippet, .unavailable)
-        case .encrypted:
+        case .widget(.shareProfile):
+            (ChatQuote.sharedProfileSnippet, .text)
+        case .encrypted, .widget(.unrecognized):
             (ChatQuote.unavailableSnippet, .unavailable)
         }
     }
@@ -1161,7 +1170,7 @@ struct ConversationScreen: View {
         case .cash(let fiat):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: fiat.mint)
             router.push(.currencyInfo(fiat.mint))
-        case .text, .deleted, .encrypted:
+        case .text, .deleted, .encrypted, .widget:
             break
         }
     }
@@ -1275,6 +1284,31 @@ struct ConversationScreen: View {
         ).open(url)
     }
 
+    /// Opens the share sheet on the widget's person, with the public link their own You tab shares.
+    private func shareProfile(_ card: LinkCard.User) {
+        let item = TipCodeShareItem(url: card.url, title: card.linkedHandle ?? card.url.absoluteString, preview: nil)
+        ShareSheet.present(activityItem: item) { _ in }
+    }
+
+    /// The session profile as a card, for a widget naming the viewer's own handle. Read from `body`,
+    /// so a picture landing redraws it. Nil until the profile has a claimed handle.
+    private var ownProfile: OwnProfileCard? {
+        guard let profile = sessionContainer.session.profile, let username = profile.username else { return nil }
+        let userID = sessionContainer.session.userID
+        return OwnProfileCard(
+            username: username,
+            resolved: LinkCard.User.Resolved(
+                userID: userID,
+                isOwn: true,
+                displayName: profile.displayName ?? "",
+                handle: username.handle,
+                joined: nil,
+                imageData: sessionContainer.profileAvatars.data(for: userID),
+                blurHash: profile.profilePicture?.thumbnailBlurhash
+            )
+        )
+    }
+
     /// Looks up a tapped `@handle` and opens whoever it names. Resolved on tap rather than as the
     /// message maps: a transcript full of handles would otherwise cost a lookup per handle for
     /// people nobody taps.
@@ -1381,6 +1415,13 @@ struct ConversationScreen: View {
                         // must pick up the conversation the first tip creates.
                         fallbackCounterpart: Self.cachedCounterpart(counterpartUserID, session: session)
                     )
+                },
+                // The chat's speaker rule, the same `conversationGate` verdict that decides whether
+                // the composer is live, so a widget's Reply and reactions open and close with it.
+                canSpeak: { [session, ratesController, conversationController] in
+                    guard let chat = conversationController.conversation(withID: id), chat.type == .group else { return true }
+                    guard conversationController.isMember(of: chat) else { return false }
+                    return conversationGate(session: session, rules: chat.rules, rates: ratesController.cachedRates).isOpen
                 }
             )
         }

@@ -82,6 +82,9 @@ extension ChatItem {
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
         /// they have not joined (see `ChatMessage.canReact`).
         canReact: Bool = true,
+        /// Whether the chat's speaker rule lets the viewer speak. A widget has no author to gate on,
+        /// so its reactions follow this in addition to `canReact`.
+        canSpeak: Bool = true,
         /// The card, if any, for a message's detected links. Injected like the other collaborators
         /// so the mapper stays pure; the screen supplies classification and nothing else, and it
         /// defaults to no card. Takes the detected links rather than the text so the detector runs
@@ -151,7 +154,7 @@ extension ChatItem {
         func isEmojiOnlyBody(_ message: ConversationMessage) -> Bool {
             switch message.content {
             case .text(let text): EmojiOnlyDetector.isEmojiOnly(text)
-            case .cash, .deleted, .encrypted: false
+            case .cash, .deleted, .encrypted, .widget: false
             }
         }
         func rendersBare(_ message: ConversationMessage) -> Bool {
@@ -164,7 +167,7 @@ extension ChatItem {
         let layouts = messages.map { message in
             switch message.content {
             case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard))
-            case .cash, .deleted, .encrypted: [RowLayout(part: nil, text: nil, preview: nil)]
+            case .cash, .deleted, .encrypted, .widget: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
         // A status line under a message sits between it and the next bubble, so it ends the bubble
@@ -251,6 +254,11 @@ extension ChatItem {
                         ? "You deleted this message"
                         : "This message was deleted"
                 )
+            case .widget(.shareProfile(let share)):
+                content = .shareProfile(LinkCard.User(profileOf: share.username))
+            case .widget(.unrecognized):
+                // A widget variant this build doesn't draw; a newer one will.
+                content = .unavailable(.updateApp)
             case .encrypted:
                 // Still encrypted here means decryption failed; the awaiting ones were dropped above.
                 content = .unavailable(.decryptFailure(
@@ -347,7 +355,7 @@ extension ChatItem {
                     // last row, with its receipt.
                     reactions: isLast ? message.reactionState?.pills ?? [] : [],
                     selfReactions: message.reactionState?.selfReactions ?? [],
-                    canReact: canReact,
+                    canReact: canReact && (isWidget(message) ? canSpeak : true),
                     isUnsent: isUnsent
                 )))
             }
@@ -404,6 +412,22 @@ extension ChatItem {
                 stableID: nil,
                 authorName: authorName,
                 snippet: ChatQuote.deletedSnippet,
+                kind: .unavailable,
+                authorID: original.senderID
+            )
+        case .widget(.shareProfile):
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: ChatQuote.sharedProfileSnippet,
+                kind: .text,
+                authorID: original.senderID
+            )
+        case .widget(.unrecognized):
+            return ChatQuote(
+                stableID: nil,
+                authorName: authorName,
+                snippet: ChatQuote.unavailableSnippet,
                 kind: .unavailable,
                 authorID: original.senderID
             )
@@ -522,6 +546,11 @@ extension ChatItem {
     ///
     /// Report goes last: it is the rarest row and the only one that never appears on your own
     /// message, so the menu reads "yours ends with delete, theirs ends with report".
+    nonisolated private static func isWidget(_ message: ConversationMessage) -> Bool {
+        if case .widget = message.content { return true }
+        return false
+    }
+
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
         [.copy, .reply, .edit, .delete, .report].filter(capabilities.contains)
     }

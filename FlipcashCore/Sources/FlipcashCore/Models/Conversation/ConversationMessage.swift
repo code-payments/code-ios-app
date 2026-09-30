@@ -53,6 +53,17 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         /// is the wire `EncryptedContent.Scheme` raw value, kept as `Int` so this model doesn't depend
         /// on the generated proto enum. A decrypted message carries `.text` instead.
         case encrypted(scheme: Int, nonce: Data, ciphertext: Data)
+        /// A widget: structured content the sender's client drew as a card rather than text.
+        case widget(Widget)
+    }
+
+    /// The widget a `.widget` message carries. Sent in the clear only: the E2EE allow-list is text,
+    /// media and reply, so a widget decrypted out of `EncryptedContent` is still unsupported.
+    public enum Widget: Hashable, Sendable {
+        case shareProfile(ShareProfileWidget)
+        /// A variant this client doesn't recognize, or one missing what it needs (a malformed
+        /// username). Drawn as an unsupported message.
+        case unrecognized
     }
 
     /// The `EncryptedContent` a message arrived as, kept beside its decrypted text.
@@ -299,10 +310,14 @@ extension ConversationMessage {
             )
             self.cashAction = nil
             repliedTo = nil
-        // `.media`/`.system`/`.widget` are dropped by design: the message is not stored and not
-        // shown. A widget carries no fallback text, so a client that can't draw one renders
-        // nothing rather than a broken bubble.
-        case .media, .system, .widget, .none:
+        case .widget(let widgetContent):
+            // Kept even when the variant is unknown: a widget has no fallback text, so the contract
+            // is that a client which can't draw one shows the message as unsupported.
+            self.content = .widget(widgetContent.shareProfile.map(Widget.shareProfile) ?? .unrecognized)
+            self.cashAction = nil
+            repliedTo = nil
+        // `.media`/`.system` are dropped by design: the message is not stored and not shown.
+        case .media, .system, .none:
             return nil
         }
 
@@ -351,7 +366,7 @@ extension ConversationMessage.Content {
                     $0.ciphertext = ciphertext
                 })
             }
-        case .cash, .deleted:
+        case .cash, .deleted, .widget:
             throw ConversationMessageContentEncodingError.unsupported(self)
         }
     }
