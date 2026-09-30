@@ -45,7 +45,7 @@ struct ConversationGatePanel: View {
     }
 
     /// Nobody but Flipcash may send here (node 10588:1969): the composer's place is taken by a
-    /// disabled, full-width capsule of glass with one muted line — no field, no controls, no action.
+    /// disabled, full-width rounded rectangle of glass with one muted line — no field, no controls, no action.
     /// The brand is named, not the chat, because this rule is what the welcome chat runs on.
     private var neverPill: some View {
         Text(Self.neverSentence)
@@ -56,12 +56,29 @@ struct ConversationGatePanel: View {
             .frame(maxWidth: .infinity)
             .frame(height: BarMetrics.contentHeight)
             .padding(.horizontal, BarMetrics.edgeInset)
-            .capsuleGlassBackground(interactive: false)
+            .modifier(NeverPillGlass())
             .padding(.horizontal, BarMetrics.compactInset)
             .padding(.vertical, BarMetrics.contentPadding)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(Self.neverSentence))
             .accessibilityAddTraits(.isStaticText)
+    }
+
+    /// The pill's surface: non-interactive glass at `Metrics.boxRadius`, darkened to the design's fill
+    /// (node 10588:1969 draws 46% of a near-black; `backgroundMain` is the nearest token). Below iOS 26
+    /// the same fill lies over the standard ultra-thin material.
+    private struct NeverPillGlass: ViewModifier {
+        func body(content: Content) -> some View {
+            let shape = RoundedRectangle(cornerRadius: Metrics.boxRadius)
+            let fill = Color.backgroundMain.opacity(Layout.neverFillOpacity)
+            if #available(iOS 26, *) {
+                content.glassEffect(.regular.tint(fill), in: shape)
+            } else {
+                content
+                    .background(fill, in: shape)
+                    .background(.ultraThinMaterial, in: shape)
+            }
+        }
     }
 
     static let neverSentence = "Only Flipcash can send messages"
@@ -181,5 +198,6 @@ struct ConversationGatePanel: View {
         static let gap: CGFloat = 12
         /// The pill's line, muted as the design draws it (node 10588:1969).
         static let neverTextOpacity: Double = 0.4
+        static let neverFillOpacity: Double = 0.46
     }
 }

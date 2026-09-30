@@ -36,13 +36,10 @@ extension View {
 
     /// The app's glass surface clipped to a capsule, for a control whose shape is
     /// fully rounded — the floating tab bar and the Scan tab's gallery button.
-    ///
-    /// Pass `interactive: false` for a surface that takes no touch, such as a disabled field, so the
-    /// glass does not shimmer under a finger that does nothing.
     @ViewBuilder
-    public func capsuleGlassBackground(interactive: Bool = true) -> some View {
+    public func capsuleGlassBackground() -> some View {
         if #available(iOS 26, *) {
-            glassEffect(interactive ? .regular.interactive() : .regular, in: Capsule())
+            glassEffect(.regular.interactive(), in: Capsule())
         } else {
             background(.ultraThinMaterial, in: Capsule())
         }
