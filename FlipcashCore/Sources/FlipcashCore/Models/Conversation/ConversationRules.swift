@@ -227,6 +227,8 @@ extension ConversationListenerRule {
 public enum ConversationSpeakerRule: Hashable, Codable, Sendable {
     case minimumBalance(MinimumBalanceRequirement)
     case staff
+    /// Nobody can send messages; the chat is read-only for everyone.
+    case never
 }
 
 extension ConversationSpeakerRule {
@@ -240,6 +242,8 @@ extension ConversationSpeakerRule {
             self = .minimumBalance(requirement)
         case .staff:
             self = .staff
+        case .never:
+            self = .never
         case nil:
             return nil
         }
@@ -254,6 +258,8 @@ extension ConversationSpeakerRule {
                 $0.minimumBalance = requirement.proto
             case .staff:
                 $0.staff = .init()
+            case .never:
+                $0.never = .init()
             }
         }
     }

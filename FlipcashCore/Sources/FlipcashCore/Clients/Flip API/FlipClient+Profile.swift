@@ -29,8 +29,11 @@ extension FlipClient {
     }
 
     /// Sets the caller's display name, which the server moderates before it
-    /// persists.
-    public func setDisplayName(_ displayName: String, owner: KeyPair) async throws {
+    /// persists. Returns the username the server auto-assigned from the name,
+    /// or nil when it assigned none; callers should prefer it over assuming
+    /// the caller's username is unchanged.
+    @discardableResult
+    public func setDisplayName(_ displayName: String, owner: KeyPair) async throws -> Username? {
         try await profileService.setDisplayName(displayName, owner: owner)
     }
 

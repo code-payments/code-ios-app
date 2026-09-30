@@ -28,6 +28,8 @@ enum ConversationGateRequirement: Equatable {
     case minimumBalance(amount: FiatAmount, mint: PublicKey?)
     /// Flipcash staff only. There is no action a user can take, so no CTA.
     case staff
+    /// Nobody may send here. There is no action a user can take, so no CTA.
+    case never
 }
 
 /// Whether one class of rules is met, and if not, which of them aren't.
@@ -130,6 +132,8 @@ func conversationGate(
         switch rule {
         case .staff:
             return session.isStaff ? nil : .staff
+        case .never:
+            return .never
         case .minimumBalance(let requirement):
             return unmetBalance(requirement, session: session, rates: rates)
         }
@@ -326,6 +330,8 @@ func groupRequirementLine(_ headline: ConversationGateRequirement?, mintName: St
         return "Balance Requirement:\n\(holding)"
     case .staff:
         return "This chat is for Flipcash staff"
+    case .never:
+        return nil
     case nil:
         return nil
     }

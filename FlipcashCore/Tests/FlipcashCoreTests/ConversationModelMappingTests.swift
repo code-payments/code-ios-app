@@ -134,7 +134,7 @@ struct ConversationModelMappingTests {
     func dmMetadataMapsTipDmType() {
         let proto = Flipcash_Chat_V1_Metadata.with {
             $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
-            $0.type = .tipDm
+            $0.type = .dm
         }
 
         #expect(Conversation(proto).type == .tipDm)
@@ -705,5 +705,31 @@ struct ConversationMessageContentEncodingTests {
 
         let deleted = ConversationMessage.Content.deleted(.init(deletedBy: nil, deletedAt: .now))
         #expect(throws: ConversationMessageContentEncodingError.self) { try deleted.asProto() }
+    }
+
+    @Test("The never speaker rule round-trips through the proto")
+    func neverSpeakerRuleRoundTrips() {
+        let proto = ConversationSpeakerRule.never.proto
+        #expect(ConversationSpeakerRule(proto) == .never)
+    }
+
+    @Test("A share-profile widget maps to its domain model")
+    func shareProfileWidgetMaps() throws {
+        let proto = Flipcash_Messaging_V1_WidgetContent.with {
+            $0.shareProfile = .with { $0.username = .with { $0.value = "alice" } }
+        }
+        #expect(proto.shareProfile == ShareProfileWidget(username: try #require(Username("alice"))))
+        #expect(Flipcash_Messaging_V1_WidgetContent().shareProfile == nil)
+    }
+
+    @Test("A widget message is dropped like other content this client can't draw")
+    func widgetMessageIsDropped() {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.content = [.with {
+                $0.widget = .with { $0.shareProfile = .with { $0.username = .with { $0.value = "alice" } } }
+            }]
+        }
+        #expect(ConversationMessage(proto) == nil)
     }
 }

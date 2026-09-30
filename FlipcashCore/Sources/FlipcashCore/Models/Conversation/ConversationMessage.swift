@@ -299,8 +299,10 @@ extension ConversationMessage {
             )
             self.cashAction = nil
             repliedTo = nil
-        // `.media`/`.system` are dropped by design: the message is not stored and not shown.
-        case .media, .system, .none:
+        // `.media`/`.system`/`.widget` are dropped by design: the message is not stored and not
+        // shown. A widget carries no fallback text, so a client that can't draw one renders
+        // nothing rather than a broken bubble.
+        case .media, .system, .widget, .none:
             return nil
         }
 

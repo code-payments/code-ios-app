@@ -91,7 +91,7 @@ nonisolated extension ConversationGateRequirement {
     var mint: PublicKey? {
         switch self {
         case .minimumBalance(_, let mint):  mint
-        case .staff:                        nil
+        case .staff, .never:                nil
         }
     }
 }

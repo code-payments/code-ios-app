@@ -72,6 +72,14 @@ struct ConversationGateTests {
 
     // MARK: - Staff
 
+    @Test("A never speaker rule leaves everyone, staff included, unable to send")
+    func neverSpeakerRule_unsatisfied() {
+        let rules = ConversationRules(speaker: [.never])
+        let gate = conversationGate(session: StubHoldings(isStaff: true), rules: rules, rates: noRates)
+        #expect(gate.listener == .satisfied)
+        #expect(gate.speaker == .unsatisfied(unmet: [.never], primary: .never))
+    }
+
     @Test("A staff member satisfies a staff-only chat")
     func staffRule_staffUser_satisfied() {
         let rules = ConversationRules(listener: [.staff])

@@ -86,6 +86,8 @@ struct ConversationGatePanel: View {
             case .readOnly:                               return "Only Flipcash staff can send messages here"
             case .open, .undetermined, .join, .blocked:   return "This chat is for Flipcash staff"
             }
+        case .never:
+            return "Messages can't be sent in this chat"
         }
     }
 
@@ -121,8 +123,9 @@ struct ConversationGatePanel: View {
             case .minimumBalance(_, let mint):
                 Button(addFundsTitle(mint: mint), action: onAddFunds)
                     .buttonStyle(.filled)
-            case .staff:
-                // Nothing the user can do about being staff, so a button here would be a lie.
+            case .staff, .never:
+                // Nothing the user can do about being staff or about a chat nobody may post in,
+                // so a button here would be a lie.
                 EmptyView()
             }
         }

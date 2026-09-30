@@ -64,7 +64,8 @@ final class ProfileService: Sendable {
     // Async-native, unlike `fetchProfile` above: a continuation over a detached
     // Task never propagates cancellation into the RPC.
 
-    func setDisplayName(_ displayName: String, owner: KeyPair) async throws {
+    @discardableResult
+    func setDisplayName(_ displayName: String, owner: KeyPair) async throws -> Username? {
         var request = Flipcash_Profile_V1_SetDisplayNameRequest()
         request.displayName = displayName
         request.auth        = owner.authFor(message: request)
@@ -75,6 +76,7 @@ final class ProfileService: Sendable {
             switch response.result {
             case .ok:
                 logger.info("Display name set")
+                return response.hasUsername ? Username(response.username) : nil
             case .invalidDisplayName:
                 throw ErrorProfile.invalidDisplayName
             case .denied:

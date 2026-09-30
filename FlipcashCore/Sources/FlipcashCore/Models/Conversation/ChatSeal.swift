@@ -120,7 +120,7 @@ extension Flipcash_Messaging_V1_Content {
         case .reply(let reply):
             guard reply.content.count == 1, case .text(let text) = reply.content[0].type else { return nil }
             return (text.text, MessageID(reply.repliedMessageID))
-        case .cash, .media, .system, .deleted, .encrypted, nil:
+        case .cash, .media, .system, .widget, .deleted, .encrypted, nil:
             return nil
         }
     }
