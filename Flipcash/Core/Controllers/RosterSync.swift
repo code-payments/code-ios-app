@@ -136,7 +136,7 @@ actor RosterSync {
         let task = Task(priority: reconciling ? .background : nil) {
             let read = try await self.readPages(conversationID) { _ in false }
             try self.database.applyFullRosterRead(read.members, summaries: read.summaries, isComplete: read.reachedEnd, conversationID: conversationID)
-            await self.logRead("Read full roster", read, conversationID: conversationID)
+            self.logRead("Read full roster", read, conversationID: conversationID)
         }
         do {
             try await task.value
