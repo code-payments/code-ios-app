@@ -47,6 +47,9 @@ final class ConversationLoadCoordinator {
     /// scope, so whatever it reads (the contact directory, the conversation) re-triggers mapping.
     /// Nil for a chat with no counterpart to card.
     private let profileCard: @MainActor () -> ChatProfileCard?
+    /// Whether the chat's speaker rule lets the viewer speak, evaluated inside the observation scope
+    /// so a balance or rule change re-maps. Gates Reply and reactions on a widget.
+    private let canSpeak: @MainActor () -> Bool
     /// Names senders the chat's own roster leaves out, from what the device already knows about
     /// them. Observed like every other input, so a reload re-attributes the window in place.
     private let knownAuthors: KnownAuthorDirectory
@@ -87,8 +90,10 @@ final class ConversationLoadCoordinator {
         controller: ConversationController,
         session: Session,
         knownAuthors: KnownAuthorDirectory,
-        profileCard: @escaping @MainActor () -> ChatProfileCard?
+        profileCard: @escaping @MainActor () -> ChatProfileCard?,
+        canSpeak: @escaping @MainActor () -> Bool = { true }
     ) {
+        self.canSpeak = canSpeak
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
@@ -267,6 +272,7 @@ final class ConversationLoadCoordinator {
             now: capabilityClock,
             namesAuthors: namesAuthors,
             canReact: conversation.map { controller.isMember(of: $0) } ?? true,
+            canSpeak: canSpeak(),
             // Only a transcript that attributes its rows has anything to resolve, so a DM never
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
@@ -316,6 +322,7 @@ final class ConversationLoadCoordinator {
                     in: inputs.conversation,
                     as: inputs.selfUserID,
                     isMember: inputs.isMember,
+                    canSpeak: inputs.canSpeak,
                     policy: inputs.policy,
                     now: inputs.now
                 )
@@ -327,6 +334,7 @@ final class ConversationLoadCoordinator {
             author: { message in message.senderID.flatMap { authors[$0] } },
             namesAuthors: inputs.namesAuthors,
             canReact: inputs.canReact,
+            canSpeak: inputs.canSpeak,
             // Classification is pure and host-gated, and that is all mapping does with a link: the
             // card is the link's identity, and the card view looks it up for itself. So nothing
             // here touches the network, and an answer landing cannot re-diff this window.
@@ -431,6 +439,8 @@ final class ConversationLoadCoordinator {
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
         /// they have not joined. True for a DM, where there is no conversation record to preview.
         var canReact: Bool
+        /// The chat's speaker rule as the viewer stands against it; see ``ConversationLoadCoordinator/canSpeak``.
+        var canSpeak: Bool
         /// Identities for senders the chat's own roster leaves out. Compared by identity — see
         /// ``KnownAuthorDirectory/Snapshot``.
         var knownAuthors: KnownAuthorDirectory.Snapshot
