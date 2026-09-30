@@ -67,9 +67,8 @@ extension MessageCapability {
     /// the Join panel stands where the composer would, so there is nothing to reply with.
     ///
     /// `canSpeak` is the chat's speaker rule as the viewer stands against it (`ConversationGate`'s
-    /// speaker verdict, with membership). It gates only the server-authored widget, whose Reply and
-    /// reactions have no other reason to be withheld: a person's message keeps the composer-based
-    /// gating above. A `never` rule, an unmet balance or an unmet staff requirement all arrive here
+    /// speaker verdict, with membership). It withholds Reply from every message, matching Android:
+    /// Copy, Report and the sender's own Edit/Delete are unaffected. A `never` rule, an unmet balance or an unmet staff requirement all arrive here
     /// as false.
     ///
     /// `now` is a parameter rather than `Date.now` so the result stays a function of its inputs.
@@ -83,7 +82,7 @@ extension MessageCapability {
         now: Date
     ) -> Set<MessageCapability> {
         var capabilities = memberCapabilities(for: message, as: selfUserID, canSpeak: canSpeak, policy: policy, now: now)
-        if !isMember {
+        if !isMember || !canSpeak {
             capabilities.remove(.reply)
         }
         return capabilities
@@ -114,7 +113,7 @@ extension MessageCapability {
             // Server-authored, like cash: no text to copy or edit, and no user sender to report,
             // so the only capability is Reply, which the quote panel supports. Reply follows the
             // chat's speaker rule like any message. Sharing is the card's own button, not a menu action.
-            return canSpeak ? [.reply] : []
+            return [.reply]
         case .text:
             break
         }
