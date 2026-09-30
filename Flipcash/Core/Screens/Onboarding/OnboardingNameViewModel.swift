@@ -28,7 +28,7 @@ final class OnboardingNameViewModel {
 
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
-    @ObservationIgnored private let validator = DisplayNameValidator()
+    @ObservationIgnored private let validator = DisplayNameValidator(asciiOnly: true)
 
     /// Fires once the name is saved; the onboarding flow advances from here.
     @ObservationIgnored var onComplete: (@MainActor () -> Void)?
