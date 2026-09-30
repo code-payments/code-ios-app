@@ -56,3 +56,6 @@ Package.resolved
 
 # Brainstorming visual companion sessions
 .superpowers/
+
+# agent-team workspaces
+.claude/workspaces/

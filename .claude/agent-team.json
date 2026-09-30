@@ -1,0 +1,73 @@
+{
+  "members": {
+    "orchestrator": {
+      "agent": "claude",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "advisor": "fable",
+      "charter": "Break an objective into scoped tasks for your reports, then combine their results into one decision. Does not implement.",
+      "isolation": "read-only",
+      "deliverable": "decision"
+    },
+    "explorer": {
+      "agent": "claude",
+      "model": "sonnet",
+      "effort": "medium",
+      "advisor": "fable",
+      "reports_to": "orchestrator",
+      "charter": "Locate code and report it as path:line. Never edits.",
+      "isolation": "read-only",
+      "deliverable": "document"
+    },
+    "worker": {
+      "agent": "claude",
+      "model": "sonnet",
+      "effort": "medium",
+      "advisor": "fable",
+      "reports_to": "orchestrator",
+      "charter": "Make one scoped change and run the narrowest check that proves it.",
+      "isolation": "workspace",
+      "deliverable": "diff"
+    },
+    "researcher": {
+      "agent": "claude",
+      "model": "sonnet",
+      "effort": "medium",
+      "advisor": "fable",
+      "reports_to": "orchestrator",
+      "charter": "Answer from outside sources, with a cited URL next to each claim.",
+      "isolation": "none",
+      "deliverable": "document"
+    },
+    "reviewer": {
+      "agent": "claude",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "advisor": "fable",
+      "reports_to": "orchestrator",
+      "skill": "red-team",
+      "charter": "Red-team the worker's diff: find what will fail undiscovered, prove each check can go red, then write a self-contained handoff. Never edits.",
+      "isolation": "read-only",
+      "deliverable": "review"
+    }
+  },
+  "deny_paths": [
+    "Configurations/secrets.xcconfig",
+    "Configurations/secrets.local.xcconfig",
+    "Configurations/base.xcconfig",
+    "Scripts/pull_secrets",
+    "Scripts/pull_secrets_if_needed",
+    "**/AuthKey*.p8",
+    "**/*.p8",
+    "**/*.p12",
+    "**/*.pem",
+    "**/*.mobileprovision",
+    "fastlane/.env*",
+    "**/.env*"
+  ],
+  "defaults": {
+    "on_unavailable": "claude",
+    "max_depth": 1,
+    "max_delegations": 12
+  }
+}
