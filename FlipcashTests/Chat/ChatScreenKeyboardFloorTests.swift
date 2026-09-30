@@ -30,7 +30,7 @@ struct ChatScreenKeyboardFloorTests {
         window.makeKeyAndVisible()
         screen.loadViewIfNeeded()
         UIView.performWithoutAnimation {
-            screen.setBarHeight(60, replying: false)
+            screen.setBarHeight(60, accessories: BarAccessories())
         }
         window.layoutIfNeeded()
         return (screen, bar, window)

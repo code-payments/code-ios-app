@@ -102,12 +102,13 @@ public final class ChatScreenViewController: UIViewController {
     /// Whether a measured bar height has landed yet — the first one is applied without animation.
     private var didMeasureBar = false
 
-    /// Whether the last measured bar height included the reply strip.
-    private var barShowsReply = false
-    /// What the strip added to the bar when it opened, so the clip knows what to close back over.
-    /// The bar itself still reports the taller height on the way out — the strip stays mounted under
-    /// the clip while it fades — so the closed height cannot be read off the measurement.
-    private var replyStripHeight: CGFloat = 0
+    /// The cards the last measured bar height reported, so a card opening or closing is told apart
+    /// from ordinary growth.
+    private var barAccessories = BarAccessories()
+    /// The bar's last measured height, which the transcript's room is taken against.
+    private var measuredBarHeight: CGFloat = 0
+    /// The last room reported through ``onMentionRoomChange``, so an unchanged one is not sent again.
+    private var reportedMentionRoom: CGFloat?
     /// The pop gestures switched off for the length of an edit, kept so only those are switched back
     /// on and one that was already off stays off.
     private var suspendedPopGestures: [UIGestureRecognizer] = []
@@ -632,56 +633,40 @@ public final class ChatScreenViewController: UIViewController {
         }
     }
 
-    /// Set the bar's height to its measured SwiftUI content height. `replying` says whether a reply
-    /// is open, which decides what the clip around the bar does with that height.
+    /// The height between the top bar and the keyboard floor that the transcript would keep without
+    /// the mention list, sent whenever it changes.
+    public var onMentionRoomChange: ((CGFloat) -> Void)?
+
+    /// Set the bar's height to its measured SwiftUI content height. `accessories` says which cards
+    /// stand above the composer row, which decides what the clip around the bar does with that height.
     ///
     /// The bar always takes the height flat. It is pinned to the bottom of the clip, so its own
-    /// frame can change by the strip's whole height without moving anything that is on screen.
-    public func setBarHeight(_ height: CGFloat, replying: Bool) {
-        // Read before the early exits: a reply closing has to move the clip even though the measured
-        // height does not change — the strip stays mounted under the clip while it fades.
-        let opensReply = replying && !barShowsReply
-        let closesReply = !replying && barShowsReply
-        barShowsReply = replying
+    /// frame can change by a card's whole height without moving anything that is on screen.
+    public func setBarHeight(_ height: CGFloat, accessories: BarAccessories) {
+        // Read before the early exits: a card closing has to move the clip even though the measured
+        // height does not change — the card stays mounted under the clip while it fades.
+        let toggled = accessories.open != barAccessories.open
+        barAccessories = accessories
+        measuredBarHeight = height
         guard barHeightConstraint != nil else { return }
 
-        // A reply's own height is not known when it opens. On a first reply the strip mounts at zero
-        // height, reports what it wants, and takes it a pass later; re-replying while the last one is
-        // still fading keeps the strip it already has and never reports again. So the opening is
-        // whichever pass actually makes the bar taller after the target changed, not the target
-        // change itself — and once that height is known, later ones are ordinary bar growth.
-        if opensReply { replyStripHeight = 0 }
         let isFirst = !didMeasureBar
         didMeasureBar = true
         let previousClip = barClipHeightConstraint.constant
-        let clipHeight: CGFloat
-        let travels: Bool
-        if replying {
-            clipHeight = height
-            // Nothing to read the strip's height off on the very first measurement: the clip is
-            // still at its placeholder constant and the screen has never seen this bar without a
-            // strip. A restored draft is aimed before the bar is measured at all, so that is the
-            // pass it lands in — and a difference taken against the placeholder is not the strip.
-            // Left unknown, the close below keeps the clip at the bar's height until the strip
-            // unmounts and the bar measures short, which is late but never wrong.
-            travels = !isFirst && replyStripHeight == 0 && clipHeight != previousClip
-            if travels { replyStripHeight = clipHeight - previousClip }
-        } else {
-            // Closing, the strip is still in the measurement and has to come back off it.
-            clipHeight = closesReply ? height - replyStripHeight : height
-            travels = closesReply
-            if !closesReply { replyStripHeight = 0 }
-        }
+        // A closing card is still in the measurement and has to come back off it. A card only
+        // counts as open once it is measured, so the report that opens it already carries its height.
+        let clipHeight = height - accessories.exitingHeight
+        let travels = toggled && clipHeight != previousClip
         fade.isHidden = height <= 0
 
         guard !isFirst, view.window != nil, travels else {
             guard barHeightConstraint.constant != height || barClipHeightConstraint.constant != clipHeight else { return }
             barHeightConstraint.constant = height
             barClipHeightConstraint.constant = clipHeight
-            // Every other height — a draft wrapping to a second line, the send arrow appearing — is
-            // one the content has *already* laid itself out at by the time the number arrives. Clip
-            // and bar match it in the same frame; the transcript's inset comes with them, since
-            // `viewDidLayoutSubviews` reads the clip's frame during this pass.
+            // Every other height — a draft wrapping to a second line, the send arrow appearing, the
+            // mention list gaining a row — is one the content has *already* laid itself out at by the
+            // time the number arrives. Clip and bar match it in the same frame; the transcript's inset
+            // comes with them, since `viewDidLayoutSubviews` reads the clip's frame during this pass.
             UIView.performWithoutAnimation {
                 self.view.layoutIfNeeded()
             }
@@ -695,7 +680,7 @@ public final class ChatScreenViewController: UIViewController {
         UIView.performWithoutAnimation {
             self.view.layoutIfNeeded()
         }
-        // Then the clip's edge travels, and that edge is the whole animation: it uncovers the strip
+        // Then the clip's edge travels, and that edge is the whole animation: it uncovers the card
         // on the way in and closes back over it on the way out. The transcript's inset is read inside
         // this pass too, so the bubbles are pushed by the edge rather than teleporting ahead of it.
         barClipHeightConstraint.constant = clipHeight
@@ -735,6 +720,23 @@ public final class ChatScreenViewController: UIViewController {
         let covered = view.bounds.maxY - barClip.frame.minY
         let drop = keyboardFloor.isKeyboardUp ? Self.raisedTranscriptDrop : 0
         transcript.setBottomInset(max(0, covered - keyboardFloor.systemInset - drop))
+        reportMentionRoom()
+    }
+
+    /// Sends the transcript's room without the mention list: from the top bar's bottom edge down to
+    /// the keyboard floor, less the rest of the bar. Measured, so a reply strip that wraps counts.
+    private func reportMentionRoom() {
+        guard let onMentionRoomChange, didMeasureBar else { return }
+        let top: CGFloat
+        if let navigationBar = hostNavigationController?.navigationBar, !navigationBar.isHidden {
+            top = max(view.safeAreaInsets.top, navigationBar.convert(navigationBar.bounds, to: view).maxY)
+        } else {
+            top = view.safeAreaInsets.top
+        }
+        let room = barClip.frame.maxY - top - (measuredBarHeight - barAccessories.mentionsHeight)
+        guard room != reportedMentionRoom else { return }
+        reportedMentionRoom = room
+        onMentionRoomChange(room)
     }
 }
 

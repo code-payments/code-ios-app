@@ -112,6 +112,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onGateJoin: () -> Void
     /// Whether a join is in flight; the gate panel's button stops taking taps.
     let isJoiningChat: Bool
+    /// The group's mention picker, or `nil` in a DM.
+    let mentions: MentionPickerModel?
     /// Avatar bytes for the group's members, keyed by user id. Empty in a DM, and empty for a group
     /// until the pictures download — the rows fall back to a BlurHash, then a monogram.
     let authorAvatars: [UserID: Data]
@@ -160,6 +162,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReactionStripSelect = onReactionStripSelect
         screen.onReactionStripAdd = onReactionStripAdd
         screen.onCancelEdit = { [composer] in composer.endEditing() }
+        screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
         screen.reportsReads = reportsReads
         screen.update(items: items)
@@ -205,6 +208,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReactionStripSelect = onReactionStripSelect
         screen.onReactionStripAdd = onReactionStripAdd
         screen.onCancelEdit = { [composer] in composer.endEditing() }
+        screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
         screen.reportsReads = reportsReads
         // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
@@ -280,12 +284,13 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 gateMintName: gateMintName,
                 onGateAddFunds: onGateAddFunds,
                 onGateJoin: onGateJoin,
-                isJoiningChat: isJoiningChat
+                isJoiningChat: isJoiningChat,
+                mentions: mentions
             )
             .environment(conversationController)
             .modifier(
-                MeasuredBarHeight(isReplying: composer.replyTarget != nil) { height, isReplying in
-                    coordinator.screen?.setBarHeight(height, replying: isReplying)
+                MeasuredBarHeight { height, accessories in
+                    coordinator.screen?.setBarHeight(height, accessories: accessories)
                 }
             )
         )
@@ -305,27 +310,24 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 /// multiline height — the hosting controller's intrinsic size mis-measures and lets the composer
 /// overflow under the keyboard.
 private struct MeasuredBarHeight: ViewModifier {
-    /// Whether a reply is open, reported alongside the height. The bar's clip decides what to do
-    /// with a height from the two together, so this has to arrive from the same layout pass rather
-    /// than be read separately afterwards.
-    let isReplying: Bool
-    let report: (CGFloat, Bool) -> Void
-
-    /// The last height reported, so the reply can be reported without one. A reply that closes does
-    /// not change the bar's height — the strip stays mounted underneath while it fades — and the
-    /// clip still has to be told to close over it.
-    @State private var measured: CGFloat = 0
+    /// Receives the height with the cards above the composer row. The clip decides what to do with
+    /// a height from the two together, so they arrive as one value from the same layout pass: a card
+    /// that opens changes both, and two separate reports would read as growth and then an opening
+    /// with nothing left to travel.
+    let report: (CGFloat, BarAccessories) -> Void
 
     func body(content: Content) -> some View {
         content
             .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
-                measured = height
-                report(height, isReplying)
-            }
-            .onChange(of: isReplying) { _, replying in
-                guard measured > 0 else { return }
-                report(measured, replying)
+            .overlayPreferenceValue(BarAccessoriesKey.self) { accessories in
+                GeometryReader { proxy in
+                    Color.clear.onChange(
+                        of: BarReport(height: proxy.size.height, accessories: accessories),
+                        initial: true
+                    ) { _, new in
+                        report(new.height, new.accessories)
+                    }
+                }
             }
             // Sit on the host's bottom edge rather than in the middle of it. The two heights are
             // never equal mid-change: SwiftUI ramps the content's own height on its spring while the
@@ -335,4 +337,10 @@ private struct MeasuredBarHeight: ViewModifier {
             // reply strip arrives at.
             .frame(maxHeight: .infinity, alignment: .bottom)
     }
+}
+
+/// One measurement of the bar: its height and the cards that make it up.
+private struct BarReport: Equatable {
+    let height: CGFloat
+    let accessories: BarAccessories
 }

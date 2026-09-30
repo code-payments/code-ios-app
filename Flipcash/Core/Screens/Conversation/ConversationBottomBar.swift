@@ -75,6 +75,8 @@ struct ConversationBottomBar: View {
     var onGateJoin: () -> Void = {}
     /// Whether a join is in flight, so the gate panel's button can stop taking taps.
     var isJoiningChat: Bool = false
+    /// The group's mention picker. `nil` in a DM, which never offers one.
+    var mentions: MentionPickerModel? = nil
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
     private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
@@ -161,16 +163,50 @@ struct ConversationBottomBar: View {
         // The Send Cash button and the field are separate pills 10pt apart, so
         // they don't need to sample each other.
         return VStack(spacing: 0) {
+            // The list rides the reply strip's reveal: same clip travel in, same fade out.
+            AccessoryReveal(kind: .mentions, item: mentionCandidates) { candidates in
+                MentionSuggestionList(
+                    candidates: candidates,
+                    maxRows: MentionRowCap.rows(
+                        replyOpen: replyOpen,
+                        room: mentions?.room,
+                        rowHeight: MentionListMetrics.rowHeight,
+                        chrome: MentionListMetrics.chrome(replyOpen: replyOpen)
+                    ),
+                    replyOpen: replyOpen
+                ) { member in
+                    guard let username = member.username else { return }
+                    composer.insertMention(username: username.value)
+                }
+            }
+            .padding(.horizontal, compactExtraInset)
+            .animation(Self.widthSpring, value: isCompact)
             // No `withAnimation` at the dismiss site either: the `.animation(_, value:)` below
             // already drives this state in both directions, and wrapping the dismissal in a second
             // transaction gave the exit a curve the entry never had.
-            ComposerReplyReveal(target: composer.replyTarget) { composer.endReplying() }
+            AccessoryReveal(kind: .reply, item: composer.replyTarget) { target in
+                ComposerReplyStrip(target: target) { composer.endReplying() }
+            }
                 // The quote narrows with the row below it, so the two keep one margin.
                 .padding(.horizontal, compactExtraInset)
                 .animation(Self.widthSpring, value: isCompact)
             content
         }
         .animation(replySpring, value: composer.replyTarget)
+        .animation(replySpring, value: mentionCandidates == nil)
+        .onChange(of: mentions == nil ? nil : composer.mentionQuery?.text, initial: true) { _, query in
+            mentions?.update(query: query)
+        }
+    }
+
+    /// Whether a reply strip stands under the mention list.
+    private var replyOpen: Bool { composer.replyTarget != nil }
+
+    /// What the mention list shows, or `nil` while it is closed. Tied to the live query as well as
+    /// the model, so a send or a pick closes it in the same update rather than after the search.
+    private var mentionCandidates: [ConversationMember]? {
+        guard let mentions, composer.mentionQuery != nil, !mentions.candidates.isEmpty else { return nil }
+        return mentions.candidates
     }
 
     /// The tip CTA's title. Names the amount that opens the chat when a floor
@@ -182,8 +218,8 @@ struct ConversationBottomBar: View {
     }
 }
 
-/// The reply strip's arrival and departure: the quote the bar's top edge uncovers on the way in and
-/// closes back over on the way out.
+/// A card's arrival and departure above the composer row — the reply strip or the mention list:
+/// what the bar's top edge uncovers on the way in and closes back over on the way out.
 ///
 /// The travel itself is not here. The bar is hosted in a box that clips it, and that box's edge is
 /// what moves — see `ChatScreenViewController`'s `barClip`. This view only decides *what* height the
@@ -196,10 +232,18 @@ struct ConversationBottomBar: View {
 /// .opacity)` slid the quote down behind the field and dissolved it there while the edge travelled
 /// separately. Clipping welds them — the quote holds still against the field below it while the
 /// edge uncovers it.
-private struct ComposerReplyReveal: View {
+private struct AccessoryReveal<Item: Equatable, Card: View>: View {
 
-    let target: ComposerModel.ReplyTarget?
-    let onDismiss: () -> Void
+    /// Which card this is, as the bar reports it to the clip.
+    let kind: BarAccessories.Kind
+    let target: Item?
+    @ViewBuilder let card: (Item) -> Card
+
+    init(kind: BarAccessories.Kind, item: Item?, @ViewBuilder card: @escaping (Item) -> Card) {
+        self.kind = kind
+        self.target = item
+        self.card = card
+    }
 
     /// The strip's own height. Measured rather than declared: a snippet that wraps to a second line
     /// makes the sheet taller, and the clip has to know by how much.
@@ -210,7 +254,7 @@ private struct ComposerReplyReveal: View {
     @State private var naturalHeight: CGFloat = 0
     /// The last target seen, kept after the target clears. A strip that unmounts on the way out has
     /// nothing to draw while it collapses, and the sheet slides back under the field empty.
-    @State private var retained: ComposerModel.ReplyTarget?
+    @State private var retained: Item?
     /// The quote's own opacity, which only ever moves on the way out.
     ///
     /// Asymmetric on purpose. Coming in, the edge uncovering the quote is the whole effect and a
@@ -231,7 +275,7 @@ private struct ComposerReplyReveal: View {
     /// there is no `onChange` to fire and be in place before `onAppear` would set anything. Latched,
     /// a missed transition was also unrecoverable: `ReplyTarget` is `Equatable`, so aiming at the
     /// same message again is not a change and `onChange` never fires for it twice.
-    private var shown: ComposerModel.ReplyTarget? { target ?? retained }
+    private var shown: Item? { target ?? retained }
 
     /// How much height the strip is asking the bar for. Zero until it has been measured, and held at
     /// full height right through the exit — the clip closes over the quote, so there has to be a
@@ -241,7 +285,7 @@ private struct ComposerReplyReveal: View {
     var body: some View {
         Group {
             if let shown {
-                ComposerReplyStrip(target: shown, onDismiss: onDismiss)
+                card(shown)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { measured in
                         guard naturalHeight != measured else { return }
                         naturalHeight = measured
@@ -261,6 +305,7 @@ private struct ComposerReplyReveal: View {
         // `clipped()` is a drawing bound, not a hit-testing or accessibility one, so the collapsed
         // copy stays pressable and findable until the task below unmounts it.
         .allowsHitTesting(target != nil)
+        .preference(key: BarAccessoriesKey.self, value: report)
         // Drop the retained copy once it has finished sliding back under the field. It has to
         // outlive the target — there is nothing to draw during the collapse otherwise — but only by
         // the length of the collapse: left mounted, it leaves a zero-height quote in the
@@ -297,10 +342,31 @@ private struct ComposerReplyReveal: View {
         .onAppear { retained = target }
     }
 
+    /// What this card tells the clip: open once it has a height to open by, and closing for as
+    /// long as its retained copy is still mounted underneath.
+    private var report: BarAccessories {
+        var accessories = BarAccessories()
+        if target != nil, naturalHeight > 0 {
+            accessories.open = [kind]
+        } else if target == nil, retained != nil {
+            accessories.exitingHeight = naturalHeight
+        }
+        if kind == .mentions { accessories.mentionsHeight = revealHeight }
+        return accessories
+    }
+
     /// The quote dissolves; its height stays. The clip is what closes over it, and it needs
     /// something to close over — the height goes back with the retained copy above.
     private func close() {
         withAnimation(ChatMotion.replySurface.animation) { contentOpacity = 0 }
+    }
+}
+
+/// The cards above the composer row, gathered for the bar's measurement.
+struct BarAccessoriesKey: PreferenceKey {
+    static let defaultValue = BarAccessories()
+    static func reduce(value: inout BarAccessories, nextValue: () -> BarAccessories) {
+        value = value.merged(with: nextValue())
     }
 }
 
@@ -320,7 +386,7 @@ struct ConversationComposer: View {
 
     var body: some View {
         let field = HStack(alignment: .bottom, spacing: 10) {
-            TextField(fieldPrompt, text: $composer.draft, axis: .vertical)
+            TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
                 .tint(.white)

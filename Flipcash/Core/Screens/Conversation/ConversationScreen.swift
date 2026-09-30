@@ -72,6 +72,8 @@ struct ConversationScreen: View {
     @State private var restoredDraftID: ConversationID?
     @State private var barModel = ConversationBarModel()
     @State private var composer = ComposerModel()
+    /// The group's mention picker for this visit, or `nil` in a DM.
+    @State private var mentions: MentionPickerModel?
     /// Seeded from the scene so the title has its full width on the first frame; the measurement
     /// below only corrects it.
     @State private var navBarWidth: CGFloat = UIApplication.shared.firstWindowScene?.coordinateSpace.bounds.width ?? 0
@@ -531,6 +533,7 @@ struct ConversationScreen: View {
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,
             isJoiningChat: isJoiningChat,
+            mentions: mentions,
             authorAvatars: authorAvatars
         )
     }
@@ -689,6 +692,10 @@ struct ConversationScreen: View {
         .task(id: groupConversation?.id) {
             guard groupConversation != nil else { return }
             await sessionContainer.knownAuthors.reload()
+        }
+        // One picker per visit, so its suggestion fetch runs once per visit.
+        .onChange(of: groupConversation?.id, initial: true) { _, groupID in
+            mentions = groupID.map { MentionPickerModel(source: sessionContainer.rosterSearch, chatID: $0) }
         }
         // Name the senders the chat's roster and the local cache both leave out. Keyed on that set,
         // so it runs when a page of older messages reveals a sender nothing here can name — and not
