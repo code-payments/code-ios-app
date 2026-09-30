@@ -170,7 +170,7 @@ extension ConversationRules {
     public init(_ proto: Flipcash_Chat_V1_Rules) {
         self.init(
             listener: proto.listener.compactMap(ConversationListenerRule.init),
-            speaker: proto.speaker.compactMap(ConversationSpeakerRule.init)
+            speaker: proto.speaker.map(ConversationSpeakerRule.init)
         )
     }
 }
@@ -229,28 +229,43 @@ public enum ConversationSpeakerRule: Hashable, Codable, Sendable {
     case staff
     /// Nobody can send messages; the chat is read-only for everyone.
     case never
+    /// Only the chat's creator can send messages; see `chat.v1.CreatorRequirement`.
+    case creator
+    /// A rule this client can't read: the `kind` oneof is unset, or names a case from a newer
+    /// contract. Kept rather than dropped because a dropped rule reads as "no rule" and opens the
+    /// composer; it is unsatisfied for everyone, staff included. Never sent to the server.
+    case unsupported
 }
 
 extension ConversationSpeakerRule {
-    /// Returns nil when `proto` carries neither arm of the `kind` oneof, or a
-    /// `minimumBalance` requirement in a currency this client doesn't
-    /// recognize.
-    init?(_ proto: Flipcash_Chat_V1_SpeakerRules) {
+    /// Never fails: an unset `kind` (what a case added by a newer contract decodes to) and a
+    /// `minimumBalance` in a currency this client doesn't recognize both become ``unsupported``,
+    /// which keeps the composer closed instead of reading as "no rule".
+    init(_ proto: Flipcash_Chat_V1_SpeakerRules) {
         switch proto.kind {
         case .minimumBalance(let requirement):
-            guard let requirement = MinimumBalanceRequirement(requirement) else { return nil }
+            guard let requirement = MinimumBalanceRequirement(requirement) else {
+                self = .unsupported
+                return
+            }
             self = .minimumBalance(requirement)
         case .staff:
             self = .staff
         case .never:
             self = .never
+        case .creator:
+            self = .creator
         case nil:
-            return nil
+            self = .unsupported
         }
     }
 }
 
 extension ConversationSpeakerRule {
+    /// Encoding ``unsupported`` is a programmer error: it only ever comes from decoding, and there
+    /// is no wire form for a rule this client can't name. The outbound path (`startChat`) builds
+    /// rules from the picker, which can't produce one, so this traps in debug and, in release, yields
+    /// an empty `SpeakerRules` rather than a wrong rule.
     var proto: Flipcash_Chat_V1_SpeakerRules {
         .with {
             switch self {
@@ -260,6 +275,10 @@ extension ConversationSpeakerRule {
                 $0.staff = .init()
             case .never:
                 $0.never = .init()
+            case .creator:
+                $0.creator = .init()
+            case .unsupported:
+                assertionFailure("ConversationSpeakerRule.unsupported has no wire form")
             }
         }
     }

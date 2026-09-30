@@ -20,8 +20,9 @@ struct ShareProfileWidgetGatingTests {
 
     private final class Holdings: ConversationGateReading {
         var isStaff: Bool
+        var userID: UserID
         var totalBalance = ExchangedFiat(nativeAmount: .usd(0), rate: Rate(fx: 1, currency: .usd))
-        init(isStaff: Bool = false) { self.isStaff = isStaff }
+        init(isStaff: Bool = false, userID: UserID = UUID()) { self.isStaff = isStaff; self.userID = userID }
         func balance(for mint: PublicKey) -> StoredBalance? { nil }
     }
 
@@ -36,20 +37,19 @@ struct ShareProfileWidgetGatingTests {
         )
     }
 
-    /// What the screen hands the coordinator: whether the viewer, a member, may speak under `rules`.
-    private func canSpeak(_ rules: ConversationRules, holdings: Holdings = Holdings()) -> Bool {
-        conversationGate(session: holdings, rules: rules, rates: [:]).isOpen
-    }
-
-    private func offered(canSpeak: Bool) throws -> (actions: Set<MessageCapability>, canReact: Bool) {
+    /// What the coordinator hands the mapper for a member under `rules`: the gate's verdict through
+    /// `access(isMember:gate:)`, with the widget's actions and reaction flag resolved from it.
+    private func offered(_ rules: ConversationRules, creator: UserID? = nil, holdings: Holdings = Holdings()) throws -> (actions: Set<MessageCapability>, canReact: Bool) {
+        let gate = conversationGate(session: holdings, rules: rules, creator: creator, rates: [:])
+        let access = ConversationLoadCoordinator.access(isMember: true, gate: gate)
         let message = try widget()
         let items = ChatItem.from(
             [message],
             selfUserID: me,
             capabilities: {
-                MessageCapability.resolve(for: $0, in: nil, as: me, isMember: true, canSpeak: canSpeak, policy: .default, now: now)
+                MessageCapability.resolve(for: $0, in: nil, as: me, isMember: true, canPost: access.canPost, policy: .default, now: now)
             },
-            canSpeak: canSpeak
+            canReact: access.canReact
         )
         for item in items {
             if case .message(let row) = item { return (Set(row.actions), row.canReact) }
@@ -60,17 +60,14 @@ struct ShareProfileWidgetGatingTests {
 
     @Test("An open chat offers Reply and reactions")
     func openChat() throws {
-        #expect(canSpeak(ConversationRules()))
-        let result = try offered(canSpeak: true)
+        let result = try offered(ConversationRules())
         #expect(result.actions == [.reply])
         #expect(result.canReact)
     }
 
-    @Test("A never speaker rule offers neither Reply nor reactions")
+    @Test("A never speaker rule offers neither Reply nor reactions, even to staff")
     func neverRule() throws {
-        let rules = ConversationRules(speaker: [.never])
-        #expect(!canSpeak(rules, holdings: Holdings(isStaff: true)))
-        let result = try offered(canSpeak: canSpeak(rules))
+        let result = try offered(ConversationRules(speaker: [.never]), holdings: Holdings(isStaff: true))
         #expect(result.actions.isEmpty)
         #expect(!result.canReact)
     }
@@ -78,8 +75,7 @@ struct ShareProfileWidgetGatingTests {
     @Test("An unmet balance requirement offers neither")
     func unmetBalance() throws {
         let rules = ConversationRules(speaker: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(100), mints: []))])
-        #expect(!canSpeak(rules))
-        let result = try offered(canSpeak: canSpeak(rules))
+        let result = try offered(rules)
         #expect(result.actions.isEmpty)
         #expect(!result.canReact)
     }
@@ -87,9 +83,39 @@ struct ShareProfileWidgetGatingTests {
     @Test("An unmet staff requirement offers neither, and a staff member is offered both")
     func staffRule() throws {
         let rules = ConversationRules(speaker: [.staff])
-        #expect(!canSpeak(rules))
-        #expect(canSpeak(rules, holdings: Holdings(isStaff: true)))
-        let result = try offered(canSpeak: canSpeak(rules))
+        let blocked = try offered(rules)
+        #expect(blocked.actions.isEmpty)
+        #expect(!blocked.canReact)
+        let allowed = try offered(rules, holdings: Holdings(isStaff: true))
+        #expect(allowed.actions == [.reply])
+        #expect(allowed.canReact)
+    }
+
+    @Test("A creator rule offers a non-creator reactions but no Reply, and the creator both")
+    func creatorRule() throws {
+        let rules = ConversationRules(speaker: [.creator])
+        let other = try offered(rules, creator: UUID())
+        #expect(other.actions.isEmpty)
+        #expect(other.canReact)
+        let nilCreator = try offered(rules, creator: nil)
+        #expect(nilCreator.actions.isEmpty)
+        #expect(nilCreator.canReact)
+        let creator = try offered(rules, creator: me, holdings: Holdings(userID: me))
+        #expect(creator.actions == [.reply])
+        #expect(creator.canReact)
+    }
+
+    @Test("An unsupported rule offers reactions but no Reply, staff included")
+    func unsupportedRule() throws {
+        let result = try offered(ConversationRules(speaker: [.unsupported]), holdings: Holdings(isStaff: true))
+        #expect(result.actions.isEmpty)
+        #expect(result.canReact)
+    }
+
+    @Test("Creator paired with an unmet staff rule keeps reactions off")
+    func creatorWithUnmetStaff() throws {
+        let rules = ConversationRules(speaker: [.creator, .staff])
+        let result = try offered(rules, creator: me, holdings: Holdings(userID: me))
         #expect(result.actions.isEmpty)
         #expect(!result.canReact)
     }

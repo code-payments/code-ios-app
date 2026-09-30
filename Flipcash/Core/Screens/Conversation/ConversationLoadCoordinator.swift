@@ -47,9 +47,6 @@ final class ConversationLoadCoordinator {
     /// scope, so whatever it reads (the contact directory, the conversation) re-triggers mapping.
     /// Nil for a chat with no counterpart to card.
     private let profileCard: @MainActor () -> ChatProfileCard?
-    /// Whether the chat's speaker rule lets the viewer speak, evaluated inside the observation scope
-    /// so a balance or rule change re-maps. Gates Reply and reactions on a widget.
-    private let canSpeak: @MainActor () -> Bool
     /// Names senders the chat's own roster leaves out, from what the device already knows about
     /// them. Observed like every other input, so a reload re-attributes the window in place.
     private let knownAuthors: KnownAuthorDirectory
@@ -90,10 +87,8 @@ final class ConversationLoadCoordinator {
         controller: ConversationController,
         session: Session,
         knownAuthors: KnownAuthorDirectory,
-        profileCard: @escaping @MainActor () -> ChatProfileCard?,
-        canSpeak: @escaping @MainActor () -> Bool = { true }
+        profileCard: @escaping @MainActor () -> ChatProfileCard?
     ) {
-        self.canSpeak = canSpeak
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
@@ -214,6 +209,14 @@ final class ConversationLoadCoordinator {
         }
     }
 
+    /// What a viewer may do in a chat. Posting (the composer and Reply) needs membership and every
+    /// speaker rule met. Reacting needs membership and no unmet reaction-blocking rule
+    /// (``ConversationGate/allowsReactions``): a creator-only or unsupported rule withholds posting
+    /// but not reactions, and neither does it affect copy or report.
+    static func access(isMember: Bool, gate: ConversationGate) -> (canReact: Bool, canPost: Bool) {
+        (canReact: isMember && gate.allowsReactions, canPost: isMember && gate.speaker.isSatisfied)
+    }
+
     private func currentInputs() -> Inputs {
         let conversation = controller.conversation(withID: conversationID)
         // A group has no single counterpart to have read anything — `counterpartReadReceipt` picks
@@ -229,6 +232,9 @@ final class ConversationLoadCoordinator {
                 branding[fiat.mint] = .init(token: balance.name, iconURL: balance.imageURL)
             }
         }
+        // Read inside the observation scope, so a balance or rule change re-maps. A chat whose
+        // record hasn't landed yet has no gate to read, so it keeps the member menu.
+        let access = conversation.map { Self.access(isMember: controller.isMember(of: $0), gate: controller.gateConversation($0)) }
         let counterpartName = conversation?.counterpart(excluding: controller.selfUserID)?.displayName ?? ""
         // The head card belongs only above a short transcript — a long or paged history drops it,
         // and the nav title opens the same place it would.
@@ -265,14 +271,14 @@ final class ConversationLoadCoordinator {
             conversation: conversation,
             // A chat whose record hasn't landed yet has no gate to read, so it keeps the member menu.
             isMember: conversation.map(controller.isMember(of:)) ?? true,
+            canPost: access?.canPost ?? true,
             counterpartName: counterpartName,
             quotedMessages: quotedMessages,
             // Read live, so the windows take effect on the same re-map that lands the flags fetch.
             policy: MessagePolicy(userFlags: session.userFlags),
             now: capabilityClock,
             namesAuthors: namesAuthors,
-            canReact: conversation.map { controller.isMember(of: $0) } ?? true,
-            canSpeak: canSpeak(),
+            canReact: access?.canReact ?? true,
             // Only a transcript that attributes its rows has anything to resolve, so a DM never
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
@@ -322,7 +328,7 @@ final class ConversationLoadCoordinator {
                     in: inputs.conversation,
                     as: inputs.selfUserID,
                     isMember: inputs.isMember,
-                    canSpeak: inputs.canSpeak,
+                    canPost: inputs.canPost,
                     policy: inputs.policy,
                     now: inputs.now
                 )
@@ -334,7 +340,6 @@ final class ConversationLoadCoordinator {
             author: { message in message.senderID.flatMap { authors[$0] } },
             namesAuthors: inputs.namesAuthors,
             canReact: inputs.canReact,
-            canSpeak: inputs.canSpeak,
             // Classification is pure and host-gated, and that is all mapping does with a link: the
             // card is the link's identity, and the card view looks it up for itself. So nothing
             // here touches the network, and an answer landing cannot re-diff this window.
@@ -425,6 +430,8 @@ final class ConversationLoadCoordinator {
         var conversation: Conversation?
         /// False for a non-member reading a group they have not joined, who is offered no Reply.
         var isMember: Bool
+        /// False when the viewer fails a speaker rule, who is offered no Reply (reactions stay).
+        var canPost: Bool
         /// The counterpart's display name, for a quote whose original they wrote.
         var counterpartName: String
         /// Every message quoted by a reply in the window, pre-resolved so `map` stays pure. Keyed
@@ -439,8 +446,6 @@ final class ConversationLoadCoordinator {
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
         /// they have not joined. True for a DM, where there is no conversation record to preview.
         var canReact: Bool
-        /// The chat's speaker rule as the viewer stands against it; see ``ConversationLoadCoordinator/canSpeak``.
-        var canSpeak: Bool
         /// Identities for senders the chat's own roster leaves out. Compared by identity — see
         /// ``KnownAuthorDirectory/Snapshot``.
         var knownAuthors: KnownAuthorDirectory.Snapshot

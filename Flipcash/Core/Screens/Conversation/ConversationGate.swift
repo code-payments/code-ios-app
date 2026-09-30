@@ -14,6 +14,8 @@ import FlipcashStore
 @MainActor
 protocol ConversationGateReading: AnyObject {
     var isStaff: Bool { get }
+    /// The signed-in user, compared against a chat's creator by ``ConversationSpeakerRule/creator``.
+    var userID: UserID { get }
     var totalBalance: ExchangedFiat { get }
     func balance(for mint: PublicKey) -> StoredBalance?
 }
@@ -30,6 +32,11 @@ enum ConversationGateRequirement: Equatable {
     case staff
     /// Nobody may send here. There is no action a user can take, so no CTA.
     case never
+    /// Only the chat's creator may send, and the viewer isn't it. There is no action a user can
+    /// take, so no CTA.
+    case creator
+    /// A speaker rule this build can't read. Blocks for everyone; the fix is updating the app.
+    case unsupported
 }
 
 /// Whether one class of rules is met, and if not, which of them aren't.
@@ -72,6 +79,13 @@ struct ConversationGate: Equatable {
     /// it in USD. The verdict is then a guess, and a non-member's transcript waits for the real one.
     var isProvisional = false
 
+    /// Whether reactions are allowed, as far as the rules go: false while a rule that blocks them
+    /// (``ConversationSpeakerRule/never``, an unmet minimum balance, an unmet staff requirement, or
+    /// any unmet listener rule) is unmet. ``ConversationSpeakerRule/creator`` and
+    /// ``ConversationSpeakerRule/unsupported`` withhold posting only, so on their own they leave
+    /// this true. Membership is separate; see ``ConversationLoadCoordinator/access(isMember:gate:)``.
+    var allowsReactions = true
+
     /// No rules to satisfy — every DM, and a group that doesn't gate anything.
     static let open = ConversationGate(listener: .satisfied, speaker: .satisfied, headline: nil)
 
@@ -82,6 +96,10 @@ struct ConversationGate: Equatable {
 }
 
 /// Evaluates a group chat's participation rules against what the user holds.
+///
+/// `creator` is the chat's `Metadata.creator`; a ``ConversationSpeakerRule/creator`` rule is unmet
+/// unless it equals the viewer, so an unknown creator fails closed. Staff get no bypass: only an
+/// explicit `.staff` rule looks at staff standing.
 ///
 /// `rules` is nil for every non-group chat and for a group whose metadata hasn't
 /// hydrated yet; both are open, as is an empty rule list — the contract
@@ -115,6 +133,7 @@ struct ConversationGate: Equatable {
 func conversationGate(
     session: some ConversationGateReading,
     rules: ConversationRules?,
+    creator: UserID? = nil,
     rates: [CurrencyCode: Rate]
 ) -> ConversationGate {
     guard let rules else { return .open }
@@ -134,8 +153,21 @@ func conversationGate(
             return session.isStaff ? nil : .staff
         case .never:
             return .never
+        case .creator:
+            return creator == session.userID ? nil : .creator
+        case .unsupported:
+            return .unsupported
         case .minimumBalance(let requirement):
             return unmetBalance(requirement, session: session, rates: rates)
+        }
+    }
+
+    // Creator and unsupported withhold posting, not reactions. Everything else the speaker list
+    // can fail (never, balance, staff) blocks both, and so does an unmet listener rule.
+    let blocksReactions = !listenerUnmet.isEmpty || speakerUnmet.contains { requirement in
+        switch requirement {
+        case .creator, .unsupported:               return false
+        case .minimumBalance, .staff, .never:      return true
         }
     }
 
@@ -155,7 +187,8 @@ func conversationGate(
         listener: listener,
         speaker: speaker,
         headline: headline(for: rules.listener),
-        isProvisional: isProvisional
+        isProvisional: isProvisional,
+        allowsReactions: !blocksReactions
     )
 }
 
@@ -330,7 +363,7 @@ func groupRequirementLine(_ headline: ConversationGateRequirement?, mintName: St
         return "Balance Requirement:\n\(holding)"
     case .staff:
         return "This chat is for Flipcash staff"
-    case .never:
+    case .never, .creator, .unsupported:
         return nil
     case nil:
         return nil

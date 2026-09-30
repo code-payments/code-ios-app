@@ -24,8 +24,14 @@ struct MessageCapabilityTests {
         )
     }
 
-    private func resolve(_ message: ConversationMessage, isMember: Bool = true, canSpeak: Bool = true, policy: MessagePolicy = .default) -> Set<MessageCapability> {
-        MessageCapability.resolve(for: message, in: nil, as: me, isMember: isMember, canSpeak: canSpeak, policy: policy, now: now)
+    private func resolve(_ message: ConversationMessage, isMember: Bool = true, canPost: Bool = true, policy: MessagePolicy = .default) -> Set<MessageCapability> {
+        MessageCapability.resolve(for: message, in: nil, as: me, isMember: isMember, canPost: canPost, policy: policy, now: now)
+    }
+
+    @Test("A viewer who can't post loses Reply but keeps copy and report")
+    func cannotPost_losesReplyOnly() {
+        #expect(resolve(text("hi", from: them), canPost: false) == [.copy, .report])
+        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report])
     }
 
     @Test("My own confirmed text can be copied, edited, and deleted")
@@ -100,26 +106,26 @@ struct MessageCapabilityTests {
             id: MessageID(value: 4), senderID: nil, content: widget,
             date: now, unreadSeq: 1, eventSequence: 2
         )
-        #expect(resolve(message, canSpeak: true) == [.reply])
-        #expect(resolve(message, canSpeak: false) == [])
+        #expect(resolve(message, canPost: true) == [.reply])
+        #expect(resolve(message, canPost: false) == [])
         // A non-member has no composer either, whatever the speaker rule says.
-        #expect(resolve(message, isMember: false, canSpeak: true) == [])
+        #expect(resolve(message, isMember: false, canPost: true) == [])
     }
 
     @Test("The speaker rule removes Reply from text and cash, and nothing else")
     func speakerRuleGatesReplyOnEveryMessage() {
         // Can speak: the usual menus.
-        #expect(resolve(text("hi", from: them), canSpeak: true) == [.copy, .reply, .report])
-        #expect(resolve(cash(from: them), canSpeak: true) == [.reply, .report])
+        #expect(resolve(text("hi", from: them), canPost: true) == [.copy, .reply, .report])
+        #expect(resolve(cash(from: them), canPost: true) == [.reply, .report])
         // Cannot speak: Reply goes; Copy and Report stay.
-        #expect(resolve(text("hi", from: them), canSpeak: false) == [.copy, .report])
-        #expect(resolve(cash(from: them), canSpeak: false) == [.report])
+        #expect(resolve(text("hi", from: them), canPost: false) == [.copy, .report])
+        #expect(resolve(cash(from: them), canPost: false) == [.report])
         // Own messages keep Copy, Edit and Delete.
-        #expect(resolve(text("hi", from: me), canSpeak: false) == [.copy, .edit, .delete])
-        #expect(resolve(cash(from: me), canSpeak: false) == [])
+        #expect(resolve(text("hi", from: me), canPost: false) == [.copy, .edit, .delete])
+        #expect(resolve(cash(from: me), canPost: false) == [])
     }
 
-    @Test("A DM is never gated: canSpeak defaults to true")
+    @Test("A DM is never gated: canPost defaults to true")
     func dmIsUngated() {
         #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report])
         #expect(resolve(cash(from: them)) == [.reply, .report])

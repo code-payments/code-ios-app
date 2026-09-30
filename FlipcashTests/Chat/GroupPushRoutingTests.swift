@@ -42,6 +42,7 @@ struct GroupPushRoutingTests {
     /// Stands in for `Session` on the gate's read side.
     private final class StubHoldings: ConversationGateReading {
         var isStaff = false
+        var userID = UUID()
         var totalBalance = ExchangedFiat(nativeAmount: .usd(0), rate: Rate(fx: 1, currency: .usd))
         private let balances: [PublicKey: StoredBalance]
 

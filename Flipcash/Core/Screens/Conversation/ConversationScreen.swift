@@ -305,6 +305,7 @@ struct ConversationScreen: View {
         return conversationGate(
             session: session,
             rules: conversation.rules,
+            creator: conversation.creator,
             rates: ratesController.cachedRates
         )
     }
@@ -448,7 +449,7 @@ struct ConversationScreen: View {
     private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
         switch requirement {
         case .minimumBalance(_, let mint):  mint
-        case .staff, .never:                nil
+        case .staff, .never, .creator, .unsupported:  nil
         }
     }
 
@@ -1415,13 +1416,6 @@ struct ConversationScreen: View {
                         // must pick up the conversation the first tip creates.
                         fallbackCounterpart: Self.cachedCounterpart(counterpartUserID, session: session)
                     )
-                },
-                // The chat's speaker rule, the same `conversationGate` verdict that decides whether
-                // the composer is live, so a widget's Reply and reactions open and close with it.
-                canSpeak: { [session, ratesController, conversationController] in
-                    guard let chat = conversationController.conversation(withID: id), chat.type == .group else { return true }
-                    guard conversationController.isMember(of: chat) else { return false }
-                    return conversationGate(session: session, rules: chat.rules, rates: ratesController.cachedRates).isOpen
                 }
             )
         }
