@@ -179,8 +179,8 @@ struct AccountSelectionScreen: View {
     /// Titles each row from the profile in that account's own local database, then from its
     /// live profile, refreshing the cached name so the next open is right before either lands.
     ///
-    /// A row whose user ID is neither stored nor in its local database skips the live fetch:
-    /// resolving one would mean logging in as an account the user hasn't switched to.
+    /// A row whose user ID is neither stored nor in its local database resolves it with
+    /// `login(owner:)` and stores it, so later opens skip that call.
     private func fetchProfiles() async {
         let location = StoreLocation.resolved()
 
@@ -202,11 +202,8 @@ struct AccountSelectionScreen: View {
                         userID = userID ?? storedProfile.userID
                     }
 
-                    guard let userID else {
-                        return
-                    }
-
                     do {
+                        let userID = try await resolvedUserID(userID, for: keyAccount)
                         let profile = try await flipClient.fetchProfile(userID: userID, owner: keyAccount.owner)
 
                         await accountManager.cacheProfile(profile, ownerPublicKey: owner)
@@ -219,6 +216,17 @@ struct AccountSelectionScreen: View {
                 }
             }
         }
+    }
+
+    /// The row's user ID, logging in as the row's owner only when none is known locally.
+    private func resolvedUserID(_ known: UserID?, for keyAccount: KeyAccount) async throws -> UserID {
+        if let known {
+            return known
+        }
+
+        let userID = try await flipClient.login(owner: keyAccount.owner)
+        accountManager.upsert(keyAccount: keyAccount, userID: userID)
+        return userID
     }
 
     private func update(owner: PublicKey, handler: @MainActor (inout HistoricalAccount) -> Void) {
