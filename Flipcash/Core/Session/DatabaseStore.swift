@@ -67,12 +67,8 @@ final class DatabaseStore {
         // Currently we don't do migrations so every time
         // the user version is outdated, we'll rebuild the
         // database during sync.
-        let userVersion = (try? Database.userVersion(files: files)) ?? 0
-        let currentVersion = Database.schemaVersion
-        if currentVersion > userVersion {
-            try Database.deleteStore(files: files)
+        if try Database.discardStoreIfOutdated(files: files) {
             logger.error("Outdated user version, deleted database.")
-            try Database.setUserVersion(version: currentVersion, files: files)
         }
 
         let database = try Database(url: files.database)

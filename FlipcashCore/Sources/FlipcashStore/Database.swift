@@ -197,7 +197,7 @@ nonisolated open class Database: @unchecked Sendable {
     /// the notification service extension needs the same number to decide whether the store on disk
     /// is one it understands, and an extension cannot read the app's `Info.plist` — separate bundles.
     /// Both targets link this module, so they cannot disagree.
-    public static let schemaVersion = 44
+    public static let schemaVersion = 43
 
     /// Removes the store and the write-ahead log files beside it.
     ///
@@ -225,6 +225,17 @@ nonisolated open class Database: @unchecked Sendable {
         )
     }
     
+    /// Deletes the store when its recorded version is below `schemaVersion` and records the new one,
+    /// returning whether it deleted. A store at or above `schemaVersion` is left as it is.
+    @discardableResult
+    public static func discardStoreIfOutdated(files: StoreLocation.Files, schemaVersion: Int = Database.schemaVersion) throws -> Bool {
+        let recorded = (try? userVersion(files: files)) ?? 0
+        guard schemaVersion > recorded else { return false }
+        try deleteStore(files: files)
+        try setUserVersion(version: schemaVersion, files: files)
+        return true
+    }
+
     public static func userVersion(files: StoreLocation.Files) throws -> Int? {
         let versionString = try String(
             contentsOf: files.version,

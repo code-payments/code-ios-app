@@ -14,6 +14,29 @@ import SQLite
 @MainActor
 struct RosterSearchTests {
 
+    // MARK: - Upgrade -
+
+    @Test("A store from before the roster tables syncs a group on first open and searches it")
+    func upgradedStoreSyncsOnFirstOpen() async throws {
+        let url = try RosterStoreFixture.makeStoreWithoutRosterTables()
+        defer { Database.removeTemp(at: url) }
+        let database = try Database(url: url)
+        defer { try? database.close() }
+
+        let members = [
+            ConversationMember(userID: UUID(), displayName: "Érica Souza", version: 1),
+            ConversationMember(userID: UUID(), displayName: "Luis García", version: 1),
+        ]
+        let harness = Harness(database: database, members: members)
+        #expect(try database.rosterSyncState(conversationID: harness.chatID) == nil)
+
+        await harness.sync.syncIfNeeded(harness.chatID)
+
+        #expect(harness.fetching.calls == 1)
+        #expect(try harness.state().fullySynced)
+        #expect(try await harness.names("eri") == ["Érica Souza"])
+    }
+
     // MARK: - Full read -
 
     @Test("A first open pages until has_more is false and persists every member")
@@ -436,6 +459,10 @@ private struct Harness {
 
     init(members: [ConversationMember], perPage: Int = 100, pageCap: Int = RosterSync.defaultPageCap, selfUserID: UserID = UUID(), blocked: Set<UserID> = []) throws {
         let (database, _) = try Database.makeTemp()
+        self.init(database: database, members: members, perPage: perPage, pageCap: pageCap, selfUserID: selfUserID, blocked: blocked)
+    }
+
+    init(database: Database, members: [ConversationMember], perPage: Int = 100, pageCap: Int = RosterSync.defaultPageCap, selfUserID: UserID = UUID(), blocked: Set<UserID> = []) {
         self.database = database
         self.fetching = FakeRosterFetching(members: members, perPage: perPage)
         self.sync = RosterSync(fetching: fetching, database: database, owner: .generate()!, pageCap: pageCap)
