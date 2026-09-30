@@ -109,6 +109,37 @@ struct AccountManagerTests {
         #expect(manager.fetchActiveHistorical().first?.title == KeyAccount.mock.mnemonic.name)
     }
 
+    @Test("a fetched profile retitles the row, so accounts never cached still show their username")
+    func historicalAccount_setProfile_usesFetchedUsername() throws {
+        let manager = AccountManager()
+        defer { manager.nukeForUITesting() }
+
+        manager.set(keyAccount: .mock, userID: Self.userID)
+        var row = HistoricalAccount(details: try #require(manager.fetchActiveHistorical().first))
+        #expect(row.title == KeyAccount.mock.mnemonic.name)
+
+        row.setProfile(Profile(displayName: "Ted Lasso", phone: Optional<Phone>.none, email: nil, username: Username("ted")))
+
+        #expect(row.title == "@ted")
+    }
+
+    @Test("a fetched profile with no names titles the row by its mnemonic name")
+    func historicalAccount_setEmptyProfile_usesMnemonicName() throws {
+        let manager = AccountManager()
+        defer { manager.nukeForUITesting() }
+
+        manager.set(keyAccount: .mock, userID: Self.userID)
+        manager.cacheProfile(
+            Profile(displayName: "Ted Lasso", phone: Optional<Phone>.none, email: nil, username: Username("ted")),
+            ownerPublicKey: KeyAccount.mock.ownerPublicKey
+        )
+        var row = HistoricalAccount(details: try #require(manager.fetchActiveHistorical().first))
+
+        row.setProfile(.empty)
+
+        #expect(row.title == KeyAccount.mock.mnemonic.name)
+    }
+
     // MARK: - Cached profile -
 
     /// Only the signed-in account has a session, so a row for any other account can be

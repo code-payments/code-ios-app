@@ -11,6 +11,7 @@ import FlipcashCore
 
 struct AccountSelectionScreen: View {
     @EnvironmentObject private var client: Client
+    @EnvironmentObject private var flipClient: FlipClient
     @Environment(RatesController.self) private var ratesController: RatesController?
 
     private let sessionAuthenticator: SessionAuthenticator
@@ -69,7 +70,9 @@ struct AccountSelectionScreen: View {
         .toolbarTitleDisplayMode(.inline)
         .task {
             fetchAccounts()
-            await fetchBalances()
+            async let balances: Void = fetchBalances()
+            async let profiles: Void = fetchProfiles()
+            _ = await (balances, profiles)
         }
         .dialog(item: $dialogItem)
     }
@@ -172,6 +175,36 @@ struct AccountSelectionScreen: View {
         }
     }
 
+    /// Titles every row from its live profile, signing as that row's own owner, and
+    /// refreshes the cached name so the next open is right before the fetch lands.
+    private func fetchProfiles() async {
+        await withTaskGroup(of: Void.self) { group in
+            accounts.forEach { historicalAccount in
+                group.addTask {
+                    let keyAccount = historicalAccount.details.account
+                    do {
+                        let userID: UserID
+                        if let stored = historicalAccount.details.userID {
+                            userID = stored
+                        } else {
+                            userID = try await flipClient.login(owner: keyAccount.owner)
+                            await accountManager.upsert(keyAccount: keyAccount, userID: userID)
+                        }
+
+                        let profile = try await flipClient.fetchProfile(userID: userID, owner: keyAccount.owner)
+
+                        await accountManager.cacheProfile(profile, ownerPublicKey: keyAccount.ownerPublicKey)
+                        await update(owner: keyAccount.ownerPublicKey) {
+                            $0.setProfile(profile)
+                        }
+                    } catch {
+                        // The row keeps its cached title.
+                    }
+                }
+            }
+        }
+    }
+
     private func update(owner: PublicKey, handler: @MainActor (inout HistoricalAccount) -> Void) {
         let index = accounts.firstIndex { $0.details.account.ownerPublicKey == owner }
 
@@ -201,7 +234,7 @@ private struct AccountRow: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .bottom, spacing: 10) {
-                        Text(account.details.title)
+                        Text(account.title)
 
                         if account.isNotFound {
                             Badge(decoration: .circle(.textError), text: "Not Found")
@@ -271,11 +304,23 @@ struct HistoricalAccount: Identifiable {
     nonisolated
     let details: AccountDescription
 
+    /// The row's name: from the cached profile at first, then from the live one.
+    private(set) var title: String
+
     private(set) var totalBalance: ExchangedFiat?
     private(set) var isNotFound: Bool = false
 
     init(details: AccountDescription) {
         self.details = details
+        self.title   = details.title
+    }
+
+    mutating func setProfile(_ profile: Profile) {
+        title = AccountDescription.title(
+            username: profile.username,
+            displayName: profile.displayName,
+            fallback: details.account.mnemonic.name
+        )
     }
 
     mutating func setBalance(_ exchangedFiat: ExchangedFiat) {
