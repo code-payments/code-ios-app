@@ -681,6 +681,7 @@ final class SessionContainer {
             return conversationGate(
                 session: session,
                 rules: conversation.rules,
+                creator: conversation.creator,
                 rates: ratesController?.cachedRates ?? [:]
             )
         }

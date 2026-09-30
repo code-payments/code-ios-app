@@ -37,40 +37,41 @@ struct ConversationGatePanel: View {
     let isJoining: Bool
 
     var body: some View {
-        if case .readOnly(.never) = presentation {
-            neverPill
+        if case .readOnly(let requirement) = presentation, requirement.isStaticReadOnly, let sentence {
+            readOnlyPill(sentence)
         } else {
             card
         }
     }
 
-    /// Nobody but Flipcash may send here (node 10588:1969): the composer's place is taken by a
-    /// disabled, full-width rounded rectangle of glass with one muted line — no field, no controls, no action.
-    /// The brand is named, not the chat, because this rule is what the welcome chat runs on.
-    private var neverPill: some View {
-        Text(Self.neverSentence)
+    /// A rule the viewer can do nothing about (`never`, `creator`, `unsupported`; node 10588:1969): the
+    /// composer's place is taken by a disabled, full-width rounded rectangle of glass with one muted
+    /// line — no field, no controls, no action. For `never` the brand is named, not the chat, because
+    /// that rule is what the welcome chat runs on.
+    private func readOnlyPill(_ sentence: String) -> some View {
+        Text(sentence)
             .font(.appTextMedium)
-            .foregroundStyle(Color.textMain.opacity(Layout.neverTextOpacity))
+            .foregroundStyle(Color.textMain.opacity(Layout.pillTextOpacity))
             .lineLimit(1)
             .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity)
             .frame(height: BarMetrics.contentHeight)
             .padding(.horizontal, BarMetrics.edgeInset)
-            .modifier(NeverPillGlass())
+            .modifier(ReadOnlyPillGlass())
             .padding(.horizontal, BarMetrics.compactInset)
             .padding(.vertical, BarMetrics.contentPadding)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(Self.neverSentence))
+            .accessibilityLabel(Text(sentence))
             .accessibilityAddTraits(.isStaticText)
     }
 
     /// The pill's surface: non-interactive glass at `Metrics.boxRadius`, darkened to the design's fill
     /// (node 10588:1969 draws 46% of a near-black; `backgroundMain` is the nearest token). Below iOS 26
     /// the same fill lies over the standard ultra-thin material.
-    private struct NeverPillGlass: ViewModifier {
+    private struct ReadOnlyPillGlass: ViewModifier {
         func body(content: Content) -> some View {
             let shape = RoundedRectangle(cornerRadius: Metrics.boxRadius)
-            let fill = Color.backgroundMain.opacity(Layout.neverFillOpacity)
+            let fill = Color.backgroundMain.opacity(Layout.pillFillOpacity)
             if #available(iOS 26, *) {
                 content.glassEffect(.regular.tint(fill), in: shape)
             } else {
@@ -82,6 +83,8 @@ struct ConversationGatePanel: View {
     }
 
     static let neverSentence = "Only Flipcash can send messages"
+    static let creatorSentence = "Only the creator can send messages"
+    static let unsupportedSentence = "Update Flipcash to send messages"
 
     private var card: some View {
         VStack(spacing: Layout.gap) {
@@ -134,8 +137,13 @@ struct ConversationGatePanel: View {
             case .open, .undetermined, .join, .blocked:   return "This chat is for Flipcash staff"
             }
         case .never:
-            // Drawn as the composer-shaped pill instead of this card; see ``neverPill``.
+            // Drawn as the composer-shaped pill instead of this card; see ``readOnlyPill(_:)``.
             return Self.neverSentence
+        case .creator:
+            // Drawn as the pill too.
+            return Self.creatorSentence
+        case .unsupported:
+            return Self.unsupportedSentence
         }
     }
 
@@ -171,8 +179,8 @@ struct ConversationGatePanel: View {
             case .minimumBalance(_, let mint):
                 Button(addFundsTitle(mint: mint), action: onAddFunds)
                     .buttonStyle(.filled)
-            case .staff, .never:
-                // Nothing the user can do about being staff or about a chat nobody may post in,
+            case .staff, .never, .creator, .unsupported:
+                // Nothing the user can do about being staff, about a chat nobody may post in, or about not being its creator,
                 // so a button here would be a lie.
                 EmptyView()
             }
@@ -197,7 +205,17 @@ struct ConversationGatePanel: View {
         static let cardPadding: CGFloat = 6
         static let gap: CGFloat = 12
         /// The pill's line, muted as the design draws it (node 10588:1969).
-        static let neverTextOpacity: Double = 0.4
-        static let neverFillOpacity: Double = 0.46
+        static let pillTextOpacity: Double = 0.4
+        static let pillFillOpacity: Double = 0.46
+    }
+}
+
+private extension ConversationGateRequirement {
+    /// Whether the read-only state is drawn as the composer-shaped pill: the ones with no action.
+    var isStaticReadOnly: Bool {
+        switch self {
+        case .never, .creator, .unsupported:  true
+        case .minimumBalance, .staff:         false
+        }
     }
 }

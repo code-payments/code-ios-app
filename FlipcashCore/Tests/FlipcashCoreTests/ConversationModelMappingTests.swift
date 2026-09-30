@@ -713,6 +713,29 @@ struct ConversationMessageContentEncodingTests {
         #expect(ConversationSpeakerRule(proto) == .never)
     }
 
+    @Test("The creator speaker rule round-trips through the proto")
+    func creatorSpeakerRuleRoundTrips() {
+        let proto = ConversationSpeakerRule.creator.proto
+        #expect(proto.creator == .init())
+        #expect(ConversationSpeakerRule(proto) == .creator)
+    }
+
+    @Test("An unset speaker rule maps to unsupported instead of being dropped")
+    func unsetSpeakerRuleMapsToUnsupported() {
+        #expect(ConversationSpeakerRule(Flipcash_Chat_V1_SpeakerRules()) == .unsupported)
+        let rules = ConversationRules(Flipcash_Chat_V1_Rules.with {
+            $0.speaker = [.init(), .with { $0.creator = .init() }]
+        })
+        #expect(rules.speaker == [.unsupported, .creator])
+    }
+
+    @Test("Unsupported speaker rules survive the store's JSON encoding")
+    func unsupportedSpeakerRuleRoundTripsThroughJSON() throws {
+        let rules = ConversationRules(speaker: [.unsupported, .creator])
+        let data = try JSONEncoder().encode(rules)
+        #expect(try JSONDecoder().decode(ConversationRules.self, from: data) == rules)
+    }
+
     @Test("A share-profile widget maps to its domain model")
     func shareProfileWidgetMaps() throws {
         let proto = Flipcash_Messaging_V1_WidgetContent.with {

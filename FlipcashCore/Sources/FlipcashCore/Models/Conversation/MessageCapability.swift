@@ -66,10 +66,9 @@ extension MessageCapability {
     /// `isMember` is false for a non-member reading a group they have not joined. They get no Reply:
     /// the Join panel stands where the composer would, so there is nothing to reply with.
     ///
-    /// `canSpeak` is the chat's speaker rule as the viewer stands against it (`ConversationGate`'s
-    /// speaker verdict, with membership). It withholds Reply from every message, matching Android:
-    /// Copy, Report and the sender's own Edit/Delete are unaffected. A `never` rule, an unmet balance or an unmet staff requirement all arrive here
-    /// as false.
+    /// `canPost` is false when the viewer fails a speaker rule (with membership). Reply goes with the
+    /// composer, since a reply is a post, matching Android. Copy, Report and the sender's own
+    /// Edit/Delete are not posting and stay. Reactions are not decided here.
     ///
     /// `now` is a parameter rather than `Date.now` so the result stays a function of its inputs.
     public static func resolve(
@@ -77,12 +76,12 @@ extension MessageCapability {
         in conversation: Conversation?,
         as selfUserID: UserID,
         isMember: Bool,
-        canSpeak: Bool = true,
+        canPost: Bool = true,
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
-        var capabilities = memberCapabilities(for: message, as: selfUserID, canSpeak: canSpeak, policy: policy, now: now)
-        if !isMember || !canSpeak {
+        var capabilities = memberCapabilities(for: message, as: selfUserID, policy: policy, now: now)
+        if !isMember || !canPost {
             capabilities.remove(.reply)
         }
         return capabilities
@@ -91,7 +90,6 @@ extension MessageCapability {
     private static func memberCapabilities(
         for message: ConversationMessage,
         as selfUserID: UserID,
-        canSpeak: Bool,
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {

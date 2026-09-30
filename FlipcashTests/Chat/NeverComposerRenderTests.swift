@@ -18,9 +18,9 @@ import FlipcashCore
 @Suite("Never-speaker composer rendering")
 struct NeverComposerRenderTests {
 
-    private func render(width: CGFloat = 402) throws -> (image: UIImage, pill: CGSize) {
+    private func render(_ requirement: ConversationGateRequirement = .never, width: CGFloat = 402) throws -> (image: UIImage, pill: CGSize) {
         let panel = ConversationGatePanel(
-            presentation: .readOnly(.never), mintName: nil, onAddFunds: {}, onJoin: {}, isJoining: false
+            presentation: .readOnly(requirement), mintName: nil, onAddFunds: {}, onJoin: {}, isJoining: false
         )
         let host = UIHostingController(rootView: ZStack(alignment: .bottom) {
             Color.backgroundMain
@@ -61,14 +61,25 @@ struct NeverComposerRenderTests {
         #expect(ConversationGatePanel.neverSentence == "Only Flipcash can send messages")
     }
 
-    @Test("The pill renders at the composer's height")
-    func renders() throws {
-        let rendered = try render()
+    @Test("The creator and unsupported rules draw their own copy")
+    func otherSentences() {
+        #expect(ConversationGatePanel.creatorSentence == "Only the creator can send messages")
+        #expect(ConversationGatePanel.unsupportedSentence == "Update Flipcash to send messages")
+    }
+
+    @Test("Each static read-only rule renders a pill at the composer's height", arguments: [
+        ("never", ConversationGateRequirement.never),
+        ("creator", .creator),
+        ("unsupported", .unsupported),
+    ])
+    func renders(name: String, requirement: ConversationGateRequirement) throws {
+        let rendered = try render(requirement)
         #expect(rendered.pill.height == 50)
         #expect(rendered.image.size.width == 402)
-        if let path = ProcessInfo.processInfo.environment["NEVER_COMPOSER_PNG"],
+        // Set `TEST_RUNNER_READ_ONLY_PILL_DIR` to keep the images.
+        if let dir = ProcessInfo.processInfo.environment["READ_ONLY_PILL_DIR"],
            let data = rendered.image.pngData() {
-            try data.write(to: URL(fileURLWithPath: path))
+            try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent("ios-\(name)-pill.png"))
         }
     }
 }

@@ -80,11 +80,8 @@ extension ChatItem {
         author: (ConversationMessage) -> ChatAuthor? = { _ in nil },
         namesAuthors: Bool = false,
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
-        /// they have not joined (see `ChatMessage.canReact`).
+        /// they have not joined, or who fails a reaction-blocking speaker rule (see `ChatMessage.canReact`).
         canReact: Bool = true,
-        /// Whether the chat's speaker rule lets the viewer speak. Reactions follow it in addition to
-        /// `canReact`; a DM always passes.
-        canSpeak: Bool = true,
         /// The card, if any, for a message's detected links. Injected like the other collaborators
         /// so the mapper stays pure; the screen supplies classification and nothing else, and it
         /// defaults to no card. Takes the detected links rather than the text so the detector runs
@@ -355,7 +352,7 @@ extension ChatItem {
                     // last row, with its receipt.
                     reactions: isLast ? message.reactionState?.pills ?? [] : [],
                     selfReactions: message.reactionState?.selfReactions ?? [],
-                    canReact: canReact && canSpeak,
+                    canReact: canReact,
                     isUnsent: isUnsent
                 )))
             }

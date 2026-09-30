@@ -16,11 +16,13 @@ struct ConversationGateTests {
     /// Stands in for `Session`, which the gate reads three things from.
     private final class StubHoldings: ConversationGateReading {
         var isStaff: Bool
+        var userID: UserID
         var totalBalance: ExchangedFiat
         private var balances: [PublicKey: StoredBalance]
 
-        init(isStaff: Bool = false, totalUSD: Decimal = 0, balances: [PublicKey: StoredBalance] = [:]) {
+        init(isStaff: Bool = false, userID: UserID = UUID(), totalUSD: Decimal = 0, balances: [PublicKey: StoredBalance] = [:]) {
             self.isStaff = isStaff
+            self.userID = userID
             self.totalBalance = ExchangedFiat(
                 nativeAmount: .usd(totalUSD),
                 rate: Rate(fx: 1, currency: .usd)
@@ -78,6 +80,114 @@ struct ConversationGateTests {
         let gate = conversationGate(session: StubHoldings(isStaff: true), rules: rules, rates: noRates)
         #expect(gate.listener == .satisfied)
         #expect(gate.speaker == .unsatisfied(unmet: [.never], primary: .never))
+    }
+
+    @Test("A creator speaker rule is met by the chat's creator")
+    func creatorSpeakerRule_creatorViewer_open() {
+        let me = UUID()
+        let rules = ConversationRules(speaker: [.creator])
+        let gate = conversationGate(session: StubHoldings(userID: me), rules: rules, creator: me, rates: noRates)
+        #expect(gate.isOpen)
+        #expect(conversationGatePresentation(gate, isMember: true) == .open)
+    }
+
+    @Test("A creator speaker rule leaves a non-creator read-only")
+    func creatorSpeakerRule_otherViewer_readOnly() {
+        let rules = ConversationRules(speaker: [.creator])
+        let gate = conversationGate(session: StubHoldings(), rules: rules, creator: UUID(), rates: noRates)
+        #expect(gate.listener == .satisfied)
+        #expect(gate.speaker == .unsatisfied(unmet: [.creator], primary: .creator))
+        #expect(conversationGatePresentation(gate, isMember: true) == .readOnly(.creator))
+    }
+
+    @Test("Staff get no bypass of a creator speaker rule")
+    func creatorSpeakerRule_staffNonCreator_readOnly() {
+        let rules = ConversationRules(speaker: [.creator])
+        let gate = conversationGate(session: StubHoldings(isStaff: true), rules: rules, creator: UUID(), rates: noRates)
+        #expect(gate.speaker == .unsatisfied(unmet: [.creator], primary: .creator))
+    }
+
+    @Test("A creator speaker rule on a chat with an unknown creator fails closed")
+    func creatorSpeakerRule_unknownCreator_readOnly() {
+        let rules = ConversationRules(speaker: [.creator])
+        let gate = conversationGate(session: StubHoldings(), rules: rules, creator: nil, rates: noRates)
+        #expect(gate.speaker == .unsatisfied(unmet: [.creator], primary: .creator))
+    }
+
+    @Test("An unsupported speaker rule blocks posting for everyone, staff included")
+    func unsupportedSpeakerRule_staffViewer_readOnly() {
+        let rules = ConversationRules(speaker: [.unsupported])
+        let gate = conversationGate(session: StubHoldings(isStaff: true), rules: rules, rates: noRates)
+        #expect(gate.listener == .satisfied)
+        #expect(gate.speaker == .unsatisfied(unmet: [.unsupported], primary: .unsupported))
+        #expect(conversationGatePresentation(gate, isMember: true) == .readOnly(.unsupported))
+    }
+
+    @Test("A member failing only a creator or unsupported rule can react but cannot post", arguments: [ConversationSpeakerRule.creator, .unsupported])
+    func postingOnlyRule_memberCanReactButNotPost(_ rule: ConversationSpeakerRule) {
+        let gate = conversationGate(session: StubHoldings(isStaff: true), rules: ConversationRules(speaker: [rule]), creator: UUID(), rates: noRates)
+        let access = ConversationLoadCoordinator.access(isMember: true, gate: gate)
+        #expect(access.canReact)
+        #expect(!access.canPost)
+    }
+
+    @Test("A never rule blocks reactions as well as posting")
+    func neverRule_blocksReactionsAndPosting() {
+        let gate = conversationGate(session: StubHoldings(isStaff: true), rules: ConversationRules(speaker: [.never]), rates: noRates)
+        let access = ConversationLoadCoordinator.access(isMember: true, gate: gate)
+        #expect(!access.canReact)
+        #expect(!access.canPost)
+    }
+
+    @Test("An unmet minimum balance or staff rule blocks reactions as well as posting")
+    func balanceAndStaffRules_blockReactionsAndPosting() {
+        for rule in [ConversationSpeakerRule.minimumBalance(minimumBalance(100)), .staff] {
+            let gate = conversationGate(session: StubHoldings(), rules: ConversationRules(speaker: [rule]), rates: noRates)
+            let access = ConversationLoadCoordinator.access(isMember: true, gate: gate)
+            #expect(!access.canReact)
+            #expect(!access.canPost)
+        }
+    }
+
+    @Test("Creator paired with an unmet staff rule keeps reactions blocked")
+    func creatorWithUnmetStaff_blocksReactions() {
+        let me = UUID()
+        let rules = ConversationRules(speaker: [.creator, .staff])
+        let gate = conversationGate(session: StubHoldings(userID: me), rules: rules, creator: me, rates: noRates)
+        let access = ConversationLoadCoordinator.access(isMember: true, gate: gate)
+        #expect(!access.canReact)
+        #expect(!access.canPost)
+    }
+
+    @Test("Creator paired with an unmet staff rule still allows reactions once staff is met and the viewer is not the creator")
+    func creatorWithMetStaff_nonCreatorCanReact() {
+        let rules = ConversationRules(speaker: [.creator, .staff])
+        let gate = conversationGate(session: StubHoldings(isStaff: true), rules: rules, creator: UUID(), rates: noRates)
+        let access = ConversationLoadCoordinator.access(isMember: true, gate: gate)
+        #expect(access.canReact)
+        #expect(!access.canPost)
+    }
+
+    @Test("A non-member can neither react nor post, whatever the rules say")
+    func nonMember_hasNoAccess() {
+        let access = ConversationLoadCoordinator.access(isMember: false, gate: .open)
+        #expect(!access.canReact)
+        #expect(!access.canPost)
+    }
+
+    @Test("The creator can react and post")
+    func creator_canReactAndPost() {
+        let me = UUID()
+        let gate = conversationGate(session: StubHoldings(userID: me), rules: ConversationRules(speaker: [.creator]), creator: me, rates: noRates)
+        let access = ConversationLoadCoordinator.access(isMember: true, gate: gate)
+        #expect(access.canReact)
+        #expect(access.canPost)
+    }
+
+    @Test("A read-only presentation still leaves the transcript readable")
+    func readOnlyPresentation_doesNotObscureTranscript() {
+        #expect(ConversationGatePresentation.readOnly(.creator).obscuresTranscript == false)
+        #expect(ConversationGatePresentation.readOnly(.unsupported).obscuresTranscript == false)
     }
 
     @Test("A staff member satisfies a staff-only chat")

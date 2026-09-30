@@ -69,6 +69,7 @@ struct NewPublicGroupModelTests {
     /// counted only in the total.
     private final class StubHoldings: ConversationGateReading {
         var isStaff = false
+        var userID = UUID()
         var totalBalance: ExchangedFiat
         var holding: StoredBalance?
 
