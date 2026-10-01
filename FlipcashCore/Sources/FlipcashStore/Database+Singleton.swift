@@ -42,15 +42,17 @@ nonisolated extension Database {
 
     /// Encodes `value` and writes it as the singleton row, replacing any existing one.
     public func upsertSingleton<T: Encodable, S: SingletonTable>(_ value: T, in table: S) throws {
-        let data = try JSONEncoder().encode(value)
+        try write { writer in
+            let data = try JSONEncoder().encode(value)
 
-        try writer.run(
-            table.table.upsert(
-                table.id   <- 1,
-                table.data <- data,
+            try writer.run(
+                table.table.upsert(
+                    table.id   <- 1,
+                    table.data <- data,
 
-                onConflictOf: table.id
+                    onConflictOf: table.id
+                )
             )
-        )
+        }
     }
 }

@@ -27,35 +27,41 @@ nonisolated extension Database {
 
     /// Atomically replace the entire cached blocklist with `users`.
     public func replaceBlocklist(_ users: [BlockedUserProfile]) throws {
-        let b = BlocklistTable()
-        try writer.transaction {
-            try writer.run(b.table.delete())
-            for user in users {
-                try writer.run(b.table.insert(
-                    b.userID         <- user.userID,
-                    b.blockedAt      <- user.blockedAt.timeIntervalSinceReferenceDate,
-                    b.displayName    <- user.displayName,
-                    b.avatarBlurhash <- user.avatarBlurhash
-                ))
+        try write { writer in
+            let b = BlocklistTable()
+            try writer.transaction {
+                try writer.run(b.table.delete())
+                for user in users {
+                    try writer.run(b.table.insert(
+                        b.userID         <- user.userID,
+                        b.blockedAt      <- user.blockedAt.timeIntervalSinceReferenceDate,
+                        b.displayName    <- user.displayName,
+                        b.avatarBlurhash <- user.avatarBlurhash
+                    ))
+                }
             }
         }
     }
 
     /// Insert or replace one blocked user (optimistic block).
     public func upsertBlockedUser(_ user: BlockedUserProfile) throws {
-        let b = BlocklistTable()
-        try writer.run(b.table.upsert(
-            b.userID         <- user.userID,
-            b.blockedAt      <- user.blockedAt.timeIntervalSinceReferenceDate,
-            b.displayName    <- user.displayName,
-            b.avatarBlurhash <- user.avatarBlurhash,
-            onConflictOf: b.userID
-        ))
+        try write { writer in
+            let b = BlocklistTable()
+            try writer.run(b.table.upsert(
+                b.userID         <- user.userID,
+                b.blockedAt      <- user.blockedAt.timeIntervalSinceReferenceDate,
+                b.displayName    <- user.displayName,
+                b.avatarBlurhash <- user.avatarBlurhash,
+                onConflictOf: b.userID
+            ))
+        }
     }
 
     /// Remove one blocked user (optimistic unblock).
     public func deleteBlockedUser(userID: UserID) throws {
-        let b = BlocklistTable()
-        try writer.run(b.table.filter(b.userID == userID).delete())
+        try write { writer in
+            let b = BlocklistTable()
+            try writer.run(b.table.filter(b.userID == userID).delete())
+        }
     }
 }

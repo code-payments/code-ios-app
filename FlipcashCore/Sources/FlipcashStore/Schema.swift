@@ -379,289 +379,291 @@ nonisolated public struct ConversationMessageTable: Sendable {
 
 nonisolated extension Database {
     public func createTablesIfNeeded() throws {
-        let balanceTable          = BalanceTable()
-        let mintTable             = MintTable()
-        let activityTable         = ActivityTable()
-        let cashLinkMetadataTable = CashLinkMetadataTable()
+        try write { writer in
+            let balanceTable          = BalanceTable()
+            let mintTable             = MintTable()
+            let activityTable         = ActivityTable()
+            let cashLinkMetadataTable = CashLinkMetadataTable()
 
-        try writer.transaction {
-            try writer.run(balanceTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(balanceTable.mint, primaryKey: true)
-                t.column(balanceTable.quarks)
-                t.column(balanceTable.costBasis)
-                t.column(balanceTable.updatedAt)
-            })
-        }
+            try writer.transaction {
+                try writer.run(balanceTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(balanceTable.mint, primaryKey: true)
+                    t.column(balanceTable.quarks)
+                    t.column(balanceTable.costBasis)
+                    t.column(balanceTable.updatedAt)
+                })
+            }
 
-        try writer.transaction {
-            try writer.run(mintTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(mintTable.mint, primaryKey: true)
-                t.column(mintTable.name)
-                t.column(mintTable.symbol)
-                t.column(mintTable.decimals)
-                t.column(mintTable.bio)
-                t.column(mintTable.imageURL)
+            try writer.transaction {
+                try writer.run(mintTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(mintTable.mint, primaryKey: true)
+                    t.column(mintTable.name)
+                    t.column(mintTable.symbol)
+                    t.column(mintTable.decimals)
+                    t.column(mintTable.bio)
+                    t.column(mintTable.imageURL)
 
-                t.column(mintTable.vmAddress)
-                t.column(mintTable.vmAuthority)
-                t.column(mintTable.lockDuration)
+                    t.column(mintTable.vmAddress)
+                    t.column(mintTable.vmAuthority)
+                    t.column(mintTable.lockDuration)
 
-                t.column(mintTable.currencyConfig)
-                t.column(mintTable.liquidityPool)
-                t.column(mintTable.seed)
-                t.column(mintTable.authority)
-                t.column(mintTable.mintVault)
-                t.column(mintTable.coreMintVault)
-                t.column(mintTable.coreMintFees)
-                t.column(mintTable.supplyFromBonding)
-                t.column(mintTable.sellFeeBps)
+                    t.column(mintTable.currencyConfig)
+                    t.column(mintTable.liquidityPool)
+                    t.column(mintTable.seed)
+                    t.column(mintTable.authority)
+                    t.column(mintTable.mintVault)
+                    t.column(mintTable.coreMintVault)
+                    t.column(mintTable.coreMintFees)
+                    t.column(mintTable.supplyFromBonding)
+                    t.column(mintTable.sellFeeBps)
 
-                t.column(mintTable.socialLinks)
-                t.column(mintTable.billColors)
+                    t.column(mintTable.socialLinks)
+                    t.column(mintTable.billColors)
 
-                t.column(mintTable.createdAt)
+                    t.column(mintTable.createdAt)
 
-                t.column(mintTable.updatedAt)
-            })
-        }
+                    t.column(mintTable.updatedAt)
+                })
+            }
         
-        try writer.transaction {
-            try writer.run(activityTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(activityTable.id, primaryKey: true)
-                t.column(activityTable.kind)
-                t.column(activityTable.state)
-                t.column(activityTable.title)
-                t.column(activityTable.quarks)
-                t.column(activityTable.nativeAmount)
-                t.column(activityTable.currency)
-                t.column(activityTable.mint)
-                t.column(activityTable.date)
-                t.column(activityTable.counterpartyUserID)
-                t.column(activityTable.counterpartyPhone)
-            })
-        }
+            try writer.transaction {
+                try writer.run(activityTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(activityTable.id, primaryKey: true)
+                    t.column(activityTable.kind)
+                    t.column(activityTable.state)
+                    t.column(activityTable.title)
+                    t.column(activityTable.quarks)
+                    t.column(activityTable.nativeAmount)
+                    t.column(activityTable.currency)
+                    t.column(activityTable.mint)
+                    t.column(activityTable.date)
+                    t.column(activityTable.counterpartyUserID)
+                    t.column(activityTable.counterpartyPhone)
+                })
+            }
         
-        try writer.transaction {
-            try writer.run(cashLinkMetadataTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(cashLinkMetadataTable.id, primaryKey: true)
-                t.column(cashLinkMetadataTable.vault)
-                t.column(cashLinkMetadataTable.canCancel)
+            try writer.transaction {
+                try writer.run(cashLinkMetadataTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(cashLinkMetadataTable.id, primaryKey: true)
+                    t.column(cashLinkMetadataTable.vault)
+                    t.column(cashLinkMetadataTable.canCancel)
 
-                t.foreignKey(cashLinkMetadataTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
-            })
+                    t.foreignKey(cashLinkMetadataTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let swapMetadataTable = SwapMetadataTable()
+
+            try writer.transaction {
+                try writer.run(swapMetadataTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(swapMetadataTable.id, primaryKey: true)
+                    t.column(swapMetadataTable.fromMint)
+                    t.column(swapMetadataTable.fromQuarks)
+                    t.column(swapMetadataTable.fromNativeAmount)
+                    t.column(swapMetadataTable.fromCurrency)
+                    t.column(swapMetadataTable.toMint)
+                    t.column(swapMetadataTable.toQuarks)
+                    t.column(swapMetadataTable.toNativeAmount)
+                    t.column(swapMetadataTable.toCurrency)
+                    t.column(swapMetadataTable.feeNativeAmount)
+                    t.column(swapMetadataTable.feeCurrency)
+                    t.column(swapMetadataTable.state)
+
+                    t.foreignKey(swapMetadataTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let limitsTable = LimitsTable()
+
+            try writer.transaction {
+                try writer.run(limitsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(limitsTable.id, primaryKey: true)
+                    t.column(limitsTable.data)
+                })
+            }
+
+            let rateTable = RateTable()
+
+            try writer.transaction {
+                try writer.run(rateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(rateTable.currency, primaryKey: true)
+                    t.column(rateTable.data)
+                })
+            }
+
+            let verifiedRateTable = VerifiedRateTable()
+
+            try writer.transaction {
+                try writer.run(verifiedRateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(verifiedRateTable.currency, primaryKey: true)
+                    t.column(verifiedRateTable.rateProto)
+                })
+            }
+
+            let verifiedReserveTable = VerifiedReserveTable()
+
+            try writer.transaction {
+                try writer.run(verifiedReserveTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(verifiedReserveTable.mint, primaryKey: true)
+                    t.column(verifiedReserveTable.reserveProto)
+                })
+            }
+
+            let profileTable = ProfileTable()
+
+            try writer.transaction {
+                try writer.run(profileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(profileTable.id, primaryKey: true)
+                    t.column(profileTable.data)
+                })
+            }
+
+            let userProfileTable = UserProfileTable()
+
+            try writer.transaction {
+                try writer.run(userProfileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(userProfileTable.userID, primaryKey: true)
+                    t.column(userProfileTable.data)
+                })
+            }
+
+            let userFlagsTable = UserFlagsTable()
+
+            try writer.transaction {
+                try writer.run(userFlagsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(userFlagsTable.id, primaryKey: true)
+                    t.column(userFlagsTable.data)
+                })
+            }
+
+            let contactSyncStateTable = ContactSyncStateTable()
+
+            try writer.transaction {
+                try writer.run(contactSyncStateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(contactSyncStateTable.id, primaryKey: true)
+                    t.column(contactSyncStateTable.checksum)
+                })
+            }
+
+            let flipcashContactTable = FlipcashContactTable()
+
+            try writer.transaction {
+                try writer.run(flipcashContactTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(flipcashContactTable.e164, primaryKey: true)
+                    t.column(flipcashContactTable.dmChatId)
+                    t.column(flipcashContactTable.joinTs)
+                    t.column(flipcashContactTable.matchedAt)
+                })
+            }
+
+            let localContactsSnapshotTable = LocalContactsSnapshotTable()
+
+            try writer.transaction {
+                // Composite PK (e164, contactId): the same phone number may
+                // appear on multiple address-book contacts (a household
+                // landline, a shop number on several cards). The picker shows
+                // every (name, number) pair, so the snapshot has to preserve
+                // them all.
+                try writer.run(localContactsSnapshotTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(localContactsSnapshotTable.e164)
+                    t.column(localContactsSnapshotTable.contactId)
+                    t.primaryKey(localContactsSnapshotTable.e164, localContactsSnapshotTable.contactId)
+                })
+            }
+
+            let conversationTable = ConversationTable()
+
+            try writer.transaction {
+                try writer.run(conversationTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(conversationTable.id, primaryKey: true)
+                    t.column(conversationTable.lastActivity)
+                    t.column(conversationTable.catchupCursor)
+                    t.column(conversationTable.type, defaultValue: ConversationType.contactDm.rawValue)
+                    t.column(conversationTable.isHidden, defaultValue: false)
+                    t.column(conversationTable.title)
+                    t.column(conversationTable.pictureBlobID)
+                    t.column(conversationTable.pictureThumbnailBlobID)
+                    t.column(conversationTable.pictureThumbnailBlurhash)
+                    t.column(conversationTable.rosterMemberCount, defaultValue: 0)
+                    t.column(conversationTable.rosterVersion, defaultValue: 0)
+                    t.column(conversationTable.rules)
+                    t.column(conversationTable.viewerState)
+                    t.column(conversationTable.creator)
+                    t.column(conversationTable.useE2Ee, defaultValue: false)
+                })
+            }
+
+            let groupMembershipTable = GroupMembershipTable()
+
+            try writer.transaction {
+                try writer.run(groupMembershipTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(groupMembershipTable.conversationId, primaryKey: true)
+                })
+            }
+
+            let conversationMemberTable = ConversationMemberTable()
+
+            try writer.transaction {
+                // Rowid table: `userId` is nullable (the server may omit it), so it
+                // can't join a WITHOUT ROWID primary key. Writes replace a
+                // conversation's members wholesale.
+                try writer.run(conversationMemberTable.table.create(ifNotExists: true) { t in
+                    t.column(conversationMemberTable.conversationId)
+                    t.column(conversationMemberTable.userId)
+                    t.column(conversationMemberTable.displayName)
+                    t.column(conversationMemberTable.phoneE164)
+                    t.column(conversationMemberTable.readPointer)
+                    t.column(conversationMemberTable.readPointerTimestamp)
+                    t.column(conversationMemberTable.profilePictureBlobID)
+                    t.column(conversationMemberTable.profilePictureThumbnailBlobID)
+                    t.column(conversationMemberTable.profilePictureThumbnailBlurhash)
+                    t.column(conversationMemberTable.username)
+                })
+            }
+
+            let conversationMessageTable = ConversationMessageTable()
+
+            try writer.transaction {
+                try writer.run(conversationMessageTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(conversationMessageTable.conversationId)
+                    t.column(conversationMessageTable.id)
+                    t.column(conversationMessageTable.senderId)
+                    t.column(conversationMessageTable.kind)
+                    t.column(conversationMessageTable.text)
+                    t.column(conversationMessageTable.quarks)
+                    t.column(conversationMessageTable.nativeAmount)
+                    t.column(conversationMessageTable.currency)
+                    t.column(conversationMessageTable.mint)
+                    t.column(conversationMessageTable.cashAction)
+                    t.column(conversationMessageTable.date)
+                    t.column(conversationMessageTable.unreadSeq)
+                    t.column(conversationMessageTable.eventSequence)
+                    t.column(conversationMessageTable.clientMessageID)
+                    t.column(conversationMessageTable.repliedToId)
+                    t.column(conversationMessageTable.lastEditedTs)
+                    t.column(conversationMessageTable.deletedBy)
+                    t.column(conversationMessageTable.deletedAt)
+                    t.column(conversationMessageTable.encryptedScheme)
+                    t.column(conversationMessageTable.encryptedNonce)
+                    t.column(conversationMessageTable.encryptedCiphertext)
+                    t.column(conversationMessageTable.decryptFailure)
+                    t.column(conversationMessageTable.reactionsJson)
+                    t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
+                })
+            }
+
+            let blocklistTable = BlocklistTable()
+
+            try writer.transaction {
+                try writer.run(blocklistTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(blocklistTable.userID, primaryKey: true)
+                    t.column(blocklistTable.blockedAt)
+                    t.column(blocklistTable.displayName)
+                    t.column(blocklistTable.avatarBlurhash)
+                })
+            }
+
         }
-
-        let swapMetadataTable = SwapMetadataTable()
-
-        try writer.transaction {
-            try writer.run(swapMetadataTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(swapMetadataTable.id, primaryKey: true)
-                t.column(swapMetadataTable.fromMint)
-                t.column(swapMetadataTable.fromQuarks)
-                t.column(swapMetadataTable.fromNativeAmount)
-                t.column(swapMetadataTable.fromCurrency)
-                t.column(swapMetadataTable.toMint)
-                t.column(swapMetadataTable.toQuarks)
-                t.column(swapMetadataTable.toNativeAmount)
-                t.column(swapMetadataTable.toCurrency)
-                t.column(swapMetadataTable.feeNativeAmount)
-                t.column(swapMetadataTable.feeCurrency)
-                t.column(swapMetadataTable.state)
-
-                t.foreignKey(swapMetadataTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
-            })
-        }
-
-        let limitsTable = LimitsTable()
-
-        try writer.transaction {
-            try writer.run(limitsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(limitsTable.id, primaryKey: true)
-                t.column(limitsTable.data)
-            })
-        }
-
-        let rateTable = RateTable()
-
-        try writer.transaction {
-            try writer.run(rateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(rateTable.currency, primaryKey: true)
-                t.column(rateTable.data)
-            })
-        }
-
-        let verifiedRateTable = VerifiedRateTable()
-
-        try writer.transaction {
-            try writer.run(verifiedRateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(verifiedRateTable.currency, primaryKey: true)
-                t.column(verifiedRateTable.rateProto)
-            })
-        }
-
-        let verifiedReserveTable = VerifiedReserveTable()
-
-        try writer.transaction {
-            try writer.run(verifiedReserveTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(verifiedReserveTable.mint, primaryKey: true)
-                t.column(verifiedReserveTable.reserveProto)
-            })
-        }
-
-        let profileTable = ProfileTable()
-
-        try writer.transaction {
-            try writer.run(profileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(profileTable.id, primaryKey: true)
-                t.column(profileTable.data)
-            })
-        }
-
-        let userProfileTable = UserProfileTable()
-
-        try writer.transaction {
-            try writer.run(userProfileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(userProfileTable.userID, primaryKey: true)
-                t.column(userProfileTable.data)
-            })
-        }
-
-        let userFlagsTable = UserFlagsTable()
-
-        try writer.transaction {
-            try writer.run(userFlagsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(userFlagsTable.id, primaryKey: true)
-                t.column(userFlagsTable.data)
-            })
-        }
-
-        let contactSyncStateTable = ContactSyncStateTable()
-
-        try writer.transaction {
-            try writer.run(contactSyncStateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(contactSyncStateTable.id, primaryKey: true)
-                t.column(contactSyncStateTable.checksum)
-            })
-        }
-
-        let flipcashContactTable = FlipcashContactTable()
-
-        try writer.transaction {
-            try writer.run(flipcashContactTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(flipcashContactTable.e164, primaryKey: true)
-                t.column(flipcashContactTable.dmChatId)
-                t.column(flipcashContactTable.joinTs)
-                t.column(flipcashContactTable.matchedAt)
-            })
-        }
-
-        let localContactsSnapshotTable = LocalContactsSnapshotTable()
-
-        try writer.transaction {
-            // Composite PK (e164, contactId): the same phone number may
-            // appear on multiple address-book contacts (a household
-            // landline, a shop number on several cards). The picker shows
-            // every (name, number) pair, so the snapshot has to preserve
-            // them all.
-            try writer.run(localContactsSnapshotTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(localContactsSnapshotTable.e164)
-                t.column(localContactsSnapshotTable.contactId)
-                t.primaryKey(localContactsSnapshotTable.e164, localContactsSnapshotTable.contactId)
-            })
-        }
-
-        let conversationTable = ConversationTable()
-
-        try writer.transaction {
-            try writer.run(conversationTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(conversationTable.id, primaryKey: true)
-                t.column(conversationTable.lastActivity)
-                t.column(conversationTable.catchupCursor)
-                t.column(conversationTable.type, defaultValue: ConversationType.contactDm.rawValue)
-                t.column(conversationTable.isHidden, defaultValue: false)
-                t.column(conversationTable.title)
-                t.column(conversationTable.pictureBlobID)
-                t.column(conversationTable.pictureThumbnailBlobID)
-                t.column(conversationTable.pictureThumbnailBlurhash)
-                t.column(conversationTable.rosterMemberCount, defaultValue: 0)
-                t.column(conversationTable.rosterVersion, defaultValue: 0)
-                t.column(conversationTable.rules)
-                t.column(conversationTable.viewerState)
-                t.column(conversationTable.creator)
-                t.column(conversationTable.useE2Ee, defaultValue: false)
-            })
-        }
-
-        let groupMembershipTable = GroupMembershipTable()
-
-        try writer.transaction {
-            try writer.run(groupMembershipTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(groupMembershipTable.conversationId, primaryKey: true)
-            })
-        }
-
-        let conversationMemberTable = ConversationMemberTable()
-
-        try writer.transaction {
-            // Rowid table: `userId` is nullable (the server may omit it), so it
-            // can't join a WITHOUT ROWID primary key. Writes replace a
-            // conversation's members wholesale.
-            try writer.run(conversationMemberTable.table.create(ifNotExists: true) { t in
-                t.column(conversationMemberTable.conversationId)
-                t.column(conversationMemberTable.userId)
-                t.column(conversationMemberTable.displayName)
-                t.column(conversationMemberTable.phoneE164)
-                t.column(conversationMemberTable.readPointer)
-                t.column(conversationMemberTable.readPointerTimestamp)
-                t.column(conversationMemberTable.profilePictureBlobID)
-                t.column(conversationMemberTable.profilePictureThumbnailBlobID)
-                t.column(conversationMemberTable.profilePictureThumbnailBlurhash)
-                t.column(conversationMemberTable.username)
-            })
-        }
-
-        let conversationMessageTable = ConversationMessageTable()
-
-        try writer.transaction {
-            try writer.run(conversationMessageTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(conversationMessageTable.conversationId)
-                t.column(conversationMessageTable.id)
-                t.column(conversationMessageTable.senderId)
-                t.column(conversationMessageTable.kind)
-                t.column(conversationMessageTable.text)
-                t.column(conversationMessageTable.quarks)
-                t.column(conversationMessageTable.nativeAmount)
-                t.column(conversationMessageTable.currency)
-                t.column(conversationMessageTable.mint)
-                t.column(conversationMessageTable.cashAction)
-                t.column(conversationMessageTable.date)
-                t.column(conversationMessageTable.unreadSeq)
-                t.column(conversationMessageTable.eventSequence)
-                t.column(conversationMessageTable.clientMessageID)
-                t.column(conversationMessageTable.repliedToId)
-                t.column(conversationMessageTable.lastEditedTs)
-                t.column(conversationMessageTable.deletedBy)
-                t.column(conversationMessageTable.deletedAt)
-                t.column(conversationMessageTable.encryptedScheme)
-                t.column(conversationMessageTable.encryptedNonce)
-                t.column(conversationMessageTable.encryptedCiphertext)
-                t.column(conversationMessageTable.decryptFailure)
-                t.column(conversationMessageTable.reactionsJson)
-                t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
-            })
-        }
-
-        let blocklistTable = BlocklistTable()
-
-        try writer.transaction {
-            try writer.run(blocklistTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(blocklistTable.userID, primaryKey: true)
-                t.column(blocklistTable.blockedAt)
-                t.column(blocklistTable.displayName)
-                t.column(blocklistTable.avatarBlurhash)
-            })
-        }
-
     }
 }
 

@@ -24,6 +24,10 @@ final class DatabaseStore {
 
     private var databases: [PublicKey: Database] = [:]
 
+    /// Shared by every store this opens, so concurrent writes to two accounts' stores hold one
+    /// background-task assertion between them.
+    private let writeGuard = BackgroundStoreWriteGuard()
+
     /// The owner's `Database`, opened on first use: resolves the store location, migrates a legacy
     /// store into the App Group container, and rebuilds the file when its schema is outdated.
     func database(for owner: PublicKey) throws -> Database {
@@ -75,7 +79,7 @@ final class DatabaseStore {
             try Database.setUserVersion(version: currentVersion, files: files)
         }
 
-        let database = try Database(url: files.database)
+        let database = try Database(url: files.database, writeGuard: writeGuard)
         databases[owner] = database
         return database
     }

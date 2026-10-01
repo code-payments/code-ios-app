@@ -291,29 +291,31 @@ nonisolated extension Database {
     /// are retained, other types' conversations untouched), then stores each conversation's
     /// last-message preview.
     public func replaceConversationFeed(_ conversations: [Conversation], type: ConversationType) throws {
-        let c = ConversationTable()
-        let m = ConversationMemberTable()
-        let ids = conversations.map(\.id.data)
-        // IMMEDIATE: this transaction reads before it writes. A DEFERRED one that reads first fails
-        // the write with SQLITE_BUSY at once when another writer holds the lock, without consulting
-        // the busy handler.
-        try writer.transaction(.immediate) {
-            // Delete only the same-type conversations that dropped out of this feed, then upsert the
-            // rest. `writeConversation` upserts the row (leaving `catchupCursor` untouched on conflict)
-            // and replaces that conversation's members, so a surviving conversation keeps its event-log
-            // cursor without a read-and-restore dance.
-            // Messages are deliberately NOT deleted here: they are the transcript's source of truth,
-            // and a feed snapshot fetched before a brand-new chat's first message landed would
-            // otherwise wipe that just-persisted message. Rows for conversations that genuinely left
-            // the feed are orphaned but unread — nothing windows a conversation that isn't opened.
-            let doomed = try writer.prepare(c.table.select(c.id).filter(c.type == type.rawValue && !ids.contains(c.id)))
-                .map { $0[c.id] }
-            if !doomed.isEmpty {
-                try writer.run(c.table.filter(doomed.contains(c.id)).delete())
-                try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
-            }
-            for conversation in conversations where conversation.type == type {
-                try writeConversation(conversation)
+        try write { writer in
+            let c = ConversationTable()
+            let m = ConversationMemberTable()
+            let ids = conversations.map(\.id.data)
+            // IMMEDIATE: this transaction reads before it writes. A DEFERRED one that reads first fails
+            // the write with SQLITE_BUSY at once when another writer holds the lock, without consulting
+            // the busy handler.
+            try writer.transaction(.immediate) {
+                // Delete only the same-type conversations that dropped out of this feed, then upsert the
+                // rest. `writeConversation` upserts the row (leaving `catchupCursor` untouched on conflict)
+                // and replaces that conversation's members, so a surviving conversation keeps its event-log
+                // cursor without a read-and-restore dance.
+                // Messages are deliberately NOT deleted here: they are the transcript's source of truth,
+                // and a feed snapshot fetched before a brand-new chat's first message landed would
+                // otherwise wipe that just-persisted message. Rows for conversations that genuinely left
+                // the feed are orphaned but unread — nothing windows a conversation that isn't opened.
+                let doomed = try writer.prepare(c.table.select(c.id).filter(c.type == type.rawValue && !ids.contains(c.id)))
+                    .map { $0[c.id] }
+                if !doomed.isEmpty {
+                    try writer.run(c.table.filter(doomed.contains(c.id)).delete())
+                    try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
+                }
+                for conversation in conversations where conversation.type == type {
+                    try writeConversation(conversation)
+                }
             }
         }
     }
@@ -325,54 +327,64 @@ nonisolated extension Database {
     /// groups, so deleting every group it omits would evict a group the user reached by link and has
     /// not joined — including the one whose join screen is on top.
     public func replaceGroupFeed(_ groups: [Conversation], departed: Set<ConversationID>) throws {
-        let c = ConversationTable()
-        let m = ConversationMemberTable()
-        let g = GroupMembershipTable()
-        try writer.transaction {
-            let doomed = departed.map(\.data)
-            if !doomed.isEmpty {
-                try writer.run(c.table.filter(doomed.contains(c.id)).delete())
-                try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
-                try writer.run(g.table.filter(doomed.contains(g.conversationId)).delete())
-            }
-            for group in groups where group.type == .group {
-                try writeConversation(group)
-                try writer.run(g.table.insert(or: .replace, g.conversationId <- group.id.data))
+        try write { writer in
+            let c = ConversationTable()
+            let m = ConversationMemberTable()
+            let g = GroupMembershipTable()
+            try writer.transaction {
+                let doomed = departed.map(\.data)
+                if !doomed.isEmpty {
+                    try writer.run(c.table.filter(doomed.contains(c.id)).delete())
+                    try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
+                    try writer.run(g.table.filter(doomed.contains(g.conversationId)).delete())
+                }
+                for group in groups where group.type == .group {
+                    try writeConversation(group)
+                    try writer.run(g.table.insert(or: .replace, g.conversationId <- group.id.data))
+                }
             }
         }
     }
 
     /// Record a single join or leave the client just learned about, without touching the chat row.
     public func setGroupMembership(_ isMember: Bool, for conversationID: ConversationID) throws {
-        let g = GroupMembershipTable()
-        if isMember {
-            try writer.run(g.table.insert(or: .replace, g.conversationId <- conversationID.data))
-        } else {
-            try writer.run(g.table.filter(g.conversationId == conversationID.data).delete())
+        try write { writer in
+            let g = GroupMembershipTable()
+            if isMember {
+                try writer.run(g.table.insert(or: .replace, g.conversationId <- conversationID.data))
+            } else {
+                try writer.run(g.table.filter(g.conversationId == conversationID.data).delete())
+            }
         }
     }
 
     /// Advance the persisted catch-up cursor for a conversation without rewriting its members or
     /// last-message preview. No-ops for a conversation not yet in the feed.
     public func updateCatchupCursor(_ value: UInt64, for conversationID: ConversationID) throws {
-        let c = ConversationTable()
-        try writer.run(c.table.filter(c.id == conversationID.data).update(c.catchupCursor <- value))
+        try write { writer in
+            let c = ConversationTable()
+            try writer.run(c.table.filter(c.id == conversationID.data).update(c.catchupCursor <- value))
+        }
     }
 
     /// Upsert one conversation: its row, its members (replaced wholesale), and
     /// its last-message preview row.
     public func upsertConversation(_ conversation: Conversation) throws {
-        try writer.transaction {
-            try writeConversation(conversation)
+        try write { writer in
+            try writer.transaction {
+                try writeConversation(conversation)
+            }
         }
     }
 
     /// Upsert messages for a conversation (insert-or-replace on the (conversation, id) key). History is
     /// retained — the transcript reads a bounded window from it, so there is no prune.
     public func upsertConversationMessages(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
-        try writer.transaction {
-            for message in messages {
-                try writeMessage(message, conversationId: conversationID.data)
+        try write { writer in
+            try writer.transaction {
+                for message in messages {
+                    try writeMessage(message, conversationId: conversationID.data)
+                }
             }
         }
     }
@@ -384,17 +396,19 @@ nonisolated extension Database {
     /// cursor a live event already persisted. The conversation row need not exist yet (the update no-ops
     /// until it does).
     public func persistMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws {
-        let c = ConversationTable()
-        // IMMEDIATE: reads the current cursor before updating it (see replaceConversationFeed).
-        try writer.transaction(.immediate) {
-            for message in messages {
-                try writeMessage(message, conversationId: conversationID.data)
-            }
-            if cursor > 0 {
-                let scoped = c.table.filter(c.id == conversationID.data)
-                let current = try writer.pluck(scoped).flatMap { $0[c.catchupCursor] } ?? 0
-                if cursor > current {
-                    try writer.run(scoped.update(c.catchupCursor <- cursor))
+        try write { writer in
+            let c = ConversationTable()
+            // IMMEDIATE: reads the current cursor before updating it (see replaceConversationFeed).
+            try writer.transaction(.immediate) {
+                for message in messages {
+                    try writeMessage(message, conversationId: conversationID.data)
+                }
+                if cursor > 0 {
+                    let scoped = c.table.filter(c.id == conversationID.data)
+                    let current = try writer.pluck(scoped).flatMap { $0[c.catchupCursor] } ?? 0
+                    if cursor > current {
+                        try writer.run(scoped.update(c.catchupCursor <- cursor))
+                    }
                 }
             }
         }
@@ -404,230 +418,242 @@ nonisolated extension Database {
     /// overlap the retained history, so a stale older epoch can't render seamlessly stitched to the new
     /// page across an unfetchable gap.
     public func deleteMessages(conversationID: ConversationID) throws {
-        let m = ConversationMessageTable()
-        try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+        try write { writer in
+            let m = ConversationMessageTable()
+            try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+        }
     }
 
     /// Removes a conversation the signed-in user has left (or been removed from): its row and member
     /// rows. Messages are left in place, orphaned but unread — the same treatment
     /// `replaceConversationFeed` gives a conversation that drops out of a feed snapshot.
     public func deleteConversation(conversationID: ConversationID) throws {
-        let c = ConversationTable()
-        let m = ConversationMemberTable()
-        try writer.transaction {
-            try writer.run(c.table.filter(c.id == conversationID.data).delete())
-            try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+        try write { writer in
+            let c = ConversationTable()
+            let m = ConversationMemberTable()
+            try writer.transaction {
+                try writer.run(c.table.filter(c.id == conversationID.data).delete())
+                try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+            }
         }
     }
 
     /// Must be called inside a `writer.transaction`.
     private func writeConversation(_ conversation: Conversation) throws {
-        let c = ConversationTable()
-        let m = ConversationMemberTable()
+        try write { writer in
+            let c = ConversationTable()
+            let m = ConversationMemberTable()
 
-        try writer.run(
-            c.table.upsert(
-                c.id           <- conversation.id.data,
-                c.lastActivity <- conversation.lastActivity.timeIntervalSinceReferenceDate,
-                c.type         <- conversation.type.rawValue,
-                c.isHidden     <- conversation.isHidden,
-                c.title        <- conversation.title,
-                c.pictureBlobID          <- conversation.picture?.blobID.data,
-                c.pictureThumbnailBlobID <- conversation.picture?.thumbnailBlobID.data,
-                c.pictureThumbnailBlurhash <- conversation.picture?.thumbnailBlurhash,
-                c.rosterMemberCount <- conversation.rosterSummary.memberCount,
-                c.rosterVersion     <- conversation.rosterSummary.version,
-                c.rules             <- conversation.rules.flatMap { try? JSONEncoder().encode($0) },
-                c.viewerState       <- conversation.viewerState.flatMap { try? JSONEncoder().encode($0) },
-                c.creator           <- conversation.creator,
-                c.useE2Ee           <- conversation.useE2Ee,
-                onConflictOf: c.id
-            )
-        )
-
-        try writer.run(m.table.filter(m.conversationId == conversation.id.data).delete())
-        for member in conversation.members {
             try writer.run(
-                m.table.insert(
-                    m.conversationId        <- conversation.id.data,
-                    m.userId                <- member.userID,
-                    m.displayName           <- member.displayName,
-                    m.phoneE164             <- member.phoneE164,
-                    m.readPointer           <- member.readPointer?.value,
-                    m.readPointerTimestamp  <- member.readPointerTimestamp?.timeIntervalSinceReferenceDate,
-                    m.profilePictureBlobID          <- member.profilePicture?.blobID.data,
-                    m.profilePictureThumbnailBlobID <- member.profilePicture?.thumbnailBlobID.data,
-                    m.profilePictureThumbnailBlurhash <- member.profilePicture?.thumbnailBlurhash,
-                    m.username <- member.username?.value
+                c.table.upsert(
+                    c.id           <- conversation.id.data,
+                    c.lastActivity <- conversation.lastActivity.timeIntervalSinceReferenceDate,
+                    c.type         <- conversation.type.rawValue,
+                    c.isHidden     <- conversation.isHidden,
+                    c.title        <- conversation.title,
+                    c.pictureBlobID          <- conversation.picture?.blobID.data,
+                    c.pictureThumbnailBlobID <- conversation.picture?.thumbnailBlobID.data,
+                    c.pictureThumbnailBlurhash <- conversation.picture?.thumbnailBlurhash,
+                    c.rosterMemberCount <- conversation.rosterSummary.memberCount,
+                    c.rosterVersion     <- conversation.rosterSummary.version,
+                    c.rules             <- conversation.rules.flatMap { try? JSONEncoder().encode($0) },
+                    c.viewerState       <- conversation.viewerState.flatMap { try? JSONEncoder().encode($0) },
+                    c.creator           <- conversation.creator,
+                    c.useE2Ee           <- conversation.useE2Ee,
+                    onConflictOf: c.id
                 )
             )
-        }
 
-        if let lastMessage = conversation.lastMessage {
-            try writeMessage(lastMessage, conversationId: conversation.id.data)
+            try writer.run(m.table.filter(m.conversationId == conversation.id.data).delete())
+            for member in conversation.members {
+                try writer.run(
+                    m.table.insert(
+                        m.conversationId        <- conversation.id.data,
+                        m.userId                <- member.userID,
+                        m.displayName           <- member.displayName,
+                        m.phoneE164             <- member.phoneE164,
+                        m.readPointer           <- member.readPointer?.value,
+                        m.readPointerTimestamp  <- member.readPointerTimestamp?.timeIntervalSinceReferenceDate,
+                        m.profilePictureBlobID          <- member.profilePicture?.blobID.data,
+                        m.profilePictureThumbnailBlobID <- member.profilePicture?.thumbnailBlobID.data,
+                        m.profilePictureThumbnailBlurhash <- member.profilePicture?.thumbnailBlurhash,
+                        m.username <- member.username?.value
+                    )
+                )
+            }
+
+            if let lastMessage = conversation.lastMessage {
+                try writeMessage(lastMessage, conversationId: conversation.id.data)
+            }
         }
     }
 
     /// Must be called inside a `writer.transaction`.
     private func writeMessage(_ message: ConversationMessage, conversationId: Data) throws {
-        let m = ConversationMessageTable()
+        try write { writer in
+            let m = ConversationMessageTable()
 
-        let scoped = m.table.filter(m.conversationId == conversationId && m.id == message.id.value)
-        var message = message
+            let scoped = m.table.filter(m.conversationId == conversationId && m.id == message.id.value)
+            var message = message
 
-        // Last-writer-wins parity with the in-memory `ConversationStore`: never let a stale re-delivery
-        // (e.g. the deprecated `new_messages` overlay landing after the `events` tombstone, or a
-        // duplicate delta batch) overwrite a newer persisted version — that would resurrect a
-        // deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
-        if let existing = try writer.pluck(scoped) {
-            // Reactions sit outside the event log, so they merge on their own versions whatever the
-            // copy's event sequence says.
-            let storedReactions = Self.decodeReactions(existing[m.reactionsJson])
-            let reactions = Self.mergedReactions(stored: storedReactions, incoming: message.reactionState)
-            let existingSequence = existing[m.eventSequence]
-            if existingSequence > message.eventSequence {
-                // Stale re-delivery: keep the newer stored version.
-                if reactions != storedReactions {
-                    try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+            // Last-writer-wins parity with the in-memory `ConversationStore`: never let a stale re-delivery
+            // (e.g. the deprecated `new_messages` overlay landing after the `events` tombstone, or a
+            // duplicate delta batch) overwrite a newer persisted version — that would resurrect a
+            // deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
+            if let existing = try writer.pluck(scoped) {
+                // Reactions sit outside the event log, so they merge on their own versions whatever the
+                // copy's event sequence says.
+                let storedReactions = Self.decodeReactions(existing[m.reactionsJson])
+                let reactions = Self.mergedReactions(stored: storedReactions, incoming: message.reactionState)
+                let existingSequence = existing[m.eventSequence]
+                if existingSequence > message.eventSequence {
+                    // Stale re-delivery: keep the newer stored version.
+                    if reactions != storedReactions {
+                        try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+                    }
+                    return
                 }
-                return
-            }
-            // A copy that decrypts a row stored while waiting on the peer's key is not a re-delivery.
-            let opensStoredRow = existing[m.kind] == 3 && existing[m.decryptFailure] == nil && !message.isAwaitingDecryption
-            if existingSequence == message.eventSequence && !opensStoredRow {
-                // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
-                // copy landing after a stream echo, or vice versa) so identity stays stable.
-                if existing[m.clientMessageID] == nil, let clientMessageID = message.clientMessageID {
-                    try writer.run(scoped.update(m.clientMessageID <- clientMessageID))
+                // A copy that decrypts a row stored while waiting on the peer's key is not a re-delivery.
+                let opensStoredRow = existing[m.kind] == 3 && existing[m.decryptFailure] == nil && !message.isAwaitingDecryption
+                if existingSequence == message.eventSequence && !opensStoredRow {
+                    // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
+                    // copy landing after a stream echo, or vice versa) so identity stays stable.
+                    if existing[m.clientMessageID] == nil, let clientMessageID = message.clientMessageID {
+                        try writer.run(scoped.update(m.clientMessageID <- clientMessageID))
+                    }
+                    if reactions != storedReactions {
+                        try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+                    }
+                    return
                 }
-                if reactions != storedReactions {
-                    try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+                message.reactionState = reactions
+                // Newer version wins; preserve the row's established identity if the newer copy lacks one.
+                if message.clientMessageID == nil {
+                    message.clientMessageID = existing[m.clientMessageID]
                 }
-                return
             }
-            message.reactionState = reactions
-            // Newer version wins; preserve the row's established identity if the newer copy lacks one.
-            if message.clientMessageID == nil {
-                message.clientMessageID = existing[m.clientMessageID]
+
+            let kind: Int
+            var text: String?
+            var quarks: UInt64?
+            var nativeAmount: String?
+            var currency: CurrencyCode?
+            var mint: PublicKey?
+            var deletedBy: UUID?
+            var deletedAt: Double?
+            var encryptedScheme: Int?
+            var encryptedNonce: Data?
+            var encryptedCiphertext: Data?
+            if let sealed = message.sealed {
+                encryptedScheme = sealed.scheme
+                encryptedNonce = sealed.nonce
+                encryptedCiphertext = sealed.ciphertext
             }
-        }
 
-        let kind: Int
-        var text: String?
-        var quarks: UInt64?
-        var nativeAmount: String?
-        var currency: CurrencyCode?
-        var mint: PublicKey?
-        var deletedBy: UUID?
-        var deletedAt: Double?
-        var encryptedScheme: Int?
-        var encryptedNonce: Data?
-        var encryptedCiphertext: Data?
-        if let sealed = message.sealed {
-            encryptedScheme = sealed.scheme
-            encryptedNonce = sealed.nonce
-            encryptedCiphertext = sealed.ciphertext
-        }
-
-        switch message.content {
-        case .text(let value):
-            kind = 0
-            text = value
-        case .cash(let amount):
-            kind = 1
-            quarks = amount.onChainAmount.quarks
-            nativeAmount = amount.nativeAmount.value.description
-            currency = amount.nativeAmount.currency
-            mint = amount.mint
-        case .deleted(let deletion):
-            kind = 2
-            deletedBy = deletion.deletedBy
-            deletedAt = deletion.deletedAt.timeIntervalSinceReferenceDate
-        case .encrypted(let scheme, let nonce, let ciphertext):
-            kind = 3
-            encryptedScheme = scheme
-            encryptedNonce = nonce
-            encryptedCiphertext = ciphertext
-        case .widget(let widget):
-            // The username rides in `text`; a widget with none is one this client can't draw.
-            kind = 4
-            switch widget {
-            case .shareProfile(let share): text = share.username.value
-            case .unrecognized:            text = nil
+            switch message.content {
+            case .text(let value):
+                kind = 0
+                text = value
+            case .cash(let amount):
+                kind = 1
+                quarks = amount.onChainAmount.quarks
+                nativeAmount = amount.nativeAmount.value.description
+                currency = amount.nativeAmount.currency
+                mint = amount.mint
+            case .deleted(let deletion):
+                kind = 2
+                deletedBy = deletion.deletedBy
+                deletedAt = deletion.deletedAt.timeIntervalSinceReferenceDate
+            case .encrypted(let scheme, let nonce, let ciphertext):
+                kind = 3
+                encryptedScheme = scheme
+                encryptedNonce = nonce
+                encryptedCiphertext = ciphertext
+            case .widget(let widget):
+                // The username rides in `text`; a widget with none is one this client can't draw.
+                kind = 4
+                switch widget {
+                case .shareProfile(let share): text = share.username.value
+                case .unrecognized:            text = nil
+                }
             }
-        }
 
-        let cashAction: Int? = switch message.cashAction {
-        case .sent:   0
-        case .tipped: 1
-        case .none:   nil
-        }
+            let cashAction: Int? = switch message.cashAction {
+            case .sent:   0
+            case .tipped: 1
+            case .none:   nil
+            }
 
-        try writer.run(
-            m.table.insert(
-                or: .replace,
-                m.conversationId <- conversationId,
-                m.id             <- message.id.value,
-                m.senderId       <- message.senderID,
-                m.kind           <- kind,
-                m.text           <- text,
-                m.quarks         <- quarks,
-                m.nativeAmount   <- nativeAmount,
-                m.currency       <- currency,
-                m.mint           <- mint,
-                m.cashAction     <- cashAction,
-                m.date           <- message.date.timeIntervalSinceReferenceDate,
-                m.unreadSeq      <- message.unreadSeq,
-                m.eventSequence  <- message.eventSequence,
-                m.clientMessageID <- message.clientMessageID,
-                m.repliedToId    <- message.repliedTo?.value,
-                m.lastEditedTs   <- message.lastEditedTs?.timeIntervalSinceReferenceDate,
-                m.deletedBy      <- deletedBy,
-                m.deletedAt      <- deletedAt,
-                m.encryptedScheme     <- encryptedScheme,
-                m.encryptedNonce      <- encryptedNonce,
-                m.encryptedCiphertext <- encryptedCiphertext,
-                m.decryptFailure      <- message.decryptFailure?.rawValue,
-                m.reactionsJson       <- Self.encodeReactions(message.reactionState)
+            try writer.run(
+                m.table.insert(
+                    or: .replace,
+                    m.conversationId <- conversationId,
+                    m.id             <- message.id.value,
+                    m.senderId       <- message.senderID,
+                    m.kind           <- kind,
+                    m.text           <- text,
+                    m.quarks         <- quarks,
+                    m.nativeAmount   <- nativeAmount,
+                    m.currency       <- currency,
+                    m.mint           <- mint,
+                    m.cashAction     <- cashAction,
+                    m.date           <- message.date.timeIntervalSinceReferenceDate,
+                    m.unreadSeq      <- message.unreadSeq,
+                    m.eventSequence  <- message.eventSequence,
+                    m.clientMessageID <- message.clientMessageID,
+                    m.repliedToId    <- message.repliedTo?.value,
+                    m.lastEditedTs   <- message.lastEditedTs?.timeIntervalSinceReferenceDate,
+                    m.deletedBy      <- deletedBy,
+                    m.deletedAt      <- deletedAt,
+                    m.encryptedScheme     <- encryptedScheme,
+                    m.encryptedNonce      <- encryptedNonce,
+                    m.encryptedCiphertext <- encryptedCiphertext,
+                    m.decryptFailure      <- message.decryptFailure?.rawValue,
+                    m.reactionsJson       <- Self.encodeReactions(message.reactionState)
+                )
             )
-        )
+        }
     }
 
     /// Replaces a stored message's reactions with `transform` applied to them, returning the new
     /// state; nil when the message is not stored, in which case nothing is written.
     @discardableResult
     public func updateReactions(messageID: MessageID, conversationID: ConversationID, _ transform: (inout ReactionState) -> Void) throws -> ReactionState? {
-        let m = ConversationMessageTable()
-        let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
-        var updated: ReactionState?
-        try writer.transaction {
-            guard let row = try writer.pluck(scoped) else { return }
-            var state = Self.decodeReactions(row[m.reactionsJson]) ?? ReactionState()
-            transform(&state)
-            try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(state)))
-            updated = state
+        return try write { writer in
+            let m = ConversationMessageTable()
+            let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
+            var updated: ReactionState?
+            try writer.transaction {
+                guard let row = try writer.pluck(scoped) else { return }
+                var state = Self.decodeReactions(row[m.reactionsJson]) ?? ReactionState()
+                transform(&state)
+                try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(state)))
+                updated = state
+            }
+            return updated
         }
-        return updated
     }
 
     /// Merges fresh reaction summaries into the stored messages they belong to, returning how many
     /// changed; messages that are not stored are skipped.
     @discardableResult
     public func mergeReactions(_ summaries: [MessageID: ReactionState], conversationID: ConversationID) throws -> Int {
-        let m = ConversationMessageTable()
-        var changed = 0
-        try writer.transaction {
-            for (messageID, summary) in summaries {
-                let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
-                guard let row = try writer.pluck(scoped) else { continue }
-                let stored = Self.decodeReactions(row[m.reactionsJson])
-                let merged = Self.mergedReactions(stored: stored, incoming: summary)
-                guard merged != stored else { continue }
-                try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(merged)))
-                changed += 1
+        return try write { writer in
+            let m = ConversationMessageTable()
+            var changed = 0
+            try writer.transaction {
+                for (messageID, summary) in summaries {
+                    let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
+                    guard let row = try writer.pluck(scoped) else { continue }
+                    let stored = Self.decodeReactions(row[m.reactionsJson])
+                    let merged = Self.mergedReactions(stored: stored, incoming: summary)
+                    guard merged != stored else { continue }
+                    try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(merged)))
+                    changed += 1
+                }
             }
+            return changed
         }
-        return changed
     }
 
     /// A stored state absorbing an incoming copy's summary; the stored state stands when the copy

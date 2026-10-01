@@ -27,20 +27,24 @@ nonisolated extension Database {
 
     /// Cache `profile` under `userID`, replacing any existing row.
     public func upsertUserProfile(_ profile: Profile, userID: UserID) throws {
-        let t = UserProfileTable()
-        let data = try JSONEncoder().encode(profile)
-        try writer.run(t.table.upsert(
-            t.userID <- userID,
-            t.data   <- data,
-            onConflictOf: t.userID
-        ))
+        try write { writer in
+            let t = UserProfileTable()
+            let data = try JSONEncoder().encode(profile)
+            try writer.run(t.table.upsert(
+                t.userID <- userID,
+                t.data   <- data,
+                onConflictOf: t.userID
+            ))
+        }
     }
 
     // MARK: - Delete -
 
     /// Remove the cached profile for `userID`.
     public func deleteUserProfile(userID: UserID) throws {
-        let t = UserProfileTable()
-        try writer.run(t.table.filter(t.userID == userID).delete())
+        try write { writer in
+            let t = UserProfileTable()
+            try writer.run(t.table.filter(t.userID == userID).delete())
+        }
     }
 }

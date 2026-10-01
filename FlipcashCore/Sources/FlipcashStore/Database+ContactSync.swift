@@ -32,15 +32,17 @@ nonisolated extension Database {
     }
 
     public func setContactSyncState(_ state: ContactSyncState) throws {
-        let table = ContactSyncStateTable()
-        try writer.transaction {
-            try writer.run(
-                table.table.upsert(
-                    table.id <- 1,
-                    table.checksum <- state.checksum,
-                    onConflictOf: table.id
+        try write { writer in
+            let table = ContactSyncStateTable()
+            try writer.transaction {
+                try writer.run(
+                    table.table.upsert(
+                        table.id <- 1,
+                        table.checksum <- state.checksum,
+                        onConflictOf: table.id
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -59,23 +61,25 @@ nonisolated extension Database {
     /// Deduplicates on `e164` defensively in case the server ever streams the same number twice.
     @discardableResult
     public func replaceFlipcashContacts(_ contacts: [MatchedContact], matchedAt: Date) throws -> Int {
-        let table = FlipcashContactTable()
-        var seen: Set<String> = []
-        let deduped = contacts.filter { seen.insert($0.e164).inserted }
-        try writer.transaction {
-            try writer.run(table.table.delete())
-            for contact in deduped {
-                try writer.run(
-                    table.table.insert(
-                        table.e164 <- contact.e164,
-                        table.dmChatId <- contact.dmChatID,
-                        table.joinTs <- contact.joinDate,
-                        table.matchedAt <- matchedAt
+        return try write { writer in
+            let table = FlipcashContactTable()
+            var seen: Set<String> = []
+            let deduped = contacts.filter { seen.insert($0.e164).inserted }
+            try writer.transaction {
+                try writer.run(table.table.delete())
+                for contact in deduped {
+                    try writer.run(
+                        table.table.insert(
+                            table.e164 <- contact.e164,
+                            table.dmChatId <- contact.dmChatID,
+                            table.joinTs <- contact.joinDate,
+                            table.matchedAt <- matchedAt
+                        )
                     )
-                )
+                }
             }
+            return deduped.count
         }
-        return deduped.count
     }
 
     // MARK: - Local Snapshot -
@@ -102,8 +106,10 @@ nonisolated extension Database {
 
     /// Replace the snapshot with the latest uploaded set.
     public func replaceLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
-        try writer.transaction {
-            try rewriteLocalContactsSnapshot(contacts)
+        try write { writer in
+            try writer.transaction {
+                try rewriteLocalContactsSnapshot(contacts)
+            }
         }
     }
 
@@ -112,17 +118,19 @@ nonisolated extension Database {
     /// name with that number) — then rewrites the snapshot table. Must be called
     /// inside a `writer.transaction`.
     private func rewriteLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
-        let table = LocalContactsSnapshotTable()
-        var seen: Set<LocalContact> = []
-        let deduped = contacts.filter { seen.insert($0).inserted }
-        try writer.run(table.table.delete())
-        for contact in deduped {
-            try writer.run(
-                table.table.insert(
-                    table.e164 <- contact.e164,
-                    table.contactId <- contact.contactId
+        try write { writer in
+            let table = LocalContactsSnapshotTable()
+            var seen: Set<LocalContact> = []
+            let deduped = contacts.filter { seen.insert($0).inserted }
+            try writer.run(table.table.delete())
+            for contact in deduped {
+                try writer.run(
+                    table.table.insert(
+                        table.e164 <- contact.e164,
+                        table.contactId <- contact.contactId
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -133,16 +141,18 @@ nonisolated extension Database {
         snapshot contacts: [LocalContact],
         state: ContactSyncState
     ) throws {
-        let stateTable = ContactSyncStateTable()
-        try writer.transaction {
-            try rewriteLocalContactsSnapshot(contacts)
-            try writer.run(
-                stateTable.table.upsert(
-                    stateTable.id <- 1,
-                    stateTable.checksum <- state.checksum,
-                    onConflictOf: stateTable.id
+        try write { writer in
+            let stateTable = ContactSyncStateTable()
+            try writer.transaction {
+                try rewriteLocalContactsSnapshot(contacts)
+                try writer.run(
+                    stateTable.table.upsert(
+                        stateTable.id <- 1,
+                        stateTable.checksum <- state.checksum,
+                        onConflictOf: stateTable.id
+                    )
                 )
-            )
+            }
         }
     }
 }
