@@ -23,7 +23,7 @@ struct CurrencyInfoUIScreen {
     // MARK: - Elements
 
     /// Tiles shown for a currency the account holds.
-    var giveButton: XCUIElement { app.buttons["Give"] }
+    var giveButton: XCUIElement { app.buttons["Cash"] }
     var buyMoreButton: XCUIElement { app.buttons["Buy More"] }
     var convertButton: XCUIElement { app.buttons["Convert"] }
 
