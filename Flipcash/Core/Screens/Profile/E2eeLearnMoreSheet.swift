@@ -115,8 +115,8 @@ struct E2eeLearnMoreSheet: View {
 
     private var title: String {
         switch kind {
-        case .dm:    "Your messages are private"
-        case .group: "Public groups are not encrypted"
+        case .dm:    "Your Messages Are Private"
+        case .group: "Public Groups Are Not Encrypted"
         }
     }
 
