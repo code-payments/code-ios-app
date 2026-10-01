@@ -115,24 +115,24 @@ struct E2eeLearnMoreSheet: View {
 
     private var title: String {
         switch kind {
-        case .dm:    "Your messages are private"
-        case .group: "Group chats aren\u{2019}t encrypted"
+        case .dm:    "Your Messages Are Private"
+        case .group: "Public Groups Are Not Encrypted"
         }
     }
 
     private var message: String {
         switch kind {
         case .dm:
-            "Messages and photos in this chat are end-to-end encrypted. Only you and the person you\u{2019}re chatting with can read them. Not even Flipcash can."
+            "Messages and media in this chat are end-to-end encrypted. Only you and the person you\u{2019}re chatting with can read them."
         case .group:
-            "End-to-end encryption covers chats between two people. Messages in group chats are stored on Flipcash servers in a form Flipcash can read."
+            "End-to-end encryption covers chats between two people. Messages in public groups are stored on Flipcash servers in plain text."
         }
     }
 
     private var encrypted: [String] {
         switch kind {
-        case .dm:    ["Text messages and replies", "Photos you send"]
-        case .group: ["Messages in DMs"]
+        case .dm:    ["All message text", "All media"]
+        case .group: ["Messages and media in 1:1 chats"]
         }
     }
 
@@ -140,16 +140,15 @@ struct E2eeLearnMoreSheet: View {
         switch kind {
         case .dm:
             [
-                "Tips and payments, which are recorded on Solana",
+                "Payments, which are recorded on the Solana blockchain",
                 "Reactions, and who sent them",
-                "That a message was edited or deleted",
-                "Group chats",
-                "Messages sent before encryption was turned on",
+                "Public group chats",
+                "Messages sent before encryption became available",
             ]
         case .group:
             [
-                "Group chats, including this one",
-                "Tips and payments, which are recorded on Solana",
+                "Public group chats, including this one",
+                "Payments, which are recorded on the Solana blockchain",
             ]
         }
     }
@@ -179,7 +178,7 @@ struct E2eeFooter: View {
                     Image(systemName: kind == .dm ? "lock.fill" : "lock.open.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.5))
-                    Text(kind == .dm ? "Messages are end-to-end encrypted" : "Group chats aren't end-to-end encrypted")
+                    Text(kind == .dm ? "Messages are end-to-end encrypted" : "Public groups are not end-to-end encrypted")
                         .font(.default(size: 13, weight: .medium))
                         .foregroundStyle(Color(r: 143, g: 143, b: 148))
                 }
