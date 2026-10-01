@@ -291,7 +291,7 @@ struct CurrencyInfoContentV2: View {
     @ViewBuilder private var actionTiles: some View {
         HStack(spacing: 12) {
             if isOwned {
-                actionTile("Give", icon: .asset("IconBanknote"), action: onGive)
+                actionTile("Cash", icon: .asset("IconBanknote"), action: onGive)
                 if isUSDF {
                     // Dollars is what the other currencies are bought with, so
                     // there is nothing to buy more of — it withdraws instead.
