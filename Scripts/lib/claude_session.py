@@ -25,7 +25,7 @@ matches, it lists up to MAX_ROWS candidates on stderr and exits 1.
 
 `pick` prints the same as `resolve`, but instead of failing it opens an
 arrow-key picker on the terminal: over every session when no query is given or
-nothing matches, otherwise over the matches. Esc cancels with exit 1.
+nothing matches, otherwise over the matches. Esc or Ctrl-C cancels with exit 1.
 """
 
 import curses
@@ -111,6 +111,9 @@ def pick(candidates, header):
 
     def run(scr):
         curses.curs_set(0)
+        # Raw mode delivers Ctrl-C as a key; in cbreak mode it would SIGINT
+        # the calling build.sh too.
+        curses.raw()
         query, sel, top = "", 0, 0
         while True:
             shown = [r for r in rows if query.lower() in r[0].lower()]
@@ -138,7 +141,7 @@ def pick(candidates, header):
             elif key in ("\n", "\r", curses.KEY_ENTER):
                 if shown:
                     return shown[sel][1]
-            elif key == "\x1b":
+            elif key in ("\x1b", "\x03"):
                 return None
             elif key in (curses.KEY_BACKSPACE, "\x7f", "\x08"):
                 query = query[:-1]
@@ -155,8 +158,6 @@ def pick(candidates, header):
     os.dup2(tty, 1)
     try:
         return curses.wrapper(run)
-    except KeyboardInterrupt:
-        return None
     finally:
         os.dup2(saved_in, 0)
         os.dup2(saved_out, 1)
