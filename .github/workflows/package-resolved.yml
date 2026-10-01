@@ -1,0 +1,64 @@
+name: Package.resolved check
+
+# Xcode Cloud resolves packages from the committed workspace Package.resolved and
+# refuses to update it, so a Package.swift requirement the file no longer satisfies
+# fails every deploy at resolution, while local Xcode re-resolves silently. That is
+# how the flipcash2 0.14.x bump broke Deploy Flipcash. This resolves with the same
+# restriction, so the mismatch fails the PR instead. A stale file fails in under a
+# minute, before anything is cloned.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/Package.swift'
+      - '**/Package.resolved'
+      - 'Code.xcodeproj/project.pbxproj'
+      - '.github/workflows/package-resolved.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/Package.swift'
+      - '**/Package.resolved'
+      - 'Code.xcodeproj/project.pbxproj'
+      - '.github/workflows/package-resolved.yml'
+
+concurrency:
+  group: package-resolved-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolved:
+    name: Package.resolved is current
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # FlipcashCore is swift-tools 6.1, which the image's default Xcode may
+      # predate. Same selection as vectors.yml.
+      - name: Select the newest installed Xcode
+        run: |
+          set -euo pipefail
+          XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$XCODE" ]; then
+            sudo xcode-select -s "$XCODE"
+          fi
+          xcodebuild -version
+
+      - name: Resolve without updating Package.resolved
+        run: |
+          set -euo pipefail
+          if ! xcodebuild -resolvePackageDependencies \
+              -project Code.xcodeproj \
+              -scheme Flipcash \
+              -disableAutomaticPackageResolution; then
+            echo "::error file=Code.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved::Package.resolved does not satisfy the Package.swift requirements. Run 'xcodebuild -resolvePackageDependencies -project Code.xcodeproj -scheme Flipcash' and commit the updated file."
+            exit 1
+          fi
+
+      # Resolution can succeed while still rewriting a pin, which Xcode Cloud
+      # would see as a change it is not allowed to make.
+      - name: Package.resolved is unchanged
+        run: |
+          git diff --exit-code -- Code.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
