@@ -7,12 +7,15 @@
 #   ./Scripts/build.sh [extra xcodebuild args...]            # generic iOS build (default)
 #   ./Scripts/build.sh --device [name] [extra args...]       # paired physical device
 #   ./Scripts/build.sh --install [name] [extra args...]      # build, install, launch
+#   ./Scripts/build.sh -destination <spec|sim name|UDID>     # only that destination
 #
 # --device with no argument picks $FLIPCASH_DEVICE, or else the first paired
 # iOS device. Pass a name substring to disambiguate (e.g. --device "Raul's iPhone").
 # --install takes the same name and also installs and launches the build on it.
 #
-# Override the destination directly with DESTINATION env var.
+# Override the destination with `-destination <spec>` (replaces the default
+# rather than adding to it) or the DESTINATION env var. The -destination value
+# can also be a simulator name or UDID, e.g. -destination Flipcash.
 
 set -e
 
@@ -59,9 +62,28 @@ PY
     rm -f "$tmp"
 }
 
+# Resolve a simulator name or UDID to its UDID. A name shared across runtimes
+# picks the booted one, else the newest runtime.
+resolve_simulator_udid() {
+    xcrun simctl list devices available -j | python3 -c '
+import json, re, sys
+want = sys.argv[1]
+def version(runtime):
+    return [int(n) for n in re.findall(r"\d+", runtime.rsplit(".", 1)[-1])]
+matches = []
+for runtime, devices in json.load(sys.stdin)["devices"].items():
+    for dev in devices:
+        if dev["udid"].lower() == want.lower() or dev["name"] == want:
+            matches.append((dev["state"] == "Booted", version(runtime), dev["udid"]))
+if matches:
+    print(max(matches)[2])
+' "$1"
+}
+
 DESTINATION="${DESTINATION:-}"
 
 INSTALL=""
+UDID=""
 if [[ "${1:-}" == "--device" || "${1:-}" == "--install" ]]; then
     [[ "$1" == "--install" ]] && INSTALL=1
     shift
@@ -78,6 +100,38 @@ if [[ "${1:-}" == "--device" || "${1:-}" == "--install" ]]; then
     fi
     DESTINATION="platform=iOS,id=$UDID"
 fi
+
+# Lift a passed -destination out of the extra args so it replaces the default
+# instead of being built alongside it; xcodebuild builds every destination given.
+EXTRA_ARGS=()
+while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "-destination" ]]; then
+        if [[ $# -lt 2 ]]; then
+            echo "error: -destination needs a value." >&2
+            exit 2
+        fi
+        if [[ -n "$UDID" ]]; then
+            echo "error: -destination can't be combined with --device or --install." >&2
+            exit 2
+        fi
+        DESTINATION="$2"
+        # Anything that isn't a key=value spec is a simulator name or UDID.
+        if [[ "$DESTINATION" != *=* && "$DESTINATION" != generic/* ]]; then
+            SIM_UDID="$(resolve_simulator_udid "$DESTINATION")"
+            if [[ -z "$SIM_UDID" ]]; then
+                echo "error: no available simulator named or with UDID \"$DESTINATION\"." >&2
+                echo "       List with: xcrun simctl list devices available" >&2
+                exit 1
+            fi
+            DESTINATION="id=$SIM_UDID"
+        fi
+        shift 2
+        continue
+    fi
+    EXTRA_ARGS+=("$1")
+    shift
+done
+set -- ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
 
 DESTINATION="${DESTINATION:-generic/platform=iOS}"
 
