@@ -8,6 +8,8 @@
 #   ./Scripts/build.sh --device [name] [extra args...]       # paired physical device
 #   ./Scripts/build.sh --install [name] [extra args...]      # build, install, launch
 #   ./Scripts/build.sh -destination <spec|sim name|UDID>     # only that destination
+#   ./Scripts/build.sh --session <query> [other args...]     # build a session's worktree
+#   ./Scripts/build.sh --session                             # list live sessions
 #
 # --device with no argument picks $FLIPCASH_DEVICE, or else the first paired
 # iOS device. Pass a name substring to disambiguate (e.g. --device "Raul's iPhone").
@@ -16,10 +18,58 @@
 # Override the destination with `-destination <spec>` (replaces the default
 # rather than adding to it) or the DESTINATION env var. The -destination value
 # can also be a simulator name or UDID, e.g. -destination Flipcash.
+#
+# --session finds the Claude Code session matching <query> and runs the build.sh
+# in the checkout that session is working in, with the remaining args. The query
+# is a session id prefix, a PR number (915 or #915), a worktree directory name, a
+# branch, or a substring of the session title, branch, or worktree name. Titles
+# exist only once a session is named; unnamed sessions still match by branch, PR,
+# worktree, or id. Desktop worktrees are reused across sessions, so a warning is
+# printed when the worktree has since moved off the session's branch. A worktree
+# whose build.sh predates --install (#928) rejects it.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Handle --session before anything else: the target's own build.sh does its own
+# cd and arg parsing, so strip the flag and exec it with what is left.
+SESSION=""
+SESSION_QUERY=""
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "--session" ]]; then
+        SESSION=1
+        if [[ $# -gt 1 && "$2" != -* ]]; then
+            SESSION_QUERY="$2"
+            shift
+        fi
+        shift
+        continue
+    fi
+    ARGS+=("$1")
+    shift
+done
+set -- ${ARGS[@]+"${ARGS[@]}"}
+
+if [[ -n "$SESSION" ]]; then
+    REPO_ROOT="$(dirname "$(git -C "$SCRIPT_DIR/.." rev-parse --path-format=absolute --git-common-dir)")"
+    if [[ -z "$SESSION_QUERY" ]]; then
+        python3 "$SCRIPT_DIR/lib/claude_session.py" "$REPO_ROOT" list
+        exit 0
+    fi
+    IFS=$'\t' read -r TARGET SESSION_BRANCH < <(
+        python3 "$SCRIPT_DIR/lib/claude_session.py" "$REPO_ROOT" resolve "$SESSION_QUERY" || echo
+    )
+    [[ -n "${TARGET:-}" ]] || exit 1
+    CURRENT_BRANCH="$(git -C "$TARGET" branch --show-current)"
+    if [[ -n "$SESSION_BRANCH" && "$CURRENT_BRANCH" != "$SESSION_BRANCH" ]]; then
+        echo "warning: session was on $SESSION_BRANCH; $(basename "$TARGET") now has ${CURRENT_BRANCH:-a detached HEAD} checked out." >&2
+    fi
+    echo "+ session → $TARGET"
+    exec "$TARGET/Scripts/build.sh" "$@"
+fi
+
 cd "$SCRIPT_DIR/.."
 source "$SCRIPT_DIR/lib/xcodebuild.sh"
 
