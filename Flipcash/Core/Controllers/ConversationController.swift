@@ -261,6 +261,10 @@ final class ConversationController {
     /// The emoji reactions concern: the user's taps, their calls, and the stream's updates.
     let reactions: ConversationReactions
 
+    /// Moves new senders to the front of the mention picker's held suggestions. Set by the session
+    /// after init.
+    @ObservationIgnored var mentionSearch: ServerMentionSearch?
+
     init(
         fetching: any ConversationFetching,
         membership: any ConversationMembership,
@@ -408,6 +412,7 @@ final class ConversationController {
                 self.logCounterpartRead(event)
                 self.applyTyping(event)
                 self.applyReactions(event)
+                self.mentionSearch?.apply(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }

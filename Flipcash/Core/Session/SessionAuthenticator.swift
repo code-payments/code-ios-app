@@ -526,6 +526,8 @@ final class SessionContainer {
     let quickActionsController: QuickActionsController
     let conversationController: ConversationController
     let blocklistController: BlocklistController
+    /// Answers the mention picker's searches in group chats.
+    let rosterSearch: any RosterSearchSource
     let chatSpotlightIndexer: ChatSpotlightIndexer
     let profileAvatars: ProfileAvatarStore
     /// Identities for chat senders the chat's own roster leaves out — see ``KnownAuthorDirectory``.
@@ -699,6 +701,16 @@ final class SessionContainer {
             database: database
         )
         self.blocklistController = blocklistController
+        let mentionSearch = ServerMentionSearch(
+            fetching: flipClient,
+            owner: owner,
+            blockedUserIDs: { [weak blocklistController] in
+                Set(blocklistController?.blockedUsers.map(\.userID) ?? [])
+            },
+            cache: { try database.upsertUserProfile($0, userID: $1) }
+        )
+        conversationController.mentionSearch = mentionSearch
+        self.rosterSearch = mentionSearch
 
         // The blocklist drives which conversations the feed hides: it supplies the
         // current set, reconciles the hidden flags on every change, and reconciles

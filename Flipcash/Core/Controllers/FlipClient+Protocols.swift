@@ -67,6 +67,13 @@ protocol ConversationFetching: AnyObject, Sendable {
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
 }
 
+/// Mention suggestion surface used by `ServerMentionSearch`. Maps 1:1 to
+/// `flipcash.chat.v1.Chat.GetMentionSuggestions`.
+protocol MentionSuggestionFetching: AnyObject, Sendable {
+    /// The people to suggest after an `@` in a group chat, most relevant first.
+    func getMentionSuggestions(owner: KeyPair, conversationID: ConversationID) async throws -> [MentionSuggestion]
+}
+
 /// Group membership surface used by `ConversationController`. Separate from ``ConversationFetching``
 /// because these write: they are the only chat RPCs that change what the caller is a member of.
 protocol ConversationMembership: AnyObject, Sendable {
@@ -166,5 +173,5 @@ extension FlipClient {
 }
 
 extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing,
-                      ConversationFetching, ConversationMembership,
+                      ConversationFetching, ConversationMembership, MentionSuggestionFetching,
                       ConversationViewerSettings, ConversationEventStreaming {}
