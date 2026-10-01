@@ -132,6 +132,14 @@ extension FlipClient {
         return RosterPage(members: members, rosterSummary: rosterSummary)
     }
 
+    /// The people to suggest after an `@` in a group chat, most relevant first; see
+    /// ``MentionSuggestion``. Fetch it once per composing session and filter it locally.
+    public func getMentionSuggestions(owner: KeyPair, conversationID: ConversationID) async throws -> [MentionSuggestion] {
+        try await withCheckedThrowingContinuation { c in
+            chatService.getMentionSuggestions(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+    }
+
     /// Edits a group chat's title and/or picture; every parameter left `nil` leaves that field
     /// unchanged, and passing both `nil` is a no-op that still returns the current metadata. Only a
     /// member with ``ConversationViewerState/canEdit`` may call this.

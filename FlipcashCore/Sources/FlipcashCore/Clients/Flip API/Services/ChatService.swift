@@ -327,6 +327,36 @@ final class ChatService: Sendable {
         }
     }
 
+    /// Fetches the people to suggest after an `@` in a group chat, most relevant first. The pool is
+    /// neither paged nor complete: the caller filters it locally as the user types. A DM is `.denied`.
+    func getMentionSuggestions(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<[MentionSuggestion], ErrorGetMentionSuggestions>) -> Void) {
+        let request = Flipcash_Chat_V1_GetMentionSuggestionsRequest.with {
+            $0.chatID = conversationID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getMentionSuggestions(request, options: .unaryDefault)
+                guard response.result == .ok else {
+                    logger.error("Failed to fetch mention suggestions", metadata: ["result": "\(response.result)"])
+                    await MainActor.run { completion(.failure(ErrorGetMentionSuggestions(response.result))) }
+                    return
+                }
+                let suggestions = response.suggestions.compactMap(MentionSuggestion.init)
+                await MainActor.run { completion(.success(suggestions)) }
+            } catch let error as RPCError {
+                logger.error("Failed to fetch mention suggestions at the transport", metadata: [
+                    "code": "\(error.code)",
+                    "message": "\(error.message)",
+                ])
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
     /// Edits a group chat's title and/or picture. Every field is optional — only fields set on the
     /// request change, atomically; a request that sets nothing is a no-op returning `.ok`. Only a
     /// member the server permits to edit (``ConversationViewerState/canEdit``) may call this; anyone
@@ -465,6 +495,17 @@ public enum ErrorUnmuteChat: Int, Error {
 /// `ErrorGetRoster.init(_:)` — rather than via positional `rawValue:`, per this repo's convention for
 /// a new result enum (`ErrorStartChat`, `ErrorEditChat`).
 public enum ErrorGetRoster: Error, Sendable, Equatable {
+    case denied
+    case notFound
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
+}
+
+/// Mapped explicitly from `GetMentionSuggestionsResponse.Result` — see
+/// `ErrorGetMentionSuggestions.init(_:)` — like ``ErrorGetRoster``.
+public enum ErrorGetMentionSuggestions: Error, Sendable, Equatable {
     case denied
     case notFound
     case unknown
@@ -620,6 +661,34 @@ extension ErrorGetRoster {
     /// `.UNRECOGNIZED` both fold to `.unknown`) even though callers only reach this once they've
     /// confirmed `result != .ok`.
     init(_ result: Flipcash_Chat_V1_GetRosterResponse.Result) {
+        switch result {
+        case .ok:
+            self = .unknown
+        case .denied:
+            self = .denied
+        case .notFound:
+            self = .notFound
+        case .UNRECOGNIZED:
+            self = .unknown
+        }
+    }
+}
+
+extension ErrorGetMentionSuggestions: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetMentionSuggestions {
+    /// Maps a non-`.ok` `GetMentionSuggestionsResponse.Result` to its domain error; total over the
+    /// proto enum, with `.ok` and `.UNRECOGNIZED` folding to `.unknown`.
+    init(_ result: Flipcash_Chat_V1_GetMentionSuggestionsResponse.Result) {
         switch result {
         case .ok:
             self = .unknown
