@@ -87,6 +87,8 @@ struct MentionSuggestionList: View {
 }
 
 private struct MentionRow: View {
+    @Environment(SessionContainer.self) private var sessionContainer
+
     let member: ConversationMember
 
     var body: some View {
@@ -94,6 +96,8 @@ private struct MentionRow: View {
             ContactAvatarView(
                 id: member.id,
                 displayName: member.displayName,
+                imageData: sessionContainer.profileAvatars.data(for: member.userID),
+                blurhash: member.profilePicture?.thumbnailBlurhash,
                 size: MentionListMetrics.avatarDiameter
             )
             Text(member.displayName)
@@ -113,6 +117,9 @@ private struct MentionRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("mention-suggestion-\(member.username?.value ?? "")")
+        .task(id: member.profilePicture) {
+            await sessionContainer.profileAvatars.load(userID: member.userID, picture: member.profilePicture)
+        }
     }
 }
 

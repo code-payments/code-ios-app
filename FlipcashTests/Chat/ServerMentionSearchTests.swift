@@ -45,6 +45,21 @@ struct ServerMentionSearchTests {
         #expect(names(matches) == ["Zoe Adams", "Alice Park"])
     }
 
+    @Test("Matches keep the suggestion's profile picture")
+    func keepsProfilePicture() async throws {
+        let picture = ProfilePicture(
+            blobID: BlobID(data: Data(repeating: 0x01, count: 16)),
+            thumbnailBlobID: BlobID(data: Data(repeating: 0x02, count: 16)),
+            thumbnailBlurhash: "LEHV6nWB2yk8"
+        )
+        let (search, _) = makeSearch(pool: [suggestion("Zoe Adams", "zoe", lastSentAt: nil, picture: picture), bob])
+        await search.prepare(chatID: chatID)
+
+        let matches = try await search.search(chatID: chatID, query: "", limit: 20)
+
+        #expect(matches.map(\.member.profilePicture) == [picture, nil])
+    }
+
     @Test("Every query word must prefix a name word or the username")
     func matchesEveryWord() async throws {
         let (search, _) = makeSearch(pool: [zoe, bob, alice])
@@ -168,7 +183,7 @@ struct ServerMentionSearchTests {
     }
 }
 
-private func suggestion(_ displayName: String, _ username: String, lastSentAt: TimeInterval?) -> MentionSuggestion {
+private func suggestion(_ displayName: String, _ username: String, lastSentAt: TimeInterval?, picture: ProfilePicture? = nil) -> MentionSuggestion {
     let userID = UUID()
     return MentionSuggestion(
         userID: userID,
@@ -176,6 +191,7 @@ private func suggestion(_ displayName: String, _ username: String, lastSentAt: T
             displayName: displayName,
             phone: Phone?.none,
             email: nil,
+            profilePicture: picture,
             userID: userID,
             username: Username(username)
         ),
