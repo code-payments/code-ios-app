@@ -96,4 +96,21 @@ struct UsernameGateTests {
 
         #expect(usernameGate(session: session, minimum: minimum(usd: 100)) == .proceed)
     }
+
+    @Test("A user with no handle is offered the username card")
+    func prompt_noHandle_prompts() {
+        #expect(usernameNeedsClaim(username: nil, isAutoAssigned: false))
+    }
+
+    @Test("A server-assigned handle still gets the username card")
+    func prompt_autoAssignedHandle_prompts() {
+        let assigned = Username("brandon4821")!
+        #expect(usernameNeedsClaim(username: assigned, isAutoAssigned: true))
+    }
+
+    @Test("A handle the user chose does not get the username card")
+    func prompt_customHandle_doesNotPrompt() {
+        let custom = Username("brandon")!
+        #expect(!usernameNeedsClaim(username: custom, isAutoAssigned: false))
+    }
 }

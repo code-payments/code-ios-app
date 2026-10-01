@@ -506,10 +506,16 @@ struct YouScreen: View {
 
     private var username: Username? { profile?.username }
 
-    /// Whether to offer the handle. Derived from the handle being absent rather
-    /// than from a separate claimed flag, so a handle that disappears across a
-    /// profile refresh puts the offer back on its own.
-    private var shouldPromptForUsername: Bool { username == nil }
+    /// Whether to offer the handle: the user has none, or the one they have was
+    /// auto-assigned by the server and they haven't picked their own. Re-derived
+    /// from the profile on every render, so a handle that disappears across a
+    /// refresh puts the offer back on its own.
+    private var shouldPromptForUsername: Bool {
+        usernameNeedsClaim(
+            username: username,
+            isAutoAssigned: profile?.isUsernameAutoAssigned == true
+        )
+    }
 
     private var codeData: Data {
         TipCode.Payload(userID: sessionContainer.session.userID).codeData()
