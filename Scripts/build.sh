@@ -9,7 +9,7 @@
 #   ./Scripts/build.sh --install [name] [extra args...]      # build, install, launch
 #   ./Scripts/build.sh -destination <spec|sim name|UDID>     # only that destination
 #   ./Scripts/build.sh --session <query> [other args...]     # build a session's worktree
-#   ./Scripts/build.sh --session                             # list live sessions
+#   ./Scripts/build.sh --session                             # pick a session (lists when piped)
 #
 # --device with no argument picks $FLIPCASH_DEVICE, or else the first paired
 # iOS device. Pass a name substring to disambiguate (e.g. --device "Raul's iPhone").
@@ -27,6 +27,10 @@
 # worktree, or id. Desktop worktrees are reused across sessions, so a warning is
 # printed when the worktree has since moved off the session's branch. A worktree
 # whose build.sh predates --install (#928) rejects it.
+#
+# In a terminal, a bare --session or a query matching several worktrees opens an
+# arrow-key picker. Without a terminal (piped, scripted), a bare --session lists
+# sessions and an ambiguous query exits 1 with the candidates.
 
 set -e
 
@@ -54,12 +58,16 @@ set -- ${ARGS[@]+"${ARGS[@]}"}
 
 if [[ -n "$SESSION" ]]; then
     REPO_ROOT="$(dirname "$(git -C "$SCRIPT_DIR/.." rev-parse --path-format=absolute --git-common-dir)")"
-    if [[ -z "$SESSION_QUERY" ]]; then
+    if [[ -t 0 && -t 1 ]]; then
+        MODE=pick
+    elif [[ -z "$SESSION_QUERY" ]]; then
         python3 "$SCRIPT_DIR/lib/claude_session.py" "$REPO_ROOT" list
         exit 0
+    else
+        MODE=resolve
     fi
     IFS=$'\t' read -r TARGET SESSION_BRANCH < <(
-        python3 "$SCRIPT_DIR/lib/claude_session.py" "$REPO_ROOT" resolve "$SESSION_QUERY" || echo
+        python3 "$SCRIPT_DIR/lib/claude_session.py" "$REPO_ROOT" "$MODE" ${SESSION_QUERY:+"$SESSION_QUERY"} || echo
     )
     [[ -n "${TARGET:-}" ]] || exit 1
     CURRENT_BRANCH="$(git -C "$TARGET" branch --show-current)"

@@ -4,6 +4,7 @@
 Usage:
     claude_session.py <repo-root> list
     claude_session.py <repo-root> resolve <query>
+    claude_session.py <repo-root> pick [query]
 
 <repo-root> is the main checkout; sessions in it and in its
 .claude/worktrees/* are considered. Sessions whose working directory no longer
@@ -21,8 +22,13 @@ session is named. Unnamed sessions still match by branch, worktree, PR, or id.
 `resolve` prints the matched directory and the matched session's recorded
 branch, tab-separated, on stdout. When nothing or more than one directory
 matches, it lists up to MAX_ROWS candidates on stderr and exits 1.
+
+`pick` prints the same as `resolve`, but instead of failing it opens an
+arrow-key picker on the terminal: over every session when no query is given or
+nothing matches, otherwise over the matches. Esc cancels with exit 1.
 """
 
+import curses
 import json
 import os
 import re
@@ -91,11 +97,70 @@ def sessions(repo_root):
             }
 
 
-def describe(s):
+def describe(s, short=False):
     when = datetime.fromtimestamp(s["mtime"]).strftime("%m-%d %H:%M")
     pr = " #" + ",#".join(str(n) for n in sorted(s["prs"])) if s["prs"] else ""
     title = s["title"] or "(untitled)"
-    return f"  {when}  {s['id'][:8]}  {title}  [{s['branch']}{pr}]  {s['cwd']}"
+    where = os.path.basename(s["cwd"]) if short else s["cwd"]
+    return f"  {when}  {s['id'][:8]}  {title}  [{s['branch']}{pr}]  {where}"
+
+
+def pick(candidates, header):
+    """Let the user choose a session with the arrow keys; None when cancelled."""
+    rows = [(describe(s, short=True), s) for s in candidates]
+
+    def run(scr):
+        curses.curs_set(0)
+        query, sel, top = "", 0, 0
+        while True:
+            shown = [r for r in rows if query.lower() in r[0].lower()]
+            sel = max(0, min(sel, len(shown) - 1))
+            height, width = scr.getmaxyx()
+            body = max(1, height - 3)
+            top = min(max(top, sel - body + 1), sel)
+            scr.erase()
+            scr.addnstr(0, 0, header, width - 1, curses.A_BOLD)
+            scr.addnstr(1, 0, f"filter: {query}  ({len(shown)}/{len(rows)})", width - 1)
+            for i, (text, _) in enumerate(shown[top : top + body]):
+                attr = curses.A_REVERSE if top + i == sel else curses.A_NORMAL
+                scr.addnstr(2 + i, 0, text.ljust(width - 1), width - 1, attr)
+            scr.refresh()
+
+            key = scr.get_wch()
+            if key in (curses.KEY_UP, "\x10"):
+                sel -= 1
+            elif key in (curses.KEY_DOWN, "\x0e"):
+                sel += 1
+            elif key == curses.KEY_PPAGE:
+                sel -= body
+            elif key == curses.KEY_NPAGE:
+                sel += body
+            elif key in ("\n", "\r", curses.KEY_ENTER):
+                if shown:
+                    return shown[sel][1]
+            elif key == "\x1b":
+                return None
+            elif key in (curses.KEY_BACKSPACE, "\x7f", "\x08"):
+                query = query[:-1]
+            elif isinstance(key, str) and key.isprintable():
+                query, sel = query + key, 0
+
+    # stdout may be captured by the caller, so draw on the terminal itself and
+    # restore stdout before printing the choice.
+    os.environ.setdefault("ESCDELAY", "25")
+    sys.stdout.flush()
+    saved_in, saved_out = os.dup(0), os.dup(1)
+    tty = os.open("/dev/tty", os.O_RDWR)
+    os.dup2(tty, 0)
+    os.dup2(tty, 1)
+    try:
+        return curses.wrapper(run)
+    except KeyboardInterrupt:
+        return None
+    finally:
+        os.dup2(saved_in, 0)
+        os.dup2(saved_out, 1)
+        os.close(tty)
 
 
 def match(all_sessions, query):
@@ -122,7 +187,7 @@ def match(all_sessions, query):
 
 
 def main(argv):
-    if len(argv) < 3 or argv[2] not in ("list", "resolve"):
+    if len(argv) < 3 or argv[2] not in ("list", "resolve", "pick"):
         print(__doc__, file=sys.stderr)
         return 2
     repo_root = os.path.realpath(argv[1])
@@ -134,11 +199,25 @@ def main(argv):
         return 0
 
     query = argv[3] if len(argv) > 3 else ""
-    hits = match(found, query)
+    hits = match(found, query) if query else []
     dirs = list(dict.fromkeys(s["cwd"] for s in hits))
     if len(dirs) == 1:
         # Hits are newest first, so this is the most recent matching session.
         print(dirs[0], hits[0]["branch"], sep="\t")
+        return 0
+
+    if argv[2] == "pick":
+        if not query:
+            header = "Pick a session to build"
+        elif not hits:
+            header = f'No session matches "{query}"; pick one'
+        else:
+            header = f'"{query}" matches {len(dirs)} directories; pick one'
+        header += "  (↑/↓ move, type to filter, Enter build, Esc cancel)"
+        chosen = pick(hits or found, header)
+        if chosen is None:
+            return 1
+        print(chosen["cwd"], chosen["branch"], sep="\t")
         return 0
 
     if not hits:
