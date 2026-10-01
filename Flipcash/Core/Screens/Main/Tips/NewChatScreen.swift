@@ -16,20 +16,20 @@ struct NewChatScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 12) {
                 ChatActionRow(
+                    icon: .asset(.at),
+                    title: "Find Someone by Username",
+                    accessibilityIdentifier: "new-chat-find-by-username"
+                ) {
+                    router.push(.usernameLookup)
+                }
+
+                ChatActionRow(
                     icon: .asset(.group),
                     title: "Create a Public Group",
                     accessibilityIdentifier: "new-chat-public-group"
                 ) {
                     Analytics.groupNewOpened()
                     router.push(.newPublicGroup)
-                }
-
-                ChatActionRow(
-                    icon: .asset(.at),
-                    title: "Find by Username",
-                    accessibilityIdentifier: "new-chat-find-by-username"
-                ) {
-                    router.push(.usernameLookup)
                 }
 
                 Spacer()
