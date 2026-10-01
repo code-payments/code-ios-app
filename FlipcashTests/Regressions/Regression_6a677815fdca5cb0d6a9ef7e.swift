@@ -29,13 +29,13 @@ struct Regression_6a67781 {
         [.usd: usdRate, .inr: inrRate, .ngn: ngnRate]
     }
 
-    private func floor(for fee: FiatAmount) -> TipFloor? {
+    private func statedFloor(for fee: FiatAmount) -> TipFloor? {
         TipFloor.toOpenDM(recipientFee: fee, presets: nil, in: .usd, rates: rates)
     }
 
     @Test("A 600 INR fee is stated as $6.26, which covers it, not $6.25")
     func inrFee_floorCoversFee() throws {
-        let floor = try #require(floor(for: FiatAmount(value: 600, currency: .inr)))
+        let floor = try #require(statedFloor(for: FiatAmount(value: 600, currency: .inr)))
 
         #expect(floor.displayed == .usd(Decimal(string: "6.26")!))
         #expect(floor.displayed.converting(to: inrRate).value >= 600)
@@ -43,7 +43,7 @@ struct Regression_6a67781 {
 
     @Test("The $6.25 the sheet used to submit no longer clears the floor locally")
     func inrFee_roundedDownEntryIsRejected() throws {
-        let floor = try #require(floor(for: FiatAmount(value: 600, currency: .inr)))
+        let floor = try #require(statedFloor(for: FiatAmount(value: 600, currency: .inr)))
         let entered = ExchangedFiat(nativeAmount: .usd(Decimal(string: "6.25")!), rate: usdRate)
 
         #expect(!floor.isMet(by: entered))
@@ -51,7 +51,7 @@ struct Regression_6a67781 {
 
     @Test("A 1500 NGN fee is stated as $1.14, which covers it, not $1.13")
     func ngnFee_floorCoversFee() throws {
-        let floor = try #require(floor(for: FiatAmount(value: 1500, currency: .ngn)))
+        let floor = try #require(statedFloor(for: FiatAmount(value: 1500, currency: .ngn)))
 
         #expect(floor.displayed == .usd(Decimal(string: "1.14")!))
         #expect(floor.displayed.converting(to: ngnRate).value >= 1500)
