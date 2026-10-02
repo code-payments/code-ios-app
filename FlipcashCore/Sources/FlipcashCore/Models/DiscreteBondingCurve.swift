@@ -143,7 +143,7 @@ public struct DiscreteBondingCurve: Sendable {
     ///
     /// - Parameter value: Total value in USDC (not quarks)
     /// - Returns: Supply as BigDecimal with fractional tokens
-    private func preciseSupplyFromValue(_ value: BigDecimal) -> BigDecimal {
+    func preciseSupplyFromValue(_ value: BigDecimal) -> BigDecimal {
         _ = Self.tablesLoaded
         return BigDecimal(SharedBondingCurve.preciseSupplyFromValue(value: value.asString(.plain)))
     }
