@@ -45,15 +45,35 @@ final class NotificationService: UNNotificationServiceExtension {
         private let lock = NSLock()
         private var contentHandler: ((UNNotificationContent) -> Void)?
         private var content: UNNotificationContent?
+        private var alternate: UNNotificationContent?
         private var prefetchTask: Task<Void, Never>?
 
         /// Arms the box with the handler and the content to deliver — the communication-styled copy
-        /// when a sender resolved, else the substituted content. Called once, from `didReceive`,
-        /// before the prefetch task or the expiry deadline can run.
-        func arm(handler: @escaping (UNNotificationContent) -> Void, content: UNNotificationContent) {
+        /// when a sender resolved, else the substituted content. `alternate` is the loud copy a
+        /// quieted push is promoted to; `nil` when nothing can promote it. Called once, from
+        /// `didReceive`, before the prefetch task or the expiry deadline can run.
+        func arm(
+            handler: @escaping (UNNotificationContent) -> Void,
+            content: UNNotificationContent,
+            alternate: UNNotificationContent? = nil
+        ) {
             lock.withLock {
                 contentHandler = handler
                 self.content = content
+                self.alternate = alternate
+            }
+        }
+
+        /// Swaps the waiting quiet content for its loud alternate, keeping the body already
+        /// substituted into it. A no-op once delivered, or when there is nothing to promote to.
+        func promote() {
+            lock.withLock {
+                guard contentHandler != nil, let alternate,
+                      let mutable = alternate.mutableCopy() as? UNMutableNotificationContent
+                else { return }
+                if let body = content?.body, !body.isEmpty { mutable.body = body }
+                content = mutable
+                self.alternate = nil
             }
         }
 
@@ -171,26 +191,40 @@ final class NotificationService: UNNotificationServiceExtension {
         // the opposite of what a muted chat wants.
         let isMuted = NotificationPayload.isMuted(request.content.userInfo)
 
+        // An archived chat is silenced the same way a muted one is (rule 2), then promoted back if
+        // the message proves addressed to the viewer (rule 3). Silent is the default because the
+        // answer needs the decrypted body, which only exists after the prefetch, and a push that
+        // times out first must land on the quiet side. A missing or unreadable archive file reads as
+        // not archived.
+        let account = OwnerKeyStore.loadOwnerAccount()
+        let archiveFile = account.flatMap { ChatArchiveReader.load(owner: $0.keyAccount.ownerPublicKey) }
+        let isArchived = archiveFile?.isArchived(conversationID) == true
+
+        func silenced(_ content: UNNotificationContent) -> UNNotificationContent {
+            let quiet = content.mutableCopy() as! UNMutableNotificationContent
+            quiet.sound = nil
+            quiet.interruptionLevel = .passive
+            return quiet
+        }
+
         // "Sent You Cash" (CHAT) renders as a communication notification so the sender's avatar — or
         // the system monogram fallback — shows like a chat app. This styled copy (when a sender
         // resolves; otherwise the substituted content) is what's delivered, from both the prefetch
         // completion and the expiry deadline.
-        let finalContent: UNNotificationContent
-        if isMuted {
-            let silenced = bestAttemptContent.mutableCopy() as! UNMutableNotificationContent
-            silenced.sound = nil
-            silenced.interruptionLevel = .passive
-            finalContent = silenced
-        } else {
-            finalContent =
-                titleContacts.compactMap { $0 }.first.map { sender in
-                    communicationContent(
-                        from: bestAttemptContent,
-                        sender: sender,
-                        conversationIdentifier: payload.groupKey
-                    )
-                } ?? bestAttemptContent.copy() as! UNNotificationContent
-        }
+        let loudContent: UNNotificationContent =
+            titleContacts.compactMap { $0 }.first.map { sender in
+                communicationContent(
+                    from: bestAttemptContent,
+                    sender: sender,
+                    conversationIdentifier: payload.groupKey
+                )
+            } ?? bestAttemptContent.copy() as! UNNotificationContent
+
+        // Muted never promotes; archived-only may.
+        let finalContent: UNNotificationContent = (isMuted || isArchived)
+            ? silenced(bestAttemptContent)
+            : loudContent
+        let promotableContent: UNNotificationContent? = (isArchived && !isMuted) ? loudContent : nil
 
         // Prefetch the recent transcript into the shared cache so the content extension renders from
         // the cache on expand with no resident gRPC connection. The banner is held until the transcript
@@ -202,12 +236,14 @@ final class NotificationService: UNNotificationServiceExtension {
         // `Sendable` `delivery` box + the `Sendable` `ConversationID` — never `self` and never a bare
         // `UNNotificationContent`. Keeping the `Task` out of this `self`-isolated method is what lets
         // the region checker prove the closure crosses no isolation boundary with a non-`Sendable`.
-        delivery.arm(handler: contentHandler, content: finalContent)
+        delivery.arm(handler: contentHandler, content: finalContent, alternate: promotableContent)
         Self.startPrefetch(
             into: delivery,
             for: conversationID,
             embedded: NotificationPayload.chatMessage(request.content.userInfo),
-            messageID: NotificationPayload.chatMessageID(request.content.userInfo)
+            messageID: NotificationPayload.chatMessageID(request.content.userInfo),
+            viewerUsername: promotableContent != nil ? archiveFile?.viewerUsername : nil,
+            classifyForArchive: promotableContent != nil
         )
     }
 
@@ -218,14 +254,19 @@ final class NotificationService: UNNotificationServiceExtension {
         into delivery: DeliveryBox,
         for conversationID: ConversationID,
         embedded: ConversationMessage?,
-        messageID: MessageID?
+        messageID: MessageID?,
+        viewerUsername: String?,
+        classifyForArchive: Bool
     ) {
         let task = Task {
             await cachePreview(
                 for: conversationID,
                 embedded: embedded,
                 messageID: messageID,
+                viewerUsername: viewerUsername,
+                classifyForArchive: classifyForArchive,
                 replaceBody: { delivery.replaceBody($0) },
+                promote: { delivery.promote() },
                 deliver: { delivery.deliver() }
             )
         }
@@ -347,7 +388,10 @@ final class NotificationService: UNNotificationServiceExtension {
         for conversationID: ConversationID,
         embedded: ConversationMessage?,
         messageID: MessageID?,
+        viewerUsername: String?,
+        classifyForArchive: Bool,
         replaceBody: @Sendable (String) -> Void,
+        promote: @Sendable () -> Void,
         deliver: @Sendable () -> Void
     ) async {
         guard let account = OwnerKeyStore.loadOwnerAccount() else { return deliver() }
@@ -375,6 +419,21 @@ final class NotificationService: UNNotificationServiceExtension {
             if embedded != nil { embedded = opened.last }
             if let body = NotificationPayload.decryptedBody(of: messageID, in: messages + (embedded.map { [$0] } ?? [])) {
                 replaceBody(body)
+            }
+            if classifyForArchive {
+                let pushed = embedded ?? messages.first { $0.id == messageID }
+                let signals = Self.archiveSignals(
+                    for: pushed,
+                    in: conversationID,
+                    fetched: messages,
+                    account: account,
+                    viewerUsername: viewerUsername
+                )
+                if ChatArchiveRules.decide(
+                    .init(archived: true, muted: false, mentionsViewer: signals.mention, repliesToViewer: signals.reply)
+                ).notify {
+                    promote()
+                }
             }
             guard !messages.isEmpty else {
                 // The fetch came back empty but the push still carried a message. Write that one
@@ -413,6 +472,31 @@ final class NotificationService: UNNotificationServiceExtension {
             await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
             deliver()
         }
+    }
+
+    /// Mention and reply signals for the pushed message. The reply target's author comes from the
+    /// fetched preview first, then the shared store; a miss is `unknown`. The store read can no-op
+    /// (no store yet, busy, schema mismatch), and every one of those lands on `unknown`.
+    private nonisolated static func archiveSignals(
+        for message: ConversationMessage?,
+        in conversationID: ConversationID,
+        fetched: [ConversationMessage],
+        account: UserAccount,
+        viewerUsername: String?
+    ) -> (mention: ChatArchiveSignal, reply: ChatArchiveSignal) {
+        let mention = ChatArchiveClassifier.mentionsViewer(message, viewerUsername: viewerUsername)
+        let reply = ChatArchiveClassifier.repliesToViewer(
+            message, selfUserID: account.userID,
+            authorOf: { target in
+                if let hit = fetched.first(where: { $0.id == target }) { return hit.senderID }
+                var author: UserID?
+                ExtensionStore.perform(owner: account.keyAccount.ownerPublicKey) { database in
+                    author = try database.message(id: target, conversationID: conversationID)?.senderID
+                }
+                return author
+            }
+        )
+        return (mention, reply)
     }
 
     /// The messages to write, preferring the fetched copy of any message the push also embedded.

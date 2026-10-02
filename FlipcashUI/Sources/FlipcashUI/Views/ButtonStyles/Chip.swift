@@ -69,3 +69,33 @@ public extension View {
             }
     }
 }
+
+/// A chip that is itself the control and holds a selected state, such as the Chats tab's All /
+/// Unread / Groups row. Not folded into ``ChipStyle``, whose chips are labels inside a tappable row.
+public struct SelectableChipButtonStyle: ButtonStyle {
+
+    private let isSelected: Bool
+
+    /// Creates the style for a chip in the given selected state.
+    public init(isSelected: Bool) {
+        self.isSelected = isSelected
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.appTextSmall)
+            .foregroundStyle(isSelected ? Color.backgroundMain : Color.textMain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(isSelected ? Color.textMain : Color.backgroundRow))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .contentShape(Capsule())
+    }
+}
+
+public extension ButtonStyle where Self == SelectableChipButtonStyle {
+    /// A filter chip filled with the main text colour when selected, the row fill otherwise.
+    static func selectableChip(isSelected: Bool) -> SelectableChipButtonStyle {
+        SelectableChipButtonStyle(isSelected: isSelected)
+    }
+}

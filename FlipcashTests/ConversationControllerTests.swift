@@ -491,6 +491,95 @@ struct ConversationControllerTests {
         #expect(controller.unreadChatListCount == 2)
     }
 
+    private func attachArchive(to controller: ConversationController) throws -> ChatArchiveStore {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("archive-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = ChatArchiveStore(directory: directory, owner: try PublicKey(Data(repeating: 7, count: 32)))
+        controller.chatArchive = store
+        return store
+    }
+
+    @Test("An archived chat leaves the list and the badge and appears under Archived")
+    func archiveRemovesFromListAndBadge() async throws {
+        let me = UUID()
+        let mock = MockConversations()
+        let unread = ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        mock.feed = [
+            Conversation(
+                id: .test(1),
+                members: [ConversationMember(userID: me, displayName: "", readPointer: nil)],
+                lastMessage: unread, lastActivity: Date(timeIntervalSince1970: 100), type: .tipDm
+            ),
+            Conversation(
+                id: .test(2),
+                members: [ConversationMember(userID: me, displayName: "", readPointer: nil)],
+                lastMessage: unread, lastActivity: Date(timeIntervalSince1970: 200), type: .tipDm
+            ),
+        ]
+        let controller = makeController(mock, selfUserID: me)
+        let archive = try attachArchive(to: controller)
+        await controller.loadFeed()
+        #expect(controller.unreadChatListCount == 2)
+
+        controller.archive(.test(2))
+
+        #expect(controller.chatListConversations.map(\.id) == [.test(1)])
+        #expect(controller.archivedConversations.map(\.id) == [.test(2)])
+        #expect(controller.unreadChatListCount == 1)
+        #expect(archive.isArchived(.test(2)))
+    }
+
+    @Test("Unarchiving returns the chat to the list")
+    func unarchiveReturnsToList() async throws {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: .test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100), type: .tipDm)]
+        let controller = makeController(mock)
+        _ = try attachArchive(to: controller)
+        await controller.loadFeed()
+
+        controller.archive(.test(1))
+        controller.unarchive(.test(1))
+
+        #expect(controller.chatListConversations.map(\.id) == [.test(1)])
+        #expect(controller.archivedConversations.isEmpty)
+    }
+
+    @Test("Leaving a group clears its archive record")
+    func leaveClearsArchive() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        let archive = try attachArchive(to: controller)
+        archive.archive(.test(9))
+
+        try await controller.leave(conversationID: .test(9))
+
+        #expect(!archive.isArchived(.test(9)))
+    }
+
+    @Test("A hidden archived chat appears nowhere")
+    func hiddenArchivedExcluded() async throws {
+        let me = UUID()
+        let blocked = UUID()
+        let mock = MockConversations()
+        mock.feed = [Conversation(
+            id: .test(1),
+            members: [
+                ConversationMember(userID: me, displayName: "", readPointer: nil),
+                ConversationMember(userID: blocked, displayName: "", readPointer: nil),
+            ],
+            lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100), type: .tipDm, isHidden: true
+        )]
+        let controller = makeController(mock, selfUserID: me)
+        controller.blockedUserIDs = { [blocked] }
+        let archive = try attachArchive(to: controller)
+        archive.archive(.test(1))
+        await controller.loadFeed()
+
+        #expect(controller.chatListConversations.isEmpty)
+        #expect(controller.archivedConversations.isEmpty)
+        #expect(!controller.chatListProjection.archivedRowVisible)
+    }
+
     @Test("send records the message and appends it to the conversation")
     func send() async {
         let mock = MockConversations()

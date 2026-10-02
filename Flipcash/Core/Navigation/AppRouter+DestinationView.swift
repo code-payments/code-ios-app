@@ -180,6 +180,9 @@ struct DestinationView: View {
         case .newPublicGroup:
             NewPublicGroupScreen()
 
+        case .archivedChats:
+            ArchivedChatsScreen()
+
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID))

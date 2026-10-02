@@ -1,0 +1,671 @@
+{
+  "notify": [
+    {
+      "name": "plain-notifies",
+      "push": {
+        "archived": false,
+        "muted": false,
+        "kind": "text",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": true,
+        "archived": false
+      },
+      "note": "Not archived, not muted: today's behavior, unchanged."
+    },
+    {
+      "name": "plain-muted-silent",
+      "push": {
+        "archived": false,
+        "muted": true,
+        "kind": "text",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": false
+      },
+      "note": "Not archived, muted: today's behavior, unchanged."
+    },
+    {
+      "name": "plain-muted-mention-silent",
+      "push": {
+        "archived": false,
+        "muted": true,
+        "kind": "text",
+        "mentionsViewer": true,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": false
+      },
+      "note": "Mute already ignores mentions. Archive must not be the thing that changes that."
+    },
+    {
+      "name": "archived-text-silent",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "text",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 3. Ordinary traffic in an archived chat is stored silently."
+    },
+    {
+      "name": "archived-cash-silent",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "cash",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 3. Cash does not break through on its own: in a tip DM most messages may be cash, which would make archive useless there."
+    },
+    {
+      "name": "archived-media-silent",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "media",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 3."
+    },
+    {
+      "name": "archived-system-silent",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "system",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 3. Joins, renames and the like never break through."
+    },
+    {
+      "name": "archived-mention-notifies",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "text",
+        "mentionsViewer": true,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": true,
+        "archived": true
+      },
+      "note": "Rule 3. An @mention of the viewer is addressed to them."
+    },
+    {
+      "name": "archived-media-caption-mention-notifies",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "media",
+        "mentionsViewer": true,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": true,
+        "archived": true
+      },
+      "note": "Rule 3. A mention counts wherever the text is, including a caption."
+    },
+    {
+      "name": "archived-reply-to-viewer-notifies",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "reply",
+        "mentionsViewer": false,
+        "repliesToViewer": true
+      },
+      "expect": {
+        "notify": true,
+        "archived": true
+      },
+      "note": "Rule 3. A reply to one of the viewer's messages is addressed to them."
+    },
+    {
+      "name": "archived-reply-to-someone-else-silent",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "reply",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 3. A reply is not addressed to you just because it is a reply."
+    },
+    {
+      "name": "archived-reply-unknown-target-silent",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "reply",
+        "mentionsViewer": false,
+        "repliesToViewer": "unknown"
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 3. The replied-to message is not stored on this device. Unknown counts as not addressed, on both platforms."
+    },
+    {
+      "name": "archived-mention-unresolved-silent",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "text",
+        "mentionsViewer": "unknown",
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 3. A mention that does not resolve to a user counts as not addressed."
+    },
+    {
+      "name": "archived-reply-and-mention-notifies",
+      "push": {
+        "archived": true,
+        "muted": false,
+        "kind": "reply",
+        "mentionsViewer": true,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": true,
+        "archived": true
+      },
+      "note": "Rule 3. Either condition is enough."
+    },
+    {
+      "name": "archived-muted-text-silent",
+      "push": {
+        "archived": true,
+        "muted": true,
+        "kind": "text",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 2."
+    },
+    {
+      "name": "archived-muted-cash-silent",
+      "push": {
+        "archived": true,
+        "muted": true,
+        "kind": "cash",
+        "mentionsViewer": false,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 2."
+    },
+    {
+      "name": "archived-muted-mention-silent",
+      "push": {
+        "archived": true,
+        "muted": true,
+        "kind": "text",
+        "mentionsViewer": true,
+        "repliesToViewer": false
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 2. The case most likely to be got wrong: a mention breaks through archive but never through mute."
+    },
+    {
+      "name": "archived-muted-reply-to-viewer-silent",
+      "push": {
+        "archived": true,
+        "muted": true,
+        "kind": "reply",
+        "mentionsViewer": false,
+        "repliesToViewer": true
+      },
+      "expect": {
+        "notify": false,
+        "archived": true
+      },
+      "note": "Rule 2."
+    }
+  ],
+  "list": [
+    {
+      "name": "nothing-archived",
+      "chats": [
+        {
+          "id": "a",
+          "type": "tipDm",
+          "lastActivity": 3,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 2
+        },
+        {
+          "id": "b",
+          "type": "group",
+          "lastActivity": 2,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 0
+        },
+        {
+          "id": "c",
+          "type": "group",
+          "lastActivity": 1,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 1
+        }
+      ],
+      "expect": {
+        "main": [
+          "a",
+          "b",
+          "c"
+        ],
+        "unreadChip": [
+          "a",
+          "c"
+        ],
+        "groupsChip": [
+          "b",
+          "c"
+        ],
+        "archived": [],
+        "chipCounts": {
+          "unread": 2,
+          "groups": 1
+        },
+        "archivedRow": {
+          "visible": false,
+          "count": 0
+        },
+        "tabBadge": 2
+      },
+      "note": "No archive row when nothing is archived. Groups counts unread groups (c), not all groups."
+    },
+    {
+      "name": "archived-leaves-main-chips-and-badge",
+      "chats": [
+        {
+          "id": "a",
+          "type": "tipDm",
+          "lastActivity": 3,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 2
+        },
+        {
+          "id": "b",
+          "type": "group",
+          "lastActivity": 2,
+          "archived": true,
+          "muted": false,
+          "hidden": false,
+          "unread": 4
+        }
+      ],
+      "expect": {
+        "main": [
+          "a"
+        ],
+        "unreadChip": [
+          "a"
+        ],
+        "groupsChip": [],
+        "archived": [
+          "b"
+        ],
+        "chipCounts": {
+          "unread": 1,
+          "groups": 0
+        },
+        "archivedRow": {
+          "visible": true,
+          "count": 1
+        },
+        "tabBadge": 1
+      },
+      "note": "Rule 1. The archived group is in no chip and not in the badge; it shows only in the Archived row's count."
+    },
+    {
+      "name": "archived-muted-not-counted",
+      "chats": [
+        {
+          "id": "a",
+          "type": "tipDm",
+          "lastActivity": 3,
+          "archived": true,
+          "muted": true,
+          "hidden": false,
+          "unread": 9
+        },
+        {
+          "id": "b",
+          "type": "tipDm",
+          "lastActivity": 2,
+          "archived": true,
+          "muted": false,
+          "hidden": false,
+          "unread": 1
+        },
+        {
+          "id": "c",
+          "type": "tipDm",
+          "lastActivity": 1,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 0
+        }
+      ],
+      "expect": {
+        "main": [
+          "c"
+        ],
+        "unreadChip": [],
+        "groupsChip": [],
+        "archived": [
+          "a",
+          "b"
+        ],
+        "chipCounts": {
+          "unread": 0,
+          "groups": 0
+        },
+        "archivedRow": {
+          "visible": true,
+          "count": 1
+        },
+        "tabBadge": 0
+      },
+      "note": "The Archived row counts unread chats that are not muted. A muted archived chat stays listed under Archived but counts toward nothing."
+    },
+    {
+      "name": "muted-in-main-still-in-badge",
+      "chats": [
+        {
+          "id": "a",
+          "type": "tipDm",
+          "lastActivity": 2,
+          "archived": false,
+          "muted": true,
+          "hidden": false,
+          "unread": 1
+        },
+        {
+          "id": "b",
+          "type": "tipDm",
+          "lastActivity": 1,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 1
+        }
+      ],
+      "expect": {
+        "main": [
+          "a",
+          "b"
+        ],
+        "unreadChip": [
+          "a",
+          "b"
+        ],
+        "groupsChip": [],
+        "archived": [],
+        "chipCounts": {
+          "unread": 2,
+          "groups": 0
+        },
+        "archivedRow": {
+          "visible": false,
+          "count": 0
+        },
+        "tabBadge": 2
+      },
+      "note": "Archive does not change how mute affects the main list: both apps count muted unread chats in the badge today, and still do."
+    },
+    {
+      "name": "unknown-unread-counts-as-unread",
+      "chats": [
+        {
+          "id": "a",
+          "type": "tipDm",
+          "lastActivity": 2,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": "unknown"
+        },
+        {
+          "id": "b",
+          "type": "tipDm",
+          "lastActivity": 1,
+          "archived": true,
+          "muted": false,
+          "hidden": false,
+          "unread": "unknown"
+        }
+      ],
+      "expect": {
+        "main": [
+          "a"
+        ],
+        "unreadChip": [
+          "a"
+        ],
+        "groupsChip": [],
+        "archived": [
+          "b"
+        ],
+        "chipCounts": {
+          "unread": 1,
+          "groups": 0
+        },
+        "archivedRow": {
+          "visible": true,
+          "count": 1
+        },
+        "tabBadge": 1
+      },
+      "note": "Android shows a dot when the count is not known yet. It is unread for every count here."
+    },
+    {
+      "name": "hidden-and-archived-appears-nowhere",
+      "chats": [
+        {
+          "id": "a",
+          "type": "tipDm",
+          "lastActivity": 2,
+          "archived": true,
+          "muted": false,
+          "hidden": true,
+          "unread": 3
+        },
+        {
+          "id": "b",
+          "type": "tipDm",
+          "lastActivity": 1,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 0
+        }
+      ],
+      "expect": {
+        "main": [
+          "b"
+        ],
+        "unreadChip": [],
+        "groupsChip": [],
+        "archived": [],
+        "chipCounts": {
+          "unread": 0,
+          "groups": 0
+        },
+        "archivedRow": {
+          "visible": false,
+          "count": 0
+        },
+        "tabBadge": 0
+      },
+      "note": "Rule 5. Hidden wins. The only archived chat is hidden, so the Archived row is not shown at all."
+    },
+    {
+      "name": "everything-archived",
+      "chats": [
+        {
+          "id": "a",
+          "type": "tipDm",
+          "lastActivity": 2,
+          "archived": true,
+          "muted": false,
+          "hidden": false,
+          "unread": 0
+        },
+        {
+          "id": "b",
+          "type": "group",
+          "lastActivity": 1,
+          "archived": true,
+          "muted": false,
+          "hidden": false,
+          "unread": 1
+        }
+      ],
+      "expect": {
+        "main": [],
+        "unreadChip": [],
+        "groupsChip": [],
+        "archived": [
+          "a",
+          "b"
+        ],
+        "chipCounts": {
+          "unread": 0,
+          "groups": 0
+        },
+        "archivedRow": {
+          "visible": true,
+          "count": 1
+        },
+        "tabBadge": 0
+      },
+      "note": "The main list is empty but the Archived row must still render. On iOS that means the empty state cannot replace the List."
+    },
+    {
+      "name": "order-is-last-activity-everywhere",
+      "chats": [
+        {
+          "id": "old",
+          "type": "tipDm",
+          "lastActivity": 1,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 1
+        },
+        {
+          "id": "new",
+          "type": "tipDm",
+          "lastActivity": 5,
+          "archived": false,
+          "muted": false,
+          "hidden": false,
+          "unread": 1
+        },
+        {
+          "id": "arch-old",
+          "type": "tipDm",
+          "lastActivity": 2,
+          "archived": true,
+          "muted": false,
+          "hidden": false,
+          "unread": 0
+        },
+        {
+          "id": "arch-new",
+          "type": "tipDm",
+          "lastActivity": 4,
+          "archived": true,
+          "muted": false,
+          "hidden": false,
+          "unread": 0
+        }
+      ],
+      "expect": {
+        "main": [
+          "new",
+          "old"
+        ],
+        "unreadChip": [
+          "new",
+          "old"
+        ],
+        "groupsChip": [],
+        "archived": [
+          "arch-new",
+          "arch-old"
+        ],
+        "chipCounts": {
+          "unread": 2,
+          "groups": 0
+        },
+        "archivedRow": {
+          "visible": true,
+          "count": 0
+        },
+        "tabBadge": 2
+      },
+      "note": "Every list sorts by last activity, newest first, Archived included."
+    }
+  ]
+}

@@ -36,6 +36,13 @@ class PushController {
         set { delegate.isViewingConversation = newValue }
     }
 
+    /// Queried in the foreground to recognise an archived chat's push, which the extension has
+    /// already judged (passive means not addressed to the viewer).
+    var isArchived: (@MainActor (ConversationID) -> Bool)? {
+        get { delegate.isArchived }
+        set { delegate.isArchived = newValue }
+    }
+
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let client: FlipClient
     @ObservationIgnored private let center: UNUserNotificationCenter
@@ -269,6 +276,7 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
     var isViewingConversation: (@MainActor (ConversationID) -> Bool)?
+    var isArchived: (@MainActor (ConversationID) -> Bool)?
 
     override init() {
         super.init()
@@ -301,13 +309,16 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         // Stay silent for a muted chat and for the conversation the user is already reading; other
         // chats and every non-chat push still present normally. Everything above this point has
         // already run — the push is stored and counted either way, only the banner is withheld.
-        let decision = NotificationPayload.presentationDecision(userInfo) { conversationID in
-            isViewingConversation?(conversationID) == true
-        }
+        let decision = NotificationPayload.presentationDecision(
+            userInfo,
+            isViewingConversation: { conversationID in isViewingConversation?(conversationID) == true },
+            isArchived: { conversationID in isArchived?(conversationID) == true },
+            deliveredPassive: notification.request.content.interruptionLevel == .passive
+        )
         switch decision {
         case .present:
             break
-        case .suppressedMuted, .suppressedOpenConversation:
+        case .suppressedMuted, .suppressedOpenConversation, .suppressedArchived:
             logger.info("Suppressing chat push", metadata: [
                 "reason": "\(decision)",
                 "conversationID": "\(NotificationPayload.chatID(userInfo).map { "\($0)" } ?? "none")",

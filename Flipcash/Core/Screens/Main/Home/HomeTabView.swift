@@ -106,6 +106,9 @@ struct HomeTabView: View {
                 tipCardPresentation.collapse()
             }
             .onDisappear { router.activeTabStack = nil }
+            .onChange(of: sessionContainer.session.profile?.username, initial: true) { _, username in
+                sessionContainer.chatArchive.setViewerUsername(username)
+            }
             // Keyed on the blob, so setting or replacing a picture reloads the
             // icon and clearing one drops it back to the glyph.
             .task(id: profilePicture?.thumbnailBlobID) {

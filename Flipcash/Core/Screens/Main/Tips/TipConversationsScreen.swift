@@ -15,18 +15,40 @@ struct TipConversationsScreen: View {
     @Environment(AppRouter.self) private var router
 
     @State private var muteTarget: MuteTarget?
+    @State private var filter: ChatListFilter = .all
+    @State private var undoTarget: ConversationID?
+    /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
+    @State private var chipsRevealed = false
+    /// The chip row's height: while hidden, the list rests scrolled down by exactly this much.
+    @State private var chipsHeight: CGFloat = 0
+    /// The hidden chips' fade, set per frame by the scroll view. Only the chip row reads it, so a
+    /// pull doesn't re-render the whole list every frame.
+    @State private var chipFade = ChipFade()
 
-    /// The rows the tab lists. Shared with the tab badge so the two can't disagree about which
-    /// chats count.
-    private var conversations: [Conversation] {
-        conversationController.chatListConversations
+    /// The projection once per body pass: rows, chips, the Archived row and the badge agree.
+    private var projection: ChatListProjection<ConversationID> {
+        conversationController.chatListProjection
     }
 
+    /// Rows for the selected filter, in the projection's order.
+    private func rows(_ projection: ChatListProjection<ConversationID>) -> [Conversation] {
+        let byID = Dictionary(
+            conversationController.chatListConversations.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return filter.ids(in: projection).compactMap { byID[$0] }
+    }
+
+    /// A selected filter keeps the chips in view: they explain the list.
+    private var showsChips: Bool { chipsRevealed || filter != .all }
+
     var body: some View {
-        let conversations = self.conversations
+        let projection = self.projection
+        let conversations = rows(projection)
+        let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible
 
         Background(color: .backgroundMain) {
-            if conversations.isEmpty {
+            if nothingAtAll {
                 // Blank until the feed is known, so a cold launch onto this tab doesn't flash "No
                 // Chats Yet" in the moment before the cache hydrates.
                 if conversationController.hasResolvedFeed {
@@ -34,21 +56,79 @@ struct TipConversationsScreen: View {
                 }
             } else {
                 List {
-                    ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
-                        TipConversationRow(conversation: conversation) {
-                            router.push(.tipConversation(conversation.id))
+                        // Always the first row, so the chips scroll with the list. Hidden means the
+                        // list rests scrolled just past them, so a pull drags them on with the
+                        // finger. The chips use a custom button style, which keeps each chip's tap
+                        // its own inside the row.
+                        FadingChips(fade: chipFade, isShown: showsChips) {
+                            ChatListChips(selection: $filter, projection: projection)
                         }
-                        // Separators divide rows from each other; the first
-                        // row's leading one just draws a line under the bar.
-                        .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
-                        .swipeActions {
-                            muteAction(for: conversation)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                                chipsHeight = $0
+                            }
+                            .background {
+                                ChipRevealScrollHook(
+                                    chipsHeight: chipsHeight,
+                                    isRevealed: showsChips,
+                                    fade: chipFade,
+                                    reveal: { chipsRevealed = true }
+                                )
+                            }
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        // Only under All: the other filters narrow the list, and archived chats aren't in it.
+                        if projection.archivedRowVisible, filter == .all {
+                            ArchivedRow(count: projection.archivedRowCount) {
+                                router.push(.archivedChats)
+                            }
+                            .listRowSeparator(.hidden, edges: .top)
+                            .listRowBackground(Color.clear)
+                        }
+                        ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
+                            TipConversationRow(conversation: conversation) {
+                                router.push(.tipConversation(conversation.id))
+                            }
+                            // Separators divide rows from each other; the first
+                            // row's leading one just draws a line under the bar.
+                            .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
+                            // Mute first: the first button is the outer, full-swipe action.
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                muteAction(for: conversation)
+                                archiveAction(for: conversation)
+                            }
                         }
                     }
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .overlay {
+                        // Over the List rather than a row in it, so it centres in the whole
+                        // screen and the List keeps the pull that reveals the chips.
+                        if conversations.isEmpty {
+                            Text(filter.emptyMessage)
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textSecondary)
+                                .allowsHitTesting(false)
+                        }
+                    }
             }
+        }
+        .overlay(alignment: .bottom) {
+            if undoTarget != nil {
+                ArchiveUndoToast {
+                    if let id = undoTarget { conversationController.unarchive(id) }
+                    undoTarget = nil
+                }
+                .padding(.bottom, 16)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .animation(.default, value: undoTarget)
+        // Dismisses itself, like the reaction error toast; a new archive restarts the clock.
+        .task(id: undoTarget) {
+            guard undoTarget != nil else { return }
+            try? await Task.sleep(for: .seconds(4))
+            if !Task.isCancelled { undoTarget = nil }
         }
         .sheet(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
@@ -71,10 +151,10 @@ struct TipConversationsScreen: View {
         // Every counterpart, not just the rows on screen. A row's own `.task` fires when the row is
         // built, which in a `List` is when it scrolls into view — so without this the avatar below
         // the fold starts downloading at the moment the user is looking at its blurhash.
-        .task(id: conversations.count) {
+        .task(id: conversationController.chatListConversations.count) {
             let selfUserID = conversationController.selfUserID
             let subjects: [(subject: ProfileAvatarStore.AvatarSubject, picture: ProfilePicture?)] =
-                conversations.map { conversation in
+                conversationController.chatListConversations.map { conversation in
                     // A group's row draws the chat's own picture, so that is what gets warmed;
                     // `counterpart(excluding:)` would pick an arbitrary member of it.
                     guard conversation.type != .group,
@@ -101,7 +181,7 @@ struct TipConversationsScreen: View {
     /// Group senders of the listed rows' last messages that nothing on the device can name yet.
     private var unnamedSenders: [UserID] {
         conversationController.unnamedLastMessageSenders(
-            in: conversations,
+            in: conversationController.chatListConversations,
             knownAuthors: sessionContainer.knownAuthors.snapshot
         )
     }
@@ -122,6 +202,20 @@ struct TipConversationsScreen: View {
         // The mute chip's amber-on-amber, not the delete red: nothing is lost by it.
         .tint(.warningSecondary)
         .accessibilityLabel(isMuted ? "Change mute" : "Mute notifications")
+    }
+
+    /// The row's inner swipe action. Mute stays the outer, full-swipe one, so reaching this takes a
+    /// partial swipe and a tap.
+    private func archiveAction(for conversation: Conversation) -> some View {
+        Button {
+            conversationController.archive(conversation.id)
+            undoTarget = conversation.id
+        } label: {
+            Image(systemName: "archivebox")
+        }
+        .tint(.backgroundRow)
+        // A swipe action is also a VoiceOver custom action, next to the mute one.
+        .accessibilityLabel("Archive chat")
     }
 
     /// Bridges ``MuteChatSheet``'s dismissal binding onto ``muteTarget``.
@@ -206,7 +300,7 @@ private struct NoChatsView: View {
 /// One tip conversation, on the same row scaffold as the Send list: the
 /// counterpart's avatar and name, the last-message preview, and the unread
 /// state.
-private struct TipConversationRow: View {
+struct TipConversationRow: View {
 
     let conversation: Conversation
     let onTap: () -> Void
@@ -327,5 +421,168 @@ private struct UnreadCountSubject: Equatable {
     init(conversation: Conversation, selfUserID: UserID?) {
         readPointer = conversation.selfReadPointer(for: selfUserID)
         lastMessageID = conversation.lastMessage?.id
+    }
+}
+
+/// Drives the hidden chip row through the UIKit scroll view behind the chat List, whose scroll
+/// position and release target SwiftUI's scroll modifiers don't reach. While the chips are hidden
+/// it opens the list scrolled just past them, lands a release on the chips or just past them
+/// rather than between, and stops a fling from mid-list just past them.
+private struct ChipRevealScrollHook: UIViewRepresentable {
+    let chipsHeight: CGFloat
+    let isRevealed: Bool
+    let fade: ChipFade
+    let reveal: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> HookView {
+        let view = HookView()
+        view.isUserInteractionEnabled = false
+        view.coordinator = context.coordinator
+        return view
+    }
+
+    func updateUIView(_ view: HookView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.chipsHeight = chipsHeight
+        coordinator.isRevealed = isRevealed
+        coordinator.fade = fade
+        coordinator.reveal = reveal
+        coordinator.attach(from: view)
+    }
+
+    /// Attaches as soon as it joins the List's hierarchy, so the list is parked before its first
+    /// frame draws rather than a run-loop turn later, with the chips briefly on screen.
+    final class HookView: UIView {
+        weak var coordinator: Coordinator?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            if window != nil { coordinator?.attach(from: self) }
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var chipsHeight: CGFloat = 0
+        var isRevealed = false
+        var reveal: () -> Void = {}
+        var fade: ChipFade?
+        /// Set when a release commits to the chips; applied once the list comes to rest on them,
+        /// so the state change doesn't re-render the list mid-motion.
+        private var pendingReveal = false
+
+        private weak var scrollView: UIScrollView?
+        private var observations: [NSKeyValueObservation] = []
+        private var parked = false
+        private var pullStartedAtTop = false
+
+        func attach(from view: UIView) {
+            if scrollView == nil {
+                guard let found = Self.enclosingScrollView(of: view) else { return }
+                scrollView = found
+                found.panGestureRecognizer.addTarget(self, action: #selector(pan(_:)))
+                observations = [
+                    found.observe(\.contentSize) { [weak self] _, _ in
+                        MainActor.assumeIsolated { self?.parkIfNeeded() }
+                    },
+                    found.observe(\.contentOffset) { [weak self] _, _ in
+                        MainActor.assumeIsolated { self?.offsetChanged() }
+                    },
+                ]
+            }
+            parkIfNeeded()
+        }
+
+        /// Scroll distance from the list's top, in points.
+        private func distance(_ scrollView: UIScrollView) -> CGFloat {
+            scrollView.contentOffset.y + scrollView.adjustedContentInset.top
+        }
+
+        private func setDistance(_ value: CGFloat, animated: Bool) {
+            guard let scrollView else { return }
+            let y = value - scrollView.adjustedContentInset.top
+            scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: y), animated: animated)
+        }
+
+        /// Opens the list with the chips scrolled just out of view, once.
+        private func parkIfNeeded() {
+            guard !parked, !isRevealed, chipsHeight > 0,
+                  let scrollView, scrollView.contentSize.height > chipsHeight else { return }
+            parked = true
+            if distance(scrollView) < chipsHeight { setDistance(chipsHeight, animated: false) }
+        }
+
+        @objc private func pan(_ gesture: UIPanGestureRecognizer) {
+            guard let scrollView, !isRevealed, chipsHeight > 0 else { return }
+            switch gesture.state {
+            case .began:
+                pullStartedAtTop = distance(scrollView) <= chipsHeight + 1
+            case .ended, .cancelled:
+                // Where the release is heading, so a flick counts as well as a slow drag.
+                let velocity = gesture.velocity(in: scrollView).y
+                let projected = distance(scrollView) - velocity * 0.1
+                guard distance(scrollView) < chipsHeight || projected < chipsHeight else { return }
+                if pullStartedAtTop, projected < chipsHeight / 2 {
+                    pendingReveal = true
+                    // Pulled past the top, the system's bounce already lands on the chips; moving
+                    // the offset under it would stack a second motion on the bounce.
+                    if distance(scrollView) > 0 { setDistance(0, animated: true) }
+                } else if distance(scrollView) < chipsHeight {
+                    setDistance(chipsHeight, animated: true)
+                }
+            default:
+                break
+            }
+        }
+
+        /// A fling that didn't start at the top stops just past the hidden chips, as if they weren't there.
+        private func offsetChanged() {
+            guard let scrollView, chipsHeight > 0 else { return }
+            let distance = distance(scrollView)
+            if !isRevealed {
+                let progress = (min(max(1 - distance / chipsHeight, 0), 1) * 100).rounded() / 100
+                if fade?.progress != progress { fade?.progress = progress }
+            }
+            if pendingReveal, abs(distance) < 0.5 {
+                pendingReveal = false
+                reveal()
+            }
+            stopFlingAtChips()
+        }
+
+        private func stopFlingAtChips() {
+            guard let scrollView, !isRevealed, parked, chipsHeight > 0,
+                  scrollView.isDecelerating, !pullStartedAtTop,
+                  distance(scrollView) < chipsHeight else { return }
+            setDistance(chipsHeight, animated: false)
+        }
+
+        private static func enclosingScrollView(of view: UIView) -> UIScrollView? {
+            var current = view.superview
+            while let candidate = current {
+                if let scrollView = candidate as? UIScrollView { return scrollView }
+                current = candidate.superview
+            }
+            return nil
+        }
+    }
+}
+
+/// How much of the hidden chip row a pull has brought on screen, from 0 to 1.
+@Observable
+private final class ChipFade {
+    var progress: Double = 0
+}
+
+/// Reads the fade on its own, so the per-frame changes re-render only the chips.
+private struct FadingChips<Content: View>: View {
+    let fade: ChipFade
+    let isShown: Bool
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content.opacity(isShown ? 1 : fade.progress)
     }
 }
