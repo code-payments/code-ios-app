@@ -27,8 +27,7 @@ struct MarketCapSlider: View {
     private let trackTop: CGFloat = 15
     private let areaHeight: CGFloat = 60
 
-    private static let trackColor = Color(red: 71 / 255, green: 71 / 255, blue: 72 / 255)
-    private static let fillColor = MarketCapExplainerPalette.green
+    private static let fillColor = Color.Sentiment.positive
 
     /// True while a finger is down; drives the thumb's pressed state.
     @GestureState private var isPressed = false
@@ -41,7 +40,7 @@ struct MarketCapSlider: View {
             let width = max(proxy.size.width, 1)
             ZStack(alignment: .topLeading) {
                 Capsule()
-                    .fill(Self.trackColor)
+                    .fill(Color.rowSeparator)
                     .frame(width: width, height: trackHeight)
                     .offset(y: trackTop)
 

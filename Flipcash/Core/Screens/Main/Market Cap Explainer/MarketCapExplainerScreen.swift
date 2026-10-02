@@ -160,8 +160,8 @@ struct MarketCapExplainerContent: View {
 
     private var appreciationColor: Color {
         switch viewModel.appreciationSign {
-        case .positive: MarketCapExplainerPalette.green
-        case .negative: MarketCapExplainerPalette.red
+        case .positive: Color.Sentiment.positive
+        case .negative: Color.textError
         case .zero: Color.textMain
         }
     }

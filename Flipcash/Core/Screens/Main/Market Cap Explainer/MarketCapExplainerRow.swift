@@ -10,8 +10,6 @@ import FlipcashUI
 struct MarketCapExplainerRow: View {
     let action: () -> Void
 
-    private static let cardColor = Color(red: 48 / 255, green: 48 / 255, blue: 49 / 255)
-    private static let iconBackground = Color(red: 71 / 255, green: 71 / 255, blue: 72 / 255)
 
     var body: some View {
         Button(action: action) {
@@ -19,7 +17,7 @@ struct MarketCapExplainerRow: View {
                 MarketCapCurveIcon()
                     .frame(width: 22, height: 22)
                     .frame(width: 40, height: 40)
-                    .background(Circle().fill(Self.iconBackground))
+                    .background(Circle().fill(Color.rowSeparator))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("How Market Cap Works")
@@ -38,7 +36,7 @@ struct MarketCapExplainerRow: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity)
-            .background(Self.cardColor)
+            .background(Color.backgroundRow)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -59,13 +57,13 @@ private struct MarketCapCurveIcon: View {
             )
             context.stroke(
                 line,
-                with: .color(MarketCapExplainerPalette.green),
+                with: .color(Color.Sentiment.positive),
                 style: StrokeStyle(lineWidth: 2.2 * scale, lineCap: .round, lineJoin: .round)
             )
             let r = 1.65 * scale
             context.fill(
                 Path(ellipseIn: CGRect(x: 19.25 * scale - r, y: 4.58333 * scale - r, width: r * 2, height: r * 2)),
-                with: .color(MarketCapExplainerPalette.green)
+                with: .color(Color.Sentiment.positive)
             )
         }
     }

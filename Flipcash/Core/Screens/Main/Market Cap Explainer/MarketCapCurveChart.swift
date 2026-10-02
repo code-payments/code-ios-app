@@ -72,7 +72,7 @@ struct MarketCapCurveChart: View, Animatable {
                 )
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [MarketCapExplainerPalette.green.opacity(0.35), MarketCapExplainerPalette.green.opacity(0)],
+                        colors: [Color.Sentiment.positive.opacity(0.35), Color.Sentiment.positive.opacity(0)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -82,7 +82,7 @@ struct MarketCapCurveChart: View, Animatable {
                     y: .value("Price", point.price),
                     series: .value("Series", "solid")
                 )
-                .foregroundStyle(MarketCapExplainerPalette.green)
+                .foregroundStyle(Color.Sentiment.positive)
                 .lineStyle(StrokeStyle(lineWidth: 2.5))
             }
 
@@ -92,7 +92,7 @@ struct MarketCapCurveChart: View, Animatable {
                     y: .value("Price", point.price),
                     series: .value("Series", "faded")
                 )
-                .foregroundStyle(MarketCapExplainerPalette.green.opacity(0.45))
+                .foregroundStyle(Color.Sentiment.positive.opacity(0.45))
                 .lineStyle(StrokeStyle(lineWidth: 2, dash: [4, 4]))
             }
 
@@ -124,7 +124,7 @@ struct MarketCapCurveChart: View, Animatable {
 
             PointMark(x: .value("Selected supply", f.selectedX), y: .value("Price", f.selectedY))
                 .symbolSize(180)
-                .foregroundStyle(MarketCapExplainerPalette.green)
+                .foregroundStyle(Color.Sentiment.positive)
         }
         .chartXScale(domain: f.xDomain)
         .chartYScale(domain: f.yRange)
