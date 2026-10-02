@@ -259,6 +259,7 @@ private struct CurrencyInfoScreenContent: View {
                     onBuy: { router.push(.buyCurrency(mint)) },
                     onWithdraw: { router.push(.withdrawCurrency(mint)) },
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
+                    onShowMarketCapExplainer: { router.push(.marketCapExplainer(metadata.mint)) },
                     onScrolledPastTitle: { scrolledPast in
                         guard showsToolbarTitle != scrolledPast else { return }
                         withAnimation(.easeInOut(duration: 0.2)) {

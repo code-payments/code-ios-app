@@ -26,22 +26,17 @@ struct CurrencyInfoMarketCapSection: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Market Cap")
-                .foregroundStyle(Color.textSecondary)
-                .font(.appTextMedium)
-                .padding(.horizontal, 20)
-
             if let viewModel = chartViewModel {
                 StockChart(
                     viewModel: viewModel,
                     currencyCode: currencyCode,
                     positiveColor: .Sentiment.positive,
-                    negativeColor: .Sentiment.negative
+                    negativeColor: .Sentiment.negative,
+                    headerTitle: "Market Cap"
                 )
             }
         }
         .padding(.top, 20)
-        .padding(.bottom, 20)
         // The view model is cheap and gives the section its full height right
         // away: value, change, a placeholder plot, and the range picker. The
         // fetch starts here too — it is network-bound, so it costs an opening

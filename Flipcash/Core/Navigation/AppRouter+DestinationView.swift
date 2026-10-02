@@ -53,6 +53,13 @@ struct DestinationView: View {
         case .transactionHistory(let mint):
             TransactionHistoryScreen(mint: mint)
 
+        case .marketCapExplainer(let mint):
+            MarketCapExplainerScreen(
+                mint: mint,
+                session: sessionContainer.session,
+                ratesController: sessionContainer.ratesController
+            )
+
         case .activity:
             ActivityHistoryScreen()
 
