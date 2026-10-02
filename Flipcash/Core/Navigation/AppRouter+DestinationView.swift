@@ -181,8 +181,7 @@ struct DestinationView: View {
             NewPublicGroupScreen()
 
         case .archivedChats:
-            // Placeholder until ArchivedChatsScreen lands in the next commit.
-            EmptyView()
+            ArchivedChatsScreen()
 
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.

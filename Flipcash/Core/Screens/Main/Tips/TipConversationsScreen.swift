@@ -289,7 +289,7 @@ private struct NoChatsView: View {
 /// One tip conversation, on the same row scaffold as the Send list: the
 /// counterpart's avatar and name, the last-message preview, and the unread
 /// state.
-private struct TipConversationRow: View {
+struct TipConversationRow: View {
 
     let conversation: Conversation
     let onTap: () -> Void
