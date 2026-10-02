@@ -51,6 +51,15 @@ struct ConversationStoreTests {
 
     // MARK: - Feed
 
+    @Test("A feed older than a live activity bump doesn't roll the row back")
+    func feedKeepsNewerActivity() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100), conversation(2, lastActivity: 50)])
+        store.advanceLastActivity(to: Date(timeIntervalSince1970: 900), in: conversationID(2))
+        store.setFeed([conversation(1, lastActivity: 100), conversation(2, lastActivity: 50)])
+        #expect(store.conversations.map(\.id) == [conversationID(2), conversationID(1)])
+    }
+
     @Test("setFeed sorts by last activity, most recent first")
     func feedSortsByActivity() {
         var store = ConversationStore()
@@ -96,6 +105,46 @@ struct ConversationStoreTests {
             lastActivity: Date(timeIntervalSince1970: lastActivity),
             type: type
         )
+    }
+
+    @Test("A feed preview older than the stored one doesn't replace it, and a newer one does")
+    func feedKeepsNewerPreview() {
+        var store = ConversationStore()
+        var row = conversation(1, lastActivity: 100)
+        row.lastMessage = message(5, "live", eventSequence: 5)
+        store.setFeed([row])
+
+        var stale = conversation(1, lastActivity: 100)
+        stale.lastMessage = message(3, "stale", eventSequence: 3)
+        store.setFeed([stale], type: .contactDm)
+        #expect(store.conversations.first?.lastMessage?.id.value == 5)
+        store.setFeed([stale])
+        #expect(store.conversations.first?.lastMessage?.id.value == 5)
+
+        var fresh = conversation(1, lastActivity: 100)
+        fresh.lastMessage = message(8, "fresh", eventSequence: 8)
+        store.setFeed([fresh], type: .contactDm)
+        #expect(store.conversations.first?.lastMessage?.id.value == 8)
+    }
+
+    @Test("advanceLastActivity ignores an equal or older date, so the order never moves back")
+    func advanceActivityNeverRegresses() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100), conversation(2, lastActivity: 200)])
+        store.advanceLastActivity(to: Date(timeIntervalSince1970: 50), in: conversationID(2))
+        store.advanceLastActivity(to: Date(timeIntervalSince1970: 200), in: conversationID(2))
+        #expect(store.conversations.map(\.id) == [conversationID(2), conversationID(1)])
+        #expect(store.conversations.first?.lastActivity == Date(timeIntervalSince1970: 200))
+    }
+
+    @Test("setFeedPreview with an equal message leaves the row untouched")
+    func equalPreviewIsANoOp() {
+        var store = ConversationStore()
+        var row = conversation(1, lastActivity: 100)
+        row.lastMessage = message(5, "same", eventSequence: 5)
+        store.setFeed([row])
+        store.setFeedPreview(message(5, "same", eventSequence: 5), in: conversationID(1))
+        #expect(store.conversations == [row])
     }
 
     @Test("advanceLastActivity moves the conversation to the front")

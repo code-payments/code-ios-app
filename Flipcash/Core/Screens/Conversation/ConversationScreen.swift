@@ -526,7 +526,9 @@ struct ConversationScreen: View {
             // allowed to see —
             // which is why this reads `withholdsTranscript` and not `obscuresTranscript`: a chat
             // whose rules haven't landed yet is blurred without yet refusing anything.
-            showsGatePlaceholder: gate.withholdsTranscript && (coordinator?.items.isEmpty ?? true),
+            // Also stands in while an empty transcript's first load is out, so a chat with nothing
+            // cached opens on the placeholder and paints once with its history.
+            showsGatePlaceholder: (gate.withholdsTranscript || (chatExists && !didInitialRead)) && (coordinator?.items.isEmpty ?? true),
             gateMintName: gateMintName,
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,

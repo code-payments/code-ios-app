@@ -275,9 +275,37 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
 
     // MARK: - ConversationFetching
 
-    func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] { feed }
+    /// How many `GetDmChatFeed` calls have been made.
+    var dmFeedCalls: Int { lock.withLock { _dmFeedCalls } }
+    private var _dmFeedCalls = 0
+    /// Held on every DM feed call before it answers, so a test can overlap loads or outlast a timeout.
+    var feedDelay: Duration {
+        get { lock.withLock { _feedDelay } }
+        set { lock.withLock { _feedDelay = newValue } }
+    }
+    private var _feedDelay: Duration = .zero
 
-    func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] { groupFeed }
+    func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] {
+        lock.withLock { _dmFeedCalls += 1 }
+        if feedDelay > .zero { try? await Task.sleep(for: feedDelay) }
+        return feed
+    }
+
+    /// How many `GetGroupChatFeed` calls have been made.
+    var groupFeedCalls: Int { lock.withLock { _groupFeedCalls } }
+    private var _groupFeedCalls = 0
+    /// Held on every group feed call before it answers.
+    var groupFeedDelay: Duration {
+        get { lock.withLock { _groupFeedDelay } }
+        set { lock.withLock { _groupFeedDelay = newValue } }
+    }
+    private var _groupFeedDelay: Duration = .zero
+
+    func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] {
+        lock.withLock { _groupFeedCalls += 1 }
+        if groupFeedDelay > .zero { try? await Task.sleep(for: groupFeedDelay) }
+        return groupFeed
+    }
 
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
         guard let conversation = feed.first(where: { $0.id == conversationID }) else {
@@ -320,8 +348,23 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
 
     // MARK: - ConversationMessaging
 
+    /// Held on every `GetMessage` call before it answers.
+    var singleMessageDelay: Duration {
+        get { lock.withLock { _singleMessageDelay } }
+        set { lock.withLock { _singleMessageDelay = newValue } }
+    }
+    private var _singleMessageDelay: Duration = .zero
+
+    /// Held on every newest-page `GetMessages` call before it answers.
+    var messagesDelay: Duration {
+        get { lock.withLock { _messagesDelay } }
+        set { lock.withLock { _messagesDelay = newValue } }
+    }
+    private var _messagesDelay: Duration = .zero
+
     func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
         lock.withLock { _singleMessageQueries.append(messageID) }
+        if singleMessageDelay > .zero { try? await Task.sleep(for: singleMessageDelay) }
         if let error = singleMessageError { throw error }
         return singleMessages[messageID]
     }
@@ -329,6 +372,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
         guard let before else {
             lock.withLock { _latestPageQueries.append(conversationID) }
+            if messagesDelay > .zero { try? await Task.sleep(for: messagesDelay) }
             return messages
         }
         lock.withLock { _olderQueries.append(before) }
