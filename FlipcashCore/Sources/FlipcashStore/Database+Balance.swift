@@ -155,23 +155,25 @@ nonisolated extension Database {
     // MARK: - Live Supply -
 
     public func updateLiveSupply(updates: [ReserveStateUpdate], date: Date) throws {
-        try transaction {
-            let table = MintTable()
-            for update in updates {
-                // Only touch rows whose supply actually moved — a re-delivered
-                // identical supply must not count as a change, or every stream
-                // tick posts `.databaseDidChange` and re-renders every
-                // database-driven screen. NULL is always a change.
-                let row = table.table.filter(
-                    table.mint == update.mint &&
-                    (table.supplyFromBonding == nil || table.supplyFromBonding != update.supplyFromBonding)
-                )
-                try $0.writer.run(
-                    row.update(
-                        table.supplyFromBonding <- update.supplyFromBonding,
-                        table.updatedAt         <- date
+        try write { writer in
+            try transaction { _ in
+                let table = MintTable()
+                for update in updates {
+                    // Only touch rows whose supply actually moved — a re-delivered
+                    // identical supply must not count as a change, or every stream
+                    // tick posts `.databaseDidChange` and re-renders every
+                    // database-driven screen. NULL is always a change.
+                    let row = table.table.filter(
+                        table.mint == update.mint &&
+                        (table.supplyFromBonding == nil || table.supplyFromBonding != update.supplyFromBonding)
                     )
-                )
+                    try writer.run(
+                        row.update(
+                            table.supplyFromBonding <- update.supplyFromBonding,
+                            table.updatedAt         <- date
+                        )
+                    )
+                }
             }
         }
     }
@@ -179,24 +181,26 @@ nonisolated extension Database {
     // MARK: - Insert -
     
     public func insertBalance(quarks: UInt64, mint: PublicKey, costBasis: Double, date: Date) throws {
-        let table = BalanceTable()
-        // The filter becomes the DO UPDATE's WHERE clause (fork behavior —
-        // see "SQLite.swift Fork" in CLAUDE.md): a conflicting row only
-        // rewrites when a value actually changed, so the balance poller's
-        // unchanged upserts stop counting as changes and stop posting
-        // `.databaseDidChange`. Fresh inserts are unaffected.
-        try writer.run(
-            table.table
-                .filter(table.quarks != quarks || table.costBasis != costBasis)
-                .upsert(
-                    table.mint      <- mint,
-                    table.quarks    <- quarks,
-                    table.costBasis <- costBasis,
-                    table.updatedAt <- date,
+        try write { writer in
+            let table = BalanceTable()
+            // The filter becomes the DO UPDATE's WHERE clause (fork behavior —
+            // see "SQLite.swift Fork" in CLAUDE.md): a conflicting row only
+            // rewrites when a value actually changed, so the balance poller's
+            // unchanged upserts stop counting as changes and stop posting
+            // `.databaseDidChange`. Fresh inserts are unaffected.
+            try writer.run(
+                table.table
+                    .filter(table.quarks != quarks || table.costBasis != costBasis)
+                    .upsert(
+                        table.mint      <- mint,
+                        table.quarks    <- quarks,
+                        table.costBasis <- costBasis,
+                        table.updatedAt <- date,
 
-                    onConflictOf: table.mint,
-                )
-        )
+                        onConflictOf: table.mint,
+                    )
+            )
+        }
     }
 
     public func insert(mints: [MintMetadata], date: Date) throws {
@@ -208,62 +212,64 @@ nonisolated extension Database {
     }
 
     private func insert(mint: MintMetadata, date: Date) throws {
-        let table = MintTable()
+        try write { writer in
+            let table = MintTable()
 
-        let socialLinksJSON = StoredMintMetadata.encodedSocialLinks(mint.socialLinks)
-        let billColorsJSON = StoredMintMetadata.encodedBillColors(mint.billColors)
+            let socialLinksJSON = StoredMintMetadata.encodedSocialLinks(mint.socialLinks)
+            let billColorsJSON = StoredMintMetadata.encodedBillColors(mint.billColors)
 
-        // Skip the write when it wouldn't change the stored row (updatedAt
-        // aside). The balance poller re-fetches held mints every cycle;
-        // letting identical data count as a change turns every poll into a
-        // `.databaseDidChange` broadcast that re-renders every
-        // database-driven screen.
-        if let stored = try? fetchStoredMint(mint.address),
-           storedRowUnchanged(stored, by: mint, socialLinksJSON: socialLinksJSON, billColorsJSON: billColorsJSON) {
-            return
-        }
+            // Skip the write when it wouldn't change the stored row (updatedAt
+            // aside). The balance poller re-fetches held mints every cycle;
+            // letting identical data count as a change turns every poll into a
+            // `.databaseDidChange` broadcast that re-renders every
+            // database-driven screen.
+            if let stored = try? fetchStoredMint(mint.address),
+               storedRowUnchanged(stored, by: mint, socialLinksJSON: socialLinksJSON, billColorsJSON: billColorsJSON) {
+                return
+            }
 
-        // TODO: Collapse into a single statement with COALESCE(excluded.supplyFromBonding,
-        // supplyFromBonding) once Setter(excluded:) is made public in our SQLite.swift fork.
-        // See CLAUDE.md "SQLite.swift Fork" for details.
-        try writer.run(
-            table.table.upsert(
-                table.mint              <- mint.address,
-                table.name              <- mint.name,
-                table.symbol            <- mint.symbol,
-                table.decimals          <- mint.decimals,
-                table.bio               <- mint.description,
-                table.imageURL          <- mint.imageURL,
-
-                table.vmAddress         <- mint.vmMetadata?.vm,
-                table.vmAuthority       <- mint.vmMetadata?.authority,
-                table.lockDuration      <- mint.vmMetadata?.lockDurationInDays,
-
-                table.currencyConfig    <- mint.launchpadMetadata?.currencyConfig,
-                table.liquidityPool     <- mint.launchpadMetadata?.liquidityPool,
-                table.seed              <- mint.launchpadMetadata?.seed,
-                table.authority         <- mint.launchpadMetadata?.authority,
-                table.mintVault         <- mint.launchpadMetadata?.mintVault,
-                table.coreMintVault     <- mint.launchpadMetadata?.coreMintVault,
-                table.coreMintFees      <- mint.launchpadMetadata?.coreMintFees,
-                table.sellFeeBps        <- mint.launchpadMetadata?.sellFeeBps,
-
-                table.socialLinks       <- socialLinksJSON,
-                table.billColors        <- billColorsJSON,
-
-                table.createdAt         <- mint.createdAt,
-
-                table.updatedAt         <- date,
-
-                onConflictOf: table.mint,
-            )
-        )
-
-        if let supplyFromBonding = mint.launchpadMetadata?.supplyFromBonding {
-            let row = table.table.filter(table.mint == mint.address)
+            // TODO: Collapse into a single statement with COALESCE(excluded.supplyFromBonding,
+            // supplyFromBonding) once Setter(excluded:) is made public in our SQLite.swift fork.
+            // See CLAUDE.md "SQLite.swift Fork" for details.
             try writer.run(
-                row.update(table.supplyFromBonding <- supplyFromBonding)
+                table.table.upsert(
+                    table.mint              <- mint.address,
+                    table.name              <- mint.name,
+                    table.symbol            <- mint.symbol,
+                    table.decimals          <- mint.decimals,
+                    table.bio               <- mint.description,
+                    table.imageURL          <- mint.imageURL,
+
+                    table.vmAddress         <- mint.vmMetadata?.vm,
+                    table.vmAuthority       <- mint.vmMetadata?.authority,
+                    table.lockDuration      <- mint.vmMetadata?.lockDurationInDays,
+
+                    table.currencyConfig    <- mint.launchpadMetadata?.currencyConfig,
+                    table.liquidityPool     <- mint.launchpadMetadata?.liquidityPool,
+                    table.seed              <- mint.launchpadMetadata?.seed,
+                    table.authority         <- mint.launchpadMetadata?.authority,
+                    table.mintVault         <- mint.launchpadMetadata?.mintVault,
+                    table.coreMintVault     <- mint.launchpadMetadata?.coreMintVault,
+                    table.coreMintFees      <- mint.launchpadMetadata?.coreMintFees,
+                    table.sellFeeBps        <- mint.launchpadMetadata?.sellFeeBps,
+
+                    table.socialLinks       <- socialLinksJSON,
+                    table.billColors        <- billColorsJSON,
+
+                    table.createdAt         <- mint.createdAt,
+
+                    table.updatedAt         <- date,
+
+                    onConflictOf: table.mint,
+                )
             )
+
+            if let supplyFromBonding = mint.launchpadMetadata?.supplyFromBonding {
+                let row = table.table.filter(table.mint == mint.address)
+                try writer.run(
+                    row.update(table.supplyFromBonding <- supplyFromBonding)
+                )
+            }
         }
     }
 

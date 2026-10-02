@@ -38,20 +38,22 @@ nonisolated extension Database {
     /// row is keyed by currency code, so repeated stream updates for the
     /// same currency replace the previous row in place.
     public func upsertRates(_ rates: [Rate]) throws {
-        guard !rates.isEmpty else { return }
+        try write { writer in
+            guard !rates.isEmpty else { return }
 
-        let table = RateTable()
+            let table = RateTable()
 
-        try transaction { _ in
-            for rate in rates {
-                let data = try JSONEncoder().encode(rate)
-                try writer.run(
-                    table.table.upsert(
-                        table.currency <- rate.currency,
-                        table.data     <- data,
-                        onConflictOf: table.currency
+            try transaction { _ in
+                for rate in rates {
+                    let data = try JSONEncoder().encode(rate)
+                    try writer.run(
+                        table.table.upsert(
+                            table.currency <- rate.currency,
+                            table.data     <- data,
+                            onConflictOf: table.currency
+                        )
                     )
-                )
+                }
             }
         }
     }

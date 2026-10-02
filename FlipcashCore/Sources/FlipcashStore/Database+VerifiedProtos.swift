@@ -16,17 +16,19 @@ nonisolated extension Database: VerifiedProtoStore {
     /// `silent: true` because the `verified_rate` table has no UI listeners —
     /// the service's `ratesPublisher` already drives downstream updates.
     public func writeRates(_ rows: [StoredRateRow]) throws {
-        guard !rows.isEmpty else { return }
-        let table = VerifiedRateTable()
-        try transaction(silent: true) { _ in
-            for row in rows {
-                try writer.run(
-                    table.table.upsert(
-                        table.currency <- row.currency,
-                        table.rateProto <- row.rateProto,
-                        onConflictOf: table.currency
+        try write { writer in
+            guard !rows.isEmpty else { return }
+            let table = VerifiedRateTable()
+            try transaction(silent: true) { _ in
+                for row in rows {
+                    try writer.run(
+                        table.table.upsert(
+                            table.currency <- row.currency,
+                            table.rateProto <- row.rateProto,
+                            onConflictOf: table.currency
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -51,17 +53,19 @@ nonisolated extension Database: VerifiedProtoStore {
     // MARK: - Verified Reserves -
 
     public func writeReserves(_ rows: [StoredReserveRow]) throws {
-        guard !rows.isEmpty else { return }
-        let table = VerifiedReserveTable()
-        try transaction(silent: true) { _ in
-            for row in rows {
-                try writer.run(
-                    table.table.upsert(
-                        table.mint <- row.mint,
-                        table.reserveProto <- row.reserveProto,
-                        onConflictOf: table.mint
+        try write { writer in
+            guard !rows.isEmpty else { return }
+            let table = VerifiedReserveTable()
+            try transaction(silent: true) { _ in
+                for row in rows {
+                    try writer.run(
+                        table.table.upsert(
+                            table.mint <- row.mint,
+                            table.reserveProto <- row.reserveProto,
+                            onConflictOf: table.mint
+                        )
                     )
-                )
+                }
             }
         }
     }

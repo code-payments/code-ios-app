@@ -88,12 +88,12 @@ struct DatabaseLiveSupplyTests {
             date: .now
         )
 
-        let before = try db.writer.totalChanges
+        let before = try db.write { $0.totalChanges }
         try db.updateLiveSupply(
             updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: 500)],
             date: .now + 60
         )
-        #expect(try db.writer.totalChanges == before)
+        #expect(try db.write { $0.totalChanges } == before)
     }
 
     @Test("A supply delivered over a NULL column still writes")

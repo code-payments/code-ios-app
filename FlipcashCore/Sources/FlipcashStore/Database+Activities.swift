@@ -257,71 +257,77 @@ nonisolated extension Database {
     }
     
     private func insertActivity(activity: Activity) throws {
-        let table = ActivityTable()
-        try writer.run(
-            table.table.upsert(
-                table.id           <- activity.id,
-                table.kind         <- activity.kind.rawValue,
-                table.state        <- activity.state.rawValue,
-                table.title        <- activity.title,
-                table.quarks       <- activity.exchangedFiat.onChainAmount.quarks,
-                table.nativeAmount <- activity.exchangedFiat.nativeAmount.doubleValue,
-                table.currency     <- activity.exchangedFiat.nativeAmount.currency,
-                table.mint         <- activity.exchangedFiat.mint,
-                table.date         <- activity.date,
-                table.counterpartyUserID <- activity.counterparty?.userID,
-                table.counterpartyPhone  <- activity.counterparty?.phone,
+        try write { writer in
+            let table = ActivityTable()
+            try writer.run(
+                table.table.upsert(
+                    table.id           <- activity.id,
+                    table.kind         <- activity.kind.rawValue,
+                    table.state        <- activity.state.rawValue,
+                    table.title        <- activity.title,
+                    table.quarks       <- activity.exchangedFiat.onChainAmount.quarks,
+                    table.nativeAmount <- activity.exchangedFiat.nativeAmount.doubleValue,
+                    table.currency     <- activity.exchangedFiat.nativeAmount.currency,
+                    table.mint         <- activity.exchangedFiat.mint,
+                    table.date         <- activity.date,
+                    table.counterpartyUserID <- activity.counterparty?.userID,
+                    table.counterpartyPhone  <- activity.counterparty?.phone,
 
-                onConflictOf: table.id,
+                    onConflictOf: table.id,
+                )
             )
-        )
         
-        switch activity.kind {
-        case .gave, .received, .withdrew, .deposited, .paid, .distributed, .bought, .sold, .unknown:
-            break
-        case .cashLink:
-            if case .cashLink(let metadata) = activity.metadata {
-                try insertCashLinkMetaData(id: activity.id, metadata: metadata)
-            }
-        case .swapped:
-            if case .swap(let metadata) = activity.metadata {
-                try insertSwapMetadata(id: activity.id, metadata: metadata)
+            switch activity.kind {
+            case .gave, .received, .withdrew, .deposited, .paid, .distributed, .bought, .sold, .unknown:
+                break
+            case .cashLink:
+                if case .cashLink(let metadata) = activity.metadata {
+                    try insertCashLinkMetaData(id: activity.id, metadata: metadata)
+                }
+            case .swapped:
+                if case .swap(let metadata) = activity.metadata {
+                    try insertSwapMetadata(id: activity.id, metadata: metadata)
+                }
             }
         }
     }
 
     private func insertCashLinkMetaData(id: PublicKey, metadata: Activity.CashLinkMetadata) throws {
-        let table = CashLinkMetadataTable()
-        try writer.run(
-            table.table.upsert(
-                table.id        <- id,
-                table.vault     <- metadata.vault,
-                table.canCancel <- metadata.canCancel,
+        try write { writer in
+            let table = CashLinkMetadataTable()
+            try writer.run(
+                table.table.upsert(
+                    table.id        <- id,
+                    table.vault     <- metadata.vault,
+                    table.canCancel <- metadata.canCancel,
 
-                onConflictOf: table.id,
+                    onConflictOf: table.id,
+                )
             )
-        )
+        }
     }
 
     private func insertSwapMetadata(id: PublicKey, metadata: Activity.SwapMetadata) throws {
-        let table = SwapMetadataTable()
-        try writer.run(
-            table.table.upsert(
-                table.id               <- id,
-                table.fromMint         <- metadata.fromMint,
-                table.fromQuarks       <- metadata.fromQuarks,
-                table.fromNativeAmount <- metadata.fromFiat.doubleValue,
-                table.fromCurrency     <- metadata.fromFiat.currency,
-                table.toMint           <- metadata.toMint,
-                table.toQuarks         <- metadata.toQuarks,
-                table.toNativeAmount   <- metadata.toFiat?.doubleValue,
-                table.toCurrency       <- metadata.toFiat?.currency,
-                table.feeNativeAmount  <- metadata.fee.doubleValue,
-                table.feeCurrency      <- metadata.fee.currency,
-                table.state            <- metadata.state.rawValue,
+        try write { writer in
+            let table = SwapMetadataTable()
+            try writer.run(
+                table.table.upsert(
+                    table.id               <- id,
+                    table.fromMint         <- metadata.fromMint,
+                    table.fromQuarks       <- metadata.fromQuarks,
+                    table.fromNativeAmount <- metadata.fromFiat.doubleValue,
+                    table.fromCurrency     <- metadata.fromFiat.currency,
+                    table.toMint           <- metadata.toMint,
+                    table.toQuarks         <- metadata.toQuarks,
+                    table.toNativeAmount   <- metadata.toFiat?.doubleValue,
+                    table.toCurrency       <- metadata.toFiat?.currency,
+                    table.feeNativeAmount  <- metadata.fee.doubleValue,
+                    table.feeCurrency      <- metadata.fee.currency,
+                    table.state            <- metadata.state.rawValue,
 
-                onConflictOf: table.id,
+                    onConflictOf: table.id,
+                )
             )
-        )
+        }
     }
 }

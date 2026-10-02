@@ -133,7 +133,7 @@ struct StoreMigrationContainerTests {
         var read: String?
         let outcome = ExtensionStore.perform(owner: owner) { database in
             read = try database.reader.scalar("SELECT value FROM probe LIMIT 1;") as? String
-            try database.writer.run("INSERT INTO probe (value) VALUES (?);", "written-by-the-extension")
+            try database.write { try $0.run("INSERT INTO probe (value) VALUES (?);", "written-by-the-extension") }
         }
 
         #expect(outcome == .wrote)

@@ -37,10 +37,10 @@ struct Regression_6a4fde3 {
 
         // A second Database on the same file is exactly what each extra SessionContainer opened.
         let rival = try Database(url: url)
-        try rival.writer.run("BEGIN IMMEDIATE TRANSACTION")
+        try rival.write { try $0.run("BEGIN IMMEDIATE TRANSACTION") }
         let release = Task.detached {
             try await Task.delay(milliseconds: 200)
-            try rival.writer.run("COMMIT TRANSACTION")
+            try rival.write { try $0.run("COMMIT TRANSACTION") }
         }
 
         try database.replaceConversationFeed([conversation(2)], type: .contactDm)
@@ -54,7 +54,7 @@ struct Regression_6a4fde3 {
     func busyTimeout_isTwoSeconds() throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
-        #expect(try database.writer.busyTimeout == 2)
+        #expect(try database.write { $0.busyTimeout } == 2)
         #expect(try database.reader.busyTimeout == 2)
     }
 

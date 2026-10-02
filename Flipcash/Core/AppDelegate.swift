@@ -174,14 +174,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     /// read after the app comes back, so a return that never happens costs nothing and
     /// a close that lands at an awkward moment repairs itself.
     ///
-    /// The assertion covers the drain as well as the checkpoint, and the drain is the part
-    /// that matters for correctness. `didEnterBackground` has already cancelled the poller,
-    /// but a tick that was mid-flight keeps its SQLite write lock until it returns — and being
-    /// suspended holding a lock on the App Group store is a `0xdead10cc` kill, not a slow
-    /// next launch.
-    ///
-    /// Draining before the checkpoint is also what makes the checkpoint stick: `Database.writer`
-    /// reopens the store on next access, so a tick landing after the close re-dirties the WAL.
+    /// Lock safety does not depend on this: every store write holds its own assertion through
+    /// `BackgroundStoreWriteGuard`, so a write landing after the close is protected too. The drain
+    /// is what makes the checkpoint stick — the store reopens on next access, so a poller tick
+    /// landing after the close re-dirties the WAL.
     private func shutDownForBackground() {
         guard let sessionContainer else {
             return

@@ -35,8 +35,13 @@ nonisolated open class Database: @unchecked Sendable {
 
     private let lock = NSLock()
 
+    private let writeGuard: any StoreWriteGuard
+
     /// The write connection, opening the store first if it is currently closed.
-    public var writer: Connection {
+    ///
+    /// Private so every write goes through ``write(_:)`` and its guard: the compiler, not a review,
+    /// is what keeps a new writer from holding the lock unprotected.
+    private var writer: Connection {
         get throws {
             lock.lock()
             defer { lock.unlock() }
@@ -69,12 +74,13 @@ nonisolated open class Database: @unchecked Sendable {
     
     // MARK: - Init -
     
-    public init(url: URL) throws {
+    public init(url: URL, writeGuard: any StoreWriteGuard = .none) throws {
         self.storeURL = url
+        self.writeGuard = writeGuard
 
         // Opening both here keeps an unusable store path failing at `init`, where it
         // has always failed, rather than deferring it to whichever query runs first.
-        _ = try writer
+        try write { _ in }
         _ = try reader
 
         try createTablesIfNeeded()
@@ -102,6 +108,20 @@ nonisolated open class Database: @unchecked Sendable {
         return connection
     }
     
+    // MARK: - Write -
+
+    /// Runs `body` against the write connection while the write guard is held.
+    ///
+    /// The guard is taken before the connection is touched, so reopening a store that ``close()``
+    /// dropped is covered too, and released only after `body` returns — by which point any
+    /// transaction `body` opened has committed or rolled back.
+    @discardableResult
+    public func write<T>(_ body: (Connection) throws -> T) throws -> T {
+        try writeGuard.begin()
+        defer { writeGuard.end() }
+        return try body(writer)
+    }
+
     // MARK: - Transaction -
     
     /// Always inline this function to ensure that captureError
@@ -110,13 +130,14 @@ nonisolated open class Database: @unchecked Sendable {
     @inline(__always)
     public func transaction(silent: Bool = false, _ block: (Database) throws -> Void) rethrows {
         do {
-            let connection = try writer
-            let startChangeCount = connection.totalChanges
-            // IMMEDIATE: callers read and write inside the block; see replaceConversationFeed.
-            try connection.transaction(.immediate) { [unowned self] in
-                try block(self)
+            let (startChangeCount, endChangeCount) = try write { connection in
+                let startChangeCount = connection.totalChanges
+                // IMMEDIATE: callers read and write inside the block; see replaceConversationFeed.
+                try connection.transaction(.immediate) { [unowned self] in
+                    try block(self)
+                }
+                return (startChangeCount, connection.totalChanges)
             }
-            let endChangeCount = connection.totalChanges
             
             // There are instances where we want to commit
             // the transaction but avoid notifying the UI
@@ -140,6 +161,9 @@ nonisolated open class Database: @unchecked Sendable {
                 }
             }
             
+        } catch is StoreWriteRefused {
+            // Expected on the way to suspension; the data comes back from the server next launch.
+            logger.info("Transaction skipped, app is about to suspend")
         } catch {
             logger.error("Transaction error", metadata: ["error": "\(error)"])
         }
@@ -155,7 +179,7 @@ nonisolated open class Database: @unchecked Sendable {
     /// reader is mid-transaction, which is the case that leaves the WAL growing without
     /// bound. This blocks up to `busyTimeout` instead, and throws when it cannot finish.
     public func checkpoint() throws {
-        try writer.run(Self.checkpointPragma)
+        try write { try $0.run(Self.checkpointPragma) }
     }
 
     /// Checkpoints the write-ahead log and drops both connections.

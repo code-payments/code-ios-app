@@ -12,10 +12,10 @@ extension Database {
     /// with a unique filename. Callers are responsible for calling
     /// ``removeTemp(at:)`` in a `defer` to clean up the `.sqlite` / `-wal` /
     /// `-shm` files; the database also removes them when deallocated.
-    static func makeTemp() throws -> (database: Database, url: URL) {
+    static func makeTemp(writeGuard: any StoreWriteGuard = .none) throws -> (database: Database, url: URL) {
         let url = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("test-\(UUID().uuidString).sqlite")
-        return (try TempDatabase(tempURL: url), url)
+        return (try TempDatabase(tempURL: url, writeGuard: writeGuard), url)
     }
 
     /// Removes the temp database file and its SQLite WAL/SHM sidecars.
@@ -38,9 +38,9 @@ nonisolated private final class TempDatabase: Database {
 
     private let url: URL
 
-    init(tempURL: URL) throws {
+    init(tempURL: URL, writeGuard: any StoreWriteGuard) throws {
         self.url = tempURL
-        try super.init(url: tempURL)
+        try super.init(url: tempURL, writeGuard: writeGuard)
     }
 
     deinit {
