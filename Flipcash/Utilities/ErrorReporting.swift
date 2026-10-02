@@ -38,6 +38,9 @@ enum ErrorReporting {
     static func initialize() {
         let config = BugsnagConfiguration.loadConfig()
         config.maxStringValueLength = 50_000
+        // The raw stamp, `*` dirty marker included: CFBundleVersion is Xcode Cloud's run
+        // counter and maps to no commit on its own.
+        config.addMetadata(AppMeta.commit, key: "commit", section: "app")
         Bugsnag.start(with: config)
         isEnabled = true
     }

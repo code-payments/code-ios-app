@@ -1,2 +1,8 @@
 #include? "secrets.xcconfig"
 #include? "secrets.local.xcconfig"
+
+// The commit being built. Scripts/write_commit_xcconfig overrides it from the
+// scheme pre-action and ci_scripts/ci_pre_xcodebuild.sh; a clone that never ran
+// either reports `unknown`.
+GIT_COMMIT_SHA = unknown
+#include? "commit.local.xcconfig"

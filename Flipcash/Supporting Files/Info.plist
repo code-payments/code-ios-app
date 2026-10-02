@@ -49,6 +49,8 @@
 		<key>UIColorName</key>
 		<string>background</string>
 	</dict>
+	<key>FCGitCommit</key>
+	<string>$(GIT_COMMIT_SHA)</string>
 	<key>bugsnag</key>
 	<dict>
 		<key>apiKey</key>
