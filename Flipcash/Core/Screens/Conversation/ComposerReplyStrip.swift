@@ -23,6 +23,7 @@ struct ComposerReplyStrip: View {
 
     let target: ComposerModel.ReplyTarget
     let onDismiss: () -> Void
+    @Environment(\.barCardCollapsed) private var collapsed
 
     /// Wider than the 4pt a blockquote rule usually takes, because the quote's corner radius is the
     /// bar's 14: the leading edge is straight for only `contentHeight - 14 * 2` of its run, and the
@@ -43,8 +44,8 @@ struct ComposerReplyStrip: View {
     private static let flagDiameter: CGFloat = 16
 
     var body: some View {
-        let rule = ComplementaryPalette.color(.start, for: target.authorID)
-        let name = ComplementaryPalette.color(.middle, for: target.authorID)
+        // One colour for the rule and the name, so the rule keeps the name's contrast on the surface.
+        let name = ComplementaryPalette.nameColor(for: target.authorID)
 
         HStack(alignment: .center, spacing: Self.gutter) {
             VStack(alignment: .leading, spacing: 2) {
@@ -95,7 +96,7 @@ struct ComposerReplyStrip: View {
         // centred inside `contentHeight` — leaving the rule a fraction short at both ends.
         // ``QuoteGround`` rounds off the two corners it passes.
         .overlay(alignment: .leading) {
-            QuoteRule(color: rule)
+            QuoteRule(color: name)
                 .frame(width: Self.ruleWidth)
         }
         .modifier(QuoteGround())
@@ -103,8 +104,8 @@ struct ComposerReplyStrip: View {
         // One margin all the way round: the quote sits ``inset`` from the bar's top edge and the same
         // distance off the controls below. The bar already pads its own row, so only the remainder is
         // added here — padding both by ``inset`` would leave the gap underneath twice the one above.
-        .padding(.top, Self.inset)
-        .padding(.bottom, Self.inset - BarMetrics.contentPadding)
+        .padding(.top, collapsed ? 0 : Self.inset)
+        .padding(.bottom, collapsed ? 0 : Self.inset - BarMetrics.contentPadding)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("composer-reply-strip")
     }
@@ -183,6 +184,6 @@ private struct QuoteGround: ViewModifier {
         // The background form, not the wrapping one: the glass has to stay outside the clip.
         content
             .clipShape(Self.shape)
-            .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+            .modifier(BarCardGlass(id: .reply))
     }
 }

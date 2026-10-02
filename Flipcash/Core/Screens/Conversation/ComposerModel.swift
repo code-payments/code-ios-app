@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import SwiftUI
 import FlipcashCore
 
 /// What the composer is writing, and the text it holds. Editing borrows the same field as a new
@@ -41,6 +42,11 @@ final class ComposerModel {
 
     private(set) var mode: Mode = .new
     var draft = ""
+    /// The field's cursor or selection, while it has focus.
+    ///
+    /// Cleared wherever the draft is replaced wholesale: its indices belong to the text it was
+    /// taken from.
+    var selection: TextSelection?
 
     /// The unsent new-message draft, held while an edit occupies the field.
     @ObservationIgnored private var stashedDraft = ""
@@ -113,6 +119,7 @@ final class ComposerModel {
     func restore(_ stored: ChatDraft) {
         guard case .new = mode, draft.isEmpty else { return }
         draft = stored.text
+        selection = nil
         if let target = stored.replyTarget {
             mode = .replying(to: ReplyTarget(target))
         }
@@ -130,6 +137,7 @@ final class ComposerModel {
         mode = .editing(messageID: messageID, stableID: stableID)
         originalText = currentText
         draft = currentText
+        selection = nil
     }
 
     /// Leaves editing and restores the stashed draft.
@@ -138,6 +146,7 @@ final class ComposerModel {
         mode = .new
         originalText = ""
         draft = stashedDraft
+        selection = nil
         stashedDraft = ""
     }
 
@@ -166,5 +175,20 @@ final class ComposerModel {
         originalText = ""
         stashedDraft = ""
         draft = ""
+        selection = nil
+    }
+
+    /// The `@word` at the cursor that the mention picker searches for, or `nil` when it is closed.
+    var mentionQuery: MentionQuery? {
+        MentionTrigger.query(in: draft, selection: selection)
+    }
+
+    /// Replaces the `@word` at the cursor with `@username ` and puts the cursor after it, as if it
+    /// had been typed.
+    func insertMention(username: String) {
+        guard let query = mentionQuery else { return }
+        let result = MentionTrigger.inserting(username: username, replacing: query, in: draft)
+        draft = result.text
+        selection = TextSelection(insertionPoint: result.cursor)
     }
 }

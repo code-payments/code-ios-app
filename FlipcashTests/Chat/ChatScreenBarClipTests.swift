@@ -9,14 +9,11 @@ import Testing
 import UIKit
 @testable import FlipcashUI
 
-/// The box the bar is seen through, driven entirely by `setBarHeight(_:replying:)`.
+/// The box the bar is seen through, driven entirely by `setBarHeight(_:accessories:)`.
 ///
-/// The bar reports one number — its whole measured height — and whether a reply is open. The clip
-/// has to turn those two into the height the screen actually sees, which is the same number while a
-/// reply is open and that number minus the strip once it closes. The strip's own height is never
-/// reported: it has to be inferred from the growth, and a draft restored into the composer is where
-/// that inference has the least to go on, because the strip can be in the very first height the
-/// screen is ever given.
+/// The bar reports its whole measured height and the cards above the composer row: which are open,
+/// and how tall the ones that have closed but are still mounted are. The clip is that height less
+/// the closing cards, and it travels only when the open set changes.
 ///
 /// Animations are switched off around each call so the constraint's destination can be read off the
 /// frame in the same pass.
@@ -26,6 +23,7 @@ struct ChatScreenBarClipTests {
 
     private let composerRow: CGFloat = 60
     private let strip: CGFloat = 50
+    private let row: CGFloat = 50
 
     /// A screen on a live window, since the clip's animated path is taken only in one.
     private func makeScreen() -> (ChatScreenViewController, UIView, UIWindow) {
@@ -45,9 +43,18 @@ struct ChatScreenBarClipTests {
         return bar.superview?.frame.height ?? 0
     }
 
-    private func report(_ screen: ChatScreenViewController, _ height: CGFloat, replying: Bool) {
+    private func report(
+        _ screen: ChatScreenViewController,
+        _ height: CGFloat,
+        open: Set<BarAccessories.Kind> = [],
+        exiting: CGFloat = 0,
+        mentions: CGFloat = 0
+    ) {
         UIView.performWithoutAnimation {
-            screen.setBarHeight(height, replying: replying)
+            // What the bar measures under the list: everything but the list, less a strip collapsing
+            // beside it.
+            let rest = height - mentions - (open.contains(.mentions) ? exiting : 0)
+            screen.setBarHeight(height, accessories: BarAccessories(open: open, exitingHeight: exiting, restHeight: rest))
         }
     }
 
@@ -55,51 +62,32 @@ struct ChatScreenBarClipTests {
     func replyOpenedAfterMeasurement_opensAndCloses() {
         let (screen, bar, window) = makeScreen()
 
-        report(screen, composerRow, replying: false)
+        report(screen, composerRow)
         #expect(clipHeight(bar, window) == composerRow)
 
-        report(screen, composerRow + strip, replying: true)
+        report(screen, composerRow + strip, open: [.reply])
         #expect(clipHeight(bar, window) == composerRow + strip)
 
-        // The strip is still mounted while it fades, so the bar keeps measuring tall and the clip
-        // has to come back to the composer row on its own.
-        report(screen, composerRow + strip, replying: false)
+        // The strip is still mounted while it fades, so the bar keeps measuring tall and reports it
+        // as closing.
+        report(screen, composerRow + strip, exiting: strip)
+        #expect(clipHeight(bar, window) == composerRow)
+
+        // It unmounts and the bar measures short; the clip was already there.
+        report(screen, composerRow)
         #expect(clipHeight(bar, window) == composerRow)
     }
 
-    @Test("A reply the bar arrives already open on shows the strip, and closes back to the composer row")
+    @Test("A reply the bar arrives already open on closes back to the composer row")
     func replyRestoredBeforeMeasurement_closesToTheComposerRow() {
         let (screen, bar, window) = makeScreen()
 
         // A restored draft is aimed before the bar has ever been measured, so the first height the
         // screen is given already carries the strip.
-        report(screen, composerRow + strip, replying: true)
+        report(screen, composerRow + strip, open: [.reply])
         #expect(clipHeight(bar, window) == composerRow + strip)
 
-        // How much of that height was the strip is unknowable — the screen never saw this bar
-        // without one — so the close cannot take it back off, and the clip holds the bar's height
-        // rather than guessing at a number that was never measured.
-        report(screen, composerRow + strip, replying: false)
-        #expect(clipHeight(bar, window) == composerRow + strip)
-
-        // It settles once the strip unmounts and the bar measures short on its own.
-        report(screen, composerRow, replying: false)
-        #expect(clipHeight(bar, window) == composerRow)
-    }
-
-    @Test("A strip that arrives a pass after the reply does still closes back to the composer row")
-    func replyMeasuredInTwoSteps_closesToTheComposerRow() {
-        let (screen, bar, window) = makeScreen()
-
-        report(screen, composerRow, replying: false)
-
-        // The strip mounts at zero height and takes its own a pass later, so the bar reports the
-        // reply as open before it reports the height that carries it.
-        report(screen, composerRow, replying: true)
-        report(screen, composerRow + strip, replying: true)
-        #expect(clipHeight(bar, window) == composerRow + strip)
-
-        report(screen, composerRow + strip, replying: false)
+        report(screen, composerRow + strip, exiting: strip)
         #expect(clipHeight(bar, window) == composerRow)
     }
 
@@ -107,14 +95,92 @@ struct ChatScreenBarClipTests {
     func barGrowsMidReply_keepsTheStripUncovered() {
         let (screen, bar, window) = makeScreen()
 
-        report(screen, composerRow, replying: false)
-        report(screen, composerRow + strip, replying: true)
+        report(screen, composerRow)
+        report(screen, composerRow + strip, open: [.reply])
 
         let secondLine: CGFloat = 20
-        report(screen, composerRow + secondLine + strip, replying: true)
+        report(screen, composerRow + secondLine + strip, open: [.reply])
         #expect(clipHeight(bar, window) == composerRow + secondLine + strip)
 
-        report(screen, composerRow + secondLine + strip, replying: false)
+        report(screen, composerRow + secondLine + strip, exiting: strip)
         #expect(clipHeight(bar, window) == composerRow + secondLine)
+    }
+
+    @Test("The mention list stacks over an open reply and the clip reaches the whole bar")
+    func mentionsOverReply_clipReachesTheWholeBar() {
+        let (screen, bar, window) = makeScreen()
+
+        report(screen, composerRow)
+        report(screen, composerRow + strip, open: [.reply])
+        report(screen, composerRow + strip + 3 * row, open: [.reply, .mentions], mentions: 3 * row)
+        #expect(clipHeight(bar, window) == composerRow + strip + 3 * row)
+    }
+
+    @Test("Closing the reply under an open list never cuts into the list, and settles once the strip has collapsed")
+    func replyClosesUnderTheList_keepsTheList() async throws {
+        let (screen, bar, window) = makeScreen()
+
+        report(screen, composerRow)
+        report(screen, composerRow + strip + 3 * row, open: [.reply, .mentions], mentions: 3 * row)
+
+        // The strip collapses itself under the list, so the clip holds its height while it does.
+        report(screen, composerRow + strip + 3 * row, open: [.mentions], exiting: strip, mentions: 3 * row)
+        #expect(clipHeight(bar, window) >= composerRow + 3 * row)
+
+        // A search answers mid-close and the list drops to one row: still held, still over the list.
+        report(screen, composerRow + strip + row, open: [.mentions], exiting: strip, mentions: row)
+        #expect(clipHeight(bar, window) >= composerRow + row)
+
+        report(screen, composerRow + row, open: [.mentions], mentions: row)
+        try await Task.sleep(for: .seconds(ChatMotion.replyMerge.duration + 0.2))
+        #expect(clipHeight(bar, window) == composerRow + row)
+    }
+
+    @Test("Closing the list over an open reply never cuts into the strip, and settles once the list has merged back")
+    func listClosesOverTheReply_keepsTheStrip() async throws {
+        let (screen, bar, window) = makeScreen()
+
+        report(screen, composerRow)
+        report(screen, composerRow + strip, open: [.reply])
+        report(screen, composerRow + strip + 3 * row, open: [.reply, .mentions], mentions: 3 * row)
+
+        // The list collapses into the strip's glass, so the clip holds its height while it does.
+        report(screen, composerRow + strip, open: [.reply])
+        #expect(clipHeight(bar, window) == composerRow + strip + 3 * row)
+
+        try await Task.sleep(for: .seconds(ChatMotion.replyMerge.duration + 0.2))
+        #expect(clipHeight(bar, window) == composerRow + strip)
+    }
+
+    @Test("A list gaining rows while open follows the bar")
+    func listRowsChange_followTheBar() {
+        let (screen, bar, window) = makeScreen()
+
+        report(screen, composerRow)
+        report(screen, composerRow + row, open: [.mentions], mentions: row)
+        report(screen, composerRow + 4 * row, open: [.mentions], mentions: 4 * row)
+        #expect(clipHeight(bar, window) == composerRow + 4 * row)
+
+        report(screen, composerRow + 4 * row, exiting: 4 * row)
+        #expect(clipHeight(bar, window) == composerRow)
+    }
+
+    @Test("The room reported leaves the list out and counts the reply strip")
+    func mentionRoom_excludesTheListAndCountsTheStrip() {
+        let (screen, _, window) = makeScreen()
+        var rooms: [CGFloat] = []
+        screen.onMentionRoomChange = { rooms.append($0) }
+
+        report(screen, composerRow + strip, open: [.reply])
+        window.layoutIfNeeded()
+        let withStrip = rooms.last
+
+        report(screen, composerRow + strip + 2 * row, open: [.reply, .mentions], mentions: 2 * row)
+        window.layoutIfNeeded()
+        #expect(rooms.last == withStrip)
+
+        report(screen, composerRow + 2 * row, open: [.mentions], mentions: 2 * row)
+        window.layoutIfNeeded()
+        #expect(rooms.last.map { $0 - strip } == withStrip)
     }
 }

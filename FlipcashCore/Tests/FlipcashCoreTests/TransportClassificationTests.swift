@@ -84,6 +84,7 @@ struct TransportClassificationTests {
     @Test func errorMuteChat() { assertClassifies(ErrorMuteChat.self) }
     @Test func errorUnmuteChat() { assertClassifies(ErrorUnmuteChat.self) }
     @Test func errorGetRoster() { assertClassifies(ErrorGetRoster.self) }
+    @Test func errorGetMentionSuggestions() { assertClassifies(ErrorGetMentionSuggestions.self) }
     @Test func errorEditChat() { assertClassifies(ErrorEditChat.self) }
     @Test func errorReport() { assertClassifies(ErrorReport.self) }
 
@@ -146,6 +147,13 @@ struct TransportClassificationTests {
     func errorGetRosterMapsResult() {
         #expect(ErrorGetRoster(.denied) == .denied)
         #expect(ErrorGetRoster(.notFound) == .notFound)
+    }
+
+    @Test("ErrorGetMentionSuggestions maps GetMentionSuggestionsResponse.Result explicitly")
+    func errorGetMentionSuggestionsMapsResult() {
+        #expect(ErrorGetMentionSuggestions(.denied) == .denied)
+        #expect(ErrorGetMentionSuggestions(.notFound) == .notFound)
+        #expect(ErrorGetMentionSuggestions(.ok) == .unknown)
     }
 
     // MARK: - Tier 2: associated-value errors that capture the transport error -

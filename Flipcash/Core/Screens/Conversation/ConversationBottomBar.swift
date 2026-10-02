@@ -75,6 +75,19 @@ struct ConversationBottomBar: View {
     var onGateJoin: () -> Void = {}
     /// Whether a join is in flight, so the gate panel's button can stop taking taps.
     var isJoiningChat: Bool = false
+    /// The group's mention picker. `nil` in a DM, which never offers one.
+    var mentions: MentionPickerModel? = nil
+
+    /// The results the mention list draws: the model's, taken in through `onChange` so a new search
+    /// replacing an open list can land inside one animation that covers the whole bar.
+    @State private var listedCandidates: [ConversationMember] = []
+    /// The reply as the bar draws it. Under an open mention list it changes in one transaction, so
+    /// the strip and the list's row cap move on one spring; elsewhere it is the composer's own.
+    @State private var listedReply: ComposerModel.ReplyTarget?
+
+    /// The composer row's measured height, reported as part of what the mention list's room is
+    /// measured without.
+    @State private var composerRowHeight: CGFloat = 0
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
     private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
@@ -147,6 +160,10 @@ struct ConversationBottomBar: View {
                     .transition(.opacity)
             }
         }
+        // The Send Cash button morphs on the reply's spring. Inside the row's padding, so it covers
+        // the button and the field beside it but not where the row sits: animated there, the row
+        // slid from its old place every time a card opened above it and moved it down the stack.
+        .animation(replySpring, value: composer.replyTarget)
         .padding(.horizontal, BarMetrics.edgeInset)
         .padding(.horizontal, compactExtraInset)
         .animation(Self.widthSpring, value: isCompact)
@@ -161,16 +178,84 @@ struct ConversationBottomBar: View {
         // The Send Cash button and the field are separate pills 10pt apart, so
         // they don't need to sample each other.
         return VStack(spacing: 0) {
+            BarCardGlassContainer {
+            // The list rides the reply strip's reveal: same clip travel in, same fade out.
+            // Under an open reply the list grows out of the strip's glass rather than under the clip.
+            AccessoryReveal(kind: .mentions, item: mentionCandidates, collapsesInPlace: barReply != nil) { candidates in
+                MentionSuggestionList(
+                    candidates: candidates,
+                    maxRows: MentionRowCap.rows(
+                        replyOpen: replyOpen,
+                        room: mentions?.room,
+                        rowHeight: MentionListMetrics.rowHeight,
+                        divider: MentionListMetrics.dividerHeight,
+                        chrome: MentionListMetrics.chrome(replyOpen: replyOpen)
+                    ),
+                    replyOpen: replyOpen
+                ) { member in
+                    guard let username = member.username else { return }
+                    composer.insertMention(username: username.value)
+                }
+            }
+            .padding(.horizontal, compactExtraInset)
+            .animation(Self.widthSpring, value: isCompact)
             // No `withAnimation` at the dismiss site either: the `.animation(_, value:)` below
             // already drives this state in both directions, and wrapping the dismissal in a second
             // transaction gave the exit a curve the entry never had.
-            ComposerReplyReveal(target: composer.replyTarget) { composer.endReplying() }
+            AccessoryReveal(kind: .reply, item: barReply, collapsesInPlace: mentionCandidates != nil) { target in
+                ComposerReplyStrip(target: target) { composer.endReplying() }
+            }
                 // The quote narrows with the row below it, so the two keep one margin.
                 .padding(.horizontal, compactExtraInset)
                 .animation(Self.widthSpring, value: isCompact)
+            }
             content
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { composerRowHeight = $0 }
+                .preference(key: BarAccessoriesKey.self, value: BarAccessories(restHeight: composerRowHeight))
         }
-        .animation(replySpring, value: composer.replyTarget)
+        .onChange(of: mentions == nil ? nil : composer.mentionQuery?.text, initial: true) { _, query in
+            mentions?.update(query: query)
+        }
+        .onChange(of: mentions?.candidates ?? [], initial: true) { old, new in
+            // An open list changing size is the glass changing shape, so the whole bar moves in one
+            // transaction: the card, where the stack places it and where the host places the stack.
+            // Animated any narrower — on the card alone — the outer placement snapped while the card's
+            // size ramped, and the card's bottom lifted off the composer by a row and settled back.
+            // Opening and closing stay unanimated; the clip's edge carries those.
+            // Under an open reply strip, opening and closing are shape changes too: the list splits
+            // out of the strip's glass and merges back into it.
+            guard (!old.isEmpty && !new.isEmpty) || barReply != nil else {
+                listedCandidates = new
+                return
+            }
+            withAnimation(replySpring) { listedCandidates = new }
+        }
+        .onChange(of: composer.replyTarget, initial: true) { _, target in
+            // Under an open list, the strip appearing and the list giving up a row are one shape
+            // change. Apart, the list's card resized at once inside its animating frame and its top
+            // edge snapped by a row before the spring moved it.
+            guard mentionCandidates != nil else {
+                listedReply = target
+                return
+            }
+            withAnimation(target == nil ? ChatMotion.replyMerge.animation : replySpring) { listedReply = target }
+        }
+    }
+
+    /// Whether a reply strip stands under the mention list.
+    private var replyOpen: Bool { barReply != nil }
+
+    /// The reply the strip and the list's row cap follow. With the list closed it is the
+    /// composer's own, so the clip still uncovers the strip in the update that aims it.
+    private var barReply: ComposerModel.ReplyTarget? {
+        mentionCandidates == nil ? composer.replyTarget : listedReply
+    }
+
+    /// What the mention list shows, or `nil` while it is closed. Tied to the live query as well as
+    /// the model, so a send or a pick closes it in the same update rather than after the search.
+    private var mentionCandidates: [ConversationMember]? {
+        guard mentions != nil, composer.mentionQuery != nil, !listedCandidates.isEmpty else { return nil }
+        return listedCandidates
     }
 
     /// The tip CTA's title. Names the amount that opens the chat when a floor
@@ -182,8 +267,8 @@ struct ConversationBottomBar: View {
     }
 }
 
-/// The reply strip's arrival and departure: the quote the bar's top edge uncovers on the way in and
-/// closes back over on the way out.
+/// A card's arrival and departure above the composer row — the reply strip or the mention list:
+/// what the bar's top edge uncovers on the way in and closes back over on the way out.
 ///
 /// The travel itself is not here. The bar is hosted in a box that clips it, and that box's edge is
 /// what moves — see `ChatScreenViewController`'s `barClip`. This view only decides *what* height the
@@ -196,10 +281,28 @@ struct ConversationBottomBar: View {
 /// .opacity)` slid the quote down behind the field and dissolved it there while the edge travelled
 /// separately. Clipping welds them — the quote holds still against the field below it while the
 /// edge uncovers it.
-private struct ComposerReplyReveal: View {
+private struct AccessoryReveal<Item: Equatable, Card: View>: View {
 
-    let target: ComposerModel.ReplyTarget?
-    let onDismiss: () -> Void
+    /// Which card this is, as the bar reports it to the clip.
+    let kind: BarAccessories.Kind
+    let target: Item?
+    /// Whether this card opens and closes by changing its own height instead of under the clip's
+    /// edge. The edge only ever moves at the top of the bar, so a card with another one open above
+    /// it has to resize itself: closed by the edge, the card above was cut away instead.
+    let collapsesInPlace: Bool
+    @ViewBuilder let card: (Item) -> Card
+
+    init(
+        kind: BarAccessories.Kind,
+        item: Item?,
+        collapsesInPlace: Bool = false,
+        @ViewBuilder card: @escaping (Item) -> Card
+    ) {
+        self.kind = kind
+        self.target = item
+        self.collapsesInPlace = collapsesInPlace
+        self.card = card
+    }
 
     /// The strip's own height. Measured rather than declared: a snippet that wraps to a second line
     /// makes the sheet taller, and the clip has to know by how much.
@@ -210,7 +313,7 @@ private struct ComposerReplyReveal: View {
     @State private var naturalHeight: CGFloat = 0
     /// The last target seen, kept after the target clears. A strip that unmounts on the way out has
     /// nothing to draw while it collapses, and the sheet slides back under the field empty.
-    @State private var retained: ComposerModel.ReplyTarget?
+    @State private var retained: Item?
     /// The quote's own opacity, which only ever moves on the way out.
     ///
     /// Asymmetric on purpose. Coming in, the edge uncovering the quote is the whole effect and a
@@ -219,6 +322,9 @@ private struct ComposerReplyReveal: View {
     /// bounce, which is what makes it safe to drive opacity: a spring that overshoots clamps at 0
     /// and 1 and flickers.
     @State private var contentOpacity: CGFloat = 1
+    /// Whether a list opening beside the strip has grown out of it yet. It mounts collapsed and grows
+    /// on the next turn; mounted at full size, the container faded its glass in where it stood.
+    @State private var grown = true
 
     /// What the strip draws: the live target while a reply is open, and the one it is closing over
     /// afterwards.
@@ -231,36 +337,83 @@ private struct ComposerReplyReveal: View {
     /// there is no `onChange` to fire and be in place before `onAppear` would set anything. Latched,
     /// a missed transition was also unrecoverable: `ReplyTarget` is `Equatable`, so aiming at the
     /// same message again is not a change and `onChange` never fires for it twice.
-    private var shown: ComposerModel.ReplyTarget? { target ?? retained }
+    ///
+    /// Beside another open card there is no clip to close over, and the retained copy collapses its
+    /// own glass down into the composer instead — see `collapsing`.
+    private var shown: Item? { target ?? retained }
+
+    /// Whether this card is closing beside another open one: its glass shrinks toward the composer
+    /// while the card beside it grows into the room. Removed outright instead, the glass dissolved
+    /// in place and the other card snapped to its new size.
+    private var collapsing: Bool { collapsesInPlace && (target == nil || !grown) }
+
+    /// Whether this is the strip closing beside the open list. It keeps its shape and fades out,
+    /// glass and all, while the list grows down over the room it gives up. Shrunk into the composer
+    /// instead, the strip's glass was squeezed into a sliver.
+    private var fadingOut: Bool { kind == .reply && collapsing }
+
+    /// Whether the card takes its own height instead of the measured one. Every change that isn't
+    /// the clip's to reveal is drawn by the card resizing, so its glass changes shape and the rows
+    /// inside keep their places. Held at the measured height, a list gaining a row as the strip
+    /// left was drawn into the old frame and showed its last rows until the frame caught up.
+    private var sizesItself: Bool {
+        collapsesInPlace || (target != nil && kind == .mentions && naturalHeight > 0)
+    }
 
     /// How much height the strip is asking the bar for. Zero until it has been measured, and held at
     /// full height right through the exit — the clip closes over the quote, so there has to be a
     /// quote there to close over.
-    private var revealHeight: CGFloat { shown == nil ? 0 : naturalHeight }
+    private var revealHeight: CGFloat {
+        guard shown != nil, !(collapsesInPlace && target == nil) else { return 0 }
+        return naturalHeight
+    }
 
     var body: some View {
         Group {
             if let shown {
-                ComposerReplyStrip(target: shown, onDismiss: onDismiss)
+                card(shown)
+                    // Faded inside the glass, not around it: a glass container draws its cards
+                    // itself, and an opacity outside the card never reached the quote, which stayed
+                    // drawn across the list's last row through the whole merge.
+                    .environment(\.barCardContentOpacity, contentOpacity)
+                    .environment(\.barCardCollapsed, collapsing && !fadingOut)
+                    .environment(\.barCardFading, fadingOut)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { measured in
                         guard naturalHeight != measured else { return }
-                        naturalHeight = measured
+                        // Drawn in place, the frame below follows the card in one transaction for the
+                        // whole bar, for the reason in `ConversationBottomBar`'s `onChange(of:
+                        // candidates)`: the mention list resizing while open, or the reply strip opening
+                        // under it. Anything else is the clip's to reveal and stays unanimated.
+                        let inPlace = target != nil
+                            && (collapsesInPlace || (kind == .mentions && naturalHeight > 0))
+                        withAnimation(inPlace ? replySpring : nil) { naturalHeight = measured }
                     }
+                    // Out of the layout but still drawn, hung above the composer, so the list's
+                    // lower edge travels down over it as it fades. A measured height rather than
+                    // nil while open, so the step to zero is one the spring can interpolate: from
+                    // nil it snapped, and the list jumped down in a frame instead of growing.
+                    .frame(height: fadingOut ? 0 : (naturalHeight > 0 ? naturalHeight : nil), alignment: .bottom)
             }
         }
         // The strip keeps its own height whatever the frame below proposes, so the frame can clip it
         // instead of squashing it.
         .fixedSize(horizontal: false, vertical: true)
-        .frame(height: revealHeight, alignment: .top)
-        .clipped()
-        // Deliberately unanimated, and inside the bar's own `.animation(replySpring,
-        // value: replyTarget)` so it wins: this height is the bar's *requirement*, not the motion.
-        // The clip around the bar travels it, on that same spring, in UIKit.
-        .animation(nil, value: revealHeight)
-        .opacity(contentOpacity)
+        // Bottom-aligned, so the card's lower edge stays welded to the composer whatever this frame
+        // does. The card and this frame resize on the same spring but a measurement apart, and with
+        // the card hung from the top, any gap between the two showed as its bottom edge lifting off
+        // the composer and settling back.
+        .frame(height: sizesItself ? nil : revealHeight, alignment: .bottom)
+        .clipShape(RevealClip(overhang: fadingOut ? naturalHeight : 0))
+        // Opening and closing under the clip stay unanimated, and innermost so they win if another
+        // change lands with them: there this height is the bar's *requirement*, not the motion, and
+        // the clip around the bar travels it in UIKit. A card under the open mention list has no
+        // clip edge to ride, so it draws its own open and close.
+        .animation(collapsesInPlace ? replySpring : nil, value: shown == nil)
+        .animation(collapsesInPlace ? replySpring : nil, value: target == nil)
         // `clipped()` is a drawing bound, not a hit-testing or accessibility one, so the collapsed
         // copy stays pressable and findable until the task below unmounts it.
         .allowsHitTesting(target != nil)
+        .preference(key: BarAccessoriesKey.self, value: report)
         // Drop the retained copy once it has finished sliding back under the field. It has to
         // outlive the target — there is nothing to draw during the collapse otherwise — but only by
         // the length of the collapse: left mounted, it leaves a zero-height quote in the
@@ -275,16 +428,27 @@ private struct ComposerReplyReveal: View {
         // `.task(id:)` cancels on the next change, so replying again mid-collapse keeps its strip.
         .task(id: target) {
             guard target == nil, retained != nil else { return }
-            try? await Task.sleep(for: .seconds(ChatMotion.replySurface.duration))
+            // A strip fading beside the list stays until the list has settled over it: its glass,
+            // joined to the list's, draws the bottom edge until it goes, and dropped at the spring's
+            // perceptual length it left the list's own edge 3pt short, creeping down after the strip
+            // was gone.
+            let stay = fadingOut ? ChatMotion.replySurface.duration * 1.6 : ChatMotion.replySurface.duration
+            try? await Task.sleep(for: .seconds(stay))
             retained = nil
             // Back to opaque with nothing mounted, so the next reply starts from a clean state
             // rather than fading in from wherever the last exit left it.
             contentOpacity = 1
         }
-        .onChange(of: target) { _, newValue in
+        .onChange(of: target) { oldValue, newValue in
             guard let newValue else {
                 close()
                 return
+            }
+            if oldValue == nil, collapsesInPlace, kind == .mentions {
+                grown = false
+                Task { @MainActor in
+                    withAnimation(replySpring) { grown = true }
+                }
             }
             // Only for the exit: `shown` already draws the live target. This is the copy the clip
             // closes over once the target is gone.
@@ -297,10 +461,161 @@ private struct ComposerReplyReveal: View {
         .onAppear { retained = target }
     }
 
+    /// What this card tells the clip: open once it has a height to open by, and closing for as
+    /// long as its retained copy is still mounted underneath.
+    private var report: BarAccessories {
+        var accessories = BarAccessories()
+        if target != nil, naturalHeight > 0 {
+            accessories.open = [kind]
+        } else if target == nil, retained != nil, !collapsesInPlace {
+            accessories.exitingHeight = naturalHeight
+        }
+        // Zero once it is collapsing beside the list: the room already has it back.
+        if kind == .reply { accessories.restHeight = revealHeight }
+        return accessories
+    }
+
     /// The quote dissolves; its height stays. The clip is what closes over it, and it needs
     /// something to close over — the height goes back with the retained copy above.
     private func close() {
-        withAnimation(ChatMotion.replySurface.animation) { contentOpacity = 0 }
+        // The list's rows sit in a scroll view, which escapes the card's clip while the card
+        // collapses and drew the rows across the strip and the composer. Only its glass shrinks.
+        if collapsesInPlace, kind == .mentions {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { contentOpacity = 0 }
+            return
+        }
+        // The strip beside the open list leaves the glass container in the close's own animation,
+        // which draws it flowing back into the list along a neck: the peel run in reverse.
+        if collapsesInPlace, kind == .reply {
+            withAnimation(ChatMotion.replyMerge.animation) { retained = nil }
+            return
+        }
+        // Beside the list the quote goes well before its glass: the list grows over the strip as
+        // it fades, and the quote's text showed through under the list's new row.
+        withAnimation(fadingOut ? .easeOut(duration: 0.14) : ChatMotion.replySurface.animation) {
+            contentOpacity = 0
+        }
+    }
+}
+
+/// The cards above the composer row, gathered for the bar's measurement.
+extension EnvironmentValues {
+    /// The namespace the bar's cards share their glass in, so one can split out of another.
+    @Entry var barCardGlassNamespace: Namespace.ID? = nil
+    /// How far a bar card's content has faded, applied beneath its glass.
+    @Entry var barCardContentOpacity: CGFloat = 1
+    /// Whether a bar card is closing into the composer beside another open card, its glass and its
+    /// margins shrinking to nothing.
+    @Entry var barCardCollapsed: Bool = false
+    /// Whether a bar card is fading out whole, its glass included, beside another open card.
+    @Entry var barCardFading: Bool = false
+}
+
+/// The reveal's clip, open above by `overhang` so a card fading out of the layout stays drawn.
+nonisolated private struct RevealClip: Shape {
+    var overhang: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        Path(CGRect(x: rect.minX, y: rect.minY - overhang, width: rect.width, height: rect.height + overhang))
+    }
+}
+
+/// Where the bar's cards keep their glass: one container, so a card opening beside another peels
+/// off its surface instead of fading in, and merges back into it on the way out.
+///
+/// The composer stays outside it. Its glass is a background behind an editable field, and a
+/// container composites glass above sibling content.
+private struct BarCardGlassContainer<Content: View>: View {
+    @Namespace private var namespace
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        if #available(iOS 26, *) {
+            GlassEffectContainer(spacing: BarCardGlass.spacing) {
+                VStack(spacing: 0) { content }
+            }
+            .environment(\.barCardGlassNamespace, namespace)
+        } else {
+            VStack(spacing: 0) { content }
+        }
+    }
+}
+
+/// A bar card's Liquid Glass, joined to the cards beside it when it has a container to share.
+struct BarCardGlass: ViewModifier {
+
+    /// How close two cards' glass has to come to flow together: the 12pt gap the cards rest at, so
+    /// a splitting card stays joined by a bridge across its whole travel and pinches off as it
+    /// settles. At 8pt the bridge broke in the first frames and the split read as a plain fade.
+    static let spacing: CGFloat = 12
+
+    let id: BarAccessories.Kind
+    @Environment(\.barCardGlassNamespace) private var namespace
+    @Environment(\.barCardContentOpacity) private var contentOpacity
+    @Environment(\.barCardCollapsed) private var collapsed
+    @Environment(\.barCardFading) private var fading
+
+    /// How fast a card fading out beside another goes: the length of the reply spring, so the exit
+    /// takes as long as the peel it reverses. At 0.2s it read as faster than the enter.
+    private static let fade: Animation = .easeInOut(duration: ChatMotion.replySurface.duration)
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *), let namespace {
+            // Applied to the content, not as a background: a container draws background glass over
+            // the content beside it.
+            content
+                .collapsingCard(collapsed)
+                .opacity(contentOpacity)
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: BarMetrics.cornerRadius))
+                .glassEffectID(glassID, in: namespace)
+                .glassEffectTransition(.matchedGeometry)
+                .opacity(fading ? 0 : 1)
+                .animation(Self.fade, value: fading)
+        } else {
+            content
+                .collapsingCard(collapsed)
+                .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+                .opacity(fading ? 0 : contentOpacity)
+                .animation(Self.fade, value: fading)
+        }
+    }
+
+    /// A plain string, since `Kind`'s `Hashable` conformance is main-actor isolated and the glass
+    /// wants a `Sendable` one.
+    private var glassID: String {
+        switch id {
+        case .mentions: "mentions"
+        case .reply: "reply"
+        }
+    }
+}
+
+private extension View {
+    /// How fast a collapsing card's content goes, well inside the shape's spring.
+    static var collapseFade: Animation { .easeOut(duration: 0.1) }
+
+    /// Shrinks the card's shape to nothing against its lower edge, so the glass drawn around it
+    /// sinks into the composer rather than being cut off by a frame outside it.
+    ///
+    /// The content keeps its own height and is clipped, not laid out into the shrinking frame:
+    /// squeezed, the quote reflowed to one line and drew its author's name across it.
+    func collapsingCard(_ collapsed: Bool) -> some View {
+        fixedSize(horizontal: false, vertical: true)
+            // Gone before the shape is: faded on the shape's spring, the quote and its close button
+            // stayed drawn across the thinning sliver.
+            .opacity(collapsed ? 0 : 1)
+            .animation(Self.collapseFade, value: collapsed)
+            .frame(height: collapsed ? 0 : nil, alignment: .bottom)
+            .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+    }
+}
+
+struct BarAccessoriesKey: PreferenceKey {
+    static let defaultValue = BarAccessories()
+    static func reduce(value: inout BarAccessories, nextValue: () -> BarAccessories) {
+        value = value.merged(with: nextValue())
     }
 }
 
@@ -320,7 +635,7 @@ struct ConversationComposer: View {
 
     var body: some View {
         let field = HStack(alignment: .bottom, spacing: 10) {
-            TextField(fieldPrompt, text: $composer.draft, axis: .vertical)
+            TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
                 .tint(.white)
