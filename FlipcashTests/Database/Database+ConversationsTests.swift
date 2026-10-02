@@ -317,6 +317,24 @@ struct DatabaseConversationsTests {
         #expect(previews.contains(UInt64(count)))
     }
 
+    @Test("a message stored after the row's last activity moves the cached activity forward")
+    func cachedActivityFollowsStoredMessages() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversation(conversation(byte: 1))
+        let before = try #require(try database.getConversations().first).lastActivity
+        // What the notification extension writes: a message row and nothing on the conversation.
+        let pushed = ConversationMessage(
+            id: MessageID(value: 7), senderID: nil, content: .text("pushed"),
+            date: before.addingTimeInterval(3600), unreadSeq: 7, eventSequence: 7
+        )
+        try database.persistMessages([pushed], cursor: 0, conversationID: id)
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.lastActivity == pushed.date)
+        #expect(loaded.lastMessage?.id.value == 7)
+    }
+
     // MARK: - Identity + atomicity
 
     @Test("clientMessageID round-trips through the cache")

@@ -59,7 +59,7 @@ public struct ConversationStore: Sendable {
 
     /// Replace the feed from a paged load, sorted most-recent-activity first.
     public mutating func setFeed(_ conversations: [Conversation]) {
-        let merged = conversations.map { keepingSelfReadPointer(seated($0)) }
+        let merged = conversations.map { keepingNewerActivity(keepingSelfReadPointer(seated($0))) }
         self.conversations = merged.sorted { $0.lastActivity > $1.lastActivity }
     }
 
@@ -69,7 +69,7 @@ public struct ConversationStore: Sendable {
     public mutating func setFeed(_ conversations: [Conversation], type: ConversationType) {
         // Only the incoming rows are merged: re-merging the other types against themselves would
         // read the store's own copy as the server acknowledging an unsynced READ pointer.
-        let incoming = conversations.filter { $0.type == type }.map { keepingSelfReadPointer(seated($0)) }
+        let incoming = conversations.filter { $0.type == type }.map { keepingNewerActivity(keepingSelfReadPointer(seated($0))) }
         self.conversations = (self.conversations.filter { $0.type != type } + incoming)
             .sorted { $0.lastActivity > $1.lastActivity }
     }
@@ -306,9 +306,10 @@ public struct ConversationStore: Sendable {
     }
 
     /// Bump a conversation's last activity and re-sort the feed. No-ops for a conversation not in the
-    /// feed.
+    /// feed, and for a date that is not later than the one it holds.
     public mutating func advanceLastActivity(to date: Date, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }),
+              date > conversations[index].lastActivity else { return }
         conversations[index].lastActivity = date
         sort()
     }
@@ -559,7 +560,7 @@ public struct ConversationStore: Sendable {
     }
 
     private mutating func upsert(_ conversation: Conversation) {
-        var conversation = keepingSelfReadPointer(seated(conversation))
+        var conversation = keepingNewerActivity(keepingSelfReadPointer(seated(conversation)))
         if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
             if conversation.type == .group {
                 conversation.members = mergedMembers(conversation.members, over: conversations[index].members)
@@ -602,6 +603,22 @@ public struct ConversationStore: Sendable {
         let current = conversations.first { $0.id == conversation.id }?.lastMessage
         conversation.lastMessage = current.flatMap { current in
             !current.isDeleted && current.id != tombstone.id ? current : nil
+        }
+        return conversation
+    }
+
+    /// A server copy with the stored row's `lastActivity` and `lastMessage` kept when they are newer.
+    /// A feed or metadata response can be older than a stream event that landed while it was in
+    /// flight; taking it as-is would roll the row back, and a launch would show the list move twice.
+    private func keepingNewerActivity(_ conversation: Conversation) -> Conversation {
+        guard let stored = conversations.first(where: { $0.id == conversation.id }) else { return conversation }
+        var conversation = conversation
+        if stored.lastActivity > conversation.lastActivity {
+            conversation.lastActivity = stored.lastActivity
+        }
+        if let held = stored.lastMessage, let incoming = conversation.lastMessage,
+           (held.id, held.eventSequence) > (incoming.id, incoming.eventSequence) {
+            conversation.lastMessage = held
         }
         return conversation
     }
