@@ -16,9 +16,6 @@ struct TipConversationsScreen: View {
 
     @State private var muteTarget: MuteTarget?
     @State private var filter: ChatListFilter = .all
-    /// Set by a pull-down overscroll, cleared by scrolling up. The row is also visible whenever
-    /// `filter != .all`, so it never disappears while it is explaining the list.
-    @State private var chipsPulledDown = false
     @State private var undoTarget: ConversationID?
 
     /// The projection once per body pass: rows, chips, the Archived row and the badge agree.
@@ -35,7 +32,11 @@ struct TipConversationsScreen: View {
         return filter.ids(in: projection).compactMap { byID[$0] }
     }
 
-    private var chipsVisible: Bool { filter != .all || chipsPulledDown }
+    /// The chips are the List's first row. On appear the list scrolls to the row after them, so
+    /// they sit just out of view until a drag down reveals them. Nothing is inserted or removed
+    /// mid-scroll, so the list never jumps.
+    private static let chipsRowID = "chat-list-chips"
+    private static let archivedRowID = "chat-list-archived"
 
     var body: some View {
         let projection = self.projection
@@ -50,19 +51,19 @@ struct TipConversationsScreen: View {
                     NoChatsView()
                 }
             } else {
-                VStack(spacing: 0) {
-                    // Above the List, not in it: there is no initial scroll offset to set after the
-                    // first frame, so there is nothing to flash. Height is 0 or natural.
-                    if chipsVisible {
-                        ChatListChips(selection: $filter, projection: projection)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                    }
+                ScrollViewReader { proxy in
                     List {
+                        ChatListChips(selection: $filter, projection: projection)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .id(Self.chipsRowID)
                         if projection.archivedRowVisible {
                             ArchivedRow(count: projection.archivedRowCount) {
                                 router.push(.archivedChats)
                             }
                             .listRowSeparator(.hidden, edges: .top)
+                            .id(Self.archivedRowID)
                         }
                         if conversations.isEmpty {
                             // Inside the List, so the chips and the Archived row above still render.
@@ -89,20 +90,16 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                        geometry.contentOffset.y + geometry.contentInsets.top
-                    } action: { _, offset in
-                        // Overscrolling past the top reveals; scrolling a little way down hides.
-                        // The gap between the two thresholds stops the reveal from flickering when
-                        // the row's own height shifts the list.
-                        if offset < -60, !chipsPulledDown {
-                            withAnimation(.easeOut(duration: 0.2)) { chipsPulledDown = true }
-                        } else if offset > 24, chipsPulledDown, filter == .all {
-                            withAnimation(.easeOut(duration: 0.2)) { chipsPulledDown = false }
-                        }
+                    .onAppear {
+                        // A selected filter keeps the chips in view: they explain the list.
+                        guard filter == .all else { return }
+                        let first: AnyHashable? = projection.archivedRowVisible
+                            ? Self.archivedRowID
+                            : conversations.first.map { AnyHashable($0.id) }
+                        // The next pass: on the first one the List has not laid out its rows.
+                        if let first { Task { proxy.scrollTo(first, anchor: .top) } }
                     }
                 }
-                .animation(.easeOut(duration: 0.2), value: chipsVisible)
             }
         }
         .overlay(alignment: .bottom) {
