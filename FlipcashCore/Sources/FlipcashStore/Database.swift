@@ -115,6 +115,7 @@ nonisolated open class Database: @unchecked Sendable {
     /// The guard is taken before the connection is touched, so reopening a store that ``close()``
     /// dropped is covered too, and released only after `body` returns — by which point any
     /// transaction `body` opened has committed or rolled back.
+    @discardableResult
     public func write<T>(_ body: (Connection) throws -> T) throws -> T {
         try writeGuard.begin()
         defer { writeGuard.end() }

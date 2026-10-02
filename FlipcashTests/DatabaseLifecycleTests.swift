@@ -107,7 +107,7 @@ struct DatabaseLifecycleTests {
 
         try database.close()
         try database.transaction(silent: true) { db in
-            try db.write { try $0.run("INSERT INTO probe (value) VALUES (?);", "committed") }
+            try db.write { _ = try $0.run("INSERT INTO probe (value) VALUES (?);", "committed") }
         }
 
         let value = try database.reader.scalar("SELECT value FROM probe LIMIT 1;") as? String
