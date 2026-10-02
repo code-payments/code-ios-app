@@ -73,13 +73,18 @@ final class KnownAuthorDirectory {
         )
     }
 
-    /// Starts the first read off the main actor, so the Chats list can take the table in the same
-    /// frame it paints the cached feed. Without it the snapshot is empty until a `.task` runs after
-    /// that paint, and every group preview redraws with its sender prefix a moment later.
+    /// Starts the first read off the main actor and lands it in ``snapshot`` as soon as it finishes,
+    /// so the Chats list takes the table in the same frame it paints the cached feed. Without it the
+    /// snapshot is empty until a `.task` runs after that paint, and every group preview redraws with
+    /// its sender prefix a moment later.
+    ///
+    /// The landing is pushed from here rather than left to the screen's `onAppear`, which can fire
+    /// before the read has finished and then never asks again.
     func preload() {
-        Task.detached { [read, preloaded] in
+        Task.detached { [weak self, read, preloaded] in
             guard let members = try? read() else { return }
             preloaded.withLock { $0 = members }
+            await self?.hydrateIfReady()
         }
     }
 
