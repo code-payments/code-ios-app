@@ -69,4 +69,49 @@ struct NotificationPresentationTests {
     func noPayloadPresentsNormally() {
         #expect(NotificationPayload.presentationDecision([:]) { _ in false } == .present)
     }
+
+    @Test("An archived chat the extension left passive presents nothing")
+    func archivedPassivePresentsNothing() throws {
+        let decision = NotificationPayload.presentationDecision(
+            try Self.userInfo(muted: false),
+            isViewingConversation: { _ in false },
+            isArchived: { $0 == Self.chatID },
+            deliveredPassive: true
+        )
+        #expect(decision == .suppressedArchived)
+        #expect(decision.options.isEmpty)
+    }
+
+    @Test("An archived chat the extension promoted presents")
+    func archivedPromotedPresents() throws {
+        let decision = NotificationPayload.presentationDecision(
+            try Self.userInfo(muted: false),
+            isViewingConversation: { _ in false },
+            isArchived: { _ in true },
+            deliveredPassive: false
+        )
+        #expect(decision == .present)
+    }
+
+    @Test("A passive push for a chat that is not archived still presents")
+    func passiveNotArchivedPresents() throws {
+        let decision = NotificationPayload.presentationDecision(
+            try Self.userInfo(muted: false),
+            isViewingConversation: { _ in false },
+            isArchived: { _ in false },
+            deliveredPassive: true
+        )
+        #expect(decision == .present)
+    }
+
+    @Test("Muted still wins over archived")
+    func mutedBeatsArchived() throws {
+        let decision = NotificationPayload.presentationDecision(
+            try Self.userInfo(muted: true),
+            isViewingConversation: { _ in false },
+            isArchived: { _ in true },
+            deliveredPassive: false
+        )
+        #expect(decision == .suppressedMuted)
+    }
 }

@@ -728,6 +728,9 @@ final class SessionContainer {
         pushController.isViewingConversation = { [weak conversationController] conversationID in
             conversationController?.visibleConversationID == conversationID
         }
+        pushController.isArchived = { [weak conversationController] conversationID in
+            conversationController?.isArchived(conversationID) == true
+        }
 
         let chatSpotlightIndexer = ChatSpotlightIndexer(
             controller: conversationController,

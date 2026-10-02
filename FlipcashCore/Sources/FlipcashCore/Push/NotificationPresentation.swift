@@ -17,13 +17,16 @@ public enum NotificationPresentationDecision: Equatable, Sendable {
     case suppressedMuted
     /// The user is already reading this chat.
     case suppressedOpenConversation
+    /// The chat is archived and the extension judged the message not addressed to the viewer
+    /// (rule 3), which it records by delivering it `.passive`.
+    case suppressedArchived
 
     /// What to hand back from `userNotificationCenter(_:willPresent:)`.
     public var options: UNNotificationPresentationOptions {
         switch self {
         case .present:
             return [.badge, .list, .sound, .banner]
-        case .suppressedMuted, .suppressedOpenConversation:
+        case .suppressedMuted, .suppressedOpenConversation, .suppressedArchived:
             return []
         }
     }
@@ -38,15 +41,25 @@ extension NotificationPayload {
     /// the same source in both paths keeps them from disagreeing.
     ///
     /// `isViewingConversation` is asked only for a chat push that isn't already suppressed.
+    /// `deliveredPassive` is the extension's verdict on an archived chat: it quiets every archived
+    /// push and promotes the ones addressed to the viewer, so a passive delivery for an archived
+    /// chat means "not addressed" and presenting it would undo that.
     public static func presentationDecision(
         _ userInfo: [AnyHashable: Any],
-        isViewingConversation: (ConversationID) -> Bool
+        isViewingConversation: (ConversationID) -> Bool,
+        isArchived: (ConversationID) -> Bool = { _ in false },
+        deliveredPassive: Bool = false
     ) -> NotificationPresentationDecision {
         if isMuted(userInfo) {
             return .suppressedMuted
         }
-        if let conversationID = chatID(userInfo), isViewingConversation(conversationID) {
-            return .suppressedOpenConversation
+        if let conversationID = chatID(userInfo) {
+            if isViewingConversation(conversationID) {
+                return .suppressedOpenConversation
+            }
+            if deliveredPassive, isArchived(conversationID) {
+                return .suppressedArchived
+            }
         }
         return .present
     }
