@@ -29,7 +29,6 @@ struct MarketCapSlider: View {
 
     private static let trackColor = Color(red: 71 / 255, green: 71 / 255, blue: 72 / 255)
     private static let fillColor = MarketCapExplainerPalette.green
-    private static let labelGap: CGFloat = 6
 
     /// True while a finger is down; drives the thumb's pressed state.
     @GestureState private var isPressed = false
@@ -134,26 +133,14 @@ struct MarketCapSlider: View {
             .fixedSize()
     }
 
-    /// Center x for each label that gets drawn, from measured widths. Labels are
-    /// clamped inside the track, Today always draws, and a fixed label whose frame
-    /// would come within `labelGap` of one already drawn is dropped (its tick stays).
+    /// Center x for each label that gets drawn; see ``MarketCapAxisLabels/layout(_:trackWidth:)``.
     private func labelLayout(width: CGFloat) -> [Decimal: CGFloat] {
-        func frame(_ tick: Tick) -> (center: CGFloat, half: CGFloat)? {
-            guard let measured = labelWidths[tick.id] else { return nil }
-            let half = measured / 2
-            return (min(max(width * tick.position, half), max(width - half, half)), half)
-        }
-        var drawn: [(center: CGFloat, half: CGFloat)] = []
-        var result: [Decimal: CGFloat] = [:]
-        let ordered = ticks.filter { $0.label != nil }.sorted { $0.isToday && !$1.isToday }
-        for tick in ordered {
-            guard let f = frame(tick) else { continue }
-            let collides = drawn.contains { abs($0.center - f.center) < $0.half + f.half + Self.labelGap }
-            if collides && !tick.isToday { continue }
-            drawn.append(f)
-            result[tick.id] = f.center
-        }
-        return result
+        MarketCapAxisLabels.layout(
+            ticks.filter { $0.label != nil }.map {
+                .init(id: $0.id, position: $0.position, width: labelWidths[$0.id], isToday: $0.isToday)
+            },
+            trackWidth: width
+        )
     }
 
     /// Changes each time the thumb crosses a tick, which fires the haptic.

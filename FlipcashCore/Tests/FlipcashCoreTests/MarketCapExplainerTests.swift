@@ -70,6 +70,20 @@ struct MarketCapExplainerTests {
         #expect(today > 0 && today < 1)
     }
 
+    @Test("A fixed stop within 1% of Today is replaced by Today")
+    func fixedStopNearTodayIsMerged() throws {
+        let fixed = explainer.stops.first { $0.reserve == 100_000 }!
+        // Supply 0.1% above the $100K stop puts Today within 1% of that reserve.
+        let quarks = UInt64(NSDecimalNumber(decimal: (fixed.supply * 1.001 * Foundation.Decimal(Self.quarksPerToken)).rounded(to: 0)).uint64Value)
+        let near = try #require(MarketCapExplainer(todaySupplyQuarks: quarks, heldQuarks: nil))
+
+        let today = near.todayStop
+        #expect(abs(today.reserve - 100_000) <= 1_000)
+        #expect(near.stops.filter { abs($0.reserve - today.reserve) <= today.reserve / 100 }.count == 1)
+        #expect(!near.stops.contains { $0.reserve == 100_000 })
+        #expect(near.stops.count == 4)
+    }
+
     @Test("A Today above $10M gets a higher stop to its right")
     func todayBeyondFixedRange() {
         let big = MarketCapExplainer(todaySupplyQuarks: 8_000_000 * Self.quarksPerToken, heldQuarks: nil)!

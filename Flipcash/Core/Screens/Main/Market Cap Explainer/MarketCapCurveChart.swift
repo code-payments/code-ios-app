@@ -24,7 +24,7 @@ struct MarketCapCurveChart: View, Animatable {
     }
 
     /// Everything derived from one position, computed once per render.
-    private struct Frame {
+    struct Frame {
         let selection: MarketCapExplainer.Stop
         let today: MarketCapExplainer.Stop
         let points: [MarketCapExplainer.CurvePoint]
