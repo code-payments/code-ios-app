@@ -123,6 +123,8 @@ extension AppRouter {
         case editGroupName(ConversationID)
         /// Replacing a group's picture, pushed from the Picture row of `editGroup`.
         case editGroupPicture(ConversationID)
+        /// The list of archived chats, pushed from the Archived row on the Chats tab.
+        case archivedChats
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -147,7 +149,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
                  .tipConversation, .tipConversationWithKeyboard, .tipConversationForUser,
                  .tipConversationForUserSendingCash, .userProfile, .chatProfile,
-                 .editGroup, .editGroupName, .editGroupPicture:
+                 .editGroup, .editGroupName, .editGroupPicture, .archivedChats:
                 return .tips
             }
         }
@@ -202,6 +204,7 @@ extension AppRouter {
             case .editGroup:                    "editGroup"
             case .editGroupName:                "editGroupName"
             case .editGroupPicture:             "editGroupPicture"
+            case .archivedChats:                "archivedChats"
             }
         }
 
@@ -244,7 +247,8 @@ extension AppRouter {
                  .settingsAdvancedFeatures,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
-                 .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup:
+                 .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
+                 .archivedChats:
                 return nil
             }
         }

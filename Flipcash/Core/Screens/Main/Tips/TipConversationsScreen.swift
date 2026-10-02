@@ -15,40 +15,112 @@ struct TipConversationsScreen: View {
     @Environment(AppRouter.self) private var router
 
     @State private var muteTarget: MuteTarget?
+    @State private var filter: ChatListFilter = .all
+    /// Set by a pull-down overscroll, cleared by scrolling up. The row is also visible whenever
+    /// `filter != .all`, so it never disappears while it is explaining the list.
+    @State private var chipsPulledDown = false
+    @State private var undoTarget: ConversationID?
 
-    /// The rows the tab lists. Shared with the tab badge so the two can't disagree about which
-    /// chats count.
-    private var conversations: [Conversation] {
-        conversationController.chatListConversations
+    /// The projection once per body pass: rows, chips, the Archived row and the badge agree.
+    private var projection: ChatListProjection<ConversationID> {
+        conversationController.chatListProjection
     }
 
+    /// Rows for the selected filter, in the projection's order.
+    private func rows(_ projection: ChatListProjection<ConversationID>) -> [Conversation] {
+        let byID = Dictionary(
+            conversationController.chatListConversations.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return filter.ids(in: projection).compactMap { byID[$0] }
+    }
+
+    private var chipsVisible: Bool { filter != .all || chipsPulledDown }
+
     var body: some View {
-        let conversations = self.conversations
+        let projection = self.projection
+        let conversations = rows(projection)
+        let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible
 
         Background(color: .backgroundMain) {
-            if conversations.isEmpty {
+            if nothingAtAll {
                 // Blank until the feed is known, so a cold launch onto this tab doesn't flash "No
                 // Chats Yet" in the moment before the cache hydrates.
                 if conversationController.hasResolvedFeed {
                     NoChatsView()
                 }
             } else {
-                List {
-                    ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
-                        TipConversationRow(conversation: conversation) {
-                            router.push(.tipConversation(conversation.id))
+                VStack(spacing: 0) {
+                    // Above the List, not in it: there is no initial scroll offset to set after the
+                    // first frame, so there is nothing to flash. Height is 0 or natural.
+                    if chipsVisible {
+                        ChatListChips(selection: $filter, projection: projection)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    List {
+                        if projection.archivedRowVisible {
+                            ArchivedRow(count: projection.archivedRowCount) {
+                                router.push(.archivedChats)
+                            }
+                            .listRowSeparator(.hidden, edges: .top)
                         }
-                        // Separators divide rows from each other; the first
-                        // row's leading one just draws a line under the bar.
-                        .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
-                        .swipeActions {
-                            muteAction(for: conversation)
+                        if conversations.isEmpty {
+                            // Inside the List, so the chips and the Archived row above still render.
+                            Text(filter.emptyMessage)
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textSecondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 32)
+                                .listRowSeparator(.hidden)
+                        }
+                        ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
+                            TipConversationRow(conversation: conversation) {
+                                router.push(.tipConversation(conversation.id))
+                            }
+                            // Separators divide rows from each other; the first
+                            // row's leading one just draws a line under the bar.
+                            .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
+                            // Mute first: the first button is the outer, full-swipe action.
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                muteAction(for: conversation)
+                                archiveAction(for: conversation)
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                        geometry.contentOffset.y + geometry.contentInsets.top
+                    } action: { _, offset in
+                        // Overscrolling past the top reveals; scrolling a little way down hides.
+                        // The gap between the two thresholds stops the reveal from flickering when
+                        // the row's own height shifts the list.
+                        if offset < -60, !chipsPulledDown {
+                            withAnimation(.easeOut(duration: 0.2)) { chipsPulledDown = true }
+                        } else if offset > 24, chipsPulledDown, filter == .all {
+                            withAnimation(.easeOut(duration: 0.2)) { chipsPulledDown = false }
                         }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                .animation(.easeOut(duration: 0.2), value: chipsVisible)
             }
+        }
+        .overlay(alignment: .bottom) {
+            if undoTarget != nil {
+                ArchiveUndoToast {
+                    if let id = undoTarget { conversationController.unarchive(id) }
+                    undoTarget = nil
+                }
+                .padding(.bottom, 16)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .animation(.default, value: undoTarget)
+        // Dismisses itself, like the reaction error toast; a new archive restarts the clock.
+        .task(id: undoTarget) {
+            guard undoTarget != nil else { return }
+            try? await Task.sleep(for: .seconds(4))
+            if !Task.isCancelled { undoTarget = nil }
         }
         .sheet(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
@@ -68,10 +140,10 @@ struct TipConversationsScreen: View {
         // Every counterpart, not just the rows on screen. A row's own `.task` fires when the row is
         // built, which in a `List` is when it scrolls into view — so without this the avatar below
         // the fold starts downloading at the moment the user is looking at its blurhash.
-        .task(id: conversations.count) {
+        .task(id: conversationController.chatListConversations.count) {
             let selfUserID = conversationController.selfUserID
             let subjects: [(subject: ProfileAvatarStore.AvatarSubject, picture: ProfilePicture?)] =
-                conversations.map { conversation in
+                conversationController.chatListConversations.map { conversation in
                     // A group's row draws the chat's own picture, so that is what gets warmed;
                     // `counterpart(excluding:)` would pick an arbitrary member of it.
                     guard conversation.type != .group,
@@ -98,7 +170,7 @@ struct TipConversationsScreen: View {
     /// Group senders of the listed rows' last messages that nothing on the device can name yet.
     private var unnamedSenders: [UserID] {
         conversationController.unnamedLastMessageSenders(
-            in: conversations,
+            in: conversationController.chatListConversations,
             knownAuthors: sessionContainer.knownAuthors.snapshot
         )
     }
@@ -119,6 +191,20 @@ struct TipConversationsScreen: View {
         // The mute chip's amber-on-amber, not the delete red: nothing is lost by it.
         .tint(.warningSecondary)
         .accessibilityLabel(isMuted ? "Change mute" : "Mute notifications")
+    }
+
+    /// The row's inner swipe action. Mute stays the outer, full-swipe one, so reaching this takes a
+    /// partial swipe and a tap.
+    private func archiveAction(for conversation: Conversation) -> some View {
+        Button {
+            conversationController.archive(conversation.id)
+            undoTarget = conversation.id
+        } label: {
+            Image(systemName: "archivebox")
+        }
+        .tint(.backgroundRow)
+        // A swipe action is also a VoiceOver custom action, next to the mute one.
+        .accessibilityLabel("Archive chat")
     }
 
     /// Bridges ``MuteChatSheet``'s dismissal binding onto ``muteTarget``.
