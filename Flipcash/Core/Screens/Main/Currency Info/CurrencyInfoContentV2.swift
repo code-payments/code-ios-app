@@ -46,6 +46,8 @@ struct CurrencyInfoContentV2: View {
     /// Dollars row carries the tile; anything else withdraws from Settings.
     let onWithdraw: () -> Void
     let onShowTransactionHistory: () -> Void
+    /// Opens "How Market Cap Works".
+    let onShowMarketCapExplainer: () -> Void
     /// Fires when the hero card's title scrolls out from under the toolbar, so
     /// the screen can reveal its own title.
     let onScrolledPastTitle: (Bool) -> Void
@@ -151,12 +153,20 @@ struct CurrencyInfoContentV2: View {
                 // all live inside this reused, self-contained section, which
                 // manages its own insets.
                 if !isUSDF {
+                    // The row sits 12pt under the range picker, as on Android;
+                    // the section carries no bottom inset of its own.
+                    VStack(spacing: 12) {
                     CurrencyInfoMarketCapSection(
                         marketCap: viewModel.marketCap,
                         currencyCode: ratesController.balanceCurrency,
                         marketCapController: marketCapController,
-                        isReady: !defersHeavyContent
+                        isReady: !defersHeavyContent,
+                        onShowExplainer: onShowMarketCapExplainer
                     )
+
+                    MarketCapExplainerRow(action: onShowMarketCapExplainer)
+                        .padding(.horizontal, 20)
+                    }
                 }
 
                 CurrencyInfoAboutSection(
@@ -265,9 +275,7 @@ struct CurrencyInfoContentV2: View {
 
     private var heroData: TokenCardData {
         let appreciation = viewModel.appreciation
-        // Never render "-$0.00": a sub-cent delta reads as positive.
-        let positive = appreciation.isPositive || !appreciation.amount.hasDisplayableValue
-        let appreciationText = (positive ? "+" : "-") + appreciation.amount.formatted()
+        let appreciationText = appreciation.amount.signedAppreciationText(isPositive: appreciation.isPositive)
 
         return TokenCardData(
             mint: metadata.mint,

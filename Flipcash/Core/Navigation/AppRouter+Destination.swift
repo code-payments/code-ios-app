@@ -25,6 +25,8 @@ extension AppRouter {
         case currencyCreationSummary
         case currencyCreationWizard
         case transactionHistory(PublicKey)
+        /// The "How Market Cap Works" explainer for one currency.
+        case marketCapExplainer(PublicKey)
         /// The unified, cross-token activity history — the "dive in" from the
         /// Wallet's Recent section. `transactionHistory` is the per-token slice.
         case activity
@@ -133,7 +135,7 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .activity, .transactionDetails, .give,
+                 .transactionHistory, .marketCapExplainer, .activity, .transactionDetails, .give,
                  .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
@@ -163,6 +165,7 @@ extension AppRouter {
             case .currencyCreationSummary:      "currencyCreationSummary"
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
+            case .marketCapExplainer:           "marketCapExplainer"
             case .activity:                     "activity"
             case .transactionDetails:           "transactionDetails"
             case .give:                         "give"
@@ -210,6 +213,7 @@ extension AppRouter {
             case .currencyInfo(let mint),
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
+                 .marketCapExplainer(let mint),
                  .give(let mint),
                  .buyCurrency(let mint),
                  .convertCurrency(let mint):

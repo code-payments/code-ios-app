@@ -23,25 +23,23 @@ struct CurrencyInfoMarketCapSection: View {
     /// layout. Drawing an actual populated Swift Charts plot is the expensive
     /// part, and the host holds that back until the opening animation is done.
     var isReady: Bool = true
+    /// The "Market Cap" label, value and change pill open the explainer.
+    let onShowExplainer: () -> Void
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Market Cap")
-                .foregroundStyle(Color.textSecondary)
-                .font(.appTextMedium)
-                .padding(.horizontal, 20)
-
             if let viewModel = chartViewModel {
                 StockChart(
                     viewModel: viewModel,
                     currencyCode: currencyCode,
                     positiveColor: .Sentiment.positive,
-                    negativeColor: .Sentiment.negative
+                    negativeColor: .Sentiment.negative,
+                    headerTitle: "Market Cap",
+                    onHeaderTap: onShowExplainer
                 )
             }
         }
         .padding(.top, 20)
-        .padding(.bottom, 20)
         // The view model is cheap and gives the section its full height right
         // away: value, change, a placeholder plot, and the range picker. The
         // fetch starts here too — it is network-bound, so it costs an opening
