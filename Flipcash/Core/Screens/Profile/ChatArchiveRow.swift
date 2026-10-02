@@ -21,7 +21,7 @@ struct ChatArchiveRow: View {
         Row(insets: insets) {
             Image(systemName: isArchived ? "tray.and.arrow.up" : "archivebox")
                 .frame(minWidth: 45)
-            Text(isArchived ? "Unarchive Chat" : "Archive Chat")
+            Text(isArchived ? "Unarchive" : "Archive")
                 .foregroundStyle(.textMain)
             Spacer()
         } action: {
