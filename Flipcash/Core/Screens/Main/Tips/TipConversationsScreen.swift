@@ -19,12 +19,10 @@ struct TipConversationsScreen: View {
     @State private var undoTarget: ConversationID?
     /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
     @State private var chipsRevealed = false
-    /// Whether the current drag began with the list at its top.
-    @State private var dragStartedAtTop = false
-    /// The chip row's height, so a negative top margin can park it just above the list.
+    /// The chip row's height: while hidden, the list rests scrolled down by exactly this much.
     @State private var chipsHeight: CGFloat = 0
-    /// How far the list is pulled past its top, in points.
-    @State private var overscroll: CGFloat = 0
+    /// How far the list is scrolled from its top, in points; negative while pulled past it.
+    @State private var offset: CGFloat = 0
 
     /// The projection once per body pass: rows, chips, the Archived row and the badge agree.
     private var projection: ChatListProjection<ConversationID> {
@@ -43,10 +41,10 @@ struct TipConversationsScreen: View {
     /// A selected filter keeps the chips in view: they explain the list.
     private var showsChips: Bool { chipsRevealed || filter != .all }
 
-    /// How much of the hidden chip row a pull from the top has dragged on, from 0 to 1.
+    /// How much of the hidden chip row is on screen, from 0 to 1.
     private var pullProgress: Double {
-        guard chipsHeight > 0, dragStartedAtTop else { return 0 }
-        return min(max(overscroll / chipsHeight, 0), 1)
+        guard chipsHeight > 0 else { return 0 }
+        return min(max(1 - offset / chipsHeight, 0), 1)
     }
 
     var body: some View {
@@ -63,16 +61,23 @@ struct TipConversationsScreen: View {
                 }
             } else {
                 List {
-                        // Always a row, so the chips scroll with the list. While hidden, a negative
-                        // top margin parks the row just above the list, so a pull drags it on with
-                        // the finger. The chips use a custom button style, which keeps each chip's
-                        // tap its own inside the row.
+                        // Always the first row, so the chips scroll with the list. Hidden means the
+                        // list rests scrolled just past them, so a pull drags them on with the
+                        // finger. The chips use a custom button style, which keeps each chip's tap
+                        // its own inside the row.
                         ChatListChips(selection: $filter, projection: projection)
                             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                                 chipsHeight = $0
                             }
                             // Parked under the header while hidden, so fade in with the pull.
                             .opacity(showsChips ? 1 : pullProgress)
+                            .background {
+                                ChipRevealScrollHook(
+                                    chipsHeight: chipsHeight,
+                                    isRevealed: showsChips,
+                                    reveal: { chipsRevealed = true }
+                                )
+                            }
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
@@ -100,9 +105,6 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    // Moving the resting point leaves the content where it is: a release with
-                    // the chips pulled on settles below them instead of jumping.
-                    .contentMargins(.top, showsChips ? 0 : -chipsHeight, for: .scrollContent)
                     .overlay {
                         // Over the List rather than a row in it, so it centres in the whole
                         // screen and the List keeps the pull that reveals the chips.
@@ -114,23 +116,9 @@ struct TipConversationsScreen: View {
                         }
                     }
                     .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                        -(geometry.contentOffset.y + geometry.contentInsets.top)
-                    } action: { _, pulled in
-                        overscroll = pulled
-                    }
-                    .onScrollPhaseChange { old, new in
-                        // Only a pull that starts at the top counts: a fling back up that
-                        // overshoots the top, or a drag that started mid-list, doesn't.
-                        if new == .interacting {
-                            dragStartedAtTop = overscroll >= -1
-                        } else if old == .interacting {
-                            // Released with the chips fully pulled on: they stay. Short of that,
-                            // the list springs back and takes them off again.
-                            if dragStartedAtTop, chipsHeight > 0, overscroll >= chipsHeight {
-                                chipsRevealed = true
-                            }
-                            dragStartedAtTop = false
-                        }
+                        geometry.contentOffset.y + geometry.contentInsets.top
+                    } action: { _, new in
+                        offset = new
                     }
             }
         }
@@ -439,5 +427,120 @@ private struct UnreadCountSubject: Equatable {
     init(conversation: Conversation, selfUserID: UserID?) {
         readPointer = conversation.selfReadPointer(for: selfUserID)
         lastMessageID = conversation.lastMessage?.id
+    }
+}
+
+/// Drives the hidden chip row through the UIKit scroll view behind the chat List, whose scroll
+/// position and release target SwiftUI's scroll modifiers don't reach. While the chips are hidden
+/// it opens the list scrolled just past them, lands a release on the chips or just past them
+/// rather than between, and stops a fling from mid-list just past them.
+private struct ChipRevealScrollHook: UIViewRepresentable {
+    let chipsHeight: CGFloat
+    let isRevealed: Bool
+    let reveal: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.chipsHeight = chipsHeight
+        coordinator.isRevealed = isRevealed
+        coordinator.reveal = reveal
+        // The view joins the List's hierarchy after this pass.
+        DispatchQueue.main.async { coordinator.attach(from: view) }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var chipsHeight: CGFloat = 0
+        var isRevealed = false
+        var reveal: () -> Void = {}
+
+        private weak var scrollView: UIScrollView?
+        private var observations: [NSKeyValueObservation] = []
+        private var parked = false
+        private var pullStartedAtTop = false
+
+        func attach(from view: UIView) {
+            if scrollView == nil {
+                guard let found = Self.enclosingScrollView(of: view) else { return }
+                scrollView = found
+                found.panGestureRecognizer.addTarget(self, action: #selector(pan(_:)))
+                observations = [
+                    found.observe(\.contentSize) { [weak self] _, _ in
+                        MainActor.assumeIsolated { self?.parkIfNeeded() }
+                    },
+                    found.observe(\.contentOffset) { [weak self] _, _ in
+                        MainActor.assumeIsolated { self?.stopFlingAtChips() }
+                    },
+                ]
+            }
+            parkIfNeeded()
+        }
+
+        /// Scroll distance from the list's top, in points.
+        private func distance(_ scrollView: UIScrollView) -> CGFloat {
+            scrollView.contentOffset.y + scrollView.adjustedContentInset.top
+        }
+
+        private func setDistance(_ value: CGFloat, animated: Bool) {
+            guard let scrollView else { return }
+            let y = value - scrollView.adjustedContentInset.top
+            scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: y), animated: animated)
+        }
+
+        /// Opens the list with the chips scrolled just out of view, once.
+        private func parkIfNeeded() {
+            guard !parked, !isRevealed, chipsHeight > 0,
+                  let scrollView, scrollView.contentSize.height > chipsHeight else { return }
+            parked = true
+            if distance(scrollView) < chipsHeight { setDistance(chipsHeight, animated: false) }
+        }
+
+        @objc private func pan(_ gesture: UIPanGestureRecognizer) {
+            guard let scrollView, !isRevealed, chipsHeight > 0 else { return }
+            switch gesture.state {
+            case .began:
+                pullStartedAtTop = distance(scrollView) <= chipsHeight + 1
+            case .ended, .cancelled:
+                // Where the release is heading, so a flick counts as well as a slow drag.
+                let velocity = gesture.velocity(in: scrollView).y
+                let projected = distance(scrollView) - velocity * 0.1
+                guard distance(scrollView) < chipsHeight || projected < chipsHeight else { return }
+                if pullStartedAtTop, projected < chipsHeight / 2 {
+                    reveal()
+                    // Pulled past the top, the system's bounce already lands on the chips; moving
+                    // the offset under it would stack a second motion on the bounce.
+                    if distance(scrollView) > 0 { setDistance(0, animated: true) }
+                } else if distance(scrollView) < chipsHeight {
+                    setDistance(chipsHeight, animated: true)
+                }
+            default:
+                break
+            }
+        }
+
+        /// A fling that didn't start at the top stops just past the hidden chips, as if they weren't there.
+        private func stopFlingAtChips() {
+            guard let scrollView, !isRevealed, parked, chipsHeight > 0,
+                  scrollView.isDecelerating, !pullStartedAtTop,
+                  distance(scrollView) < chipsHeight else { return }
+            setDistance(chipsHeight, animated: false)
+        }
+
+        private static func enclosingScrollView(of view: UIView) -> UIScrollView? {
+            var current = view.superview
+            while let candidate = current {
+                if let scrollView = candidate as? UIScrollView { return scrollView }
+                current = candidate.superview
+            }
+            return nil
+        }
     }
 }
