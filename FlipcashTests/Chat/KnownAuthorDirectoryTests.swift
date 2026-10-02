@@ -79,6 +79,38 @@ struct KnownAuthorDirectoryTests {
         #expect(directory.snapshot.membersByUserID[sender]?.displayName == "Ada")
     }
 
+    @Test("Names persisted by an earlier session are in the snapshot at the first cached render")
+    func namesPersistedByAnEarlierSessionLandOnFirstRender() async throws {
+        let recorder = Recorder()
+        let sender = UserID()
+        recorder.withState { $0.table[sender] = ConversationMember(userID: sender, displayName: "Grace") }
+        let directory = directory(recorder)
+
+        directory.preload()
+        for _ in 0..<200 where directory.snapshot === KnownAuthorDirectory.Snapshot.empty {
+            directory.hydrateIfReady()
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(directory.snapshot.membersByUserID[sender]?.displayName == "Grace")
+        #expect(recorder.requests.isEmpty)
+    }
+
+    @Test("A reload that finds the same names does not replace the snapshot")
+    func unchangedReloadKeepsTheSnapshot() async {
+        let recorder = Recorder()
+        let sender = UserID()
+        recorder.withState { $0.table[sender] = ConversationMember(userID: sender, displayName: "Grace") }
+        let directory = directory(recorder)
+        await directory.reload()
+        let before = directory.snapshot
+
+        await directory.reload()
+        await directory.resolve([sender])
+
+        #expect(directory.snapshot === before)
+    }
+
     @Test("A sender the local cache already names costs no round trip")
     func skipsSendersTheCacheAlreadyNames() async {
         let recorder = Recorder()

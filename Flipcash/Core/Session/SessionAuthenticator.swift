@@ -727,6 +727,7 @@ final class SessionContainer {
 
         self.profileAvatars = ProfileAvatarStore(flipClient: flipClient, owner: session.ownerKeyPair)
         self.knownAuthors = KnownAuthorDirectory(database: database, flipClient: flipClient, owner: session.ownerKeyPair)
+        knownAuthors.preload()
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {

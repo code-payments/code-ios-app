@@ -64,6 +64,7 @@ struct TipConversationsScreen: View {
         // work lets the controller's own hydration run.
         .onAppear {
             conversationController.hydrateIfReady()
+            sessionContainer.knownAuthors.hydrateIfReady()
         }
         // Every counterpart, not just the rows on screen. A row's own `.task` fires when the row is
         // built, which in a `List` is when it scrolls into view — so without this the avatar below
