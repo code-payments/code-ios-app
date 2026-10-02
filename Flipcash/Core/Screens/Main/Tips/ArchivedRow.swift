@@ -17,18 +17,22 @@ struct ArchivedRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
+                // Secondary throughout: a way into a folder, quieter than the chats below it.
                 Image(systemName: "archivebox")
                     .frame(minWidth: 45)
                 Text("Archived")
                     .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
                 Spacer()
                 if count > 0 {
                     Text("\(count)")
                         .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
                 }
+                Image(systemName: "chevron.right")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 9, height: 12)
             }
+            .foregroundStyle(Color.textSecondary)
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }

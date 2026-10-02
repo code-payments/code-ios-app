@@ -25,10 +25,11 @@ struct ArchivedChatsScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(conversations, id: \.id) { conversation in
+                    ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
                         TipConversationRow(conversation: conversation) {
                             router.push(.tipConversation(conversation.id))
                         }
+                        .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button {
                                 conversationController.unarchive(conversation.id)

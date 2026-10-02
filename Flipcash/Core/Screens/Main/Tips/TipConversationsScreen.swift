@@ -21,6 +21,8 @@ struct TipConversationsScreen: View {
     @State private var chipsRevealed = false
     /// Whether the current drag began with the list at its top.
     @State private var dragStartedAtTop = false
+    /// Set on a qualifying release, applied once the bounce-back settles.
+    @State private var revealPending = false
     /// How far the list is pulled past its top, in points.
     @State private var overscroll: CGFloat = 0
 
@@ -57,28 +59,23 @@ struct TipConversationsScreen: View {
                     NoChatsView()
                 }
             } else {
-                VStack(spacing: 0) {
-                // Above the List, not a row in it: a List row with several buttons takes the
-                // tap for the whole row, so the chip under the finger never got it.
-                if showsChips {
-                    ChatListChips(selection: $filter, projection: projection)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
                 List {
-                        if projection.archivedRowVisible {
+                        // A row, so the chips scroll with the list. Added only once the pull has
+                        // settled, so the list never jumps under the finger. The chips use a custom
+                        // button style, which keeps each chip's tap its own inside the row.
+                        if showsChips {
+                            ChatListChips(selection: $filter, projection: projection)
+                                .listRowInsets(EdgeInsets())
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
+                        // Only under All: the other filters narrow the list, and archived chats aren't in it.
+                        if projection.archivedRowVisible, filter == .all {
                             ArchivedRow(count: projection.archivedRowCount) {
                                 router.push(.archivedChats)
                             }
                             .listRowSeparator(.hidden, edges: .top)
-                        }
-                        if conversations.isEmpty {
-                            // Inside the List, so the chips and the Archived row above still render.
-                            Text(filter.emptyMessage)
-                                .font(.appTextMedium)
-                                .foregroundStyle(Color.textSecondary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 32)
-                                .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                         }
                         ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
                             TipConversationRow(conversation: conversation) {
@@ -96,6 +93,16 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .overlay {
+                        // Over the List rather than a row in it, so it centres in the whole
+                        // screen and the List keeps the pull that reveals the chips.
+                        if conversations.isEmpty {
+                            Text(filter.emptyMessage)
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textSecondary)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .onScrollGeometryChange(for: CGFloat.self) { geometry in
                         -(geometry.contentOffset.y + geometry.contentInsets.top)
                     } action: { _, pulled in
@@ -109,13 +116,17 @@ struct TipConversationsScreen: View {
                         } else if old == .interacting {
                             // On release, not mid-drag, so the list never jumps under the finger.
                             if dragStartedAtTop, overscroll >= Self.revealPull, !chipsRevealed {
-                                withAnimation(.snappy) { chipsRevealed = true }
+                                revealPending = true
                             }
                             dragStartedAtTop = false
                         }
+                        // Changing the top inset mid-bounce makes the scroll view restart the
+                        // bounce from a new offset, which is the stutter. Wait for it to settle.
+                        if new == .idle, revealPending {
+                            revealPending = false
+                            withAnimation(.snappy) { chipsRevealed = true }
+                        }
                     }
-                    .onDisappear { chipsRevealed = false }
-                }
             }
         }
         .overlay(alignment: .bottom) {
