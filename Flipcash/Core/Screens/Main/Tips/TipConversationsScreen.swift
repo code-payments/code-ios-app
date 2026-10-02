@@ -21,8 +21,8 @@ struct TipConversationsScreen: View {
     @State private var chipsRevealed = false
     /// Whether the current drag began with the list at its top.
     @State private var dragStartedAtTop = false
-    /// Set on a qualifying release, applied once the bounce-back settles.
-    @State private var revealPending = false
+    /// The chip row's height, so a negative top margin can park it just above the list.
+    @State private var chipsHeight: CGFloat = 0
     /// How far the list is pulled past its top, in points.
     @State private var overscroll: CGFloat = 0
 
@@ -40,11 +40,14 @@ struct TipConversationsScreen: View {
         return filter.ids(in: projection).compactMap { byID[$0] }
     }
 
-    /// How far past the top a pull has to go before releasing it reveals the chips.
-    private static let revealPull: CGFloat = 60
-
     /// A selected filter keeps the chips in view: they explain the list.
     private var showsChips: Bool { chipsRevealed || filter != .all }
+
+    /// How much of the hidden chip row a pull from the top has dragged on, from 0 to 1.
+    private var pullProgress: Double {
+        guard chipsHeight > 0, dragStartedAtTop else { return 0 }
+        return min(max(overscroll / chipsHeight, 0), 1)
+    }
 
     var body: some View {
         let projection = self.projection
@@ -60,15 +63,19 @@ struct TipConversationsScreen: View {
                 }
             } else {
                 List {
-                        // A row, so the chips scroll with the list. Added only once the pull has
-                        // settled, so the list never jumps under the finger. The chips use a custom
-                        // button style, which keeps each chip's tap its own inside the row.
-                        if showsChips {
-                            ChatListChips(selection: $filter, projection: projection)
-                                .listRowInsets(EdgeInsets())
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                        }
+                        // Always a row, so the chips scroll with the list. While hidden, a negative
+                        // top margin parks the row just above the list, so a pull drags it on with
+                        // the finger. The chips use a custom button style, which keeps each chip's
+                        // tap its own inside the row.
+                        ChatListChips(selection: $filter, projection: projection)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                                chipsHeight = $0
+                            }
+                            // Parked under the header while hidden, so fade in with the pull.
+                            .opacity(showsChips ? 1 : pullProgress)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                         // Only under All: the other filters narrow the list, and archived chats aren't in it.
                         if projection.archivedRowVisible, filter == .all {
                             ArchivedRow(count: projection.archivedRowCount) {
@@ -93,6 +100,9 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    // Moving the resting point leaves the content where it is: a release with
+                    // the chips pulled on settles below them instead of jumping.
+                    .contentMargins(.top, showsChips ? 0 : -chipsHeight, for: .scrollContent)
                     .overlay {
                         // Over the List rather than a row in it, so it centres in the whole
                         // screen and the List keeps the pull that reveals the chips.
@@ -114,17 +124,12 @@ struct TipConversationsScreen: View {
                         if new == .interacting {
                             dragStartedAtTop = overscroll >= -1
                         } else if old == .interacting {
-                            // On release, not mid-drag, so the list never jumps under the finger.
-                            if dragStartedAtTop, overscroll >= Self.revealPull, !chipsRevealed {
-                                revealPending = true
+                            // Released with the chips fully pulled on: they stay. Short of that,
+                            // the list springs back and takes them off again.
+                            if dragStartedAtTop, chipsHeight > 0, overscroll >= chipsHeight {
+                                chipsRevealed = true
                             }
                             dragStartedAtTop = false
-                        }
-                        // Changing the top inset mid-bounce makes the scroll view restart the
-                        // bounce from a new offset, which is the stutter. Wait for it to settle.
-                        if new == .idle, revealPending {
-                            revealPending = false
-                            withAnimation(.snappy) { chipsRevealed = true }
                         }
                     }
             }
