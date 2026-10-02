@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 import FlipcashCore
 import FlipcashStore
 
@@ -48,6 +49,9 @@ final class KnownAuthorDirectory {
     /// would stop a later launch asking again once they have picked a name.
     @ObservationIgnored private var nameless: [UserID: ConversationMember] = [:]
 
+    /// The launch-time read's result, held for ``hydrateIfReady()``; set off the main actor.
+    @ObservationIgnored private let preloaded = OSAllocatedUnfairLock<[UserID: ConversationMember]?>(initialState: nil)
+
     /// The reload in flight, so concurrent requests collapse onto one read of the same store.
     @ObservationIgnored private var reloadTask: Task<Void, Never>?
 
@@ -67,6 +71,27 @@ final class KnownAuthorDirectory {
             fetch: { try await flipClient.fetchProfile(userID: $0, owner: owner) },
             cache: { try database.upsertUserProfile($0, userID: $1) }
         )
+    }
+
+    /// Starts the first read off the main actor and lands it in ``snapshot`` as soon as it finishes,
+    /// so the Chats list takes the table in the same frame it paints the cached feed. Without it the
+    /// snapshot is empty until a `.task` runs after that paint, and every group preview redraws with
+    /// its sender prefix a moment later.
+    ///
+    /// The landing is pushed from here rather than left to the screen's `onAppear`, which can fire
+    /// before the read has finished and then never asks again.
+    func preload() {
+        Task.detached { [weak self, read, preloaded] in
+            guard let members = try? read() else { return }
+            preloaded.withLock { $0 = members }
+            await self?.hydrateIfReady()
+        }
+    }
+
+    /// Lands the ``preload()`` result if it has finished and nothing newer has landed. Never waits.
+    func hydrateIfReady() {
+        guard snapshot === Snapshot.empty, let members = preloaded.withLock({ $0 }), !members.isEmpty else { return }
+        snapshot = Snapshot(membersByUserID: members.merging(nameless) { cached, _ in cached })
     }
 
     /// Re-reads the local cache off the main thread, landing a new ``snapshot`` only if the table

@@ -85,11 +85,17 @@ nonisolated extension Database {
         let rows = try reader.prepareRowIterator(c.table.order(c.lastActivity.desc))
         return try rows.map { row in
             let id = row[c.id]
+            let lastMessage = try latestMessage(conversationId: id)
+            // The row's activity only moves when the app writes the conversation. The notification
+            // extension writes message rows alone while the app is closed, so a chat that received a
+            // push would otherwise launch with its new preview at its old position. The live stream
+            // advances activity to a message's date the same way.
+            let storedActivity = Date(timeIntervalSinceReferenceDate: row[c.lastActivity])
             return Conversation(
                 id: ConversationID(data: id),
                 members: membersByConversation[id] ?? [],
-                lastMessage: try latestMessage(conversationId: id),
-                lastActivity: Date(timeIntervalSinceReferenceDate: row[c.lastActivity]),
+                lastMessage: lastMessage,
+                lastActivity: max(storedActivity, lastMessage?.date ?? storedActivity),
                 type: ConversationType(rawValue: row[c.type]) ?? .contactDm,
                 isHidden: row[c.isHidden],
                 title: row[c.title],

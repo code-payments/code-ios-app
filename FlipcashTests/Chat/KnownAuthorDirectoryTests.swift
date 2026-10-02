@@ -66,6 +66,32 @@ struct KnownAuthorDirectoryTests {
         )
     }
 
+    @Test("A preload that finishes after the screen appeared lands without another hydrateIfReady")
+    func preloadLandsItselfWhenItFinishesLate() async throws {
+        let recorder = Recorder()
+        let sender = UserID()
+        let gate = DispatchSemaphore(value: 0)
+        let directory = KnownAuthorDirectory(
+            read: {
+                gate.wait()
+                return recorder.withState { $0.table }
+            },
+            fetch: { _ in throw Unreachable.offline },
+            cache: { _, _ in }
+        )
+        recorder.withState { $0.table[sender] = ConversationMember(userID: sender, displayName: "Ada") }
+
+        directory.preload()
+        directory.hydrateIfReady() // the screen's onAppear, with the read still running
+        #expect(directory.snapshot.membersByUserID.isEmpty)
+
+        gate.signal()
+        for _ in 0..<200 where directory.snapshot.membersByUserID.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(directory.snapshot.membersByUserID[sender]?.displayName == "Ada")
+    }
+
     @Test("A sender the local cache cannot name is fetched, cached and landed in the snapshot")
     func fetchesAndCachesAnUnknownSender() async {
         let recorder = Recorder()
@@ -77,6 +103,38 @@ struct KnownAuthorDirectoryTests {
         #expect(recorder.requests == [sender])
         #expect(recorder.cached[sender]?.displayName == "Ada")
         #expect(directory.snapshot.membersByUserID[sender]?.displayName == "Ada")
+    }
+
+    @Test("Names persisted by an earlier session are in the snapshot at the first cached render")
+    func namesPersistedByAnEarlierSessionLandOnFirstRender() async throws {
+        let recorder = Recorder()
+        let sender = UserID()
+        recorder.withState { $0.table[sender] = ConversationMember(userID: sender, displayName: "Grace") }
+        let directory = directory(recorder)
+
+        directory.preload()
+        for _ in 0..<200 where directory.snapshot === KnownAuthorDirectory.Snapshot.empty {
+            directory.hydrateIfReady()
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(directory.snapshot.membersByUserID[sender]?.displayName == "Grace")
+        #expect(recorder.requests.isEmpty)
+    }
+
+    @Test("A reload that finds the same names does not replace the snapshot")
+    func unchangedReloadKeepsTheSnapshot() async {
+        let recorder = Recorder()
+        let sender = UserID()
+        recorder.withState { $0.table[sender] = ConversationMember(userID: sender, displayName: "Grace") }
+        let directory = directory(recorder)
+        await directory.reload()
+        let before = directory.snapshot
+
+        await directory.reload()
+        await directory.resolve([sender])
+
+        #expect(directory.snapshot === before)
     }
 
     @Test("A sender the local cache already names costs no round trip")

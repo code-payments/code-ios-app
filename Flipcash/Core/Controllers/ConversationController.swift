@@ -263,6 +263,12 @@ final class ConversationController {
     @ObservationIgnored let database: Database
     @ObservationIgnored let owner: KeyPair
     @ObservationIgnored private var startTask: Task<Void, Never>?
+    /// The feed load in flight, joined by every caller that arrives before it finishes.
+    @ObservationIgnored private var feedLoadTask: Task<Void, Never>?
+    /// How long a reconcile waits for the slowest feed, and for unread counts, before applying what landed.
+    @ObservationIgnored private let reconcileTiming: FeedReconcileTiming
+    /// The transcript fetches waiting to run, shared by every feed load.
+    @ObservationIgnored private var backfillQueue = BackfillQueue()
     /// The cache read's result, held for `hydrateIfReady()`; set off the main actor.
     @ObservationIgnored private let finishedCache = OSAllocatedUnfairLock<ConversationCache?>(initialState: nil)
     @ObservationIgnored private var hasAppliedCache = false
@@ -333,8 +339,10 @@ final class ConversationController {
         incomingTypingExpiry: Duration = .seconds(10),
         typingStoppedLinger: Duration = ConversationTyping.defaultStoppedLinger,
         typingExpiryClock: TypingExpiryClock = .continuous,
+        reconcileTiming: FeedReconcileTiming = .launch,
         receipts: ConversationReceiptReporter? = nil
     ) {
+        self.reconcileTiming = reconcileTiming
         self.fetching = fetching
         self.membership = membership
         self.viewerSettings = viewerSettings
@@ -766,6 +774,8 @@ final class ConversationController {
     func stop() {
         startTask?.cancel()
         startTask = nil
+        feedLoadTask?.cancel()
+        feedLoadTask = nil
         if let extensionStoreWriteToken {
             ChatStoreWriteNotification.stopObserving(extensionStoreWriteToken)
             self.extensionStoreWriteToken = nil
@@ -847,11 +857,24 @@ final class ConversationController {
 
     // MARK: - Feed
 
+    /// Loads every feed, then backfills transcripts behind it. A caller that arrives while a load is
+    /// in flight joins it rather than starting a second: launch's `start()`, the foreground hook that
+    /// fires with it, and a reconnect all converge here, and a second pass would refetch the same
+    /// feeds and backfill the same chats again.
     func loadFeed() async {
-        let loaded = await loadFeeds()
-        // Outside the loading flag: the feed itself is on screen the moment the
-        // conversations apply, and the transcripts fill behind it.
-        await backfillMessages(for: loaded)
+        if let feedLoadTask {
+            await feedLoadTask.value
+            return
+        }
+        let task = Task { [self] in
+            let loaded = await loadFeeds()
+            // Outside the loading flag, and after the list has been reconciled: backfill only
+            // changes a row whose newest message is newer than the one it holds.
+            await backfillMessages(for: loaded)
+        }
+        feedLoadTask = task
+        await task.value
+        feedLoadTask = nil
     }
 
     private func loadFeeds() async -> [Conversation] {
@@ -860,12 +883,103 @@ final class ConversationController {
             isLoadingFeed = false
             hasResolvedFeed = true
         }
-        // Both DM feeds load concurrently and apply independently, so one
-        // type's failure doesn't drop the other's conversations.
-        async let contact = loadFeed(type: .contactDm)
-        async let tip = loadFeed(type: .tipDm)
-        async let groups = loadGroupFeed()
-        return await contact + tip + groups
+        // With nothing listed there is no list to keep steady, so each feed shows as it lands. Both
+        // DM feeds load concurrently and apply independently, so one type's failure doesn't drop
+        // the other's conversations.
+        guard !store.conversations.isEmpty else {
+            async let contact = loadFeed(type: .contactDm)
+            async let tip = loadFeed(type: .tipDm)
+            async let groups = loadGroupFeed()
+            return await contact + tip + groups
+        }
+        return await reconcileFeeds()
+    }
+
+    /// Fetches the three feeds together and applies them to the listed chats as one update, so the
+    /// list moves once instead of once per feed, per preview and per unread count.
+    ///
+    /// Waits at most ``FeedReconcileTiming/feedCap`` for the slowest feed and then
+    /// ``FeedReconcileTiming/unreadCap`` for unread counts; past either it applies what has landed.
+    /// A feed that lands after the cap applies on its own. Backfill is not waited on.
+    private func reconcileFeeds() async -> [Conversation] {
+        let sources: [FeedArrivals.Source] = [.dm(.contactDm), .dm(.tipDm), .groups]
+        let arrivals = FeedArrivals(expecting: sources.count)
+        let fetches = sources.map { source in
+            Task { [self] in
+                let feed = await fetchFeed(source)
+                guard !Task.isCancelled else {
+                    arrivals.arrive(source, nil)
+                    return
+                }
+                if arrivals.isClosed {
+                    guard let feed else { return }
+                    withTransaction(Self.unanimated) { applyFeed(feed, from: source) }
+                    await backfillMessages(for: feed)
+                } else {
+                    arrivals.arrive(source, feed)
+                }
+            }
+        }
+        let landed = await withTaskCancellationHandler {
+            await arrivals.wait(upTo: reconcileTiming.feedCap)
+        } onCancel: {
+            fetches.forEach { $0.cancel() }
+        }
+        guard !Task.isCancelled else { return [] }
+
+        await resolveUnreadCounts(in: landed.values.flatMap { $0 })
+
+        withTransaction(Self.unanimated) {
+            for (source, feed) in landed {
+                applyFeed(feed, from: source)
+            }
+            watermarkStamps.release()
+        }
+        return landed.values.flatMap { $0 }
+    }
+
+    private static var unanimated: Transaction {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        return transaction
+    }
+
+    /// Resolves the unread count of every chat in `conversations` that can't show one yet, so the
+    /// numbers arrive with the list rather than popping in row by row. The feed carries the READ
+    /// pointer as a message id, not that message's `unreadSeq`, so a count is only local when the
+    /// pointer's message is stored; the rest cost a `GetMessage` each. Gives up waiting after
+    /// ``FeedReconcileTiming/unreadCap``; the lookups keep going and fill their rows in as they land.
+    private func resolveUnreadCounts(in conversations: [Conversation]) async {
+        unresolvedUnreadQueue = conversations
+            .filter { $0.hasUnread(for: selfUserID) && unreadCount(for: $0) == nil }
+        guard !unresolvedUnreadQueue.isEmpty else { return }
+        watermarkStamps.hold()
+        let wait = BoundedWait(expecting: unresolvedUnreadQueue.count)
+        for _ in 0..<min(Self.backfillConcurrency, unresolvedUnreadQueue.count) {
+            Task { [self] in
+                while !Task.isCancelled, !unresolvedUnreadQueue.isEmpty {
+                    await resolveUnreadCount(for: unresolvedUnreadQueue.removeFirst())
+                    wait.signal()
+                }
+            }
+        }
+        await wait.wait(upTo: reconcileTiming.unreadCap)
+    }
+
+    @ObservationIgnored private var unresolvedUnreadQueue: [Conversation] = []
+
+    private func fetchFeed(_ source: FeedArrivals.Source) async -> [Conversation]? {
+        switch source {
+        case .dm(let type): await fetchFeed(type: type)
+        case .groups:       await fetchGroupFeed()
+        }
+    }
+
+    private func applyFeed(_ feed: [Conversation], from source: FeedArrivals.Source) {
+        switch source {
+        case .dm(let type): applyFeed(feed, type: type)
+        case .groups:       applyGroupFeed(feed)
+        }
     }
 
     /// Loads the group feed, returning the groups the server reported — empty if the load failed or
@@ -877,24 +991,32 @@ final class ConversationController {
     /// this feed, so a type-scoped replace would delete it out from under its own open screen.
     @discardableResult
     func loadGroupFeed() async -> [Conversation] {
+        guard let groups = await fetchGroupFeed() else { return [] }
+        applyGroupFeed(groups)
+        return groups
+    }
+
+    private func fetchGroupFeed() async -> [Conversation]? {
         do {
-            let groups = try await fetching.getGroupChatFeed(owner: owner)
-            let departed = store.setGroupFeed(groups)
-            reconcileHidden()
-            persist(operation: "replace-group-feed") {
-                try database.replaceGroupFeed(groups.map(withStoreMembers), departed: departed)
-            }
-            resendUnsyncedReadPointers()
-            // Same repair the DM feeds need: the store refuses a tombstone as a preview, so a chat whose
-            // newest message is deleted seats blank without this.
-            for group in groups where group.lastMessage?.isDeleted == true {
-                refreshFeedPreview(for: group.id)
-            }
-            return groups
+            return try await fetching.getGroupChatFeed(owner: owner)
         } catch {
             logger.error("Failed to load group chat feed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to load group chat feed")
-            return []
+            return nil
+        }
+    }
+
+    private func applyGroupFeed(_ groups: [Conversation]) {
+        let departed = store.setGroupFeed(groups)
+        reconcileHidden()
+        persist(operation: "replace-group-feed") {
+            try database.replaceGroupFeed(groups.map(withStoreMembers), departed: departed)
+        }
+        resendUnsyncedReadPointers()
+        // Same repair the DM feeds need: the store refuses a tombstone as a preview, so a chat whose
+        // newest message is deleted seats blank without this.
+        for group in groups where group.lastMessage?.isDeleted == true {
+            refreshFeedPreview(for: group.id)
         }
     }
 
@@ -902,27 +1024,35 @@ final class ConversationController {
     /// empty if the load failed.
     @discardableResult
     func loadFeed(type: ConversationType) async -> [Conversation] {
+        guard let conversations = await fetchFeed(type: type) else { return [] }
+        applyFeed(conversations, type: type)
+        return conversations
+    }
+
+    private func fetchFeed(type: ConversationType) async -> [Conversation]? {
         do {
-            let conversations = try await fetching.getDmChatFeed(owner: owner, type: type)
-            store.setFeed(conversations, type: type)
-            reconcileHidden()
-            persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
-            resendUnsyncedReadPointers()
-            // The store refuses a tombstone as a preview, so a chat whose newest message is deleted
-            // seats blank here. Fill it from the newest visible message already cached — the feed
-            // reloads on every launch and foreground, so without this the row stays blank until the
-            // transcript is opened.
-            for conversation in conversations where conversation.lastMessage?.isDeleted == true {
-                refreshFeedPreview(for: conversation.id)
-            }
-            return conversations
+            return try await fetching.getDmChatFeed(owner: owner, type: type)
         } catch {
             logger.error("Failed to load conversation feed", metadata: [
                 "type": "\(type)",
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation feed")
-            return []
+            return nil
+        }
+    }
+
+    private func applyFeed(_ conversations: [Conversation], type: ConversationType) {
+        store.setFeed(conversations, type: type)
+        reconcileHidden()
+        persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
+        resendUnsyncedReadPointers()
+        // The store refuses a tombstone as a preview, so a chat whose newest message is deleted
+        // seats blank here. Fill it from the newest visible message already cached — the feed
+        // reloads on every launch and foreground, so without this the row stays blank until the
+        // transcript is opened.
+        for conversation in conversations where conversation.lastMessage?.isDeleted == true {
+            refreshFeedPreview(for: conversation.id)
         }
     }
 
@@ -1087,20 +1217,6 @@ final class ConversationController {
     /// rates, and history syncs it shares the launch with.
     private static let backfillConcurrency = 4
 
-    /// What a conversation needs to bring its local transcript level with the server.
-    private enum Backfill: Equatable {
-        /// The local cursor lags the server's head: stream the missed window from it.
-        case delta
-        /// Nothing is cached at all: fetch the newest page, which also seats the cursor to head.
-        case newestPage
-    }
-
-    /// One conversation's backfill, queued.
-    private struct BackfillTask: Sendable {
-        let conversationID: ConversationID
-        let kind: Backfill
-    }
-
     /// Brings every conversation in a freshly-loaded feed up to the server's head, so a transcript is
     /// there when the chat is opened rather than fetched on arrival.
     ///
@@ -1113,9 +1229,9 @@ final class ConversationController {
         // Deduped by id: the feed loads by type, and a conversation reported under more than one type
         // must not queue its transcript twice.
         var seen: Set<ConversationID> = []
-        let work = conversations.compactMap { conversation -> BackfillTask? in
+        let work = conversations.compactMap { conversation -> BackfillQueue.Item? in
             guard seen.insert(conversation.id).inserted else { return nil }
-            return backfill(for: conversation).map { BackfillTask(conversationID: conversation.id, kind: $0) }
+            return backfill(for: conversation).map { BackfillQueue.Item(conversationID: conversation.id, kind: $0) }
         }
         guard !work.isEmpty else { return }
         logger.info("Backfilling chat history", metadata: [
@@ -1123,31 +1239,36 @@ final class ConversationController {
             "delta": "\(work.filter { $0.kind == .delta }.count)",
         ])
 
+        backfillQueue.enqueue(work)
+
+        // A fixed number of workers draw from the shared queue, so it drains at a steady width instead
+        // of in lock-stepped batches, and a chat opened meanwhile can leave the queue early. A call
+        // that arrives while workers are running only tops them up to the width.
+        let workers = backfillQueue.claimWorkers(limit: Self.backfillConcurrency)
         await withTaskGroup(of: Void.self) { group in
-            var next = 0
-            // Start a window of tasks, then replace each as it finishes, so the queue drains at a
-            // steady width instead of in lock-stepped batches.
-            while next < min(Self.backfillConcurrency, work.count) {
-                group.addTask { [task = work[next]] in await self.perform(task) }
-                next += 1
-            }
-            while await group.next() != nil, next < work.count {
-                group.addTask { [task = work[next]] in await self.perform(task) }
-                next += 1
+            for _ in 0..<workers {
+                group.addTask { await self.drainBackfillQueue() }
             }
         }
     }
 
-    private func perform(_ task: BackfillTask) async {
-        switch task.kind {
-        case .delta:      await catchUp(conversationID: task.conversationID)
-        case .newestPage: await loadMessages(for: task.conversationID)
+    private func drainBackfillQueue() async {
+        defer { backfillQueue.releaseWorker() }
+        while let item = backfillQueue.popNext() {
+            await perform(item)
+        }
+    }
+
+    private func perform(_ item: BackfillQueue.Item) async {
+        switch item.kind {
+        case .delta:      await catchUp(conversationID: item.conversationID)
+        case .newestPage: await loadMessages(for: item.conversationID)
         }
     }
 
     /// The work one conversation needs, or `nil` when its transcript is already current — or is
     /// already being fetched by the open chat, whose own load lands the same page.
-    private func backfill(for conversation: Conversation) -> Backfill? {
+    private func backfill(for conversation: Conversation) -> BackfillQueue.Kind? {
         let conversationID = conversation.id
         guard !messageLoadsInFlight.contains(conversationID) else { return nil }
 
@@ -1679,6 +1800,8 @@ final class ConversationController {
             return
         }
         messageLoadsInFlight.insert(conversationID)
+        // This load is the backfill: a queued one would fetch the same page again.
+        backfillQueue.remove(conversationID)
         defer { messageLoadsInFlight.remove(conversationID) }
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)

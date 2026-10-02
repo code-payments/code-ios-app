@@ -26,6 +26,22 @@ final class ReadWatermarkStamps {
     private var stamps: [Key: UInt64] = [:]
     @ObservationIgnored private var inFlight: Set<Key> = []
     @ObservationIgnored private var missing: Set<Key> = []
+    @ObservationIgnored private var isHolding = false
+    @ObservationIgnored private var held: [Key: UInt64] = [:]
+
+    /// Starts keeping fetched stamps out of view, so a batch of lookups shows up as one change at
+    /// ``release()`` instead of one per row.
+    func hold() {
+        isHolding = true
+    }
+
+    /// Publishes every stamp fetched since ``hold()`` at once; later fetches publish as they land.
+    func release() {
+        isHolding = false
+        guard !held.isEmpty else { return }
+        stamps.merge(held) { _, new in new }
+        held = [:]
+    }
 
     /// The fetched stamp for `key`, or nil when it hasn't been fetched.
     func stamp(for key: Key) -> UInt64? {
@@ -35,11 +51,15 @@ final class ReadWatermarkStamps {
     /// Fetches `key`'s message unless it's already stamped, in flight, or known missing. A failed
     /// fetch leaves the key unresolved, so the next call tries again.
     func resolve(_ key: Key, fetch: () async throws -> ConversationMessage?) async throws {
-        guard stamps[key] == nil, !inFlight.contains(key), !missing.contains(key) else { return }
+        guard stamps[key] == nil, held[key] == nil, !inFlight.contains(key), !missing.contains(key) else { return }
         inFlight.insert(key)
         defer { inFlight.remove(key) }
         if let message = try await fetch() {
-            stamps[key] = message.unreadSeq
+            if isHolding {
+                held[key] = message.unreadSeq
+            } else {
+                stamps[key] = message.unreadSeq
+            }
         } else {
             missing.insert(key)
         }
