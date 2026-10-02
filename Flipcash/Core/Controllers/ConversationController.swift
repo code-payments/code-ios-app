@@ -84,15 +84,68 @@ final class ConversationController {
         }
     }
 
-    /// The chats the Chats tab lists, newest activity first: tip DMs and the groups the user has joined.
-    var chatListConversations: [Conversation] {
-        (conversations(of: .tipDm) + joinedGroups)
-            .sorted { $0.lastActivity > $1.lastActivity }
+    /// The Chats tab's source rows before archive is applied: tip DMs and joined groups. Already
+    /// without hidden conversations, so everything downstream inherits that exclusion.
+    private var chatListSource: [Conversation] {
+        conversations(of: .tipDm) + joinedGroups
     }
 
-    /// Number of ``chatListConversations`` with unread messages for the signed-in user.
+    /// The one place `Conversation` becomes the list rules' input. The list, the chips, the Archived
+    /// row and the tab badge all read this, so none can disagree about which chats count.
+    var chatListProjection: ChatListProjection<ConversationID> {
+        // Reading the store's tracked set here is what makes archiving re-render the list.
+        let archived = chatArchive?.archivedIDs ?? []
+        let entries = chatListSource.map { conversation in
+            ChatListEntry(
+                id: conversation.id,
+                type: conversation.type,
+                lastActivity: conversation.lastActivity,
+                isArchived: archived.contains(conversation.id),
+                isMuted: conversation.isMuted(at: .now),
+                isHidden: conversation.isHidden,
+                unread: chatListUnread(for: conversation)
+            )
+        }
+        return ChatListProjection.project(entries)
+    }
+
+    private func chatListUnread(for conversation: Conversation) -> ChatListUnread {
+        guard conversation.hasUnread(for: selfUserID) else { return .count(0) }
+        return unreadCount(for: conversation).map(ChatListUnread.count) ?? .unknown
+    }
+
+    private func conversations(for ids: [ConversationID]) -> [Conversation] {
+        let byID = Dictionary(chatListSource.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return ids.compactMap { byID[$0] }
+    }
+
+    /// The chats the Chats tab lists, newest activity first: tip DMs and joined groups, minus
+    /// archived ones (rule 1).
+    var chatListConversations: [Conversation] {
+        conversations(for: chatListProjection.main)
+    }
+
+    /// Archived chats, newest activity first. Hidden chats are excluded here too.
+    var archivedConversations: [Conversation] {
+        conversations(for: chatListProjection.archived)
+    }
+
+    /// Unread chats among ``chatListConversations``, which is what the tab badge shows.
     var unreadChatListCount: Int {
-        chatListConversations.count { $0.hasUnread(for: selfUserID) }
+        chatListProjection.tabBadge
+    }
+
+    func isArchived(_ id: ConversationID) -> Bool {
+        chatArchive?.isArchived(id) ?? false
+    }
+
+    /// Archives the chat. Local only; no event ever calls this except the user (rule 4).
+    func archive(_ id: ConversationID) {
+        chatArchive?.archive(id)
+    }
+
+    func unarchive(_ id: ConversationID) {
+        chatArchive?.unarchive(id)
     }
 
     /// The unread count a conversation row shows; nil when the chat is unread but its READ
@@ -243,6 +296,10 @@ final class ConversationController {
 
     /// The session's chat drafts, wired by `SessionContainer` after construction — the controller
     /// is built before the container has finished assembling, and the tests build it without one.
+    /// The session's archive record, wired by `SessionAuthenticator` after construction like
+    /// `chatDrafts`; tests attach one only when they exercise archive.
+    @ObservationIgnored var chatArchive: ChatArchiveStore?
+
     @ObservationIgnored var chatDrafts: ChatDraftStore? {
         didSet { failedSends = chatDrafts.map(FailedSendDrafts.init(store:)) }
     }
@@ -952,6 +1009,9 @@ final class ConversationController {
         store.clearViewerState(in: conversationID)
         persistConversation(conversationID)
         chatDrafts?.remove(for: conversationID)
+        // The server clears archive with mute on leave, so the local record is stale the moment the
+        // leave lands. A hidden chat's record is deliberately left alone elsewhere (rule 5).
+        chatArchive?.unarchive(conversationID)
     }
 
     /// Records the signed-in user's own join or leave when a roster update names them, so a membership

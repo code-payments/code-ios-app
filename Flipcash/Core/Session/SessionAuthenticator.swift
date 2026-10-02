@@ -569,6 +569,10 @@ final class SessionContainer {
     /// file, and coming back to this one is meant to find its drafts where the database is.
     let chatDrafts: ChatDraftStore
 
+    /// The chats the user has archived. In the App Group container, unlike `chatDrafts`, because the
+    /// NotificationService extension reads it to decide whether a push may interrupt.
+    let chatArchive: ChatArchiveStore
+
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
 
@@ -646,6 +650,12 @@ final class SessionContainer {
         )
         self.chatDrafts = chatDrafts
 
+        let chatArchive = ChatArchiveStore(
+            directory: ChatArchiveFile.appGroupDirectory ?? .applicationSupportDirectory,
+            owner: owner.publicKey
+        )
+        self.chatArchive = chatArchive
+
         let chatClient = EncryptedChatClient(
             client: flipClient,
             keyring: ChatKeyring(
@@ -688,6 +698,7 @@ final class SessionContainer {
         // Wired before `start()`: leaving or blocking a chat drops its draft, and a send that fails
         // puts its text back — none of which the controller can do before it has the store.
         conversationController.chatDrafts = chatDrafts
+        conversationController.chatArchive = chatArchive
         let recentReactions = RecentReactionsStore(owner: owner.publicKey)
         self.recentReactions = recentReactions
         conversationController.reactions.recents = recentReactions
