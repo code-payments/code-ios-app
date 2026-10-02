@@ -113,6 +113,8 @@ struct ChatProfileScreen: View {
                     ReportRow(target: .chat(conversationID), insets: rowInsets)
 
                     if isMember {
+                        ChatArchiveRow(conversationID: conversationID, insets: rowInsets)
+
                         Row(
                             insets: rowInsets,
                             disabled: isLeaving,

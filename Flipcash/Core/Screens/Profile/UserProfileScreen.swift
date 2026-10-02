@@ -150,7 +150,7 @@ private struct UserProfileContent: View {
                     }
 
                     VStack(spacing: 0) {
-                        // Mute, then report, then block: the reversible and routine first, then the
+                        // Mute, then report, then archive, then block: the reversible and routine first, then the
                         // one that asks someone else to look, then the one that ends the relationship.
                         // Same shape as a group's profile, where leaving holds the last place.
                         if let conversationID {
@@ -158,6 +158,10 @@ private struct UserProfileContent: View {
                         }
 
                         ReportRow(target: .user(model.userID), insets: rowInsets)
+
+                        if let conversationID {
+                            ChatArchiveRow(conversationID: conversationID, insets: rowInsets)
+                        }
 
                         Row(insets: rowInsets) {
                             Image(systemName: "nosign")
