@@ -11,7 +11,6 @@ public struct StockChart: View {
     private let valueFormatter: NumberFormatter
     private let dateFormatter: (Date) -> String
     private let headerTitle: String?
-    private let onHeaderTap: (() -> Void)?
 
     /// Creates a stock chart with externally-provided data via a view model
     /// - Parameters:
@@ -20,18 +19,15 @@ public struct StockChart: View {
     ///   - negativeColor: The chart line color on negative values
     ///   - dateFormatter: Optional custom formatter for displaying dates
     ///   - headerTitle: A label drawn above the value
-    ///   - onHeaderTap: Makes the label, value and change pill one tappable group; the plot and range picker are unaffected
     public init(
         viewModel: ChartViewModel,
         currencyCode: CurrencyCode,
         positiveColor: Color = .green,
         negativeColor: Color = .red,
         dateFormatter: ((Date) -> String)? = nil,
-        headerTitle: String? = nil,
-        onHeaderTap: (() -> Void)? = nil
+        headerTitle: String? = nil
     ) {
         self.headerTitle = headerTitle
-        self.onHeaderTap = onHeaderTap
         self.viewModel = viewModel
         self.currencyCode = currencyCode
         self.positiveColor = positiveColor
@@ -53,7 +49,7 @@ public struct StockChart: View {
 
     public var body: some View {
         VStack(spacing: 16) {
-            header
+            headerView
                 .padding(.horizontal, 20)
 
             chartView
@@ -75,19 +71,6 @@ public struct StockChart: View {
     }
 
     // MARK: - Subviews
-
-    @ViewBuilder
-    private var header: some View {
-        if let onHeaderTap {
-            Button(action: onHeaderTap) {
-                headerView
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        } else {
-            headerView
-        }
-    }
 
     private var headerView: some View {
         VStack(alignment: .leading, spacing: 4) {

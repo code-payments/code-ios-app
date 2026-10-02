@@ -23,8 +23,6 @@ struct CurrencyInfoMarketCapSection: View {
     /// layout. Drawing an actual populated Swift Charts plot is the expensive
     /// part, and the host holds that back until the opening animation is done.
     var isReady: Bool = true
-    /// The "Market Cap" label, value and change pill open the explainer.
-    let onShowExplainer: () -> Void
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -34,8 +32,7 @@ struct CurrencyInfoMarketCapSection: View {
                     currencyCode: currencyCode,
                     positiveColor: .Sentiment.positive,
                     negativeColor: .Sentiment.negative,
-                    headerTitle: "Market Cap",
-                    onHeaderTap: onShowExplainer
+                    headerTitle: "Market Cap"
                 )
             }
         }

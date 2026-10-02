@@ -160,8 +160,7 @@ struct CurrencyInfoContentV2: View {
                         marketCap: viewModel.marketCap,
                         currencyCode: ratesController.balanceCurrency,
                         marketCapController: marketCapController,
-                        isReady: !defersHeavyContent,
-                        onShowExplainer: onShowMarketCapExplainer
+                        isReady: !defersHeavyContent
                     )
 
                     MarketCapExplainerRow(action: onShowMarketCapExplainer)
