@@ -21,8 +21,9 @@ struct TipConversationsScreen: View {
     @State private var chipsRevealed = false
     /// The chip row's height: while hidden, the list rests scrolled down by exactly this much.
     @State private var chipsHeight: CGFloat = 0
-    /// How far the list is scrolled from its top, in points; negative while pulled past it.
-    @State private var offset: CGFloat = 0
+    /// The hidden chips' fade, set per frame by the scroll view. Only the chip row reads it, so a
+    /// pull doesn't re-render the whole list every frame.
+    @State private var chipFade = ChipFade()
 
     /// The projection once per body pass: rows, chips, the Archived row and the badge agree.
     private var projection: ChatListProjection<ConversationID> {
@@ -40,12 +41,6 @@ struct TipConversationsScreen: View {
 
     /// A selected filter keeps the chips in view: they explain the list.
     private var showsChips: Bool { chipsRevealed || filter != .all }
-
-    /// How much of the hidden chip row is on screen, from 0 to 1.
-    private var pullProgress: Double {
-        guard chipsHeight > 0 else { return 0 }
-        return min(max(1 - offset / chipsHeight, 0), 1)
-    }
 
     var body: some View {
         let projection = self.projection
@@ -65,16 +60,17 @@ struct TipConversationsScreen: View {
                         // list rests scrolled just past them, so a pull drags them on with the
                         // finger. The chips use a custom button style, which keeps each chip's tap
                         // its own inside the row.
-                        ChatListChips(selection: $filter, projection: projection)
+                        FadingChips(fade: chipFade, isShown: showsChips) {
+                            ChatListChips(selection: $filter, projection: projection)
+                        }
                             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                                 chipsHeight = $0
                             }
-                            // Parked under the header while hidden, so fade in with the pull.
-                            .opacity(showsChips ? 1 : pullProgress)
                             .background {
                                 ChipRevealScrollHook(
                                     chipsHeight: chipsHeight,
                                     isRevealed: showsChips,
+                                    fade: chipFade,
                                     reveal: { chipsRevealed = true }
                                 )
                             }
@@ -114,11 +110,6 @@ struct TipConversationsScreen: View {
                                 .foregroundStyle(Color.textSecondary)
                                 .allowsHitTesting(false)
                         }
-                    }
-                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                        geometry.contentOffset.y + geometry.contentInsets.top
-                    } action: { _, new in
-                        offset = new
                     }
             }
         }
@@ -437,23 +428,36 @@ private struct UnreadCountSubject: Equatable {
 private struct ChipRevealScrollHook: UIViewRepresentable {
     let chipsHeight: CGFloat
     let isRevealed: Bool
+    let fade: ChipFade
     let reveal: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+    func makeUIView(context: Context) -> HookView {
+        let view = HookView()
         view.isUserInteractionEnabled = false
+        view.coordinator = context.coordinator
         return view
     }
 
-    func updateUIView(_ view: UIView, context: Context) {
+    func updateUIView(_ view: HookView, context: Context) {
         let coordinator = context.coordinator
         coordinator.chipsHeight = chipsHeight
         coordinator.isRevealed = isRevealed
+        coordinator.fade = fade
         coordinator.reveal = reveal
-        // The view joins the List's hierarchy after this pass.
-        DispatchQueue.main.async { coordinator.attach(from: view) }
+        coordinator.attach(from: view)
+    }
+
+    /// Attaches as soon as it joins the List's hierarchy, so the list is parked before its first
+    /// frame draws rather than a run-loop turn later, with the chips briefly on screen.
+    final class HookView: UIView {
+        weak var coordinator: Coordinator?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            if window != nil { coordinator?.attach(from: self) }
+        }
     }
 
     @MainActor
@@ -461,6 +465,10 @@ private struct ChipRevealScrollHook: UIViewRepresentable {
         var chipsHeight: CGFloat = 0
         var isRevealed = false
         var reveal: () -> Void = {}
+        var fade: ChipFade?
+        /// Set when a release commits to the chips; applied once the list comes to rest on them,
+        /// so the state change doesn't re-render the list mid-motion.
+        private var pendingReveal = false
 
         private weak var scrollView: UIScrollView?
         private var observations: [NSKeyValueObservation] = []
@@ -477,7 +485,7 @@ private struct ChipRevealScrollHook: UIViewRepresentable {
                         MainActor.assumeIsolated { self?.parkIfNeeded() }
                     },
                     found.observe(\.contentOffset) { [weak self] _, _ in
-                        MainActor.assumeIsolated { self?.stopFlingAtChips() }
+                        MainActor.assumeIsolated { self?.offsetChanged() }
                     },
                 ]
             }
@@ -514,7 +522,7 @@ private struct ChipRevealScrollHook: UIViewRepresentable {
                 let projected = distance(scrollView) - velocity * 0.1
                 guard distance(scrollView) < chipsHeight || projected < chipsHeight else { return }
                 if pullStartedAtTop, projected < chipsHeight / 2 {
-                    reveal()
+                    pendingReveal = true
                     // Pulled past the top, the system's bounce already lands on the chips; moving
                     // the offset under it would stack a second motion on the bounce.
                     if distance(scrollView) > 0 { setDistance(0, animated: true) }
@@ -527,6 +535,20 @@ private struct ChipRevealScrollHook: UIViewRepresentable {
         }
 
         /// A fling that didn't start at the top stops just past the hidden chips, as if they weren't there.
+        private func offsetChanged() {
+            guard let scrollView, chipsHeight > 0 else { return }
+            let distance = distance(scrollView)
+            if !isRevealed {
+                let progress = (min(max(1 - distance / chipsHeight, 0), 1) * 100).rounded() / 100
+                if fade?.progress != progress { fade?.progress = progress }
+            }
+            if pendingReveal, abs(distance) < 0.5 {
+                pendingReveal = false
+                reveal()
+            }
+            stopFlingAtChips()
+        }
+
         private func stopFlingAtChips() {
             guard let scrollView, !isRevealed, parked, chipsHeight > 0,
                   scrollView.isDecelerating, !pullStartedAtTop,
@@ -542,5 +564,22 @@ private struct ChipRevealScrollHook: UIViewRepresentable {
             }
             return nil
         }
+    }
+}
+
+/// How much of the hidden chip row a pull has brought on screen, from 0 to 1.
+@Observable
+private final class ChipFade {
+    var progress: Double = 0
+}
+
+/// Reads the fade on its own, so the per-frame changes re-render only the chips.
+private struct FadingChips<Content: View>: View {
+    let fade: ChipFade
+    let isShown: Bool
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content.opacity(isShown ? 1 : fade.progress)
     }
 }
