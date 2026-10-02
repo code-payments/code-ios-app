@@ -102,7 +102,7 @@ private struct MentionRow: View {
             )
             Text(member.displayName)
                 .font(.appTextHeading)
-                .foregroundStyle(ComplementaryPalette.color(.middle, for: member.userID))
+                .foregroundStyle(ComplementaryPalette.nameColor(for: member.userID))
                 .lineLimit(1)
             if let username = member.username {
                 Text("@\(username.value)")

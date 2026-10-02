@@ -153,7 +153,7 @@ final class ChatQuotePanelView: UIView {
         // to the neutral secondary, which is what `ComplementaryPalette` returns for a nil id.
         let ruleColor = ComplementaryPalette.uiColor(.start, for: quote.authorID)
         rule.backgroundColor = ruleColor
-        authorLabel.textColor = ComplementaryPalette.uiColor(.middle, for: quote.authorID)
+        authorLabel.textColor = ComplementaryPalette.uiNameColor(for: quote.authorID)
         backgroundColor = ruleColor.withAlphaComponent(Self.cellTint)
         // An unavailable original has no author to name, so the author line collapses rather than
         // rendering an empty run.

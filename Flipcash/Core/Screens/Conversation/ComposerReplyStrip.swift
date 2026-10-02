@@ -43,8 +43,8 @@ struct ComposerReplyStrip: View {
     private static let flagDiameter: CGFloat = 16
 
     var body: some View {
-        let rule = ComplementaryPalette.color(.start, for: target.authorID)
-        let name = ComplementaryPalette.color(.middle, for: target.authorID)
+        // One colour for the rule and the name, so the rule keeps the name's contrast on the surface.
+        let name = ComplementaryPalette.nameColor(for: target.authorID)
 
         HStack(alignment: .center, spacing: Self.gutter) {
             VStack(alignment: .leading, spacing: 2) {
@@ -95,7 +95,7 @@ struct ComposerReplyStrip: View {
         // centred inside `contentHeight` — leaving the rule a fraction short at both ends.
         // ``QuoteGround`` rounds off the two corners it passes.
         .overlay(alignment: .leading) {
-            QuoteRule(color: rule)
+            QuoteRule(color: name)
                 .frame(width: Self.ruleWidth)
         }
         .modifier(QuoteGround())
