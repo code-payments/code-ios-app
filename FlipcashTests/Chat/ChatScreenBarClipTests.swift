@@ -51,7 +51,10 @@ struct ChatScreenBarClipTests {
         mentions: CGFloat = 0
     ) {
         UIView.performWithoutAnimation {
-            screen.setBarHeight(height, accessories: BarAccessories(open: open, exitingHeight: exiting, mentionsHeight: mentions))
+            // What the bar measures under the list: everything but the list, less a strip collapsing
+            // beside it.
+            let rest = height - mentions - (open.contains(.mentions) ? exiting : 0)
+            screen.setBarHeight(height, accessories: BarAccessories(open: open, exitingHeight: exiting, restHeight: rest))
         }
     }
 
@@ -113,23 +116,40 @@ struct ChatScreenBarClipTests {
         #expect(clipHeight(bar, window) == composerRow + strip + 3 * row)
     }
 
-    @Test("Closing the reply under an open list keeps the list, even as its rows change mid-close")
-    func replyClosesUnderTheList_keepsTheList() {
+    @Test("Closing the reply under an open list never cuts into the list, and settles once the strip has collapsed")
+    func replyClosesUnderTheList_keepsTheList() async throws {
         let (screen, bar, window) = makeScreen()
 
         report(screen, composerRow)
         report(screen, composerRow + strip + 3 * row, open: [.reply, .mentions], mentions: 3 * row)
 
+        // The strip collapses itself under the list, so the clip holds its height while it does.
         report(screen, composerRow + strip + 3 * row, open: [.mentions], exiting: strip, mentions: 3 * row)
-        #expect(clipHeight(bar, window) == composerRow + 3 * row)
+        #expect(clipHeight(bar, window) >= composerRow + 3 * row)
 
-        // A search answers while the strip is still fading and the list drops to one row. The strip
-        // is still in the measurement and still has to stay covered.
+        // A search answers mid-close and the list drops to one row: still held, still over the list.
         report(screen, composerRow + strip + row, open: [.mentions], exiting: strip, mentions: row)
-        #expect(clipHeight(bar, window) == composerRow + row)
+        #expect(clipHeight(bar, window) >= composerRow + row)
 
         report(screen, composerRow + row, open: [.mentions], mentions: row)
+        try await Task.sleep(for: .seconds(ChatMotion.replyMerge.duration + 0.2))
         #expect(clipHeight(bar, window) == composerRow + row)
+    }
+
+    @Test("Closing the list over an open reply never cuts into the strip, and settles once the list has merged back")
+    func listClosesOverTheReply_keepsTheStrip() async throws {
+        let (screen, bar, window) = makeScreen()
+
+        report(screen, composerRow)
+        report(screen, composerRow + strip, open: [.reply])
+        report(screen, composerRow + strip + 3 * row, open: [.reply, .mentions], mentions: 3 * row)
+
+        // The list collapses into the strip's glass, so the clip holds its height while it does.
+        report(screen, composerRow + strip, open: [.reply])
+        #expect(clipHeight(bar, window) == composerRow + strip + 3 * row)
+
+        try await Task.sleep(for: .seconds(ChatMotion.replyMerge.duration + 0.2))
+        #expect(clipHeight(bar, window) == composerRow + strip)
     }
 
     @Test("A list gaining rows while open follows the bar")

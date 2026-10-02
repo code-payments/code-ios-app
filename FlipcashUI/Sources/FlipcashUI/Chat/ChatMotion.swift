@@ -122,7 +122,13 @@ public nonisolated enum ChatMotion {
     /// monotonic, no overshoot in either direction. Bounce is zero for the same reason
     /// `keyboardScroll`'s is: the transcript's bottom inset tracks this height every frame, and a bar
     /// that overshoots drags the messages past their resting place and back.
-    public static let replySurface = ChatSpring(duration: 0.22, bounce: 0)
+    ///
+    /// Lengthened from the reference's 0.22s to 0.28s: the mention list resizing around the strip
+    /// rides this spring too, and at 0.22s that change of shape read as abrupt.
+    public static let replySurface = ChatSpring(duration: 0.28, bounce: 0)
+    /// The reply strip merging back into the open mention list. Slower than `replySurface`: a glass
+    /// shape leaving its container settles faster than one arriving, so this matches the peel.
+    public static let replyMerge = ChatSpring(duration: 0.5, bounce: 0)
     /// The "Delivered" line appearing under a sent bubble. Slow and gentle: it arrives after the
     /// message has landed and shouldn't compete with it.
     public static let delivered = ChatSpring(duration: 0.40, bounce: 0.12)

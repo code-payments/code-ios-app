@@ -24,13 +24,18 @@ public struct BarAccessories: Equatable, Sendable {
     /// over them.
     public var exitingHeight: CGFloat
 
-    /// The mention list's current height, which the transcript's room is measured without.
-    public var mentionsHeight: CGFloat
+    /// The height of the bar under the mention list — the reply strip and the composer row —
+    /// which the list's room is measured without.
+    ///
+    /// Measured from those views rather than taken as the bar less the list: the bar and the list
+    /// are measured a pass apart, so the difference moved with the list and fed back into its row
+    /// count, and a list under a reply flipped between two sizes without settling.
+    public var restHeight: CGFloat
 
-    public init(open: Set<Kind> = [], exitingHeight: CGFloat = 0, mentionsHeight: CGFloat = 0) {
+    public init(open: Set<Kind> = [], exitingHeight: CGFloat = 0, restHeight: CGFloat = 0) {
         self.open = open
         self.exitingHeight = exitingHeight
-        self.mentionsHeight = mentionsHeight
+        self.restHeight = restHeight
     }
 
     /// Two reports combined, as sibling cards report them.
@@ -38,7 +43,7 @@ public struct BarAccessories: Equatable, Sendable {
         BarAccessories(
             open: open.union(other.open),
             exitingHeight: exitingHeight + other.exitingHeight,
-            mentionsHeight: mentionsHeight + other.mentionsHeight
+            restHeight: restHeight + other.restHeight
         )
     }
 }

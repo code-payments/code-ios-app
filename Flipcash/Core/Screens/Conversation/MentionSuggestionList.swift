@@ -56,31 +56,42 @@ struct MentionSuggestionList: View {
     let maxRows: Int
     let replyOpen: Bool
     let onPick: (ConversationMember) -> Void
+    @Environment(\.barCardCollapsed) private var collapsed
 
     private var visibleRows: Int { min(maxRows, candidates.count) }
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            // Eager, not lazy: a lazy row built while the card grows was laid out inside the
+            // animation, so it and its divider slid in from the wrong place. Results cap at 20.
+            VStack(spacing: 0) {
+                // Each row carries the divider above it, so a filtered-out row takes its own
+                // divider with it instead of leaving one behind on its neighbour.
                 ForEach(Array(candidates.enumerated()), id: \.element.id) { index, member in
-                    Button { onPick(member) } label: { MentionRow(member: member) }
-                        .buttonStyle(MentionRowButtonStyle())
-                    if index < candidates.count - 1 {
-                        Rectangle()
-                            .fill(MentionListMetrics.dividerColor)
-                            .frame(height: MentionListMetrics.dividerHeight)
-                            .padding(.leading, MentionListMetrics.dividerInset)
+                    VStack(spacing: 0) {
+                        if index > 0 {
+                            Rectangle()
+                                .fill(MentionListMetrics.dividerColor)
+                                .frame(height: MentionListMetrics.dividerHeight)
+                                .padding(.leading, MentionListMetrics.dividerInset)
+                        }
+                        Button { onPick(member) } label: { MentionRow(member: member) }
+                            .buttonStyle(MentionRowButtonStyle())
                     }
                 }
             }
+            // A new search swaps the rows in one step. Animated, a row that kept its place in the
+            // results slid through the slots of the rows coming and going, and two names shared one
+            // cell while it passed.
+            .animation(nil, value: candidates.map(\.id))
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(height: MentionListMetrics.listHeight(rows: visibleRows))
         .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
-        .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+        .modifier(BarCardGlass(id: .mentions))
         .padding(.horizontal, MentionListMetrics.inset)
-        .padding(.top, MentionListMetrics.inset)
-        .padding(.bottom, MentionListMetrics.bottomPadding(replyOpen: replyOpen))
+        .padding(.top, collapsed ? 0 : MentionListMetrics.inset)
+        .padding(.bottom, collapsed ? 0 : MentionListMetrics.bottomPadding(replyOpen: replyOpen))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("mention-suggestion-list")
     }

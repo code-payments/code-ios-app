@@ -290,7 +290,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             .environment(conversationController)
             .modifier(
                 MeasuredBarHeight { height, accessories in
-                    coordinator.screen?.setBarHeight(height, accessories: accessories)
+                    // After the update that measured it, not inside it. Resized inside an animated
+                    // update, the host's new size joins that transaction: SwiftUI springs the root
+                    // toward it and centres it meanwhile, lifting the whole bar by half the change.
+                    DispatchQueue.main.async {
+                        coordinator.screen?.setBarHeight(height, accessories: accessories)
+                    }
                 }
             )
         )
