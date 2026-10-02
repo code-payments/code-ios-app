@@ -78,5 +78,6 @@ struct ChatListChips: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
+        .sensoryFeedback(.selection, trigger: selection)
     }
 }

@@ -17,6 +17,12 @@ struct TipConversationsScreen: View {
     @State private var muteTarget: MuteTarget?
     @State private var filter: ChatListFilter = .all
     @State private var undoTarget: ConversationID?
+    /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
+    @State private var chipsRevealed = false
+    /// Whether the current drag began with the list at its top.
+    @State private var dragStartedAtTop = false
+    /// How far the list is pulled past its top, in points.
+    @State private var overscroll: CGFloat = 0
 
     /// The projection once per body pass: rows, chips, the Archived row and the badge agree.
     private var projection: ChatListProjection<ConversationID> {
@@ -32,11 +38,11 @@ struct TipConversationsScreen: View {
         return filter.ids(in: projection).compactMap { byID[$0] }
     }
 
-    /// The chips are the List's first row. On appear the list scrolls to the row after them, so
-    /// they sit just out of view until a drag down reveals them. Nothing is inserted or removed
-    /// mid-scroll, so the list never jumps.
-    private static let chipsRowID = "chat-list-chips"
-    private static let archivedRowID = "chat-list-archived"
+    /// How far past the top a pull has to go before releasing it reveals the chips.
+    private static let revealPull: CGFloat = 60
+
+    /// A selected filter keeps the chips in view: they explain the list.
+    private var showsChips: Bool { chipsRevealed || filter != .all }
 
     var body: some View {
         let projection = self.projection
@@ -51,19 +57,19 @@ struct TipConversationsScreen: View {
                     NoChatsView()
                 }
             } else {
-                ScrollViewReader { proxy in
-                    List {
-                        ChatListChips(selection: $filter, projection: projection)
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .id(Self.chipsRowID)
+                VStack(spacing: 0) {
+                // Above the List, not a row in it: a List row with several buttons takes the
+                // tap for the whole row, so the chip under the finger never got it.
+                if showsChips {
+                    ChatListChips(selection: $filter, projection: projection)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                List {
                         if projection.archivedRowVisible {
                             ArchivedRow(count: projection.archivedRowCount) {
                                 router.push(.archivedChats)
                             }
                             .listRowSeparator(.hidden, edges: .top)
-                            .id(Self.archivedRowID)
                         }
                         if conversations.isEmpty {
                             // Inside the List, so the chips and the Archived row above still render.
@@ -90,15 +96,25 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    .onAppear {
-                        // A selected filter keeps the chips in view: they explain the list.
-                        guard filter == .all else { return }
-                        let first: AnyHashable? = projection.archivedRowVisible
-                            ? Self.archivedRowID
-                            : conversations.first.map { AnyHashable($0.id) }
-                        // The next pass: on the first one the List has not laid out its rows.
-                        if let first { Task { proxy.scrollTo(first, anchor: .top) } }
+                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                        -(geometry.contentOffset.y + geometry.contentInsets.top)
+                    } action: { _, pulled in
+                        overscroll = pulled
                     }
+                    .onScrollPhaseChange { old, new in
+                        // Only a pull that starts at the top counts: a fling back up that
+                        // overshoots the top, or a drag that started mid-list, doesn't.
+                        if new == .interacting {
+                            dragStartedAtTop = overscroll >= -1
+                        } else if old == .interacting {
+                            // On release, not mid-drag, so the list never jumps under the finger.
+                            if dragStartedAtTop, overscroll >= Self.revealPull, !chipsRevealed {
+                                withAnimation(.snappy) { chipsRevealed = true }
+                            }
+                            dragStartedAtTop = false
+                        }
+                    }
+                    .onDisappear { chipsRevealed = false }
                 }
             }
         }
