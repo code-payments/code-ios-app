@@ -9,11 +9,11 @@ import SwiftUI
 /// optional trailing action. A longer message wraps. The caller owns placement, lifetime and transitions.
 public struct FloatingToast: View {
 
-    /// How wide the pill is drawn.
+    /// How wide the pill is drawn. Either way it is never wider than the floating tab bar.
     public enum Width {
-        /// Spans the screen, inset 12pt from each edge, as the shared design specifies.
+        /// As wide as the floating tab bar, or 12pt from each screen edge when no bar shows.
         case fill
-        /// Hugs its content, never wider than the floating tab bar.
+        /// Hugs its content.
         case fit
     }
 
@@ -40,9 +40,7 @@ public struct FloatingToast: View {
 
     @State private var dragOffset: CGFloat = 0
 
-    /// The native floating tab bar's inset from each screen edge, measured on iOS 26; keeping the
-    /// same inset caps a `.fit` toast at the bar's width.
-    private static let tabBarInset: CGFloat = 21
+    @Environment(\.floatingTabBar) private var tabBar
 
     /// A toast showing `message`; a swipe down calls `onDismiss` when one is given.
     ///
@@ -101,7 +99,7 @@ public struct FloatingToast: View {
         .frame(minHeight: 44)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
-        .padding(.horizontal, width == .fill ? 12 : Self.tabBarInset)
+        .padding(.horizontal, tabBar?.horizontalInset ?? 12)
         .offset(y: dragOffset)
         .gesture(dismissGesture, isEnabled: onDismiss != nil)
     }
@@ -116,6 +114,60 @@ public struct FloatingToast: View {
                     withAnimation(.spring) { dragOffset = 0 }
                 }
             }
+    }
+}
+
+// MARK: - Tab bar -
+
+/// The floating tab bar a toast sits above, published by the screen that draws the bar.
+public struct FloatingTabBar: Equatable, Sendable {
+    /// The bar's inset from each screen edge.
+    public let horizontalInset: CGFloat
+
+    /// A bar inset `horizontalInset` from each screen edge.
+    public init(horizontalInset: CGFloat) {
+        self.horizontalInset = horizontalInset
+    }
+}
+
+extension EnvironmentValues {
+    /// The floating tab bar below this view, or `nil` when none is showing.
+    @Entry public var floatingTabBar: FloatingTabBar? = nil
+}
+
+extension View {
+    /// Brings a bottom-anchored toast in out of the floating tab bar when one is showing, and up
+    /// from the bottom edge of the screen when not.
+    public func floatingToastTransition() -> some View {
+        modifier(FloatingToastTransition())
+    }
+}
+
+private struct FloatingToastTransition: ViewModifier {
+    @Environment(\.floatingTabBar) private var tabBar
+
+    func body(content: Content) -> some View {
+        content.transition(tabBar == nil ? Self.fromScreenEdge : Self.fromTabBar)
+    }
+
+    private static let fromScreenEdge: AnyTransition = .move(edge: .bottom).combined(with: .opacity)
+
+    /// Starts tucked behind the bar, which draws over the screen's content, and swells up out of it.
+    private static let fromTabBar: AnyTransition = .modifier(
+        active: TabBarEmergence(progress: 0),
+        identity: TabBarEmergence(progress: 1)
+    )
+}
+
+private struct TabBarEmergence: ViewModifier {
+    let progress: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(x: 0.92 + 0.08 * progress, y: 0.5 + 0.5 * progress, anchor: .bottom)
+            .offset(y: 56 * (1 - progress))
+            .blur(radius: 6 * (1 - progress))
+            .opacity(progress)
     }
 }
 

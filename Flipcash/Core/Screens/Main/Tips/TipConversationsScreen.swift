@@ -123,10 +123,10 @@ struct TipConversationsScreen: View {
                     onDismiss: { undoTarget = nil }
                 )
                 .padding(.bottom, 12)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .floatingToastTransition()
             }
         }
-        .animation(.default, value: undoTarget)
+        .animation(.spring(duration: 0.4, bounce: 0.2), value: undoTarget)
         // Dismisses itself, like the reaction error toast; a new archive restarts the clock.
         .task(id: undoTarget) {
             guard undoTarget != nil else { return }
