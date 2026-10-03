@@ -58,7 +58,7 @@ extension DialogItem {
 
         // Privacy metadata is stripped from every upload, so a rejection for it
         // is a defect on our side rather than something a different photo fixes.
-        case .rejected(.privacyMetadata), .rejected(.unknown), .timedOut,
+        case .rejected(.privacyMetadata), .rejected(.internal), .rejected(.unknown), .rejected(.unrecognized), .timedOut,
              .uploadFailed, .notFound, .notUploaded, .unknown, .network:
             .error(
                 title: "Couldn't Upload Your Photo",

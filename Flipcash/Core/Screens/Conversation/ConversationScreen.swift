@@ -542,22 +542,27 @@ struct ConversationScreen: View {
             onCameraCapture: stageCapturedPhoto,
             onPhotosAdded: stageAddedPhotos,
             mintMediaURL: mintMediaURL,
+            mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer
         )
     }
 
-    /// Whether the chat takes photos: any chat this device has a record of, except one it encrypts, whose
-    /// encryption does not cover media. False until the record loads, so the menu never offers a
-    /// photo the chat may refuse.
+    /// Whether the chat takes photos: any chat this device has a record of, encrypted or not. False
+    /// until the record loads, so the menu never offers a photo before the chat is known.
     private var acceptsMedia: Bool {
-        guard let conversationID,
-              let conversation = conversationController.conversation(withID: conversationID) else { return false }
-        return !E2eePolicy.shouldEncrypt(conversation)
+        ChatMediaGate.acceptsMedia(conversationID.flatMap(conversationController.conversation(withID:)))
     }
 
-    /// Uploads chat photos on behalf of the signed-in owner.
+    /// Uploads chat photos on behalf of the signed-in owner, encrypted for the chat when it encrypts.
     private var mediaUploader: ChatMediaUploader {
-        ChatMediaUploader(blob: SessionChatMediaBlobStore(session: session, flipClient: container.flipClient))
+        let controller = conversationController
+        let conversationID = conversationID
+        var uploader = ChatMediaUploader(blob: SessionChatMediaBlobStore(session: session, flipClient: container.flipClient))
+        uploader.seal = {
+            guard let conversationID else { return nil }
+            return try await controller.photoSeal(for: conversationID)
+        }
+        return uploader
     }
 
     /// Stages photos added from the photo card in the order they were selected, returning the chip
@@ -595,6 +600,14 @@ struct ConversationScreen: View {
     }
 
     /// Mints a download URL for a photo in this chat, read through the chat's access context.
+    /// Decrypts this chat's end-to-end encrypted photos with the key its messages open with.
+    private var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? {
+        { [controller = conversationController, conversationID] in
+            guard let conversationID else { return nil }
+            return await controller.mediaBlobDecrypt(for: conversationID)
+        }
+    }
+
     private var mintMediaURL: (BlobID) async throws -> URL? {
         { [flipClient = container.flipClient, owner = session.ownerKeyPair, conversationID] blobID in
             guard let conversationID else { return nil }
@@ -1161,7 +1174,7 @@ struct ConversationScreen: View {
         case .media(let attachments, let caption):
             (
                 ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption)),
-                .media(thumbnailBlobID: message.redacted ? nil : attachments.first?.blobID)
+                .media(thumbnailBlobID: message.redacted ? nil : attachments.first?.blobID, sealed: attachments.first?.sealed)
             )
         case .deleted:
             (ChatQuote.deletedSnippet, .unavailable)

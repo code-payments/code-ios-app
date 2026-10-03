@@ -16,6 +16,14 @@ extension FlipClient {
         try await blobUploader.store(data, mimeType: mimeType, owner: owner)
     }
 
+    /// Stores `image` end-to-end encrypted with `seal` for its DM and returns the blob, before the
+    /// server has finalized it. Pair with `awaitBlobFinalization(blobID:owner:)` as for `storeBlob`.
+    public func storeEncryptedBlob(_ image: Data, seal: ChatSeal, owner: KeyPair) async throws -> EncryptedBlobUpload {
+        try await blobUploader.storeEncrypted(image, for: seal.conversationID, owner: owner) { plaintext, blobID in
+            try seal.encryptBlob(plaintext, blobID: blobID)
+        }
+    }
+
     /// Returns the upload constraints in force for `owner`.
     public func uploadPolicy(owner: KeyPair) async throws -> UploadPolicy {
         try await blobService.uploadPolicy(owner: owner)

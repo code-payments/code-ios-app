@@ -11,6 +11,10 @@ import Foundation
 /// list, Spotlight, and notifications. The copy is the fixture's `strings` section, shared with Android.
 public enum ChatMediaStrings {
 
+    /// Drawn over an encrypted photo whose bytes failed to decrypt. Not in the shared fixture yet:
+    /// Android doesn't decrypt photos.
+    public static let undecryptable = "This photo can\u{2019}t be displayed"
+
     /// A quote's snippet for a photo: its caption, or "Photo" when it has none.
     public static func quoteSnippet(caption: String?) -> String {
         nonEmpty(caption) ?? "Photo"

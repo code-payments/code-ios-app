@@ -38,6 +38,25 @@ struct ChatPreviewDecryptionTests {
         #expect(contents(items) == [.text("hello")])
     }
 
+    @Test("A decrypted photo previews as a photo that still knows it is encrypted")
+    func decryptedPhotoPreviewsAsPhoto() throws {
+        let blobID = BlobID(data: Data([7]))
+        let seal = SealedBlob(senderID: them, plaintextSize: 42)
+        let attachment = MediaAttachment(blobID: blobID, width: 4, height: 3, blurhash: "LKO2?U%2Tw=w", sealed: seal)
+        var message = encrypted(1, from: them)
+        message = message.opened(.success((content: .media([attachment], caption: "beach"), repliedTo: nil)))
+
+        let items = ChatItem.preview(from: [message], selfUserID: me)
+        let content = try #require(contents(items).first)
+        guard case .media(let media) = content else {
+            Issue.record("Expected a photo, got \(content)")
+            return
+        }
+        #expect(media.blobID == blobID)
+        #expect(media.caption == "beach")
+        #expect(media.sealed == seal)
+    }
+
     @Test("A message waiting on the peer's key is left out of the preview")
     func awaitingIsLeftOut() {
         let items = ChatItem.preview(from: [encrypted(1, from: them, text: "hi"), encrypted(2, from: them)], selfUserID: me)

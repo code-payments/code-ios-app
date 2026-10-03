@@ -45,7 +45,7 @@ final class ComposerChip: Identifiable {
 
     /// The upload in flight or finished for this chip, which the send path awaits rather than
     /// starting its own.
-    @ObservationIgnored var uploadTask: Task<BlobID, Error>?
+    @ObservationIgnored var uploadTask: Task<UploadedPhoto, Error>?
 
     /// The uploader the last attempt went through, kept so a failed send can upload again after the
     /// composer has let go of the chip.
@@ -65,15 +65,15 @@ final class ComposerChip: Identifiable {
 
         uploadTask = Task {
             do {
-                let blobID = try await uploader.upload(image) { width, height in
+                let photo = try await uploader.upload(image) { width, height in
                     preparedWidth = width
                     preparedHeight = height
                     state = .uploading
                 }
                 if !Task.isCancelled {
-                    state = .uploaded(blobID)
+                    state = .uploaded(photo.blobID)
                 }
-                return blobID
+                return photo
             } catch let error as ChatMediaUploadError {
                 if !Task.isCancelled {
                     state = .failed(error.isRetryable ? .retryable : .notRetryable)

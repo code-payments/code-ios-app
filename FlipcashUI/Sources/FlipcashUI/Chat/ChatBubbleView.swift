@@ -148,8 +148,8 @@ public final class ChatBubbleView: UIView {
     /// Whether this bubble is currently flashing.
     var isFlashingAttention: Bool { background.isFlashingAttention }
 
-    /// Fills the bubble; `quoteThumbnailURL` is where a quoted photo's thumbnail loads from.
-    public func configure(with message: ChatMessage, quoteThumbnailURL: URL? = nil) {
+    /// Fills the bubble; `quoteThumbnail` is where a quoted photo's thumbnail loads from.
+    public func configure(with message: ChatMessage, quoteThumbnail: ChatMediaLocation? = nil) {
         label.attributedText = Self.displayText(for: message)
         editedLabel.isHidden = !Self.showsEditedMarker(for: message) || message.rendersAsLargeEmoji
         isBare = message.rendersAsLargeEmoji
@@ -182,7 +182,7 @@ public final class ChatBubbleView: UIView {
         // unsatisfiable, and UIKit resolves that by breaking one at random.
         if let quote = message.quote {
             quotePanel.isHidden = false
-            quotePanel.configure(with: quote, thumbnailURL: quoteThumbnailURL)
+            quotePanel.configure(with: quote, thumbnail: quoteThumbnail)
             NSLayoutConstraint.deactivate(quoteCollapse)
             quoteTrailing.isActive = true
             labelTopToBubble.isActive = false

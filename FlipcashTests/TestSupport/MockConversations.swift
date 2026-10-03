@@ -23,6 +23,8 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let caption: String?
         let repliedTo: MessageID?
         let clientMessageID: UUID
+        /// The sealed metadata the photo went out with, nil for a plaintext photo.
+        var sealed: SealedPhoto? = nil
     }
     struct TypingCall: Sendable { let conversationID: ConversationID; let state: TypingState }
     /// A scripted `GetDelta` batch: one `onBatch` call with these messages + checkpoint.
@@ -411,9 +413,23 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         )
     }
 
-    func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, blobID: BlobID, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+    func openingSeal(owner: KeyPair, conversationID: ConversationID) async -> ChatSeal? {
+        nil
+    }
+
+    func photoSeal(owner: KeyPair, conversationID: ConversationID) async throws -> ChatSeal? {
+        nil
+    }
+
+    func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: UploadedPhoto, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+        let blobID = photo.blobID
+        let sealed: SealedPhoto?
+        switch photo {
+        case .plain:              sealed = nil
+        case .sealed(let photo):  sealed = photo
+        }
         let (count, error) = lock.withLock {
-            _sentMedia.append(SentMedia(conversationID: conversationID, blobID: blobID, caption: caption, repliedTo: repliedTo, clientMessageID: clientMessageID))
+            _sentMedia.append(SentMedia(conversationID: conversationID, blobID: blobID, caption: caption, repliedTo: repliedTo, clientMessageID: clientMessageID, sealed: sealed))
             return (_sentMedia.count, _mediaSendError)
         }
         if let error { throw error }

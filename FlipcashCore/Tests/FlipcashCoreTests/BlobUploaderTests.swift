@@ -10,6 +10,70 @@ import Testing
 @Suite("Blob upload")
 struct BlobUploaderTests {
 
+    // MARK: - End-to-end encrypted -
+
+    @Test("An encrypted upload reserves for its DM, as an opaque blob the size of the sealed bytes")
+    func encryptedUploadReservesForChat() async throws {
+        let transport = RecordingTransport()
+        let reserving = StubReserving(states: [.ready])
+        let uploader = BlobUploader(reserving: reserving, transport: transport, pollInterval: .milliseconds(1), timeout: .seconds(5))
+        let conversationID = ConversationID(data: Data(repeating: 7, count: 32))
+        let sealed = Data(repeating: 0xCD, count: Self.fileBytes.count + EncryptedBlobUpload.overhead)
+
+        let upload = try await uploader.storeEncrypted(Self.fileBytes, for: conversationID, owner: try Self.owner()) { plaintext, blobID in
+            #expect(blobID == StubReserving.blobID)
+            #expect(plaintext == Self.fileBytes)
+            return sealed
+        }
+
+        #expect(upload == EncryptedBlobUpload(blobID: StubReserving.blobID, plaintextSize: Self.fileBytes.count))
+        #expect(await reserving.encryptedFor == conversationID)
+        #expect(await reserving.declaredMimeType == "application/octet-stream")
+        #expect(await reserving.declaredSizeBytes == sealed.count)
+        let parsed = try await Self.parse(transport)
+        #expect(parsed.file == sealed)
+    }
+
+    @Test("Metadata is stripped before encrypting, and the plaintext size is the stripped length")
+    func encryptedUploadStripsBeforeSealing() async throws {
+        let uploader = makeUploader(transport: RecordingTransport(), states: [.ready])
+        let jpeg = Self.jpegCarryingComment()
+        let stripped = JPEGMetadata.stripped(jpeg)
+        #expect(stripped.count < jpeg.count)
+
+        let upload = try await uploader.storeEncrypted(jpeg, for: ConversationID(data: Data(repeating: 7, count: 32)), owner: try Self.owner()) { plaintext, _ in
+            #expect(plaintext == stripped)
+            return Data(count: plaintext.count + EncryptedBlobUpload.overhead)
+        }
+
+        #expect(upload.plaintextSize == stripped.count)
+    }
+
+    @Test("A sealed blob of a size other than the one reserved is never uploaded")
+    func encryptedUploadRefusesWrongSize() async throws {
+        let transport = RecordingTransport()
+        let uploader = makeUploader(transport: transport, states: [.ready])
+
+        await #expect(throws: ErrorBlob.self) {
+            _ = try await uploader.storeEncrypted(Self.fileBytes, for: ConversationID(data: Data(repeating: 7, count: 32)), owner: try Self.owner()) { plaintext, _ in
+                plaintext
+            }
+        }
+        #expect(await transport.body == nil)
+    }
+
+    @Test("The reservation names the chat only for an encrypted upload")
+    func reservationRequestNamesChat() throws {
+        let owner = try Self.owner()
+        let conversationID = ConversationID(data: Data(repeating: 7, count: 32))
+
+        let encrypted = BlobService.initiateRequest(mimeType: "application/octet-stream", sizeBytes: 10, encryptedFor: conversationID, owner: owner)
+        let plain = BlobService.initiateRequest(mimeType: "image/jpeg", sizeBytes: 10, encryptedFor: nil, owner: owner)
+
+        #expect(encrypted.endToEndEncryptedFor == .chat(conversationID.proto))
+        #expect(plain.endToEndEncryptedFor == nil)
+    }
+
     // MARK: - Multipart body -
 
     @Test("Signed policy fields come first, the file last")
@@ -305,6 +369,7 @@ struct BlobUploaderTests {
         let names: [String]
         let values: [String: String]
         let fileByteCount: Int
+        let file: Data
     }
 
     private static func parse(_ transport: RecordingTransport) async throws -> ParsedBody {
@@ -320,6 +385,7 @@ struct BlobUploaderTests {
         var names: [String] = []
         var values: [String: String] = [:]
         var fileByteCount = 0
+        var file = Data()
 
         for segment in Self.segments(of: body, delimitedBy: "--\(boundary)\r\n") {
             guard let terminator = segment.range(of: Data("\r\n\r\n".utf8)) else { continue }
@@ -334,12 +400,13 @@ struct BlobUploaderTests {
 
             if name == "file" {
                 fileByteCount = payload.count
+                file = payload
             } else {
                 values[name] = String(decoding: payload, as: UTF8.self)
             }
         }
 
-        return ParsedBody(names: names, values: values, fileByteCount: fileByteCount)
+        return ParsedBody(names: names, values: values, fileByteCount: fileByteCount, file: file)
     }
 
     private static func segments(of body: Data, delimitedBy delimiter: String) -> [Data] {
@@ -409,15 +476,19 @@ private actor StubReserving: BlobReserving {
     private(set) var pollCount = 0
     private(set) var reserveCount = 0
     private(set) var declaredSizeBytes: Int?
+    private(set) var declaredMimeType: String?
+    private(set) var encryptedFor: ConversationID?
 
     init(states: [BlobState], completion: BlobState = .processing) {
         self.states = states
         self.completion = completion
     }
 
-    func initiateExternalUpload(mimeType: String, sizeBytes: Int, owner: KeyPair) async throws -> ReservedUpload {
+    func initiateExternalUpload(mimeType: String, sizeBytes: Int, encryptedFor: ConversationID?, owner: KeyPair) async throws -> ReservedUpload {
         reserveCount += 1
         declaredSizeBytes = sizeBytes
+        declaredMimeType = mimeType
+        self.encryptedFor = encryptedFor
 
         return ReservedUpload(
             blobID: Self.blobID,

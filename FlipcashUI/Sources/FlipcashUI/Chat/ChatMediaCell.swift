@@ -30,6 +30,8 @@ public final class ChatMediaCell: ChatColumnCell {
     private let stack = UIStackView()
     private let imageBubble = BubbleBackgroundView()
     let imageView = UIImageView()
+    /// Shown over the BlurHash when an encrypted photo's bytes fail to decrypt or check out.
+    let unavailableLabel = UILabel()
     let captionBubble = BubbleBackgroundView()
     let captionLabel = UILabel()
     let reactionRow = ReactionPillRowView()
@@ -65,6 +67,14 @@ public final class ChatMediaCell: ChatColumnCell {
         imageBubble.addSubview(imageView)
         imageBubble.isAccessibilityElement = true
         imageBubble.accessibilityLabel = "Photo"
+        unavailableLabel.text = ChatMediaStrings.undecryptable
+        unavailableLabel.font = .default(size: 14, weight: .medium)
+        unavailableLabel.textColor = .white
+        unavailableLabel.textAlignment = .center
+        unavailableLabel.numberOfLines = 0
+        unavailableLabel.isHidden = true
+        unavailableLabel.translatesAutoresizingMaskIntoConstraints = false
+        imageBubble.addSubview(unavailableLabel)
         imageTap.addTarget(self, action: #selector(imageTapped))
         imageBubble.addGestureRecognizer(imageTap)
 
@@ -103,6 +113,10 @@ public final class ChatMediaCell: ChatColumnCell {
             imageView.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor),
             imageView.bottomAnchor.constraint(equalTo: imageBubble.bottomAnchor),
 
+            unavailableLabel.centerYAnchor.constraint(equalTo: imageBubble.centerYAnchor),
+            unavailableLabel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.captionInset),
+            unavailableLabel.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor, constant: -Self.captionInset),
+
             captionLabel.topAnchor.constraint(equalTo: captionBubble.topAnchor, constant: Self.captionPadding),
             captionLabel.bottomAnchor.constraint(equalTo: captionBubble.bottomAnchor, constant: -Self.captionPadding),
             captionLabel.leadingAnchor.constraint(equalTo: captionBubble.leadingAnchor, constant: Self.captionInset),
@@ -124,6 +138,7 @@ public final class ChatMediaCell: ChatColumnCell {
         super.prepareForReuse()
         imageView.kf.cancelDownloadTask()
         imageView.image = nil
+        showUnavailable(false)
         drawnRowID = nil
         reactionRow.prepareForReuse()
     }
@@ -137,12 +152,12 @@ public final class ChatMediaCell: ChatColumnCell {
     /// - Parameters:
     ///   - maxWidth: the transcript's widest bubble, which the photo always spans.
     ///   - localImage: the picked image of a pending send this device staged, or nil.
-    ///   - remoteURL: the photo's resolved download URL, or nil until it is resolved.
+    ///   - remote: where the photo downloads from, or nil until it is resolved.
     public func configure(
         with message: ChatMessage,
         maxWidth: CGFloat,
         localImage: UIImage?,
-        remoteURL: URL?,
+        remote: ChatMediaLocation?,
         authorImageData: Data? = nil
     ) {
         guard case .media(let media) = message.content else { return }
@@ -161,7 +176,7 @@ public final class ChatMediaCell: ChatColumnCell {
             blobID: media.blobID,
             blurhash: media.blurhash,
             localImage: blurhashOnly ? nil : localImage,
-            remoteURL: blurhashOnly ? nil : remoteURL,
+            remote: blurhashOnly ? nil : remote,
             size: CGSize(width: size.width, height: size.height)
         )
         imageTap.isEnabled = !blurhashOnly && !message.isFailed
@@ -197,9 +212,10 @@ public final class ChatMediaCell: ChatColumnCell {
         updateColumn(for: message, authorImageData: authorImageData)
     }
 
-    private func drawImage(for rowID: String, blobID: BlobID?, blurhash: String?, localImage: UIImage?, remoteURL: URL?, size: CGSize) {
+    private func drawImage(for rowID: String, blobID: BlobID?, blurhash: String?, localImage: UIImage?, remote: ChatMediaLocation?, size: CGSize) {
         let isSameRow = drawnRowID == rowID
         drawnRowID = rowID
+        if !isSameRow { showUnavailable(false) }
 
         if let localImage {
             imageView.kf.cancelDownloadTask()
@@ -208,7 +224,7 @@ public final class ChatMediaCell: ChatColumnCell {
         }
 
         let preview = BlurHashCache.shared.image(for: blurhash)
-        guard let remoteURL else {
+        guard let remote else {
             imageView.kf.cancelDownloadTask()
             imageView.image = preview
             return
@@ -217,15 +233,28 @@ public final class ChatMediaCell: ChatColumnCell {
         // Whatever this row already shows — its local image, or the photo itself on a reconfigure —
         // stays under the load, so only a BlurHash is ever faded over.
         let placeholder = isSameRow ? (imageView.image ?? preview) : preview
+        let processor = DownsamplingImageProcessor(size: size)
         imageView.kf.setImage(
-            with: ChatMediaImageSource.resource(blobID: blobID, url: remoteURL),
+            with: ChatMediaImageSource.source(blobID: blobID, location: remote),
             placeholder: placeholder,
-            options: [
-                .processor(DownsamplingImageProcessor(size: size)),
+            options: ChatMediaImageSource.options(processor: processor) + [
                 .scaleFactor(traitCollection.displayScale),
                 .transition(.fade(Self.fadeDuration)),
             ]
-        )
+        ) { [weak self] result in
+            ChatMediaImageSource.persist(result, processor: processor)
+            if case .failure(let error) = result, ChatMediaImageSource.isUndecryptable(error) {
+                self?.showUnavailable(true)
+            }
+        }
+    }
+
+    /// Marks the photo as one that can't be shown: an encrypted blob that failed to authenticate or
+    /// wasn't the length its sender declared. It keeps its BlurHash and takes no tap.
+    private func showUnavailable(_ unavailable: Bool) {
+        unavailableLabel.isHidden = !unavailable
+        imageBubble.accessibilityLabel = unavailable ? ChatMediaStrings.undecryptable : "Photo"
+        if unavailable { imageTap.isEnabled = false }
     }
 
     @objc private func imageTapped() {

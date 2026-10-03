@@ -112,8 +112,15 @@ protocol ConversationMessaging: AnyObject, Sendable {
         onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
     ) async throws -> UInt64
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage
-    /// Sends the finalized photo `blobID` as one media message, with `caption` under it.
-    func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, blobID: BlobID, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage
+    /// Sends the finalized `photo` as one media message, with `caption` under it; a sealed photo
+    /// goes out inside `EncryptedContent`.
+    func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: UploadedPhoto, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage
+    /// The seal a photo sent into `conversationID` is encrypted with, nil when it goes out in
+    /// plaintext. Throws when the chat encrypts but its seal can't be built.
+    func photoSeal(owner: KeyPair, conversationID: ConversationID) async throws -> ChatSeal?
+    /// The seal `conversationID`'s messages open with, nil when it can't be built yet or the chat
+    /// doesn't encrypt.
+    func openingSeal(owner: KeyPair, conversationID: ConversationID) async -> ChatSeal?
     /// Replaces a message's text, keeping it a reply to `repliedTo` when set. `expectedEventSequence` is the optimistic-concurrency guard: the
     /// server applies the edit only if the message still carries that sequence, and reports a
     /// conflict with the winning state otherwise.

@@ -34,6 +34,22 @@ struct UploadPolicyTests {
         #expect(policy.constraints[2].image == nil)
     }
 
+    @Test("Maps the encrypted-upload constraints, and their absence to nil")
+    func mapsEncryptedConstraints() {
+        var proto = Flipcash_Blob_V1_UploadPolicy()
+        #expect(UploadPolicy(proto).encrypted == nil)
+
+        proto.encrypted = .with {
+            $0.maxSizeBytes = 5_000_040
+            $0.image = .with { $0.maxWidth = 2048; $0.maxHeight = 1536; $0.maxPixels = 3_000_000 }
+        }
+
+        #expect(UploadPolicy(proto).encrypted == UploadPolicy.EncryptedConstraints(
+            maxSizeBytes: 5_000_040,
+            image: UploadPolicy.ImageConstraints(maxWidth: 2048, maxHeight: 1536, maxPixels: 3_000_000)
+        ))
+    }
+
     @Test("An unset TTL maps to nil, not zero")
     func unsetTTLIsNil() {
         var proto = Self.proto(version: "v7", ttlSeconds: 300)

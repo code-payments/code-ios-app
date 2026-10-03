@@ -131,6 +131,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Mints a signed download URL for a photo in this chat. The transcript's resolver caches what it
     /// returns and never asks for a photo drawn only from its BlurHash.
     var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
+    /// Decrypts the chat's end-to-end encrypted photo blobs, or nil while its key is unknown.
+    var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? = { nil }
     /// Fired when the user taps a photo the viewer may see. The owner opens the full-screen viewer.
     var onMediaTap: (ChatMediaViewerRequest) -> Void = { _ in }
 
@@ -161,6 +163,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.linkCardSource = linkCardSource
         screen.onMediaTap = onMediaTap
         context.coordinator.mintMediaURL = mintMediaURL
+        context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
         screen.mediaURLResolver = context.coordinator.mediaURLResolver
         screen.pendingMediaImage = { [conversationController] id in
             conversationController.pendingMediaImage(forMessageID: id)
@@ -213,6 +216,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.linkCardSource = linkCardSource
         screen.onMediaTap = onMediaTap
         context.coordinator.mintMediaURL = mintMediaURL
+        context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onGroupInvite = onGroupInvite
@@ -345,8 +349,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                     model.returnToMenu()
                 },
                 // Only a member can aim a reply, so the viewer may see what it quotes.
-                quoteThumbnailURL: { [resolver = coordinator.mediaURLResolver] kind in
-                    await resolver.thumbnailURL(for: kind, canReact: true)
+                quoteThumbnailLocation: { [resolver = coordinator.mediaURLResolver] kind in
+                    await resolver.thumbnailLocation(for: kind, canReact: true)
                 }
             )
             .environment(conversationController)
@@ -437,10 +441,17 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         /// The one resolver the transcript and the composer's reply strip share, so a photo is minted
         /// once however many places draw it. Reads ``mintMediaURL`` at fetch time, so a chat created
         /// after this screen opened mints against its real id.
-        lazy var mediaURLResolver = ChatMediaURLResolver { [weak self] blobID in
-            guard let self else { return nil }
-            return try await self.mintMediaURL(blobID)
-        }
+        /// The latest ``ChatScreenRepresentable/mediaBlobDecrypt``, read by the resolver.
+        var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? = { nil }
+        lazy var mediaURLResolver = ChatMediaURLResolver(
+            fetch: { [weak self] blobID in
+                guard let self else { return nil }
+                return try await self.mintMediaURL(blobID)
+            },
+            decrypt: { [weak self] in
+                await self?.mediaBlobDecrypt()
+            }
+        )
     }
 }
 

@@ -198,6 +198,19 @@ final class ChatMessagingService: Sendable {
         send(content, owner: owner, conversationID: conversationID, seal: nil, clientMessageID: clientMessageID, completion: completion)
     }
 
+    /// Sends `photo`, its caption and reply inside the sealed plaintext, as `EncryptedContent`.
+    func sendSealedMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: SealedPhoto, caption: String?, repliedTo: MessageID?, seal: ChatSeal, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
+        let content: Flipcash_Messaging_V1_Content
+        do {
+            content = try seal.seal(photo: photo, caption: caption, repliedTo: repliedTo)
+        } catch {
+            logger.error("Failed to encrypt photo message")
+            completion(.failure(.encryptionFailed))
+            return
+        }
+        send(content, owner: owner, conversationID: conversationID, seal: seal, clientMessageID: clientMessageID, completion: completion)
+    }
+
     private func send(_ content: Flipcash_Messaging_V1_Content, owner: KeyPair, conversationID: ConversationID, seal: ChatSeal?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
         let request = Flipcash_Messaging_V1_SendMessageRequest.with {
             $0.chatID = conversationID.proto

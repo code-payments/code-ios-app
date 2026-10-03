@@ -171,8 +171,8 @@ final class ChatQuotePanelView: UIView {
         accessibilityIdentifier = "chat-quote-panel"
     }
 
-    /// - Parameter thumbnailURL: where a quoted photo's thumbnail loads from, or nil until it resolves.
-    func configure(with quote: ChatQuote, thumbnailURL: URL? = nil) {
+    /// - Parameter thumbnail: where a quoted photo's thumbnail loads from, or nil until it resolves.
+    func configure(with quote: ChatQuote, thumbnail: ChatMediaLocation? = nil) {
         targetStableID = quote.stableID
         // The author's own colour, derived from their user id — the same colour the composer's strip
         // draws them in, and the same one Android does. An original with no known author falls back
@@ -196,17 +196,17 @@ final class ChatQuotePanelView: UIView {
             // A payment's amount is the whole of what was said, so it is read rather than glanced
             // at — a step brighter than the preview grey a quoted sentence gets.
             snippetLabel.textColor = UIColor.white.withAlphaComponent(0.75)
-            showThumbnail(blobID: nil, url: nil)
-        case .media(let thumbnailBlobID):
+            showThumbnail(blobID: nil, location: nil)
+        case .media(let thumbnailBlobID, _):
             flagView.isHidden = true
             tokenLabel.isHidden = true
             snippetLabel.textColor = Self.snippetColor
-            showThumbnail(blobID: thumbnailBlobID, url: thumbnailURL)
+            showThumbnail(blobID: thumbnailBlobID, location: thumbnail)
         case .text, .unavailable:
             flagView.isHidden = true
             tokenLabel.isHidden = true
             snippetLabel.textColor = Self.snippetColor
-            showThumbnail(blobID: nil, url: nil)
+            showThumbnail(blobID: nil, location: nil)
         }
         let spoken = switch quote.kind {
         case .cash(let token, _):  "\(quote.snippet) \(token)"
@@ -230,14 +230,14 @@ final class ChatQuotePanelView: UIView {
         flagView.image = nil
         flagView.isHidden = true
         tokenLabel.isHidden = true
-        showThumbnail(blobID: nil, url: nil)
+        showThumbnail(blobID: nil, location: nil)
         isUserInteractionEnabled = false
         accessibilityLabel = nil
     }
 
-    /// Shows the thumbnail slot for a photo with a blob, loading it once `url` resolves; hides and
-    /// empties it otherwise. A redacted photo has no blob, so it never reaches the network from here.
-    private func showThumbnail(blobID: BlobID?, url: URL?) {
+    /// Shows the thumbnail slot for a photo with a blob, loading it once `location` resolves; hides
+    /// and empties it otherwise. A redacted photo has no blob, so it never reaches the network from here.
+    private func showThumbnail(blobID: BlobID?, location: ChatMediaLocation?) {
         guard let blobID else {
             thumbnailView.kf.cancelDownloadTask()
             thumbnailView.image = nil
@@ -249,19 +249,21 @@ final class ChatQuotePanelView: UIView {
         thumbnailView.isHidden = false
         textTrailingToEdge.isActive = false
         NSLayoutConstraint.activate(thumbnailConstraints + [textTrailingToThumbnail])
-        guard let url else {
+        guard let location else {
             thumbnailView.kf.cancelDownloadTask()
             thumbnailView.image = nil
             return
         }
         let side = Self.thumbnailSide
+        let processor = DownsamplingImageProcessor(size: CGSize(width: side, height: side))
         thumbnailView.kf.setImage(
-            with: ChatMediaImageSource.resource(blobID: blobID, url: url),
-            options: [
-                .processor(DownsamplingImageProcessor(size: CGSize(width: side, height: side))),
+            with: ChatMediaImageSource.source(blobID: blobID, location: location),
+            options: ChatMediaImageSource.options(processor: processor) + [
                 .scaleFactor(traitCollection.displayScale),
             ]
-        )
+        ) { result in
+            ChatMediaImageSource.persist(result, processor: processor)
+        }
     }
 
     @objc private func handleTap() {
