@@ -42,6 +42,15 @@ struct TipConversationsScreen: View {
     /// A selected filter keeps the chips in view: they explain the list.
     private var showsChips: Bool { chipsRevealed || filter != .all }
 
+    /// The iOS 26 tab bar sits in the safe area; the legacy pill floats over the
+    /// content, so the toast has to clear it too or it lands behind the pill.
+    private var undoToastBottomPadding: CGFloat {
+        if #available(iOS 26, *) {
+            return 12
+        }
+        return 12 + HomeTabView.legacyPillClearance
+    }
+
     var body: some View {
         let projection = self.projection
         let conversations = rows(projection)
@@ -122,7 +131,7 @@ struct TipConversationsScreen: View {
                     },
                     onDismiss: { undoTarget = nil }
                 )
-                .padding(.bottom, 12)
+                .padding(.bottom, undoToastBottomPadding)
                 .floatingToastTransition()
             }
         }
