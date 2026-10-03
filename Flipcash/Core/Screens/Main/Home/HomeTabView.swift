@@ -106,6 +106,9 @@ struct HomeTabView: View {
                 tipCardPresentation.collapse()
             }
             .onDisappear { router.activeTabStack = nil }
+            .onChange(of: router.presentedSheet != nil || sessionContainer.session.isShowingBill, initial: true) { _, covered in
+                container.toasts.isCovered = covered
+            }
             .onChange(of: sessionContainer.session.profile?.username, initial: true) { _, username in
                 sessionContainer.chatArchive.setViewerUsername(username)
             }
