@@ -21,11 +21,8 @@ final class BlobService: Sendable {
 
 extension BlobService: BlobReserving {
 
-    func initiateExternalUpload(mimeType: String, sizeBytes: Int, owner: KeyPair) async throws -> ReservedUpload {
-        var request = Flipcash_Blob_V1_InitiateExternalUploadRequest()
-        request.mimeType  = mimeType
-        request.sizeBytes = UInt64(sizeBytes)
-        request.auth      = owner.authFor(message: request)
+    func initiateExternalUpload(mimeType: String, sizeBytes: Int, encryptedFor: ConversationID?, owner: KeyPair) async throws -> ReservedUpload {
+        let request = Self.initiateRequest(mimeType: mimeType, sizeBytes: sizeBytes, encryptedFor: encryptedFor, owner: owner)
 
         do {
             let response = try await service.initiateExternalUpload(request, options: .unaryDefault)
@@ -114,6 +111,18 @@ extension BlobService: BlobReserving {
 
     /// A policy-driven denial echoes the version in force, which retires a
     /// stale cached policy.
+    /// The signed reservation request, naming the DM the bytes are encrypted for when set.
+    static func initiateRequest(mimeType: String, sizeBytes: Int, encryptedFor: ConversationID?, owner: KeyPair) -> Flipcash_Blob_V1_InitiateExternalUploadRequest {
+        var request = Flipcash_Blob_V1_InitiateExternalUploadRequest()
+        request.mimeType  = mimeType
+        request.sizeBytes = UInt64(sizeBytes)
+        if let encryptedFor {
+            request.chat = encryptedFor.proto
+        }
+        request.auth      = owner.authFor(message: request)
+        return request
+    }
+
     private func observePolicyVersion(of response: Flipcash_Blob_V1_InitiateExternalUploadResponse) async {
         guard response.hasPolicyVersion else { return }
         await policyCache.observe(version: response.policyVersion.value)

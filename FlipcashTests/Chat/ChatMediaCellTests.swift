@@ -9,6 +9,7 @@ import Testing
 import UIKit
 import FlipcashCore
 @testable import FlipcashUI
+import Kingfisher
 
 @Suite("Chat photo cell")
 @MainActor
@@ -40,7 +41,7 @@ struct ChatMediaCellTests {
             with: ChatMessage(id: "1", content: .media(media), sender: .other, reactions: [Self.pill], canReact: canReact),
             maxWidth: 240,
             localImage: localImage,
-            remoteURL: remoteURL
+            remote: remoteURL.map { ChatMediaLocation(url: $0) }
         )
         return cell
     }
@@ -101,12 +102,117 @@ struct ChatMediaCellTests {
     @Test("A photo caches under its blob, so a freshly signed URL reuses the download")
     func cachesUnderBlob() {
         let blobID = BlobID(data: Data([1]))
-        let first = ChatMediaImageSource.resource(blobID: blobID, url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!)
-        let second = ChatMediaImageSource.resource(blobID: blobID, url: URL(string: "https://cdn.example.com/a.jpg?sig=2")!)
-        let other = ChatMediaImageSource.resource(blobID: BlobID(data: Data([2])), url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!)
+        let first = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!))
+        let second = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=2")!))
+        let other = ChatMediaImageSource.source(blobID: BlobID(data: Data([2])), location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!))
 
         #expect(first.cacheKey == second.cacheKey)
         #expect(first.cacheKey != other.cacheKey)
-        #expect(second.downloadURL.absoluteString.hasSuffix("sig=2"))
+        #expect(second.url?.absoluteString.hasSuffix("sig=2") == true)
+    }
+
+    @Test("An encrypted photo caches under the same blob key and loads through a decrypting provider")
+    func encryptedPhotoCachesUnderBlob() {
+        let blobID = BlobID(data: Data([1]))
+        let url = URL(string: "https://cdn.example.com/a.bin?sig=1")!
+        let plain = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url))
+        let sealed = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url) { $0 })
+
+        #expect(sealed.cacheKey == plain.cacheKey)
+        guard case .provider = sealed else {
+            Issue.record("An encrypted photo must load through a provider, not straight from the network")
+            return
+        }
+    }
+
+    @Test("A downloaded photo persists to disk, so it survives a memory trim or relaunch")
+    func persistsDownloadToDisk() async {
+        let key = "chat-media-test-\(UUID().uuidString)"
+        let processor = DownsamplingImageProcessor(size: CGSize(width: 40, height: 40))
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
+
+        await withCheckedContinuation { continuation in
+            ChatMediaImageSource.persist(image, cacheType: .none, forKey: key, processor: processor) {
+                continuation.resume()
+            }
+        }
+
+        let cache = ChatMediaImageSource.cache
+        cache.clearMemoryCache()
+        #expect(cache.imageCachedType(forKey: key, processorIdentifier: processor.identifier) == .disk)
+        try? await cache.removeImage(forKey: key, processorIdentifier: processor.identifier)
+    }
+
+    @Test("A photo already served from a cache is not written again")
+    func skipsCachedHits() async {
+        let key = "chat-media-test-\(UUID().uuidString)"
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
+
+        ChatMediaImageSource.persist(image, cacheType: .memory, forKey: key, processor: nil)
+
+        #expect(!ChatMediaImageSource.cache.imageCachedType(forKey: key).cached)
+    }
+
+    // MARK: - Encrypted -
+
+    /// A cell drawing an encrypted photo whose blob is a local file and whose decryption is `decrypt`.
+    private func encryptedCell(decrypt: @escaping @Sendable (Data) throws -> Data) throws -> ChatMediaCell {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("chat-media-\(UUID().uuidString)")
+        try Data([1, 2, 3]).write(to: file)
+        let media = ChatMediaContent(
+            blobID: BlobID(data: Data(UUID().uuidString.utf8)),
+            width: 100,
+            height: 100,
+            blurhash: Self.blurhash,
+            caption: nil,
+            isRedacted: false,
+            sealed: SealedBlob(senderID: UUID(), plaintextSize: 3)
+        )
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(
+            with: ChatMessage(id: "1", content: .media(media), sender: .other, reactions: [], canReact: true),
+            maxWidth: 240,
+            localImage: nil,
+            remote: ChatMediaLocation(url: file, decrypt: decrypt)
+        )
+        return cell
+    }
+
+    private func waitForUnavailable(_ cell: ChatMediaCell) async {
+        for _ in 0..<200 where cell.unavailableLabel.isHidden {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
+    @Test("An encrypted photo that fails to authenticate keeps its BlurHash, says it can't be shown, and takes no tap")
+    func undecryptablePhotoShowsUnavailable() async throws {
+        let cell = try encryptedCell { _ in throw BlobOpenFailure.authentication }
+        #expect(cell.unavailableLabel.isHidden)
+
+        await waitForUnavailable(cell)
+
+        #expect(!cell.unavailableLabel.isHidden)
+        #expect(!cell.imageTap.isEnabled)
+        #expect(cell.imageView.image != nil)
+    }
+
+    @Test("An encrypted photo whose plaintext doesn't decode as an image says it can't be shown")
+    func undecodablePhotoShowsUnavailable() async throws {
+        let cell = try encryptedCell { $0 }
+
+        await waitForUnavailable(cell)
+
+        #expect(!cell.unavailableLabel.isHidden)
+    }
+
+    @Test("Only a blob that will never open counts as undecryptable; a failed fetch stays retryable")
+    func undecryptableClassification() {
+        func providerError(_ underlying: any Error) -> KingfisherError {
+            .imageSettingError(reason: .dataProviderError(provider: RawImageDataProvider(data: Data(), cacheKey: "k"), error: underlying))
+        }
+        #expect(ChatMediaImageSource.isUndecryptable(providerError(BlobOpenFailure.authentication)))
+        #expect(ChatMediaImageSource.isUndecryptable(providerError(BlobOpenFailure.length)))
+        #expect(ChatMediaImageSource.isUndecryptable(providerError(BlobOpenFailure.undecodable)))
+        #expect(!ChatMediaImageSource.isUndecryptable(providerError(URLError(.notConnectedToInternet))))
     }
 }

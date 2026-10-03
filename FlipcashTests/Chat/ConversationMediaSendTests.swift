@@ -45,14 +45,14 @@ struct ConversationMediaSendTests {
     private func uploadedChip(_ name: String) -> ComposerChip {
         let chip = ComposerChip(image: testImage())
         let blobID = blobID(name)
-        chip.uploadTask = Task { blobID }
+        chip.uploadTask = Task { .plain(blobID) }
         return chip
     }
 
     /// A chip whose upload ends only when the test opens `gate`.
     private func gatedChip(_ gate: UploadGate, image: UIImage? = nil) -> ComposerChip {
         let chip = ComposerChip(image: image ?? testImage())
-        chip.uploadTask = Task { try await gate.wait() }
+        chip.uploadTask = Task { .plain(try await gate.wait()) }
         return chip
     }
 

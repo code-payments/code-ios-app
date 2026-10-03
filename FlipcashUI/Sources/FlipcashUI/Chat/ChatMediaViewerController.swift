@@ -20,8 +20,8 @@ public struct ChatMediaViewerRequest {
     public let blobID: BlobID?
     /// The staged image of a send this device has not confirmed yet, drawn instead of downloading.
     public let localImage: UIImage?
-    /// The photo's resolved download URL, or nil for a pending send.
-    public let remoteURL: URL?
+    /// Where the photo downloads from, or nil for a pending send.
+    public let remote: ChatMediaLocation?
     /// Whatever the row drew when it was tapped, shown while the full photo loads.
     public let placeholder: UIImage?
     /// The on-screen view the photo zooms out of and back into, looked up on each use because the
@@ -34,18 +34,18 @@ public struct ChatMediaViewerRequest {
     public init?(
         message: ChatMessage,
         localImage: UIImage?,
-        remoteURL: URL?,
+        remote: ChatMediaLocation?,
         placeholder: UIImage?,
         sourceView: @escaping () -> UIView?
     ) {
         guard case .media(let media) = message.content,
               !ChatMediaCell.isBlurhashOnly(media, canReact: message.canReact),
               !message.isFailed,
-              localImage != nil || remoteURL != nil else { return nil }
+              localImage != nil || remote != nil else { return nil }
         self.messageID = message.id
         self.blobID = media.blobID
         self.localImage = localImage
-        self.remoteURL = remoteURL
+        self.remote = remote
         self.placeholder = placeholder
         self.sourceView = sourceView
     }
@@ -159,11 +159,13 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         }
         imageView.image = request.placeholder
         loadedImage = nil
-        guard let remoteURL = request.remoteURL else { return }
+        guard let remote = request.remote else { return }
         imageView.kf.setImage(
-            with: ChatMediaImageSource.resource(blobID: request.blobID, url: remoteURL),
-            placeholder: request.placeholder
+            with: ChatMediaImageSource.source(blobID: request.blobID, location: remote),
+            placeholder: request.placeholder,
+            options: ChatMediaImageSource.options()
         ) { [weak self] result in
+            ChatMediaImageSource.persist(result)
             switch result {
             case .success(let value):
                 self?.loadedImage = value.image

@@ -38,7 +38,7 @@ struct ChatMediaViewerTests {
         localImage: UIImage? = nil,
         remoteURL: URL? = ChatMediaViewerTests.remoteURL
     ) -> ChatMediaViewerRequest? {
-        ChatMediaViewerRequest(message: message, localImage: localImage, remoteURL: remoteURL, placeholder: nil) { nil }
+        ChatMediaViewerRequest(message: message, localImage: localImage, remote: remoteURL.map { ChatMediaLocation(url: $0) }, placeholder: nil) { nil }
     }
 
     // MARK: - Request
@@ -47,7 +47,7 @@ struct ChatMediaViewerTests {
     func viewablePhotoOpens() throws {
         let request = try #require(request(message(media())))
         #expect(request.blobID == Self.blobID)
-        #expect(request.remoteURL == Self.remoteURL)
+        #expect(request.remote?.url == Self.remoteURL)
     }
 
     @Test("A redacted photo, or one seen while previewing a group, never opens")
@@ -79,7 +79,7 @@ struct ChatMediaViewerTests {
     func zoomsFromSource() throws {
         let source = UIView()
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: Self.localImage, remoteURL: nil, placeholder: nil
+            message: message(media()), localImage: Self.localImage, remote: nil, placeholder: nil
         ) { source })
         let viewer = ChatMediaViewerController(request: request) { _ in }
 
@@ -118,7 +118,7 @@ struct ChatMediaViewerTests {
     func shareWaitsForPhoto() throws {
         let placeholder = UIImage(systemName: "photo")!
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: nil, remoteURL: URL(string: "https://example.invalid/never.jpg")!, placeholder: placeholder
+            message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
         ) { nil })
         var shared: UIImage?
         let viewer = ChatMediaViewerController(request: request) { shared = $0 }

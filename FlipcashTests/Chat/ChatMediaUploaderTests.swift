@@ -7,6 +7,7 @@
 
 import Testing
 import UIKit
+import SharedCore
 @testable import FlipcashCore
 @testable import Flipcash
 
@@ -46,7 +47,7 @@ struct ChatMediaUploaderTests {
 
         let blobID = try await ChatMediaUploader(blob: blob).upload(Self.image(width: 3000, height: 2000)) { width, height in
             prepared = (width, height, blob.storedData.count)
-        }
+        }.blobID
 
         #expect(prepared?.width == 2048)
         #expect(prepared?.height == 1365)
@@ -117,9 +118,9 @@ struct ChatMediaUploaderTests {
         let blob = MockChatMediaBlobStore()
         blob.storeResults = [.failure(ErrorBlob.network(URLError(.timedOut)))]
 
-        let blobID = try await ChatMediaUploader(blob: blob, backoff: [.zero]).upload(Self.image(width: 40, height: 30)) { _, _ in }
+        let photo = try await ChatMediaUploader(blob: blob, backoff: [.zero]).upload(Self.image(width: 40, height: 30)) { _, _ in }
 
-        #expect(blobID == MockChatMediaBlobStore.blobID)
+        #expect(photo == .plain(MockChatMediaBlobStore.blobID))
         #expect(blob.storeAttempts == 2)
     }
 
@@ -146,6 +147,91 @@ struct ChatMediaUploaderTests {
         #expect(blob.storeAttempts == 0)
     }
 
+    // MARK: - Encrypted -
+
+    private static func seal() throws -> ChatSeal {
+        try ChatSeal(
+            cipher: DefaultChatCipher.shared,
+            owner: KeyPair.generate()!,
+            peerPublicKey: KeyPair.generate()!.publicKey,
+            conversationID: ConversationID(data: Data(repeating: 0x07, count: 32)),
+            selfUserID: UUID()
+        )
+    }
+
+    @Test("In a chat that encrypts, the photo is sealed for it within the encrypted ceiling, with its blurhash")
+    func encryptedChatSealsPhoto() async throws {
+        let policy = UploadPolicy(version: "v1", ttl: nil, constraints: [
+            .init(pattern: "image/*", maxSizeBytes: 5_000_000, image: .init(maxWidth: 4096, maxHeight: 4096, maxPixels: 0)),
+        ], encrypted: .init(maxSizeBytes: 2_000_000, image: .init(maxWidth: 1000, maxHeight: 1000, maxPixels: 0)))
+        let blob = MockChatMediaBlobStore(policy: policy)
+        let seal = try Self.seal()
+        var uploader = ChatMediaUploader(blob: blob)
+        uploader.seal = { seal }
+
+        let photo = try await uploader.upload(Self.image(width: 3000, height: 2000)) { _, _ in }
+
+        guard case .sealed(let sealed) = photo else {
+            Issue.record("Expected a sealed photo")
+            return
+        }
+        #expect(blob.storedData.isEmpty)
+        #expect(blob.encryptedStores.count == 1)
+        #expect(blob.encryptedStores.first?.conversationID == seal.conversationID)
+        #expect(sealed.width == 1000)
+        #expect((666...667).contains(sealed.height))
+        #expect(sealed.mimeType == "image/jpeg")
+        #expect(sealed.sizeBytes == blob.encryptedStores.first?.image.count)
+        #expect(!sealed.blurhash.isEmpty && sealed.blurhash.count <= 64)
+        #expect(blob.finalizedBlobIDs == [sealed.blobID])
+    }
+
+    @Test("A chat that encrypts under a policy with no encrypted constraints uploads nothing, for good")
+    func encryptedChatWithoutPolicyUploadsNothing() async throws {
+        let blob = MockChatMediaBlobStore()
+        let seal = try Self.seal()
+        var uploader = ChatMediaUploader(blob: blob)
+        uploader.seal = { seal }
+
+        let error = await Self.uploadError(uploader)
+
+        #expect(error?.isRetryable == false)
+        #expect(blob.storeAttempts == 0)
+    }
+
+    @Test("A missing peer key uploads nothing and stays retryable; it never falls back to plaintext")
+    func missingPeerKeyUploadsNothing() async {
+        let blob = MockChatMediaBlobStore()
+        var uploader = ChatMediaUploader(blob: blob)
+        uploader.seal = { throw PeerKeyUnavailable(userID: UUID()) }
+
+        let error = await Self.uploadError(uploader)
+
+        #expect(error?.isRetryable == true)
+        #expect(blob.storeAttempts == 0)
+    }
+
+    // MARK: - Gate -
+
+    @Test("Camera and Photos show in an encrypted DM, a plaintext chat, and not before the chat loads")
+    func gateShowsPhotosInEncryptedDMs() {
+        let encrypted = Conversation(
+            id: ConversationID(data: Data(repeating: 0x01, count: 32)),
+            members: [ConversationMember(userID: UUID(), displayName: "A"), ConversationMember(userID: UUID(), displayName: "B")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0),
+            type: .contactDm,
+            useE2Ee: true
+        )
+        #expect(E2eePolicy.shouldEncrypt(encrypted))
+        #expect(ChatMediaGate.acceptsMedia(encrypted))
+
+        var plain = encrypted
+        plain.useE2Ee = false
+        #expect(ChatMediaGate.acceptsMedia(plain))
+        #expect(!ChatMediaGate.acceptsMedia(nil))
+    }
+
     // MARK: - Chip -
 
     @Test("A staged chip uploads, with its dimensions set before the bytes are stored")
@@ -158,7 +244,7 @@ struct ChatMediaUploaderTests {
 
         #expect(chip.state == .preparing)
 
-        let blobID = try await #require(chip.uploadTask).value
+        let blobID = try await #require(chip.uploadTask).value.blobID
 
         #expect(dimensionsAtStore?.0 == 20)
         #expect(dimensionsAtStore?.1 == 15)
@@ -189,7 +275,7 @@ struct ChatMediaUploaderTests {
 
         blob.finalization = .success(())
         chip.startUpload(using: uploader)
-        let blobID = try await #require(chip.uploadTask).value
+        let blobID = try await #require(chip.uploadTask).value.blobID
 
         #expect(chip.state == .uploaded(blobID))
     }
@@ -242,5 +328,23 @@ struct ChatMediaUploaderTests {
         #expect(ChatMediaUploadError.noMatchingConstraint.reportingLevel == .error)
         #expect(ChatMediaUploadError.failed(ErrorBlob.quotaExceeded).reportingLevel == .info)
         #expect(ChatMediaUploadError.failed(ErrorBlob.unknown).reportingLevel == .error)
+    }
+
+    @Test("A photo goes out only under the encryption choice it was uploaded for")
+    func photoSendMatchesSeal() throws {
+        let seal = try Self.seal()
+        let chat = seal.conversationID
+        let other = ConversationID(data: Data(repeating: 0x08, count: 32))
+        let blobID = BlobID(data: Data([1]))
+        let sealed = SealedPhoto(blobID: blobID, mimeType: "image/jpeg", sizeBytes: 10, width: 1, height: 1, blurhash: "00")
+
+        #expect(EncryptedChatClient.photoSend(.plain(blobID), seal: nil, conversationID: chat) == .plain(blobID))
+        #expect(EncryptedChatClient.photoSend(.sealed(sealed), seal: seal, conversationID: chat) == .sealed(sealed, seal))
+        // The chat started encrypting after the photo uploaded in plaintext.
+        #expect(EncryptedChatClient.photoSend(.plain(blobID), seal: seal, conversationID: chat) == .mismatch)
+        // The chat stopped encrypting after the photo uploaded sealed.
+        #expect(EncryptedChatClient.photoSend(.sealed(sealed), seal: nil, conversationID: chat) == .mismatch)
+        // A seal for a different chat.
+        #expect(EncryptedChatClient.photoSend(.sealed(sealed), seal: seal, conversationID: other) == .mismatch)
     }
 }

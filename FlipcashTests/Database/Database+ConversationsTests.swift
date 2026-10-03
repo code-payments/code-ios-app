@@ -501,6 +501,27 @@ struct DatabaseConversationsTests {
         #expect(try database.getConversationMessages(conversationID: id) == [captioned, bare])
     }
 
+    @Test("A decrypted photo reloads with what it needs to decrypt its blob again")
+    func sealedMediaRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let attachment = MediaAttachment(
+            blobID: BlobID(data: Data(repeating: 9, count: 16)), width: 300, height: 400, blurhash: "LEHV6nWB2yk8",
+            sealed: SealedBlob(senderID: otherID, plaintextSize: 4321)
+        )
+        let message = ConversationMessage(
+            id: MessageID(value: 1), senderID: otherID,
+            content: .media([attachment], caption: "secret"),
+            date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 3,
+            sealed: ConversationMessage.Sealed(scheme: 1, nonce: Data([1]), ciphertext: Data([2]))
+        )
+
+        try database.upsertConversationMessages([message], conversationID: id)
+
+        #expect(try database.getConversationMessages(conversationID: id) == [message])
+    }
+
     @Test("A redacted media message reloads still redacted, so its bytes stay unfetched after a relaunch")
     func redactedMediaRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

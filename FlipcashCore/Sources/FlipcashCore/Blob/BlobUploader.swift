@@ -9,7 +9,8 @@ private let logger = Logger(label: "flipcash.blob-uploader")
 
 /// The blob RPCs an upload depends on.
 protocol BlobReserving: Sendable {
-    func initiateExternalUpload(mimeType: String, sizeBytes: Int, owner: KeyPair) async throws -> ReservedUpload
+    /// Reserves an upload of `sizeBytes`, end-to-end encrypted for the DM `encryptedFor` when set.
+    func initiateExternalUpload(mimeType: String, sizeBytes: Int, encryptedFor: ConversationID?, owner: KeyPair) async throws -> ReservedUpload
     func completeExternalUpload(blobID: BlobID, owner: KeyPair) async throws -> BlobState
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState
 }
@@ -49,6 +50,7 @@ final class BlobUploader: Sendable {
         let reserved = try await reserving.initiateExternalUpload(
             mimeType: mimeType,
             sizeBytes: data.count,
+            encryptedFor: nil,
             owner: owner
         )
 
@@ -62,11 +64,69 @@ final class BlobUploader: Sendable {
 
         switch try await reserving.completeExternalUpload(blobID: reserved.blobID, owner: owner) {
         case .rejected(let reason):
+            logger.info("Blob rejected on completion", metadata: [
+                "blobId": "\(reserved.blobID)",
+                "reason": "\(reason)",
+            ])
             throw ErrorBlob.rejected(reason)
         case .ready, .pending, .processing:
             return reserved.blobID
         }
     }
+
+    /// Stores `image` encrypted for the DM `conversationID` and returns its blob, leaving
+    /// finalization to the caller.
+    ///
+    /// `encrypt` seals the plaintext under the blob id the reservation assigns, which is part of
+    /// its aad, so the reservation declares the sealed size before the blob exists.
+    func storeEncrypted(
+        _ image: Data,
+        for conversationID: ConversationID,
+        owner: KeyPair,
+        encrypt: @Sendable (Data, BlobID) throws -> Data
+    ) async throws -> EncryptedBlobUpload {
+        // The server never reads these bytes, so stripping location and camera metadata is on us.
+        let plaintext = JPEGMetadata.stripped(image)
+        let sizeBytes = plaintext.count + EncryptedBlobUpload.overhead
+
+        let reserved = try await reserving.initiateExternalUpload(
+            mimeType: Self.encryptedMimeType,
+            sizeBytes: sizeBytes,
+            encryptedFor: conversationID,
+            owner: owner
+        )
+
+        logger.info("Reserved encrypted blob upload", metadata: [
+            "blobId": "\(reserved.blobID)",
+            "sizeBytes": "\(sizeBytes)",
+        ])
+
+        let blob = try encrypt(plaintext, reserved.blobID)
+        guard blob.count == sizeBytes else {
+            logger.error("Encrypted blob is not the size reserved", metadata: [
+                "blobId": "\(reserved.blobID)",
+                "reserved": "\(sizeBytes)",
+                "actual": "\(blob.count)",
+            ])
+            throw ErrorBlob.unknown
+        }
+
+        try await store(blob, mimeType: Self.encryptedMimeType, to: reserved.target)
+
+        switch try await reserving.completeExternalUpload(blobID: reserved.blobID, owner: owner) {
+        case .rejected(let reason):
+            logger.info("Blob rejected on completion", metadata: [
+                "blobId": "\(reserved.blobID)",
+                "reason": "\(reason)",
+            ])
+            throw ErrorBlob.rejected(reason)
+        case .ready, .pending, .processing:
+            return EncryptedBlobUpload(blobID: reserved.blobID, plaintextSize: plaintext.count)
+        }
+    }
+
+    /// The MIME type every end-to-end encrypted upload declares; the server refuses any other.
+    static let encryptedMimeType = "application/octet-stream"
 
     /// Polls until the blob is finalized.
     ///
@@ -161,6 +221,18 @@ final class BlobUploader: Sendable {
 
         return body
     }
+}
+
+/// An encrypted blob stored but not yet finalized, with the length of the plaintext it seals.
+public struct EncryptedBlobUpload: Hashable, Sendable {
+    /// The blob the reservation assigned.
+    public let blobID: BlobID
+    /// The plaintext image's length after metadata stripping, the length the recipient checks.
+    public let plaintextSize: Int
+
+    /// What encryption adds to an image: the 24-byte nonce ahead of the ciphertext and the 16-byte
+    /// tag after it.
+    public static let overhead = 40
 }
 
 private extension Data {

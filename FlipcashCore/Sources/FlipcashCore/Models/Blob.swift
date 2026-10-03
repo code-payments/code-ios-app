@@ -25,7 +25,12 @@ public enum BlobRejectionReason: Sendable, Equatable {
     case tooLarge
     case corrupt
     case privacyMetadata
+    /// The server failed to process the blob.
+    case `internal`
+    /// The server sent no reason.
     case unknown
+    /// The server sent a reason this build doesn't know, by its raw proto value.
+    case unrecognized(Int)
 }
 
 /// A reserved upload: the blob it will become, and the request that stores its
@@ -77,10 +82,27 @@ public struct UploadPolicy: Sendable, Equatable {
     /// Constraints ordered most specific first.
     public let constraints: [MimeConstraint]
 
-    init(version: String, ttl: Duration?, constraints: [MimeConstraint]) {
+    /// The constraints on an end-to-end encrypted upload, or nil when the caller may not make one.
+    public let encrypted: EncryptedConstraints?
+
+    /// The bounds on an end-to-end encrypted upload, which the server checks by size alone.
+    public struct EncryptedConstraints: Sendable, Equatable {
+        /// The ceiling on the whole encrypted blob, nonce and tag included.
+        public let maxSizeBytes: Int
+        /// Advisory bounds to downscale an image to before encrypting it, or nil when there are none.
+        public let image: ImageConstraints?
+
+        public init(maxSizeBytes: Int, image: ImageConstraints?) {
+            self.maxSizeBytes = maxSizeBytes
+            self.image = image
+        }
+    }
+
+    init(version: String, ttl: Duration?, constraints: [MimeConstraint], encrypted: EncryptedConstraints? = nil) {
         self.version     = version
         self.ttl         = ttl
         self.constraints = constraints
+        self.encrypted   = encrypted
     }
 
     /// Returns the constraint governing `mimeType` — the first match in policy
@@ -119,8 +141,9 @@ extension BlobRejectionReason {
         case .tooLarge:         self = .tooLarge
         case .corrupt:          self = .corrupt
         case .privacyMetadata:  self = .privacyMetadata
-        case .internal:         self = .unknown
-        case .unknown, .UNRECOGNIZED: self = .unknown
+        case .internal:         self = .internal
+        case .unknown:          self = .unknown
+        case .UNRECOGNIZED(let value): self = .unrecognized(value)
         }
     }
 }
@@ -144,7 +167,27 @@ extension UploadPolicy {
         self.init(
             version: proto.version.value,
             ttl: proto.hasTtl ? .seconds(proto.ttl.seconds) + .nanoseconds(proto.ttl.nanos) : nil,
-            constraints: proto.mimeTypeConstraints.map(MimeConstraint.init)
+            constraints: proto.mimeTypeConstraints.map(MimeConstraint.init),
+            encrypted: proto.hasEncrypted ? EncryptedConstraints(proto.encrypted) : nil
+        )
+    }
+}
+
+extension UploadPolicy.EncryptedConstraints {
+    init(_ proto: Flipcash_Blob_V1_EncryptedConstraints) {
+        self.init(
+            maxSizeBytes: Int(clamping: proto.maxSizeBytes),
+            image: proto.hasImage ? UploadPolicy.ImageConstraints(proto.image) : nil
+        )
+    }
+}
+
+extension UploadPolicy.ImageConstraints {
+    init(_ proto: Flipcash_Blob_V1_ImageConstraints) {
+        self.init(
+            maxWidth: Int(proto.maxWidth),
+            maxHeight: Int(proto.maxHeight),
+            maxPixels: Int(clamping: proto.maxPixels)
         )
     }
 }
@@ -154,11 +197,7 @@ extension UploadPolicy.MimeConstraint {
         let image: UploadPolicy.ImageConstraints?
         switch proto.kind {
         case .image(let bounds):
-            image = UploadPolicy.ImageConstraints(
-                maxWidth: Int(bounds.maxWidth),
-                maxHeight: Int(bounds.maxHeight),
-                maxPixels: Int(clamping: bounds.maxPixels)
-            )
+            image = UploadPolicy.ImageConstraints(bounds)
         case nil:
             image = nil
         }

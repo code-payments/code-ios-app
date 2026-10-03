@@ -8,6 +8,7 @@
 import UIKit
 import ImageIO
 import FlipcashCore
+import FlipcashUI
 
 private let logger = Logger(label: "flipcash.chat-media-upload")
 
@@ -21,6 +22,10 @@ protocol ChatMediaBlobStoring {
 
     /// Stores `data` and returns its blob, before the server has finalized it.
     func storeBlob(_ data: Data, mimeType: String) async throws -> BlobID
+
+    /// Stores `image` end-to-end encrypted with `seal` for its DM and returns the blob, before the
+    /// server has finalized it.
+    func storeEncryptedBlob(_ image: Data, seal: ChatSeal) async throws -> EncryptedBlobUpload
 
     /// Returns once the blob is servable, throwing `ErrorBlob.rejected` when it is refused and
     /// `ErrorBlob.timedOut` when it is still processing.
@@ -41,8 +46,28 @@ struct SessionChatMediaBlobStore: ChatMediaBlobStoring {
         try await flipClient.storeBlob(data, mimeType: mimeType, owner: session.ownerKeyPair)
     }
 
+    func storeEncryptedBlob(_ image: Data, seal: ChatSeal) async throws -> EncryptedBlobUpload {
+        try await flipClient.storeEncryptedBlob(image, seal: seal, owner: session.ownerKeyPair)
+    }
+
     func awaitBlobFinalization(blobID: BlobID) async throws {
         try await flipClient.awaitBlobFinalization(blobID: blobID, owner: session.ownerKeyPair)
+    }
+}
+
+/// A chat photo uploaded and finalized, in the form its message references it.
+enum UploadedPhoto: Hashable, Sendable {
+    /// A plaintext blob, whose metadata the server derives.
+    case plain(BlobID)
+    /// A blob end-to-end encrypted for the chat, with the metadata its sealed message carries.
+    case sealed(SealedPhoto)
+
+    /// The finalized blob.
+    var blobID: BlobID {
+        switch self {
+        case .plain(let blobID):  blobID
+        case .sealed(let photo):  photo.blobID
+        }
     }
 }
 
@@ -50,6 +75,10 @@ struct SessionChatMediaBlobStore: ChatMediaBlobStoring {
 enum ChatMediaUploadError: Error {
     /// The upload policy accepts no JPEG.
     case noMatchingConstraint
+    /// The upload policy allows the owner no end-to-end encrypted upload.
+    case encryptionNotAllowed
+    /// The chat's seal could not be built, so the photo cannot be encrypted for it.
+    case sealUnavailable(Error)
     /// The photo could not be encoded within the policy's size ceiling.
     case encodingFailed(ChatMediaEncoder.Error)
     /// The server refused the stored bytes.
@@ -60,13 +89,16 @@ enum ChatMediaUploadError: Error {
     /// Whether uploading the same photo again could succeed.
     var isRetryable: Bool {
         switch self {
-        case .noMatchingConstraint, .encodingFailed:
+        case .noMatchingConstraint, .encryptionNotAllowed, .encodingFailed:
             false
+        case .sealUnavailable(let error):
+            // A peer key that couldn't be fetched may arrive; one shared-core refuses never will.
+            error is PeerKeyUnavailable
         case .rejected(let reason):
             switch reason {
             case .moderation:
                 false
-            case .unsupportedType, .mismatchedType, .tooLarge, .corrupt, .privacyMetadata, .unknown:
+            case .unsupportedType, .mismatchedType, .tooLarge, .corrupt, .privacyMetadata, .internal, .unknown, .unrecognized:
                 true
             }
         case .failed:
@@ -78,8 +110,10 @@ enum ChatMediaUploadError: Error {
 extension ChatMediaUploadError: ServerError {
     var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .noMatchingConstraint, .encodingFailed:
+        case .noMatchingConstraint, .encryptionNotAllowed, .encodingFailed:
             .error
+        case .sealUnavailable(let error):
+            error is PeerKeyUnavailable ? .info : .error
         case .rejected:
             .info
         case .failed(let error):
@@ -89,18 +123,34 @@ extension ChatMediaUploadError: ServerError {
 }
 
 /// Turns a staged photo into a finalized blob: downscaled to the upload policy's bounds, encoded
-/// down the JPEG quality ladder, stored, and awaited until the server has finalized it.
+/// down the JPEG quality ladder, stored, and awaited until the server has finalized it. In a chat
+/// that encrypts, the bytes are encrypted for it before they leave the device.
 struct ChatMediaUploader {
 
+    /// The seal to encrypt a photo with, or nil when the chat takes plaintext photos.
+    typealias SealProvider = @MainActor () async throws -> ChatSeal?
+
     let blob: any ChatMediaBlobStoring
+
+    /// Decides at upload time whether the photo is encrypted, the same decision text sends make.
+    var seal: SealProvider = { nil }
 
     /// The wait before each automatic retry of a store that failed in transit; one entry per retry.
     var backoff: [Duration] = [.seconds(1), .seconds(2), .seconds(4)]
 
-    /// Returns the finalized blob for `image`, throwing `ChatMediaUploadError`.
+    /// Returns the finalized photo for `image`, throwing `ChatMediaUploadError`.
     ///
     /// `onPrepared` receives the uploaded pixel width and height once, before any bytes are stored.
-    func upload(_ image: UIImage, onPrepared: (Int, Int) -> Void) async throws -> BlobID {
+    func upload(_ image: UIImage, onPrepared: (Int, Int) -> Void) async throws -> UploadedPhoto {
+        let chatSeal: ChatSeal?
+        do {
+            chatSeal = try await seal()
+        } catch {
+            try Task.checkCancellation()
+            logger.info("No seal for chat photo", metadata: ["error": "\(error)"])
+            throw ChatMediaUploadError.sealUnavailable(error)
+        }
+
         let policy: UploadPolicy
         do {
             policy = try await blob.uploadPolicy()
@@ -109,11 +159,25 @@ struct ChatMediaUploader {
             throw ChatMediaUploadError.failed(error)
         }
 
-        guard let constraint = policy.constraint(for: ChatMediaEncoder.mimeType) else {
-            logger.warning("Upload policy accepts no chat photo", metadata: ["policyVersion": "\(policy.version)"])
-            throw ChatMediaUploadError.noMatchingConstraint
+        let bounds: UploadPolicy.ImageConstraints?
+        let maxSizeBytes: Int
+        if chatSeal != nil {
+            guard let encrypted = policy.encrypted else {
+                logger.warning("Upload policy allows no encrypted chat photo", metadata: ["policyVersion": "\(policy.version)"])
+                throw ChatMediaUploadError.encryptionNotAllowed
+            }
+            bounds = encrypted.image
+            // The ceiling covers the sealed blob, so the image must leave room for nonce and tag.
+            maxSizeBytes = encrypted.maxSizeBytes - EncryptedBlobUpload.overhead
+        } else {
+            guard let constraint = policy.constraint(for: ChatMediaEncoder.mimeType) else {
+                logger.warning("Upload policy accepts no chat photo", metadata: ["policyVersion": "\(policy.version)"])
+                throw ChatMediaUploadError.noMatchingConstraint
+            }
+            bounds = constraint.image
+            maxSizeBytes = constraint.maxSizeBytes
         }
-        guard let cgImage = image.cgImage else {
+        guard let cgImage = image.cgImage, maxSizeBytes > 0 else {
             throw ChatMediaUploadError.encodingFailed(.encodingFailed)
         }
 
@@ -129,23 +193,37 @@ struct ChatMediaUploader {
         let target = ChatMediaDownscale.target(
             sourceWidth: isSideways ? cgImage.height : cgImage.width,
             sourceHeight: isSideways ? cgImage.width : cgImage.height,
-            maxWidth: constraint.image?.maxWidth ?? 0,
-            maxHeight: constraint.image?.maxHeight ?? 0,
-            maxPixels: constraint.image?.maxPixels ?? 0
+            maxWidth: bounds?.maxWidth ?? 0,
+            maxHeight: bounds?.maxHeight ?? 0,
+            maxPixels: bounds?.maxPixels ?? 0
         )
         onPrepared(target.width, target.height)
 
         let data: Data
         do {
-            data = try await Self.encode(cgImage, orientation: orientation, target: target, maxSizeBytes: constraint.maxSizeBytes)
+            data = try await Self.encode(cgImage, orientation: orientation, target: target, maxSizeBytes: maxSizeBytes)
         } catch let error as ChatMediaEncoder.Error {
             throw ChatMediaUploadError.encodingFailed(error)
         }
 
-        let blobID = try await store(data)
+        let uploaded: UploadedPhoto
+        if let chatSeal {
+            let blurhash = await Self.blurhash(of: data)
+            let stored = try await store { try await blob.storeEncryptedBlob(data, seal: chatSeal) }
+            uploaded = .sealed(SealedPhoto(
+                blobID: stored.blobID,
+                mimeType: ChatMediaEncoder.mimeType,
+                sizeBytes: stored.plaintextSize,
+                width: target.width,
+                height: target.height,
+                blurhash: blurhash
+            ))
+        } else {
+            uploaded = .plain(try await store { try await blob.storeBlob(data, mimeType: ChatMediaEncoder.mimeType) })
+        }
 
         do {
-            try await blob.awaitBlobFinalization(blobID: blobID)
+            try await blob.awaitBlobFinalization(blobID: uploaded.blobID)
         } catch ErrorBlob.rejected(let reason) {
             throw ChatMediaUploadError.rejected(reason)
         } catch {
@@ -153,15 +231,15 @@ struct ChatMediaUploader {
             throw ChatMediaUploadError.failed(error)
         }
 
-        return blobID
+        return uploaded
     }
 
     /// Stores `data`, retrying through `backoff` while the failure is in transit.
-    private func store(_ data: Data) async throws -> BlobID {
+    private func store<Stored>(_ attemptStore: () async throws -> Stored) async throws -> Stored {
         var attempt = 0
         while true {
             do {
-                return try await blob.storeBlob(data, mimeType: ChatMediaEncoder.mimeType)
+                return try await attemptStore()
             } catch {
                 try Task.checkCancellation()
 
@@ -199,6 +277,21 @@ struct ChatMediaUploader {
         maxSizeBytes: Int
     ) async throws -> Data {
         try ChatMediaEncoder().encode(image, orientation: orientation, target: target, maxSizeBytes: maxSizeBytes)
+    }
+
+    /// The BlurHash of the encoded photo, which a recipient of an encrypted photo draws until it
+    /// decrypts, since the server cannot derive one. Empty when the bytes don't decode, which the
+    /// contract allows.
+    @concurrent
+    nonisolated static func blurhash(of jpeg: Data) async -> String {
+        guard let source = CGImageSourceCreateWithData(jpeg as CFData, nil),
+              let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                  kCGImageSourceCreateThumbnailFromImageAlways: true,
+                  kCGImageSourceCreateThumbnailWithTransform: true,
+                  kCGImageSourceThumbnailMaxPixelSize: 64,
+              ] as CFDictionary) else { return "" }
+        let landscape = thumbnail.width >= thumbnail.height
+        return BlurHash.encode(thumbnail, componentsX: landscape ? 4 : 3, componentsY: landscape ? 3 : 4) ?? ""
     }
 }
 

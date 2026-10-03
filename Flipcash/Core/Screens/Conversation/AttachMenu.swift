@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipcashUI
+import FlipcashCore
 
 /// A row of the composer's attach menu.
 enum AttachMenuItem: Equatable {
@@ -206,5 +207,15 @@ extension AttachMenuItem {
         case .camera:   "camera"
         case .photos:   "photo.on.rectangle"
         }
+    }
+}
+
+/// Decides whether a chat offers Camera and Photos.
+enum ChatMediaGate {
+
+    /// True for any chat this device has a record of: an encrypted DM's photos are encrypted for it,
+    /// a plaintext chat's go up in plaintext. False while the record is still loading.
+    static func acceptsMedia(_ conversation: Conversation?) -> Bool {
+        conversation != nil
     }
 }

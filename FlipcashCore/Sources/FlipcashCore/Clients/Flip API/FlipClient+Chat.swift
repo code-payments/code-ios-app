@@ -198,6 +198,15 @@ extension FlipClient {
         }
     }
 
+    /// Sends the finalized encrypted `photo` sealed with `seal`, with `caption` under it, and returns
+    /// the server's copy (decrypted).
+    @discardableResult
+    public func sendSealedMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: SealedPhoto, caption: String?, repliedTo: MessageID?, seal: ChatSeal, clientMessageID: UUID) async throws -> ConversationMessage {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.sendSealedMediaMessage(owner: owner, conversationID: conversationID, photo: photo, caption: caption, repliedTo: repliedTo, seal: seal, clientMessageID: clientMessageID) { c.resume(with: $0) }
+        }
+    }
+
     public func editMessage(
         owner: KeyPair,
         conversationID: ConversationID,
