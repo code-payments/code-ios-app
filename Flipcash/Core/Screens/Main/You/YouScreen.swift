@@ -479,9 +479,14 @@ struct YouScreen: View {
         // out from under the finger.
         .overlay(alignment: .top) {
             if let message = versionUnlock.message {
-                FloatingToast(message, messageIdentifier: "you-version-toast")
+                FloatingToast(message, messageIdentifier: "you-version-toast", width: .fit)
+                    // Back out to the screen edges, so the toast caps at the tab bar's width
+                    // rather than the content column's.
+                    .padding(.horizontal, -Self.horizontalInset)
                     // Sits on the footer's top edge, so the taller pill never covers the version.
                     .alignmentGuide(.top) { $0[.bottom] + 4 }
+                    // Taps land on the version underneath, so the countdown keeps counting.
+                    .allowsHitTesting(false)
                     .transition(
                         .offset(x: 0, y: 20)
                         .combined(with: .opacity.animation(.easeOutFastest))

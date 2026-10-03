@@ -5,9 +5,17 @@
 
 import SwiftUI
 
-/// The undo-toast design shared with Android: a full-width frosted pill with an optional leading
-/// icon and an optional trailing action. The caller owns placement, lifetime and transitions.
+/// The undo-toast design shared with Android: a frosted pill with an optional leading icon and an
+/// optional trailing action. A longer message wraps. The caller owns placement, lifetime and transitions.
 public struct FloatingToast: View {
+
+    /// How wide the pill is drawn.
+    public enum Width {
+        /// Spans the screen, inset 12pt from each edge, as the shared design specifies.
+        case fill
+        /// Hugs its content, never wider than the floating tab bar.
+        case fit
+    }
 
     /// A trailing button drawn in its own pill.
     public struct Action {
@@ -27,9 +35,14 @@ public struct FloatingToast: View {
     private let systemImage: String?
     private let messageIdentifier: String?
     private let action: Action?
+    private let width: Width
     private let onDismiss: (() -> Void)?
 
     @State private var dragOffset: CGFloat = 0
+
+    /// The native floating tab bar's inset from each screen edge, measured on iOS 26; keeping the
+    /// same inset caps a `.fit` toast at the bar's width.
+    private static let tabBarInset: CGFloat = 21
 
     /// A toast showing `message`; a swipe down calls `onDismiss` when one is given.
     ///
@@ -39,12 +52,14 @@ public struct FloatingToast: View {
         systemImage: String? = nil,
         messageIdentifier: String? = nil,
         action: Action? = nil,
+        width: Width = .fill,
         onDismiss: (() -> Void)? = nil
     ) {
         self.message = message
         self.systemImage = systemImage
         self.messageIdentifier = messageIdentifier
         self.action = action
+        self.width = width
         self.onDismiss = onDismiss
     }
 
@@ -59,8 +74,12 @@ public struct FloatingToast: View {
             Text(message)
                 .font(.default(size: 14, weight: .medium))
                 .foregroundStyle(Color.textMain)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier(messageIdentifier ?? "")
-            Spacer(minLength: 0)
+            if width == .fill {
+                Spacer(minLength: 0)
+            }
             if let action {
                 Button(action: action.handler) {
                     Text(action.title)
@@ -82,7 +101,7 @@ public struct FloatingToast: View {
         .frame(minHeight: 44)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
-        .padding(.horizontal, 12)
+        .padding(.horizontal, width == .fill ? 12 : Self.tabBarInset)
         .offset(y: dragOffset)
         .gesture(dismissGesture, isEnabled: onDismiss != nil)
     }
@@ -105,7 +124,7 @@ public struct FloatingToast: View {
 #Preview {
     VStack(spacing: 16) {
         FloatingToast("Chat archived", systemImage: "archivebox", action: .init("Undo") {})
-        FloatingToast("You are now 3 steps away from being a developer")
+        FloatingToast("You are now 3 steps away from being a developer", width: .fit)
     }
     .frame(maxHeight: .infinity)
     .background(Color.backgroundMain)
