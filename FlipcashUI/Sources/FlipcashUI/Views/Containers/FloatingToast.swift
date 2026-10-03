@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-/// The undo-toast design shared with Android: a frosted pill with an optional leading icon and an
+/// The undo-toast design shared with Android: a pill on the tab bar's glass with an optional leading icon and an
 /// optional trailing action. A longer message wraps. The caller owns placement, lifetime and transitions.
 public struct FloatingToast: View {
 
@@ -97,8 +97,8 @@ public struct FloatingToast: View {
         .padding(.vertical, 8)
         // The height a one-line toast has with an action, so toasts without one match it.
         .frame(minHeight: 44)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
+        // The floating tab bar's surface, so a toast growing out of the bar reads as part of it.
+        .capsuleGlassBackground()
         .padding(.horizontal, tabBar?.horizontalInset ?? 12)
         .offset(y: dragOffset)
         .gesture(dismissGesture, isEnabled: onDismiss != nil)
