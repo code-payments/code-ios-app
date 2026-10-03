@@ -20,12 +20,13 @@ protocol ChatMediaBlobStoring {
     /// Returns the upload constraints in force for the owner.
     func uploadPolicy() async throws -> UploadPolicy
 
-    /// Stores `data` and returns its blob, before the server has finalized it.
-    func storeBlob(_ data: Data, mimeType: String) async throws -> BlobID
+    /// Stores `data` and returns its blob, before the server has finalized it. `onProgress` hears
+    /// the bytes going out, from any thread.
+    func storeBlob(_ data: Data, mimeType: String, onProgress: @escaping @Sendable (BlobUploadProgress) -> Void) async throws -> BlobID
 
     /// Stores `image` end-to-end encrypted with `seal` for its DM and returns the blob, before the
-    /// server has finalized it.
-    func storeEncryptedBlob(_ image: Data, seal: ChatSeal) async throws -> EncryptedBlobUpload
+    /// server has finalized it. `onProgress` hears the sealed bytes going out, from any thread.
+    func storeEncryptedBlob(_ image: Data, seal: ChatSeal, onProgress: @escaping @Sendable (BlobUploadProgress) -> Void) async throws -> EncryptedBlobUpload
 
     /// Returns once the blob is servable, throwing `ErrorBlob.rejected` when it is refused and
     /// `ErrorBlob.timedOut` when it is still processing.
@@ -42,12 +43,12 @@ struct SessionChatMediaBlobStore: ChatMediaBlobStoring {
         try await flipClient.uploadPolicy(owner: session.ownerKeyPair)
     }
 
-    func storeBlob(_ data: Data, mimeType: String) async throws -> BlobID {
-        try await flipClient.storeBlob(data, mimeType: mimeType, owner: session.ownerKeyPair)
+    func storeBlob(_ data: Data, mimeType: String, onProgress: @escaping @Sendable (BlobUploadProgress) -> Void) async throws -> BlobID {
+        try await flipClient.storeBlob(data, mimeType: mimeType, owner: session.ownerKeyPair, onProgress: onProgress)
     }
 
-    func storeEncryptedBlob(_ image: Data, seal: ChatSeal) async throws -> EncryptedBlobUpload {
-        try await flipClient.storeEncryptedBlob(image, seal: seal, owner: session.ownerKeyPair)
+    func storeEncryptedBlob(_ image: Data, seal: ChatSeal, onProgress: @escaping @Sendable (BlobUploadProgress) -> Void) async throws -> EncryptedBlobUpload {
+        try await flipClient.storeEncryptedBlob(image, seal: seal, owner: session.ownerKeyPair, onProgress: onProgress)
     }
 
     func awaitBlobFinalization(blobID: BlobID) async throws {
@@ -56,7 +57,7 @@ struct SessionChatMediaBlobStore: ChatMediaBlobStoring {
 }
 
 /// A chat photo uploaded and finalized, in the form its message references it.
-enum UploadedPhoto: Hashable, Sendable {
+enum UploadedPhoto: Hashable, Sendable, Codable {
     /// A plaintext blob, whose metadata the server derives.
     case plain(BlobID)
     /// A blob end-to-end encrypted for the chat, with the metadata its sealed message carries.
@@ -85,6 +86,17 @@ enum ChatMediaUploadError: Error {
     case rejected(BlobRejectionReason)
     /// The upload failed for a reason other than the bytes themselves, after any automatic retries.
     case failed(Error)
+
+    /// Whether the send can never succeed, so nothing about it is worth keeping: the server refused
+    /// the bytes, or the photo can't be uploaded again.
+    var isTerminal: Bool {
+        switch self {
+        case .rejected:
+            true
+        case .noMatchingConstraint, .encryptionNotAllowed, .sealUnavailable, .encodingFailed, .failed:
+            !isRetryable
+        }
+    }
 
     /// Whether uploading the same photo again could succeed.
     var isRetryable: Bool {
@@ -141,42 +153,19 @@ struct ChatMediaUploader {
     /// Returns the finalized photo for `image`, throwing `ChatMediaUploadError`.
     ///
     /// `onPrepared` receives the uploaded pixel width and height once, before any bytes are stored.
-    func upload(_ image: UIImage, onPrepared: (Int, Int) -> Void) async throws -> UploadedPhoto {
-        let chatSeal: ChatSeal?
-        do {
-            chatSeal = try await seal()
-        } catch {
-            try Task.checkCancellation()
-            logger.info("No seal for chat photo", metadata: ["error": "\(error)"])
-            throw ChatMediaUploadError.sealUnavailable(error)
-        }
-
-        let policy: UploadPolicy
-        do {
-            policy = try await blob.uploadPolicy()
-        } catch {
-            try Task.checkCancellation()
-            throw ChatMediaUploadError.failed(error)
-        }
-
-        let bounds: UploadPolicy.ImageConstraints?
-        let maxSizeBytes: Int
-        if chatSeal != nil {
-            guard let encrypted = policy.encrypted else {
-                logger.warning("Upload policy allows no encrypted chat photo", metadata: ["policyVersion": "\(policy.version)"])
-                throw ChatMediaUploadError.encryptionNotAllowed
-            }
-            bounds = encrypted.image
-            // The ceiling covers the sealed blob, so the image must leave room for nonce and tag.
-            maxSizeBytes = encrypted.maxSizeBytes - EncryptedBlobUpload.overhead
-        } else {
-            guard let constraint = policy.constraint(for: ChatMediaEncoder.mimeType) else {
-                logger.warning("Upload policy accepts no chat photo", metadata: ["policyVersion": "\(policy.version)"])
-                throw ChatMediaUploadError.noMatchingConstraint
-            }
-            bounds = constraint.image
-            maxSizeBytes = constraint.maxSizeBytes
-        }
+    /// `onEncoded` receives the JPEG that will be stored, before it is, so the caller can keep the
+    /// exact bytes. `onStored` receives the photo once its bytes are stored, before the server has
+    /// finalized it, so a failed wait can resume through ``finalize(_:progress:)`` instead of
+    /// storing again. `progress`, when given, follows each store attempt's bytes and then the
+    /// server's processing.
+    func upload(
+        _ image: UIImage,
+        progress: ChatPhotoSendProgress? = nil,
+        onStored: (UploadedPhoto) -> Void = { _ in },
+        onPrepared: (Int, Int) -> Void,
+        onEncoded: (Data) -> Void = { _ in }
+    ) async throws -> UploadedPhoto {
+        let (chatSeal, bounds, maxSizeBytes) = try await resolveConstraints()
         guard let cgImage = image.cgImage, maxSizeBytes > 0 else {
             throw ChatMediaUploadError.encodingFailed(.encodingFailed)
         }
@@ -205,25 +194,105 @@ struct ChatMediaUploader {
         } catch let error as ChatMediaEncoder.Error {
             throw ChatMediaUploadError.encodingFailed(error)
         }
+        onEncoded(data)
+
+        return try await storeAndFinalize(data, width: target.width, height: target.height, chatSeal: chatSeal, progress: progress, onStored: onStored)
+    }
+
+    /// Returns the finalized photo for `jpeg`, bytes an earlier ``upload(_:progress:onStored:onPrepared:onEncoded:)``
+    /// produced, stored as they are rather than encoded again; throws `ChatMediaUploadError`.
+    func upload(
+        jpeg: Data,
+        progress: ChatPhotoSendProgress? = nil,
+        onStored: (UploadedPhoto) -> Void = { _ in },
+        onPrepared: (Int, Int) -> Void
+    ) async throws -> UploadedPhoto {
+        let (chatSeal, _, _) = try await resolveConstraints()
+        guard let source = CGImageSourceCreateWithData(jpeg as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int else {
+            throw ChatMediaUploadError.encodingFailed(.encodingFailed)
+        }
+        onPrepared(width, height)
+        return try await storeAndFinalize(jpeg, width: width, height: height, chatSeal: chatSeal, progress: progress, onStored: onStored)
+    }
+
+    /// The seal for this photo and the policy's bounds and size ceiling for the form it goes out in.
+    private func resolveConstraints() async throws -> (ChatSeal?, UploadPolicy.ImageConstraints?, Int) {
+        let chatSeal: ChatSeal?
+        do {
+            chatSeal = try await seal()
+        } catch {
+            try Task.checkCancellation()
+            logger.info("No seal for chat photo", metadata: ["error": "\(error)"])
+            throw ChatMediaUploadError.sealUnavailable(error)
+        }
+
+        let policy: UploadPolicy
+        do {
+            policy = try await blob.uploadPolicy()
+        } catch {
+            try Task.checkCancellation()
+            throw ChatMediaUploadError.failed(error)
+        }
+
+        if chatSeal != nil {
+            guard let encrypted = policy.encrypted else {
+                logger.warning("Upload policy allows no encrypted chat photo", metadata: ["policyVersion": "\(policy.version)"])
+                throw ChatMediaUploadError.encryptionNotAllowed
+            }
+            // The ceiling covers the sealed blob, so the image must leave room for nonce and tag.
+            return (chatSeal, encrypted.image, encrypted.maxSizeBytes - EncryptedBlobUpload.overhead)
+        } else {
+            guard let constraint = policy.constraint(for: ChatMediaEncoder.mimeType) else {
+                logger.warning("Upload policy accepts no chat photo", metadata: ["policyVersion": "\(policy.version)"])
+                throw ChatMediaUploadError.noMatchingConstraint
+            }
+            return (nil, constraint.image, constraint.maxSizeBytes)
+        }
+    }
+
+    private func storeAndFinalize(
+        _ data: Data,
+        width: Int,
+        height: Int,
+        chatSeal: ChatSeal?,
+        progress: ChatPhotoSendProgress?,
+        onStored: (UploadedPhoto) -> Void
+    ) async throws -> UploadedPhoto {
+        // Byte counts arrive on URLSession's delegate queue.
+        let onBytes: @Sendable (BlobUploadProgress) -> Void = { [weak progress] bytes in
+            Task { @MainActor in progress?.didUpload(bytes) }
+        }
 
         let uploaded: UploadedPhoto
         if let chatSeal {
             let blurhash = await Self.blurhash(of: data)
-            let stored = try await store { try await blob.storeEncryptedBlob(data, seal: chatSeal) }
+            let stored = try await store(progress: progress) { try await blob.storeEncryptedBlob(data, seal: chatSeal, onProgress: onBytes) }
             uploaded = .sealed(SealedPhoto(
                 blobID: stored.blobID,
                 mimeType: ChatMediaEncoder.mimeType,
                 sizeBytes: stored.plaintextSize,
-                width: target.width,
-                height: target.height,
+                width: width,
+                height: height,
                 blurhash: blurhash
             ))
         } else {
-            uploaded = .plain(try await store { try await blob.storeBlob(data, mimeType: ChatMediaEncoder.mimeType) })
+            uploaded = .plain(try await store(progress: progress) { try await blob.storeBlob(data, mimeType: ChatMediaEncoder.mimeType, onProgress: onBytes) })
         }
 
+        onStored(uploaded)
+        return try await finalize(uploaded, progress: progress)
+    }
+
+    /// Returns `photo` once the server has finalized its stored bytes, throwing
+    /// `ChatMediaUploadError`.
+    func finalize(_ photo: UploadedPhoto, progress: ChatPhotoSendProgress? = nil) async throws -> UploadedPhoto {
+        progress?.beginProcessing()
+
         do {
-            try await blob.awaitBlobFinalization(blobID: uploaded.blobID)
+            try await blob.awaitBlobFinalization(blobID: photo.blobID)
         } catch ErrorBlob.rejected(let reason) {
             throw ChatMediaUploadError.rejected(reason)
         } catch {
@@ -231,13 +300,15 @@ struct ChatMediaUploader {
             throw ChatMediaUploadError.failed(error)
         }
 
-        return uploaded
+        return photo
     }
 
     /// Stores `data`, retrying through `backoff` while the failure is in transit.
-    private func store<Stored>(_ attemptStore: () async throws -> Stored) async throws -> Stored {
+    private func store<Stored>(progress: ChatPhotoSendProgress?, _ attemptStore: () async throws -> Stored) async throws -> Stored {
         var attempt = 0
         while true {
+            // A retried store sends every byte again.
+            progress?.beginAttempt()
             do {
                 return try await attemptStore()
             } catch {

@@ -263,8 +263,10 @@ struct ChatMediaUploaderTests {
         #expect(chip.state == .failed(.notRetryable))
     }
 
-    @Test("Retrying a failed chip uploads it again")
-    func retryingFailedChipUploadsAgain() async throws {
+    /// The bytes were stored before the wait failed, which is how a send interrupted by the app
+    /// going to the background fails; storing them again would leave an orphan blob.
+    @Test("Retrying a chip whose wait for the server failed waits again without storing again")
+    func retryingFailedChipResumesStoredBlob() async throws {
         let blob = MockChatMediaBlobStore()
         blob.finalization = .failure(ErrorBlob.timedOut)
         let uploader = ChatMediaUploader(blob: blob)
@@ -278,9 +280,46 @@ struct ChatMediaUploaderTests {
         let blobID = try await #require(chip.uploadTask).value.blobID
 
         #expect(chip.state == .uploaded(blobID))
+        #expect(blob.storeAttempts == 1)
+        #expect(blob.finalizedBlobIDs == [blobID])
     }
 
-    @Test("Removing a chip cancels its upload")
+    @Test("A chip's progress follows its bytes, then waits on the server's processing once stored")
+    func chipProgressReachesProcessing() async throws {
+        let blob = MockChatMediaBlobStore()
+        blob.progressReports = [
+            BlobUploadProgress(sentBytes: 50, totalBytes: 100),
+            BlobUploadProgress(sentBytes: 100, totalBytes: 100),
+        ]
+        let composer = ComposerModel()
+        let chip = try #require(composer.stageChip(image: Self.image(width: 40, height: 30), uploader: ChatMediaUploader(blob: blob)))
+        #expect(chip.progress.phase == .preparing)
+
+        _ = try await #require(chip.uploadTask).value
+
+        #expect(chip.progress.phase == .processing)
+        #expect(chip.progress.showsOverlay)
+    }
+
+    @Test("A chip whose upload fails hands its progress to the failed state; retrying starts it over")
+    func chipProgressFailsAndRetries() async throws {
+        let blob = MockChatMediaBlobStore()
+        blob.finalization = .failure(ErrorBlob.timedOut)
+        let uploader = ChatMediaUploader(blob: blob)
+        let composer = ComposerModel()
+        let chip = try #require(composer.stageChip(image: Self.image(width: 40, height: 30), uploader: uploader))
+        _ = await chip.uploadTask?.result
+        #expect(chip.progress.phase == .failed)
+        #expect(!chip.progress.showsOverlay)
+
+        blob.finalization = .success(())
+        chip.startUpload(using: uploader)
+        #expect(chip.progress.phase == .preparing)
+        _ = try await #require(chip.uploadTask).value
+        #expect(chip.progress.phase == .processing)
+    }
+
+        @Test("Removing a chip cancels its upload")
     func removingChipCancelsUpload() throws {
         let composer = ComposerModel()
         let chip = try #require(composer.stageChip(image: Self.image(width: 40, height: 30), uploader: ChatMediaUploader(blob: MockChatMediaBlobStore())))

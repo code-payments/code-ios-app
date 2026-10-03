@@ -117,10 +117,13 @@ nonisolated protocol BackgroundTaskAsserting: Sendable {
 /// ``BackgroundTaskAsserting`` over `UIApplication.shared`, hopping to the main thread it requires.
 nonisolated struct UIApplicationBackgroundTasks: BackgroundTaskAsserting {
 
+    /// The name iOS reports the task under in its diagnostics.
+    var name = "database.write"
+
     func begin(expiration: @escaping @Sendable () -> Void) -> UIBackgroundTaskIdentifier {
         let begin = {
             MainActor.assumeIsolated {
-                UIApplication.shared.beginBackgroundTask(withName: "database.write", expirationHandler: expiration)
+                UIApplication.shared.beginBackgroundTask(withName: name, expirationHandler: expiration)
             }
         }
         return Thread.isMainThread ? begin() : DispatchQueue.main.sync(execute: begin)
@@ -131,6 +134,38 @@ nonisolated struct UIApplicationBackgroundTasks: BackgroundTaskAsserting {
             MainActor.assumeIsolated { UIApplication.shared.endBackgroundTask(identifier) }
         } else {
             DispatchQueue.main.async { UIApplication.shared.endBackgroundTask(identifier) }
+        }
+    }
+}
+
+/// One background-task assertion, held from ``begin()`` until ``end()`` or until iOS expires it.
+nonisolated final class BackgroundTimeAssertion: @unchecked Sendable {
+
+    private let assertions: any BackgroundTaskAsserting
+
+    /// Guarded by `lock`.
+    private let lock = NSLock()
+    private var taskID: UIBackgroundTaskIdentifier = .invalid
+
+    init(assertions: any BackgroundTaskAsserting) {
+        self.assertions = assertions
+    }
+
+    /// Asks iOS to keep the app running after it leaves the screen; a no-op when none is granted.
+    func begin() {
+        // Expiry only ends the assertion: the work under it carries on until iOS suspends the app.
+        let acquired = assertions.begin { [weak self] in self?.end() }
+        lock.withLock { taskID = acquired }
+    }
+
+    /// Releases the assertion; safe to call more than once.
+    func end() {
+        let held = lock.withLock {
+            defer { taskID = .invalid }
+            return taskID
+        }
+        if held != .invalid {
+            assertions.end(held)
         }
     }
 }

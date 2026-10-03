@@ -168,6 +168,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.pendingMediaImage = { [conversationController] id in
             conversationController.pendingMediaImage(forMessageID: id)
         }
+        screen.pendingMediaProgress = { [conversationController] id in
+            conversationController.pendingMediaProgress(forMessageID: id)
+        }
         screen.onContactAction = onContactAction
         screen.onProfileTap = onProfileTap
         screen.onGroupInvite = onGroupInvite

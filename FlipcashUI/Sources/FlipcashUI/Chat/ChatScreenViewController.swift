@@ -230,6 +230,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.pendingMediaImage = newValue }
     }
 
+    /// A pending photo's send progress — see ``ChatViewController/pendingMediaProgress``.
+    public var pendingMediaProgress: ((String) -> ChatPhotoSendProgress?)? {
+        get { transcript.pendingMediaProgress }
+        set { transcript.pendingMediaProgress = newValue }
+    }
+
     public var onContactAction: (() -> Void)? {
         get { transcript.onContactAction }
         set { transcript.onContactAction = newValue }

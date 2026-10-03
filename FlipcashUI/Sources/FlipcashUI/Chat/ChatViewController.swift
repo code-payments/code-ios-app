@@ -129,6 +129,10 @@ public final class ChatViewController: UICollectionViewController {
     /// it until the send confirms and the download takes over.
     public var pendingMediaImage: ((String) -> UIImage?)?
 
+    /// The send progress of a photo this device is still sending, by the pending row's id; the row
+    /// draws it over the photo until the send confirms or fails.
+    public var pendingMediaProgress: ((String) -> ChatPhotoSendProgress?)?
+
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
@@ -704,6 +708,7 @@ public final class ChatViewController: UICollectionViewController {
                 with: message,
                 maxWidth: maxWidth,
                 localImage: localImage,
+                progress: pendingMediaProgress?(message.id),
                 remote: remote,
                 authorImageData: authorImageData
             )

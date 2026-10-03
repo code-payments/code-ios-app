@@ -20,6 +20,8 @@ final class MockChatMediaBlobStore: ChatMediaBlobStoring {
     var storeResults: [Result<BlobID, Error>] = []
     var finalization: Result<Void, Error> = .success(())
     var onStore: (() -> Void)?
+    /// Reported through each store call's `onProgress` before it ends.
+    var progressReports: [BlobUploadProgress] = []
 
     private(set) var storeAttempts = 0
     private(set) var storedData: [Data] = []
@@ -38,8 +40,9 @@ final class MockChatMediaBlobStore: ChatMediaBlobStoring {
         policy
     }
 
-    func storeBlob(_ data: Data, mimeType: String) async throws -> BlobID {
+    func storeBlob(_ data: Data, mimeType: String, onProgress: @escaping @Sendable (BlobUploadProgress) -> Void) async throws -> BlobID {
         storeAttempts += 1
+        progressReports.forEach(onProgress)
         onStore?()
         let result = storeResults.isEmpty ? .success(Self.blobID) : storeResults.removeFirst()
         let blobID = try result.get()
@@ -48,8 +51,9 @@ final class MockChatMediaBlobStore: ChatMediaBlobStoring {
         return blobID
     }
 
-    func storeEncryptedBlob(_ image: Data, seal: ChatSeal) async throws -> EncryptedBlobUpload {
+    func storeEncryptedBlob(_ image: Data, seal: ChatSeal, onProgress: @escaping @Sendable (BlobUploadProgress) -> Void) async throws -> EncryptedBlobUpload {
         storeAttempts += 1
+        progressReports.forEach(onProgress)
         onStore?()
         let result = storeResults.isEmpty ? .success(Self.blobID) : storeResults.removeFirst()
         let blobID = try result.get()

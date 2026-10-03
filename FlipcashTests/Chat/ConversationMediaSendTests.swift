@@ -158,6 +158,7 @@ struct ConversationMediaSendTests {
         #expect(pending.count == 1)
         #expect(pending.first?.status == .failed)
         #expect(controller.pendingMediaImage(forMessageID: try #require(pending.first?.stableID)) === rejected.image)
+        #expect(rejected.progress.phase == .failed)
     }
 
     @Test("A photo the server refuses to post leaves a failed bubble")
@@ -166,9 +167,11 @@ struct ConversationMediaSendTests {
         mock.mediaSendError = ErrorSendMessage.transportFailure
         let controller = makeController(mock)
 
-        #expect(!(await controller.sendMedia([uploadedChip("a")], caption: "hi", to: conversationID)))
+        let chip = uploadedChip("a")
+        #expect(!(await controller.sendMedia([chip], caption: "hi", to: conversationID)))
 
         #expect(pendingMedia(controller).map(\.status) == [.failed])
+        #expect(chip.progress.phase == .failed)
     }
 
     // MARK: - Pending bubble
@@ -210,8 +213,8 @@ struct ConversationMediaSendTests {
         _ = await send.value
     }
 
-    @Test("The local image is served for a pending photo and dropped once it is confirmed")
-    func localImageLivesUntilConfirmed() async throws {
+    @Test("The local image is served for a pending photo and kept once it is confirmed")
+    func localImageOutlivesConfirm() async throws {
         let controller = makeController(MockConversations())
         let gate = UploadGate()
         let chip = gatedChip(gate)
@@ -223,7 +226,25 @@ struct ConversationMediaSendTests {
 
         gate.open(.success(blobID("a")))
         _ = await send.value
-        #expect(controller.pendingMediaImage(forMessageID: messageID) == nil)
+        // The sent row keeps the client id, so its bubble keeps drawing the photo instead of the BlurHash.
+        #expect(controller.pendingMediaImage(forMessageID: messageID) === chip.image)
+    }
+
+    @Test("The send progress is served for a pending photo, ends sent, and is dropped once confirmed")
+    func progressLivesUntilConfirmed() async throws {
+        let controller = makeController(MockConversations())
+        let gate = UploadGate()
+        let chip = gatedChip(gate)
+
+        let send = Task { await controller.sendMedia([chip], caption: nil, to: conversationID) }
+        await yield { pendingMedia(controller).count == 1 }
+        let messageID = try #require(pendingMedia(controller).first?.stableID)
+        #expect(controller.pendingMediaProgress(forMessageID: messageID) === chip.progress)
+
+        gate.open(.success(blobID("a")))
+        #expect(await send.value)
+        #expect(chip.progress.phase == .sent)
+        #expect(controller.pendingMediaProgress(forMessageID: messageID) == nil)
     }
 
     // MARK: - Retry
@@ -260,6 +281,7 @@ struct ConversationMediaSendTests {
 
         #expect(!(await controller.sendMedia([chip], caption: nil, to: conversationID)))
         #expect(chip.state == .failed(.retryable))
+        #expect(chip.progress.phase == .failed)
         let clientMessageID = try #require(pendingMedia(controller).first?.clientMessageID)
 
         await controller.retry(clientMessageID: clientMessageID, in: conversationID)
@@ -267,6 +289,7 @@ struct ConversationMediaSendTests {
         #expect(blob.storeAttempts == 2)
         #expect(mock.sentMedia.map(\.blobID) == [MockChatMediaBlobStore.blobID])
         #expect(pendingMedia(controller).isEmpty)
+        #expect(chip.progress.phase == .sent, "the retried upload brings the overlay back and ends it sent")
     }
 
     @Test("A photo refused by moderation is not retried")

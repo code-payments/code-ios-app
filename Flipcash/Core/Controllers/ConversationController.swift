@@ -10,6 +10,7 @@ import os
 import SwiftUI
 import FlipcashCore
 import FlipcashStore
+import FlipcashUI
 
 nonisolated private let logger = Logger(label: "flipcash.conversation-controller")
 
@@ -315,9 +316,21 @@ final class ConversationController {
 
     /// Keeps the words of a send that failed — see ``FailedSendDrafts``.
     @ObservationIgnored private var failedSends: FailedSendDrafts?
+    /// The session's pending photo sends, wired by `SessionContainer` like ``chatDrafts``; a controller
+    /// without one keeps photo sends in memory only.
+    @ObservationIgnored var pendingMedia: PendingMediaStore?
+
+    /// Builds the uploader a photo send restored from disk finishes through, wired with
+    /// ``pendingMedia``.
+    @ObservationIgnored var restoredPhotoUploader: ((ConversationID) -> ChatMediaUploader)?
+
     /// The chip behind each photo send not yet confirmed, keyed by its client id: its local image
     /// draws the pending bubble, and a failed send uploads or posts again through it.
     @ObservationIgnored private var pendingMediaChips: [UUID: ComposerChip] = [:]
+    /// The local image of each photo this session sent, newest last and capped, so its bubble keeps
+    /// drawing it after confirm instead of falling back to the BlurHash while the server copy loads.
+    @ObservationIgnored private var sentMediaImages: [(clientMessageID: UUID, image: UIImage)] = []
+    private static let sentMediaImageLimit = 20
     /// The receive-side analytics concern (cumulative counters + received events),
     /// owned by its own unit. Exposed so `SessionContainer` can wire its rate lookup.
     @ObservationIgnored let receipts: ConversationReceiptReporter
@@ -333,6 +346,8 @@ final class ConversationController {
     /// Moves new senders to the front of the mention picker's held suggestions. Set by the session
     /// after init.
     @ObservationIgnored var mentionSearch: ServerMentionSearch?
+    /// Keeps a photo send running for the time iOS allows after the app leaves the screen.
+    private let backgroundTasks: any BackgroundTaskAsserting
 
     init(
         fetching: any ConversationFetching,
@@ -350,9 +365,11 @@ final class ConversationController {
         typingStoppedLinger: Duration = ConversationTyping.defaultStoppedLinger,
         typingExpiryClock: TypingExpiryClock = .continuous,
         reconcileTiming: FeedReconcileTiming = .launch,
-        receipts: ConversationReceiptReporter? = nil
+        receipts: ConversationReceiptReporter? = nil,
+        backgroundTasks: any BackgroundTaskAsserting = UIApplicationBackgroundTasks(name: "chat.photo.send")
     ) {
         self.reconcileTiming = reconcileTiming
+        self.backgroundTasks = backgroundTasks
         self.fetching = fetching
         self.membership = membership
         self.viewerSettings = viewerSettings
@@ -456,6 +473,7 @@ final class ConversationController {
         }
         startTask = Task {
             await hydrateFromDatabase(loading: cache, unlessApplied: true)
+            restorePendingMedia()
             await openStream()
             await loadFeed()
         }
@@ -2099,6 +2117,10 @@ final class ConversationController {
         to conversationID: ConversationID,
         repliedTo: MessageID? = nil
     ) async -> Bool {
+        let assertion = BackgroundTimeAssertion(assertions: backgroundTasks)
+        assertion.begin()
+        defer { assertion.end() }
+
         let sends = ChatMediaSendPlan.mediaMessages(chips: chips, caption: caption, replyTo: repliedTo).map { message in
             (message: message, clientMessageID: insertPendingMedia(message, into: conversationID))
         }
@@ -2117,15 +2139,50 @@ final class ConversationController {
         return deliveredAll
     }
 
-    /// The local image drawing the pending photo bubble whose transcript id is `messageID`, or `nil`
-    /// once the send is confirmed or when the row is not a photo this device is sending.
+    /// The local image drawing the photo bubble whose transcript id is `messageID` — pending, or sent
+    /// from this device this session — or `nil` when the row is not one of those.
     func pendingMediaImage(forMessageID messageID: String) -> UIImage? {
-        UUID(uuidString: messageID).flatMap { pendingMediaChips[$0]?.image }
+        guard let id = UUID(uuidString: messageID) else { return nil }
+        return pendingMediaChips[id]?.image ?? sentMediaImages.last { $0.clientMessageID == id }?.image
+    }
+
+    private func keepSentImage(_ image: UIImage, clientMessageID: UUID) {
+        sentMediaImages.append((clientMessageID, image))
+        if sentMediaImages.count > Self.sentMediaImageLimit {
+            sentMediaImages.removeFirst(sentMediaImages.count - Self.sentMediaImageLimit)
+        }
+    }
+
+    /// The send progress of the pending photo bubble whose transcript id is `messageID`, or `nil`
+    /// once the send is confirmed or when the row is not a photo this device is sending.
+    func pendingMediaProgress(forMessageID messageID: String) -> ChatPhotoSendProgress? {
+        UUID(uuidString: messageID).flatMap { pendingMediaChips[$0]?.progress }
     }
 
     private func insertPendingMedia(_ message: ChatMediaSendPlan.MediaMessage<ComposerChip>, into conversationID: ConversationID) -> UUID {
         let clientMessageID = UUID()
         let chip = message.chip
+        let createdAt = Date.now
+        let pending = pendingMediaRow(
+            chip: chip, caption: message.caption, repliedTo: message.replyTo,
+            clientMessageID: clientMessageID, date: createdAt, status: .sending
+        )
+        let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
+        store.insertPending(pending, anchoredTo: anchor, into: conversationID)
+        receiptSettle.hold(clientMessageID.uuidString)
+        pendingMediaChips[clientMessageID] = chip
+        keepOnDisk(chip, clientMessageID: clientMessageID, conversationID: conversationID, createdAt: createdAt, caption: message.caption, repliedTo: message.replyTo)
+        return clientMessageID
+    }
+
+    private func pendingMediaRow(
+        chip: ComposerChip,
+        caption: String?,
+        repliedTo: MessageID?,
+        clientMessageID: UUID,
+        date: Date,
+        status: SendStatus
+    ) -> ConversationMessage {
         // A chip still preparing has no upload size yet; the source's own pixels carry the same
         // aspect ratio, which is all the bubble's clamp reads.
         let pixels = CGSize(width: chip.image.size.width * chip.image.scale, height: chip.image.size.height * chip.image.scale)
@@ -2135,22 +2192,110 @@ final class ConversationController {
             height: chip.preparedHeight ?? Int(pixels.height.rounded()),
             blurhash: nil
         )
-        let pending = ConversationMessage(
+        return ConversationMessage(
             id: .unassigned,
             senderID: selfUserID,
-            content: .media([attachment], caption: message.caption),
-            date: .now,
+            content: .media([attachment], caption: caption),
+            date: date,
             unreadSeq: 0,
-            repliedTo: message.replyTo,
-            status: .sending,
+            repliedTo: repliedTo,
+            status: status,
             clientMessageID: clientMessageID
         )
-        let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
-        store.insertPending(pending, anchoredTo: anchor, into: conversationID)
-        receiptSettle.hold(clientMessageID.uuidString)
-        pendingMediaChips[clientMessageID] = chip
-        return clientMessageID
     }
+
+    /// Records the send in ``pendingMedia`` and keeps its JPEG and stored photo current there as the
+    /// chip produces them.
+    private func keepOnDisk(
+        _ chip: ComposerChip,
+        clientMessageID: UUID,
+        conversationID: ConversationID,
+        createdAt: Date,
+        caption: String?,
+        repliedTo: MessageID?
+    ) {
+        guard let pendingMedia else { return }
+        pendingMedia.add(.init(clientMessageID: clientMessageID, conversationID: conversationID, createdAt: createdAt, caption: caption, replyTo: repliedTo))
+        chip.persist(
+            onEncoded: { [weak pendingMedia] data in pendingMedia?.writeImage(data, for: clientMessageID) },
+            onStored: { [weak pendingMedia] photo in pendingMedia?.setStored(photo, for: clientMessageID) }
+        )
+    }
+
+    /// Puts the photo sends a killed app left behind back in their transcripts: a send whose bytes
+    /// never landed as a failed row to retry, one whose bytes had landed resumed.
+    func restorePendingMedia() {
+        guard let pendingMedia, let uploaderFor = restoredPhotoUploader else { return }
+        pendingMedia.sweepOrphans()
+
+        var resuming: [(clientMessageID: UUID, chip: ComposerChip, entry: PendingMediaStore.Entry)] = []
+        for entry in pendingMedia.entries {
+            let conversationID = entry.chatID
+            let recent = (try? database.messagesWindow(conversationID: conversationID, limit: Self.restoreWindow)) ?? []
+            guard let jpeg = pendingMedia.imageData(for: entry), let image = UIImage(data: jpeg) else {
+                pendingMedia.remove(clientMessageID: entry.clientMessageID)
+                continue
+            }
+            if let stored = entry.stored, alreadySent(stored.blobID, in: recent) {
+                pendingMedia.remove(clientMessageID: entry.clientMessageID)
+                continue
+            }
+
+            let chip = ComposerChip(image: image)
+            chip.restore(encoded: jpeg, stored: entry.stored, uploader: uploaderFor(conversationID))
+            let status: SendStatus = entry.stored == nil ? .failed : .sending
+            let row = pendingMediaRow(
+                chip: chip, caption: entry.caption, repliedTo: entry.replyTo,
+                clientMessageID: entry.clientMessageID, date: entry.createdAt, status: status
+            )
+            let anchor = recent.filter { $0.date <= entry.createdAt }.map(\.id.value).max() ?? 0
+            store.insertPending(row, anchoredTo: anchor, into: conversationID)
+            receiptSettle.hold(entry.clientMessageID.uuidString)
+            pendingMediaChips[entry.clientMessageID] = chip
+            chip.persist(
+                onEncoded: { _ in },
+                onStored: { [weak pendingMedia] photo in pendingMedia?.setStored(photo, for: entry.clientMessageID) }
+            )
+            if entry.stored != nil {
+                resuming.append((entry.clientMessageID, chip, entry))
+            }
+        }
+
+        guard !resuming.isEmpty else { return }
+        Task { [weak self] in
+            for send in resuming {
+                guard let self, let uploader = self.restoredPhotoUploader?(send.entry.chatID) else { return }
+                let assertion = BackgroundTimeAssertion(assertions: self.backgroundTasks)
+                assertion.begin()
+                send.chip.startUpload(using: uploader)
+                _ = await self.deliverMedia(
+                    clientMessageID: send.clientMessageID,
+                    chip: send.chip,
+                    caption: send.entry.caption,
+                    repliedTo: send.entry.replyTo,
+                    to: send.entry.chatID
+                )
+                assertion.end()
+            }
+        }
+    }
+
+    /// Whether `recent` holds a message this user sent that references `blobID`, so its photo already
+    /// reached the server.
+    private func alreadySent(_ blobID: BlobID, in recent: [ConversationMessage]) -> Bool {
+        recent.contains { message in
+            guard message.senderID == selfUserID else { return false }
+            switch message.content {
+            case .media(let attachments, _):
+                return attachments.contains { $0.blobID == blobID }
+            case .text, .cash, .deleted, .encrypted, .widget:
+                return false
+            }
+        }
+    }
+
+    /// How many of a chat's newest messages ``restorePendingMedia()`` searches for an already-sent photo.
+    private static let restoreWindow = 100
 
     /// Re-sends a failed photo: posts again when its blob is finalized, uploads again first when the
     /// upload is what failed, and leaves a photo the server refused for good as it is.
@@ -2170,6 +2315,9 @@ final class ConversationController {
             return
         }
         store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+        let assertion = BackgroundTimeAssertion(assertions: backgroundTasks)
+        assertion.begin()
+        defer { assertion.end() }
         _ = await deliverMedia(clientMessageID: clientMessageID, chip: chip, caption: caption, repliedTo: repliedTo, to: conversationID)
     }
 
@@ -2183,6 +2331,7 @@ final class ConversationController {
     ) async -> Bool {
         // Read at await time: a retry replaces the chip's task.
         guard let upload = chip.uploadTask else {
+            chip.progress.fail()
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
             logger.error("Photo send has no upload to await", metadata: ["conversationID": "\(conversationID)"])
             return false
@@ -2191,7 +2340,11 @@ final class ConversationController {
         do {
             photo = try await upload.value
         } catch {
+            chip.progress.fail()
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
+            if let error = error as? ChatMediaUploadError, error.isTerminal {
+                pendingMedia?.remove(clientMessageID: clientMessageID)
+            }
             logger.error("Failed to upload conversation photo", metadata: [
                 "conversationID": "\(conversationID)",
                 "error": "\(error)",
@@ -2201,6 +2354,7 @@ final class ConversationController {
         }
 
         let chatType = conversation(withID: conversationID)?.type
+        chip.progress.beginSending()
         do {
             let message = try await messaging.sendMediaMessage(
                 owner: owner,
@@ -2210,12 +2364,16 @@ final class ConversationController {
                 repliedTo: repliedTo,
                 clientMessageID: clientMessageID
             )
+            // Before the chip is dropped, so the bubble still holding it fades its overlay out.
+            chip.progress.finish()
             var confirmed = message
             confirmed.clientMessageID = clientMessageID
             let ok = persist(operation: "send-media-message") { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
             if ok {
+                keepSentImage(chip.image, clientMessageID: clientMessageID)
                 store.dropPending(clientMessageID: clientMessageID, confirmedAt: message.id, in: conversationID)
                 pendingMediaChips[clientMessageID] = nil
+                pendingMedia?.remove(clientMessageID: clientMessageID)
             } else {
                 scheduleGapCatchUp(conversationID)
             }
@@ -2225,6 +2383,7 @@ final class ConversationController {
             Analytics.sentMessage(chatType: chatType)
             return true
         } catch {
+            chip.progress.fail()
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
             logger.error("Failed to send conversation photo", metadata: [
                 "conversationID": "\(conversationID)",
