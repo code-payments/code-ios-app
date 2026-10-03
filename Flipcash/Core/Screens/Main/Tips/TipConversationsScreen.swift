@@ -16,7 +16,7 @@ struct TipConversationsScreen: View {
 
     @State private var muteTarget: MuteTarget?
     @State private var filter: ChatListFilter = .all
-    @State private var undoTarget: ConversationID?
+    @Environment(ToastController.self) private var toasts
     /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
     @State private var chipsRevealed = false
     /// The chip row's height: while hidden, the list rests scrolled down by exactly this much.
@@ -113,23 +113,6 @@ struct TipConversationsScreen: View {
                     }
             }
         }
-        .overlay(alignment: .bottom) {
-            if undoTarget != nil {
-                ArchiveUndoToast {
-                    if let id = undoTarget { conversationController.unarchive(id) }
-                    undoTarget = nil
-                }
-                .padding(.bottom, 16)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
-        }
-        .animation(.default, value: undoTarget)
-        // Dismisses itself, like the reaction error toast; a new archive restarts the clock.
-        .task(id: undoTarget) {
-            guard undoTarget != nil else { return }
-            try? await Task.sleep(for: .seconds(4))
-            if !Task.isCancelled { undoTarget = nil }
-        }
         .sheet(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
         }
@@ -209,9 +192,11 @@ struct TipConversationsScreen: View {
     private func archiveAction(for conversation: Conversation) -> some View {
         Button {
             conversationController.archive(conversation.id)
-            undoTarget = conversation.id
+            toasts.show(.archivedChat { conversationController.unarchive(conversation.id) })
         } label: {
+            // Swipe actions fill symbols by default; the shared design uses the outline.
             Image(systemName: "archivebox")
+                .environment(\.symbolVariants, .none)
         }
         .tint(.backgroundRow)
         // A swipe action is also a VoiceOver custom action, next to the mute one.

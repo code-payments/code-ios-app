@@ -196,7 +196,11 @@ struct HomeTabView: View {
             ForEach(HomeTab.allCases) { tab in
                 Tab(value: tab) {
                     tabContent(for: tab)
+                        // Every tab stays alive, so only the selected one draws the toast.
+                        .toastHost(container.toasts, isEnabled: selection == tab)
                         .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
+                        // The system bar's inset, measured on a 402pt-wide iPhone.
+                        .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: 21))
                 } label: {
                     tabLabel(for: tab)
                         .accessibilityLabel(tab.title)
@@ -246,6 +250,7 @@ struct HomeTabView: View {
     }
 
     private static let pillBottomMargin: CGFloat = 8
+    private static let legacyPillInset: CGFloat = 42
 
     /// The room the legacy pill occupies above the safe area. The pill is an
     /// overlay, so unlike the iOS 26 system bar it adds nothing to the safe
@@ -258,7 +263,14 @@ struct HomeTabView: View {
         ZStack(alignment: .bottom) {
             tabContent(for: selection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The pill adds nothing to the safe area, so the toast clears it itself, and it draws
+                // below the pill so it grows out from behind it.
+                .toastHost(
+                    container.toasts,
+                    bottomPadding: isTabBarHidden ? 12 : 12 + Self.legacyPillClearance
+                )
                 .transition(.opacity)
+                .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: Self.legacyPillInset))
 
             if !isTabBarHidden {
                 HomeTabBar(
@@ -270,7 +282,7 @@ struct HomeTabView: View {
                     // Figma insets the pill ~42pt from each edge (318pt wide on the
                     // 402pt frame); a fixed margin keeps the floating look across
                     // device widths.
-                    .padding(.horizontal, 42)
+                    .padding(.horizontal, Self.legacyPillInset)
                     .padding(.bottom, Self.pillBottomMargin)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }

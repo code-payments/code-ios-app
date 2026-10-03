@@ -42,24 +42,13 @@ struct ArchivedRow: View {
     }
 }
 
-/// "Chat archived" with a tappable Undo. `ToastLabel` is text-only, so this is its own small view in
-/// the same capsule treatment; the screen dismisses it with a timer.
-struct ArchiveUndoToast: View {
-
-    let onUndo: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Text("Chat archived")
-                .foregroundStyle(Color.textMain)
-            Button("Undo", action: onUndo)
-                .foregroundStyle(Color.textMain)
-                .bold()
-                .accessibilityIdentifier("chat-archive-undo")
-        }
-        .font(.appTextSmall)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: Capsule())
+extension ToastController.Toast {
+    /// "Chat archived", with an Undo that runs `undo`.
+    static func archivedChat(undo: @escaping () -> Void) -> Self {
+        .init(
+            "Chat archived",
+            systemImage: "archivebox",
+            action: .init("Undo", accessibilityIdentifier: "chat-archive-undo", handler: undo)
+        )
     }
 }
