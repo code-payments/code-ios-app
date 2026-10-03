@@ -16,7 +16,7 @@ struct TipConversationsScreen: View {
 
     @State private var muteTarget: MuteTarget?
     @State private var filter: ChatListFilter = .all
-    @State private var undoTarget: ConversationID?
+    @Environment(ToastController.self) private var toasts
     /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
     @State private var chipsRevealed = false
     /// The chip row's height: while hidden, the list rests scrolled down by exactly this much.
@@ -41,15 +41,6 @@ struct TipConversationsScreen: View {
 
     /// A selected filter keeps the chips in view: they explain the list.
     private var showsChips: Bool { chipsRevealed || filter != .all }
-
-    /// The iOS 26 tab bar sits in the safe area; the legacy pill floats over the
-    /// content, so the toast has to clear it too or it lands behind the pill.
-    private var undoToastBottomPadding: CGFloat {
-        if #available(iOS 26, *) {
-            return 12
-        }
-        return 12 + HomeTabView.legacyPillClearance
-    }
 
     var body: some View {
         let projection = self.projection
@@ -121,28 +112,6 @@ struct TipConversationsScreen: View {
                         }
                     }
             }
-        }
-        .overlay(alignment: .bottom) {
-            if undoTarget != nil {
-                ArchiveUndoToast(
-                    onUndo: {
-                        if let id = undoTarget { conversationController.unarchive(id) }
-                        undoTarget = nil
-                    },
-                    onDismiss: { undoTarget = nil }
-                )
-                .padding(.bottom, undoToastBottomPadding)
-                .floatingToastTransition()
-            }
-        }
-        .animation(.spring(duration: 0.4, bounce: 0.2), value: undoTarget)
-        // Dismisses itself, like the reaction error toast; a new archive restarts the clock.
-        .task(id: undoTarget) {
-            guard undoTarget != nil else { return }
-            // Here rather than in the toast, so a replacing archive announces again.
-            AccessibilityNotification.Announcement("Chat archived").post()
-            try? await Task.sleep(for: .seconds(4))
-            if !Task.isCancelled { undoTarget = nil }
         }
         .sheet(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
@@ -223,7 +192,7 @@ struct TipConversationsScreen: View {
     private func archiveAction(for conversation: Conversation) -> some View {
         Button {
             conversationController.archive(conversation.id)
-            undoTarget = conversation.id
+            toasts.show(.archivedChat { conversationController.unarchive(conversation.id) })
         } label: {
             // Swipe actions fill symbols by default; the shared design uses the outline.
             Image(systemName: "archivebox")

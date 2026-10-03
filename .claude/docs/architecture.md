@@ -58,6 +58,10 @@ Top-level sheets (`Balance`, `Settings`, `Give`, `Discover`) each own a `Navigat
 
 Every router mutation logs one INFO entry under `flipcash.router` — filter by that label to trace any navigation interaction.
 
+## Toasts: ToastController
+
+Floating toasts go through `ToastController` (FlipcashUI), held on `Container` and injected via `@Environment(ToastController.self)`. Call `toasts.show(.init(...))`; **don't add a screen-level toast overlay or `@State` timer.** `HomeTabView` hosts the one toast with `.toastHost(_:)`, which sits it above the floating tab bar (native bar on iOS 26+, legacy pill below) or at the screen's bottom edge when the bar is hidden. A new toast replaces the one showing. A toast with an action takes touches and swipes down to dismiss; one without lets touches through. Sheets cover the host, so a toast dispatched while a sheet is up runs out its time hidden behind it. The bill screen's balance toast (`Session.toast`) is a separate system.
+
 ## Key Architectural Concepts
 
 1. **Quarks** - Smallest unit of any currency (like cents for dollars)

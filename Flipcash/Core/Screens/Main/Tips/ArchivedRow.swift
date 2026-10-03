@@ -42,18 +42,13 @@ struct ArchivedRow: View {
     }
 }
 
-/// "Chat archived" with a tappable Undo. The screen owns its lifetime; a swipe down calls `onDismiss`.
-struct ArchiveUndoToast: View {
-
-    let onUndo: () -> Void
-    let onDismiss: () -> Void
-
-    var body: some View {
-        FloatingToast(
+extension ToastController.Toast {
+    /// "Chat archived", with an Undo that runs `undo`.
+    static func archivedChat(undo: @escaping () -> Void) -> Self {
+        .init(
             "Chat archived",
             systemImage: "archivebox",
-            action: .init("Undo", accessibilityIdentifier: "chat-archive-undo", handler: onUndo),
-            onDismiss: onDismiss
+            action: .init("Undo", accessibilityIdentifier: "chat-archive-undo", handler: undo)
         )
     }
 }

@@ -196,6 +196,8 @@ struct HomeTabView: View {
             ForEach(HomeTab.allCases) { tab in
                 Tab(value: tab) {
                     tabContent(for: tab)
+                        // Every tab stays alive, so only the selected one draws the toast.
+                        .toastHost(container.toasts, isEnabled: selection == tab)
                         .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
                         // The system bar's inset, measured on a 402pt-wide iPhone.
                         .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: 21))
@@ -261,6 +263,12 @@ struct HomeTabView: View {
         ZStack(alignment: .bottom) {
             tabContent(for: selection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The pill adds nothing to the safe area, so the toast clears it itself, and it draws
+                // below the pill so it grows out from behind it.
+                .toastHost(
+                    container.toasts,
+                    bottomPadding: isTabBarHidden ? 12 : 12 + Self.legacyPillClearance
+                )
                 .transition(.opacity)
                 .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: Self.legacyPillInset))
 

@@ -42,6 +42,7 @@ struct YouScreen: View {
     /// The version footer's beta-access easter egg — the tap count and the line
     /// it shows for the last few taps.
     @State private var versionUnlock = VersionTapUnlock()
+    @Environment(ToastController.self) private var toasts
     @State private var isShowingDownloadOptions = false
 
     /// The format tapped in the download sheet, held until the sheet is gone so
@@ -457,8 +458,13 @@ struct YouScreen: View {
 
     private var versionFooter: some View {
         Button {
-            versionUnlock.registerTap(isUnlocked: betaFlags.accessGranted) {
+            let message = versionUnlock.registerTap(isUnlocked: betaFlags.accessGranted) {
                 betaFlags.setAccessGranted(!betaFlags.accessGranted)
+            }
+            if let message {
+                // Two seconds, so consecutive taps read as one countdown. Without an action the toast
+                // lets taps through, so it never blocks the version string at the bottom of the list.
+                toasts.show(.init(message, messageIdentifier: "you-version-toast", width: .fit, duration: .seconds(2)))
             }
         } label: {
             Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
@@ -470,30 +476,7 @@ struct YouScreen: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // On the button rather than the composed view: an identifier applied
-        // outside the overlay propagates onto the toast too, and an element
-        // carrying an identifier is no longer addressable by its label.
         .accessibilityIdentifier("you-version-footer")
-        // Overlaid rather than stacked: the countdown speaks on consecutive
-        // taps, and a toast that took up space would walk the version string
-        // out from under the finger.
-        .overlay(alignment: .top) {
-            if let message = versionUnlock.message {
-                FloatingToast(message, messageIdentifier: "you-version-toast", width: .fit)
-                    // Back out to the screen edges, so the toast caps at the tab bar's width
-                    // rather than the content column's.
-                    .padding(.horizontal, -Self.horizontalInset)
-                    // Sits on the footer's top edge, so the taller pill never covers the version.
-                    .alignmentGuide(.top) { $0[.bottom] + 4 }
-                    // Taps land on the version underneath, so the countdown keeps counting.
-                    .allowsHitTesting(false)
-                    .transition(
-                        .offset(x: 0, y: 20)
-                        .combined(with: .opacity.animation(.easeOutFastest))
-                    )
-            }
-        }
-        .animation(.springFaster, value: versionUnlock.message)
     }
 
     // MARK: - Content -
