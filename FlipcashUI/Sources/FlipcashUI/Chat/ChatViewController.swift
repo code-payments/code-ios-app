@@ -657,7 +657,7 @@ public final class ChatViewController: UICollectionViewController {
                 with: message,
                 maxWidth: maxWidth,
                 authorImageData: authorImageData,
-                quoteThumbnailURL: quoteThumbnailURL(for: message)
+                quoteThumbnail: quoteThumbnail(for: message)
             )
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
@@ -672,7 +672,7 @@ public final class ChatViewController: UICollectionViewController {
                 with: message,
                 maxWidth: maxWidth,
                 authorImageData: authorImageData,
-                quoteThumbnailURL: quoteThumbnailURL(for: message)
+                quoteThumbnail: quoteThumbnail(for: message)
             )
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
@@ -696,7 +696,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         case let cell as ChatMediaCell:
             guard case .media(let media) = message.content else { return }
-            let remoteURL = mediaURLResolver?.url(for: media, canReact: message.canReact) { [weak self] _ in
+            let remote = mediaURLResolver?.location(for: media, canReact: message.canReact) { [weak self] _ in
                 self?.reconfigureVisibleMessage(id: message.id)
             }
             let localImage = pendingMediaImage?(message.id)
@@ -704,14 +704,14 @@ public final class ChatViewController: UICollectionViewController {
                 with: message,
                 maxWidth: maxWidth,
                 localImage: localImage,
-                remoteURL: remoteURL,
+                remote: remote,
                 authorImageData: authorImageData
             )
             cell.onImageTap = { [weak self, weak cell] in
                 guard let self, let request = ChatMediaViewerRequest(
                     message: message,
                     localImage: localImage,
-                    remoteURL: remoteURL,
+                    remote: remote,
                     placeholder: cell?.imageView.image,
                     sourceView: { [weak self] in self?.mediaSourceView(forMessageID: message.id) }
                 ) else { return }
@@ -728,9 +728,9 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Where a reply's quoted photo draws its thumbnail from, or nil when it has none or is not yet
     /// resolved; a resolution redraws the reply.
-    private func quoteThumbnailURL(for message: ChatMessage) -> URL? {
+    private func quoteThumbnail(for message: ChatMessage) -> ChatMediaLocation? {
         guard let quote = message.quote else { return nil }
-        return mediaURLResolver?.thumbnailURL(for: quote.kind, canReact: message.canReact) { [weak self] _ in
+        return mediaURLResolver?.thumbnailLocation(for: quote.kind, canReact: message.canReact) { [weak self] _ in
             self?.reconfigureVisibleMessage(id: message.id)
         }
     }

@@ -260,7 +260,7 @@ struct ConversationBottomBar: View {
     /// Fired by the photo card's back chevron and escape gesture.
     var onPhotosBack: () -> Void = {}
     /// Where the reply strip's quoted photo loads its thumbnail from.
-    var quoteThumbnailURL: (ChatQuote.Kind) async -> URL? = { _ in nil }
+    var quoteThumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
     private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
@@ -448,7 +448,7 @@ struct ConversationBottomBar: View {
             // already drives this state in both directions, and wrapping the dismissal in a second
             // transaction gave the exit a curve the entry never had.
             AccessoryReveal(kind: .reply, item: barReply, collapsesInPlace: mentionCandidates != nil) { target in
-                ComposerReplyStrip(target: target, thumbnailURL: quoteThumbnailURL) { composer.endReplying() }
+                ComposerReplyStrip(target: target, thumbnailLocation: quoteThumbnailLocation) { composer.endReplying() }
             }
                 // The quote narrows with the row below it, so the two keep one margin.
                 .padding(.horizontal, compactExtraInset)

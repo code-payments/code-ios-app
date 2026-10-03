@@ -2068,6 +2068,30 @@ final class ConversationController {
     /// posted only once its own chip's upload settles, so a later photo never lands before an
     /// earlier one. A chip that fails marks only its own bubble `.failed`, and the next chip still
     /// gets its turn.
+    /// The seal a photo staged for `conversationID` is encrypted with, nil when the chat takes
+    /// plaintext photos; throws when the chat encrypts but its seal can't be built.
+    func photoSeal(for conversationID: ConversationID) async throws -> ChatSeal? {
+        try await messaging.photoSeal(owner: owner, conversationID: conversationID)
+    }
+
+    /// Decrypts `conversationID`'s end-to-end encrypted photo blobs, or nil while the chat's key is
+    /// unknown or the chat doesn't encrypt.
+    func mediaBlobDecrypt(for conversationID: ConversationID) async -> (@Sendable (Data, BlobID, SealedBlob) throws -> Data)? {
+        guard let seal = await messaging.openingSeal(owner: owner, conversationID: conversationID) else { return nil }
+        return { blob, blobID, sealed in
+            do {
+                return try seal.decryptBlob(blob, blobID: blobID, sealed: sealed)
+            } catch {
+                logger.warning("Encrypted chat photo failed to open", metadata: [
+                    "conversationID": "\(conversationID)",
+                    "blobID": "\(blobID)",
+                    "error": "\(error)",
+                ])
+                throw error
+            }
+        }
+    }
+
     @discardableResult
     func sendMedia(
         _ chips: [ComposerChip],
@@ -2163,9 +2187,9 @@ final class ConversationController {
             logger.error("Photo send has no upload to await", metadata: ["conversationID": "\(conversationID)"])
             return false
         }
-        let blobID: BlobID
+        let photo: UploadedPhoto
         do {
-            blobID = try await upload.value
+            photo = try await upload.value
         } catch {
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
             logger.error("Failed to upload conversation photo", metadata: [
@@ -2181,7 +2205,7 @@ final class ConversationController {
             let message = try await messaging.sendMediaMessage(
                 owner: owner,
                 conversationID: conversationID,
-                blobID: blobID,
+                photo: photo,
                 caption: caption,
                 repliedTo: repliedTo,
                 clientMessageID: clientMessageID

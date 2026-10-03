@@ -97,17 +97,17 @@ public final class ChatLinkMessageCell: ChatColumnCell {
 
     /// - Parameters:
     ///   - maxWidth: the widest the bubble may grow before its text wraps.
-    ///   - quoteThumbnailURL: where a quoted photo's thumbnail loads from, or nil until it resolves.
+    ///   - quoteThumbnail: where a quoted photo's thumbnail loads from, or nil until it resolves.
     public func configure(
         with message: ChatMessage,
         maxWidth: CGFloat,
         authorImageData: Data? = nil,
-        quoteThumbnailURL: URL? = nil
+        quoteThumbnail: ChatMediaLocation? = nil
     ) {
         bubbleMaxWidthConstraint.constant = maxWidth
         bubbleCardWidthConstraint.constant = maxWidth
         bubbleCardWidthConstraint.isActive = Self.cardFillsWidth(message.linkPreview?.card)
-        bubble.configure(with: message, quoteThumbnailURL: quoteThumbnailURL)
+        bubble.configure(with: message, quoteThumbnail: quoteThumbnail)
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = message.sender == .me

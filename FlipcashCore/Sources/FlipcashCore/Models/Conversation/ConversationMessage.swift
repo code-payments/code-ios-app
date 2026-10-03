@@ -51,7 +51,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         /// End-to-end-encrypted content not yet decrypted: either decryption failed (see
         /// ``ConversationMessage/decryptFailure``) or the peer's key hasn't been fetched yet. `scheme`
         /// is the wire `EncryptedContent.Scheme` raw value, kept as `Int` so this model doesn't depend
-        /// on the generated proto enum. A decrypted message carries `.text` instead.
+        /// on the generated proto enum. A decrypted message carries `.text` or `.media` instead.
         case encrypted(scheme: Int, nonce: Data, ciphertext: Data)
         /// A widget: structured content the sender's client drew as a card rather than text.
         case widget(Widget)
@@ -220,15 +220,15 @@ extension ConversationMessage {
         if case .encrypted = content { decryptFailure == nil } else { false }
     }
 
-    /// A copy carrying the outcome of decrypting it: the plaintext and the message it replies to,
-    /// or the reason it failed. Everything else is kept, including the ciphertext.
-    public func opened(_ outcome: Result<(text: String, repliedTo: MessageID?), DecryptFailure>) -> ConversationMessage {
+    /// A copy carrying the outcome of decrypting it: the decrypted content and the message it
+    /// replies to, or the reason it failed. Everything else is kept, including the ciphertext.
+    public func opened(_ outcome: Result<(content: Content, repliedTo: MessageID?), DecryptFailure>) -> ConversationMessage {
         let content: Content
         let repliedTo: MessageID?
         let failure: DecryptFailure?
         switch outcome {
         case .success(let plaintext):
-            content = .text(plaintext.text)
+            content = plaintext.content
             repliedTo = plaintext.repliedTo
             failure = nil
         case .failure(let reason):

@@ -273,7 +273,8 @@ extension ChatItem {
                     height: attachment?.height ?? 0,
                     blurhash: attachment?.blurhash,
                     caption: caption,
-                    isRedacted: message.redacted
+                    isRedacted: message.redacted,
+                    sealed: attachment?.sealed
                 ))
             }
 
@@ -446,7 +447,7 @@ extension ChatItem {
                 stableID: original.stableID,
                 authorName: authorName,
                 snippet: ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption)),
-                kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.blobID),
+                kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.blobID, sealed: attachments.first?.sealed),
                 authorID: original.senderID
             )
         case .encrypted:

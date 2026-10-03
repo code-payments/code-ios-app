@@ -36,8 +36,8 @@ struct ChatMediaURLResolverTests {
             return url
         }
 
-        #expect(resolver.url(for: photo(isRedacted: true), canReact: true) { _ in } == nil)
-        #expect(resolver.url(for: photo(isRedacted: false), canReact: false) { _ in } == nil)
+        #expect(resolver.location(for: photo(isRedacted: true), canReact: true) { _ in }?.url == nil)
+        #expect(resolver.location(for: photo(isRedacted: false), canReact: false) { _ in }?.url == nil)
 
         // Give any stray fetch task a chance to run before asserting none did.
         await Task.yield()
@@ -54,17 +54,17 @@ struct ChatMediaURLResolverTests {
         }
         let photo = photo(isRedacted: false)
 
-        #expect(resolver.url(for: photo, canReact: false) { _ in } == nil)
+        #expect(resolver.location(for: photo, canReact: false) { _ in }?.url == nil)
 
         let resolved = await withCheckedContinuation { continuation in
-            let immediate = resolver.url(for: photo, canReact: true) { continuation.resume(returning: $0) }
+            let immediate = resolver.location(for: photo, canReact: true) { continuation.resume(returning: $0.url) }
             #expect(immediate == nil)
             // A second dequeue while the first fetch is in flight does not start another.
-            #expect(resolver.url(for: photo, canReact: true) { _ in } == nil)
+            #expect(resolver.location(for: photo, canReact: true) { _ in }?.url == nil)
         }
         #expect(resolved == url)
 
-        #expect(resolver.url(for: photo, canReact: true) { _ in } == url)
+        #expect(resolver.location(for: photo, canReact: true) { _ in }?.url == url)
         #expect(spy.calls == [blobID])
     }
 
@@ -77,10 +77,10 @@ struct ChatMediaURLResolverTests {
             return url
         }
 
-        #expect(resolver.thumbnailURL(for: .media(thumbnailBlobID: nil), canReact: true) { _ in } == nil)
-        #expect(resolver.thumbnailURL(for: .media(thumbnailBlobID: blobID), canReact: false) { _ in } == nil)
-        #expect(resolver.thumbnailURL(for: .text, canReact: true) { _ in } == nil)
-        #expect(resolver.thumbnailURL(for: .unavailable, canReact: true) { _ in } == nil)
+        #expect(resolver.thumbnailLocation(for: .media(thumbnailBlobID: nil, sealed: nil), canReact: true) { _ in }?.url == nil)
+        #expect(resolver.thumbnailLocation(for: .media(thumbnailBlobID: blobID, sealed: nil), canReact: false) { _ in }?.url == nil)
+        #expect(resolver.thumbnailLocation(for: .text, canReact: true) { _ in }?.url == nil)
+        #expect(resolver.thumbnailLocation(for: .unavailable, canReact: true) { _ in }?.url == nil)
 
         await Task.yield()
         #expect(spy.calls.isEmpty)
@@ -96,14 +96,14 @@ struct ChatMediaURLResolverTests {
         }
 
         let resolved = await withCheckedContinuation { continuation in
-            let immediate = resolver.thumbnailURL(for: .media(thumbnailBlobID: blobID), canReact: true) {
-                continuation.resume(returning: $0)
+            let immediate = resolver.thumbnailLocation(for: .media(thumbnailBlobID: blobID, sealed: nil), canReact: true) {
+                continuation.resume(returning: $0.url)
             }
             #expect(immediate == nil)
         }
         #expect(resolved == url)
 
-        #expect(resolver.url(for: photo(isRedacted: false), canReact: true) { _ in } == url)
+        #expect(resolver.location(for: photo(isRedacted: false), canReact: true) { _ in }?.url == url)
         #expect(spy.calls == [blobID])
     }
 
@@ -116,11 +116,11 @@ struct ChatMediaURLResolverTests {
             return url
         }
 
-        #expect(await resolver.thumbnailURL(for: .media(thumbnailBlobID: nil), canReact: true) == nil)
+        #expect(await resolver.thumbnailLocation(for: .media(thumbnailBlobID: nil, sealed: nil), canReact: true)?.url == nil)
         #expect(spy.calls.isEmpty)
 
-        #expect(await resolver.thumbnailURL(for: .media(thumbnailBlobID: blobID), canReact: true) == url)
-        #expect(await resolver.thumbnailURL(for: .media(thumbnailBlobID: blobID), canReact: true) == url)
+        #expect(await resolver.thumbnailLocation(for: .media(thumbnailBlobID: blobID, sealed: nil), canReact: true)?.url == url)
+        #expect(await resolver.thumbnailLocation(for: .media(thumbnailBlobID: blobID, sealed: nil), canReact: true)?.url == url)
         #expect(spy.calls == [blobID])
     }
 
@@ -132,13 +132,54 @@ struct ChatMediaURLResolverTests {
 
         let (row, quote) = await withCheckedContinuation { continuation in
             var row: URL?
-            let immediate = resolver.url(for: photo, canReact: true) { row = $0 }
+            let immediate = resolver.location(for: photo, canReact: true) { row = $0.url }
             #expect(immediate == nil)
-            _ = resolver.thumbnailURL(for: .media(thumbnailBlobID: blobID), canReact: true) { quote in
-                continuation.resume(returning: (row, quote))
+            _ = resolver.thumbnailLocation(for: .media(thumbnailBlobID: blobID, sealed: nil), canReact: true) { quote in
+                continuation.resume(returning: (row, quote.url))
             }
         }
         #expect(row == url)
         #expect(quote == url)
+    }
+
+    @Test("An encrypted photo waits on the chat's decryption, fetches it once, and decrypts with its blob")
+    func encryptedPhotoDecrypts() async throws {
+        let url = url
+        let sealed = SealedBlob(senderID: UserID(), plaintextSize: 3)
+        let decryptCalls = FetchSpy()
+        let resolver = ChatMediaURLResolver(
+            fetch: { _ in url },
+            decrypt: {
+                decryptCalls.calls.append(BlobID(data: Data()))
+                return { blob, blobID, sealed in Data(blob.reversed()) + blobID.data + Data([UInt8(sealed.plaintextSize)]) }
+            }
+        )
+        let sealedPhoto = ChatMediaContent(blobID: blobID, width: 1, height: 1, blurhash: nil, caption: nil, isRedacted: false, sealed: sealed)
+
+        let location = await withCheckedContinuation { continuation in
+            let immediate = resolver.location(for: sealedPhoto, canReact: true) { continuation.resume(returning: $0) }
+            #expect(immediate == nil)
+        }
+        #expect(location.url == url)
+        let decrypt = try #require(location.decrypt)
+        #expect(try decrypt(Data([1, 2])) == Data([2, 1, 1, 3]))
+
+        let cached = try #require(resolver.location(for: sealedPhoto, canReact: true) { _ in })
+        #expect(cached.decrypt != nil)
+        #expect(await resolver.thumbnailLocation(for: .media(thumbnailBlobID: blobID, sealed: sealed), canReact: true)?.decrypt != nil)
+        #expect(decryptCalls.calls.count == 1)
+        #expect(resolver.location(for: photo(isRedacted: false), canReact: true) { _ in }?.decrypt == nil)
+    }
+
+    @Test("An encrypted photo stays on its BlurHash while the chat's key is unknown")
+    func encryptedPhotoWithoutKey() async {
+        let url = url
+        let resolver = ChatMediaURLResolver(fetch: { _ in url }, decrypt: { nil })
+        let sealed = SealedBlob(senderID: UserID(), plaintextSize: 3)
+        let photo = ChatMediaContent(blobID: blobID, width: 1, height: 1, blurhash: nil, caption: nil, isRedacted: false, sealed: sealed)
+
+        let location = await resolver.thumbnailLocation(for: .media(thumbnailBlobID: blobID, sealed: sealed), canReact: true)
+        #expect(location == nil)
+        #expect(resolver.location(for: photo, canReact: true) { _ in } == nil)
     }
 }

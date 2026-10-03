@@ -24,11 +24,11 @@ struct ComposerReplyStrip: View {
 
     let target: ComposerModel.ReplyTarget
     /// Where a quoted photo's thumbnail loads from; nil for anything else, or a photo with none to fetch.
-    var thumbnailURL: (ChatQuote.Kind) async -> URL? = { _ in nil }
+    var thumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
     let onDismiss: () -> Void
     @Environment(\.barCardCollapsed) private var collapsed
 
-    @State private var resolvedThumbnail: URL?
+    @State private var resolvedThumbnail: ChatMediaLocation?
 
     /// Wider than the 4pt a blockquote rule usually takes, because the quote's corner radius is the
     /// bar's 14: the leading edge is straight for only `contentHeight - 14 * 2` of its run, and the
@@ -159,12 +159,14 @@ struct ComposerReplyStrip: View {
     @ViewBuilder
     private var thumbnail: some View {
         switch target.kind {
-        case .media(let thumbnailBlobID?):
+        case .media(let thumbnailBlobID?, _):
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color.white.opacity(0.08))
                 .overlay {
                     if let resolvedThumbnail {
-                        KFImage(source: .network(ChatMediaImageSource.resource(blobID: thumbnailBlobID, url: resolvedThumbnail)))
+                        KFImage(source: ChatMediaImageSource.source(blobID: thumbnailBlobID, location: resolvedThumbnail))
+                            .targetCache(ChatMediaImageSource.cache)
+                            .onSuccess { ChatMediaImageSource.persist(.success($0)) }
                             .resizable()
                             .scaledToFill()
                     }
@@ -173,9 +175,9 @@ struct ComposerReplyStrip: View {
                 .clipShape(.rect(cornerRadius: 6))
                 .accessibilityHidden(true)
                 .task(id: thumbnailBlobID) {
-                    resolvedThumbnail = await thumbnailURL(target.kind)
+                    resolvedThumbnail = await thumbnailLocation(target.kind)
                 }
-        case .media(nil), .text, .cash, .unavailable:
+        case .media(nil, _), .text, .cash, .unavailable:
             EmptyView()
         }
     }

@@ -25,11 +25,30 @@ public struct MediaAttachment: Hashable, Sendable, Codable {
     /// The ORIGINAL's BlurHash preview, or `nil` when the server carried none.
     public let blurhash: String?
 
-    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?) {
+    /// How the blob decrypts when it is end-to-end encrypted for the chat; nil for a plaintext blob.
+    public let sealed: SealedBlob?
+
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, sealed: SealedBlob? = nil) {
         self.blobID   = blobID
         self.width    = width
         self.height   = height
         self.blurhash = blurhash
+        self.sealed   = sealed
+    }
+}
+
+/// What an end-to-end encrypted photo's blob needs, besides the chat key, to be decrypted and
+/// checked: who uploaded it, which orders the public keys in its aad, and the plaintext length the
+/// decrypted bytes must match.
+public struct SealedBlob: Hashable, Sendable, Codable {
+    /// The member who uploaded the blob, always the sender of the message that references it.
+    public let senderID: UserID
+    /// The plaintext image's length in bytes, from the sender's sealed metadata.
+    public let plaintextSize: Int
+
+    public init(senderID: UserID, plaintextSize: Int) {
+        self.senderID = senderID
+        self.plaintextSize = plaintextSize
     }
 }
 
