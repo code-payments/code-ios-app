@@ -115,11 +115,14 @@ struct TipConversationsScreen: View {
         }
         .overlay(alignment: .bottom) {
             if undoTarget != nil {
-                ArchiveUndoToast {
-                    if let id = undoTarget { conversationController.unarchive(id) }
-                    undoTarget = nil
-                }
-                .padding(.bottom, 16)
+                ArchiveUndoToast(
+                    onUndo: {
+                        if let id = undoTarget { conversationController.unarchive(id) }
+                        undoTarget = nil
+                    },
+                    onDismiss: { undoTarget = nil }
+                )
+                .padding(.bottom, 12)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
@@ -127,6 +130,8 @@ struct TipConversationsScreen: View {
         // Dismisses itself, like the reaction error toast; a new archive restarts the clock.
         .task(id: undoTarget) {
             guard undoTarget != nil else { return }
+            // Here rather than in the toast, so a replacing archive announces again.
+            AccessibilityNotification.Announcement("Chat archived").post()
             try? await Task.sleep(for: .seconds(4))
             if !Task.isCancelled { undoTarget = nil }
         }
