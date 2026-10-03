@@ -84,17 +84,19 @@ public struct SelectableChipButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.appTextSmall)
-            .foregroundStyle(isSelected ? Color.backgroundMain : Color.textMain)
+            .foregroundStyle(isSelected ? Color.textMain : Color.textSecondary)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background(Capsule().fill(isSelected ? Color.textMain : Color.backgroundRow))
+            // A tint, not a solid fill: solid white was the brightest thing on the dark screen.
+            .background(Capsule().fill(isSelected ? Color.white.opacity(0.16) : Color.clear))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Capsule())
     }
 }
 
 public extension ButtonStyle where Self == SelectableChipButtonStyle {
-    /// A filter chip filled with the main text colour when selected, the row fill otherwise.
+    /// A filter chip with a faint white tint and the main text colour when selected, and no fill
+    /// with the secondary text colour otherwise.
     static func selectableChip(isSelected: Bool) -> SelectableChipButtonStyle {
         SelectableChipButtonStyle(isSelected: isSelected)
     }
