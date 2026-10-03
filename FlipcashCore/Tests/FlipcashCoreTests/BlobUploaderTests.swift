@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Synchronization
 import Testing
 @testable import FlipcashCore
 
@@ -60,6 +61,55 @@ struct BlobUploaderTests {
             }
         }
         #expect(await transport.body == nil)
+    }
+
+    // MARK: - Progress -
+
+    @Test("Forwards the transport's sent-byte counts for a plaintext upload")
+    func store_forwardsProgress() async throws {
+        let uploader = makeUploader(transport: RecordingTransport(), states: [.ready])
+        let seen = Mutex<[BlobUploadProgress]>([])
+
+        _ = try await uploader.store(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner()) { progress in
+            seen.withLock { $0.append(progress) }
+        }
+
+        let fractions = seen.withLock { $0 }.compactMap(\.fraction)
+        #expect(fractions.count == 2)
+        #expect(fractions.first.map { $0 > 0 && $0 < 1 } == true)
+        #expect(fractions.last == 1.0)
+    }
+
+    @Test("Forwards the sealed bytes' progress for an encrypted upload")
+    func storeEncrypted_forwardsProgress() async throws {
+        let uploader = makeUploader(transport: RecordingTransport(), states: [.ready])
+        let seen = Mutex<[BlobUploadProgress]>([])
+
+        _ = try await uploader.storeEncrypted(
+            Self.fileBytes,
+            for: ConversationID(data: Data(repeating: 7, count: 32)),
+            owner: try Self.owner(),
+            onProgress: { progress in seen.withLock { $0.append(progress) } }
+        ) { plaintext, _ in
+            Data(count: plaintext.count + EncryptedBlobUpload.overhead)
+        }
+
+        #expect(seen.withLock { $0 }.last?.fraction == 1.0)
+    }
+
+    @Test("Maps sent bytes to a fraction of the body, clamped to 0...1")
+    func progress_fraction() {
+        #expect(BlobUploadProgress(sentBytes: 0, totalBytes: 200).fraction == 0)
+        #expect(BlobUploadProgress(sentBytes: 50, totalBytes: 200).fraction == 0.25)
+        #expect(BlobUploadProgress(sentBytes: 200, totalBytes: 200).fraction == 1)
+        #expect(BlobUploadProgress(sentBytes: 300, totalBytes: 200).fraction == 1)
+        #expect(BlobUploadProgress(sentBytes: -1, totalBytes: 200).fraction == 0)
+    }
+
+    @Test("Reports no fraction when the body's length is unknown")
+    func progress_unknownLength() {
+        #expect(BlobUploadProgress(sentBytes: 10, totalBytes: 0).fraction == nil)
+        #expect(BlobUploadProgress(sentBytes: 10, totalBytes: -1).fraction == nil)
     }
 
     @Test("The reservation names the chat only for an encrypted upload")
@@ -325,6 +375,44 @@ struct BlobUploaderTests {
         #expect(await reserving.reserveCount == 0)
     }
 
+    /// iOS drops the connection when it suspends the app mid-wait; one lost poll is not a failed
+    /// upload.
+    @Test("A poll lost in transit is retried rather than failing the upload")
+    func lostPollIsRetried() async throws {
+        let transport = RecordingTransport()
+        let reserving = StubReserving(states: [.processing, .ready], lostPolls: 2)
+        let uploader = BlobUploader(
+            reserving: reserving,
+            transport: transport,
+            pollInterval: .milliseconds(1),
+            timeout: .seconds(5)
+        )
+
+        try await uploader.awaitFinalization(blobID: StubReserving.blobID, owner: try Self.owner())
+
+        #expect(await reserving.pollCount == 4)
+        #expect(await transport.body == nil)
+    }
+
+    @Test("Polls lost in transit still count toward the deadline")
+    func lostPollsHonourTheDeadline() async throws {
+        let reserving = StubReserving(states: [], lostPolls: .max)
+        let uploader = BlobUploader(
+            reserving: reserving,
+            transport: RecordingTransport(),
+            pollInterval: .milliseconds(1),
+            timeout: .milliseconds(5)
+        )
+
+        await #expect {
+            try await uploader.awaitFinalization(blobID: StubReserving.blobID, owner: try Self.owner())
+        } throws: { error in
+            guard case ErrorBlob.timedOut = error else { return false }
+            return true
+        }
+        #expect(await reserving.pollCount == 5)
+    }
+
     // MARK: - Fixtures -
 
     private static let fileBytes = Data(repeating: 0xAB, count: 4096)
@@ -453,7 +541,18 @@ private actor RecordingTransport: BlobUploading {
         self.failure = error
     }
 
-    func post(url: URL, contentType: String, headers: [String: String], body: Data) async throws -> (status: Int, body: Data) {
+    func post(
+        url: URL,
+        contentType: String,
+        headers: [String: String],
+        body: Data,
+        onProgress: @escaping @Sendable (BlobUploadProgress) -> Void
+    ) async throws -> (status: Int, body: Data) {
+        // Reports the body going out in two halves, as URLSession does in chunks.
+        let total = Int64(body.count)
+        onProgress(BlobUploadProgress(sentBytes: total / 2, totalBytes: total))
+        onProgress(BlobUploadProgress(sentBytes: total, totalBytes: total))
+
         self.url         = url
         self.contentType = contentType
         self.headers     = headers
@@ -473,15 +572,18 @@ private actor StubReserving: BlobReserving {
 
     private var states: [BlobState]
     private let completion: BlobState
+    private var lostPolls: Int
     private(set) var pollCount = 0
     private(set) var reserveCount = 0
     private(set) var declaredSizeBytes: Int?
     private(set) var declaredMimeType: String?
     private(set) var encryptedFor: ConversationID?
 
-    init(states: [BlobState], completion: BlobState = .processing) {
+    /// `lostPolls` is how many polls fail in transit before the stub starts answering.
+    init(states: [BlobState], completion: BlobState = .processing, lostPolls: Int = 0) {
         self.states = states
         self.completion = completion
+        self.lostPolls = lostPolls
     }
 
     func initiateExternalUpload(mimeType: String, sizeBytes: Int, encryptedFor: ConversationID?, owner: KeyPair) async throws -> ReservedUpload {
@@ -512,6 +614,10 @@ private actor StubReserving: BlobReserving {
 
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState {
         pollCount += 1
+        if lostPolls > 0 {
+            lostPolls -= 1
+            throw ErrorBlob.network(URLError(.networkConnectionLost))
+        }
         return states.isEmpty ? .processing : states.removeFirst()
     }
 }

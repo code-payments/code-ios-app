@@ -701,6 +701,17 @@ final class SessionContainer {
         // puts its text back — none of which the controller can do before it has the store.
         conversationController.chatDrafts = chatDrafts
         conversationController.chatArchive = chatArchive
+        // Same owner-scoped placement as the drafts; a photo whose send a kill interrupted comes back
+        // through `start()`, which needs the uploader to finish it.
+        conversationController.pendingMedia = PendingMediaStore(
+            directory: .applicationSupportDirectory,
+            owner: owner.publicKey
+        )
+        conversationController.restoredPhotoUploader = { [weak conversationController, session, flipClient] conversationID in
+            var uploader = ChatMediaUploader(blob: SessionChatMediaBlobStore(session: session, flipClient: flipClient))
+            uploader.seal = { try await conversationController?.photoSeal(for: conversationID) }
+            return uploader
+        }
         let recentReactions = RecentReactionsStore(owner: owner.publicKey)
         self.recentReactions = recentReactions
         conversationController.reactions.recents = recentReactions

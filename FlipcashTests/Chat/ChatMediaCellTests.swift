@@ -46,6 +46,97 @@ struct ChatMediaCellTests {
         return cell
     }
 
+    private func outgoing(id: String = "1", receipt: ChatReceipt? = nil) -> ChatMessage {
+        ChatMessage(id: id, content: .media(media()), sender: .me, receipt: receipt)
+    }
+
+    // MARK: - Send progress -
+
+    @Test("A row with no send progress draws no overlay")
+    func noProgressNoOverlay() {
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(with: outgoing(), maxWidth: 240, localImage: nil, progress: nil, remote: nil)
+        #expect(!cell.progressOverlay.isShowing)
+        #expect(cell.progressOverlay.isHidden)
+    }
+
+    @Test("An uploading photo shows its share of bytes sent; processing shows a full, indeterminate bar")
+    func overlayFollowsProgress() async {
+        let progress = ChatPhotoSendProgress()
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(with: outgoing(), maxWidth: 240, localImage: nil, progress: progress, remote: nil)
+        #expect(cell.progressOverlay.isShowing)
+        #expect(cell.progressOverlay.fraction == 0)
+        #expect(!cell.progressOverlay.isIndeterminate)
+
+        progress.didUpload(BlobUploadProgress(sentBytes: 40, totalBytes: 100))
+        await waitFor { cell.progressOverlay.fraction == 0.4 }
+        #expect(cell.progressOverlay.fraction == 0.4)
+
+        progress.beginProcessing()
+        await waitFor { cell.progressOverlay.isIndeterminate }
+        #expect(cell.progressOverlay.fraction == 1)
+        #expect(cell.progressOverlay.isIndeterminate)
+        #expect(cell.progressOverlay.isShowing)
+    }
+
+    @Test("The overlay hides once the photo is sent")
+    func overlayHidesWhenSent() async {
+        let progress = ChatPhotoSendProgress()
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(with: outgoing(), maxWidth: 240, localImage: nil, progress: progress, remote: nil)
+        progress.beginSending()
+
+        progress.finish()
+        await waitFor { !cell.progressOverlay.isShowing }
+        #expect(!cell.progressOverlay.isShowing)
+    }
+
+    @Test("The confirmed row, reconfigured without progress, hides the overlay")
+    func overlayHidesWhenConfirmedRowLosesProgress() {
+        let progress = ChatPhotoSendProgress()
+        progress.beginSending()
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(with: outgoing(), maxWidth: 240, localImage: nil, progress: progress, remote: nil)
+        #expect(cell.progressOverlay.isShowing)
+
+        cell.configure(with: outgoing(receipt: .delivered), maxWidth: 240, localImage: nil, progress: nil, remote: nil)
+        #expect(!cell.progressOverlay.isShowing)
+    }
+
+    @Test("A failed row hides the overlay for the failed receipt, and a retry brings it back")
+    func failedRowHidesOverlay() async {
+        let progress = ChatPhotoSendProgress()
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(with: outgoing(), maxWidth: 240, localImage: nil, progress: progress, remote: nil)
+
+        progress.fail()
+        cell.configure(with: outgoing(receipt: .failed("Not delivered")), maxWidth: 240, localImage: nil, progress: progress, remote: nil)
+        #expect(!cell.progressOverlay.isShowing)
+        #expect(cell.progressOverlay.isHidden)
+
+        progress.beginAttempt()
+        cell.configure(with: outgoing(), maxWidth: 240, localImage: nil, progress: progress, remote: nil)
+        #expect(cell.progressOverlay.isShowing)
+    }
+
+    @Test("A recycled cell drops the previous row's progress")
+    func recycledCellIgnoresOldProgress() async {
+        let old = ChatPhotoSendProgress()
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(with: outgoing(id: "old"), maxWidth: 240, localImage: nil, progress: old, remote: nil)
+        cell.prepareForReuse()
+        cell.configure(with: outgoing(id: "new", receipt: .delivered), maxWidth: 240, localImage: nil, progress: nil, remote: nil)
+
+        old.didUpload(BlobUploadProgress(sentBytes: 50, totalBytes: 100))
+        for _ in 0..<5 { await Task.yield() }
+        #expect(!cell.progressOverlay.isShowing)
+    }
+
+    private func waitFor(_ condition: () -> Bool) async {
+        for _ in 0..<50 where !condition() { await Task.yield() }
+    }
+
     @Test("A row with no image yet draws its BlurHash")
     func drawsBlurhashBeforeImageLoads() {
         let cell = configuredCell(media())
