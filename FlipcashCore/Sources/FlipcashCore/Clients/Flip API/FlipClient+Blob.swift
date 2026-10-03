@@ -11,15 +11,25 @@ extension FlipClient {
     ///
     /// Pair with `awaitBlobFinalization(blobID:owner:)`: holding the blob from
     /// the moment the bytes land is what lets a timed-out wait resume rather
-    /// than upload a second copy.
-    public func storeBlob(_ data: Data, mimeType: String, owner: KeyPair) async throws -> BlobID {
-        try await blobUploader.store(data, mimeType: mimeType, owner: owner)
+    /// than upload a second copy. `onProgress` hears the bytes going out, from any thread.
+    public func storeBlob(
+        _ data: Data,
+        mimeType: String,
+        owner: KeyPair,
+        onProgress: @escaping @Sendable (BlobUploadProgress) -> Void = { _ in }
+    ) async throws -> BlobID {
+        try await blobUploader.store(data, mimeType: mimeType, owner: owner, onProgress: onProgress)
     }
 
     /// Stores `image` end-to-end encrypted with `seal` for its DM and returns the blob, before the
     /// server has finalized it. Pair with `awaitBlobFinalization(blobID:owner:)` as for `storeBlob`.
-    public func storeEncryptedBlob(_ image: Data, seal: ChatSeal, owner: KeyPair) async throws -> EncryptedBlobUpload {
-        try await blobUploader.storeEncrypted(image, for: seal.conversationID, owner: owner) { plaintext, blobID in
+    public func storeEncryptedBlob(
+        _ image: Data,
+        seal: ChatSeal,
+        owner: KeyPair,
+        onProgress: @escaping @Sendable (BlobUploadProgress) -> Void = { _ in }
+    ) async throws -> EncryptedBlobUpload {
+        try await blobUploader.storeEncrypted(image, for: seal.conversationID, owner: owner, onProgress: onProgress) { plaintext, blobID in
             try seal.encryptBlob(plaintext, blobID: blobID)
         }
     }

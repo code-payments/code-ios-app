@@ -166,7 +166,7 @@ public enum BlobOpenFailure: Error, Hashable, Sendable {
 }
 
 /// A photo uploaded encrypted for a chat, with the plaintext metadata its sealed message carries.
-public struct SealedPhoto: Hashable, Sendable {
+public struct SealedPhoto: Hashable, Sendable, Codable {
     /// The encrypted blob, READY before the message is sent.
     public let blobID: BlobID
     /// The plaintext image's MIME type, always an `image/` type.

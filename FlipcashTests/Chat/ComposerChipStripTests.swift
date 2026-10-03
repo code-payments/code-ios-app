@@ -14,12 +14,12 @@ import FlipcashCore
 @Suite("Composer chip strip")
 struct ComposerChipStripTests {
 
-    @Test("A chip still preparing or uploading shows the progress ring", arguments: [
+    @Test("A chip still preparing or uploading shows only its thumbnail; the sent bubble shows progress", arguments: [
         ComposerChip.State.preparing,
         .uploading,
     ])
-    func inFlightShowsProgress(state: ComposerChip.State) {
-        #expect(ComposerChipBadge(state) == .progress)
+    func inFlightShowsNothing(state: ComposerChip.State) {
+        #expect(ComposerChipBadge(state) == .none)
     }
 
     @Test("An uploaded chip shows only its thumbnail")

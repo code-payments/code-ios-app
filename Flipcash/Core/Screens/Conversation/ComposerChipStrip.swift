@@ -10,20 +10,19 @@ import FlipcashUI
 
 /// What a staged chip draws over its thumbnail.
 enum ComposerChipBadge: Equatable {
-    /// The photo is still being prepared or uploaded.
-    case progress
     /// The upload failed and can be tried again.
     case retry
     /// The server refused the photo; the only way forward is to remove it.
     case error
-    /// The photo is uploaded, so the thumbnail stands alone.
+    /// The thumbnail stands alone: uploaded, or uploading quietly until the send, whose bubble
+    /// shows the progress.
     case none
 
     /// Returns the badge for a chip in `state`.
     init(_ state: ComposerChip.State) {
         switch state {
-        case .preparing, .uploading:        self = .progress
-        case .uploaded:                     self = .none
+        case .preparing, .uploading, .uploaded:
+            self = .none
         case .failed(.retryable):           self = .retry
         case .failed(.notRetryable):        self = .error
         }
@@ -159,13 +158,6 @@ private struct ComposerChipView: View {
     @ViewBuilder
     private var badge: some View {
         switch ComposerChipBadge(chip.state) {
-        case .progress:
-            ZStack {
-                Color.black.opacity(0.35)
-                ProgressView()
-                    .tint(.white)
-            }
-            .accessibilityLabel("Uploading photo")
         case .retry:
             Button(action: onRetry) {
                 ZStack {

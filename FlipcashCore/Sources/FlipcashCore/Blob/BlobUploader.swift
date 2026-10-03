@@ -41,7 +41,14 @@ final class BlobUploader: Sendable {
     ///
     /// Separate from `awaitFinalization` so a caller whose poll times out can
     /// resume the same blob instead of uploading a second copy.
-    func store(_ data: Data, mimeType: String, owner: KeyPair) async throws -> BlobID {
+    ///
+    /// `onProgress` hears the bytes going out to storage, from any thread.
+    func store(
+        _ data: Data,
+        mimeType: String,
+        owner: KeyPair,
+        onProgress: @escaping @Sendable (BlobUploadProgress) -> Void = { _ in }
+    ) async throws -> BlobID {
         // Sanitize before reserving: the reservation signs the byte count, and
         // storage refuses an image carrying personal metadata. Doing it here
         // rather than at the call site is what makes it true of every upload.
@@ -60,7 +67,7 @@ final class BlobUploader: Sendable {
             "sizeBytes": "\(data.count)",
         ])
 
-        try await store(data, mimeType: mimeType, to: reserved.target)
+        try await store(data, mimeType: mimeType, to: reserved.target, onProgress: onProgress)
 
         switch try await reserving.completeExternalUpload(blobID: reserved.blobID, owner: owner) {
         case .rejected(let reason):
@@ -78,11 +85,13 @@ final class BlobUploader: Sendable {
     /// finalization to the caller.
     ///
     /// `encrypt` seals the plaintext under the blob id the reservation assigns, which is part of
-    /// its aad, so the reservation declares the sealed size before the blob exists.
+    /// its aad, so the reservation declares the sealed size before the blob exists. `onProgress`
+    /// hears the sealed bytes going out to storage, from any thread.
     func storeEncrypted(
         _ image: Data,
         for conversationID: ConversationID,
         owner: KeyPair,
+        onProgress: @escaping @Sendable (BlobUploadProgress) -> Void = { _ in },
         encrypt: @Sendable (Data, BlobID) throws -> Data
     ) async throws -> EncryptedBlobUpload {
         // The server never reads these bytes, so stripping location and camera metadata is on us.
@@ -111,7 +120,7 @@ final class BlobUploader: Sendable {
             throw ErrorBlob.unknown
         }
 
-        try await store(blob, mimeType: Self.encryptedMimeType, to: reserved.target)
+        try await store(blob, mimeType: Self.encryptedMimeType, to: reserved.target, onProgress: onProgress)
 
         switch try await reserving.completeExternalUpload(blobID: reserved.blobID, owner: owner) {
         case .rejected(let reason):
@@ -130,27 +139,39 @@ final class BlobUploader: Sendable {
 
     /// Polls until the blob is finalized.
     ///
-    /// Returns immediately when it is already ready; a rejection is terminal.
+    /// Returns immediately when it is already ready; a rejection is terminal. A poll lost in transit
+    /// is retried, since iOS drops the connection when it suspends the app mid-wait. The `timeout`
+    /// budget is counted in polls rather than wall time, so time spent suspended doesn't use it up.
     func awaitFinalization(blobID: BlobID, owner: KeyPair) async throws {
-        let deadline = ContinuousClock.now.advanced(by: timeout)
+        let maxPolls = max(1, Int((timeout / pollInterval).rounded(.up)))
+        var polls = 0
 
         while true {
             try Task.checkCancellation()
+            polls += 1
 
-            switch try await reserving.blobState(blobID: blobID, owner: owner) {
-            case .ready:
-                return
-            case .rejected(let reason):
-                logger.info("Blob rejected", metadata: [
+            do {
+                switch try await reserving.blobState(blobID: blobID, owner: owner) {
+                case .ready:
+                    return
+                case .rejected(let reason):
+                    logger.info("Blob rejected", metadata: [
+                        "blobId": "\(blobID)",
+                        "reason": "\(reason)",
+                    ])
+                    throw ErrorBlob.rejected(reason)
+                case .pending, .processing:
+                    break
+                }
+            } catch ErrorBlob.network(let error) {
+                try Task.checkCancellation()
+                logger.info("Blob poll lost in transit", metadata: [
                     "blobId": "\(blobID)",
-                    "reason": "\(reason)",
+                    "error": "\(error)",
                 ])
-                throw ErrorBlob.rejected(reason)
-            case .pending, .processing:
-                break
             }
 
-            guard ContinuousClock.now < deadline else {
+            guard polls < maxPolls else {
                 logger.info("Blob finalization timed out", metadata: ["blobId": "\(blobID)"])
                 throw ErrorBlob.timedOut
             }
@@ -161,7 +182,12 @@ final class BlobUploader: Sendable {
 
     // MARK: - Upload -
 
-    private func store(_ data: Data, mimeType: String, to target: UploadTarget) async throws {
+    private func store(
+        _ data: Data,
+        mimeType: String,
+        to target: UploadTarget,
+        onProgress: @escaping @Sendable (BlobUploadProgress) -> Void
+    ) async throws {
         let boundary = "Boundary-\(UUID().uuidString)"
 
         let status: Int
@@ -180,7 +206,8 @@ final class BlobUploader: Sendable {
                     file: data,
                     mimeType: mimeType,
                     boundary: boundary
-                )
+                ),
+                onProgress: onProgress
             )
         } catch is CancellationError {
             throw CancellationError()

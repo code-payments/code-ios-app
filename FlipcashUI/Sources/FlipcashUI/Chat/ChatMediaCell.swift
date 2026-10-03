@@ -26,12 +26,16 @@ public final class ChatMediaCell: ChatColumnCell {
     private static let captionInset: CGFloat = 12
     private static let captionPadding: CGFloat = 9
     private static let fadeDuration: TimeInterval = 0.25
+    /// The progress capsule's inset from the photo's bottom-right corner.
+    private static let progressInset: CGFloat = 10
 
     private let stack = UIStackView()
     private let imageBubble = BubbleBackgroundView()
     let imageView = UIImageView()
     /// Shown over the BlurHash when an encrypted photo's bytes fail to decrypt or check out.
     let unavailableLabel = UILabel()
+    /// Shows how far an outgoing photo's send has got, until it is sent or fails.
+    let progressOverlay = ChatPhotoProgressOverlay()
     let captionBubble = BubbleBackgroundView()
     let captionLabel = UILabel()
     let reactionRow = ReactionPillRowView()
@@ -75,6 +79,8 @@ public final class ChatMediaCell: ChatColumnCell {
         unavailableLabel.isHidden = true
         unavailableLabel.translatesAutoresizingMaskIntoConstraints = false
         imageBubble.addSubview(unavailableLabel)
+        progressOverlay.translatesAutoresizingMaskIntoConstraints = false
+        imageBubble.addSubview(progressOverlay)
         imageTap.addTarget(self, action: #selector(imageTapped))
         imageBubble.addGestureRecognizer(imageTap)
 
@@ -113,6 +119,11 @@ public final class ChatMediaCell: ChatColumnCell {
             imageView.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor),
             imageView.bottomAnchor.constraint(equalTo: imageBubble.bottomAnchor),
 
+            progressOverlay.widthAnchor.constraint(equalToConstant: ChatPhotoProgressOverlay.size.width),
+            progressOverlay.heightAnchor.constraint(equalToConstant: ChatPhotoProgressOverlay.size.height),
+            progressOverlay.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor, constant: -Self.progressInset),
+            progressOverlay.bottomAnchor.constraint(equalTo: imageBubble.bottomAnchor, constant: -Self.progressInset),
+
             unavailableLabel.centerYAnchor.constraint(equalTo: imageBubble.centerYAnchor),
             unavailableLabel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.captionInset),
             unavailableLabel.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor, constant: -Self.captionInset),
@@ -139,6 +150,7 @@ public final class ChatMediaCell: ChatColumnCell {
         imageView.kf.cancelDownloadTask()
         imageView.image = nil
         showUnavailable(false)
+        progressOverlay.bind(nil, suppressed: false, animated: false)
         drawnRowID = nil
         reactionRow.prepareForReuse()
     }
@@ -152,11 +164,13 @@ public final class ChatMediaCell: ChatColumnCell {
     /// - Parameters:
     ///   - maxWidth: the transcript's widest bubble, which the photo always spans.
     ///   - localImage: the picked image of a pending send this device staged, or nil.
+    ///   - progress: the send progress of a pending photo this device staged, or nil.
     ///   - remote: where the photo downloads from, or nil until it is resolved.
     public func configure(
         with message: ChatMessage,
         maxWidth: CGFloat,
         localImage: UIImage?,
+        progress: ChatPhotoSendProgress? = nil,
         remote: ChatMediaLocation?,
         authorImageData: Data? = nil
     ) {
@@ -171,6 +185,8 @@ public final class ChatMediaCell: ChatColumnCell {
         )
         imageWidthConstraint.constant = size.width
         imageHeightConstraint.constant = size.height
+        // The same row losing its progress is a confirmed send, which fades; a new row starts clean.
+        progressOverlay.bind(progress, suppressed: message.isFailed, animated: drawnRowID == message.id)
         drawImage(
             for: message.id,
             blobID: media.blobID,
