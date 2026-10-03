@@ -66,7 +66,7 @@ public struct FloatingToast: View {
             if let systemImage {
                 Image(systemName: systemImage)
                     .font(.system(size: 18))
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.textMain)
                     .accessibilityHidden(true)
             }
             Text(message)
