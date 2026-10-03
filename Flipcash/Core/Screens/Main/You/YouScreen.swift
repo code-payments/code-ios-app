@@ -479,13 +479,13 @@ struct YouScreen: View {
         // out from under the finger.
         .overlay(alignment: .top) {
             if let message = versionUnlock.message {
-                ToastLabel(message)
-                    .offset(y: -22)
+                FloatingToast(message, messageIdentifier: "you-version-toast")
+                    // Sits on the footer's top edge, so the taller pill never covers the version.
+                    .alignmentGuide(.top) { $0[.bottom] + 4 }
                     .transition(
                         .offset(x: 0, y: 20)
                         .combined(with: .opacity.animation(.easeOutFastest))
                     )
-                    .accessibilityIdentifier("you-version-toast")
             }
         }
         .animation(.springFaster, value: versionUnlock.message)

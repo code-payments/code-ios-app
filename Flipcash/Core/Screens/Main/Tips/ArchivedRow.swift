@@ -42,54 +42,18 @@ struct ArchivedRow: View {
     }
 }
 
-/// "Chat archived" with a tappable Undo, in the undo-toast design shared with Android: a full-width
-/// frosted pill. The screen owns its lifetime; a swipe down calls `onDismiss`.
+/// "Chat archived" with a tappable Undo. The screen owns its lifetime; a swipe down calls `onDismiss`.
 struct ArchiveUndoToast: View {
 
     let onUndo: () -> Void
     let onDismiss: () -> Void
 
-    @State private var dragOffset: CGFloat = 0
-
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "archivebox")
-                .font(.system(size: 18))
-                .foregroundStyle(Color.textSecondary)
-                .accessibilityHidden(true)
-            Text("Chat archived")
-                .font(.default(size: 14, weight: .medium))
-                .foregroundStyle(Color.textMain)
-            Spacer(minLength: 0)
-            Button(action: onUndo) {
-                Text("Undo")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textMain)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.12), in: Capsule())
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("chat-archive-undo")
-        }
-        .padding(.leading, 16)
-        .padding(.trailing, 8)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
-        .padding(.horizontal, 12)
-        .offset(y: dragOffset)
-        .gesture(
-            DragGesture()
-                .onChanged { dragOffset = max(0, $0.translation.height) }
-                .onEnded { value in
-                    if value.translation.height > 24 || value.predictedEndTranslation.height > 60 {
-                        onDismiss()
-                    } else {
-                        withAnimation(.spring) { dragOffset = 0 }
-                    }
-                }
+        FloatingToast(
+            "Chat archived",
+            systemImage: "archivebox",
+            action: .init("Undo", accessibilityIdentifier: "chat-archive-undo", handler: onUndo),
+            onDismiss: onDismiss
         )
     }
 }
