@@ -216,7 +216,9 @@ struct TipConversationsScreen: View {
             conversationController.archive(conversation.id)
             undoTarget = conversation.id
         } label: {
+            // Swipe actions fill symbols by default; the shared design uses the outline.
             Image(systemName: "archivebox")
+                .environment(\.symbolVariants, .none)
         }
         .tint(.backgroundRow)
         // A swipe action is also a VoiceOver custom action, next to the mute one.
