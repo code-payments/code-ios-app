@@ -15,51 +15,82 @@ struct ConversationBarLeadingControlTests {
     private func control(
         isEditing: Bool = false,
         chatExists: Bool = true,
-        showsSendCash: Bool = true,
-        acceptsMedia: Bool = true,
-        attachedCount: Int = 0
+        showsSendCash: Bool = true
     ) -> ConversationBarLeadingControl {
-        ConversationBarLeadingControl(
-            isEditing: isEditing,
-            chatExists: chatExists,
-            showsSendCash: showsSendCash,
-            acceptsMedia: acceptsMedia,
-            attachedCount: attachedCount
-        )
+        ConversationBarLeadingControl(isEditing: isEditing, chatExists: chatExists, showsSendCash: showsSendCash)
     }
 
-    @Test("Before the chat exists, Send Cash stays the full-width call to action", arguments: [true, false])
-    func callToActionBeforeChatExists(acceptsMedia: Bool) {
-        #expect(control(chatExists: false, acceptsMedia: acceptsMedia) == .sendCash)
+    @Test("Before the chat exists, Send Cash stays the full-width call to action")
+    func callToActionBeforeChatExists() {
+        #expect(control(chatExists: false) == .sendCash)
     }
 
-    @Test("Before the chat exists with nothing to send, the slot is empty")
+    @Test("Before the chat exists with nothing to send, nothing stands outside the field")
     func emptyBeforeChatExistsWithoutCash() {
         #expect(control(chatExists: false, showsSendCash: false) == .none)
     }
 
-    @Test("Once the chat exists, the slot is the attach menu with every row")
-    func attachMenuOnceChatExists() {
-        #expect(control() == .attach([.cash, .camera, .photos]))
+    @Test("Once the chat exists, Send Cash is the round `$` beside the field")
+    func cashOnceChatExists() {
+        #expect(control() == .cash)
     }
 
-    @Test("An E2EE chat keeps the attach menu with Cash alone")
-    func attachMenuCashOnlyWithoutMedia() {
-        #expect(control(acceptsMedia: false) == .attach([.cash]))
-    }
-
-    @Test("A chat that takes neither cash nor media leaves the slot empty")
-    func emptyWithoutCashOrMedia() {
-        #expect(control(showsSendCash: false, acceptsMedia: false) == .none)
-    }
-
-    @Test("A full composer in a chat without cash leaves the slot empty")
-    func emptyWhenFullWithoutCash() {
-        #expect(control(showsSendCash: false, attachedCount: ComposerModel.maxAttachments) == .none)
+    @Test("Once the chat exists with nothing to send, nothing stands beside the field")
+    func noneOnceChatExistsWithoutCash() {
+        #expect(control(showsSendCash: false) == .none)
     }
 
     @Test("An edit takes the slot whatever else is true", arguments: [true, false])
     func cancelWhileEditing(chatExists: Bool) {
         #expect(control(isEditing: true, chatExists: chatExists) == .cancelEdit)
+    }
+}
+
+@MainActor
+@Suite("Conversation bar bottom row")
+struct ConversationBarBottomRowTests {
+
+    private func row(
+        isEditing: Bool = false,
+        chatExists: Bool = true,
+        acceptsMedia: Bool = true,
+        attachedCount: Int = 0
+    ) -> ConversationBarBottomRow {
+        ConversationBarBottomRow(
+            isEditing: isEditing,
+            chatExists: chatExists,
+            acceptsMedia: acceptsMedia,
+            attachedCount: attachedCount
+        )
+    }
+
+    @Test("Where the chat takes media, the row holds `+` with the camera and photos")
+    func plus() {
+        let row = row()
+        #expect(row.plusItems == [.camera, .photos])
+        #expect(!row.isEmpty)
+    }
+
+    @Test("Cash is never a menu row: the `$` beside the field takes it")
+    func cashLeavesTheMenu() {
+        #expect(!row().plusItems.contains(.cash))
+        #expect(!row(acceptsMedia: false).plusItems.contains(.cash))
+    }
+
+    @Test("With no menu rows left, `+` goes", arguments: [false, true])
+    func noPlus(isFull: Bool) {
+        let row = row(acceptsMedia: isFull, attachedCount: isFull ? ComposerModel.maxAttachments : 0)
+        #expect(row.plusItems.isEmpty)
+        #expect(row.isEmpty)
+    }
+
+    @Test("An edit hides the bottom row")
+    func hiddenWhileEditing() {
+        #expect(row(isEditing: true).isEmpty)
+    }
+
+    @Test("Before the chat exists there is no bottom row")
+    func hiddenBeforeChatExists() {
+        #expect(row(chatExists: false).isEmpty)
     }
 }

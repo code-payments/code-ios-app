@@ -35,8 +35,7 @@ enum AttachMenuItem: Equatable {
     }
 }
 
-/// The composer's leading `+` control, in the slot Send Cash takes before the chat exists. Opens the
-/// attach surface — the floating glass menu of Cash, Camera, and Photos, which grows out of `+` over
+/// The `+` circle in the composer field's bottom row. Opens the attach surface — the floating glass menu of Cash, Camera, and Photos, which grows out of `+` over
 /// the field and collapses back into it — and reports where it is laid out, for the surface to grow
 /// from. The surface itself is ``AttachSurface``, drawn by the bar or over the keyboard.
 struct AttachMenu: View {
@@ -61,14 +60,13 @@ struct AttachMenu: View {
             panel.animate { $0.toggle() }
         } label: {
             Image(systemName: SystemSymbol.plus.rawValue)
-                .font(.default(size: 20, weight: .semibold))
+                .font(.default(size: 17, weight: .semibold))
                 .foregroundStyle(Color.textMain)
-                .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
-                .contentShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+                .frame(width: BarMetrics.accessorySize, height: BarMetrics.accessorySize)
+                .background(AttachSurfaceLayout.plusFill, in: Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .glassBackground(cornerRadius: BarMetrics.cornerRadius)
-        .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
         .accessibilityLabel("Attach")
         .accessibilityValue(panel.isOpen ? "Expanded" : "Collapsed")
         .accessibilityIdentifier("attach-menu-button")

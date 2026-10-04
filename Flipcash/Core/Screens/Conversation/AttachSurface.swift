@@ -67,28 +67,41 @@ nonisolated struct AttachSurfaceShape: Equatable {
 /// Where the attach surface stands in each phase, in its host's coordinates.
 enum AttachSurfaceLayout {
 
-    /// `+`'s radius, which the surface grows out of and collapses back into.
-    static let plusCornerRadius: CGFloat = BarMetrics.cornerRadius
-    static let menuCornerRadius: CGFloat = 40
+    /// Matches the composer field's corner, so the menu reads as part of it.
+    static let menuCornerRadius: CGFloat = BarMetrics.fieldCornerRadius
+    /// `+`'s flat fill on the composer field, which the surface turns into as it reaches `+`.
+    static let plusFill = Color.white.opacity(0.10)
+    /// How far past `+`'s size the surface has fully turned from `+`'s fill into the panel's glass.
+    static let plusBlendDistance: CGFloat = 40
     static let cardCornerRadius: CGFloat = 24
     /// A staged chip's radius, which a landing ends on.
     static let chipCornerRadius: CGFloat = 10
-    /// The menu's width: enough to cover the field from `+`, short of the send button on a 375pt screen.
-    static let menuWidth: CGFloat = 280
+    /// The menu's width: room for an icon and a short label, well short of the send button.
+    static let menuWidth: CGFloat = 220
     /// A menu row's height, sized to the system's own attachment menus.
     static let menuRowHeight: CGFloat = 62
     static let menuVerticalPadding: CGFloat = 10
+    /// The rows' blur and scale while hidden, which they sharpen and grow out of as the menu opens.
+    static let rowsBloomBlur: CGFloat = 8
+    static let rowsBloomScale: CGFloat = 0.85
 
     /// The menu's size before its rows are measured.
     static func estimatedMenuSize(rowCount: Int) -> CGSize {
         CGSize(width: menuWidth, height: CGFloat(rowCount) * menuRowHeight + menuVerticalPadding * 2)
     }
 
-    /// The menu's frame for a menu `size` big, placed against `plus` by `placement`.
-    static func menuRect(plus: CGRect, size: CGSize, placement: AttachMenuPlacement) -> CGRect {
+    /// The menu's frame for a menu `size` big, placed against `plus` by `placement`. Either way its
+    /// leading edge is the composer field's, ``BarMetrics/fieldPadding`` out from `+`'s, moved out a
+    /// further `leadingReach` at the same width; standing on `+`, its bottom edge is the field's too.
+    static func menuRect(plus: CGRect, size: CGSize, placement: AttachMenuPlacement, leadingReach: CGFloat = 0) -> CGRect {
+        let rect = fieldAlignedMenuRect(plus: plus, size: size, placement: placement)
+        return CGRect(x: rect.minX - leadingReach, y: rect.minY, width: rect.width, height: rect.height)
+    }
+
+    private static func fieldAlignedMenuRect(plus: CGRect, size: CGSize, placement: AttachMenuPlacement) -> CGRect {
         switch placement {
         case .standsOnPlus:
-            CGRect(x: plus.minX, y: plus.maxY - size.height, width: size.width, height: size.height)
+            CGRect(x: plus.minX - BarMetrics.fieldPadding, y: plus.maxY + BarMetrics.fieldPadding - size.height, width: size.width, height: size.height)
         case .straddlesPlus:
             AttachOverlayLayout.panelFrame(plusFrame: plus, size: size)
         }
@@ -100,11 +113,16 @@ enum AttachSurfaceLayout {
         CGRect(x: -outset, y: row.height - height, width: row.width + outset * 2, height: height)
     }
 
+    /// Returns the radius of the surface collapsed onto `plus`, which is a circle: half its height.
+    static func collapsedCornerRadius(plus: CGRect) -> CGFloat {
+        plus.height / 2
+    }
+
     /// The surface's shape in `phase`. A landing whose chip hasn't been laid out yet holds the card's.
     static func shape(for phase: AttachSurfacePhase, plus: CGRect, menu: CGRect, card: CGRect, landing: CGRect?) -> AttachSurfaceShape {
         switch phase {
         case .collapsed:
-            AttachSurfaceShape(rect: plus, cornerRadius: plusCornerRadius)
+            AttachSurfaceShape(rect: plus, cornerRadius: collapsedCornerRadius(plus: plus))
         case .menu:
             AttachSurfaceShape(rect: menu, cornerRadius: menuCornerRadius)
         case .card:
@@ -162,13 +180,14 @@ struct AttachSurface: View {
         let menu = AttachSurfaceLayout.menuRect(
             plus: plus,
             size: menuSize ?? AttachSurfaceLayout.estimatedMenuSize(rowCount: items.count),
-            placement: menuPlacement
+            placement: menuPlacement,
+            leadingReach: model.overKeyboard.menuLeadingReach
         )
         let shape = AttachSurfaceLayout.shape(for: appeared ? phase : .collapsed, plus: plus, menu: menu, card: card, landing: landing)
         // Morphing, the surface is `+` at either end and stays opaque; a cross-fade fades it instead.
         let isVisible = motion.animatesGeometry || (appeared && phase != .collapsed)
         let showsPlusGlyph = !appeared || phase == .collapsed
-        AttachSurfaceFrame(shape: shape) { rect in
+        AttachSurfaceFrame(shape: shape, plus: plus, blendsIntoPlus: phase != .landing) { rect in
             ZStack(alignment: .topLeading) {
                 plusGlyph
                     .offset(x: plus.minX - rect.minX, y: plus.minY - rect.minY)
@@ -176,7 +195,19 @@ struct AttachSurface: View {
                 cardLayer(phase: phase)
                     .frame(width: card.width, height: card.height)
                     .offset(x: card.minX - rect.minX, y: card.minY - rect.minY)
-                rows(phase: phase)
+                // From the hand-off on, filling the surface at every step: the viewfinder holds the
+                // capture, and it collapses into the chip rather than an empty surface flying there.
+                if let image = model.attachCard.landingImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: rect.width, height: rect.height)
+                        .clipped()
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .transition(.identity)
+                }
+                rows(phase: phase, menu: menu, motion: motion)
                     .frame(width: menu.width, height: menu.height, alignment: .topLeading)
                     .offset(x: menu.minX - rect.minX, y: menu.minY - rect.minY)
             }
@@ -207,21 +238,33 @@ struct AttachSurface: View {
     /// `+`'s glyph where `+` stands, so the surface reads as `+` itself as it grows and collapses.
     private var plusGlyph: some View {
         Image(systemName: SystemSymbol.plus.rawValue)
-            .font(.default(size: 20, weight: .semibold))
+            .font(.default(size: 17, weight: .semibold))
             .foregroundStyle(Color.textMain)
             .frame(width: plus.width, height: plus.height)
             .accessibilityHidden(true)
     }
 
-    private func rows(phase: AttachSurfacePhase) -> some View {
+    /// The rows sharpen out of a blur and grow from `+` as the surface opens, and go back into it as
+    /// it closes, so they read as poured out of `+` rather than faded over it.
+    private func rows(phase: AttachSurfacePhase, menu: CGRect, motion: AttachMotion) -> some View {
         let panel = model.attachPanel
+        let shown = phase.showsRows
+        let blooms = motion.animatesGeometry
+        let anchor = UnitPoint(
+            x: menu.width > 0 ? (plus.midX - menu.minX) / menu.width : 0,
+            y: menu.height > 0 ? (plus.midY - menu.minY) / menu.height : 1
+        )
         return AttachMenuRows(items: items, onSelect: { item in
             panel.select(item, warmUp: model.attachWarmUp, onCash: actions.onCash, onCamera: actions.onCamera, onPhotos: actions.onPhotos)
         }) {
             panel.animate { $0.dismiss() }
         }
         .onGeometryChange(for: CGSize.self, of: { $0.size }) { menuSize = $0 }
-        .attachLayer(isShown: phase.showsRows)
+        .animation(ChatMotion.attachPanel.animation) {
+            $0.blur(radius: shown || !blooms ? 0 : AttachSurfaceLayout.rowsBloomBlur)
+                .scaleEffect(shown || !blooms ? 1 : AttachSurfaceLayout.rowsBloomScale, anchor: anchor)
+        }
+        .attachLayer(isShown: shown)
     }
 
     /// The camera and the photo picker, each mounted from the surface's first frame at the card's
@@ -271,6 +314,10 @@ private extension View {
 private struct AttachSurfaceFrame<Content: View>: View, Animatable {
 
     var shape: AttachSurfaceShape
+    /// `+`'s frame, which the surface takes on the look of as it shrinks to `+`'s size.
+    let plus: CGRect
+    /// Whether the surface turns into `+`'s fill near `+`'s size; not while it lands on a chip.
+    let blendsIntoPlus: Bool
     let content: (CGRect) -> Content
 
     var animatableData: AnimatablePair<CGRect.AnimatableData, CGFloat> {
@@ -284,15 +331,29 @@ private struct AttachSurfaceFrame<Content: View>: View, Animatable {
     var body: some View {
         let rect = shape.rect
         let clip = RoundedRectangle(cornerRadius: shape.cornerRadius, style: .continuous)
+        let glass = glassAmount(at: rect)
         ZStack(alignment: .topLeading) {
+            clip
+                .fill(AttachSurfaceLayout.plusFill)
+                .frame(width: rect.width, height: rect.height)
+                .opacity(1 - glass)
             Color.clear
                 .frame(width: rect.width, height: rect.height)
                 .panelGlassBackground(cornerRadius: shape.cornerRadius)
+                .opacity(glass)
             content(rect)
         }
         .frame(width: rect.width, height: rect.height, alignment: .topLeading)
         .clipShape(clip)
         .contentShape(clip)
         .offset(x: rect.minX, y: rect.minY)
+    }
+
+    /// How much of the panel's glass shows at `rect`, against `+`'s flat fill: none at `+`'s size,
+    /// all of it once the surface is a few dozen points bigger, so the two meet without a colour jump.
+    private func glassAmount(at rect: CGRect) -> CGFloat {
+        guard blendsIntoPlus else { return 1 }
+        let growth = max(rect.width - plus.width, rect.height - plus.height)
+        return min(max(growth / AttachSurfaceLayout.plusBlendDistance, 0), 1)
     }
 }

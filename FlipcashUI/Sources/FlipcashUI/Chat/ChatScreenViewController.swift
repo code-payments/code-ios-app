@@ -780,6 +780,10 @@ public final class ChatScreenViewController: UIViewController {
             holdForInPlaceResize(clipHeight: clipHeight)
             return
         }
+        if clipHeight < previousClip, !toggled, !isFirst, view.window != nil {
+            holdForShrink(clipHeight: clipHeight)
+            return
+        }
 
         transcriptCover = nil
         fadeTopConstraint?.constant = 0
@@ -801,6 +805,33 @@ public final class ChatScreenViewController: UIViewController {
         // teleporting ahead of it.
         ChatMotion.replySurface.animate {
             self.view.layoutIfNeeded()
+        }
+    }
+
+    /// Shrinks the bar's room for a composer folding back to one row or dropping its chips.
+    ///
+    /// The transcript takes the new inset in this frame, unanimated, so a send's insertion moves its
+    /// rows on its own spring alone. The clip stays at its old height until the glass's spring is
+    /// done: cut at once, it would hide the text and caret still travelling down to their place.
+    private func holdForShrink(clipHeight: CGFloat) {
+        let heldClip = barClipHeightConstraint.constant
+        transcriptCover = clipHeight
+        fadeTopConstraint.constant = heldClip - clipHeight
+        UIView.performWithoutAnimation {
+            self.view.layoutIfNeeded()
+            self.updateTranscriptInset()
+        }
+        let height = measuredBarHeight
+        DispatchQueue.main.asyncAfter(deadline: .now() + ChatMotion.replySurface.duration) { [weak self] in
+            // A later report may already have moved the bar on; only the one still current lands.
+            guard let self, self.measuredBarHeight == height,
+                  self.barClipHeightConstraint.constant == heldClip else { return }
+            self.barClipHeightConstraint.constant = clipHeight
+            self.transcriptCover = nil
+            self.fadeTopConstraint.constant = 0
+            UIView.performWithoutAnimation {
+                self.view.layoutIfNeeded()
+            }
         }
     }
 
