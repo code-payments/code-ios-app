@@ -48,9 +48,11 @@ final class AttachPanel {
     }
 
     /// Runs `change` on the panel's spring, and releases the room above the bar once the motion it
-    /// started has logically finished.
+    /// started has finished: logically for an open, fully settled for a close, so the surface is not
+    /// taken down before it has reached `+`.
     func animate(_ change: (AttachPanel) -> Void) {
-        withAnimation(ChatMotion.attachPanel.animation, completionCriteria: .logicallyComplete) {
+        let closes = isOpen
+        withAnimation(ChatMotion.attachPanel.animation, completionCriteria: closes ? .removed : .logicallyComplete) {
             change(self)
         } completion: { [weak self] in
             self?.exitDidFinish()

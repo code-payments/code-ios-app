@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import UIKit
 import FlipcashUI
 @testable import Flipcash
 
@@ -170,6 +171,21 @@ struct AttachSurfaceTests {
         #expect(!model.attachSurfaceIsMounted)
     }
 
+    @Test("A landing holds the staged photo from the hand-off until it has landed")
+    func landingHoldsImage() {
+        let model = ConversationBarModel()
+        model.attachCard.open(.camera, screenHeight: 874)
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 3)).image { _ in }
+
+        model.attachCard.beginLanding(on: UUID(), image: image)
+        #expect(model.attachCard.landingImage === image)
+        model.attachCard.close()
+        #expect(model.attachCard.landingImage === image, "The surface still draws it as it shrinks")
+
+        model.attachCard.endLanding()
+        #expect(model.attachCard.landingImage == nil)
+    }
+
     @Test("Only the menu shows rows, and only a card shows card content")
     func contentPerPhase() {
         #expect(AttachSurfacePhase.menu.showsRows)
@@ -188,7 +204,8 @@ struct AttachSurfaceTests {
         let chip = CGRect(x: 20, y: 640, width: 56, height: 56)
 
         let collapsed = AttachSurfaceLayout.shape(for: .collapsed, plus: plus, menu: menu, card: card, landing: chip)
-        #expect(collapsed == AttachSurfaceShape(rect: plus, cornerRadius: AttachSurfaceLayout.plusCornerRadius))
+        #expect(collapsed == AttachSurfaceShape(rect: plus, cornerRadius: plus.height / 2))
+        #expect(AttachSurfaceLayout.collapsedCornerRadius(plus: plus) == 22)
         let open = AttachSurfaceLayout.shape(for: .menu, plus: plus, menu: menu, card: card, landing: nil)
         #expect(open == AttachSurfaceShape(rect: menu, cornerRadius: AttachSurfaceLayout.menuCornerRadius))
         let carded = AttachSurfaceLayout.shape(for: .card(.camera), plus: plus, menu: menu, card: card, landing: nil)
@@ -204,9 +221,23 @@ struct AttachSurfaceTests {
         let plus = CGRect(x: 16, y: 700, width: 44, height: 44)
         let size = CGSize(width: 240, height: 144)
         let standing = AttachSurfaceLayout.menuRect(plus: plus, size: size, placement: .standsOnPlus)
-        #expect(standing == CGRect(x: 16, y: 600, width: 240, height: 144))
+        #expect(standing == CGRect(x: 16 - BarMetrics.fieldPadding, y: 600 + BarMetrics.fieldPadding, width: 240, height: 144))
+        #expect(standing.minX == plus.minX - BarMetrics.fieldPadding, "The menu lines up with the field's edge")
+        #expect(standing.maxY == plus.maxY + BarMetrics.fieldPadding, "The menu covers the field's bottom edge")
         let straddling = AttachSurfaceLayout.menuRect(plus: plus, size: size, placement: .straddlesPlus)
         #expect(straddling == AttachOverlayLayout.panelFrame(plusFrame: plus, size: size))
+        #expect(straddling.minX == plus.minX - BarMetrics.fieldPadding, "The over-keyboard menu lines up with the field's edge")
+    }
+
+    @Test("With $ beside the field the menu moves out over it at the same width", arguments: [AttachMenuPlacement.standsOnPlus, .straddlesPlus])
+    func menuReachesOverCash(placement: AttachMenuPlacement) {
+        let plus = CGRect(x: 60, y: 700, width: 34, height: 34)
+        let size = CGSize(width: 280, height: 144)
+        let aligned = AttachSurfaceLayout.menuRect(plus: plus, size: size, placement: placement)
+        let reaching = AttachSurfaceLayout.menuRect(plus: plus, size: size, placement: placement, leadingReach: 44)
+        #expect(reaching.minX == aligned.minX - 44)
+        #expect(reaching.width == aligned.width)
+        #expect(reaching.minY == aligned.minY && reaching.height == aligned.height)
     }
 
     @Test("The bar's card stands on the row's bottom edge, out to the keyboard-up margin")

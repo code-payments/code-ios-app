@@ -155,12 +155,19 @@ private let replySpring = ChatMotion.replySurface.animation
 /// heights and corners can't desync. Deliberately not `Metrics.buttonHeight`/`buttonRadius` — beside
 /// the field the controls are field-sized, not standard-button-sized.
 enum BarMetrics {
-    static let fieldMinHeight: CGFloat = 34
-    static let fieldVerticalPadding: CGFloat = 8
+    nonisolated static let fieldMinHeight: CGFloat = 34
+    nonisolated static let fieldVerticalPadding: CGFloat = 8
+    /// The field's padding on every side: where `+` stands in from the field's leading edge, and so
+    /// how far the open attach menu reaches back past `+` to line up with the field.
+    nonisolated static let fieldPadding: CGFloat = 8
     static let cornerRadius: CGFloat = 14
+    /// The composer field's corner, rounder than the bar's other controls.
+    nonisolated static let fieldCornerRadius: CGFloat = 28
     /// The height of every bar control: a single-line field plus its padding, and the height the
     /// Send Cash button morphs at while there is a composer beside it.
-    static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
+    nonisolated static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
+    /// The diameter of the controls beside the text: `+`, the Send Cash button and the send button.
+    nonisolated static let accessorySize: CGFloat = 34
     /// The bar's own margin around its controls, above and below.
     static let contentPadding: CGFloat = 8
     /// The margin between the bar's controls and the screen's sides while the keyboard is up.
@@ -171,32 +178,54 @@ enum BarMetrics {
     static let compactInset: CGFloat = 32
 }
 
-/// What stands in the bar's leading slot, beside the message field.
+/// What stands outside the message field, beside it.
 enum ConversationBarLeadingControl: Equatable {
     /// The way out of an edit.
     case cancelEdit
     /// The full-width Send Cash call to action, alone in the bar before the chat exists.
     case sendCash
-    /// The `+` menu with these rows.
-    case attach([AttachMenuItem])
-    /// Nothing: the chat takes neither cash nor media from this user.
+    /// The round `$` beside the field once the chat exists, shown while the draft is empty.
+    case cash
+    /// Nothing beside the field.
     case none
 
-    /// Returns the control for the bar's state. An edit wins; before the chat exists the only
-    /// control is the Send Cash call to action; after, it is the attach menu, when it has a row.
-    init(isEditing: Bool, chatExists: Bool, showsSendCash: Bool, acceptsMedia: Bool, attachedCount: Int) {
+    /// Returns the control for the bar's state. An edit wins; otherwise Send Cash, as the call to
+    /// action before the chat exists and as the round `$` after.
+    init(isEditing: Bool, chatExists: Bool, showsSendCash: Bool) {
         if isEditing {
             self = .cancelEdit
-        } else if !chatExists {
-            self = showsSendCash ? .sendCash : .none
+        } else if !showsSendCash {
+            self = .none
         } else {
-            let items = AttachMenuItem.items(
-                showsCash: showsSendCash,
-                acceptsMedia: acceptsMedia,
-                attachedCount: attachedCount
-            )
-            self = items.isEmpty ? .none : .attach(items)
+            self = chatExists ? .cash : .sendCash
         }
+    }
+}
+
+/// What the field's row holds beside the send button: the `+` menu.
+struct ConversationBarBottomRow: Equatable {
+    /// The rows of the `+` menu; empty hides `+`. Never holds Cash, which the `$` beside the field
+    /// takes over.
+    let plusItems: [AttachMenuItem]
+
+    /// A row with nothing in it.
+    static let empty = ConversationBarBottomRow(plusItems: [])
+
+    /// Whether there is nothing for `+` to open.
+    var isEmpty: Bool { plusItems.isEmpty }
+
+    /// Returns the row for the bar's state: empty during an edit and before the chat exists;
+    /// otherwise `+` while it has a row to open.
+    init(isEditing: Bool, chatExists: Bool, acceptsMedia: Bool, attachedCount: Int) {
+        guard !isEditing, chatExists else {
+            self.init(plusItems: [])
+            return
+        }
+        self.init(plusItems: AttachMenuItem.items(showsCash: false, acceptsMedia: acceptsMedia, attachedCount: attachedCount))
+    }
+
+    private init(plusItems: [AttachMenuItem]) {
+        self.plusItems = plusItems
     }
 }
 
@@ -241,6 +270,20 @@ struct ConversationBottomBar: View {
     /// The composer row's measured height, reported as part of what the mention list's room is
     /// measured without.
     @State private var composerRowHeight: CGFloat = 0
+    /// Whether the round `$` shows: while the draft is empty. Set in a transaction after the text
+    /// update, so the split animates without carrying the field's text change with it.
+    @State private var cashIsShown = true
+
+    /// How far left of the field the row starts, for the attach menu to open out to.
+    private var menuLeadingReach: CGFloat {
+        switch leadingControl {
+        case .cash:
+            cashIsShown ? BarMetrics.contentHeight + Self.leadingSpacing : 0
+        case .cancelEdit, .sendCash, .none:
+            0
+        }
+    }
+    @Namespace private var composerGlassNamespace
     /// Whether the chat takes photos; false for an E2EE DM, whose encryption does not cover media.
     var acceptsMedia: Bool = false
     /// Fired as `+` opens the attach panel with the given rows: the panel goes up over the keyboard,
@@ -264,6 +307,11 @@ struct ConversationBottomBar: View {
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
     private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
+    /// `$` splitting from the field's glass and joining back into it.
+    private static let cashSpring = Animation.spring(duration: 0.4, bounce: 0.3)
+    /// The gap between the leading control and the field. The composer's glass joins across no
+    /// more than this, so `$` stays bridged to the field while it travels and pinches off at rest.
+    static let leadingSpacing: CGFloat = 10
 
     /// Whether the bar sits inset from the screen's sides: at rest with the keyboard down. It widens
     /// to the full edge inset as the keyboard comes up. Only once there is a composer; the pre-chat
@@ -299,6 +347,37 @@ struct ConversationBottomBar: View {
         }
     }
 
+    /// The glass behind the leading control and the field, drawn as one layer apart from them so
+    /// `$` splits from the field and joins back into it. The real controls sit above it, outside the
+    /// container: in one, the glass composites above sibling content and covers the typed text.
+    @ViewBuilder
+    private var composerGlass: some View {
+        let field = RoundedRectangle(cornerRadius: BarMetrics.fieldCornerRadius, style: .continuous)
+        let layout = HStack(alignment: .bottom, spacing: Self.leadingSpacing) {
+            switch leadingControl {
+            case .cancelEdit:
+                // The button's size, so the field's glass starts where the field does.
+                Color.clear.frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
+            case .cash:
+                if cashIsShown {
+                    Color.clear
+                        .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
+                        .composerGlass(in: Circle(), id: "cash", namespace: composerGlassNamespace)
+                }
+            case .sendCash, .none:
+                EmptyView()
+            }
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .composerGlass(in: field, id: "field", namespace: composerGlassNamespace)
+        }
+        if #available(iOS 26, *) {
+            GlassEffectContainer(spacing: Self.leadingSpacing) { layout }
+        } else {
+            layout
+        }
+    }
+
     private var composerBar: some View {
         // Bottom-aligned, against the bar's own pinned bottom: the field is the side that grows, and
         // top-aligning the control beside it made the control travel with every line the draft
@@ -307,13 +386,12 @@ struct ConversationBottomBar: View {
         // sprang underneath it.
         let motion = AttachMotion(reduceMotion: reduceMotion)
         let content = VStack(alignment: .leading, spacing: Self.rowSpacing) {
-            HStack(alignment: .bottom, spacing: 10) {
+            HStack(alignment: .bottom, spacing: Self.leadingSpacing) {
                 // An edit takes over the bar: the leading control becomes the way out of it and the
-                // attach menu steps aside until it resolves, the way WhatsApp hides its accessory controls.
+                // field's bottom row steps aside until it resolves, the way WhatsApp hides its accessory controls.
                 switch leadingControl {
                 case .cancelEdit:
                     CancelEditButton { composer.endEditing() }
-                        .hiddenUnderAttachCard(showsCard)
                 case .sendCash:
                     SendCashMorphButton(
                         symbol: symbol,
@@ -330,38 +408,54 @@ struct ConversationBottomBar: View {
                         expandedTitle: isTipDm ? startChattingTitle : nil,
                         action: onSendCash
                     )
-                    .hiddenUnderAttachCard(showsCard)
-                case .attach(let items):
-                    AttachMenu(
-                        items: items,
-                        panel: model.attachPanel,
-                        hidesButton: showsCard,
-                        // Swapped out in one frame for the surface, which is drawn as `+` where it stands.
-                        isStoodInFor: model.surfaceStandsInForPlus && motion.animatesGeometry,
-                        onOpen: onAttachOpen,
-                        onPlusFrame: { model.overKeyboard.plusFrame = $0 }
-                    )
-                    // Over the field beside it, which its panel floats across.
-                    .zIndex(1)
+                case .cash:
+                    if cashIsShown {
+                        ComposerCashButton(symbol: symbol, action: onSendCash)
+                            .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    }
                 case .none:
                     EmptyView()
                 }
                 if chatExists {
-                    ConversationComposer(conversationID: conversationID, model: model, composer: composer)
-                        .hiddenUnderAttachCard(showsCard)
-                        .transition(.opacity)
+                    ConversationComposer(
+                        conversationID: conversationID,
+                        model: model,
+                        composer: composer,
+                        bottomRow: bottomRow,
+                        hidesPlus: showsCard,
+                        // Swapped out in one frame for the surface, which is drawn as `+` where it stands.
+                        plusIsStoodInFor: model.surfaceStandsInForPlus && motion.animatesGeometry,
+                        onAttachOpen: onAttachOpen
+                    )
+                    // Over the row's other controls, which the attach panel floats across.
+                    .zIndex(1)
+                    .transition(.opacity)
                 }
             }
+            .background {
+                if chatExists {
+                    composerGlass
+                }
+            }
+            // A draft already there when the chat opens hides `$` without animating it out.
+            .onAppear { cashIsShown = composer.draft.isEmpty }
+            .onChange(of: composer.draft.isEmpty) { _, isEmpty in
+                guard cashIsShown != isEmpty else { return }
+                withAnimation(Self.cashSpring) { cashIsShown = isEmpty }
+            }
+            .onChange(of: menuLeadingReach, initial: true) { _, reach in
+                model.overKeyboard.menuLeadingReach = reach
+            }
             // Kept mounted under the card, so `+` is there for the surface to shrink back into and the
-            // field is there to take focus the moment the card closes. Each control fades on its own
-            // rather than the row, which holds the surface. An open panel lets a touch on the row —
+            // field is there to take focus the moment the card closes. Left visible, not faded: the
+            // card grows over it and shrinks back onto it, so it is never seen missing. An open panel lets a touch on the row —
             // send included — fall through to the dismiss area behind the bar, so it only closes the panel.
             .allowsHitTesting(!showsCard && !model.attachPanel.isOpen)
             .accessibilityHidden(showsCard)
             // After the row's own opacity, so the surface does not fade with it.
             .overlay(alignment: .topLeading) {
-                if model.attachSurfaceIsMounted, !model.overKeyboard.isActive, case .attach(let items) = leadingControl {
-                    attachSurface(items: items)
+                if model.attachSurfaceIsMounted, !model.overKeyboard.isActive, !bottomRow.plusItems.isEmpty {
+                    attachSurface(items: bottomRow.plusItems)
                 }
             }
         }
@@ -552,19 +646,21 @@ struct ConversationBottomBar: View {
     /// Whether the camera should be warm: while the open panel offers it, or its card shows it.
     private var wantsCameraWarm: Bool {
         let showsCamera = model.attachCard.content == .camera
-        switch leadingControl {
-        case .attach(let items):
-            return showsCamera || (model.attachPanel.isOpen && items.contains(.camera))
-        case .cancelEdit, .sendCash, .none:
-            return showsCamera
-        }
+        return showsCamera || (model.attachPanel.isOpen && bottomRow.plusItems.contains(.camera))
     }
 
     private var leadingControl: ConversationBarLeadingControl {
         ConversationBarLeadingControl(
             isEditing: composer.isEditing,
             chatExists: chatExists,
-            showsSendCash: showsSendCash,
+            showsSendCash: showsSendCash
+        )
+    }
+
+    private var bottomRow: ConversationBarBottomRow {
+        ConversationBarBottomRow(
+            isEditing: composer.isEditing,
+            chatExists: chatExists,
             acceptsMedia: acceptsMedia,
             attachedCount: composer.chips.count
         )
@@ -938,64 +1034,177 @@ struct ConversationComposer: View {
     let conversationID: ConversationID?
     @Bindable var model: ConversationBarModel
     @Bindable var composer: ComposerModel
+    /// What the row holds beside the text: `+`.
+    var bottomRow = ConversationBarBottomRow.empty
+    /// Whether `+` is hidden under the camera or photo card.
+    var hidesPlus = false
+    /// Whether the attach surface is drawn in `+`'s place, which hides `+`.
+    var plusIsStoodInFor = false
+    /// Fired as `+` opens the attach panel with the given rows.
+    var onAttachOpen: ([AttachMenuItem]) -> Void = { _ in }
 
     @Environment(ConversationController.self) private var conversationController
     @FocusState private var isFocused: Bool
 
     /// Send button scale-in/out as text appears/clears.
     private static let sendButtonSpring = ChatMotion.sendButton.animation
+    /// The text's and chips' inset from the field's leading edge.
     private static let leadingInset: CGFloat = 14
-    private static let trailingInset: CGFloat = 8
+    /// The stacked text's inset from the field's leading edge, matched to its inset from the top so
+    /// the first line sits evenly in the corner.
+    private static let stackedLeadingInset: CGFloat = 12
+    /// The gap between the row's controls and the text.
+    private static let controlSpacing: CGFloat = 8
+    /// The move between the one-row and stacked layouts.
+    /// The clip around the bar follows a shrink on `replySurface`, so the glass shares it.
+    private static let stackSpring = ChatMotion.replySurface.animation
+
+    /// Whether the text spans the field with the controls in a row under it.
+    @State private var isStacked = false
+    /// The text's own layout, switched without animation: an animated width re-lays the text
+    /// every frame, and UIKit chases each new caret position on its own timing.
+    @State private var textIsStacked = false
+    /// The text's offset from its new place, sprung back to zero so it travels as one piece.
+    @State private var textShift: CGFloat = 0
+    /// Whether send is up; follows `showsSubmit` in its own transaction so the pop animates.
+    @State private var submitIsShown = false
+    /// The text field's width while it sits inline between the controls.
+    /// The row's width, which stacking does not change, so the inline text width can be derived
+    /// in either layout rather than measured from a field that is about to move.
+    @State private var rowWidth: CGFloat = 0
+    /// The draft's width laid out on one line.
+    @State private var draftLineWidth: CGFloat = 0
+
+    private var hasPlus: Bool { !bottomRow.plusItems.isEmpty }
+
+    private var inlineLeadingPadding: CGFloat {
+        hasPlus ? BarMetrics.accessorySize + Self.controlSpacing : Self.leadingInset - BarMetrics.fieldPadding
+    }
+
+    private func textLeadingPadding(stacked: Bool) -> CGFloat {
+        stacked ? Self.stackedLeadingInset - BarMetrics.fieldPadding : inlineLeadingPadding
+    }
+
+    private var inlineTrailingPadding: CGFloat { BarMetrics.accessorySize + Self.controlSpacing }
+
+    /// Stacks once the draft wraps or takes a newline, and unstacks only when it is cleared, so
+    /// deleting back under one line does not bounce the layout.
+    private func updateStacking() {
+        let stacked = Self.stacks(
+            draft: composer.draft,
+            wasStacked: textIsStacked,
+            draftLineWidth: draftLineWidth,
+            inlineWidth: rowWidth > 0 ? rowWidth - inlineLeadingPadding - inlineTrailingPadding : 0
+        )
+        // Its own transaction, after the text update has landed: the whole bar follows the field up
+        // or down, while the text update itself stays unanimated.
+        guard stacked != textIsStacked else { return }
+        let shift = textLeadingPadding(stacked: textIsStacked) - textLeadingPadding(stacked: stacked)
+        var snap = Transaction()
+        snap.disablesAnimations = true
+        withTransaction(snap) {
+            textIsStacked = stacked
+            textShift = shift
+        }
+        // A frame later, so the shift has rendered before it springs back with the bar.
+        Task { @MainActor in
+            withAnimation(Self.stackSpring) {
+                isStacked = stacked
+                textShift = 0
+            }
+        }
+    }
+
+    /// Whether the composer stacks for `draft`, given whether it was stacked and the draft's
+    /// one-line width against the inline field's.
+    nonisolated static func stacks(draft: String, wasStacked: Bool, draftLineWidth: CGFloat, inlineWidth: CGFloat) -> Bool {
+        guard !draft.isEmpty else { return false }
+        if wasStacked || draft.contains(where: \.isNewline) { return true }
+        return inlineWidth > 0 && draftLineWidth > inlineWidth
+    }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let motion = AttachMotion(reduceMotion: reduceMotion)
-        let textRow = HStack(alignment: .bottom, spacing: 10) {
-            TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
-                .font(.appTextMessage)
-                .foregroundStyle(Color.textMain)
-                .tint(.white)
-                .lineLimit(1...5)
-                .focused($isFocused)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(minHeight: BarMetrics.fieldMinHeight)
-                // Queried by the UI tests. The placeholder is not usable as a handle: it is gone the
-                // moment there is a draft, so a test that types and then reads the field back finds
-                // nothing. A multiline `TextField(axis:)` also surfaces as a text view wearing a
-                // text-field automation type, so the query has to be identifier-based, not type-based.
-                .accessibilityIdentifier("composer-message-field")
+        let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
+            .font(.appTextMessage)
+            .foregroundStyle(Color.textMain)
+            .tint(.white)
+            .lineLimit(1...5)
+            .focused($isFocused)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: BarMetrics.fieldMinHeight)
+            // Queried by the UI tests. The placeholder is not usable as a handle: it is gone the
+            // moment there is a draft, so a test that types and then reads the field back finds
+            // nothing. A multiline `TextField(axis:)` also surfaces as a text view wearing a
+            // text-field automation type, so the query has to be identifier-based, not type-based.
+            .accessibilityIdentifier("composer-message-field")
 
-            // The spring is scoped to the button, not to the row. On the row it took the field
-            // into the transaction as well, and `showsSubmit` falls on the same update that empties
-            // the draft — so the field's text update ran as an animated one against its text view,
-            // where it can be coalesced away. That leaves the sent text on screen with the binding
-            // already empty, and an unchanged binding never pushes it again.
-            Group {
-                if showsSubmit {
-                    Button(action: submit) {
-                        Image(systemName: submitSymbol)
-                            .font(.default(size: 16, weight: .bold))
-                            .foregroundStyle(Color.textAction)
-                            .frame(width: 34, height: 34)
-                            .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
-                            // Arrow and checkmark are the same button in two jobs, so the glyph swaps in
-                            // place rather than the button popping out and a new one popping back.
-                            .contentTransition(.symbolEffect(.replace))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(composer.isEditing ? "Save" : "Send")
-                    .accessibilityIdentifier("send-message-button")
-                    // Pop from 60% + fade, so the opacity ramp actually reads
-                    // (scaling from 0 hides the fade behind a tiny speck).
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
-                }
+        // One row: `+`, the text, `$` until there is a draft, and send. Once the text wraps or takes
+        // a newline the row stacks: the text spans the field and the controls drop to a row under
+        // it, until the draft is cleared. The text field never moves in the hierarchy, only its
+        // insets do, so it keeps focus and the keyboard through the change.
+        let controls = HStack(alignment: .bottom, spacing: 0) {
+            if hasPlus {
+                AttachMenu(
+                    items: bottomRow.plusItems,
+                    panel: model.attachPanel,
+                    hidesButton: hidesPlus,
+                    isStoodInFor: plusIsStoodInFor,
+                    onOpen: onAttachOpen,
+                    onPlusFrame: { model.overKeyboard.plusFrame = $0 }
+                )
             }
-            .animation(Self.sendButtonSpring, value: showsSubmit)
+            Spacer(minLength: 0)
+            // The open menu covers this row; only `+` stays, for the menu to collapse back into.
+            sendButton
+                .animation(Self.sendButtonSpring) {
+                    $0.opacity(model.attachPanel.isOpen ? 0 : 1)
+                }
         }
 
-        // The staged photos ride inside the field, above the text, so the field reads as one message.
-        let field = VStack(alignment: .leading, spacing: BarMetrics.fieldVerticalPadding) {
+        let row = ZStack(alignment: .bottomLeading) {
+            textField
+                .background(alignment: .leading) {
+                    // The draft's width on one line, to tell when the inline field would wrap.
+                    Text(composer.draft.isEmpty ? " " : composer.draft)
+                        .font(.appTextMessage)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .hidden()
+                        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width in
+                            draftLineWidth = width
+                            updateStacking()
+                        }
+                }
+                // The text snaps to its new layout and `textShift` carries it there on the bar's spring.
+                .padding(.leading, textLeadingPadding(stacked: textIsStacked))
+                .padding(.trailing, textIsStacked ? 0 : inlineTrailingPadding)
+                .offset(x: textShift)
+                // Position only, so it can spring with the bar without re-laying the text.
+                .padding(.bottom, isStacked ? BarMetrics.accessorySize + BarMetrics.fieldVerticalPadding : 0)
+            controls
+        }
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width in
+            rowWidth = width
+            updateStacking()
+        }
+        .onChange(of: composer.draft) { updateStacking() }
+        // An empty field is small beside the space send will take; a tap anywhere right of `+`,
+        // out to the field's edges, focuses it. Behind the row, so `+` keeps its own taps.
+        .background {
+            if composer.draft.isEmpty {
+                Color.clear
+                    .padding(.vertical, -BarMetrics.fieldPadding)
+                    .padding(.trailing, -BarMetrics.fieldPadding)
+                    .contentShape(Rectangle())
+                    .onTapGesture { isFocused = true }
+            }
+        }
+
+        // The staged photos ride inside the field, above the row, so the field reads as one message.
+        let content = VStack(alignment: .leading, spacing: BarMetrics.fieldVerticalPadding) {
             if ComposerChipStrip.isShown(chipCount: composer.chips.count, isEditing: composer.isEditing) {
                 ComposerChipStrip(
                     chips: composer.chips,
@@ -1006,22 +1215,18 @@ struct ConversationComposer: View {
                     edgeInset: Self.leadingInset
                 )
                 // Out to the field's own edges, so chips scroll under a fade rather than a hard margin.
-                .padding(.leading, -Self.leadingInset)
-                .padding(.trailing, -Self.trailingInset)
+                .padding(.leading, -BarMetrics.fieldPadding)
+                .padding(.trailing, -BarMetrics.fieldPadding)
                 .padding(.top, BarMetrics.fieldVerticalPadding / 2)
                 .transition(motion.stripTransition(isLanding: model.attachCard.landingChipID != nil))
             }
-            textRow
+            row
         }
 
-        return field
-        .padding(.leading, Self.leadingInset)
-        .padding(.trailing, Self.trailingInset)
-        .padding(.vertical, BarMetrics.fieldVerticalPadding)
-        // Glass *behind* the field, not wrapping it: wrapping an editable
-        // TextField in `glassEffect` reparents its text view into the glass
-        // platter and breaks the text-selection grabbers.
-        .glassFieldBackground(cornerRadius: BarMetrics.cornerRadius)
+        return content
+        .padding(BarMetrics.fieldPadding)
+        // The field's glass is drawn by the bar, behind the whole row, so `$` can split from it.
+        .composerRim(in: RoundedRectangle(cornerRadius: BarMetrics.fieldCornerRadius, style: .continuous))
         // Focus is the single source of `isComposing` — the button morph and the
         // screen's interactive-dismiss gate both key off it. Losing focus
         // (keyboard swiped down) ends composing.
@@ -1034,6 +1239,45 @@ struct ConversationComposer: View {
         .onChange(of: composer.draft) { _, text in
             guard let conversationID else { return }
             conversationController.draftDidChange(text, in: conversationID)
+        }
+    }
+
+    /// The confirm button. The spring is scoped to it, not to the row it sits in.
+    private var sendButton: some View {
+        // The spring is scoped to the button, not to the row. On the row it took the field
+        // into the transaction as well, and `showsSubmit` falls on the same update that empties
+        // the draft — so the field's text update ran as an animated one against its text view,
+        // where it can be coalesced away. That leaves the sent text on screen with the binding
+        // already empty, and an unchanged binding never pushes it again.
+        // A ZStack, not a Group: a Group hands its modifiers to its children, so with the button
+        // gone the slot's frame and the callbacks below would attach to nothing.
+        ZStack {
+            if submitIsShown {
+                Button(action: submit) {
+                    Image(systemName: submitSymbol)
+                        .font(.default(size: 16, weight: .bold))
+                        .foregroundStyle(Color.textAction)
+                        .frame(width: BarMetrics.accessorySize, height: BarMetrics.accessorySize)
+                        .background(Color.white, in: Circle())
+                        // Arrow and checkmark are the same button in two jobs, so the glyph swaps in
+                        // place rather than the button popping out and a new one popping back.
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(composer.isEditing ? "Save" : "Send")
+                .accessibilityIdentifier("send-message-button")
+                // Pop from 60% + fade, so the opacity ramp actually reads
+                // (scaling from 0 hides the fade behind a tiny speck).
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            }
+        }
+        // The slot stays, so the text does not reflow as the button comes and goes.
+        .frame(width: BarMetrics.accessorySize, height: BarMetrics.accessorySize)
+        // Its own transaction after the text update: an implicit animation keyed on `showsSubmit`
+        // rode the text field's update, which carries no animation, so the pop never played.
+        .onAppear { submitIsShown = showsSubmit }
+        .onChange(of: showsSubmit) { _, shows in
+            withAnimation(Self.sendButtonSpring) { submitIsShown = shows }
         }
     }
 
@@ -1107,6 +1351,27 @@ struct ConversationComposer: View {
 /// The way out of an edit: the bar's leading control while the field holds an existing message,
 /// standing where Send Cash stands the rest of the time. Field-sized and glass, so the swap reads
 /// as the same control changing job rather than a foreign button arriving.
+/// The round `$` beside the field. Its glass is drawn by the bar, joined to the field's.
+private struct ComposerCashButton: View {
+
+    let symbol: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(symbol)
+                .font(.appTextXL)
+                .foregroundStyle(Color.textMain)
+                .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .composerRim(in: Circle())
+        .accessibilityLabel("Send Cash")
+        .accessibilityIdentifier("send-cash-button")
+    }
+}
+
 private struct CancelEditButton: View {
 
     let onCancel: () -> Void
