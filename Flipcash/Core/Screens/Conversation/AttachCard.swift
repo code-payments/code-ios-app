@@ -55,6 +55,8 @@ final class AttachCard {
 
     /// That chip's frame in window coordinates, once the bar has laid it out.
     private(set) var landingChipFrame: CGRect?
+    /// The photo the card is shrinking into the chip, drawn by the surface for the whole landing.
+    private(set) var landingImage: UIImage?
 
     /// Whether the keyboard coming up takes the card down. Off while the card is drawn over the
     /// keyboard, where the keyboard never left, and an input view swap announces it again.
@@ -105,9 +107,10 @@ final class AttachCard {
 
     /// Marks `chipID` as the chip the card will shrink onto, keeping the card up until the bar has
     /// laid that chip out.
-    func beginLanding(on chipID: ComposerChip.ID) {
+    func beginLanding(on chipID: ComposerChip.ID, image: UIImage? = nil) {
         landingChipID = chipID
         landingChipFrame = nil
+        landingImage = image
     }
 
     /// Records where the landing chip was laid out. Returns whether the card is still up and can now
@@ -127,6 +130,7 @@ final class AttachCard {
         withTransaction(transaction) {
             landingChipID = nil
             landingChipFrame = nil
+            landingImage = nil
         }
     }
 

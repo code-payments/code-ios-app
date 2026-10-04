@@ -429,7 +429,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 screen?.focusComposer()
                 return
             }
-            card.beginLanding(on: chipID)
+            let chip = composer.chips.first { $0.id == chipID }
+            card.beginLanding(on: chipID, image: chip.map { $0.preview ?? $0.image })
             screen?.focusComposer()
             // A chip the bar never lays out leaves nothing to land on, so the card goes anyway.
             DispatchQueue.main.asyncAfter(deadline: .now() + ChatMotion.attachCard.duration) {
@@ -473,13 +474,14 @@ private struct MeasuredBarHeight: ViewModifier {
         content
             .fixedSize(horizontal: false, vertical: true)
             .overlayPreferenceValue(BarAccessoriesKey.self) { accessories in
-                GeometryReader { proxy in
-                    Color.clear.onChange(
-                        of: BarReport(height: proxy.size.height, accessories: accessories),
-                        initial: true
-                    ) { _, new in
-                        report(new.height, new.accessories)
-                    }
+                // `onGeometryChange`, not a `GeometryReader`: under an animated layout change the
+                // reader reports the height the animation starts from and then goes quiet, which
+                // leaves the clip short of the content it settles at.
+                Color.clear.onGeometryChange(
+                    for: BarReport.self,
+                    of: { BarReport(height: $0.size.height, accessories: accessories) }
+                ) { new in
+                    report(new.height, new.accessories)
                 }
             }
             // Sit on the host's bottom edge rather than in the middle of it. The two heights are
@@ -493,7 +495,7 @@ private struct MeasuredBarHeight: ViewModifier {
 }
 
 /// One measurement of the bar: its height and the cards that make it up.
-private struct BarReport: Equatable {
+private nonisolated struct BarReport: Equatable, Sendable {
     let height: CGFloat
     let accessories: BarAccessories
 }

@@ -8,7 +8,7 @@
 import CoreGraphics
 
 /// The cards stacked above the composer row, as the bar reports them alongside its height.
-public struct BarAccessories: Equatable, Sendable {
+public nonisolated struct BarAccessories: Equatable, Sendable {
 
     /// A card that can stand above the composer row.
     public enum Kind: Hashable, Sendable {

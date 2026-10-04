@@ -81,13 +81,15 @@ struct AttachOverlayModeTests {
         #expect(AttachOverlayMode.select(keyboardHeight: minimum, hasKeyboardWindow: false, canReplaceInputView: true) == .inputView)
     }
 
-    @Test("The panel straddles the composer's bottom edge and grows out of +")
+    @Test("The panel straddles the composer's bottom edge, clears its top, and grows out of +")
     func panelStraddlesTheComposerEdge() {
         let plus = CGRect(x: 12, y: 500, width: 50, height: 50)
         let size = CGSize(width: 240, height: 144)
         let frame = AttachOverlayLayout.panelFrame(plusFrame: plus, size: size)
-        #expect(frame.minX == plus.minX)
-        #expect(frame.midY == plus.maxY)
+        #expect(frame.minX == plus.minX - BarMetrics.fieldPadding)
+        #expect(frame.minY < frame.maxY && frame.minY <= plus.maxY && frame.maxY >= plus.maxY)
+        let fieldTop = plus.maxY + BarMetrics.fieldPadding - BarMetrics.contentHeight
+        #expect(frame.minY <= fieldTop - AttachOverlayLayout.fieldTopOverhang)
 
         let anchor = AttachOverlayLayout.panelAnchor(plusFrame: plus, size: size)
         #expect(frame.minX + anchor.x * size.width == plus.midX)

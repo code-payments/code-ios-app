@@ -80,6 +80,10 @@ final class AttachOverKeyboard {
     /// `+`'s frame in window coordinates, as last laid out.
     var plusFrame: CGRect = .zero
 
+    /// How far left of the composer field the bar's row starts: `$`'s width and gap while it shows,
+    /// else zero. The menu opens out to there, so it covers the row it opens from.
+    var menuLeadingReach: CGFloat = 0
+
     /// Whether the photo card opens the full library as it next mounts in the bar. Set when All
     /// Photos hands the card over to the keyboard-down flow, whose sheet the keyboard would cover.
     var opensLibraryInBar = false
@@ -101,12 +105,20 @@ nonisolated enum AttachOverlayLayout {
     /// The margin between a card and the screen's sides and bottom: the bar's keyboard-up edge inset.
     static let cardInset: CGFloat = 12
 
-    /// The panel's frame for a panel `size` big: its leading edge on `+`'s, and centred on `+`'s
+    /// The panel's frame for a panel `size` big: its leading edge on the composer field's, which is
+    /// the field's padding out from `+`'s, and centred on `+`'s
     /// bottom, the composer's bottom edge. It straddles that edge, as ChatGPT's does, so its lower
     /// half lies over the keys that blur through it and its upper half over the field.
     static func panelFrame(plusFrame: CGRect, size: CGSize) -> CGRect {
-        CGRect(x: plusFrame.minX, y: plusFrame.maxY - size.height / 2, width: size.width, height: size.height)
+        // Centred on the field's bottom edge, a short menu tops out just under the field's top and
+        // leaves its corner showing; lift it to clear the top by `fieldTopOverhang`.
+        let fieldTop = plusFrame.maxY + BarMetrics.fieldPadding - BarMetrics.contentHeight
+        let y = min(plusFrame.maxY - size.height / 2, fieldTop - fieldTopOverhang)
+        return CGRect(x: plusFrame.minX - BarMetrics.fieldPadding, y: y, width: size.width, height: size.height)
     }
+
+    /// How far the open menu reaches above the composer field's top edge.
+    static let fieldTopOverhang: CGFloat = 8
 
     /// The point in a panel `size` big that `+`'s centre sits on, for the panel to grow out of and
     /// collapse back into.

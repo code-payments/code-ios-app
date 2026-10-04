@@ -106,6 +106,24 @@ struct ChatScreenBarClipTests {
         #expect(clipHeight(bar, window) == composerRow + secondLine)
     }
 
+    @Test("A composer shrinking holds the clip until its spring is done, and reserves the new room at once")
+    func composerShrink_holdsTheClip() async throws {
+        let (screen, bar, window) = makeScreen()
+        let stacked = composerRow + 48
+
+        report(screen, composerRow)
+        report(screen, stacked)
+        let transcript = try #require(screen.view.firstSubview(of: UICollectionView.self))
+        let insetBefore = transcript.contentInset.bottom
+
+        report(screen, composerRow)
+        #expect(transcript.contentInset.bottom == insetBefore - 48)
+        #expect(clipHeight(bar, window) == stacked, "The clip keeps the text and caret uncovered on the way down")
+
+        try await Task.sleep(for: .seconds(ChatMotion.replySurface.duration + 0.2))
+        #expect(clipHeight(bar, window) == composerRow)
+    }
+
     @Test("The mention list stacks over an open reply and the clip reaches the whole bar")
     func mentionsOverReply_clipReachesTheWholeBar() {
         let (screen, bar, window) = makeScreen()
@@ -182,5 +200,14 @@ struct ChatScreenBarClipTests {
         report(screen, composerRow + 2 * row, open: [.mentions], mentions: 2 * row)
         window.layoutIfNeeded()
         #expect(rooms.last.map { $0 - strip } == withStrip)
+    }
+}
+
+private extension UIView {
+    func firstSubview<T: UIView>(of type: T.Type) -> T? {
+        for subview in subviews {
+            if let match = subview as? T ?? subview.firstSubview(of: type) { return match }
+        }
+        return nil
     }
 }

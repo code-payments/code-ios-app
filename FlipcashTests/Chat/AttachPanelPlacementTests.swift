@@ -76,9 +76,10 @@ struct AttachPanelHost {
     /// The bar's measured height, as last reported to the screen.
     var barHeight: CGFloat { screenBox.barHeight }
 
-    /// The window-space point `distance` above the bar's top edge, over `+`'s column.
+    /// The window-space point `distance` above the bar's top edge, over `+`'s column: `+` is the
+    /// first control in the field's bottom row, past the compact bar's margin and the field's padding.
     func pointAboveBar(by distance: CGFloat) -> CGPoint {
-        CGPoint(x: 40, y: window.bounds.height - barHeight - distance)
+        CGPoint(x: model.overKeyboard.plusFrame.midX, y: window.bounds.height - barHeight - distance)
     }
 
     /// The window's rendered colour at `point`.
@@ -158,13 +159,35 @@ struct AttachPanelPlacementTests {
         // Inside the panel's rows, above the bar: before the fix the panel hung down from `+`'s top
         // and nothing of the bar reached here.
         let point = host.pointAboveBar(by: 40)
-        let transcript = host.renderedColor(at: CGPoint(x: 40, y: 100), backdrop: .black)
+        let transcript = host.renderedColor(at: CGPoint(x: point.x, y: 100), backdrop: .black)
         let probe = host.renderedColor(at: point, backdrop: .black)
         #expect(!probe.isClose(to: transcript), "Panel is not drawn above the bar")
 
         // The screen lifts its clip for the panel, so taps there reach the bar rather than the transcript.
         let hit = try #require(host.window.hitTest(point, with: nil))
         #expect(hit.isDescendant(of: host.barHost.view), "Taps above the bar miss the panel")
+    }
+
+    @Test("The bar is one row tall: +, the text, and the controls beside it")
+    func barHeight_isOneRow() async throws {
+        let host = try AttachPanelHost()
+        defer { host.tearDown() }
+        await host.settle()
+
+        let expected = BarMetrics.contentHeight + BarMetrics.contentPadding * 2
+        #expect(abs(host.barHeight - expected) < 1, "Bar is \(host.barHeight) tall, expected \(expected)")
+    }
+
+    @Test("The menu's leading edge is the composer field's, past the compact margin and the `$` beside it")
+    func menu_linesUpWithField() async throws {
+        let host = try AttachPanelHost()
+        defer { host.tearDown() }
+        await host.settle()
+
+        let plus = host.model.overKeyboard.plusFrame
+        let menu = AttachSurfaceLayout.menuRect(plus: plus, size: CGSize(width: 280, height: 200), placement: .standsOnPlus)
+        let field = BarMetrics.compactInset + BarMetrics.contentHeight + ConversationBottomBar.leadingSpacing
+        #expect(abs(menu.minX - field) < 1, "Menu starts at \(menu.minX), the field at \(field)")
     }
 
     @Test("The card stands on the composer over the transcript, takes taps on itself, and lets taps above it through")

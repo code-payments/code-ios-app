@@ -241,7 +241,7 @@ struct ChatCameraSheet: View {
     }
 }
 
-/// A round control over the viewfinder: a white glyph on a dimmed disc.
+/// A round control over the viewfinder: a white glyph on dark-tinted glass.
 private struct ChatCameraControlLabel: View {
 
     let systemImage: String
@@ -251,7 +251,7 @@ private struct ChatCameraControlLabel: View {
             .font(.default(size: 17, weight: .semibold))
             .foregroundStyle(Color.white)
             .frame(width: 44, height: 44)
-            .background(Circle().fill(Color.black.opacity(0.35)))
+            .overlayGlassBackground(in: Circle())
             .contentShape(Circle())
     }
 }

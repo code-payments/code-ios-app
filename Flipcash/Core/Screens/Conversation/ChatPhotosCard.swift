@@ -131,7 +131,7 @@ struct ChatPhotosCard: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .glassBackground(cornerRadius: 22)
+            .overlayGlassBackground(in: Circle())
             .clipShape(Circle())
             .accessibilityLabel("Back to attach menu")
             .accessibilityIdentifier("attach-photos-back")
@@ -155,7 +155,7 @@ struct ChatPhotosCard: View {
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .glassBackground(cornerRadius: 22)
+                .overlayGlassBackground(in: Capsule())
                 .clipShape(Capsule())
                 .accessibilityIdentifier("attach-photos-all")
                 .transition(.opacity)
