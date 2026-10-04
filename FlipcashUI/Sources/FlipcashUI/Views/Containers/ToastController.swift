@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 import Observation
 
 /// The app-wide toast: any screen dispatches one, and a single host draws it above the floating tab bar,
@@ -16,6 +17,8 @@ public final class ToastController {
     /// lets touches through to the screen beneath it.
     public struct Toast: Identifiable {
         public let id = UUID()
+        // Shared by toasts swapped in place, so the host keeps the view rather than replaying the entrance.
+        fileprivate(set) var slot = UUID()
         let message: String
         let systemImage: String?
         let messageIdentifier: String?
@@ -46,11 +49,25 @@ public final class ToastController {
     /// The toast on screen, or `nil` when none is.
     public private(set) var current: Toast?
 
+    /// Whether a sheet or other modal layer is drawn over the host. Covering dismisses the toast on screen,
+    /// and a toast shown while covered is dropped: hidden beneath the layer it would time out unseen, with
+    /// its action out of reach.
+    public var isCovered = false {
+        didSet { if isCovered { current = nil } }
+    }
+
     /// A controller with no toast showing.
     public init() {}
 
-    /// Shows `toast` in place of any toast already up, and announces it to VoiceOver.
-    public func show(_ toast: Toast) {
+    /// Shows `toast` in place of any toast already up, and announces it to VoiceOver. Drops it while the
+    /// host is covered.
+    ///
+    /// With `inPlace`, a toast already up swaps its content without replaying the entrance, for a message
+    /// that updates as the user acts (a countdown). Its timer still restarts.
+    public func show(_ toast: Toast, inPlace: Bool = false) {
+        guard !isCovered, !Self.isPresentingOverApp else { return }
+        var toast = toast
+        if inPlace, let current { toast.slot = current.slot }
         current = toast
         AccessibilityNotification.Announcement(toast.message).post()
     }
@@ -59,6 +76,16 @@ public final class ToastController {
     public func dismiss(_ id: Toast.ID) {
         guard current?.id == id else { return }
         current = nil
+    }
+
+    // Catches sheets and dialogs presented outside the router, which never set `isCovered`.
+    private static var isPresentingOverApp: Bool {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .rootViewController?
+            .presentedViewController != nil
     }
 }
 
@@ -104,13 +131,13 @@ private struct ToastHost: View {
                 .allowsHitTesting(toast.action != nil)
                 .padding(.bottom, bottomPadding)
                 .floatingToastTransition()
-                .id(toast.id)
+                .id(toast.slot)
                 .task(id: toast.id) {
                     try? await Task.sleep(for: toast.duration)
                     if !Task.isCancelled { controller.dismiss(toast.id) }
                 }
             }
         }
-        .animation(.spring(duration: 0.4, bounce: 0.2), value: controller.current?.id)
+        .animation(.spring(duration: 0.4, bounce: 0.2), value: controller.current?.slot)
     }
 }

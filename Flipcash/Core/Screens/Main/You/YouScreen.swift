@@ -462,9 +462,12 @@ struct YouScreen: View {
                 betaFlags.setAccessGranted(!betaFlags.accessGranted)
             }
             if let message {
-                // Two seconds, so consecutive taps read as one countdown. Without an action the toast
+                // Two seconds and swapped in place, so consecutive taps read as one countdown. Without an action the toast
                 // lets taps through, so it never blocks the version string at the bottom of the list.
-                toasts.show(.init(message, messageIdentifier: "you-version-toast", width: .fit, duration: .seconds(2)))
+                toasts.show(
+                    .init(message, messageIdentifier: "you-version-toast", width: .fit, duration: .seconds(2)),
+                    inPlace: true
+                )
             }
         } label: {
             Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
