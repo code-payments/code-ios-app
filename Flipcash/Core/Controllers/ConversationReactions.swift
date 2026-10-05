@@ -68,6 +68,7 @@ final class ConversationReactions {
     /// Applies reaction updates the stream delivered for one conversation.
     func apply(_ updates: [DecodedReactionUpdate], in conversationID: ConversationID) {
         let byMessage = Dictionary(grouping: updates, by: \.messageID)
+        var transforms: [MessageID: (inout ReactionState) -> Void] = [:]
         for (messageID, updates) in byMessage {
             let key = Key(conversationID: conversationID, messageID: messageID)
             let applyAll: (inout ReactionState) -> Void = { [selfUserID] state in
@@ -86,8 +87,10 @@ final class ConversationReactions {
                 applyAll(&state)
                 held[key] = state
             }
-            write(for: key, operation: "apply-reaction-updates", applyAll)
+            transforms[messageID] = applyAll
         }
+        guard !transforms.isEmpty else { return }
+        write(transforms, in: conversationID, operation: "apply-reaction-updates")
     }
 
     /// Brings the stored reactions of `messageIDs` up to the server's current summaries. Reactions
@@ -217,7 +220,7 @@ final class ConversationReactions {
         }
         if case .ok = result {
             let confirmed = state
-            write(for: key, operation: "confirm-reaction") { $0.merge(confirmed) }
+            write([key.messageID: { $0.merge(confirmed) }], in: key.conversationID, operation: "confirm-reaction")
         }
         hold(state, for: key)
         if let next {
@@ -225,14 +228,14 @@ final class ConversationReactions {
         }
     }
 
-    private func write(for key: Key, operation: String, _ transform: (inout ReactionState) -> Void) {
+    private func write(_ transforms: [MessageID: (inout ReactionState) -> Void], in conversationID: ConversationID, operation: String) {
         do {
-            try database.updateReactions(messageID: key.messageID, conversationID: key.conversationID, transform)
+            try database.updateReactions(transforms, conversationID: conversationID)
             didPersist()
         } catch {
             logger.error("Failed to persist message reactions", metadata: [
                 "operation": "\(operation)",
-                "conversationID": "\(key.conversationID)",
+                "conversationID": "\(conversationID)",
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to persist message reactions [\(operation)]")
