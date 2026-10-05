@@ -70,14 +70,14 @@ extension FlipClient {
     }
 
     /// Starts a new group chat and returns its metadata on success. `rules` gates who may read/join
-    /// and who may send; `nil` leaves the chat unrestricted.
+    /// and who may send; `nil` leaves the chat unrestricted. A `nil` or empty `description` sets none.
     ///
     /// `idempotencyKey` must be minted by the caller where the user's intent to create the chat
     /// originates (not here) and reused for every retry of that same attempt — see
     /// `ChatService.startChat`. A retry with the same key returns the original chat.
-    public func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?, idempotencyKey: UUID) async throws -> Conversation {
+    public func startChat(owner: KeyPair, title: String, description: String? = nil, pictureBlobID: BlobID?, rules: ConversationRules?, idempotencyKey: UUID) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
-            chatService.startChat(owner: owner, title: title, pictureBlobID: pictureBlobID, rules: rules, idempotencyKey: idempotencyKey) { c.resume(with: $0) }
+            chatService.startChat(owner: owner, title: title, description: description, pictureBlobID: pictureBlobID, rules: rules, idempotencyKey: idempotencyKey) { c.resume(with: $0) }
         }
     }
 
@@ -140,17 +140,18 @@ extension FlipClient {
         }
     }
 
-    /// Edits a group chat's title and/or picture; every parameter left `nil` leaves that field
-    /// unchanged, and passing both `nil` is a no-op that still returns the current metadata. Only a
+    /// Edits a group chat's title, description, and/or picture; a `nil` title or picture and an
+    /// `.unchanged` description leave that field as it is, and changing nothing is a no-op that still
+    /// returns the current metadata. Pass `.clear` to remove the description. Only a
     /// member with ``ConversationViewerState/canEdit`` may call this.
     ///
     /// `pictureBlobID` must already be `READY` (uploaded via `BlobService`) — this call does not
     /// upload it. Real changes also arrive on the event stream as `MetadataUpdate.titleChanged`/
-    /// `.pictureChanged` for the chat's other members (and the caller's other devices); this call's
+    /// `.descriptionChanged`/`.pictureChanged` for the chat's other members (and the caller's other devices); this call's
     /// return value is only this device's confirmation.
-    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, pictureBlobID: BlobID?) async throws -> Conversation {
+    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
-            chatService.editChat(owner: owner, conversationID: conversationID, title: title, pictureBlobID: pictureBlobID) { c.resume(with: $0) }
+            chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID) { c.resume(with: $0) }
         }
     }
 

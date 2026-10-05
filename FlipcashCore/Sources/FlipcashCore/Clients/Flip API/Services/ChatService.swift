@@ -128,17 +128,21 @@ final class ChatService: Sendable {
     /// `BlobService`); `rules` gate who may read/join and who may send — `nil` means no
     /// restrictions. On `.titleModerated` the server also reports which category flagged the
     /// title; `ErrorStartChat.titleModerated` carries it through so callers can say why, not just
-    /// that the title was rejected.
+    /// that the title was rejected. `description`, when non-empty, is moderated the same way and
+    /// reports `.descriptionModerated`; `nil` or empty sets none.
     ///
     /// `idempotencyKey` is required by the server: caller and key together identify the chat being
     /// created, so a retry with the same key returns the original chat (result `.ok`) rather than
     /// creating a duplicate, even if `title`/`pictureBlobID`/`rules` differ on the retry. Mint it once
     /// where the user's intent to create the chat originates and reuse it for every retry of that same
     /// attempt — never generate a fresh key per call, or retries lose their idempotency.
-    func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?, idempotencyKey: UUID, completion: @Sendable @escaping (Result<Conversation, ErrorStartChat>) -> Void) {
+    func startChat(owner: KeyPair, title: String, description: String? = nil, pictureBlobID: BlobID?, rules: ConversationRules?, idempotencyKey: UUID, completion: @Sendable @escaping (Result<Conversation, ErrorStartChat>) -> Void) {
         let request = Flipcash_Chat_V1_StartChatRequest.with {
             $0.publicGroup = .with {
                 $0.title = title
+                if let description, !description.isEmpty {
+                    $0.description_p = description
+                }
                 if let pictureBlobID {
                     $0.picture = .with { $0.value = pictureBlobID.data }
                 }
@@ -357,7 +361,7 @@ final class ChatService: Sendable {
         }
     }
 
-    /// Edits a group chat's title and/or picture. Every field is optional — only fields set on the
+    /// Edits a group chat's title, description, and/or picture. Every field is optional — only fields set on the
     /// request change, atomically; a request that sets nothing is a no-op returning `.ok`. Only a
     /// member the server permits to edit (``ConversationViewerState/canEdit``) may call this; anyone
     /// else is `.denied`.
@@ -365,12 +369,18 @@ final class ChatService: Sendable {
     /// `pictureBlobID`, when supplied, must already be `READY` (uploaded via `BlobService`) — this
     /// call does not upload it, mirroring `startChat`'s `pictureBlobID` contract. On `.titleModerated`
     /// the server also reports which category flagged the title, carried the same way
-    /// `ErrorStartChat.titleModerated` carries it.
-    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, pictureBlobID: BlobID?, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
+    /// `ErrorStartChat.titleModerated` carries it; `.descriptionModerated` works the same way.
+    ///
+    /// `description` is ``ConversationDescriptionEdit/unchanged`` by default; use `.clear` to remove
+    /// an existing description.
+    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
         let request = Flipcash_Chat_V1_EditChatRequest.with {
             $0.chatID = conversationID.proto
             if let title {
                 $0.title = .with { $0.value = title }
+            }
+            if let description = description.proto {
+                $0.description_p = description
             }
             if let pictureBlobID {
                 $0.picture = .with { $0.blobID = .with { $0.value = pictureBlobID.data } }
