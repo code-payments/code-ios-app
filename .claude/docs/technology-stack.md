@@ -19,8 +19,13 @@ Android consumes the Kotlin half of the same two packages, so both apps now gene
 place instead of each vendoring the contract.
 
 **To pick up a contract change:** sync and release it in the client-protocol repo (its README has
-the steps), then bump the `exact:` version in `FlipcashAPI/Package.swift`. Nothing in this repo
-needs protoc, swift-protobuf, or the grpc-swift plugin installed.
+the steps), then bump the pin with `./Scripts/bump-contract.sh <ocp|flipcash2> <version>`. Run it
+only after the tag is published: it checks with `git ls-remote`, edits the pin in
+`FlipcashAPI/Package.swift`, re-resolves with the local-override env vars unset, and stages both that
+file and the workspace `Package.resolved`. Xcode Cloud resolves only from `Package.resolved` and will
+not update it, so the pre-commit hook rejects a commit where the staged pin and the staged
+`Package.resolved` version disagree. Nothing in this repo needs protoc, swift-protobuf, or the
+grpc-swift plugin installed.
 
 ## Required Technologies
 
