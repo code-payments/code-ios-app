@@ -8,6 +8,12 @@
   ],
   "defaultOptions" : {
     "defaultTestExecutionTimeAllowance" : 120,
+    "environmentVariableEntries" : [
+      {
+        "key" : "FLIPCASH_TSAN",
+        "value" : "1"
+      }
+    ],
     "maximumTestExecutionTimeAllowance" : 600,
     "performanceAntipatternCheckerEnabled" : true,
     "targetForVariableExpansion" : {
@@ -21,12 +27,6 @@
   "testTargets" : [
     {
       "parallelizable" : true,
-      "skippedTests" : [
-        "BoundedWaitTests",
-        "ChatReceiptHandoffLayoutTests",
-        "ChatSendScrollTests",
-        "ChatTypingHandoffLayoutTests"
-      ],
       "target" : {
         "containerPath" : "container:Code.xcodeproj",
         "identifier" : "9A516F882D9B12EA00AF478B",

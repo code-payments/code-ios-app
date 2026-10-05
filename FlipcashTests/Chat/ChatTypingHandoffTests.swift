@@ -140,7 +140,7 @@ struct ChatTypingHandoffDetectionTests {
 /// makes room without the bubble ever running into it, the text arrives by opacity alone, and in a
 /// group the author's face travels over from the dots' stack.
 @MainActor
-@Suite("Typing handoff layout")
+@Suite("Typing handoff layout", .timingSensitive)
 struct ChatTypingHandoffLayoutTests {
 
     private static let author = ChatAuthor(id: UserID(), name: "Sam")

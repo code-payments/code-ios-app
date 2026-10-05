@@ -12,7 +12,7 @@ import FlipcashCore
 
 /// A send's scroll and the bar's inset, watched frame by frame on a live transcript.
 @MainActor
-@Suite("Chat send scroll")
+@Suite("Chat send scroll", .timingSensitive)
 struct ChatSendScrollTests {
 
     private func filler(_ i: Int) -> ChatItem {

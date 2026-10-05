@@ -90,7 +90,7 @@ struct ChatListLaunchSyncTests {
         controller.stop()
     }
 
-    @Test("a slow feed is capped: the others apply, and the slow one applies when it lands")
+    @Test("a slow feed is capped: the others apply, and the slow one applies when it lands", .timingSensitive)
     func slowFeedIsCapped() async throws {
         let db = try cached([tipDm(1, activity: 100)])
         let mock = MockConversations()
@@ -106,7 +106,7 @@ struct ChatListLaunchSyncTests {
         controller.stop()
     }
 
-    @Test("slow unread lookups don't hold the list past their cap")
+    @Test("slow unread lookups don't hold the list past their cap", .timingSensitive)
     func unreadIsCapped() async throws {
         let unread = tipDm(2, activity: 200, last: message(5), readPointer: 1)
         let db = try cached([tipDm(1, activity: 100)])
@@ -263,7 +263,7 @@ private final class ListObserver {
 }
 
 @MainActor
-@Suite("BoundedWait")
+@Suite("BoundedWait", .timingSensitive)
 struct BoundedWaitTests {
 
     @Test("returns when every unit has signalled, ahead of the cap")

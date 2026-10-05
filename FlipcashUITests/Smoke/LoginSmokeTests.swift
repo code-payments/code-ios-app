@@ -26,7 +26,7 @@ final class LoginSmokeTests: BaseUITestCase {
 
         // Settings lives on the You tab now: You → Advanced → Log Out. The
         // settings rows sit under the tip card, so scroll them into view.
-        waitAndTap(app.buttons["You"])
+        waitAndTap(app.tabBars.buttons["You"].firstMatch)
         scrollUpToAndTap(app.buttons["Advanced"], in: app.scrollViews.firstMatch)
         waitAndTap(app.buttons["Log Out"])
 
