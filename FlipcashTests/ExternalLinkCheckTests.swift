@@ -76,9 +76,10 @@ import FlipcashUI
 
     @Test func warningNamesTheHost() {
         let item = DialogItem.leavingFlipcash(host: "x.com") {}
-        #expect(item.title == "You're leaving Flipcash")
-        #expect(item.subtitle == "This link opens x.com. Flipcash will never ask for your Access Key on a website")
-        #expect(item.actions.map(\.title) == ["Cancel", "Open Link"])
+        #expect(item.style == .standard)
+        #expect(item.title == "You're Leaving Flipcash")
+        #expect(item.subtitle == "This will open x.com. Never share your Access Key with a website")
+        #expect(item.actions.map(\.title) == ["Open Website", "Cancel"])
         #expect(item.actions.map(\.kind) == [.standard, .subtle])
     }
 }

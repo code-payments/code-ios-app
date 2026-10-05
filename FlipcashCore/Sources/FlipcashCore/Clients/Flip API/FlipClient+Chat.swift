@@ -195,6 +195,7 @@ extension FlipClient {
         conversationID: ConversationID,
         messageID: MessageID,
         text: String,
+        repliedTo: MessageID?,
         seal: ChatSeal?,
         expectedEventSequence: UInt64
     ) async throws -> MessageMutation {
@@ -204,6 +205,7 @@ extension FlipClient {
                 conversationID: conversationID,
                 messageID: messageID,
                 text: text,
+                repliedTo: repliedTo,
                 seal: seal,
                 expectedEventSequence: expectedEventSequence
             ) { c.resume(with: $0) }

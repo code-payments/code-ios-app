@@ -8,8 +8,8 @@ import FlipcashUI
 
 /// The entry row under the market cap chart (Figma node 10761:1879).
 struct MarketCapExplainerRow: View {
+    let tokenName: String
     let action: () -> Void
-
 
     var body: some View {
         Button(action: action) {
@@ -20,7 +20,7 @@ struct MarketCapExplainerRow: View {
                     .background(Circle().fill(Color.rowSeparator))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("How Market Cap Works")
+                    Text("How \(tokenName)'s Price Works")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
                     Text("See what moves market cap · 1 min")

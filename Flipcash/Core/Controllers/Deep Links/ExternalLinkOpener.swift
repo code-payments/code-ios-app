@@ -61,7 +61,7 @@ struct ExternalLinkOpener {
     /// Where the warning is drawn.
     let session: Session
 
-    /// Opens `url` now if ``ExternalLinkCheck`` allows it, otherwise once the user picks Open Link.
+    /// Opens `url` now if ``ExternalLinkCheck`` allows it, otherwise once the user picks Open Website.
     func open(_ url: URL) {
         switch ExternalLinkCheck(url: url) {
         case .open:
@@ -79,15 +79,15 @@ extension DialogItem {
 
     /// The warning in front of a link to `host`, matching Android's copy word for word.
     ///
-    /// Cancel is the primary button. The body is not emphasised around the host as Android's is:
-    /// the dialog sets its whole subtitle in bold already.
+    /// Open Website is the primary button. The body is not emphasised around the host as Android's
+    /// is: the dialog sets its whole subtitle in bold already.
     static func leavingFlipcash(host: String, open: @escaping () -> Void) -> DialogItem {
-        .alert(
-            title: "You're leaving Flipcash",
-            subtitle: "This link opens \(host). Flipcash will never ask for your Access Key on a website"
+        .info(
+            title: "You're Leaving Flipcash",
+            subtitle: "This will open \(host). Never share your Access Key with a website"
         ) {
-            DialogAction.standard("Cancel") {}
-            DialogAction.subtle("Open Link", action: open)
+            DialogAction.standard("Open Website", action: open)
+            DialogAction.cancel()
         }
     }
 }

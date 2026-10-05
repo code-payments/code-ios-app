@@ -112,10 +112,10 @@ protocol ConversationMessaging: AnyObject, Sendable {
         onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
     ) async throws -> UInt64
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage
-    /// Replaces a message's text. `expectedEventSequence` is the optimistic-concurrency guard: the
+    /// Replaces a message's text, keeping it a reply to `repliedTo` when set. `expectedEventSequence` is the optimistic-concurrency guard: the
     /// server applies the edit only if the message still carries that sequence, and reports a
     /// conflict with the winning state otherwise.
-    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, expectedEventSequence: UInt64) async throws -> MessageMutation
+    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Tombstones a message, guarded by `expectedEventSequence` the same way as `editMessage`.
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Adds the owner's reaction with `emoji`, returning the emoji's new aggregate.

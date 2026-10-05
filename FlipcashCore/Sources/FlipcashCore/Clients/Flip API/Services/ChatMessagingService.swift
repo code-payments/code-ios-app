@@ -201,13 +201,16 @@ final class ChatMessagingService: Sendable {
         conversationID: ConversationID,
         messageID: MessageID,
         text: String,
+        repliedTo: MessageID?,
         seal: ChatSeal?,
         expectedEventSequence: UInt64,
         completion: @Sendable @escaping (Result<MessageMutation, ErrorEditMessage>) -> Void
     ) {
         let content: Flipcash_Messaging_V1_Content
         do {
-            content = try seal?.seal(text: text, repliedTo: nil) ?? .plaintext(text: text, repliedTo: nil)
+            // The edit replaces the whole content, reply wrapper included, so a reply has to restate
+            // its target or the server stores it as a plain message.
+            content = try seal?.seal(text: text, repliedTo: repliedTo) ?? .plaintext(text: text, repliedTo: repliedTo)
         } catch {
             logger.error("Failed to encrypt edited message")
             completion(.failure(.encryptionFailed))

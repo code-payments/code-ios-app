@@ -47,6 +47,7 @@ extension ConversationController {
                 conversationID: conversationID,
                 messageID: messageID,
                 text: text,
+                repliedTo: current.repliedTo,
                 expectedEventSequence: current.eventSequence
             )
             settle(outcome, messageID: messageID, in: conversationID, operation: "edit-message")
