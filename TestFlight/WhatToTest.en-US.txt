@@ -1,5 +1,27 @@
 What to test in this build
 
+New in this release — please exercise these end to end:
+• Open a DM — it should show the end-to-end encryption UI, and messages should send and arrive normally
+• Archive a chat, then use the chat list filter to find it again
+• Type @ in a message — you should get mention suggestions
+• Open a currency's info screen — check the How Market Cap Works explainer and the token price in its title
+• On an account with an auto-assigned handle, check the username card in You
+• Share a profile into a chat — it should render as a bubble titled "Chat with <name> on Flipcash"
+• Long-press a message — reactions above, actions below
+• Receive new messages — they should slide in from below, with read receipts following smoothly
+• Scroll a chat — the message bar should float over a fade at the bottom edge
+• Check the home tab bar labels and the account switcher (usernames first)
+• Start a new chat — Find Someone by Username should be first
+• Edit a reply — it should still point at the original message
+• Open the Flipcash chat — it should be read-only; replies and reactions should follow the chat's rules
+• Watch typing indicators with more than one person typing
+• Relaunch the app — the chat list should settle without flicker
+• Trigger a toast while a sheet is open — it shouldn't appear under the sheet
+• Tap an outside link in a message — the warning should be a dialog
+• Send cash — the available-balance hint should stay put through send and dismiss
+• Token info's Give tile should read "Cash"
+• Set a display name — only letters, digits, and spaces are accepted
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
