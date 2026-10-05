@@ -46,9 +46,10 @@ final class ConvertAmountViewModel {
     /// Destinations offered in the picker: Dollars plus every other held
     /// balance, excluding the source. Read by the destination picker sheet.
     var destinationOptions: [ExchangedBalance] {
-        let rate = ratesController.rateForBalanceCurrency()
-        return session.balances(for: rate)
-            .filter { $0.stored.mint != sourceBalance.mint }
+        session.convertDestinations(
+            from: sourceBalance.mint,
+            rate: ratesController.rateForBalanceCurrency()
+        )
     }
 
     /// Display name of the current destination — "Dollars" for USDF.
@@ -88,8 +89,10 @@ final class ConvertAmountViewModel {
         // Default to Dollars, except when converting *from* Dollars — then pick
         // the largest other holding so the destination is never the source.
         if sourceBalance.mint == .usdf {
-            let rate = ratesController.rateForBalanceCurrency()
-            let options = session.balances(for: rate).filter { $0.stored.mint != .usdf }
+            let options = session.convertDestinations(
+                from: .usdf,
+                rate: ratesController.rateForBalanceCurrency()
+            )
             self.destinationMint = options
                 .max(by: { $0.exchangedFiat.nativeAmount.value < $1.exchangedFiat.nativeAmount.value })?
                 .stored.mint ?? .usdf

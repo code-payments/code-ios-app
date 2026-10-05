@@ -38,7 +38,7 @@ struct CurrencyInfoContentV2: View {
 
     /// Give — owned community tokens only.
     let onGive: () -> Void
-    /// Convert — sells this (non-USDF) currency into a chosen destination.
+    /// Convert — sells this currency into a chosen destination.
     let onConvert: () -> Void
     /// Buy — routes to the buy flow, whether or not the currency is held.
     let onBuy: () -> Void
@@ -302,8 +302,14 @@ struct CurrencyInfoContentV2: View {
                 if isUSDF {
                     // Dollars is what the other currencies are bought with, so
                     // there is nothing to buy more of — it withdraws instead.
-                    // Its Convert goes out via a reserves buy.
-                    actionTile("Convert", icon: .asset("IconArrowBottomTop"), action: onConvert)
+                    // Its Convert goes out via a reserves buy, so it needs
+                    // another holding to buy into.
+                    actionTile(
+                        "Convert",
+                        icon: .asset("IconArrowBottomTop"),
+                        isEnabled: viewModel.canConvert,
+                        action: onConvert
+                    )
                     actionTile("Withdraw", icon: .asset("IconArrowUp"), action: onWithdraw)
                 } else {
                     actionTile("Buy More", icon: .asset("IconArrowDown"), action: onBuy)
@@ -315,7 +321,12 @@ struct CurrencyInfoContentV2: View {
         }
     }
 
-    private func actionTile(_ title: String, icon: TileIcon, action: @escaping () -> Void) -> some View {
+    private func actionTile(
+        _ title: String,
+        icon: TileIcon,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             VStack(spacing: 12) {
                 tileIcon(icon)
@@ -330,6 +341,8 @@ struct CurrencyInfoContentV2: View {
             .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.4)
     }
 
     @ViewBuilder private func tileIcon(_ icon: TileIcon) -> some View {
