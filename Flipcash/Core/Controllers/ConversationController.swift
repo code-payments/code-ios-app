@@ -265,6 +265,9 @@ final class ConversationController {
     @ObservationIgnored private var startTask: Task<Void, Never>?
     /// The feed load in flight, joined by every caller that arrives before it finishes.
     @ObservationIgnored private var feedLoadTask: Task<Void, Never>?
+    /// Whether the app was backgrounded while `feedLoadTask` was in flight. Its requests went out
+    /// before suspension, so it answers with what the server held then.
+    @ObservationIgnored private var feedLoadInterrupted = false
     /// How long a reconcile waits for the slowest feed, and for unread counts, before applying what landed.
     @ObservationIgnored private let reconcileTiming: FeedReconcileTiming
     /// The transcript fetches waiting to run, shared by every feed load.
@@ -627,7 +630,25 @@ final class ConversationController {
     func handleForeground() {
         reloadFromDatabase()
         catchUpOpenChat()
-        Task { await loadFeed() }
+        // Joining a load that was in flight across a suspension would leave the feed as it was
+        // before the app went away, so wait that one out and fetch again.
+        let interrupted = feedLoadInterrupted ? feedLoadTask : nil
+        feedLoadInterrupted = false
+        Task {
+            if let interrupted {
+                await interrupted.value
+                if feedLoadTask == interrupted {
+                    feedLoadTask = nil
+                }
+            }
+            await loadFeed()
+        }
+    }
+
+    /// Background hook (`AppDelegate` `.background`): marks a feed load still in flight as stale, so
+    /// the next `handleForeground()` fetches again instead of joining it.
+    func handleBackground() {
+        feedLoadInterrupted = feedLoadTask != nil
     }
 
     /// Re-reads every known conversation's transcript and feed preview straight from disk, with no
@@ -781,6 +802,7 @@ final class ConversationController {
         startTask = nil
         feedLoadTask?.cancel()
         feedLoadTask = nil
+        feedLoadInterrupted = false
         if let extensionStoreWriteToken {
             ChatStoreWriteNotification.stopObserving(extensionStoreWriteToken)
             self.extensionStoreWriteToken = nil
@@ -879,7 +901,10 @@ final class ConversationController {
         }
         feedLoadTask = task
         await task.value
-        feedLoadTask = nil
+        // A foreground that outwaited an interrupted load may already have started the next one.
+        if feedLoadTask == task {
+            feedLoadTask = nil
+        }
     }
 
     private func loadFeeds() async -> [Conversation] {

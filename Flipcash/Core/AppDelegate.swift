@@ -134,6 +134,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         case .background:
             logger.info("scenePhase → background")
             sessionContainer?.session.didEnterBackground()
+            sessionContainer?.conversationController.handleBackground()
             container.preferences.appDidEnterBackground()
             sessionContainer?.pushController.clearBadgeCount()
             shutDownForBackground()
