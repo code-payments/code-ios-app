@@ -50,6 +50,14 @@ public struct Profile: Codable, Equatable, Sendable {
     /// when there is no username.
     public let isUsernameAutoAssigned: Bool
 
+    /// The user's bio, or `nil` when they haven't set one. Public, but absent from a profile
+    /// that rides on a chat member row or mention suggestion.
+    public let bio: String?
+
+    /// The user's cover picture, or `nil` when they haven't set one. Shares ``ProfilePicture``'s
+    /// shape: an original rendition plus a thumbnail.
+    public let coverPicture: ProfilePicture?
+
     public var isPhoneVerified: Bool {
         phone != nil
     }
@@ -67,7 +75,7 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil && phone?.e164 != previous?.phone?.e164
     }
 
-    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false) throws {
+    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false, bio: String? = nil, coverPicture: ProfilePicture? = nil) throws {
 
         // Only parse phone if it's not empty
         var parsedPhone: Phone?
@@ -93,11 +101,13 @@ public struct Profile: Codable, Equatable, Sendable {
             userID: userID,
             username: username,
             minDmChatInitFee: minDmChatInitFee,
-            isUsernameAutoAssigned: isUsernameAutoAssigned
+            isUsernameAutoAssigned: isUsernameAutoAssigned,
+            bio: bio,
+            coverPicture: coverPicture
         )
     }
 
-    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false) {
+    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false, bio: String? = nil, coverPicture: ProfilePicture? = nil) {
         self.displayName = displayName
         self.phone = phone
         self.email = email
@@ -108,10 +118,12 @@ public struct Profile: Codable, Equatable, Sendable {
         self.username = username
         self.minDmChatInitFee = minDmChatInitFee
         self.isUsernameAutoAssigned = isUsernameAutoAssigned
+        self.bio = bio
+        self.coverPicture = coverPicture
     }
 
-    /// `isUsernameAutoAssigned` is decoded with a default so rows persisted
-    /// before it existed still decode, without a `schemaVersion` bump.
+    /// `isUsernameAutoAssigned`, `bio` and `coverPicture` are decoded with a default so rows
+    /// persisted before they existed still decode, without a `schemaVersion` bump.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.displayName = try c.decodeIfPresent(String.self, forKey: .displayName)
@@ -124,6 +136,8 @@ public struct Profile: Codable, Equatable, Sendable {
         self.username = try c.decodeIfPresent(Username.self, forKey: .username)
         self.minDmChatInitFee = try c.decodeIfPresent(FiatAmount.self, forKey: .minDmChatInitFee)
         self.isUsernameAutoAssigned = try c.decodeIfPresent(Bool.self, forKey: .isUsernameAutoAssigned) ?? false
+        self.bio = try c.decodeIfPresent(String.self, forKey: .bio)
+        self.coverPicture = try c.decodeIfPresent(ProfilePicture.self, forKey: .coverPicture)
     }
 }
 
@@ -162,7 +176,10 @@ extension Profile {
                 value: Decimal(proto.minDmChatInitFee.nativeAmount),
                 currency: try CurrencyCode(currencyCode: proto.minDmChatInitFee.currency)
             ) : nil,
-            isUsernameAutoAssigned: proto.isUsernameAutoAssigned
+            isUsernameAutoAssigned: proto.isUsernameAutoAssigned,
+            // The proto represents an unset bio as an empty string.
+            bio: proto.bio.isEmpty ? nil : proto.bio,
+            coverPicture: proto.hasCoverPicture ? ProfilePicture(proto.coverPicture) : nil
         )
     }
 }

@@ -158,6 +158,71 @@ final class ProfileService: Sendable {
         }
     }
 
+    /// Attaches an already-finalized blob as the caller's cover picture and returns the picture
+    /// the server derived from it, or `nil` when it carries no original rendition.
+    @discardableResult
+    func setCoverPicture(blobID: BlobID, owner: KeyPair) async throws -> ProfilePicture? {
+        var request = Flipcash_Profile_V1_SetCoverPictureRequest()
+        request.blobID = .with { $0.value = blobID.data }
+        request.auth   = owner.authFor(message: request)
+
+        do {
+            let response = try await service.setCoverPicture(request, options: .unaryDefault)
+
+            switch response.result {
+            case .ok:
+                logger.info("Cover picture set", metadata: ["blobId": "\(blobID)"])
+                return response.hasCoverPicture ? ProfilePicture(response.coverPicture) : nil
+
+            case .denied:
+                throw ErrorProfile.denied
+            case .blobNotFound:
+                throw ErrorProfile.blobNotFound
+            case .blobNotReady:
+                throw ErrorProfile.blobNotReady
+            case .blobRejected:
+                throw ErrorProfile.blobRejected
+            case .invalidBlob:
+                throw ErrorProfile.invalidBlob
+            case .UNRECOGNIZED:
+                throw ErrorProfile.unknown
+            }
+        } catch let error as ErrorProfile {
+            throw error
+        } catch {
+            throw ErrorProfile.network(error)
+        }
+    }
+
+    /// Sets the caller's bio, which the server moderates before it persists. An empty string
+    /// clears it.
+    func setBio(_ bio: String, owner: KeyPair) async throws {
+        var request = Flipcash_Profile_V1_SetBioRequest()
+        request.bio  = bio
+        request.auth = owner.authFor(message: request)
+
+        do {
+            let response = try await service.setBio(request, options: .unaryDefault)
+
+            switch response.result {
+            case .ok:
+                logger.info("Bio set")
+            case .invalidBio:
+                throw ErrorProfile.invalidBio
+            case .denied:
+                throw ErrorProfile.denied
+            case .failedModerated:
+                throw ErrorProfile.moderated(response.flaggedCategory)
+            case .UNRECOGNIZED:
+                throw ErrorProfile.unknown
+            }
+        } catch let error as ErrorProfile {
+            throw error
+        } catch {
+            throw ErrorProfile.network(error)
+        }
+    }
+
     func updateFlipcard(color: Flipcash_Common_V1_Color, owner: KeyPair) async throws {
         logger.info("Updating flipcard")
 
@@ -285,6 +350,7 @@ extension ErrorSetMinDmChatInitFee: ServerError, TransportClassifiableError {
 public enum ErrorProfile: Error, Sendable {
     case denied
     case invalidDisplayName
+    case invalidBio
     case invalidUsername
     case usernameTaken
     case reservedWord
@@ -301,7 +367,7 @@ public enum ErrorProfile: Error, Sendable {
 extension ErrorProfile: ServerError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .denied, .invalidDisplayName, .moderated,
+        case .denied, .invalidDisplayName, .invalidBio, .moderated,
              .invalidUsername, .usernameTaken, .reservedWord, .insufficientBalance,
              .blobNotFound, .blobNotReady, .blobRejected, .invalidBlob:
             .info

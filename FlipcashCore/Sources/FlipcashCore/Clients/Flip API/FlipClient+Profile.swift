@@ -49,6 +49,19 @@ extension FlipClient {
         try await profileService.setProfilePicture(blobID: blobID, owner: owner)
     }
 
+    /// Attaches an already-finalized blob as the caller's cover picture. Returns the picture the
+    /// server derived from it, or nil when the response carried none.
+    @discardableResult
+    public func setCoverPicture(blobID: BlobID, owner: KeyPair) async throws -> ProfilePicture? {
+        try await profileService.setCoverPicture(blobID: blobID, owner: owner)
+    }
+
+    /// Sets the caller's bio, which the server moderates before it persists. An empty string
+    /// clears it.
+    public func setBio(_ bio: String, owner: KeyPair) async throws {
+        try await profileService.setBio(bio, owner: owner)
+    }
+
     /// Updates the caller's Tip Card customization. The server validates the
     /// colour and falls back to the default for anything left unset.
     public func updateFlipcard(_ customization: TipCardCustomization, owner: KeyPair) async throws {
