@@ -34,6 +34,19 @@ struct ConversationUIScreen {
     /// empty composer reads as "Message" (or "Reply" mid-reply), never as "".
     var draftValue: String { messageField.value as? String ?? "" }
 
+    /// Empties the composer, or fails if a few passes leave text behind.
+    func clearDraft() {
+        for _ in 0..<5 {
+            let draft = draftValue
+            if ["", "Message", "Reply"].contains(draft) { return }
+            // A tap parks the cursor under the finger, so backspaces from mid-text leave the
+            // tail behind; tapping toward the trailing end again reaches it on a later pass.
+            messageField.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5)).tap()
+            messageField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: draft.count))
+        }
+        XCTFail("Expected an empty composer, got '\(draftValue)'")
+    }
+
     func messageBubble(_ text: String) -> XCUIElement { app.staticTexts[text] }
 
     // MARK: - Reply elements
@@ -139,7 +152,7 @@ struct ConversationUIScreen {
         )
     }
 
-    /// Asserts `text`'s bubble appears and is marked "Delivered". The receipt
+    /// Asserts `text`'s bubble appears and is marked "Delivered" or "Read". The receipt
     /// rides the latest sent message, so one at/below the bubble is the message's,
     /// not the cash's.
     func assertMessageDelivered(_ text: String, timeout: TimeInterval = 30) {
@@ -216,12 +229,15 @@ struct ConversationUIScreen {
 
     // MARK: - Helpers
 
-    /// Polls until a "Delivered" receipt sits at or below `reference`'s top edge.
-    /// Two "Delivered" labels can briefly coexist during the cash→message receipt
+    /// Polls until a "Delivered" or "Read" receipt sits at or below `reference`'s top edge.
+    /// A counterpart with the chat open reads the message at once, so the receipt can skip
+    /// "Delivered"; the read time is a separate label. Two receipts can briefly coexist during the cash→message receipt
     /// hand-off (the transcript cross-fades), so scan all matches rather than
     /// resolving a single element — which raises "multiple matching elements".
     private func waitForReceipt(atOrBelow reference: XCUIElement, timeout: TimeInterval) -> Bool {
-        let receipts = app.staticTexts.matching(NSPredicate(format: "label == %@", "Delivered"))
+        let receipts = app.staticTexts.matching(
+            NSPredicate(format: "label IN %@", ["Delivered", "Read"])
+        )
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             let top = reference.frame.minY
