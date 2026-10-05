@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Build, install, and drive Flipcash on the iPhone 17 simulator to observe a change at its real surface — login deeplink, coordinate-scale gotchas, and chat/send flow routes included.
+description: Build, install, and drive Flipcash on the iPhone 17 simulator to observe a change at its real surface — login deeplink, loupe driving, and chat/send flow routes included.
 ---
 
 # Verifying Flipcash changes on the simulator
@@ -42,15 +42,33 @@ existing DM conversation. Small sends ($0.01) are the established probe amount.
 
 ## Driving the UI
 
-- XcodeBuildMCP `snapshot_ui`/`tap` return **no targets** for this app and `axe describe-ui`
-  returns an empty AX tree — drive by coordinates with `axe tap/swipe` instead.
-- **Coordinate scale:** MCP `screenshot` images are 368×800; the device is 402×874 pt
-  (iPhone 17 @3x = 1206×2622 px). Multiply screenshot coords by **×1.0924** to get points.
-- Useful points (Send flow): Send tab (252, 790) on the scan screen; first conversation row
-  (201, 175); in-sheet back chevron (39, 100); keypad "." (67, 706), "0" (201, 706),
-  "1" (67, 442); Send Cash button (106, 801) in a conversation.
+Drive the simulator through loupe (`~/dev/loupe`, "Agent API" in its README), not the Claude
+iOS Sim panel, XcodeBuildMCP, or `axe`. It serves HTTPS on `:18456` with a bearer token, and
+every call takes `?target=sim:<udid>`:
+
+```bash
+T=$(cat ~/Library/Caches/loupe/token)
+L() { curl -sk -H "Authorization: Bearer $T" -H 'Content-Type: application/json' "$@"; }
+U="https://localhost:18456"; TGT="target=sim:<udid>"
+
+L "$U/api/ui?interactive=1&$TGT"                     # accessibility tree; each node has `center`
+L "$U/api/input?$TGT" -d '{"action":"tap","x":603,"y":525}'
+L "$U/api/input?$TGT" -d '{"action":"text","text":"hello"}'
+L "$U/api/screenshot?$TGT" -o shot.png               # PNG at device resolution
+```
+
+- **Coordinates are device pixels**, the same space `/api/ui` reports, so tap a node's
+  `center` as-is. iPhone 17 is 1206×2622 px (402×874 pt @3x).
+- Prefer the tree's `center` over reading positions off a screenshot. Fallback pixels for
+  the Send flow: Send tab (756, 2370) on the scan screen; first conversation row (603, 525);
+  in-sheet back chevron (117, 300); keypad "." (201, 2118), "0" (603, 2118), "1" (201, 1326);
+  Send Cash button (318, 2403) in a conversation.
 - **Swipe to Send** is a drag, not a tap:
-  `axe swipe --start-x 52 --start-y 790 --end-x 370 --end-y 790 --duration 0.6 --udid <udid>`
+  `{"action":"swipe","x":156,"y":2370,"x2":1110,"y2":2370,"ms":600}`
+- A `409` with `code: "hubHeld"` means Xcode's Device Hub took the simulator's input; send
+  `{"action":"reclaim"}` (restarts SpringBoard, ~9s). If taps answer `{"ok":true}` but the
+  screen doesn't change and `reclaim` reports `no frontmost application`, CoreSimulator is
+  wedged — see the `unwedging-ios-simulator` skill rather than retrying.
 
 ## Flows worth driving
 
