@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import FlipcashAPI
 @testable import FlipcashCore
 
 /// `Chat.EditChat`'s title/picture updates: unlike the roster summary and viewer state, these
@@ -48,6 +49,41 @@ struct ConversationMetadataEditTests {
         var store = ConversationStore()
 
         store.applyTitleChanged("New title", in: conversationID(1))
+
+        #expect(store.conversations.isEmpty)
+    }
+
+    @Test("A description change is applied, and an empty one clears it")
+    func descriptionChangeApplies() {
+        var store = ConversationStore()
+        store.apply(.metadataRefresh(group(1)))
+
+        store.applyDescriptionChanged("About us", in: conversationID(1))
+        #expect(store.conversations[0].description == "About us")
+
+        store.applyDescriptionChanged("", in: conversationID(1))
+        #expect(store.conversations[0].description == nil)
+    }
+
+    @Test("Metadata maps the wire description, normalizing empty to nil")
+    func metadataMapsDescription() {
+        func conversation(_ description: String) -> Conversation {
+            Conversation(Flipcash_Chat_V1_Metadata.with {
+                $0.chatID = conversationID(1).proto
+                $0.type = .group
+                $0.description_p = description
+            })
+        }
+
+        #expect(conversation("About us").description == "About us")
+        #expect(conversation("").description == nil)
+    }
+
+    @Test("A description change for a chat the store doesn't hold is a no-op")
+    func descriptionChangeForUnknownChatNoOps() {
+        var store = ConversationStore()
+
+        store.applyDescriptionChanged("About us", in: conversationID(1))
 
         #expect(store.conversations.isEmpty)
     }

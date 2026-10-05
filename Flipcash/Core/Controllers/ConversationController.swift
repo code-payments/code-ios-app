@@ -854,7 +854,7 @@ final class ConversationController {
             // unknown chat here means the feed hasn't landed, and the feed will bring the state
             // with it. Nothing to fetch.
             return
-        case .titleChanged, .pictureChanged:
+        case .titleChanged, .pictureChanged, .descriptionChanged:
             // Only delivered to a chat's members, same reasoning as `.viewerStateChanged`: an unknown
             // chat here means the feed hasn't landed yet, and it will bring the current title/picture
             // with it. Nothing to fetch.
@@ -1365,6 +1365,10 @@ final class ConversationController {
             // Cached like the roster summary/mute above, so a cold restore shows the edited
             // title/picture rather than the stale one until the next full metadata fetch.
             persistConversation(conversationID)
+        case .descriptionChanged:
+            // Description isn't persisted, so there is nothing to write. Fold this into the
+            // title/picture case above if it gains a column.
+            break
         case .typingChanged:
             break
         case .reactionsChanged:

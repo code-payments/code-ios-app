@@ -218,7 +218,7 @@ extension EncryptedChatClient: ConversationEventStreaming {
         case .metadataRefresh(let conversation):
             return .metadataRefresh(await opened(conversation))
         case .lastActivityChanged, .readPointersChanged, .typingChanged, .rosterChanged,
-             .viewerStateChanged, .titleChanged, .pictureChanged, .reactionsChanged, .lobbyChanged:
+             .viewerStateChanged, .titleChanged, .pictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged:
             return event
         }
     }
