@@ -990,9 +990,11 @@ struct ConversationControllerTests {
 
         controller.start()
         try await waitUntil { !controller.conversations.isEmpty }
-        // start()'s own feed load already backfilled this (then-empty) transcript as a newest page.
-        // Forget that call so the assertions below isolate the foreground hook's own fetch.
-        try await waitUntil { !mock.latestPageQueries.isEmpty }
+        // Joins start()'s feed load, backfill included. A foreground that lands while it is still in flight
+        // joins it too and never fetches the updated feed below.
+        await controller.loadFeed()
+        // That load backfilled this (then-empty) transcript as a newest page. Forget that call so the
+        // assertions below isolate the foreground hook's own fetch.
         mock.clearLatestPageQueries()
         // The classic report: nothing is on screen when the app resumes.
         controller.visibleConversationID = nil

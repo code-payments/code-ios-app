@@ -292,6 +292,9 @@ struct ConversationMembershipTests {
         let controller = makeController(mock, selfUserID: me, database: database)
         controller.start()
         try await waitUntil { mock.streamOpened }
+        // start()'s feed load applies an empty group feed, which drops any membership it finds, so a
+        // join emitted before that load lands would be wiped.
+        try await waitUntil { controller.hasResolvedFeed && !controller.isLoadingFeed }
 
         mock.emit(.rosterChanged(conversationID: .test(1), updates: [
             DecodedRosterUpdate(
