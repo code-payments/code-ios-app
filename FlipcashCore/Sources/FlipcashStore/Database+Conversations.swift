@@ -626,17 +626,28 @@ nonisolated extension Database {
     /// state; nil when the message is not stored, in which case nothing is written.
     @discardableResult
     public func updateReactions(messageID: MessageID, conversationID: ConversationID, _ transform: (inout ReactionState) -> Void) throws -> ReactionState? {
+        try withoutActuallyEscaping(transform) { transform in
+            try updateReactions([messageID: transform], conversationID: conversationID)[messageID]
+        }
+    }
+
+    /// Applies each transform to its stored message's reactions in one transaction, returning the
+    /// new states; messages that are not stored are skipped.
+    @discardableResult
+    public func updateReactions(_ transforms: [MessageID: (inout ReactionState) -> Void], conversationID: ConversationID) throws -> [MessageID: ReactionState] {
         return try write { writer in
             let m = ConversationMessageTable()
-            let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
-            var updated: ReactionState?
+            var updated: [MessageID: ReactionState] = [:]
             // IMMEDIATE: this transaction reads before it writes; see `replaceConversationFeed`.
             try writer.transaction(.immediate) {
-                guard let row = try writer.pluck(scoped) else { return }
-                var state = Self.decodeReactions(row[m.reactionsJson]) ?? ReactionState()
-                transform(&state)
-                try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(state)))
-                updated = state
+                for (messageID, transform) in transforms {
+                    let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
+                    guard let row = try writer.pluck(scoped) else { continue }
+                    var state = Self.decodeReactions(row[m.reactionsJson]) ?? ReactionState()
+                    transform(&state)
+                    try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(state)))
+                    updated[messageID] = state
+                }
             }
             return updated
         }

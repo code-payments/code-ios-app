@@ -987,4 +987,24 @@ struct DatabaseConversationsTests {
         let missing = try database.updateReactions(messageID: MessageID(value: 99), conversationID: id) { _ in }
         #expect(missing == nil)
     }
+
+    @Test("Batched reaction updates write every stored message and skip the rest")
+    func updateReactionsBatch() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let second = ConversationMessage(id: MessageID(value: 2), senderID: otherID, content: .text("there"),
+            date: Date(timeIntervalSince1970: 1), unreadSeq: 2, eventSequence: 2)
+        try database.upsertConversationMessages([message(eventSequence: 1, reactions: nil), second], conversationID: id)
+
+        let updated = try database.updateReactions([
+            MessageID(value: 1): { $0.applyUpdate(emoji: "😂", actorIsSelf: false, added: true, count: 1, version: 1, reactedAt: nil) },
+            MessageID(value: 2): { $0.applyUpdate(emoji: "🔥", actorIsSelf: false, added: true, count: 1, version: 1, reactedAt: nil) },
+            MessageID(value: 99): { _ in },
+        ], conversationID: id)
+
+        #expect(Set(updated.keys) == [MessageID(value: 1), MessageID(value: 2)])
+        let stored = try database.getConversationMessages(conversationID: id)
+        #expect(Dictionary(uniqueKeysWithValues: stored.map { ($0.id, $0.reactionState) }) == updated.mapValues { Optional($0) })
+    }
 }
