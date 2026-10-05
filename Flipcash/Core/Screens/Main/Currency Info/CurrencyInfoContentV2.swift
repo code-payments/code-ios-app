@@ -163,7 +163,7 @@ struct CurrencyInfoContentV2: View {
                         isReady: !defersHeavyContent
                     )
 
-                    MarketCapExplainerRow(action: onShowMarketCapExplainer)
+                    MarketCapExplainerRow(tokenName: metadata.name, action: onShowMarketCapExplainer)
                         .padding(.horizontal, 20)
                     }
                 }
