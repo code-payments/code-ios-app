@@ -32,10 +32,10 @@ struct TipsUIScreen {
     /// The empty state, shown until the first tip conversation exists.
     var emptyState: XCUIElement { app.staticTexts["No Chats Yet"] }
 
-    /// The conversation rows, tip DMs and groups alike. Every cell is a conversation — there is no
-    /// leading call-to-action row to skip.
-    private var conversationCells: [XCUIElement] {
-        app.cells.allElementsBoundByIndex
+    /// The conversation rows, tip DMs and groups alike, matched by their `chat-row-*` identifier —
+    /// the list also holds the filter chips and the archived row, so a bare cell query lands on those.
+    private var conversationRows: XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'chat-row-'"))
     }
 
     // MARK: - Actions
@@ -49,19 +49,12 @@ struct TipsUIScreen {
         )
     }
 
-    /// The first tip conversation's row button, once at least one exists. Polls
+    /// The first conversation's row button, once at least one exists. Waits
     /// because the conversations hydrate asynchronously after the tab opens.
-    /// Returns `nil` when the account has no tip DM — the caller skips.
+    /// Returns `nil` when the account has no conversation — the caller skips.
     func firstConversationRow(timeout: TimeInterval = 15) -> XCUIElement? {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if let cell = conversationCells.first {
-                let button = cell.buttons.firstMatch
-                if button.exists { return button }
-            }
-            Thread.sleep(forTimeInterval: 0.5)
-        }
-        return nil
+        let row = conversationRows.firstMatch
+        return row.waitForExistence(timeout: timeout) ? row : nil
     }
 
     /// The first tip-DM row, skipping groups, which share the list but have no
