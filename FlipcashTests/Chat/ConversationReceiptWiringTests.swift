@@ -13,13 +13,6 @@ import FlipcashStore
 @Suite("Conversation receipt wiring")
 struct ConversationReceiptWiringTests {
 
-    private func waitUntil(_ condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
-        for _ in 0..<50 where !condition() {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        try #require(condition(), "Timed out waiting for condition after ~1s", sourceLocation: sourceLocation)
-    }
-
     private func makeController(
         _ mock: MockConversations,
         selfUserID: UserID,

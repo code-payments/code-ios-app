@@ -16,13 +16,6 @@ struct ChatListLaunchSyncTests {
 
     private let me = UUID()
 
-    private func waitUntil(_ condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
-        for _ in 0..<100 where !condition() {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        try #require(condition(), "Timed out waiting for condition after ~2s", sourceLocation: sourceLocation)
-    }
-
     private func makeController(
         _ mock: MockConversations,
         database: Database? = nil,
