@@ -355,7 +355,7 @@ struct ChatBubbleViewBareTests {
         let view = UIView()
         let path = UIBezierPath(rect: CGRect(x: 0, y: 0, width: 40, height: 40))
         BubbleBackgroundView.raise(view, shape: path)
-        #expect(view.layer.shadowOpacity == 0.65)
+        #expect(view.layer.shadowOpacity == 0.135)
         #expect(view.layer.shadowPath != nil)
     }
 
