@@ -1016,6 +1016,34 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
+    @Test("a foreground after the app was backgrounded mid-load fetches the feed again instead of joining the stale load")
+    func foregroundAfterBackgroundMidLoadRefetchesFeed() async throws {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)]
+        mock.feedDelay = .milliseconds(300)
+        let controller = makeController(mock)
+        controller.visibleConversationID = nil
+
+        controller.start()
+        // start()'s feed requests are out, holding the feed as it was when they were sent.
+        try await waitUntil { mock.dmFeedCalls > 0 }
+        controller.handleBackground()
+
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200), latestEventSequence: 2)]
+        mock.deltaHead = 2
+        mock.deltaBatches = [MockConversations.DeltaBatch(
+            messages: [ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("missed while backgrounded"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)],
+            checkpoint: 2
+        )]
+
+        controller.handleForeground()
+
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        #expect(mock.deltaAfterSequences == [1])
+        controller.stop()
+    }
+
     @Test("foreground re-fetches via GetDelta even when the extension already persisted the message to the shared store")
     func foregroundRefetchesViaGetDeltaEvenWhenExtensionAlreadyPersistedMessage() async throws {
         let (database, _) = try Database.makeTemp()

@@ -288,6 +288,8 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
 
     func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] {
         lock.withLock { _dmFeedCalls += 1 }
+        // Read on arrival: like the server, the answer reflects the state when the request was made.
+        let feed = feed
         if feedDelay > .zero { try? await Task.sleep(for: feedDelay) }
         return feed
     }
