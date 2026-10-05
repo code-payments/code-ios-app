@@ -105,7 +105,7 @@ extension DialogItem {
         // instead of silently inheriting "try again" — `.denied` in particular
         // is a real `SetUsername` rejection that is only here because it has no
         // signed-off copy yet.
-        case .denied, .invalidDisplayName, .blobNotFound, .blobNotReady, .blobRejected, .invalidBlob, .network, .unknown:
+        case .denied, .invalidDisplayName, .invalidBio, .blobNotFound, .blobNotReady, .blobRejected, .invalidBlob, .network, .unknown:
             return generic
         }
     }
