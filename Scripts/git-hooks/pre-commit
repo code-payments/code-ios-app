@@ -49,3 +49,56 @@ while IFS= read -r -d '' staged_path; do
         esac
     done
 done < <(git diff --cached --name-only -z)
+
+# Contract pins: FlipcashAPI/Package.swift pins each contract package with an
+# exact version, and the workspace Package.resolved has to record the same one.
+# Xcode Cloud resolves only from Package.resolved and refuses to update it, so a
+# pin that moved without it fails every deploy. Pure text parsing of the staged
+# blobs; no network and no xcodebuild. Skipped unless one of the two is staged.
+
+PACKAGE_SWIFT="FlipcashAPI/Package.swift"
+PACKAGE_RESOLVED="Code.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+
+staged_names="$(git diff --cached --name-only)"
+if printf '%s\n' "$staged_names" | grep -qxF -e "$PACKAGE_SWIFT" -e "$PACKAGE_RESOLVED"; then
+    # `:path` is the index version, which is the staged blob when the file is in
+    # this commit and the committed one otherwise.
+    swift_src="$(git show ":$PACKAGE_SWIFT")"
+    resolved_src="$(git show ":$PACKAGE_RESOLVED")"
+
+    # `case .ocp: return "ocp-client-protocol"` -> "ocp ocp-client-protocol"
+    identities="$(printf '%s\n' "$swift_src" | sed -nE 's/^[[:space:]]*case \.([A-Za-z0-9_]+):[[:space:]]*return "([A-Za-z][A-Za-z0-9-]*)"[[:space:]]*$/\1 \2/p')"
+    # `case .ocp: return "0.6.0"` -> "ocp 0.6.0"
+    pins="$(printf '%s\n' "$swift_src" | sed -nE 's/^[[:space:]]*case \.([A-Za-z0-9_]+):[[:space:]]*return "([0-9]+\.[0-9]+\.[0-9]+[^"]*)"[[:space:]]*$/\1 \2/p')"
+
+    mismatch=0
+    while read -r pkg pinned; do
+        [ -n "$pkg" ] || continue
+        identity="$(printf '%s\n' "$identities" | awk -v p="$pkg" '$1 == p { print $2; exit }')"
+        if [ -z "$identity" ]; then
+            echo "error: no Package.resolved identity found for '$pkg' in $PACKAGE_SWIFT (ContractPackage.directoryName)." >&2
+            exit 1
+        fi
+        # The `version` line that follows this identity's `"identity"` line.
+        resolved="$(printf '%s\n' "$resolved_src" | awk -v id="$identity" '
+            $0 ~ "\"identity\" : \"" id "\"" { found = 1; next }
+            found && /"version" :/ { gsub(/.*: "|".*/, ""); print; exit }
+            found && /"identity" :/ { exit }
+        ')"
+        if [ "$resolved" != "$pinned" ]; then
+            mismatch=1
+            cat >&2 <<MSG
+error: $identity is pinned to ${pinned} in $PACKAGE_SWIFT but ${resolved:-<missing>} in Package.resolved.
+
+Xcode Cloud resolves only from Package.resolved and will not update it.
+Bump both together, once the ${pinned} tag is published:
+  ./Scripts/bump-contract.sh $pkg ${pinned}
+or resolve by hand and stage the result:
+  xcodebuild -resolvePackageDependencies -project Code.xcodeproj -scheme Flipcash
+  git add $PACKAGE_RESOLVED
+
+MSG
+        fi
+    done <<< "$pins"
+    [ "$mismatch" -eq 0 ] || exit 1
+fi
