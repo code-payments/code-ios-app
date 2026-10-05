@@ -387,7 +387,8 @@ nonisolated extension Database {
     /// retained — the transcript reads a bounded window from it, so there is no prune.
     public func upsertConversationMessages(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
         try write { writer in
-            try writer.transaction {
+            // IMMEDIATE: this transaction reads before it writes; see `replaceConversationFeed`.
+            try writer.transaction(.immediate) {
                 for message in messages {
                     try writeMessage(message, conversationId: conversationID.data)
                 }
@@ -629,7 +630,8 @@ nonisolated extension Database {
             let m = ConversationMessageTable()
             let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
             var updated: ReactionState?
-            try writer.transaction {
+            // IMMEDIATE: this transaction reads before it writes; see `replaceConversationFeed`.
+            try writer.transaction(.immediate) {
                 guard let row = try writer.pluck(scoped) else { return }
                 var state = Self.decodeReactions(row[m.reactionsJson]) ?? ReactionState()
                 transform(&state)
@@ -647,7 +649,8 @@ nonisolated extension Database {
         return try write { writer in
             let m = ConversationMessageTable()
             var changed = 0
-            try writer.transaction {
+            // IMMEDIATE: this transaction reads before it writes; see `replaceConversationFeed`.
+            try writer.transaction(.immediate) {
                 for (messageID, summary) in summaries {
                     let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
                     guard let row = try writer.pluck(scoped) else { continue }
