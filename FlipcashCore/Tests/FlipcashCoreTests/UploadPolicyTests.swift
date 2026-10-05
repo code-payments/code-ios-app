@@ -9,6 +9,15 @@ import Testing
 import FlipcashAPI
 @testable import FlipcashCore
 
+/// `Mutex` is `~Copyable`, so a local one captured by `addTask` closures is a
+/// by-reference capture that region-based isolation rejects. A `Sendable` box
+/// gives the closures a value they can share.
+private final class FetchCounter: Sendable {
+    private let count = Mutex(0)
+    var value: Int { count.withLock { $0 } }
+    func increment() { count.withLock { $0 += 1 } }
+}
+
 @Suite("Upload policy")
 struct UploadPolicyTests {
 
@@ -97,14 +106,14 @@ struct UploadPolicyTests {
     @Test("Concurrent requests share one fetch")
     func coalescesConcurrentFetches() async throws {
         let cache = UploadPolicyCache()
-        let fetches = Mutex(0)
+        let fetches = FetchCounter()
         let owner = try Self.owner()
 
         let versions = try await withThrowingTaskGroup(of: String.self) { group in
             for _ in 0..<5 {
                 group.addTask {
                     try await cache.policy(for: owner) {
-                        fetches.withLock { $0 += 1 }
+                        fetches.increment()
                         try await Task.sleep(for: .milliseconds(20))
                         return Self.policy("v1")
                     }.version
@@ -114,7 +123,7 @@ struct UploadPolicyTests {
         }
 
         #expect(versions == Array(repeating: "v1", count: 5))
-        #expect(fetches.withLock { $0 } == 1)
+        #expect(fetches.value == 1)
     }
 
     @Test("A different version echoed by the server forces a re-fetch")
