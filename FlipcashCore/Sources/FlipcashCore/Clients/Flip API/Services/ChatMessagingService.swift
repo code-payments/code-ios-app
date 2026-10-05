@@ -239,7 +239,7 @@ final class ChatMessagingService: Sendable {
                     await MainActor.run {
                         completion(.success(MessageMutation(message: opened, isConflict: error == .conflict)))
                     }
-                case .denied, .messageNotFound, .cannotEdit, .encryptionNotAllowed, .encryptionFailed, .unknown, .transportFailure, .cancelled, .rejected:
+                case .denied, .messageNotFound, .cannotEdit, .encryptionNotAllowed, .encryptionRequired, .encryptionFailed, .unknown, .transportFailure, .cancelled, .rejected:
                     logger.error("Failed to edit message")
                     await MainActor.run { completion(.failure(error)) }
                 }
@@ -526,6 +526,8 @@ public enum ErrorSendMessage: Int, Error {
     case denied
     /// The content is EncryptedContent and the chat is not a DM.
     case encryptionNotAllowed
+    /// The chat requires encrypted content and the message was not.
+    case encryptionRequired
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -542,6 +544,8 @@ public enum ErrorEditMessage: Int, Error {
     case conflict
     /// The content is EncryptedContent and the chat is not a DM.
     case encryptionNotAllowed
+    /// The chat requires encrypted content and the edit was not.
+    case encryptionRequired
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -624,6 +628,9 @@ extension ErrorSendMessage: ServerError, TransportClassifiableError {
         // contract violation (sending EncryptedContent outside a DM), not a server hiccup.
         case .denied: .info
         case .encryptionNotAllowed: .error
+        // Plaintext sent to a chat that requires encryption; this client cannot yet encrypt for
+        // private chats, so reaching it is a client gap.
+        case .encryptionRequired: .error
         // Shared-core refused to encrypt, which only malformed keys cause.
         case .encryptionFailed: .error
         case .unknown, .rejected: .error
@@ -641,6 +648,9 @@ extension ErrorEditMessage: ServerError, TransportClassifiableError {
         case .denied, .messageNotFound, .cannotEdit, .conflict: .info
         // A client-side contract violation (sending EncryptedContent outside a DM), not a server hiccup.
         case .encryptionNotAllowed: .error
+        // Plaintext sent to a chat that requires encryption; this client cannot yet encrypt for
+        // private chats, so reaching it is a client gap.
+        case .encryptionRequired: .error
         // Shared-core refused to encrypt, which only malformed keys cause.
         case .encryptionFailed: .error
         case .unknown, .rejected: .error
