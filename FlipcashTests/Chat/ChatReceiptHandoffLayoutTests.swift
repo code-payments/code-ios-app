@@ -15,7 +15,7 @@ import FlipcashCore
 /// while the one below glides up into the gap, and the line it gave up must be gone before that
 /// row arrives over it.
 @MainActor
-@Suite("Chat receipt handoff layout")
+@Suite("Chat receipt handoff layout", .timingSensitive)
 struct ChatReceiptHandoffLayoutTests {
 
     /// One frame of the handoff, read off the presentation tree.

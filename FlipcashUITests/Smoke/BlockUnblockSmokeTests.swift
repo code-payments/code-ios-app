@@ -141,8 +141,9 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
     /// teardown assertion would mask the failure that brought us here.
     private func bestEffortUnblock(named name: String) {
         let settings = SettingsUIScreen(app: app)
-        guard app.buttons["You"].waitForExistence(timeout: 30) else { return }
-        app.buttons["You"].tap()
+        let you = app.tabBars.buttons["You"].firstMatch
+        guard you.waitForExistence(timeout: 30) else { return }
+        you.tap()
         guard scrollTo(settings.myAccountRow, in: settings.scrollView) else { return }
         settings.myAccountRow.tap()
         guard scrollTo(settings.blockedRow, in: settings.scrollView) else { return }

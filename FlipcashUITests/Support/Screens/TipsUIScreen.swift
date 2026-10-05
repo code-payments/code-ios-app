@@ -23,7 +23,7 @@ struct TipsUIScreen {
     // MARK: - Elements
 
     /// The Chat tab on the tab bar.
-    var tab: XCUIElement { app.buttons["Chat"] }
+    var tab: XCUIElement { app.tabBars.buttons["Chat"].firstMatch }
 
     /// The tab's navigation-bar title — its presence means the list has
     /// rendered, whether or not the account has a conversation.

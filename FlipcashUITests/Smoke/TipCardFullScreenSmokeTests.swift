@@ -43,7 +43,7 @@ final class TipCardFullScreenSmokeTests: BaseUITestCase {
     /// Opens the card full screen and returns its close control.
     private func expandTipCard() -> XCUIElement {
         assertMainScreenReached()
-        waitAndTap(app.buttons["You"])
+        waitAndTap(app.tabBars.buttons["You"].firstMatch)
         waitAndTap(app.buttons["you-fullscreen-button"])
 
         let closeButton = app.buttons["you-close-fullscreen-button"]

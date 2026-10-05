@@ -65,7 +65,7 @@ struct SettingsUIScreen {
 
     /// Opens the You tab, which hosts the settings list.
     func open(from testCase: BaseUITestCase) {
-        testCase.waitAndTap(app.buttons["You"])
+        testCase.waitAndTap(app.tabBars.buttons["You"].firstMatch)
     }
 
     /// Navigates to My Account sub-screen. The rows render below the tip card,
