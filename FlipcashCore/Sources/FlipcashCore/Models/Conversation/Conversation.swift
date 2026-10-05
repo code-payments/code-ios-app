@@ -23,6 +23,10 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// The server-set title. Only populated for group chats; `nil` for DMs,
     /// where the counterpart's name is used instead.
     public var title: String?
+    /// The server-set description (at most 160 characters). Only populated for group chats; `nil`
+    /// when none is set. Not persisted: a conversation restored from the local database reports
+    /// `nil` until the server's copy refreshes it.
+    public var description: String?
 
     /// The newest event-log sequence the server holds for this chat, as reported
     /// by the feed. Compared against the locally-applied catch-up cursor to tell
@@ -67,7 +71,7 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// persisted, like ``isPrivate``.
     public var inLobby: Bool
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false) {
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false, description: String? = nil) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -75,6 +79,7 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.type = type
         self.isHidden = isHidden
         self.title = title
+        self.description = description
         self.latestEventSequence = latestEventSequence
         self.picture = picture
         self.rosterSummary = rosterSummary
@@ -162,6 +167,7 @@ extension Conversation {
         // Proto represents an unset title as an empty string; normalize to nil so
         // DMs (which never carry a title) and untitled groups behave the same.
         self.title = proto.title.isEmpty ? nil : proto.title
+        self.description = proto.description_p.isEmpty ? nil : proto.description_p
         self.latestEventSequence = proto.latestEventSequence
         self.picture = proto.hasPicture ? ProfilePicture(proto.picture) : nil
         self.rosterSummary = ConversationRosterSummary(proto.rosterSummary)

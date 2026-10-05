@@ -544,6 +544,7 @@ extension Analytics {
             case .pictureBlobNotAccepted:                         "PictureBlobNotAccepted"
             case .invalidRules:                                   "InvalidRules"
             case .rulesNotSatisfied:                              "RulesNotSatisfied"
+            case .descriptionModerated:                           "DescriptionModerated"
             case .unknown, .transportFailure, .cancelled, .rejected: "Network"
             }
         case let error as ErrorEditChat:
@@ -552,6 +553,7 @@ extension Analytics {
             case .notFound:                                       "NotFound"
             case .titleModerated:                                 "TitleModerated"
             case .pictureBlobNotAccepted:                         "PictureBlobNotAccepted"
+            case .descriptionModerated:                           "DescriptionModerated"
             case .unknown, .transportFailure, .cancelled, .rejected: "Network"
             }
         case let error as ErrorJoinChat:
