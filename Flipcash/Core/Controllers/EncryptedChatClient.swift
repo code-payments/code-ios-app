@@ -69,9 +69,15 @@ final class EncryptedChatClient: Sendable {
         } catch ErrorSendMessage.encryptionNotAllowed {
             conversations.withLock { _ = $0.removeValue(forKey: conversationID) }
             throw ErrorSendMessage.encryptionNotAllowed
+        } catch ErrorSendMessage.encryptionRequired {
+            conversations.withLock { _ = $0.removeValue(forKey: conversationID) }
+            throw ErrorSendMessage.encryptionRequired
         } catch ErrorEditMessage.encryptionNotAllowed {
             conversations.withLock { _ = $0.removeValue(forKey: conversationID) }
             throw ErrorEditMessage.encryptionNotAllowed
+        } catch ErrorEditMessage.encryptionRequired {
+            conversations.withLock { _ = $0.removeValue(forKey: conversationID) }
+            throw ErrorEditMessage.encryptionRequired
         }
     }
 }
@@ -212,7 +218,7 @@ extension EncryptedChatClient: ConversationEventStreaming {
         case .metadataRefresh(let conversation):
             return .metadataRefresh(await opened(conversation))
         case .lastActivityChanged, .readPointersChanged, .typingChanged, .rosterChanged,
-             .viewerStateChanged, .titleChanged, .pictureChanged, .reactionsChanged:
+             .viewerStateChanged, .titleChanged, .pictureChanged, .reactionsChanged, .lobbyChanged:
             return event
         }
     }
