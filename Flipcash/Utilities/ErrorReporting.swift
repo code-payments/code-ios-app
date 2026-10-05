@@ -33,13 +33,84 @@ enum ErrorReporting {
         }
     }
 
+    /// Which logs belong to an event that reached `OnSendError` without `app_logs`.
+    nonisolated enum LogSource: Equatable {
+        case currentLaunch
+        case previousLaunch
+        case none
+    }
+
+    /// How long after an event the previous launch's log files may still have been written
+    /// and the tail still be that event's launch. Past this, a later launch wrote them.
+    nonisolated static let previousLaunchTailSlack: TimeInterval = 60
+
+    /// Chooses the logs for an event by when it happened relative to this launch.
+    ///
+    /// An event from before this launch (a crash sent on relaunch) gets the previous
+    /// launch's tail, unless the tail was written well after the event, which means the
+    /// report sat unsent through a later launch. Without an event time, unhandled events
+    /// are taken to be crashes from the previous launch.
+    nonisolated static func logSource(eventTime: Date?, unhandled: Bool, launchDate: Date?, tailLastWrite: Date?) -> LogSource {
+        guard let launchDate else { return .currentLaunch }
+
+        let fromPreviousLaunch: Bool
+        if let eventTime {
+            fromPreviousLaunch = eventTime < launchDate
+        } else {
+            fromPreviousLaunch = unhandled
+        }
+        guard fromPreviousLaunch else { return .currentLaunch }
+
+        guard let tailLastWrite else { return .none }
+        if let eventTime, tailLastWrite.timeIntervalSince(eventTime) > previousLaunchTailSlack {
+            return .none
+        }
+        return .previousLaunch
+    }
+
+    nonisolated private static let logsSection = "app_logs"
+    nonisolated private static let recentLogsKey = "recent_logs"
+
     private static var isEnabled = false
 
     static func initialize() {
         let config = BugsnagConfiguration.loadConfig()
         config.maxStringValueLength = 50_000
+        // A nonisolated function, not a closure: Bugsnag calls it on its upload queue.
+        config.addOnSendError(block: attachLogsIfMissing)
         Bugsnag.start(with: config)
         isEnabled = true
+    }
+
+    /// Fills `app_logs` on events that did not get it from `capture`, chiefly crashes, and keeps the event.
+    ///
+    /// Runs at upload time, which for a crash is the next launch. Events from `capture`
+    /// already carry the section, stored with the event, so a retried upload keeps the
+    /// logs from when it happened.
+    nonisolated private static func attachLogsIfMissing(to event: BugsnagEvent) -> Bool {
+        guard event.getMetadata(section: logsSection, key: recentLogsKey) == nil else { return true }
+
+        let store = LogStore.shared
+        let tail = store.previousLaunchTail
+        let source = logSource(
+            eventTime: event.device.time,
+            unhandled: event.unhandled,
+            launchDate: store.launchDate,
+            tailLastWrite: tail.lastWrite
+        )
+
+        switch source {
+        case .currentLaunch:
+            event.addMetadata(store.recentEntries(last: 100).joined(separator: "\n"), key: recentLogsKey, section: logsSection)
+        case .previousLaunch:
+            event.addMetadata(tail.lines.joined(separator: "\n"), key: recentLogsKey, section: logsSection)
+            if let lastWrite = tail.lastWrite {
+                event.addMetadata(lastWrite.ISO8601Format(), key: "previous_launch_last_write", section: logsSection)
+            }
+        case .none:
+            break
+        }
+        return true
     }
 
     static func capturePayment(error: Swift.Error, rendezvous: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState? = nil, reason: String? = nil, userFacing: Bool = false, file: String = #file, function: String = #function, line: Int = #line) {
@@ -142,8 +213,8 @@ enum ErrorReporting {
 
             event.addMetadata(
                 recentLogs.joined(separator: "\n"),
-                key: "recent_logs",
-                section: "app_logs"
+                key: recentLogsKey,
+                section: logsSection
             )
 
             // Skip the line numbers to maintain grouping

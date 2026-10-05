@@ -12,12 +12,14 @@ public final class LogStore: Sendable {
     let ringBuffer: RingBufferStorage
     let fileWriter: FileWriterActor
     let fileBuffer: FileWriteBuffer
+    let logsDirectory: URL
 
     private init() {
         self.ringBuffer = RingBufferStorage(capacity: 100)
 
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         let logsDir = caches.appendingPathComponent("Logs", isDirectory: true)
+        self.logsDirectory = logsDir
         self.fileWriter = FileWriterActor(directory: logsDir)
         self.fileBuffer = FileWriteBuffer(writer: fileWriter)
     }
@@ -30,6 +32,12 @@ public final class LogStore: Sendable {
     /// once and dispatches to console, ring buffer, and file writer.
     public static func bootstrap(middleware: [LogMiddleware] = []) {
         let store = LogStore.shared
+
+        // Before any handler exists, so the snapshot holds only what earlier launches wrote.
+        store.recordLaunch(
+            tail: LogTail.read(directory: store.logsDirectory, maxLines: previousLaunchTailLines),
+            at: Date()
+        )
 
         #if DEBUG
         let level = Logger.Level.debug
@@ -63,6 +71,23 @@ public final class LogStore: Sendable {
             defer { Self.userIDLock.unlock() }
             Self.storedUserID = newValue
         }
+    }
+
+    /// The last lines earlier launches wrote to disk, read at `bootstrap`; empty before it runs.
+    ///
+    /// A crash report is sent on the launch after the crash, when the ring buffer holds
+    /// only the new launch, so this is where a crash's logs are found.
+    public var previousLaunchTail: LogTail {
+        launchLock.lock()
+        defer { launchLock.unlock() }
+        return launchState.tail
+    }
+
+    /// When `bootstrap` ran, or nil before it runs.
+    public var launchDate: Date? {
+        launchLock.lock()
+        defer { launchLock.unlock() }
+        return launchState.date
     }
 
     /// Returns the most recent log entries as formatted strings.
@@ -122,6 +147,17 @@ public final class LogStore: Sendable {
     }
 
     // MARK: - Private
+
+    private static let previousLaunchTailLines = 100
+
+    private let launchLock = NSLock()
+    nonisolated(unsafe) private var launchState: (tail: LogTail, date: Date?) = (.empty, nil)
+
+    private func recordLaunch(tail: LogTail, at date: Date) {
+        launchLock.lock()
+        defer { launchLock.unlock() }
+        launchState = (tail, date)
+    }
 
     private static let userIDLock = NSLock()
     nonisolated(unsafe) private static var storedUserID: String?
