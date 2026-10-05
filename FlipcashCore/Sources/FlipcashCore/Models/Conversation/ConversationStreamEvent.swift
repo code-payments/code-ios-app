@@ -48,6 +48,11 @@ public enum ConversationStreamEvent: Sendable {
     /// miss refetches the chat via `Chat.GetChat`.
     case titleChanged(conversationID: ConversationID, title: String)
 
+    /// A group chat's description changed (via `Chat.EditChat`), including on the editor's other
+    /// devices. An empty `description` means it was cleared. Best-effort and applied as received,
+    /// like ``titleChanged``.
+    case descriptionChanged(conversationID: ConversationID, description: String)
+
     /// A group chat's picture changed (via `Chat.EditChat`), including on the editor's other
     /// devices. Best-effort and applied as received, like ``titleChanged``.
     case pictureChanged(conversationID: ConversationID, picture: ProfilePicture)
@@ -206,6 +211,8 @@ extension ConversationStreamEvent {
                 events.append(.viewerStateChanged(conversationID: conversationID, viewerState: ConversationViewerState(changed.viewerState)))
             case .titleChanged(let changed):
                 events.append(.titleChanged(conversationID: conversationID, title: changed.newTitle))
+            case .descriptionChanged(let changed):
+                events.append(.descriptionChanged(conversationID: conversationID, description: changed.newDescription))
             case .pictureChanged(let changed):
                 // `ProfilePicture.init?` fails without an original rendition — required on the
                 // wire, but treated the same as an absent picture rather than force-unwrapped.

@@ -659,6 +659,7 @@ public enum ErrorStartChat: Error, Sendable, Equatable {
     case pictureBlobNotAccepted
     case invalidRules
     case rulesNotSatisfied
+    case descriptionModerated(Flipcash_Moderation_V1_FlaggedCategory)
     case unknown
     case transportFailure
     case cancelled
@@ -733,13 +734,14 @@ public enum ErrorGetMentionSuggestions: Error, Sendable, Equatable {
 /// No `.ok` case, and modelled on `ErrorStartChat` for the same reason: `.titleModerated` carries the
 /// `flaggedCategory` the server reports for it. Mapped explicitly from `EditChatResponse.Result` — see
 /// `ErrorEditChat.init(_:flaggedCategory:)` — never via positional `rawValue:`, since
-/// `EditChatResponse.Result` has five cases against this file's usual three and a coincidental
+/// `EditChatResponse.Result` has six cases against this file's usual three and a coincidental
 /// positional match would silently break the day a case is inserted upstream.
 public enum ErrorEditChat: Error, Sendable, Equatable {
     case denied
     case notFound
     case titleModerated(Flipcash_Moderation_V1_FlaggedCategory)
     case pictureBlobNotAccepted
+    case descriptionModerated(Flipcash_Moderation_V1_FlaggedCategory)
     case unknown
     case transportFailure
     case cancelled
@@ -860,7 +862,7 @@ extension ErrorStartChat: ServerError, TransportClassifiableError {
         switch self {
         case .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .titleModerated, .pictureBlobNotAccepted, .invalidRules, .rulesNotSatisfied: .info
+        case .denied, .titleModerated, .pictureBlobNotAccepted, .invalidRules, .rulesNotSatisfied, .descriptionModerated: .info
         case .unknown, .rejected: .error
         }
     }
@@ -886,6 +888,8 @@ extension ErrorStartChat {
             self = .invalidRules
         case .rulesNotSatisfied:
             self = .rulesNotSatisfied
+        case .descriptionModerated:
+            self = .descriptionModerated(flaggedCategory)
         case .UNRECOGNIZED:
             self = .unknown
         }
@@ -1076,7 +1080,7 @@ extension ErrorEditChat: ServerError, TransportClassifiableError {
         switch self {
         case .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted: .info
+        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted, .descriptionModerated: .info
         case .unknown, .rejected: .error
         }
     }
@@ -1099,6 +1103,8 @@ extension ErrorEditChat {
             self = .titleModerated(flaggedCategory)
         case .pictureBlobNotAccepted:
             self = .pictureBlobNotAccepted
+        case .descriptionModerated:
+            self = .descriptionModerated(flaggedCategory)
         case .UNRECOGNIZED:
             self = .unknown
         }

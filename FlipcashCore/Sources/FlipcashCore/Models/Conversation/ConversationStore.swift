@@ -376,6 +376,9 @@ public struct ConversationStore: Sendable {
         case .titleChanged(let conversationID, let title):
             applyTitleChanged(title, in: conversationID)
             return .none
+        case .descriptionChanged(let conversationID, let description):
+            applyDescriptionChanged(description, in: conversationID)
+            return .none
         case .pictureChanged(let conversationID, let picture):
             applyPictureChanged(picture, in: conversationID)
             return .none
@@ -543,6 +546,15 @@ public struct ConversationStore: Sendable {
     public mutating func applyTitleChanged(_ title: String, in conversationID: ConversationID) {
         guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
         conversations[index].title = title
+    }
+
+    /// Apply a description change delivered via `MetadataUpdate.DescriptionChanged`. An empty string
+    /// clears it, matching how ``Conversation/init(_:)`` normalizes the wire's empty string to `nil`.
+    /// Same best-effort, no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the
+    /// store doesn't hold.
+    public mutating func applyDescriptionChanged(_ description: String, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        conversations[index].description = description.isEmpty ? nil : description
     }
 
     /// Apply a picture change delivered via `MetadataUpdate.PictureChanged`. Same best-effort,

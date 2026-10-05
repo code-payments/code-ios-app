@@ -83,6 +83,31 @@ struct ConversationStreamEventDecodeTests {
         #expect(title == "New title")
     }
 
+    @Test("DescriptionChanged decodes to a descriptionChanged event, empty meaning cleared")
+    func descriptionChanged() {
+        func decode(_ value: String) -> ConversationStreamEvent? {
+            ConversationStreamEvent.decode(Flipcash_Event_V1_Event.with {
+                $0.chatUpdate = .with {
+                    $0.chat = .with { $0.value = conversationBytes }
+                    $0.metadataUpdates = [.with {
+                        $0.descriptionChanged = .with { $0.newDescription = value }
+                    }]
+                }
+            }).first
+        }
+
+        guard case .descriptionChanged(let conversationID, let description) = decode("About us") else {
+            Issue.record("expected .descriptionChanged"); return
+        }
+        #expect(conversationID == ConversationID(data: conversationBytes))
+        #expect(description == "About us")
+
+        guard case .descriptionChanged(_, let cleared) = decode("") else {
+            Issue.record("expected .descriptionChanged for a cleared description"); return
+        }
+        #expect(cleared == "")
+    }
+
     @Test("PictureChanged decodes to a pictureChanged event")
     func pictureChanged() {
         let blobBytes = Data(repeating: 0x01, count: 16)
