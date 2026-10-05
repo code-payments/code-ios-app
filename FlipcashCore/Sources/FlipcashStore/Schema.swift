@@ -385,7 +385,7 @@ nonisolated extension Database {
             let activityTable         = ActivityTable()
             let cashLinkMetadataTable = CashLinkMetadataTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(balanceTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(balanceTable.mint, primaryKey: true)
                     t.column(balanceTable.quarks)
@@ -394,7 +394,7 @@ nonisolated extension Database {
                 })
             }
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(mintTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(mintTable.mint, primaryKey: true)
                     t.column(mintTable.name)
@@ -426,7 +426,7 @@ nonisolated extension Database {
                 })
             }
         
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(activityTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(activityTable.id, primaryKey: true)
                     t.column(activityTable.kind)
@@ -442,7 +442,7 @@ nonisolated extension Database {
                 })
             }
         
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(cashLinkMetadataTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(cashLinkMetadataTable.id, primaryKey: true)
                     t.column(cashLinkMetadataTable.vault)
@@ -454,7 +454,7 @@ nonisolated extension Database {
 
             let swapMetadataTable = SwapMetadataTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(swapMetadataTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(swapMetadataTable.id, primaryKey: true)
                     t.column(swapMetadataTable.fromMint)
@@ -475,7 +475,7 @@ nonisolated extension Database {
 
             let limitsTable = LimitsTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(limitsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(limitsTable.id, primaryKey: true)
                     t.column(limitsTable.data)
@@ -484,7 +484,7 @@ nonisolated extension Database {
 
             let rateTable = RateTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(rateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(rateTable.currency, primaryKey: true)
                     t.column(rateTable.data)
@@ -493,7 +493,7 @@ nonisolated extension Database {
 
             let verifiedRateTable = VerifiedRateTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(verifiedRateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(verifiedRateTable.currency, primaryKey: true)
                     t.column(verifiedRateTable.rateProto)
@@ -502,7 +502,7 @@ nonisolated extension Database {
 
             let verifiedReserveTable = VerifiedReserveTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(verifiedReserveTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(verifiedReserveTable.mint, primaryKey: true)
                     t.column(verifiedReserveTable.reserveProto)
@@ -511,7 +511,7 @@ nonisolated extension Database {
 
             let profileTable = ProfileTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(profileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(profileTable.id, primaryKey: true)
                     t.column(profileTable.data)
@@ -520,7 +520,7 @@ nonisolated extension Database {
 
             let userProfileTable = UserProfileTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(userProfileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(userProfileTable.userID, primaryKey: true)
                     t.column(userProfileTable.data)
@@ -529,7 +529,7 @@ nonisolated extension Database {
 
             let userFlagsTable = UserFlagsTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(userFlagsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(userFlagsTable.id, primaryKey: true)
                     t.column(userFlagsTable.data)
@@ -538,7 +538,7 @@ nonisolated extension Database {
 
             let contactSyncStateTable = ContactSyncStateTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(contactSyncStateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(contactSyncStateTable.id, primaryKey: true)
                     t.column(contactSyncStateTable.checksum)
@@ -547,7 +547,7 @@ nonisolated extension Database {
 
             let flipcashContactTable = FlipcashContactTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(flipcashContactTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(flipcashContactTable.e164, primaryKey: true)
                     t.column(flipcashContactTable.dmChatId)
@@ -558,7 +558,7 @@ nonisolated extension Database {
 
             let localContactsSnapshotTable = LocalContactsSnapshotTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 // Composite PK (e164, contactId): the same phone number may
                 // appear on multiple address-book contacts (a household
                 // landline, a shop number on several cards). The picker shows
@@ -573,7 +573,7 @@ nonisolated extension Database {
 
             let conversationTable = ConversationTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(conversationTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(conversationTable.id, primaryKey: true)
                     t.column(conversationTable.lastActivity)
@@ -595,7 +595,7 @@ nonisolated extension Database {
 
             let groupMembershipTable = GroupMembershipTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(groupMembershipTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(groupMembershipTable.conversationId, primaryKey: true)
                 })
@@ -603,7 +603,7 @@ nonisolated extension Database {
 
             let conversationMemberTable = ConversationMemberTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 // Rowid table: `userId` is nullable (the server may omit it), so it
                 // can't join a WITHOUT ROWID primary key. Writes replace a
                 // conversation's members wholesale.
@@ -623,7 +623,7 @@ nonisolated extension Database {
 
             let conversationMessageTable = ConversationMessageTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(conversationMessageTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(conversationMessageTable.conversationId)
                     t.column(conversationMessageTable.id)
@@ -654,7 +654,7 @@ nonisolated extension Database {
 
             let blocklistTable = BlocklistTable()
 
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(blocklistTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                     t.column(blocklistTable.userID, primaryKey: true)
                     t.column(blocklistTable.blockedAt)

@@ -34,7 +34,7 @@ nonisolated extension Database {
     public func setContactSyncState(_ state: ContactSyncState) throws {
         try write { writer in
             let table = ContactSyncStateTable()
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(
                     table.table.upsert(
                         table.id <- 1,
@@ -65,7 +65,7 @@ nonisolated extension Database {
             let table = FlipcashContactTable()
             var seen: Set<String> = []
             let deduped = contacts.filter { seen.insert($0.e164).inserted }
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(table.table.delete())
                 for contact in deduped {
                     try writer.run(
@@ -107,7 +107,7 @@ nonisolated extension Database {
     /// Replace the snapshot with the latest uploaded set.
     public func replaceLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
         try write { writer in
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try rewriteLocalContactsSnapshot(contacts)
             }
         }
@@ -143,7 +143,7 @@ nonisolated extension Database {
     ) throws {
         try write { writer in
             let stateTable = ContactSyncStateTable()
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try rewriteLocalContactsSnapshot(contacts)
                 try writer.run(
                     stateTable.table.upsert(

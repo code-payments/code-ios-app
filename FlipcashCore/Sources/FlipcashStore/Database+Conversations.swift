@@ -337,7 +337,7 @@ nonisolated extension Database {
             let c = ConversationTable()
             let m = ConversationMemberTable()
             let g = GroupMembershipTable()
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 let doomed = departed.map(\.data)
                 if !doomed.isEmpty {
                     try writer.run(c.table.filter(doomed.contains(c.id)).delete())
@@ -377,7 +377,7 @@ nonisolated extension Database {
     /// its last-message preview row.
     public func upsertConversation(_ conversation: Conversation) throws {
         try write { writer in
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writeConversation(conversation)
             }
         }
@@ -387,7 +387,6 @@ nonisolated extension Database {
     /// retained — the transcript reads a bounded window from it, so there is no prune.
     public func upsertConversationMessages(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
         try write { writer in
-            // IMMEDIATE: this transaction reads before it writes; see `replaceConversationFeed`.
             try writer.transaction(.immediate) {
                 for message in messages {
                     try writeMessage(message, conversationId: conversationID.data)
@@ -438,7 +437,7 @@ nonisolated extension Database {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(c.table.filter(c.id == conversationID.data).delete())
                 try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
             }
@@ -638,7 +637,6 @@ nonisolated extension Database {
         return try write { writer in
             let m = ConversationMessageTable()
             var updated: [MessageID: ReactionState] = [:]
-            // IMMEDIATE: this transaction reads before it writes; see `replaceConversationFeed`.
             try writer.transaction(.immediate) {
                 for (messageID, transform) in transforms {
                     let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)
@@ -660,7 +658,6 @@ nonisolated extension Database {
         return try write { writer in
             let m = ConversationMessageTable()
             var changed = 0
-            // IMMEDIATE: this transaction reads before it writes; see `replaceConversationFeed`.
             try writer.transaction(.immediate) {
                 for (messageID, summary) in summaries {
                     let scoped = m.table.filter(m.conversationId == conversationID.data && m.id == messageID.value)

@@ -29,7 +29,7 @@ nonisolated extension Database {
     public func replaceBlocklist(_ users: [BlockedUserProfile]) throws {
         try write { writer in
             let b = BlocklistTable()
-            try writer.transaction {
+            try writer.transaction(.immediate) {
                 try writer.run(b.table.delete())
                 for user in users {
                     try writer.run(b.table.insert(
