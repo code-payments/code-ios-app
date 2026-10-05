@@ -84,6 +84,17 @@ class CurrencyInfoViewModel {
         ).nativeAmount
     }
 
+    /// Whether Convert has somewhere to go. Converting into Dollars is always
+    /// possible, so only the Dollars screen depends on other holdings — the
+    /// same list the convert destination picker shows.
+    var canConvert: Bool {
+        guard mint == .usdf else { return true }
+        return !session.convertDestinations(
+            from: .usdf,
+            rate: ratesController.rateForBalanceCurrency()
+        ).isEmpty
+    }
+
     /// The absolute appreciation (or depreciation) of this currency's balance
     /// relative to its cost basis, converted to the display currency.
     /// Returns zero with `isPositive: true` when

@@ -157,6 +157,12 @@ class Session {
         }
     }
     
+    /// The holdings a conversion out of `sourceMint` can go into: every balance
+    /// ``balances(for:)`` shows, minus the source itself.
+    func convertDestinations(from sourceMint: PublicKey, rate: Rate) -> [ExchangedBalance] {
+        balances(for: rate).filter { $0.stored.mint != sourceMint }
+    }
+
     /// The balances the wallet shows a card for: every token it holds, and
     /// Dollars only once they are worth showing.
     static func walletCardBalances(from balances: [ExchangedBalance]) -> [ExchangedBalance] {
