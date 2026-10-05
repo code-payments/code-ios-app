@@ -5,7 +5,10 @@
 # Modes:
 #   (default)         top open production issue with events in the last 7d
 #   --skip <N>        walk down the ranked list
-#   --id <id|url>     target one issue directly (bypasses the default filters)
+#   --id <id|url>     target one issue directly (bypasses the default filters).
+#                     A bare id or Bugsnag error URL with no flag means the same.
+#                     If the URL carries ?event_id=, that event is reported as
+#                     latest_event_id instead of the issue's newest event.
 #   --event <id|url>  fetch one full event report, save it to a tempfile,
 #                     emit {event_file, is_full_report}
 #
@@ -41,22 +44,75 @@ if [ -z "${BUGSNAG_TOKEN:-}" ]; then
   exit 2
 fi
 
+# Prints the 24-hex error id from a bare id or a Bugsnag error URL
+# (.../errors/<id>[/...][?query]), or nothing when there isn't one.
+error_id_from() {
+  local v="${1%%\?*}"
+  v="${v%%#*}"
+  v="${v%/}"
+  if [[ "$v" =~ /errors/([0-9a-f]{24})(/|$) ]]; then
+    echo "${BASH_REMATCH[1]}"
+  elif [[ "$v" =~ ^[0-9a-f]{24}$ ]]; then
+    echo "$v"
+  fi
+}
+
+# Prints the event_id query value from a Bugsnag URL, or nothing.
+event_id_from_query() {
+  if [[ "$1" =~ [?\&]event_id=([0-9a-f]{24})([\&#]|$) ]]; then
+    echo "${BASH_REMATCH[1]}"
+  fi
+}
+
+# Prints the 24-hex event id from a bare id, a URL with ?event_id=, or a URL
+# ending in /events/<id>, or nothing when there isn't one.
+event_id_from() {
+  local q
+  q=$(event_id_from_query "$1")
+  if [ -n "$q" ]; then
+    echo "$q"
+    return
+  fi
+  local v="${1%%\?*}"
+  v="${v%%#*}"
+  v="${v%/}"
+  v="${v##*/}"
+  if [[ "$v" =~ ^[0-9a-f]{24}$ ]]; then
+    echo "$v"
+  fi
+}
+
+# Sets FORCED_ID (and PINNED_EVENT_ID when the URL names an event) from an
+# --id value or a bare positional id/URL.
+set_forced_id() {
+  if [ -n "$FORCED_ID" ]; then
+    echo "Only one issue id or URL may be given." >&2
+    exit 2
+  fi
+  FORCED_ID=$(error_id_from "$1")
+  if [ -z "$FORCED_ID" ]; then
+    echo "'$1' is not a 24-char hex Bugsnag error id or a Bugsnag error URL" >&2
+    exit 2
+  fi
+  PINNED_EVENT_ID=$(event_id_from_query "$1")
+}
+
 # Parse --skip <N> | --id <bugsnag_error_id_or_url> | --event <bugsnag_event_id_or_url>
+# | <bugsnag_error_id_or_url>
 SKIP=0
 FORCED_ID=""
+PINNED_EVENT_ID=""
 EVENT_ID=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --event)
-      EVENT_ID="${2:-}"
-      if [ -z "$EVENT_ID" ]; then
+      if [ -z "${2:-}" ]; then
         echo "--event requires a Bugsnag event id (24-char hex) or a Bugsnag event URL" >&2
         exit 2
       fi
-      # If the user pasted a URL, extract the trailing id
-      EVENT_ID="${EVENT_ID##*/}"
-      if ! [[ "$EVENT_ID" =~ ^[0-9a-f]{24}$ ]]; then
-        echo "--event value '$EVENT_ID' is not a 24-char hex Bugsnag event id" >&2
+      EVENT_ID=$(event_id_from "$2")
+      if [ -z "$EVENT_ID" ]; then
+        echo "--event value '$2' is not a 24-char hex Bugsnag event id or a Bugsnag event URL" >&2
         exit 2
       fi
       shift 2
@@ -70,22 +126,20 @@ while [ $# -gt 0 ]; do
       shift 2
       ;;
     --id)
-      FORCED_ID="${2:-}"
-      if [ -z "$FORCED_ID" ]; then
+      if [ -z "${2:-}" ]; then
         echo "--id requires a Bugsnag error id (24-char hex) or a Bugsnag error URL" >&2
         exit 2
       fi
-      # If the user pasted a URL, extract the trailing id
-      FORCED_ID="${FORCED_ID##*/}"
-      if ! [[ "$FORCED_ID" =~ ^[0-9a-f]{24}$ ]]; then
-        echo "--id value '$FORCED_ID' is not a 24-char hex Bugsnag error id" >&2
-        exit 2
-      fi
+      set_forced_id "$2"
       shift 2
       ;;
-    *)
+    -*)
       echo "Unknown argument: $1" >&2
       exit 2
+      ;;
+    *)
+      set_forced_id "$1"
+      shift
       ;;
   esac
 done
@@ -230,13 +284,18 @@ fetch_latest_event() {
     "$API_BASE/errors/$ERROR_ID/events?per_page=1"
 }
 
-fetch_with_retry fetch_latest_event
+if [ -n "$PINNED_EVENT_ID" ]; then
+  # The pasted URL named an event; investigate that one rather than the newest.
+  LATEST_EVENT_ID="$PINNED_EVENT_ID"
+else
+  fetch_with_retry fetch_latest_event
 
-if [ "$HTTP_CODE" != "200" ]; then
-  report_unreachable_and_exit "Bugsnag events fetch failed for error $ERROR_ID: HTTP $HTTP_CODE."
+  if [ "$HTTP_CODE" != "200" ]; then
+    report_unreachable_and_exit "Bugsnag events fetch failed for error $ERROR_ID: HTTP $HTTP_CODE."
+  fi
+
+  LATEST_EVENT_ID=$(echo "$BODY" | jq -r '.[0].id // empty')
 fi
-
-LATEST_EVENT_ID=$(echo "$BODY" | jq -r '.[0].id // empty')
 
 if [ -z "$LATEST_EVENT_ID" ]; then
   echo "Bugsnag returned no events for error $ERROR_ID — cannot proceed without a latest event to investigate." >&2

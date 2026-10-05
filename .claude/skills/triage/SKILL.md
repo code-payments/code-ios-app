@@ -1,7 +1,7 @@
 ---
 name: triage
 description: Daily Bugsnag triage ritual — surface the top open production issue, investigate with evidence, propose a fix direction, route through experts, write a lean review brief.
-argument-hint: "[--skip <count> | --id <bugsnag_id_or_url>]"
+argument-hint: "[--skip <count> | --id <bugsnag_id_or_url> | <bugsnag_url>]"
 model: opus
 effort: high
 allowed-tools:
@@ -35,7 +35,7 @@ You are running the daily Bugsnag triage ritual. The deliverable is **one lean r
 
 ### 1. Fetch the issue
 
-Run the data fetch script with whatever arguments the user passed (`--skip <N>` or `--id <bugsnag_id_or_url>`):
+Run the data fetch script with whatever arguments the user passed (`--skip <N>`, `--id <bugsnag_id_or_url>`, or a bare Bugsnag id or error URL, which the script treats as `--id`):
 
 ```bash
 ./.claude/skills/triage/scripts/bugsnag-top.sh $ARGUMENTS
@@ -43,7 +43,7 @@ Run the data fetch script with whatever arguments the user passed (`--skip <N>` 
 
 The script emits one JSON object on success. On any non-zero exit, the script already wrote a clear stderr message — relay that to the user verbatim and stop. Do not proceed.
 
-When `--id` is used, the script bypasses the default filters (status=open, release_stage=production, last 7d) so the user can target any issue — including closed, fixed, ignored, or stale ones — directly.
+When `--id` or a bare id/URL is used, the script bypasses the default filters (status=open, release_stage=production, last 7d) so the user can target any issue — including closed, fixed, ignored, or stale ones — directly. If the URL carries `?event_id=`, `latest_event_id` is that event rather than the issue's newest one.
 
 Parse the JSON. You'll use:
 
@@ -81,7 +81,7 @@ Run every subsequent jq query against `event_file`. Never re-fetch the same even
 
 #### 4a. Version sanity check (skip stale versions)
 
-**Skip this step entirely if `$ARGUMENTS` contains `--id`.** The user explicitly chose this issue; honor the override.
+**Skip this step entirely if `$ARGUMENTS` targets one issue: it contains `--id`, a Bugsnag URL, or a bare 24-char hex id.** The user explicitly chose this issue; honor the override.
 
 Otherwise, don't waste cycles investigating a bug that's only firing on old app builds. Read the current marketing version with the Grep tool — pattern `MARKETING_VERSION = ` on `Code.xcodeproj/project.pbxproj`, content mode — and take the value from the first matching line.
 
@@ -157,10 +157,8 @@ Inspect the **Proposed direction** you wrote. For each trigger that applies, dis
 
 | Expert | Trigger |
 |--------|---------|
-| `swiftui-expert:swiftui-expert-skill` | Proposed direction touches files under `Flipcash/Core/Screens/`, `FlipcashUI/Sources/`, or any `.swift` containing `View`, `@State`, `@Observable`, `@Environment`. Also: hangs / hitches / matched-geometry errors in the stack. |
-| `swift-concurrency:swift-concurrency` | Stack trace contains `Task`, `Sendable`, `actor`, `@MainActor`, `await`, `_dispatch_assert_queue`, or `EXC_BAD_ACCESS` on a known concurrent path. Also: proposed direction changes isolation, adds/removes `@MainActor`, or wraps in `Task { }`. |
-| `swift-testing-expert:swift-testing-expert` | Proposed direction adds files under `FlipcashTests/`, `FlipcashCoreTests/`, or modifies any `@Suite` / `@Test`. |
-| `xcuitest-resilience` | Proposed direction adds files under `FlipcashUITests/` or modifies `XCUIApplication` / `XCUIElement` usage. |
+| `swiftui-specialist` | Proposed direction touches files under `Flipcash/Core/Screens/`, `FlipcashUI/Sources/`, or any `.swift` containing `View`, `@State`, `@Observable`, `@Environment`. Also: hangs / hitches / matched-geometry errors in the stack. |
+| `modernize-tests` | Proposed direction adds files under `FlipcashTests/`, `FlipcashCoreTests/`, or modifies any `@Suite` / `@Test`. |
 
 After each expert returns, fold their concrete actionable feedback into the brief: tighten the Proposed direction if needed, append a one-bullet summary under Expert input. Skipped experts are omitted entirely from the brief — no empty headings.
 
