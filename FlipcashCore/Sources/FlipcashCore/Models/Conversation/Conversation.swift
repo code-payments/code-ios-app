@@ -58,7 +58,16 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// own implementation decision still pending.
     public var useE2Ee: Bool
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false) {
+    /// Whether the chat is a private group, whose members are admitted from a lobby and whose
+    /// messages are end-to-end encrypted. Not persisted: a conversation restored from the local
+    /// database reports `false` until the server's copy refreshes it.
+    public var isPrivate: Bool
+
+    /// Whether the signed-in user is waiting in this chat's lobby rather than a member of it. Not
+    /// persisted, like ``isPrivate``.
+    public var inLobby: Bool
+
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -73,6 +82,8 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.viewerState = viewerState
         self.creator = creator
         self.useE2Ee = useE2Ee
+        self.isPrivate = isPrivate
+        self.inLobby = inLobby
     }
 }
 
@@ -158,6 +169,8 @@ extension Conversation {
         self.viewerState = proto.hasViewerState ? ConversationViewerState(proto.viewerState) : nil
         self.creator = proto.hasCreator ? (try? UUID(data: proto.creator.value)) : nil
         self.useE2Ee = proto.useE2Ee
+        self.isPrivate = proto.isPrivate
+        self.inLobby = proto.inLobby
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.

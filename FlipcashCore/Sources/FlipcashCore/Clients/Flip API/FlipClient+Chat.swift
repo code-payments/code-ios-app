@@ -284,4 +284,71 @@ extension FlipClient {
     public nonisolated func closeConversationStream() {
         Task { await eventStreamer.stop() }
     }
+
+    // MARK: - Private chats -
+
+    /// Enters the lobby of the private chat `conversationID` to wait for an admin to admit the
+    /// signed-in user.
+    public func enterLobby(owner: KeyPair, conversationID: ConversationID) async throws -> Lobby {
+        try await withCheckedThrowingContinuation { c in
+            chatService.enterLobby(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Leaves the lobby of `conversationID`, withdrawing the request to join.
+    public func leaveLobby(owner: KeyPair, conversationID: ConversationID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.leaveLobby(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Pages `conversationID`'s lobby to exhaustion. Members entering or leaving mid-read arrive
+    /// as `ConversationStreamEvent.lobbyChanged`, so the caller should already be consuming the
+    /// event stream.
+    public func getLobbyMembers(owner: KeyPair, conversationID: ConversationID) async throws -> [LobbyMember] {
+        var all: [LobbyMember] = []
+        var pagingToken: Data?
+
+        while true {
+            let page = try await withCheckedThrowingContinuation { c in
+                chatService.getLobbyMembers(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
+            }
+            all.append(contentsOf: page.members)
+            if !page.hasMore { break }
+            pagingToken = page.pagingToken
+        }
+
+        return all
+    }
+
+    /// Admits `userID` from `conversationID`'s lobby, handing them the chat key wrapped in
+    /// `keyEnvelope`. The envelope is opaque to this layer.
+    public func admitLobbyMember(owner: KeyPair, conversationID: ConversationID, userID: UserID, keyEnvelope: ConversationKeyEnvelope) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.admitLobbyMember(owner: owner, conversationID: conversationID, userID: userID, keyEnvelope: keyEnvelope) { c.resume(with: $0) }
+        }
+    }
+
+    /// Turns `userID` away from `conversationID`'s lobby.
+    public func denyLobbyMember(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.denyLobbyMember(owner: owner, conversationID: conversationID, userID: userID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Stores the signed-in user's wrapped copy of `conversationID`'s chat key. Throws
+    /// `ErrorSetKeyEnvelope.alreadySet` once one is stored.
+    public func setKeyEnvelope(owner: KeyPair, conversationID: ConversationID, keyEnvelope: ConversationKeyEnvelope) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.setKeyEnvelope(owner: owner, conversationID: conversationID, keyEnvelope: keyEnvelope) { c.resume(with: $0) }
+        }
+    }
+
+    /// Fetches the chat key `conversationID` wrapped for the signed-in user and who wrapped it.
+    public func getKeyEnvelope(owner: KeyPair, conversationID: ConversationID) async throws -> (envelope: ConversationKeyEnvelope, wrappedBy: UserID?) {
+        let result = try await withCheckedThrowingContinuation { c in
+            chatService.getKeyEnvelope(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+        return (result.envelope, result.wrappedBy)
+    }
 }

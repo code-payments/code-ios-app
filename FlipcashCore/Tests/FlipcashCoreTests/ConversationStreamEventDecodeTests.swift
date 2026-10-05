@@ -417,4 +417,45 @@ struct ConversationStreamEventDecodeTests {
             reactedAt: Date(timeIntervalSince1970: 50)
         ))
     }
+
+    @Test("lobby updates decode, dropping a member whose public key does not parse")
+    func lobbyUpdates() throws {
+        let leaver = UUID()
+        let entering = UUID()
+        let entered: (Data) -> Flipcash_Chat_V1_LobbyUpdate = { key in
+            .with {
+                $0.memberEntered = .with {
+                    $0.member = .with {
+                        $0.userProfile = .with { $0.userID = .with { $0.value = entering.data } }
+                        $0.publicKey = .with { $0.value = key }
+                        $0.enteredAt = .init(date: Date(timeIntervalSince1970: 70))
+                    }
+                }
+            }
+        }
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.lobbyUpdates = .with {
+                    $0.lobbyUpdates = [
+                        entered(Data(repeating: 0x07, count: 32)),
+                        entered(Data(repeating: 0x07, count: 3)),
+                        .with { $0.memberLeft = .with { $0.userID = .with { $0.value = leaver.data } } },
+                    ]
+                }
+            }
+        }
+
+        guard case .lobbyChanged(let conversationID, let updates) = ConversationStreamEvent.decode(event).first else {
+            Issue.record("expected .lobbyChanged"); return
+        }
+        #expect(conversationID == ConversationID(data: conversationBytes))
+        #expect(updates.count == 2)
+        guard case .memberEntered(let member) = updates[0], case .memberLeft(let left) = updates[1] else {
+            Issue.record("expected an entry then a leave"); return
+        }
+        #expect(member.userID == entering)
+        #expect(member.enteredAt == Date(timeIntervalSince1970: 70))
+        #expect(left == leaver)
+    }
 }

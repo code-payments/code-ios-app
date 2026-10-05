@@ -859,6 +859,9 @@ final class ConversationController {
             // chat here means the feed hasn't landed yet, and it will bring the current title/picture
             // with it. Nothing to fetch.
             return
+        case .lobbyChanged:
+            // Only delivered to a private chat's admitting members, who already hold the chat.
+            return
         }
         guard !store.conversations.contains(where: { $0.id == conversationID }),
               !hydratingConversationIDs.contains(conversationID) else {
@@ -1366,6 +1369,9 @@ final class ConversationController {
             break
         case .reactionsChanged:
             // Written by `reactions`, which also holds the taps the update has to merge with.
+            break
+        case .lobbyChanged:
+            // Lobby membership is not cached; no consumer holds it yet.
             break
         }
     }

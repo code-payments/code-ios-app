@@ -137,7 +137,7 @@ final class ChatService: Sendable {
     /// attempt — never generate a fresh key per call, or retries lose their idempotency.
     func startChat(owner: KeyPair, title: String, pictureBlobID: BlobID?, rules: ConversationRules?, idempotencyKey: UUID, completion: @Sendable @escaping (Result<Conversation, ErrorStartChat>) -> Void) {
         let request = Flipcash_Chat_V1_StartChatRequest.with {
-            $0.group = .with {
+            $0.publicGroup = .with {
                 $0.title = title
                 if let pictureBlobID {
                     $0.picture = .with { $0.value = pictureBlobID.data }
@@ -399,6 +399,222 @@ final class ChatService: Sendable {
             }
         }
     }
+
+    // MARK: - Private chats -
+    // The lobby and key-envelope RPCs of a private group. The envelope is passed through as opaque
+    // bytes; this layer never wraps or unwraps a chat key.
+
+    /// Enters the lobby of the private chat `conversationID`, to wait for an admin to admit the
+    /// signed-in user. Returns the lobby entry on success.
+    func enterLobby(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<Lobby, ErrorEnterLobby>) -> Void) {
+        let request = Flipcash_Chat_V1_EnterLobbyRequest.with {
+            $0.chatID = conversationID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.enterLobby(request, options: .unaryDefault)
+                let error = ErrorEnterLobby(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, let lobby = Lobby(response.lobby) else {
+                    logger.error("Failed to enter lobby")
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(lobby)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Leaves the lobby of `conversationID`, withdrawing the request to join.
+    func leaveLobby(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<Void, ErrorLeaveLobby>) -> Void) {
+        let request = Flipcash_Chat_V1_LeaveLobbyRequest.with {
+            $0.chatID = conversationID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.leaveLobby(request, options: .unaryDefault)
+                let error = ErrorLeaveLobby(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to leave lobby")
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    struct LobbyMembersPage: Sendable {
+        let members: [LobbyMember]
+        let pagingToken: Data
+        let hasMore: Bool
+    }
+
+    /// Pages the users waiting in `conversationID`'s lobby. Leave `pagingToken` `nil` on the first
+    /// call; on every later call pass back the previous page's `pagingToken`. `pageSize` is capped
+    /// at 100 server-side. A member whose public key does not parse is dropped from the page.
+    func getLobbyMembers(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<LobbyMembersPage, ErrorGetLobbyMembers>) -> Void) {
+        let request = Flipcash_Chat_V1_GetLobbyMembersRequest.with {
+            $0.chatID = conversationID.proto
+            $0.queryOptions = .with {
+                $0.pageSize = Int32(pageSize)
+                if let pagingToken {
+                    $0.pagingToken = .with { $0.value = pagingToken }
+                }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getLobbyMembers(request, options: .unaryDefault)
+                let error = ErrorGetLobbyMembers(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch lobby members")
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                let page = LobbyMembersPage(
+                    members: response.members.compactMap(LobbyMember.init),
+                    pagingToken: response.pagingToken.value,
+                    hasMore: response.hasMore_p
+                )
+                await MainActor.run { completion(.success(page)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Admits `userID` from `conversationID`'s lobby, handing them the chat key wrapped in
+    /// `keyEnvelope`.
+    func admitLobbyMember(owner: KeyPair, conversationID: ConversationID, userID: UserID, keyEnvelope: ConversationKeyEnvelope, completion: @Sendable @escaping (Result<Void, ErrorAdmitLobbyMember>) -> Void) {
+        let request = Flipcash_Chat_V1_AdmitLobbyMemberRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = .with { $0.value = userID.data }
+            $0.keyEnvelope = keyEnvelope.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.admitLobbyMember(request, options: .unaryDefault)
+                let error = ErrorAdmitLobbyMember(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to admit lobby member")
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Turns `userID` away from `conversationID`'s lobby.
+    func denyLobbyMember(owner: KeyPair, conversationID: ConversationID, userID: UserID, completion: @Sendable @escaping (Result<Void, ErrorDenyLobbyMember>) -> Void) {
+        let request = Flipcash_Chat_V1_DenyLobbyMemberRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = .with { $0.value = userID.data }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.denyLobbyMember(request, options: .unaryDefault)
+                let error = ErrorDenyLobbyMember(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to deny lobby member")
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Stores the signed-in user's wrapped copy of `conversationID`'s chat key. Rejected with
+    /// `.alreadySet` once one is stored.
+    func setKeyEnvelope(owner: KeyPair, conversationID: ConversationID, keyEnvelope: ConversationKeyEnvelope, completion: @Sendable @escaping (Result<Void, ErrorSetKeyEnvelope>) -> Void) {
+        let request = Flipcash_Chat_V1_SetKeyEnvelopeRequest.with {
+            $0.chatID = conversationID.proto
+            $0.keyEnvelope = keyEnvelope.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.setKeyEnvelope(request, options: .unaryDefault)
+                let error = ErrorSetKeyEnvelope(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to set key envelope")
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    struct KeyEnvelopeResult: Sendable {
+        let envelope: ConversationKeyEnvelope
+        /// The member who wrapped the chat key for the signed-in user.
+        let wrappedBy: UserID?
+    }
+
+    /// Fetches the chat key `conversationID` wrapped for the signed-in user, along with who
+    /// wrapped it.
+    func getKeyEnvelope(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<KeyEnvelopeResult, ErrorGetKeyEnvelope>) -> Void) {
+        let request = Flipcash_Chat_V1_GetKeyEnvelopeRequest.with {
+            $0.chatID = conversationID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getKeyEnvelope(request, options: .unaryDefault)
+                let error = ErrorGetKeyEnvelope(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasKeyEnvelope else {
+                    logger.error("Failed to fetch key envelope")
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                let result = KeyEnvelopeResult(
+                    envelope: ConversationKeyEnvelope(response.keyEnvelope),
+                    wrappedBy: response.hasWrappedBy ? try? UUID(data: response.wrappedBy.value) : nil
+                )
+                await MainActor.run { completion(.success(result)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -530,6 +746,82 @@ public enum ErrorEditChat: Error, Sendable, Equatable {
     case rejected
 }
 
+public enum ErrorEnterLobby: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case alreadyMember
+    case lobbyFull
+    case tooManyLobbies
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorLeaveLobby: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetLobbyMembers: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorAdmitLobbyMember: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case notInLobby
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorDenyLobbyMember: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorSetKeyEnvelope: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case alreadySet
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetKeyEnvelope: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case noEnvelope
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
 extension ErrorGetDmChatFeed: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
@@ -639,6 +931,83 @@ extension ErrorUnmuteChat: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorEnterLobby: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .alreadyMember, .lobbyFull, .tooManyLobbies: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorLeaveLobby: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetLobbyMembers: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorAdmitLobbyMember: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .notInLobby: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorDenyLobbyMember: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorSetKeyEnvelope: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .alreadySet: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetKeyEnvelope: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .noEnvelope: .info
         case .unknown, .rejected: .error
         }
     }
