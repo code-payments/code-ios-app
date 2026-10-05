@@ -379,6 +379,9 @@ public struct ConversationStore: Sendable {
         case .pictureChanged(let conversationID, let picture):
             applyPictureChanged(picture, in: conversationID)
             return .none
+        case .lobbyChanged:
+            // Lobby membership is not part of the feed; no consumer holds it yet.
+            return .none
         }
     }
 

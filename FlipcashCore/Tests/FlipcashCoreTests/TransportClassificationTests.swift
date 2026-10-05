@@ -75,9 +75,22 @@ struct TransportClassificationTests {
     @Test func errorGetDelta() { assertClassifies(ErrorGetDelta.self) }
     @Test func errorAdvancePointer() { assertClassifies(ErrorAdvancePointer.self) }
     @Test func errorNotifyIsTyping() { assertClassifies(ErrorNotifyIsTyping.self) }
+    @Test("ENCRYPTION_REQUIRED maps positionally onto encryptionRequired for send and edit")
+    func encryptionRequiredMapping() {
+        #expect(ErrorSendMessage(rawValue: Flipcash_Messaging_V1_SendMessageResponse.Result.encryptionRequired.rawValue) == .encryptionRequired)
+        #expect(ErrorEditMessage(rawValue: Flipcash_Messaging_V1_EditMessageResponse.Result.encryptionRequired.rawValue) == .encryptionRequired)
+    }
+
     @Test func errorGetDmChatFeed() { assertClassifies(ErrorGetDmChatFeed.self) }
     @Test func errorGetChat() { assertClassifies(ErrorGetChat.self) }
     @Test func errorGetGroupChatFeed() { assertClassifies(ErrorGetGroupChatFeed.self) }
+    @Test func errorEnterLobby() { assertClassifies(ErrorEnterLobby.self) }
+    @Test func errorLeaveLobby() { assertClassifies(ErrorLeaveLobby.self) }
+    @Test func errorGetLobbyMembers() { assertClassifies(ErrorGetLobbyMembers.self) }
+    @Test func errorAdmitLobbyMember() { assertClassifies(ErrorAdmitLobbyMember.self) }
+    @Test func errorDenyLobbyMember() { assertClassifies(ErrorDenyLobbyMember.self) }
+    @Test func errorSetKeyEnvelope() { assertClassifies(ErrorSetKeyEnvelope.self) }
+    @Test func errorGetKeyEnvelope() { assertClassifies(ErrorGetKeyEnvelope.self) }
     @Test func errorStartChat() { assertClassifies(ErrorStartChat.self) }
     @Test func errorJoinChat() { assertClassifies(ErrorJoinChat.self) }
     @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }

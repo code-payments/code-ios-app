@@ -56,6 +56,10 @@ public enum ConversationStreamEvent: Sendable {
     /// log: each update is applied by its per-emoji version, and a missed one is reconciled by the
     /// next reaction summary.
     case reactionsChanged(conversationID: ConversationID, updates: [DecodedReactionUpdate])
+
+    /// Members entered or left a private chat's lobby. Delivered to the chat's admitting members;
+    /// surfaced as received, with no version to compare.
+    case lobbyChanged(conversationID: ConversationID, updates: [LobbyUpdate])
 }
 
 /// One reaction added or removed on one message.
@@ -238,6 +242,11 @@ extension ConversationStreamEvent {
         let reactionUpdates = update.reactionUpdates.reactionUpdates.compactMap(DecodedReactionUpdate.init)
         if !reactionUpdates.isEmpty {
             events.append(.reactionsChanged(conversationID: conversationID, updates: reactionUpdates))
+        }
+
+        let lobbyUpdates = update.lobbyUpdates.lobbyUpdates.compactMap(LobbyUpdate.init)
+        if !lobbyUpdates.isEmpty {
+            events.append(.lobbyChanged(conversationID: conversationID, updates: lobbyUpdates))
         }
 
         return events
