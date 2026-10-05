@@ -16,13 +16,6 @@ import FlipcashStore
 @Suite("ConversationLoadCoordinator typing indicator")
 struct ConversationTypingIndicatorTests {
 
-    private func waitUntil(_ condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
-        for _ in 0..<50 where !condition() {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        try #require(condition(), "Timed out waiting for condition after ~1s", sourceLocation: sourceLocation)
-    }
-
     private let me = UUID()
 
     private func conversation(_ type: ConversationType, members: [ConversationMember]) -> Conversation {
