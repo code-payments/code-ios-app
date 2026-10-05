@@ -135,10 +135,10 @@ extension EncryptedChatClient: ConversationMessaging {
         }
     }
 
-    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, expectedEventSequence: UInt64) async throws -> MessageMutation {
+    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, expectedEventSequence: UInt64) async throws -> MessageMutation {
         try await refetchingOnRefusal(conversationID) {
             let seal = try await sealForSending(conversationID, owner: owner)
-            return try await client.editMessage(owner: owner, conversationID: conversationID, messageID: messageID, text: text, seal: seal, expectedEventSequence: expectedEventSequence)
+            return try await client.editMessage(owner: owner, conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, seal: seal, expectedEventSequence: expectedEventSequence)
         }
     }
 

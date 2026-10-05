@@ -66,6 +66,27 @@ struct ConversationMutationTests {
         #expect(harness.messaging.edited.first?.text == "after")
     }
 
+    @Test("Editing a reply resends the message it quotes, so the edit keeps its reply anchor")
+    func editKeepsReplyAnchor() async throws {
+        let harness = try makeHarness()
+        let conversationID = harness.conversationID
+        let reply = ConversationMessage(
+            id: MessageID(value: 2), senderID: harness.controller.selfUserID, content: .text("before"),
+            date: Date(timeIntervalSince1970: 2), unreadSeq: 2, eventSequence: 4, repliedTo: MessageID(value: 1)
+        )
+        try harness.database.upsertConversationMessages([reply], conversationID: conversationID)
+
+        harness.messaging.editResult = MessageMutation(
+            message: reply.replacingContent(.text("after"), lastEditedTs: Date(timeIntervalSince1970: 3)),
+            isConflict: false
+        )
+
+        let outcome = await harness.controller.edit(messageID: MessageID(value: 2), in: conversationID, to: "after")
+
+        #expect(outcome == .applied)
+        #expect(harness.messaging.edited.first?.repliedTo == MessageID(value: 1))
+    }
+
     @Test("A successful edit persists the server's copy")
     func editPersistsServerCopy() async throws {
         let harness = try makeHarness()

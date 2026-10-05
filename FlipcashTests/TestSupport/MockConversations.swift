@@ -31,6 +31,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let conversationID: ConversationID
         let messageID: MessageID
         let text: String
+        let repliedTo: MessageID?
         let expectedEventSequence: UInt64
     }
 
@@ -391,9 +392,9 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         )
     }
 
-    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, expectedEventSequence: UInt64) async throws -> MessageMutation {
+    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, expectedEventSequence: UInt64) async throws -> MessageMutation {
         lock.withLock {
-            _edited.append(Edited(conversationID: conversationID, messageID: messageID, text: text, expectedEventSequence: expectedEventSequence))
+            _edited.append(Edited(conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, expectedEventSequence: expectedEventSequence))
         }
         if let editError { throw editError }
         guard let editResult else { throw ErrorEditMessage.unknown }
