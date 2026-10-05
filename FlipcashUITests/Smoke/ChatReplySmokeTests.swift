@@ -179,6 +179,8 @@ final class ChatReplySmokeTests: BaseUITestCase {
             conversation.messageField.waitForExistence(timeout: 30),
             "Expected the conversation's composer. On screen: [\(visibleText())]"
         )
+        // A run that died mid-test persists its draft, and a send would type in front of it.
+        abandonDraft()
     }
 
     /// Leaves the conversation the way a user does — the navigation bar's back button — and waits
@@ -210,15 +212,13 @@ final class ChatReplySmokeTests: BaseUITestCase {
         )
     }
 
-    /// Empties the composer before leaving, so a persisted draft does not hand the next run a chat
-    /// that is already aimed and already typed in.
+    /// Empties the composer and drops any open reply, so a persisted draft does not hand the next
+    /// run a chat that is already aimed and already typed in.
     private func abandonDraft() {
         if conversation.cancelReplyButton.exists {
             waitAndTap(conversation.cancelReplyButton)
         }
-        waitUntilHittableAndTap(conversation.messageField)
-        let typed = conversation.draftValue
-        conversation.messageField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: typed.count))
+        conversation.clearDraft()
     }
 
     /// A per-run body, so a bubble query can never match a message left behind by an earlier run.
