@@ -108,3 +108,17 @@ struct ConversationMetadataEditTests {
         #expect(store.conversations.isEmpty)
     }
 }
+
+@Suite("Conversation description edit")
+struct ConversationDescriptionEditTests {
+
+    @Test("Unchanged leaves the wrapper unset; set and clear send a value")
+    func wireShape() {
+        #expect(ConversationDescriptionEdit.unchanged.proto == nil)
+        #expect(ConversationDescriptionEdit.set("About us").proto?.value == "About us")
+
+        let cleared = ConversationDescriptionEdit.clear.proto
+        #expect(cleared != nil)
+        #expect(cleared?.value == "")
+    }
+}
