@@ -80,7 +80,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the long-press strip's "+" is tapped, with the row's stable id.
     let onReactionStripAdd: (String) -> Void
     let showsSendCash: Bool
-    let chatExists: Bool
     let conversationID: ConversationID?
     let symbol: String
     let onSendCash: () -> Void
@@ -95,10 +94,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// the composer field in `viewDidAppear` — a hosted SwiftUI `@FocusState` never presents the
     /// keyboard across the hosting boundary.
     let focusOnAppear: Bool
-    /// Whether this is a tip DM, whose Send Cash reads Start Chatting until the chat exists.
-    let isTipDm: Bool
-    /// The floor the first tip has to clear to open this chat, named on the CTA.
-    let startChattingFee: FiatAmount?
     /// Whether the chat's participation rules leave this user anything to type, and whether they
     /// may read at all. Drives the gate panel in place of the bar and the blur over the transcript.
     let gate: ConversationGatePresentation
@@ -150,7 +145,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
-        screen.barRestingDrop = chatExists ? BarMetrics.compactDrop : 0
+        screen.barRestingDrop = BarMetrics.compactDrop
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
@@ -206,7 +201,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.barHost?.rootView = bar(coordinator: context.coordinator)
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
-        screen.barRestingDrop = chatExists ? BarMetrics.compactDrop : 0
+        screen.barRestingDrop = BarMetrics.compactDrop
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
@@ -313,14 +308,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         return AnyView(
             ConversationBottomBar(
                 showsSendCash: showsSendCash,
-                chatExists: chatExists,
                 conversationID: conversationID,
                 symbol: symbol,
                 onSendCash: onSendCash,
                 model: barModel,
                 composer: composer,
-                isTipDm: isTipDm,
-                startChattingFee: startChattingFee,
                 gate: gate,
                 gateMintName: gateMintName,
                 onGateAddFunds: onGateAddFunds,

@@ -140,8 +140,7 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
-/// Single spring driving the whole bar: the button morph, the composer's
-/// appearance when the chat materializes, and the send-arrow pop.
+/// Single spring driving the bar's morphs: the focus-driven resize and the send-arrow pop.
 private let barMorphSpring = ChatMotion.swap.animation
 
 /// The curve the bar grows and shrinks on around the reply strip.
@@ -182,22 +181,20 @@ enum BarMetrics {
 enum ConversationBarLeadingControl: Equatable {
     /// The way out of an edit.
     case cancelEdit
-    /// The full-width Send Cash call to action, alone in the bar before the chat exists.
-    case sendCash
-    /// The round `$` beside the field once the chat exists, shown while the draft is empty.
+    /// The round `$` beside the field, shown while the draft is empty.
     case cash
     /// Nothing beside the field.
     case none
 
-    /// Returns the control for the bar's state. An edit wins; otherwise Send Cash, as the call to
-    /// action before the chat exists and as the round `$` after.
-    init(isEditing: Bool, chatExists: Bool, showsSendCash: Bool) {
+    /// Returns the control for the bar's state. An edit wins; otherwise the round `$` when Send Cash
+    /// is offered.
+    init(isEditing: Bool, showsSendCash: Bool) {
         if isEditing {
             self = .cancelEdit
         } else if !showsSendCash {
             self = .none
         } else {
-            self = chatExists ? .cash : .sendCash
+            self = .cash
         }
     }
 }
@@ -214,10 +211,10 @@ struct ConversationBarBottomRow: Equatable {
     /// Whether there is nothing for `+` to open.
     var isEmpty: Bool { plusItems.isEmpty }
 
-    /// Returns the row for the bar's state: empty during an edit and before the chat exists;
-    /// otherwise `+` while it has a row to open.
-    init(isEditing: Bool, chatExists: Bool, acceptsMedia: Bool, attachedCount: Int) {
-        guard !isEditing, chatExists else {
+    /// Returns the row for the bar's state: empty during an edit; otherwise `+` while it has a row
+    /// to open.
+    init(isEditing: Bool, acceptsMedia: Bool, attachedCount: Int) {
+        guard !isEditing else {
             self.init(plusItems: [])
             return
         }
@@ -230,21 +227,14 @@ struct ConversationBarBottomRow: Equatable {
 }
 
 /// The unified bottom bar: the attach menu beside the message field.
-/// A standard-size filled Send Cash alone until the chat exists server-side.
 struct ConversationBottomBar: View {
 
     let showsSendCash: Bool
-    let chatExists: Bool
     let conversationID: ConversationID?
     let symbol: String
     let onSendCash: () -> Void
     let model: ConversationBarModel
     let composer: ComposerModel
-    /// Whether this is a tip DM, whose Send Cash reads Start Chatting until the chat exists.
-    var isTipDm: Bool = false
-    /// What the first tip has to clear to open this chat, named on the CTA.
-    /// Nil once the chat exists, and when no floor has resolved yet.
-    var startChattingFee: FiatAmount? = nil
     /// Whether the chat's participation rules leave this user anything to type. Anything but
     /// ``ConversationGatePresentation/open`` replaces the whole composer with the gate panel.
     var gate: ConversationGatePresentation = .open
@@ -279,7 +269,7 @@ struct ConversationBottomBar: View {
         switch leadingControl {
         case .cash:
             cashIsShown ? BarMetrics.contentHeight + Self.leadingSpacing : 0
-        case .cancelEdit, .sendCash, .none:
+        case .cancelEdit, .none:
             0
         }
     }
@@ -314,9 +304,8 @@ struct ConversationBottomBar: View {
     static let leadingSpacing: CGFloat = 10
 
     /// Whether the bar sits inset from the screen's sides: at rest with the keyboard down. It widens
-    /// to the full edge inset as the keyboard comes up. Only once there is a composer; the pre-chat
-    /// CTA keeps its full-width button.
-    private var isCompact: Bool { chatExists && !model.isComposing }
+    /// to the full edge inset as the keyboard comes up.
+    private var isCompact: Bool { !model.isComposing }
 
     /// How much further in than ``BarMetrics/edgeInset`` the controls and the reply quote sit.
     private var compactExtraInset: CGFloat { isCompact ? BarMetrics.compactInset - BarMetrics.edgeInset : 0 }
@@ -364,7 +353,7 @@ struct ConversationBottomBar: View {
                         .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
                         .composerGlass(in: Circle(), id: "cash", namespace: composerGlassNamespace)
                 }
-            case .sendCash, .none:
+            case .none:
                 EmptyView()
             }
             Color.clear
@@ -381,8 +370,8 @@ struct ConversationBottomBar: View {
     private var composerBar: some View {
         // Bottom-aligned, against the bar's own pinned bottom: the field is the side that grows, and
         // top-aligning the control beside it made the control travel with every line the draft
-        // gained or lost. Nothing animates that travel — the bar's springs key on `chatExists` and
-        // `isEditing`, neither of which moves during a send — so it snapped while the bar's height
+        // gained or lost. Nothing animates that travel — the bar's springs key on `isEditing`,
+        // which doesn't move during a send — so it snapped while the bar's height
         // sprang underneath it.
         let motion = AttachMotion(reduceMotion: reduceMotion)
         let content = VStack(alignment: .leading, spacing: Self.rowSpacing) {
@@ -392,22 +381,6 @@ struct ConversationBottomBar: View {
                 switch leadingControl {
                 case .cancelEdit:
                     CancelEditButton { composer.endEditing() }
-                case .sendCash:
-                    SendCashMorphButton(
-                        symbol: symbol,
-                        // Minimized by a reply as well as by focus. Starting a reply from the context
-                        // menu raises the keyboard, and focus — and so `isComposing` — arrives a
-                        // transaction later than the reply target, on its own bouncy spring: the button
-                        // collapsed after the bar had already grown, jolting the field beside it.
-                        // Reading the target directly puts the morph in the reply's own transaction, so
-                        // the two move together and the later focus change finds nothing left to do.
-                        composing: model.isComposing || composer.replyTarget != nil,
-                        // Before the first tip there is no composer to sit beside: the design draws
-                        // the full-width "Start Chatting" CTA (node 10074:18891).
-                        standalone: true,
-                        expandedTitle: isTipDm ? startChattingTitle : nil,
-                        action: onSendCash
-                    )
                 case .cash:
                     if cashIsShown {
                         ComposerCashButton(symbol: symbol, action: onSendCash)
@@ -416,26 +389,21 @@ struct ConversationBottomBar: View {
                 case .none:
                     EmptyView()
                 }
-                if chatExists {
-                    ConversationComposer(
-                        conversationID: conversationID,
-                        model: model,
-                        composer: composer,
-                        bottomRow: bottomRow,
-                        hidesPlus: showsCard,
-                        // Swapped out in one frame for the surface, which is drawn as `+` where it stands.
-                        plusIsStoodInFor: model.surfaceStandsInForPlus && motion.animatesGeometry,
-                        onAttachOpen: onAttachOpen
-                    )
-                    // Over the row's other controls, which the attach panel floats across.
-                    .zIndex(1)
-                    .transition(.opacity)
-                }
+                ConversationComposer(
+                    conversationID: conversationID,
+                    model: model,
+                    composer: composer,
+                    bottomRow: bottomRow,
+                    hidesPlus: showsCard,
+                    // Swapped out in one frame for the surface, which is drawn as `+` where it stands.
+                    plusIsStoodInFor: model.surfaceStandsInForPlus && motion.animatesGeometry,
+                    onAttachOpen: onAttachOpen
+                )
+                // Over the row's other controls, which the attach panel floats across.
+                .zIndex(1)
             }
             .background {
-                if chatExists {
-                    composerGlass
-                }
+                composerGlass
             }
             // A draft already there when the chat opens hides `$` without animating it out.
             .onAppear { cashIsShown = composer.draft.isEmpty }
@@ -468,7 +436,6 @@ struct ConversationBottomBar: View {
         .animation(Self.widthSpring, value: isCompact)
         .padding(.top, BarMetrics.contentPadding)
         .padding(.bottom, BarMetrics.contentPadding)
-        .animation(barMorphSpring, value: chatExists)
         .animation(barMorphSpring, value: composer.isEditing)
         // The strip arriving with its first chip and leaving with its last, on the chip spring unless
         // a capture's animation is already carrying it.
@@ -652,7 +619,6 @@ struct ConversationBottomBar: View {
     private var leadingControl: ConversationBarLeadingControl {
         ConversationBarLeadingControl(
             isEditing: composer.isEditing,
-            chatExists: chatExists,
             showsSendCash: showsSendCash
         )
     }
@@ -660,18 +626,9 @@ struct ConversationBottomBar: View {
     private var bottomRow: ConversationBarBottomRow {
         ConversationBarBottomRow(
             isEditing: composer.isEditing,
-            chatExists: chatExists,
             acceptsMedia: acceptsMedia,
             attachedCount: composer.chips.count
         )
-    }
-
-    /// The tip CTA's title. Names the amount that opens the chat when a floor
-    /// has resolved; the fee is what the recipient charges for the
-    /// conversation, so stating it is the whole point of the button.
-    private var startChattingTitle: String {
-        guard let startChattingFee else { return "Start Chatting" }
-        return "Send \(startChattingFee.formatted()) to Start Chatting"
     }
 }
 
@@ -1392,114 +1349,5 @@ private struct CancelEditButton: View {
         .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
         .accessibilityLabel("Cancel editing")
         .accessibilityIdentifier("cancel-edit-button")
-    }
-}
-
-/// The Send Cash button, rendered as a white "Send €" pill at rest and a
-/// compact glass "€" square while composing (or always, in a tip chat). Alone
-/// in the bar it takes the standard filled-button size; beside the composer
-/// it's field-sized.
-// One persistent view: the morph animates its properties (prefix text, fill,
-// width, color) in lockstep — splitting the two states into separate views
-// would crossfade instead of morphing.
-struct SendCashMorphButton: View {
-
-    let symbol: String
-    let composing: Bool
-    /// Whether the button is the bar's only control (no chat yet): it spans
-    /// the bar at the standard filled-button size instead of field-sized.
-    let standalone: Bool
-    /// Forces the compact symbol-only presentation regardless of composing.
-    var alwaysMinimized: Bool = false
-    /// Replaces "Send <symbol>" while expanded. A tip chat names the tip
-    /// instead of the currency, because the amount is chosen on the next screen.
-    var expandedTitle: String?
-    let action: () -> Void
-
-    /// The compact glass "€" presentation: while composing, or always once a
-    /// chat exists. The whole morph (label, fill, width, color) keys off this.
-    private var minimized: Bool { composing || alwaysMinimized }
-
-    private var height: CGFloat {
-        standalone ? Metrics.buttonHeight : BarMetrics.contentHeight
-    }
-
-    private var cornerRadius: CGFloat {
-        standalone ? Metrics.buttonRadius : BarMetrics.cornerRadius
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                if !minimized {
-                    Text(expandedTitle ?? "Send")
-                        .font(.appTextMedium)
-                        .transition(.opacity)
-                }
-                // Suppressed while a custom title is showing: "Send a Tip $"
-                // isn't a label. It returns when the button minimizes.
-                if minimized || expandedTitle == nil {
-                    Text(symbol)
-                        // Same persistent Text — .interpolate animates the glyph
-                        // between sizes; swapping views would crossfade.
-                        .font(minimized ? .appTextXL : .appTextMedium)
-                        .contentTransition(.interpolate)
-                }
-            }
-            .foregroundStyle(minimized ? Color.textMain : Color.textAction)
-            // The label must never reflow to "Se…" mid-morph; overflow is
-            // clipped by the shape instead.
-            .fixedSize()
-            .padding(.horizontal, minimized ? 0 : 20)
-            .frame(minWidth: BarMetrics.contentHeight)
-            .frame(maxWidth: standalone && !minimized ? .infinity : nil)
-            .frame(height: height)
-            // The label is the only drawn content and the fill is a background on the button, not
-            // on the label, so with `.plain` only the text was the target: alone in the bar the
-            // pill spans the width but "Send a Tip" answered a tap on its centre and nothing else.
-            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
-        }
-        .buttonStyle(.plain)
-        // White fill above the glass base: fading it out is the white → glass
-        // change, without ever swapping views.
-        .background {
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(Color.action)
-                .opacity(minimized ? 0 : 1)
-        }
-        .glassBackground(cornerRadius: cornerRadius)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .accessibilityLabel(expandedTitle ?? "Send Cash")
-        .accessibilityIdentifier("send-cash-button")
-    }
-}
-
-#Preview("Morph") {
-    @Previewable @State var composing = false
-    ZStack {
-        Color.backgroundMain.ignoresSafeArea()
-        VStack {
-            Spacer()
-            HStack(spacing: 10) {
-                SendCashMorphButton(symbol: "€", composing: composing, standalone: false) {
-                    withAnimation(barMorphSpring) { composing.toggle() }
-                }
-                RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
-                    .fill(.white.opacity(0.1))
-                    .frame(height: BarMetrics.contentHeight)
-            }
-            .padding(12)
-        }
-    }
-}
-
-#Preview("Standalone") {
-    ZStack {
-        Color.backgroundMain.ignoresSafeArea()
-        VStack {
-            Spacer()
-            SendCashMorphButton(symbol: "€", composing: false, standalone: true) {}
-                .padding(12)
-        }
     }
 }
