@@ -16,15 +16,10 @@ import FlipcashUI
 // foreground-banner suppression gate on — so a missed buzz or an unsuppressed banner is traceable.
 private let logger = Logger(label: "flipcash.conversation")
 
-/// How a conversation is reached: an existing DM chat (only tip DMs are
-/// surfaced now — contact/phone DMs were retired with the Send tab), or a tip
-/// DM named by its counterpart before the chat exists server-side.
+/// How a conversation is reached: an existing chat, by its id. A tip DM that doesn't exist yet
+/// is reached through the counterpart's profile, not here.
 nonisolated enum ConversationContext: Hashable {
     case existing(ConversationID)
-    /// A tip DM opened from the username lookup. The chat is created by the
-    /// first tip, so until then there is no record to reach it by — only the
-    /// counterpart, whose id derives the chat's own id locally.
-    case tipDM(counterpart: UserID)
 
     /// Resolves the counterpart's synced contact from the directory — the one
     /// rule the nav title, transcript profile card, and profile page share.
@@ -32,19 +27,13 @@ nonisolated enum ConversationContext: Hashable {
         switch self {
         case .existing(let conversationID):
             directory.first { $0.dmChatID == conversationID.data }
-        case .tipDM:
-            // A tip DM's counterpart is known by profile, never by address book.
-            nil
         }
     }
 }
 
 /// A DM conversation: an iMessage-style transcript over a unified bottom bar
 /// (Send Cash beside the composer). Reads live messages from
-/// `ConversationController`, which owns the single event stream. For a
-/// contact without a chat the transcript stays empty and only Send Cash
-/// shows; once the first payment creates the chat, the chat ID resolves live
-/// from the synced directory and the composer appears.
+/// `ConversationController`, which owns the single event stream.
 struct ConversationScreen: View {
 
     let context: ConversationContext
@@ -52,10 +41,6 @@ struct ConversationScreen: View {
     /// Focus the message field on open so the keyboard comes up. Set only by the
     /// post-tip navigation; every other entry point opens keyboard-closed.
     var openKeyboard: Bool = false
-
-    /// Start Send Cash once on open, as though its button had been tapped. Set only by the
-    /// profile's Send Cash; every other entry point waits for the tap.
-    var startSendCash: Bool = false
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(ContactSyncController.self) private var contactSyncController
@@ -79,7 +64,6 @@ struct ConversationScreen: View {
     /// below only corrects it.
     @State private var navBarWidth: CGFloat = UIApplication.shared.firstWindowScene?.coordinateSpace.bounds.width ?? 0
     @State private var presentedCard: ContactCard?
-    @State private var startChattingRequest: StartChattingRequest?
     @State private var coordinator: ConversationLoadCoordinator?
     /// Tickers for the mints the gate's copy names, resolved from mint metadata. Empty until they
     /// land, and for every ungated chat.
@@ -95,9 +79,6 @@ struct ConversationScreen: View {
     /// Whether the encryption explainer opened from the transcript's marker is showing.
     @State private var isShowingEncryptionInfo = false
     @State private var messageReport: MessageReportRequest?
-    /// Whether `startSendCash` has been acted on, so a re-render or a return from the sheet it
-    /// opened doesn't start it again.
-    @State private var didStartSendCash = false
     /// Whether `Group: Gate Shown` has gone out for this visit. The destination is keyed by
     /// conversation ID, so a new push is a new visit; a return from a pushed screen is not.
     @State private var didReportGate = false
@@ -131,31 +112,17 @@ struct ConversationScreen: View {
         switch context {
         case .existing(let conversationID):
             return conversationID
-        case .tipDM(let counterpart):
-            // The same derivation the server uses, so the id is known before
-            // the chat is — and matches the one the first tip creates.
-            return .tipDm(between: conversationController.selfUserID, and: counterpart)
         }
     }
 
-    /// The counterpart this screen was opened for, when it was opened by
-    /// person rather than by chat.
-    private var counterpartUserID: UserID? {
-        switch context {
-        case .existing: nil
-        case .tipDM(let counterpart): counterpart
-        }
-    }
-
-    /// The tip DM counterpart, when this conversation is a tip DM. Falls back
-    /// to the cached profile before the first tip creates the chat.
+    /// The tip DM counterpart, when this conversation is a tip DM.
     private var tipCounterpart: ConversationMember? {
         if let conversationID,
            let conversation = conversationController.conversation(withID: conversationID),
            conversation.type == .tipDm {
             return conversation.counterpart(excluding: conversationController.selfUserID)
         }
-        return Self.cachedCounterpart(counterpartUserID, session: session)
+        return nil
     }
 
     /// Who Send Cash pays: the tip counterpart in a tip DM, the chat itself in
@@ -167,51 +134,11 @@ struct ConversationScreen: View {
             return .contact(contact)
         }
         guard let conversationID else { return nil }
-        if let target = SendTarget(
+        return SendTarget(
             conversation: conversationController.conversation(withID: conversationID),
             dmChatID: conversationID.data,
             selfUserID: conversationController.selfUserID
-        ) {
-            return target
-        }
-        // No conversation record to read the counterpart from yet, so the
-        // cached profile is what the tip is addressed to.
-        guard let member = tipCounterpart, let userID = member.userID else { return nil }
-        return .tip(TipRecipient(
-            userID: userID,
-            displayName: member.displayName,
-            username: member.username,
-            origin: .chat
-        ))
-    }
-
-    /// What the first tip has to clear to open this chat — the fee the
-    /// counterpart charges for the conversation, falling back to the regional
-    /// tip minimum when they charge nothing. Nil once the chat exists, since a
-    /// send into an open thread carries no floor.
-    ///
-    /// Derived from the same inputs as `SendAmountViewModel.tipFloor(in:)` so
-    /// the amount the CTA names is the one the amount screen enforces.
-    private var startChattingFee: FiatAmount? {
-        guard !chatExists, let userID = tipCounterpart?.userID else { return nil }
-        return StartChattingFee.amount(
-            for: session.cachedUserProfile(for: userID),
-            session: session,
-            ratesController: ratesController
         )
-    }
-
-    /// Whether a chat exists to hold a transcript. An `existing` conversation
-    /// was reached by its chat id, so it does by construction; a tip DM opened
-    /// by counterpart does not until the first tip creates it server-side.
-    private var chatExists: Bool {
-        guard let conversationID else { return false }
-        switch context {
-        case .existing:
-            return true
-        case .tipDM:
-            return conversationController.conversation(withID: conversationID) != nil
-        }
     }
 
     /// For a tip DM, all counterpart taps open the profile screen — even when
@@ -256,11 +183,6 @@ struct ConversationScreen: View {
     }
 
     private var title: String {
-        // Without a chat there is no conversation record to name, so the
-        // counterpart's cached profile is the only source for the title.
-        if !chatExists, let name = tipCounterpart?.displayName {
-            return name
-        }
         if let conversationID {
             return conversationController.displayName(forConversationID: conversationID)
         }
@@ -295,12 +217,7 @@ struct ConversationScreen: View {
     /// is what creates it.
     private var awaitingMetadata: Bool {
         guard let conversationID else { return false }
-        switch context {
-        case .tipDM:
-            return false
-        case .existing:
-            return conversationController.conversation(withID: conversationID) == nil
-        }
+        return conversationController.conversation(withID: conversationID) == nil
     }
 
     /// The rule verdicts behind ``gate``, kept separately because the head card states the chat's
@@ -510,7 +427,6 @@ struct ConversationScreen: View {
             onReactionStripSelect: toggleReaction,
             onReactionStripAdd: openReactionPicker,
             showsSendCash: sendTarget != nil,
-            chatExists: chatExists,
             conversationID: conversationID,
             symbol: ratesController.balanceCurrency.compactSymbol,
             onSendCash: sendCash,
@@ -519,8 +435,6 @@ struct ConversationScreen: View {
             composer: composer,
             editingStableID: composer.editingStableID,
             focusOnAppear: openKeyboard,
-            isTipDm: tipCounterpart != nil,
-            startChattingFee: startChattingFee,
             gate: gate,
             // A viewer the gate refuses is refused the read too, so a blocked chat they have no
             // history of has nothing under its blur. The shapes stand in for what they are not
@@ -529,7 +443,7 @@ struct ConversationScreen: View {
             // whose rules haven't landed yet is blurred without yet refusing anything.
             // Also stands in while an empty transcript's first load is out, so a chat with nothing
             // cached opens on the placeholder and paints once with its history.
-            showsGatePlaceholder: (gate.withholdsTranscript || (chatExists && !didInitialRead)) && (coordinator?.items.isEmpty ?? true),
+            showsGatePlaceholder: (gate.withholdsTranscript || !didInitialRead) && (coordinator?.items.isEmpty ?? true),
             gateMintName: gateMintName,
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,
@@ -621,7 +535,7 @@ struct ConversationScreen: View {
         // `onReachTop` on every scroll frame it spends near the top, and reading `gate` re-evaluates
         // the chat's rules against the balance and the rate table each time.
         let gate = self.gate
-        let pagesHistory = chatExists && !gate.obscuresTranscript
+        let pagesHistory = !gate.obscuresTranscript
         // Stages, rather than one chain. A getter is a single type-check budget however many
         // statements it holds, and this chain is more than the compiler will finish inside one —
         // it gives up on CI, where the budget is tighter than on a dev machine. A function each
@@ -816,9 +730,6 @@ struct ConversationScreen: View {
             ContactCardView(card: card)
                 .ignoresSafeArea()
         }
-        .sheet(item: $startChattingRequest) { request in
-            StartChattingSheet(target: request.target, fee: request.fee)
-        }
         .sheet(isPresented: $isShowingEncryptionInfo) {
             E2eeLearnMoreSheet(kind: .dm, isPresented: $isShowingEncryptionInfo)
         }
@@ -865,8 +776,8 @@ struct ConversationScreen: View {
     /// Takes `gate` rather than reading it, so these closures capture the value `body` resolved.
     private func lifecycle(_ content: some View, gate: ConversationGatePresentation) -> some View {
         content
-        .task(id: chatExists ? conversationID : nil) {
-            guard chatExists, let conversationID else { return }
+        .task(id: conversationID) {
+            guard let conversationID else { return }
             // Ensure the conversation metadata is in the store before the title, tip styling, and Send
             // Cash target rely on it. The post-tip open (and any push/link that lands here before the
             // feed or stream has the freshly-created chat) would otherwise render the unresolved
@@ -886,7 +797,7 @@ struct ConversationScreen: View {
             // The opening task read the gate it started with, which for a chat reached by link or
             // push is `.undetermined`: a non-member the rules admit, or a balance that crosses the
             // requirement mid-screen, lifts the blur without re-running it. A join loads for itself.
-            guard !obscures, !didInitialRead, !isJoiningChat, chatExists, let conversationID else { return }
+            guard !obscures, !didInitialRead, !isJoiningChat, let conversationID else { return }
             Task { await loadTranscript(for: conversationID) }
         }
         // Buzz on a live message from the other side while this conversation is on screen. `old != nil`
@@ -911,11 +822,6 @@ struct ConversationScreen: View {
             setVisibleConversation(id, source: "onChange")
             syncCoordinator(id)
             restoreDraft(id)
-        }
-        .onChange(of: isReadyToStartSendCash, initial: true) { _, ready in
-            guard ready else { return }
-            didStartSendCash = true
-            sendCash()
         }
         .onChange(of: composer.draft) { _, _ in saveDraft() }
         // Mode rather than `replyTarget` alone: it also covers the edit transitions, where what is
@@ -953,7 +859,7 @@ struct ConversationScreen: View {
         // Donate the open chat for Siri prediction, Handoff, and Spotlight.
         // Only an existing chat carries an id worth resuming; a contact without
         // a chat yet has nothing to hand off to.
-        .userActivity(AppUserActivity.openChat, isActive: chatExists && conversationID != nil) { activity in
+        .userActivity(AppUserActivity.openChat, isActive: conversationID != nil) { activity in
             guard let conversationID else { return }
             activity.title = title
             activity.userInfo = [AppUserActivity.chatIDKey: conversationID.base64URLEncoded]
@@ -1210,13 +1116,6 @@ struct ConversationScreen: View {
         }
     }
 
-    /// Whether the open-time Send Cash can run and take the branch a tap would. Before the chat
-    /// exists that waits on the fee: `sendCash()` falls through to the amount screen without it.
-    private var isReadyToStartSendCash: Bool {
-        startSendCash && !didStartSendCash && sendTarget != nil
-            && (chatExists || startChattingFee != nil)
-    }
-
     private func sendCash() {
         guard let sendTarget else { return }
         let context: AddMoneyContext = switch sendTarget {
@@ -1228,24 +1127,7 @@ struct ConversationScreen: View {
             session.dialogItem = dialog
             return
         }
-        // The payment that opens a tip DM can only be the fee, and the bar has
-        // already named it — so it's confirmed rather than entered. Everything
-        // else, this one included when the fee hasn't resolved yet, opens the
-        // amount screen.
-        if case .tip = sendTarget, let fee = startChattingFee {
-            startChattingRequest = StartChattingRequest(target: sendTarget, fee: fee)
-            return
-        }
         router.presentSendAmount(sendTarget)
-    }
-
-    /// What the start-chatting sheet is opened for, snapshotted at the tap: once
-    /// the send lands the chat exists and `startChattingFee` goes nil.
-    private struct StartChattingRequest: Identifiable {
-        let target: SendTarget
-        let fee: FiatAmount
-
-        var id: SendTarget { target }
     }
 
     /// Re-send a failed message tapped in the transcript. The id is the row's stable id, which for a
@@ -1494,7 +1376,7 @@ struct ConversationScreen: View {
                 knownAuthors: sessionContainer.knownAuthors,
                 // `profileAvatars` is captured directly so the coordinator retains
                 // one small store, not the whole session container.
-                profileCard: { [context, contactSyncController, conversationController, session, counterpartUserID, profileAvatars = sessionContainer.profileAvatars] in
+                profileCard: { [context, contactSyncController, conversationController, session, profileAvatars = sessionContainer.profileAvatars] in
                     // A group cards itself — the address book has nothing to say about a chat, and
                     // the unknown-contact fallback below would flag one as an unknown person.
                     guard conversationController.conversation(withID: id)?.type != .group else {
@@ -1505,10 +1387,7 @@ struct ConversationScreen: View {
                         conversationID: id,
                         directory: contactSyncController.resolvedContacts.onFlipcash,
                         controller: conversationController,
-                        profileAvatars: profileAvatars,
-                        // Resolved inside the closure, not captured: the card
-                        // must pick up the conversation the first tip creates.
-                        fallbackCounterpart: Self.cachedCounterpart(counterpartUserID, session: session)
+                        profileAvatars: profileAvatars
                     )
                 }
             )
@@ -1523,28 +1402,6 @@ struct ConversationScreen: View {
         return .handle(username)
     }
 
-    /// The counterpart of a tip DM that has no chat yet, built from a fetched
-    /// profile. Gives the title, card, and Send Cash target the same member
-    /// shape a synced conversation would supply.
-    static func counterpart(userID: UserID, profile: Profile) -> ConversationMember {
-        // A name-less account can still be tipped, and the chat has to be
-        // titled either way. The server sends such a name as "", not nil.
-        let name = profile.displayName.flatMap { $0.isEmpty ? nil : $0 }
-        return ConversationMember(
-            userID: userID,
-            displayName: name ?? profile.username?.handle ?? ConversationController.fallbackCounterpartName,
-            profilePicture: profile.profilePicture,
-            username: profile.username
-        )
-    }
-
-    /// ``counterpart(userID:profile:)`` against the profile cache the username
-    /// lookup writes on its way here.
-    private static func cachedCounterpart(_ userID: UserID?, session: Session) -> ConversationMember? {
-        guard let userID, let profile = session.cachedUserProfile(for: userID) else { return nil }
-        return counterpart(userID: userID, profile: profile)
-    }
-
     /// The transcript's profile card for the counterpart, resolved live from the directory the
     /// same way the nav title is: the synced contact when there is one, the profile-only tip
     /// counterpart for a tip DM, otherwise the counterpart's formatted number flagged as an
@@ -1554,8 +1411,7 @@ struct ConversationScreen: View {
         conversationID: ConversationID,
         directory: [ResolvedContact],
         controller: ConversationController,
-        profileAvatars: ProfileAvatarStore,
-        fallbackCounterpart: ConversationMember? = nil
+        profileAvatars: ProfileAvatarStore
     ) -> ChatProfileCard {
         if let conversation = controller.conversation(withID: conversationID),
            conversation.type == .tipDm {
@@ -1565,16 +1421,6 @@ struct ConversationScreen: View {
                 avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
                 imageData: profileAvatars.data(for: counterpart?.userID),
                 blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
-                counterpart: Self.tipDMCounterpart(counterpart)
-            )
-        }
-        // No conversation record yet — the same card, from the cached profile.
-        if let counterpart = fallbackCounterpart {
-            return ChatProfileCard(
-                name: counterpart.displayName,
-                avatarID: counterpart.userID?.uuidString ?? conversationID.description,
-                imageData: profileAvatars.data(for: counterpart.userID),
-                blurhash: counterpart.profilePicture?.thumbnailBlurhash,
                 counterpart: Self.tipDMCounterpart(counterpart)
             )
         }

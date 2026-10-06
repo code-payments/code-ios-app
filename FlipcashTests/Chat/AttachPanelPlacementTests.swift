@@ -124,7 +124,6 @@ private struct HostedBar: View {
     var body: some View {
         ConversationBottomBar(
             showsSendCash: true,
-            chatExists: true,
             conversationID: .test(1),
             symbol: "$",
             onSendCash: {},

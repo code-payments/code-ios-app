@@ -75,8 +75,7 @@ final class SendAmountViewModel {
     /// False for a contact send and for a thread that already exists.
     var opensTipDM: Bool {
         guard case .tip(let recipient) = target else { return false }
-        // The same rule `ConversationScreen.chatExists` draws: a tip DM's id is
-        // derived locally, so the feed holding it is what says the chat is real.
+        // A tip DM's id is derived locally, so the feed holding it is what says the chat is real.
         return conversationController.conversation(
             withID: .tipDm(between: session.userID, and: recipient.userID)
         ) == nil
