@@ -35,7 +35,7 @@ struct ProfileStatsCard: View {
             .frame(maxWidth: .infinity)
         }
         .frame(height: 84)
-        .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
+        .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
         .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
     }
 
