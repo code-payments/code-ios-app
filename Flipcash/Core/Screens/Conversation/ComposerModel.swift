@@ -72,8 +72,9 @@ final class ComposerModel {
         }
     }
 
-    /// Whether the send button can fire: text or at least one chip, and no chip that failed. Chips
-    /// still uploading do not hold the send back, and an edit is text only.
+    /// Whether the send button can fire: text or at least one chip, and no chip that failed for
+    /// good. Chips still uploading or that failed retryably do not hold the send back, and an edit
+    /// is text only.
     var canSubmit: Bool {
         switch mode {
         case .new, .replying:
@@ -104,12 +105,13 @@ final class ComposerModel {
         }
     }
 
-    /// Whether any staged chip failed to upload, which holds the send until it is retried or removed.
+    /// Whether any staged chip failed in a way another upload can't fix, which holds the send
+    /// until it is removed.
     var hasFailedChip: Bool {
         chips.contains { chip in
             switch chip.state {
-            case .failed:                               true
-            case .preparing, .uploading, .uploaded:     false
+            case .failed(.notRetryable):                            true
+            case .failed(.retryable), .preparing, .uploading, .uploaded:   false
             }
         }
     }

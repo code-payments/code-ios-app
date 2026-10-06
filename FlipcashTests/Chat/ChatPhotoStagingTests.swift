@@ -305,12 +305,12 @@ struct ComposerOutgoingTests {
         }
     }
 
-    @Test("A failed chip holds the send")
+    @Test("A chip that failed for good holds the send")
     func failedChipHoldsSend() throws {
         let composer = ComposerModel()
         let chip = try #require(composer.stageChip(image: image(), uploader: uploader))
         chip.uploadTask?.cancel()
-        chip.state = .failed(.retryable)
+        chip.state = .failed(.notRetryable)
         composer.draft = "caption"
 
         #expect(composer.outgoing == nil)

@@ -2129,6 +2129,13 @@ final class ConversationController {
         assertion.begin()
         defer { assertion.end() }
 
+        // A chip that failed retryably (offline, say) is sendable; tapping Send is its retry.
+        for chip in chips {
+            if case .failed(.retryable) = chip.state {
+                chip.retryUpload()
+            }
+        }
+
         let sends = ChatMediaSendPlan.mediaMessages(chips: chips, caption: caption, replyTo: repliedTo).map { message in
             (message: message, clientMessageID: insertPendingMedia(message, into: conversationID))
         }

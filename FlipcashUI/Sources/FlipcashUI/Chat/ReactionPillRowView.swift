@@ -23,7 +23,8 @@ final class ReactionPillRowView: UIView {
     /// Fired with the tapped emoji. Only reachable through a pill whose `canReact` allowed the tap —
     /// see `ReactionPillView.configure`.
     var onToggle: ((String) -> Void)?
-    /// Fired with the long-pressed emoji, to open the reactors sheet scoped to it.
+    /// Fired on a long press anywhere in the row but the "+" and "N more", with the pill nearest the
+    /// finger, to open the reactors sheet.
     var onLongPress: ((String) -> Void)?
     /// Fired when the trailing "+" is tapped, to open the picker. The button is never shown when the
     /// viewer cannot react (see `configure(pills:canReact:)`).
@@ -55,6 +56,11 @@ final class ReactionPillRowView: UIView {
         overflowButton.isHidden = true
         addSubview(addButton)
         addSubview(overflowButton)
+        // On the row rather than each pill: a 28 pt pill is easy to miss, and a press in the gaps
+        // around it lands on the row, which the transcript's own long press leaves alone.
+        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(longPressed))
+        longPress.delegate = self
+        addGestureRecognizer(longPress)
     }
 
     @available(*, unavailable)
@@ -95,7 +101,6 @@ final class ReactionPillRowView: UIView {
             }()
             view.configure(with: settled.pill, countDigits: settled.countDigits, canReact: canReact, animated: animatesChanges)
             view.onTap = canReact ? { [weak self] in self?.resolveTap(.emoji(emoji)) } : nil
-            view.onLongPress = { [weak self] in self?.onLongPress?(emoji) }
             return view
         }
         for view in reusable.values {
@@ -422,6 +427,31 @@ final class ReactionPillRowView: UIView {
         resolveTap(.add)
     }
 
+    @objc private func longPressed(_ recognizer: UILongPressGestureRecognizer) {
+        guard recognizer.state == .began,
+              let emoji = longPressEmoji(at: recognizer.location(in: self)) else { return }
+        onLongPress?(emoji)
+    }
+
+    /// The emoji a long press at `point` opens the reactors sheet for: the pill under the finger, or
+    /// the nearest one. Nil on the "+" or "N more", which keep their own touches.
+    func longPressEmoji(at point: CGPoint) -> String? {
+        for button in [addButton, overflowButton] as [UIView] where !button.isHidden && button.frame.contains(point) {
+            return nil
+        }
+        return pillViews
+            .filter { !$0.isHidden }
+            .min { Self.distance(from: point, to: $0) < Self.distance(from: point, to: $1) }?
+            .emoji
+    }
+
+    /// Measured through bounds and center, because `frame` is undefined while a pill carries a transform.
+    private static func distance(from point: CGPoint, to view: UIView) -> CGFloat {
+        let dx = max(abs(point.x - view.center.x) - view.bounds.width / 2, 0)
+        let dy = max(abs(point.y - view.center.y) - view.bounds.height / 2, 0)
+        return hypot(dx, dy)
+    }
+
     @objc private func overflowTapped() {
         isExpanded = true
         pendingChange = true
@@ -445,6 +475,13 @@ final class ReactionPillRowView: UIView {
             collectionView?.performBatchUpdates(nil)
             self.layoutIfNeeded()
         }
+    }
+}
+
+extension ReactionPillRowView: UIGestureRecognizerDelegate {
+    /// Keeps the long press off the "+" and "N more", so holding one still fires it on release.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        longPressEmoji(at: touch.location(in: self)) != nil
     }
 }
 
