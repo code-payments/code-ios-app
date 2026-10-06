@@ -34,7 +34,7 @@ struct EditFeaturedGroupsScreen: View {
 
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                content
+                list
 
                 Button(action: save) {
                     ButtonStateLabel("Save", state: buttonState)
@@ -49,7 +49,11 @@ struct EditFeaturedGroupsScreen: View {
         }
         .navigationTitle("Favorite Groups")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $model.query, prompt: "Search your public groups")
+        .searchable(
+            text: $model.query,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search your public groups"
+        )
         .dialog(item: $dialog)
         .task { await model.loadCandidates() }
         .onChange(of: model.failure) { _, failure in
@@ -66,29 +70,20 @@ struct EditFeaturedGroupsScreen: View {
         .onDisappear { saveTask?.cancel() }
     }
 
-    /// The list appears whole once the feed is read, rather than growing from the featured groups.
-    @ViewBuilder
-    private var content: some View {
-        switch model.loadState {
-        case .loading:
-            ProgressView()
-                .tint(Color.textSecondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .loaded, .failed:
-            list
-        }
-    }
-
     private var list: some View {
         List {
             Section {
-                ForEach(model.visibleCandidates) { group in
-                    row(group)
+                // The list appears whole once the feed is read, rather than growing from the
+                // featured groups. The List itself stays so the search field keeps its place.
+                if model.loadState != .loading {
+                    ForEach(model.visibleCandidates) { group in
+                        row(group)
+                    }
                 }
             } header: {
                 ListHeader("\(model.selection.count) of \(FeaturedGroups.limit) selected")
             } footer: {
-                if !model.candidates.isEmpty {
+                if model.loadState != .loading, !model.candidates.isEmpty {
                     Text("These public groups will appear on your public profile")
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
@@ -99,7 +94,14 @@ struct EditFeaturedGroupsScreen: View {
         }
         .listStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .overlay { emptyState }
+        .overlay {
+            if model.loadState == .loading {
+                ProgressView()
+                    .tint(Color.textSecondary)
+            } else {
+                emptyState
+            }
+        }
     }
 
     private func row(_ group: Conversation) -> some View {
