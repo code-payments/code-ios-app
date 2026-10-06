@@ -578,6 +578,9 @@ final class SessionContainer {
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
 
+    /// The public groups the signed-in user features on their profile.
+    let featuredGroups: FeaturedGroups
+
     init(
         session: Session,
         database: Database,
@@ -714,6 +717,10 @@ final class SessionContainer {
         }
         let recentReactions = RecentReactionsStore(owner: owner.publicKey)
         self.recentReactions = recentReactions
+        self.featuredGroups = FeaturedGroups(fetching: { [weak flipClient] username in
+            guard let flipClient else { return [] }
+            return try await flipClient.getFeaturedGroups(owner: owner, username: username)
+        })
         conversationController.reactions.recents = recentReactions
         conversationController.start()
         self.conversationController = conversationController

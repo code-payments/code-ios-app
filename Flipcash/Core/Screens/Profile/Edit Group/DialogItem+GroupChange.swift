@@ -7,30 +7,36 @@ import FlipcashUI
 
 extension DialogItem {
 
-    /// The group fields the Edit Group list can replace.
+    /// The group fields Edit Group can replace.
     ///
     /// The sibling of ``DialogItem/ProfileField``, and confirmed for a different reason: a profile
-    /// field is the user's own, while both of these are visible to everyone in the group the moment
-    /// they save. Neither can be reached before the group exists, so unlike the profile fields
+    /// field is the user's own, while every one of these is visible to everyone in the group the moment
+    /// they save. None can be reached before the group exists, so unlike the profile fields
     /// there is no first-time-setup case to exempt — every edit here is a replacement.
     enum GroupField {
 
         case name
         case picture
+        case cover
+        case description
 
-        /// Group-qualified rather than borrowing the row's bare "Name" / "Picture", which would
+        /// Group-qualified rather than borrowing the card's bare "Name" / "Description", which would
         /// read as the user's own once the dialog covers the screen that gave them context.
         var title: String {
             switch self {
-            case .name:    "Group Name"
-            case .picture: "Group Picture"
+            case .name:        "Group Name"
+            case .picture:     "Group Picture"
+            case .cover:       "Group Cover"
+            case .description: "Group Description"
             }
         }
 
         var subtitle: String {
             switch self {
-            case .name:    "This will change the group name for everyone in it"
-            case .picture: "This will change the group picture for everyone in it"
+            case .name:        "This will change the group name for everyone in it"
+            case .picture:     "This will change the group picture for everyone in it"
+            case .cover:       "This will change the group cover for everyone in it"
+            case .description: "This will change the group description for everyone in it"
             }
         }
     }

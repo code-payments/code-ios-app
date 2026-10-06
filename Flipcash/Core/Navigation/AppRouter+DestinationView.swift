@@ -100,6 +100,23 @@ struct DestinationView: View {
                 refresh: { try await session.updateProfile() }
             ))
 
+        case .editFeaturedGroups:
+            let session = sessionContainer.session
+            let flipClient = container.flipClient
+            let featuredGroups = sessionContainer.featuredGroups
+            let conversationController = sessionContainer.conversationController
+            EditFeaturedGroupsScreen(model: EditFeaturedGroupsModel(
+                featured: featuredGroups.groups,
+                loadingFeatured: {
+                    // The list is read by handle; with none there is nothing to read back.
+                    guard let username = session.profile?.username else { return [] }
+                    return await featuredGroups.load(username: username) ? featuredGroups.groups : nil
+                },
+                joinedGroups: { await conversationController.loadGroupFeed() },
+                saving: { try await flipClient.setFeaturedGroups(owner: session.ownerKeyPair, conversationIDs: $0) },
+                saved: { featuredGroups.replace(with: $0) }
+            ))
+
         case .changeCoverPicture:
             ChangeCoverPictureScreen()
 
@@ -234,6 +251,30 @@ struct DestinationView: View {
         case .editGroupPicture(let conversationID):
             EditGroupPictureScreen(conversationID: conversationID)
                 .id(conversationID)
+
+        case .editGroupCover(let conversationID):
+            EditGroupCoverScreen(conversationID: conversationID)
+                .id(conversationID)
+
+        case .editGroupDescription(let conversationID):
+            // Seeded here, like `.editBio`, so the field opens on the description it is about to
+            // replace. The response carries the post-edit metadata, so the store is seated from it.
+            let editor = SessionGroupChatEditor(session: sessionContainer.session, flipClient: container.flipClient)
+            let conversationController = conversationController
+            EditGroupDescriptionScreen(model: EditGroupDescriptionModel(
+                description: conversationController.conversation(withID: conversationID)?.description ?? "",
+                saving: { edit in
+                    let conversation = try await editor.editChat(
+                        conversationID: conversationID,
+                        title: nil,
+                        description: edit,
+                        pictureBlobID: nil,
+                        coverPictureBlobID: nil
+                    )
+                    conversationController.applyEdit(conversation)
+                }
+            ))
+            .id(conversationID)
         }
     }
 }
