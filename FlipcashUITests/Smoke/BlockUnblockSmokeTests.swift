@@ -134,7 +134,7 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         try await super.tearDown()
     }
 
-    /// Navigates You › My Account › Blocked and unblocks `name` if present,
+    /// Navigates You › Settings › Blocked and unblocks `name` if present,
     /// tolerating every step so a failed test's teardown stays quiet. It cannot
     /// reuse `SettingsUIScreen`'s navigation helpers: those assert, and a
     /// teardown assertion would mask the failure that brought us here.

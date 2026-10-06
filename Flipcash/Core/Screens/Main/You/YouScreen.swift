@@ -368,8 +368,8 @@ struct YouScreen: View {
     /// Everything below the card — the part that clears out when the card expands.
     ///
     /// The link and the Share/Download pair all address a card that a name-less
-    /// profile does not have, so they sit out until it does. The checklist shows either way, since naming the
-    /// profile is one of its chores.
+    /// profile does not have, so they sit out until it does. The checklist
+    /// shows either way, since naming the profile is one of its chores.
     private var pageContent: some View {
         VStack(spacing: 0) {
             if profileTutorialState.isVisible {
