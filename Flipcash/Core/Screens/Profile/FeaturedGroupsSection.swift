@@ -41,7 +41,7 @@ struct FeaturedGroupsSection: View {
                     }
                 }
             }
-            .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
+            .padding(.horizontal, ProfileHeaderMetrics.inset)
             .accessibilityIdentifier("profile-featured-groups")
         }
     }
