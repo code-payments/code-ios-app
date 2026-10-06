@@ -710,8 +710,10 @@ public final class ChatViewController: UICollectionViewController {
                 localImage: localImage,
                 progress: pendingMediaProgress?(message.id),
                 remote: remote,
+                quoteThumbnail: quoteThumbnail(for: message),
                 authorImageData: authorImageData
             )
+            cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
             cell.onImageTap = { [weak self, weak cell] in
                 guard let self, let request = ChatMediaViewerRequest(
                     message: message,
