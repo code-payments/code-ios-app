@@ -19,13 +19,15 @@ struct ProfileCoverBanner<Controls: View>: View {
     let coverPicture: ProfilePicture?
     /// A picked image not uploaded yet, drawn in place of the stored cover.
     var preview: UIImage? = nil
+    /// The banner's height; a profile's own cover is ``height``.
+    var bannerHeight: CGFloat = Self.height
     @ViewBuilder let controls: () -> Controls
 
     static var height: CGFloat { 214 }
 
     var body: some View {
         Color.clear
-            .frame(height: Self.height)
+            .frame(height: bannerHeight)
             .frame(maxWidth: .infinity)
             .overlay { cover }
             .clipped()
@@ -69,7 +71,7 @@ struct ProfileCoverBanner<Controls: View>: View {
 extension ProfileCoverBanner where Controls == EmptyView {
 
     /// A cover with nothing laid over it.
-    init(userID: UserID, coverPicture: ProfilePicture?, preview: UIImage? = nil) {
-        self.init(userID: userID, coverPicture: coverPicture, preview: preview, controls: { EmptyView() })
+    init(userID: UserID, coverPicture: ProfilePicture?, preview: UIImage? = nil, bannerHeight: CGFloat = Self.height) {
+        self.init(userID: userID, coverPicture: coverPicture, preview: preview, bannerHeight: bannerHeight, controls: { EmptyView() })
     }
 }
