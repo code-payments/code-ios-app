@@ -6,7 +6,6 @@
 /// An entry in another user's overflow menu.
 nonisolated enum ProfileMenuItem: Equatable {
     case mute
-    case unmute
     case report
     case block
     case unblock
@@ -14,8 +13,7 @@ nonisolated enum ProfileMenuItem: Equatable {
     /// The entry's label.
     var title: String {
         switch self {
-        case .mute:    return "Mute"
-        case .unmute:  return "Unmute"
+        case .mute:    return "Mute Notifications"
         case .report:  return "Report"
         case .block:   return "Block"
         case .unblock: return "Unblock"
@@ -26,7 +24,6 @@ nonisolated enum ProfileMenuItem: Equatable {
     var systemImage: String {
         switch self {
         case .mute:    return "bell.slash"
-        case .unmute:  return "bell"
         case .report:  return "flag"
         case .block:   return "nosign"
         case .unblock: return "checkmark.circle"
@@ -37,7 +34,7 @@ nonisolated enum ProfileMenuItem: Equatable {
     var isDestructive: Bool {
         switch self {
         case .report, .block:                 return true
-        case .mute, .unmute, .unblock:        return false
+        case .mute, .unblock:                 return false
         }
     }
 }
@@ -45,11 +42,11 @@ nonisolated enum ProfileMenuItem: Equatable {
 /// The entries of another user's overflow menu.
 nonisolated enum ProfileMenuItems {
 
-    /// Mute and Unmute need a DM to silence and are hidden while blocked, since the DM is hidden too.
-    static func resolve(isBlocked: Bool, hasDM: Bool, isMuted: Bool) -> [ProfileMenuItem] {
+    /// Mute needs a DM to silence and is hidden while blocked, since the DM is hidden too.
+    static func resolve(isBlocked: Bool, hasDM: Bool) -> [ProfileMenuItem] {
         if isBlocked { return [.report, .unblock] }
         var items: [ProfileMenuItem] = []
-        if hasDM { items.append(isMuted ? .unmute : .mute) }
+        if hasDM { items.append(.mute) }
         items.append(contentsOf: [.report, .block])
         return items
     }

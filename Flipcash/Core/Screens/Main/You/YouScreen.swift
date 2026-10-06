@@ -11,7 +11,7 @@ import FlipcashUI
 /// The "You" tab: the user's own profile — cover, avatar, name, handle and bio — with the stats
 /// card.
 ///
-/// The banner carries the "You" title and the gear that pushes Settings; the action row beside the
+/// The navigation bar carries the gear that pushes Settings; the action row beside the
 /// avatar carries Edit Profile and Share, whose sheet shares the profile link, presents the tip card
 /// full screen (`ProfileCardScreen`), or copies the link. Settings pushes onto the tab's `.you`
 /// stack, so it never touches the v1 scanner's Settings sheet.
@@ -77,7 +77,12 @@ struct YouScreen: View {
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
         }
-        .toolbar(.hidden, for: .navigationBar)
+        // The system bar carries the gear and, on iOS 26, the soft edge the banner scrolls under.
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                settingsGear
+            }
+        }
         .fullScreenCover(isPresented: Bindable(router).isShowingProfileCard) {
             ProfileCardScreen(previewCache: previewCache)
         }
@@ -112,18 +117,7 @@ struct YouScreen: View {
             avatarBlurhash: profilePicture?.thumbnailBlurhash,
             coverPicture: profile?.coverPicture,
             statusChip: nil,
-            bannerControls: {
-                HStack {
-                    Text("You")
-                        .font(.default(size: 23, weight: .semibold))
-                        .foregroundStyle(Color.textMain)
-                    Spacer()
-                    settingsGear
-                }
-                .padding(.leading, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
-                .padding(.trailing, 12)
-                .padding(.top, 65)
-            },
+            bannerControls: { EmptyView() },
             rowActions: {
                 ProfileEditCapsule {
                     // The Edit Profile slice repoints this to `.editProfile`.
@@ -166,12 +160,7 @@ struct YouScreen: View {
             router.push(.settings)
         } label: {
             Image(systemName: "gearshape")
-                .font(.system(size: 22))
-                .foregroundStyle(Color.textMain)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
         .accessibilityLabel("Settings")
         .accessibilityIdentifier("you-settings")
     }

@@ -33,8 +33,8 @@ struct ProfileShareSheet: View {
                 .frame(width: 40, height: 4)
                 .padding(.top, 8)
 
-            VStack(spacing: 4) {
-                Text("Share Profile")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Share User Profile")
                     .font(.default(size: 21, weight: .semibold))
                     .foregroundStyle(Color.textMain)
                 if let subtitle {
@@ -43,6 +43,8 @@ struct ProfileShareSheet: View {
                         .foregroundStyle(Color.textSecondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
             .padding(.top, 20)
             .padding(.bottom, 12)
 
@@ -63,10 +65,11 @@ struct ProfileShareSheet: View {
         .presentationCornerRadius(28)
     }
 
-    /// Handle, title block and rows, plus room for the home indicator.
+    /// Handle, title block and rows, plus a small bottom margin. The sheet floats clear of the home
+    /// indicator on its own, so no extra room is added for it.
     private var detentHeight: CGFloat {
         let rows: CGFloat = offersCard ? 3 : 2
-        return 12 + 4 + 20 + 52 + 12 + rows * 64 + 34
+        return 12 + 4 + 20 + 52 + 12 + rows * 64 + 8
     }
 
     private var separator: some View {
