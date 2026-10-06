@@ -107,7 +107,8 @@ nonisolated extension Database {
                 rules: conversationRules(from: row),
                 viewerState: conversationViewerState(from: row),
                 creator: row[c.creator],
-                useE2Ee: row[c.useE2Ee]
+                useE2Ee: row[c.useE2Ee],
+                coverPicture: conversationCoverPicture(from: row)
             )
         }
     }
@@ -470,6 +471,18 @@ nonisolated extension Database {
                 )
             )
 
+            // COALESCE(new, existing): the cover columns stay out of the upsert above, which would
+            // overwrite them with nil, and are written only when this copy carries a cover.
+            if let cover = conversation.coverPicture {
+                try writer.run(
+                    c.table.filter(c.id == conversation.id.data).update(
+                        c.coverPictureBlobID          <- cover.blobID.data,
+                        c.coverPictureThumbnailBlobID <- cover.thumbnailBlobID.data,
+                        c.coverPictureThumbnailBlurhash <- cover.thumbnailBlurhash
+                    )
+                )
+            }
+
             try writer.run(m.table.filter(m.conversationId == conversation.id.data).delete())
             for member in conversation.members {
                 try writer.run(
@@ -721,6 +734,20 @@ nonisolated extension Database {
             blobID: BlobID(data: blobID),
             thumbnailBlobID: BlobID(data: thumbnailBlobID),
             thumbnailBlurhash: row[c.pictureThumbnailBlurhash]
+        )
+    }
+
+    /// Same pair rule as ``conversationPicture(from:)``, for the cover columns.
+    private func conversationCoverPicture(from row: RowIterator.Element) -> ProfilePicture? {
+        let c = ConversationTable()
+        guard let blobID = row[c.coverPictureBlobID],
+              let thumbnailBlobID = row[c.coverPictureThumbnailBlobID] else {
+            return nil
+        }
+        return ProfilePicture(
+            blobID: BlobID(data: blobID),
+            thumbnailBlobID: BlobID(data: thumbnailBlobID),
+            thumbnailBlurhash: row[c.coverPictureThumbnailBlurhash]
         )
     }
 

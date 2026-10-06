@@ -809,6 +809,43 @@ struct DatabaseConversationsTests {
         #expect(restored.members.first?.profilePicture == picture)
     }
 
+    @Test("Cover picture round-trips, survives a write without one, and is replaced by a new one")
+    func coverPictureRoundTripAndCoalesce() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        func cover(_ byte: UInt8) -> ProfilePicture {
+            ProfilePicture(
+                blobID: BlobID(data: Data(repeating: byte, count: 16)),
+                thumbnailBlobID: BlobID(data: Data(repeating: byte &+ 1, count: 16)),
+                thumbnailBlurhash: "LEHV6nWB2yk8"
+            )
+        }
+        func group(cover: ProfilePicture?) -> Conversation {
+            Conversation(
+                id: ConversationID.test(7),
+                members: [],
+                lastMessage: nil,
+                lastActivity: Date(timeIntervalSince1970: 100),
+                type: .group,
+                coverPicture: cover
+            )
+        }
+
+        try database.upsertConversation(group(cover: nil))
+        #expect(try database.getConversations().first?.coverPicture == nil)
+
+        try database.upsertConversation(group(cover: cover(0x10)))
+        #expect(try database.getConversations().first?.coverPicture == cover(0x10))
+
+        // A feed copy omits the cover: the stored one stays.
+        try database.upsertConversation(group(cover: nil))
+        #expect(try database.getConversations().first?.coverPicture == cover(0x10))
+
+        // A copy that carries one replaces it.
+        try database.upsertConversation(group(cover: cover(0x20)))
+        #expect(try database.getConversations().first?.coverPicture == cover(0x20))
+    }
+
     @Test("A typed feed replace keeps the other type's conversations and members")
     func typedFeedReplaceKeepsOtherType() throws {
         let (database, url) = try Database.makeTemp()

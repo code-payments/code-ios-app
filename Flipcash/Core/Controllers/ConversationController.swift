@@ -1389,13 +1389,14 @@ final class ConversationController {
             // until the next metadata fetch — the same reason the roster summary is cached.
             persistConversation(conversationID)
         case .titleChanged(let conversationID, _),
-             .pictureChanged(let conversationID, _):
+             .pictureChanged(let conversationID, _),
+             .coverPictureChanged(let conversationID, _):
             // Cached like the roster summary/mute above, so a cold restore shows the edited
             // title/picture rather than the stale one until the next full metadata fetch.
             persistConversation(conversationID)
-        case .descriptionChanged, .coverPictureChanged:
-            // Description and cover picture aren't persisted, so there is nothing to write. Fold
-            // these into the title/picture case above if they gain a column.
+        case .descriptionChanged:
+            // Description isn't persisted, so there is nothing to write. Fold this into the
+            // title/picture case above if it gains a column.
             break
         case .typingChanged:
             break

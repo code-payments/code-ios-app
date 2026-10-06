@@ -265,6 +265,11 @@ nonisolated public struct ConversationTable: Sendable {
     public let pictureBlobID          = Expression <Data?>   ("pictureBlobID")
     public let pictureThumbnailBlobID = Expression <Data?>   ("pictureThumbnailBlobID")
     public let pictureThumbnailBlurhash = Expression <String?> ("pictureThumbnailBlurhash")
+    // The group's cover picture, same three-column layout. Written only when a conversation
+    // carries a cover — the feed RPCs omit it — so an unset cover never clears a stored one.
+    public let coverPictureBlobID          = Expression <Data?>   ("coverPictureBlobID")
+    public let coverPictureThumbnailBlobID = Expression <Data?>   ("coverPictureThumbnailBlobID")
+    public let coverPictureThumbnailBlurhash = Expression <String?> ("coverPictureThumbnailBlurhash")
     // Roster summary. Cached so a group restored cold reports its real member
     // count instead of zero while the metadata refetch is in flight.
     public let rosterMemberCount = Expression <UInt64> ("rosterMemberCount")
@@ -586,6 +591,9 @@ nonisolated extension Database {
                     t.column(conversationTable.pictureBlobID)
                     t.column(conversationTable.pictureThumbnailBlobID)
                     t.column(conversationTable.pictureThumbnailBlurhash)
+                    t.column(conversationTable.coverPictureBlobID)
+                    t.column(conversationTable.coverPictureThumbnailBlobID)
+                    t.column(conversationTable.coverPictureThumbnailBlurhash)
                     t.column(conversationTable.rosterMemberCount, defaultValue: 0)
                     t.column(conversationTable.rosterVersion, defaultValue: 0)
                     t.column(conversationTable.rules)

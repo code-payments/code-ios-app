@@ -41,9 +41,9 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     public var picture: ProfilePicture?
 
     /// The group's cover picture. Only ever set for group chats. The feed RPCs may leave it unset
-    /// even when the group has one, so the store keeps a held cover when a feed copy carries none —
-    /// `GetChat` is what fetches it. Not persisted: a conversation restored from the local database
-    /// reports `nil` until the server's copy refreshes it.
+    /// even when the group has one, so the store, and the database's upsert, keep a held cover
+    /// when a copy carries none — `GetChat` is what fetches it. Persisted, so a cold start shows it
+    /// before any `GetChat`.
     public var coverPicture: ProfilePicture?
 
     /// Summary of the chat's roster. Tells whether ``members`` — a subset for
