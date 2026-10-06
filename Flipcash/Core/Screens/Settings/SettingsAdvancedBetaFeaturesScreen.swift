@@ -53,14 +53,14 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
 
                     if betaFlags.accessGranted {
                         if !developerOptions.isEmpty {
-                            sectionHeader("Developer")
+                            SettingsSectionHeader("Developer")
 
                             ForEach(developerOptions) { option in
                                 BetaFlagToggleRow(option: option, isOn: betaFlags.bindingFor(option: option))
                             }
                         }
 
-                        sectionHeader("Account")
+                        SettingsSectionHeader("Account")
 
                         unlinkRow(title: "Unlink Email", isDisabled: session.profile?.email == nil) {
                             isConfirmingUnlinkEmail = true
@@ -69,7 +69,7 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
                             isConfirmingUnlinkPhone = true
                         }
 
-                        sectionHeader("Contracts")
+                        SettingsSectionHeader("Contracts")
 
                         ForEach(ContractInfo.all) { info in
                             ContractInfoRow(info: info)
@@ -120,18 +120,6 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
     }
 
     // MARK: - Subviews -
-
-    private func sectionHeader(_ title: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.appTextHeading)
-                .foregroundStyle(.textSecondary)
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 8)
-    }
 
     private func unlinkRow(title: String, isDisabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {

@@ -19,12 +19,9 @@ final class AccessKeyBackupSmokeTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Navigate: Wallet → You → Advanced → Access Key. The row is on
-        // Advanced, not My Account — `SettingsMyAccountScreen` keeps the
-        // account-level actions (Access Key, Log Out, Delete Account) off itself.
+        // Navigate: Wallet → You → gear → Access Key (Security section).
         settings.open(from: self)
-        settings.navigateToAdvancedFeatures(from: self)
-        waitAndTap(settings.accessKeyRow)
+        scrollUpToAndTap(settings.accessKeyRow, in: settings.scrollView)
 
         // Confirmation dialog: "View Your Access Key?"
         let dialog = app.otherElements["View Your Access Key?"]
@@ -44,10 +41,9 @@ final class AccessKeyBackupSmokeTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Wallet → You → Advanced → Access Key.
+        // Wallet → You → gear → Access Key.
         settings.open(from: self)
-        settings.navigateToAdvancedFeatures(from: self)
-        waitAndTap(settings.accessKeyRow)
+        scrollUpToAndTap(settings.accessKeyRow, in: settings.scrollView)
 
         let dialog = app.otherElements["View Your Access Key?"]
         XCTAssertTrue(dialog.waitForExistence(timeout: 10), "Expected access key confirmation dialog")
@@ -77,10 +73,9 @@ final class AccessKeyBackupSmokeTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Wallet → You → Advanced → Access Key.
+        // Wallet → You → gear → Access Key.
         settings.open(from: self)
-        settings.navigateToAdvancedFeatures(from: self)
-        waitAndTap(settings.accessKeyRow)
+        scrollUpToAndTap(settings.accessKeyRow, in: settings.scrollView)
 
         let dialog = app.otherElements["View Your Access Key?"]
         XCTAssertTrue(dialog.waitForExistence(timeout: 10), "Expected access key confirmation dialog")

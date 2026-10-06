@@ -24,11 +24,11 @@ final class LoginSmokeTests: BaseUITestCase {
         // Verify we're on the main screen
         assertMainScreenReached()
 
-        // Settings lives on the You tab now: You → Advanced → Log Out. The
-        // settings rows sit under the tip card, so scroll them into view.
+        // Settings is behind the gear on the You tab: You → gear → Log Out.
+        // Log Out sits near the foot of the list, so scroll it into view.
         waitAndTap(app.tabBars.buttons["You"].firstMatch)
-        scrollUpToAndTap(app.buttons["Advanced"], in: app.scrollViews.firstMatch)
-        waitAndTap(app.buttons["Log Out"])
+        waitAndTap(app.buttons["you-settings"])
+        scrollUpToAndTap(app.buttons["Log Out"], in: app.scrollViews.firstMatch)
 
         // Confirmation dialog — scoped to the dialog container
         let dialog = app.otherElements["Are You Sure You Want To Log Out?"]

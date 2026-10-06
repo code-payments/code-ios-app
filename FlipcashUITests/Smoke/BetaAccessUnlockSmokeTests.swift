@@ -38,13 +38,10 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
             "Expected the tenth tap to say beta access is unlocked"
         )
 
-        settings.navigateToAdvancedFeatures(from: self)
         XCTAssertTrue(
             settings.switchAccountsRow.waitForExistence(timeout: 10),
-            "Expected Switch Accounts on Advanced once beta access is unlocked"
+            "Expected Switch Accounts on Settings once beta access is unlocked"
         )
-
-        settings.leaveAdvancedFeatures(from: self)
 
         settings.tapVersionFooter(10, from: self)
         XCTAssertTrue(
@@ -52,10 +49,9 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
             "Expected ten more taps to lock beta access again"
         )
 
-        settings.navigateToAdvancedFeatures(from: self)
         XCTAssertTrue(
             settings.accessKeyRow.waitForExistence(timeout: 10),
-            "Expected Advanced to be on screen"
+            "Expected Settings to be on screen"
         )
         XCTAssertFalse(
             settings.switchAccountsRow.exists,
@@ -63,7 +59,7 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
         )
     }
 
-    /// Beta Features is reached through Advanced, one level past what the unlock
+    /// Beta Features is reached from Settings, one level past what the unlock
     /// test above visits. Confirms the Contracts section — new rows this repo
     /// didn't have before — renders once developer access is on.
     func testBetaFeatures_showsContractVersionsAfterUnlock() throws {
@@ -79,8 +75,7 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
             "Expected the tenth tap to say beta access is unlocked"
         )
 
-        settings.navigateToAdvancedFeatures(from: self)
-        waitAndTap(app.buttons["Beta Features"])
+        scrollUpToAndTap(app.buttons["Beta Features"], in: settings.scrollView)
 
         // Row wraps its content in a Button, so the combined accessibility
         // element carries the Button trait despite having no tap action.
@@ -91,8 +86,6 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
         XCTAssertTrue(flipcash2Row.exists)
 
         waitAndTap(app.navigationBars["Beta Features"].buttons.firstMatch)
-        settings.leaveAdvancedFeatures(from: self)
-
         settings.tapVersionFooter(10, from: self)
         XCTAssertTrue(
             settings.versionToast("Beta features are hidden again").waitForExistence(timeout: 5),
@@ -107,10 +100,7 @@ final class BetaAccessUnlockSmokeTests: BaseUITestCase {
     /// itself says nothing until it is tapped, and a tap is the thing under
     /// test.
     private func lockBetaAccessIfUnlocked(_ settings: SettingsUIScreen) {
-        settings.navigateToAdvancedFeatures(from: self)
         let isUnlocked = settings.switchAccountsRow.waitForExistence(timeout: 5)
-        settings.leaveAdvancedFeatures(from: self)
-
         guard isUnlocked else { return }
 
         settings.tapVersionFooter(10, from: self)
