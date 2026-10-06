@@ -396,7 +396,8 @@ struct BlobUploaderTests {
 
     @Test("Polls lost in transit still count toward the deadline")
     func lostPollsHonourTheDeadline() async throws {
-        let reserving = StubReserving(states: [], lostPolls: .max)
+        // Never three in a row, so only the overall budget ends the wait.
+        let reserving = StubReserving(states: [], lostAt: [1, 2, 4, 5])
         let uploader = BlobUploader(
             reserving: reserving,
             transport: RecordingTransport(),
@@ -411,6 +412,42 @@ struct BlobUploaderTests {
             return true
         }
         #expect(await reserving.pollCount == 5)
+    }
+
+    /// Offline, every poll waits out its RPC deadline, so the overall budget would hold the row at
+    /// Sending for minutes.
+    @Test("Three polls lost in a row give up as a network failure, well inside the budget")
+    func consecutiveLostPollsFailEarly() async throws {
+        let reserving = StubReserving(states: [], lostPolls: .max)
+        let uploader = BlobUploader(
+            reserving: reserving,
+            transport: RecordingTransport(),
+            pollInterval: .milliseconds(1),
+            timeout: .seconds(5)
+        )
+
+        await #expect {
+            try await uploader.awaitFinalization(blobID: StubReserving.blobID, owner: try Self.owner())
+        } throws: { error in
+            guard case ErrorBlob.network = error else { return false }
+            return true
+        }
+        #expect(await reserving.pollCount == 3)
+    }
+
+    @Test("A poll that gets through starts the lost-poll count again")
+    func answeredPollResetsLostStreak() async throws {
+        let reserving = StubReserving(states: [.processing, .processing, .ready], lostAt: [1, 2, 4, 5])
+        let uploader = BlobUploader(
+            reserving: reserving,
+            transport: RecordingTransport(),
+            pollInterval: .milliseconds(1),
+            timeout: .seconds(5)
+        )
+
+        try await uploader.awaitFinalization(blobID: StubReserving.blobID, owner: try Self.owner())
+
+        #expect(await reserving.pollCount == 7)
     }
 
     // MARK: - Fixtures -
@@ -573,17 +610,20 @@ private actor StubReserving: BlobReserving {
     private var states: [BlobState]
     private let completion: BlobState
     private var lostPolls: Int
+    private let lostAt: Set<Int>
     private(set) var pollCount = 0
     private(set) var reserveCount = 0
     private(set) var declaredSizeBytes: Int?
     private(set) var declaredMimeType: String?
     private(set) var encryptedFor: ConversationID?
 
-    /// `lostPolls` is how many polls fail in transit before the stub starts answering.
-    init(states: [BlobState], completion: BlobState = .processing, lostPolls: Int = 0) {
+    /// `lostPolls` is how many polls fail in transit before the stub starts answering; `lostAt`
+    /// names further polls, counted from 1, that fail in transit.
+    init(states: [BlobState], completion: BlobState = .processing, lostPolls: Int = 0, lostAt: Set<Int> = []) {
         self.states = states
         self.completion = completion
         self.lostPolls = lostPolls
+        self.lostAt = lostAt
     }
 
     func initiateExternalUpload(mimeType: String, sizeBytes: Int, encryptedFor: ConversationID?, owner: KeyPair) async throws -> ReservedUpload {
@@ -614,8 +654,8 @@ private actor StubReserving: BlobReserving {
 
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState {
         pollCount += 1
-        if lostPolls > 0 {
-            lostPolls -= 1
+        if lostPolls > 0 || lostAt.contains(pollCount) {
+            lostPolls = max(0, lostPolls - 1)
             throw ErrorBlob.network(URLError(.networkConnectionLost))
         }
         return states.isEmpty ? .processing : states.removeFirst()
