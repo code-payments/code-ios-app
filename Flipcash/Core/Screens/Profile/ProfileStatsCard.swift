@@ -18,7 +18,7 @@ struct ProfileStatsCard: View {
             stat(
                 title: "Minimum to Chat",
                 value: minimumToChat?.formatted() ?? "—",
-                valueFont: .default(size: 23, weight: .semibold),
+                valueFont: .appTextLarge,
                 identifier: "profile-stat-minimum"
             )
             .frame(width: 176)
@@ -29,28 +29,27 @@ struct ProfileStatsCard: View {
             stat(
                 title: "Date Joined",
                 value: joinedAt?.formatted(.dateTime.month(.wide).year()) ?? "—",
-                valueFont: .default(size: 17, weight: .medium),
+                valueFont: .appTextLarge,
                 identifier: "profile-stat-joined"
             )
             .frame(maxWidth: .infinity)
         }
         .frame(height: 84)
-        .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
     }
 
     private func stat(title: String, value: String, valueFont: Font, identifier: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.default(size: 11, weight: .medium))
-                .frame(minHeight: 15)
+                .font(.appTextCaption)
                 .foregroundStyle(Color.textSecondary)
             Text(value)
                 .font(valueFont)
                 .foregroundStyle(Color.textMain)
         }
         .padding(.leading, 16)
-        .padding(.top, 18)
+        .padding(.top, 16)
         // Top-aligned so both labels share a baseline even though the values differ in size.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .combine)

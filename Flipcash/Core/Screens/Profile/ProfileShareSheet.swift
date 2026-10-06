@@ -27,83 +27,59 @@ struct ProfileShareSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 0) {
-            Capsule()
-                .fill(Color(r: 102, g: 102, b: 106))
-                .frame(width: 40, height: 4)
-                .padding(.top, 8)
+        PartialSheet(background: .backgroundMain) {
+            VStack(spacing: 20) {
+                header
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Share User Profile")
-                    .font(.default(size: 21, weight: .semibold))
-                    .foregroundStyle(Color.textMain)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.default(size: 13, weight: .regular))
+                        .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                        // Same floor as ``MuteChatSheet``'s caption: `PartialSheet` can propose less
+                        // height than the text needs while it corrects to its measured size.
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity)
+                }
+
+                VStack(spacing: 12) {
+                    row(icon: Image.asset(.shareOS), title: "Share Profile", identifier: "profile-share-row", choice: .share)
+                    if offersCard {
+                        row(icon: Image(systemName: "person.crop.rectangle"), title: "Show Profile Card", identifier: "profile-card-row", choice: .showCard)
+                    }
+                    row(icon: Image.asset(.chainLink), title: "Copy Link", identifier: "profile-copy-link-row", choice: .copyLink)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 16)
             .padding(.top, 20)
-            .padding(.bottom, 12)
-
-            row(icon: Image.asset(.shareOS), title: "Share Profile", identifier: "profile-share-row", choice: .share)
-            if offersCard {
-                separator
-                row(icon: Image(systemName: "person.crop.rectangle"), title: "Show Profile Card", identifier: "profile-card-row", choice: .showCard)
-            }
-            separator
-            row(icon: Image.asset(.chainLink), title: "Copy Link", identifier: "profile-copy-link-row", choice: .copyLink)
-
-            Spacer(minLength: 0)
+            .padding(.bottom, bottomPadding)
         }
-        .frame(maxWidth: .infinity)
-        .presentationDetents([.height(detentHeight)])
-        .presentationDragIndicator(.hidden)
-        .presentationBackground(Color.backgroundSecondary)
-        .presentationCornerRadius(28)
     }
 
-    /// Handle, title block and rows, plus a small bottom margin. The sheet floats clear of the home
-    /// indicator on its own, so no extra room is added for it.
-    private var detentHeight: CGFloat {
-        let rows: CGFloat = offersCard ? 3 : 2
-        return 12 + 4 + 20 + 52 + 12 + rows * 64 + 8
+    /// Centred title with a close button, the same title bar as ``MuteChatSheet``.
+    private var header: some View {
+        ZStack {
+            Text("Share User Profile")
+                .font(.appBarButton)
+                .foregroundStyle(Color.textMain)
+
+            HStack {
+                Spacer()
+                CloseButton(style: .glass) { dismiss() }
+            }
+        }
     }
 
-    private var separator: some View {
-        Color(r: 58, g: 58, b: 60)
-            .frame(height: 1)
-            .padding(.leading, 54)
+    /// 16 under the last row, less what the sheet already holds back for the home indicator.
+    private var bottomPadding: CGFloat {
+        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
+        return max(0, 16 - reserved)
     }
 
     private func row(icon: Image, title: String, identifier: String, choice: ProfileShareChoice) -> some View {
-        Button {
+        ChatActionRow(icon: icon, title: title, accessibilityIdentifier: identifier) {
             onChoose(choice)
             dismiss()
-        } label: {
-            HStack(spacing: 6) {
-                icon
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
-                Text(title)
-                    .font(.default(size: 16, weight: .medium))
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 20, height: 20)
-                    .foregroundStyle(Color.textSecondary)
-            }
-            .foregroundStyle(Color.textMain)
-            .padding(.leading, 24)
-            .padding(.trailing, 24)
-            .frame(height: 64)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(identifier)
     }
 }

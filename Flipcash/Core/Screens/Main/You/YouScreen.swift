@@ -133,7 +133,7 @@ struct YouScreen: View {
                 if shouldPromptForUsername {
                     Button(action: claimUsername) {
                         Text("Claim your username ›")
-                            .font(.default(size: 14, weight: .medium))
+                            .font(.appTextSmall)
                             .foregroundStyle(Color.textMain)
                             .frame(minHeight: 22)
                     }
@@ -145,12 +145,9 @@ struct YouScreen: View {
     }
 
     private var shareButton: some View {
-        Button {
+        ProfileActionCircle(image: Image.asset(.shareOS)) {
             isShowingShare = true
-        } label: {
-            ProfileActionCircle(image: Image.asset(.shareOS))
         }
-        .buttonStyle(.plain)
         .accessibilityLabel("Share")
         .accessibilityIdentifier("you-share")
     }
