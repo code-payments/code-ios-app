@@ -267,6 +267,19 @@ final class AppRouter {
         return StackPosition(stack: stack, depth: max(self[stack].count - 1, 0))
     }
 
+    /// The topmost stack and how many destinations it holds — the position of the screen on top of it.
+    /// `nil` when there is no topmost stack.
+    func positionOfTopmost() -> StackPosition? {
+        guard let stack = topmostStack else { return nil }
+        return StackPosition(stack: stack, depth: self[stack].count)
+    }
+
+    /// Whether `position` is still the topmost stack's top, so nothing has been pushed over it and no
+    /// other tab or sheet is in front.
+    func isTopmost(_ position: StackPosition) -> Bool {
+        positionOfTopmost() == position
+    }
+
     /// Pops `position.stack` back down to `position.depth`, leaving whatever sat beneath intact.
     func popTo(_ position: StackPosition) {
         popLast(self[position.stack].count - position.depth, on: position.stack)

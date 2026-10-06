@@ -56,6 +56,10 @@ public final class ToastController {
         didSet { if isCovered { current = nil } }
     }
 
+    /// Extra room the toast keeps above the host's bottom edge, for a bar a screen pins there. Set
+    /// through ``View/toastClearance(_:)``.
+    public var bottomClearance: CGFloat = 0
+
     /// A controller with no toast showing.
     public init() {}
 
@@ -108,6 +112,36 @@ extension View {
     }
 }
 
+extension View {
+    /// Raises `controller`'s toast above this view, measured, for as long as it is on screen. Put it on
+    /// a bar a screen pins to the bottom edge, so a toast doesn't draw over it.
+    public func toastClearance(_ controller: ToastController) -> some View {
+        modifier(ToastClearance(controller: controller))
+    }
+}
+
+private struct ToastClearance: ViewModifier {
+    let controller: ToastController
+    @State private var height: CGFloat = 0
+    @State private var isVisible = false
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { newValue in
+                height = newValue
+                if isVisible { controller.bottomClearance = newValue }
+            }
+            .onAppear {
+                isVisible = true
+                controller.bottomClearance = height
+            }
+            .onDisappear {
+                isVisible = false
+                controller.bottomClearance = 0
+            }
+    }
+}
+
 private struct ToastHost: View {
     let controller: ToastController
     let bottomPadding: CGFloat
@@ -129,7 +163,7 @@ private struct ToastHost: View {
                     onDismiss: toast.action == nil ? nil : { controller.dismiss(toast.id) }
                 )
                 .allowsHitTesting(toast.action != nil)
-                .padding(.bottom, bottomPadding)
+                .padding(.bottom, bottomPadding + controller.bottomClearance)
                 .floatingToastTransition()
                 .id(toast.slot)
                 .task(id: toast.id) {

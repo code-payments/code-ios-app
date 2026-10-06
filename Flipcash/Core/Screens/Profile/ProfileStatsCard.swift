@@ -18,32 +18,40 @@ struct ProfileStatsCard: View {
             stat(
                 title: "Minimum to Chat",
                 value: minimumToChat?.formatted() ?? "—",
+                valueFont: .appTextLarge,
                 identifier: "profile-stat-minimum"
             )
+            .frame(width: 176)
 
             Color.rowSeparator
-                .frame(width: 1, height: 32)
+                .frame(width: 1, height: 48)
 
             stat(
                 title: "Date Joined",
-                value: joinedAt?.formatted(.dateTime.month(.abbreviated).year()) ?? "—",
+                value: joinedAt?.formatted(.dateTime.month(.wide).year()) ?? "—",
+                valueFont: .appTextLarge,
                 identifier: "profile-stat-joined"
             )
+            .frame(maxWidth: .infinity)
         }
-        .padding(.vertical, 16)
-        .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(height: 84)
+        .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+        .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
     }
 
-    private func stat(title: String, value: String, identifier: String) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
+    private func stat(title: String, value: String, valueFont: Font, identifier: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.appTextSmall)
+                .font(.appTextCaption)
                 .foregroundStyle(Color.textSecondary)
+            Text(value)
+                .font(valueFont)
+                .foregroundStyle(Color.textMain)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.leading, 16)
+        .padding(.top, 16)
+        // Top-aligned so both labels share a baseline even though the values differ in size.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
     }

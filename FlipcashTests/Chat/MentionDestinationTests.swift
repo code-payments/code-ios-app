@@ -59,9 +59,4 @@ import FlipcashCore
     @Test func aFailedLookupIsNotReadAsUnclaimed() {
         #expect(MentionDestination.destination(for: .failure(Offline()), counterpart: nil) == .lookupFailed)
     }
-
-    @Test func aMentionOffersChatActionsButNotMute() {
-        #expect(UserProfileOrigin.mention.showsChatActions(profileUserID: Self.otherID, selfUserID: Self.counterpartID))
-        #expect(!UserProfileOrigin.mention.showsMute)
-    }
 }

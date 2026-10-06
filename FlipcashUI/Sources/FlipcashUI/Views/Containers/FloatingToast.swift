@@ -151,7 +151,9 @@ private struct FloatingToastTransition: ViewModifier {
         content.transition(tabBar == nil ? Self.fromScreenEdge : Self.fromTabBar)
     }
 
-    private static let fromScreenEdge: AnyTransition = .move(edge: .bottom).combined(with: .opacity)
+    /// Rises a fixed distance rather than from the screen edge: a toast raised over a pinned bar would
+    /// otherwise travel the bar's height too. 56pt is the trip a toast 12pt off the edge always made.
+    private static let fromScreenEdge: AnyTransition = .offset(y: 56).combined(with: .opacity)
 
     /// Starts tucked behind the bar, which draws over the screen's content, and swells up out of it.
     private static let fromTabBar: AnyTransition = .modifier(

@@ -28,6 +28,9 @@ import FlipcashUI
 struct ChatMuteStatusLabel: View {
 
     let conversationID: ConversationID
+    /// Whether the label keeps its height while there is no mute. Off where the surrounding row
+    /// already fixes the height, so an empty label takes no space.
+    var reservesSpace = true
 
     @Environment(ConversationController.self) private var conversationController
 
@@ -65,8 +68,10 @@ struct ChatMuteStatusLabel: View {
             // Holds the line's height whether or not there is a mute, so the rows below don't move
             // the moment one lapses or is cleared — that reads as the screen re-laying itself out
             // rather than one fact going away. Never drawn, never read aloud.
-            chipLabel("Muted")
-                .hidden()
+            if reservesSpace {
+                chipLabel("Muted")
+                    .hidden()
+            }
 
             if let text {
                 chipLabel(text)
@@ -81,7 +86,7 @@ struct ChatMuteStatusLabel: View {
                     .id(text)
             }
         }
-        .padding(.top, 3)
+        .padding(.top, reservesSpace ? 3 : 0)
         // Springs in and fades out. Arriving is the event worth seeing — the user just chose it —
         // so it gets the overshoot; going away is either their unmute or a deadline passing, and
         // neither wants drawing attention to. Read against the new state, so each direction picks
@@ -103,10 +108,6 @@ struct ChatMuteStatusLabel: View {
     }
 
     private func chipLabel(_ string: String) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "bell.slash")
-            Text(string)
-        }
-        .chip(.tinted(.warning, on: .warningSecondary))
+        ProfileStatusChip(systemImage: "bell.slash", text: string, tint: .warning, fill: .warningSecondary)
     }
 }

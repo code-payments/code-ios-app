@@ -33,11 +33,15 @@ struct StartChattingSheet: View {
     /// opened for once the send lands and the floor no longer applies.
     let fee: FiatAmount
 
+    /// Called once the payment lands, before the sheet's success hold and dismissal.
+    var didSucceed: () -> Void = {}
+
     var body: some View {
         StartChattingSheetContent(
             sessionContainer: sessionContainer,
             target: target,
-            fee: fee
+            fee: fee,
+            onSuccess: didSucceed
         )
     }
 }
@@ -51,15 +55,18 @@ private struct StartChattingSheetContent: View {
     @State private var didSucceed: Bool = false
 
     private let fee: FiatAmount
+    private let onSuccess: () -> Void
 
     // MARK: - Init -
 
     init(
         sessionContainer: SessionContainer,
         target: SendTarget,
-        fee: FiatAmount
+        fee: FiatAmount,
+        onSuccess: @escaping () -> Void
     ) {
         self.fee = fee
+        self.onSuccess = onSuccess
         _viewModel = State(initialValue: SendAmountViewModel(
             sessionContainer: sessionContainer,
             target: target
@@ -108,6 +115,7 @@ private struct StartChattingSheetContent: View {
                     switch await viewModel.submit(entered: amount.value) {
                     case .success:
                         didSucceed = true
+                        onSuccess()
                     case .recipientNotFound:
                         dismiss()
                         throw StartChattingDismissed()

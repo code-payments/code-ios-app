@@ -20,6 +20,13 @@ extension View {
         modifier(SoftScrollEdge(edges: edges))
     }
 
+    /// Hides the top scroll edge effect until the scroll view has moved past `offset`, for a screen
+    /// whose content starts with a full-bleed image under the bar: at rest the effect would only
+    /// darken that image and leave a visible band where it stops. No-op below iOS 26.
+    public func hidesTopScrollEdge(untilOffset offset: CGFloat) -> some View {
+        modifier(HidesTopScrollEdge(offset: offset))
+    }
+
     /// Pins `bar` to `edge` so the scroll content below it runs underneath. On iOS 26+ the bar joins
     /// the scroll edge effect; before that it's a plain safe-area inset.
     @ViewBuilder
@@ -39,6 +46,25 @@ private struct SoftScrollEdge: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.scrollEdgeEffectStyle(.soft, for: edges)
+        } else {
+            content
+        }
+    }
+}
+
+private struct HidesTopScrollEdge: ViewModifier {
+
+    let offset: CGFloat
+
+    @State private var isPastOffset = false
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y > offset } action: { _, isPast in
+                    isPastOffset = isPast
+                }
+                .scrollEdgeEffectHidden(!isPastOffset, for: .top)
         } else {
             content
         }
