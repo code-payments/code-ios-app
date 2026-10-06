@@ -25,6 +25,7 @@ struct UserProfileScreen: View {
     var body: some View {
         let seed = sessionContainer.conversationController.counterpartSeed(forUserID: userID)
         UserProfileContent(
+            origin: origin,
             model: UserProfileViewModel(
                 userID: userID,
                 flipClient: sessionContainer.flipClient,
@@ -49,18 +50,19 @@ private struct UserProfileContent: View {
     @Environment(ConversationController.self) private var conversationController
     @Environment(BlocklistController.self) private var blocklistController
 
+    let origin: UserProfileOrigin
+
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
     @State private var isPickingMuteDuration = false
     @State private var isReporting = false
     @State private var startChattingRequest: StartChattingRequest?
-    /// Set when the payment lands; promoted to `awaitingChat` once the sheet has dismissed.
-    @State private var didPayToStartChatting = false
-    /// True from the sheet's dismissal until the chat's record arrives over the feed, so the push
-    /// happens once and only for a chat this screen just paid for.
-    @State private var awaitingChat = false
+    @State private var postPayment = PostPaymentChat()
+    /// Where this screen sits in its stack, recorded when it first appears.
+    @State private var position: AppRouter.StackPosition?
 
-    init(model: UserProfileViewModel) {
+    init(origin: UserProfileOrigin, model: UserProfileViewModel) {
+        self.origin = origin
         _model = State(initialValue: model)
     }
 
@@ -104,6 +106,12 @@ private struct UserProfileContent: View {
     private var menuItems: [ProfileMenuItem] {
         guard !isSelf else { return [] }
         return ProfileMenuItems.resolve(isBlocked: isBlocked, hasDM: dmID != nil, isMuted: isMuted)
+    }
+
+    /// Whether this profile is the visible top of its stack, with its tab or sheet active.
+    private var isScreenInFront: Bool {
+        guard let position else { return false }
+        return router.isTopmost(position)
     }
 
     private var sendTarget: SendTarget {
@@ -153,26 +161,29 @@ private struct UserProfileContent: View {
             }
         }
         .sheet(item: $startChattingRequest, onDismiss: {
-            guard didPayToStartChatting else { return }
-            didPayToStartChatting = false
-            awaitingChat = true
+            if let id = postPayment.sheetDismissed(dmID: dmID, isScreenInFront: isScreenInFront) {
+                router.push(.tipConversation(id))
+            }
         }) { request in
             StartChattingSheet(target: request.target, fee: request.fee) {
-                didPayToStartChatting = true
+                postPayment.paymentSucceeded()
             }
         }
         .onChange(of: dmID) { _, id in
-            guard awaitingChat, let id else { return }
-            awaitingChat = false
-            router.push(.tipConversation(id))
+            if let id = postPayment.dmArrived(id, isScreenInFront: isScreenInFront) {
+                router.push(.tipConversation(id))
+            }
         }
         // The record normally lands within a moment; past this the profile stays put and its
         // button has already flipped to Open Chat.
-        .task(id: awaitingChat) {
-            guard awaitingChat else { return }
+        .task(id: postPayment.isAwaitingChat) {
+            guard postPayment.isAwaitingChat else { return }
             try? await Task.sleep(for: .seconds(10))
             guard !Task.isCancelled else { return }
-            awaitingChat = false
+            postPayment.gaveUp()
+        }
+        .onAppear {
+            if position == nil { position = router.positionOfTopmost() }
         }
         .task { await model.loadProfile() }
     }
@@ -203,6 +214,7 @@ private struct UserProfileContent: View {
                 Image.asset(.shareOS)
                     .renderingMode(.template)
             }
+            .accessibilityLabel("Share profile")
             .accessibilityIdentifier("profile-share")
         }
 
@@ -219,6 +231,7 @@ private struct UserProfileContent: View {
                 } label: {
                     Image.system(.ellipsis)
                 }
+                .accessibilityLabel("More")
                 .accessibilityIdentifier("profile-overflow")
             }
         }
@@ -230,11 +243,18 @@ private struct UserProfileContent: View {
             isPickingMuteDuration = true
         case .unmute:
             guard let dmID else { return }
+            let chatType = conversationController.conversation(withID: dmID)?.type
             Task {
                 do {
                     try await conversationController.unmute(conversationID: dmID)
+                    Analytics.chatUnmuted(chatType: chatType, error: nil)
                 } catch {
-                    ErrorReporting.captureError(error, reason: "Failed to unmute chat from profile")
+                    Analytics.chatUnmuted(chatType: chatType, error: error)
+                    session.dialogItem = .error(
+                        title: "Something Went Wrong",
+                        subtitle: "We were unable to unmute this chat. Please try again"
+                    )
+                    ErrorReporting.captureError(error, reason: "Failed to unmute chat")
                 }
             }
         case .report:
@@ -276,17 +296,28 @@ private struct UserProfileContent: View {
         case .unblock:
             Task { await model.unblock() }
         case .openChat(let id):
-            router.push(.tipConversation(id))
+            if origin.returnsToExistingDM {
+                router.popTopmost()
+            } else {
+                router.push(.tipConversation(id))
+            }
         case .startChattingUnpriced:
+            guard passesGiveCashGate() else { return }
             router.presentSendAmount(sendTarget)
         case .startChatting(let fee):
-            let rate = ratesController.rateForBalanceCurrency()
-            if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat, context: .sendTips) {
-                session.dialogItem = dialog
-                return
-            }
+            guard passesGiveCashGate() else { return }
             startChattingRequest = StartChattingRequest(target: sendTarget, fee: fee)
         }
+    }
+
+    /// Shows the blocking dialog and returns false when the viewer can't pay yet.
+    private func passesGiveCashGate() -> Bool {
+        let rate = ratesController.rateForBalanceCurrency()
+        guard let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat, context: .sendTips) else {
+            return true
+        }
+        session.dialogItem = dialog
+        return false
     }
 
     /// Only a DM that will actually be encrypted claims to be — see ``E2eePolicy``.
@@ -320,6 +351,15 @@ nonisolated enum UserProfileOrigin: Hashable {
     case mention
     /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.
     case deeplink
+
+    /// Whether Open Chat returns to the DM the profile was opened from rather than pushing a
+    /// second copy of it.
+    var returnsToExistingDM: Bool {
+        switch self {
+        case .directMessage:                          return true
+        case .groupMember, .mention, .deeplink:       return false
+        }
+    }
 
     /// Whether the profile was fetched and cached just before the screen opened, so the screen
     /// reads the cache instead of fetching again. A link is looked up before it navigates.

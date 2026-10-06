@@ -3,6 +3,7 @@
 //  Flipcash
 //
 
+/// An entry in another user's overflow menu.
 nonisolated enum ProfileMenuItem: Equatable {
     case mute
     case unmute
@@ -10,6 +11,7 @@ nonisolated enum ProfileMenuItem: Equatable {
     case block
     case unblock
 
+    /// The entry's label.
     var title: String {
         switch self {
         case .mute:    return "Mute"
@@ -20,6 +22,7 @@ nonisolated enum ProfileMenuItem: Equatable {
         }
     }
 
+    /// The SF Symbol drawn beside the label.
     var systemImage: String {
         switch self {
         case .mute:    return "bell.slash"

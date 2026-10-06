@@ -30,7 +30,7 @@ struct ProfileMenuItemsTests {
         #expect(ProfileMenuItems.resolve(isBlocked: true, hasDM: hasDM, isMuted: false) == [.report, .unblock])
     }
 
-    @Test("Report, Block and Unblock are destructive; Unblock and the mutes are not")
+    @Test("Report and Block are destructive; Unblock and the mutes are not")
     func destructive() {
         #expect(ProfileMenuItem.report.isDestructive)
         #expect(ProfileMenuItem.block.isDestructive)
