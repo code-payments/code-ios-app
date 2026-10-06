@@ -101,6 +101,25 @@ struct ProfileCreationStateTests {
         #expect(state.selectedImage == nil)
     }
 
+    @Test("The cover slot attaches through the cover call, the avatar slot through the avatar call")
+    func slotRoutesAttach() async throws {
+        let blobID = BlobID(data: Data(repeating: 7, count: 16))
+        var calls: [String] = []
+
+        try await SessionProfilePictureUploader.attach(
+            blobID, to: .cover,
+            setAvatar: { _ in calls.append("avatar") },
+            setCover: { id in #expect(id == blobID); calls.append("cover") }
+        )
+        try await SessionProfilePictureUploader.attach(
+            blobID, to: .avatar,
+            setAvatar: { id in #expect(id == blobID); calls.append("avatar") },
+            setCover: { _ in calls.append("cover") }
+        )
+
+        #expect(calls == ["cover", "avatar"])
+    }
+
     @Test("Uploading without a photo fails before reserving anything")
     func uploadingWithoutAPhotoDoesNotReserve() async throws {
         let uploader = StubUploader()
@@ -172,7 +191,7 @@ private final class StubUploader: ProfilePictureUploading {
         try finalization.get()
     }
 
-    func setProfilePicture(blobID: BlobID) async throws {
+    func attach(blobID: BlobID) async throws {
         setPictureCount += 1
     }
 

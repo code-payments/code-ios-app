@@ -94,7 +94,7 @@ struct UsernameLookupScreen: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $errorDialog)
-        .onAppear { isFocused = true }
+        .focusAfterPush($isFocused)
         // Backing out abandons the lookup rather than pushing a chat onto a
         // stack the user has left. Fires on the hand-off too, once the chat
         // covers this screen, which is why the hand-off detaches itself first.

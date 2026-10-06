@@ -27,9 +27,9 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
 
     static var inset: CGFloat { 24 }
 
-    private static var avatarSize: CGFloat { 84 }
+    static var avatarSize: CGFloat { 84 }
     /// How far the avatar rises over the banner.
-    private static var avatarOverlap: CGFloat { 42 }
+    static var avatarOverlap: CGFloat { 42 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

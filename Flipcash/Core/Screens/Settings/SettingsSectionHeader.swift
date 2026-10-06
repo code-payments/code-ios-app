@@ -18,6 +18,7 @@ struct SettingsSectionHeader: View {
     var body: some View {
         HStack {
             Text(title)
+                .textCase(.uppercase)
                 .font(.appTextHeading)
                 .foregroundStyle(.textSecondary)
             Spacer()

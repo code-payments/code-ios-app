@@ -35,6 +35,7 @@ struct YouScreen: View {
 
     @State private var isShowingShare = false
     @State private var shareChoice: ProfileShareChoice?
+    @State private var isShowingCardDownload = false
 
     /// The gap the page keeps between its last row and the tab bar.
     private static let tabBarGap: CGFloat = 24
@@ -85,8 +86,11 @@ struct YouScreen: View {
                 settingsGear
             }
         }
-        .fullScreenCover(isPresented: Bindable(router).isShowingProfileCard) {
-            ProfileCardScreen(previewCache: previewCache)
+        .overlay {
+            if router.isShowingProfileCard {
+                ProfileCardScreen(isShowingDownloadOptions: $isShowingCardDownload)
+                    .transition(.asymmetric(insertion: .identity, removal: .opacity))
+            }
         }
         .task(id: profilePicture?.thumbnailBlobID) {
             // There is no card to share, and so no preview worth rendering, until
@@ -121,8 +125,7 @@ struct YouScreen: View {
             bannerControls: { EmptyView() },
             rowActions: {
                 ProfileEditCapsule {
-                    // The Edit Profile slice repoints this to `.editProfile`.
-                    router.push(.settings)
+                    router.push(.editProfile)
                 }
                 .accessibilityIdentifier("you-edit-profile")
 
@@ -153,14 +156,26 @@ struct YouScreen: View {
         .accessibilityIdentifier("you-share")
     }
 
+    /// Settings, or Download while the profile card is up. One button so the glass
+    /// stays put and only the glyph changes.
     private var settingsGear: some View {
-        Button {
-            router.push(.settings)
+        let showsDownload = router.isShowingProfileCard
+        return Button {
+            if showsDownload {
+                isShowingCardDownload = true
+            } else {
+                router.push(.settings)
+            }
         } label: {
             Image(systemName: "gearshape")
+                .opacity(showsDownload ? 0 : 1)
+                .overlay {
+                    Image.asset(.fileDownload)
+                        .opacity(showsDownload ? 1 : 0)
+                }
         }
-        .accessibilityLabel("Settings")
-        .accessibilityIdentifier("you-settings")
+        .accessibilityLabel(showsDownload ? "Download" : "Settings")
+        .accessibilityIdentifier(showsDownload ? "you-download-button" : "you-settings")
     }
 
     // MARK: - No name -
@@ -301,11 +316,16 @@ struct YouScreen: View {
         ShareSheet.present(activityItem: item) { _ in }
     }
 
+    /// Shows the card; it runs its own scan-style reveal, and the toolbar glyph fades to Download alongside.
+    private func showProfileCard() {
+        withAnimation(ProfileCardScreen.fade) { router.isShowingProfileCard = true }
+    }
+
     private func handleShareChoice() {
         defer { shareChoice = nil }
         switch shareChoice {
         case .share:    shareTipCard()
-        case .showCard: router.isShowingProfileCard = true
+        case .showCard: showProfileCard()
         case .copyLink: copyLink()
         case nil:       break
         }

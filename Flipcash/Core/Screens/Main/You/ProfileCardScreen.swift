@@ -8,16 +8,16 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// The user's tip card full screen (Figma node 9277:121410), with the copyable public link and the
-/// Share/Download pair under it. Presented over the You tab from the profile's Share menu.
+/// The user's profile card over the You tab, with Close pinned to the bottom. Drawn
+/// inside the tab rather than as a cover so the tab's own toolbar button, swapped to
+/// Download, stays the only glass in the corner.
 struct ProfileCardScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
-    @Environment(\.dismiss) private var dismiss
+    @Environment(AppRouter.self) private var router
 
-    /// Warmed by `YouScreen`, which outlives this screen, so reopening reuses the render.
-    let previewCache: TipCodePreviewCache
-    @State private var isShowingDownloadOptions = false
+    /// Raised by the You tab's toolbar button while the card is up.
+    @Binding var isShowingDownloadOptions: Bool
 
     /// The format tapped in the download sheet, held until the sheet is gone so
     /// the share sheet has a settled controller to present on.
@@ -25,6 +25,11 @@ struct ProfileCardScreen: View {
 
     /// The brightness to put back on close — set only when this screen raised it.
     @State private var previousBrightness: CGFloat?
+
+    /// The backdrop and Close fade in on this; removal fades the whole overlay instead.
+    @State private var isRevealed = false
+    /// The card's scale springs on this, separately, so it can bounce while its opacity eases with the backdrop.
+    @State private var isCardShown = false
 
     /// The card's width, from the full-screen frame (302 of the 402pt frame).
     private static let maxCardWidth: CGFloat = 302
@@ -34,42 +39,42 @@ struct ProfileCardScreen: View {
     private static let minimumScanBrightness: CGFloat = 0.4
     private static let boostedBrightness: CGFloat = 0.6
 
+    /// The scanned-card pop from `BillCanvas` (0.55 scale, 0.4s at 0.4 damping).
+    private static let revealScale: CGFloat = 0.55
+    private static let revealSpring: Animation = .spring(duration: 0.4, bounce: 0.6)
+
+    /// The open and close fade, shared with the toolbar glyph swap so the two move together.
+    static let fade: Animation = .easeOut(duration: 0.25)
+
     var body: some View {
-        Background(color: .backgroundMain) {
+        ZStack {
+            Color.backgroundMain
+                .ignoresSafeArea()
+                .opacity(isRevealed ? 1 : 0)
+
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    if let name = displayName {
-                        TipcardView(
-                            size: cardSize,
-                            name: name,
-                            avatar: nil,
-                            codeData: codeData,
-                            tintOpacity: 0.36,
-                            subtitle: username.map(\.handle)
-                        )
-                        .padding(.top, 24)
-                    }
-
-                    TipCardLinkRow(url: url)
-                        .padding(.top, 32)
-
-                    HStack(spacing: 10) {
-                        TipCardActionButton(asset: .shareOS, title: "Share", action: shareTipCard)
-                            .accessibilityIdentifier("you-share-button")
-
-                        TipCardActionButton(asset: .fileDownload, title: "Download") {
-                            isShowingDownloadOptions = true
-                        }
-                        .accessibilityIdentifier("you-download-button")
-                    }
-                    .padding(.top, 11)
-
-                    closeButton
-                        .padding(.top, 24)
+                if let name = displayName {
+                    TipcardView(
+                        size: cardSize,
+                        name: name,
+                        avatar: nil,
+                        codeData: codeData,
+                        tintOpacity: 0.36,
+                        subtitle: username.map(\.handle)
+                    )
+                    .scaleEffect(isCardShown ? 1 : Self.revealScale)
+                    .opacity(isRevealed ? 1 : 0)
+                    .padding(.horizontal, Self.horizontalInset)
+                    .containerRelativeFrame(.vertical, alignment: .center)
                 }
-                .padding(.horizontal, Self.horizontalInset)
-                .containerRelativeFrame(.vertical, alignment: .center)
             }
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button("Close", action: close)
+                .buttonStyle(.subtle)
+                .opacity(isRevealed ? 1 : 0)
+                .accessibilityIdentifier("profile-card-close")
+                .padding(.horizontal, Self.horizontalInset)
         }
         .sheet(isPresented: $isShowingDownloadOptions, onDismiss: exportPendingDownload) {
             TipCardDownloadSheet(
@@ -77,25 +82,11 @@ struct ProfileCardScreen: View {
                 onCancel: { isShowingDownloadOptions = false }
             )
         }
-        .onAppear(perform: boostBrightness)
-        .onDisappear(perform: restoreBrightness)
-    }
-
-    private var closeButton: some View {
-        Button {
-            dismiss()
-        } label: {
-            Text("Close")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textMain)
-                .opacity(0.5)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 20)
-                .contentShape(Rectangle())
+        .onAppear {
+            boostBrightness()
+            reveal()
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Close")
-        .accessibilityIdentifier("profile-card-close")
+        .onDisappear(perform: restoreBrightness)
     }
 
     // MARK: - Content -
@@ -113,8 +104,6 @@ struct ProfileCardScreen: View {
         TipCode.Payload(userID: sessionContainer.session.userID).codeData()
     }
 
-    private var url: URL { .tipcard(for: sessionContainer.session.userID, username: username) }
-
     private var cardSize: CGSize {
         let screenWidth = UIApplication.shared.firstWindowScene?.screen.bounds.width ?? Self.maxCardWidth
         let width = min(Self.maxCardWidth, screenWidth - Self.horizontalInset * 2)
@@ -122,15 +111,6 @@ struct ProfileCardScreen: View {
     }
 
     // MARK: - Actions -
-
-    private func shareTipCard() {
-        let item = TipCodeShareItem.profile(
-            url: url,
-            displayName: displayName,
-            preview: previewCache.preview(for: sessionContainer.session.userID)
-        )
-        ShareSheet.present(activityItem: item) { _ in }
-    }
 
     /// Exports the format the sheet picked and hands the file to the share
     /// sheet, which is where iOS puts "Save to Files" and every other
@@ -152,6 +132,19 @@ struct ProfileCardScreen: View {
             // through with it.
             TipCardExport.discard(file)
         }
+    }
+
+    // MARK: - Reveal -
+
+    private func reveal() {
+        Haptics.vibrate()
+        withAnimation(Self.fade) { isRevealed = true }
+        withAnimation(Self.revealSpring) { isCardShown = true }
+    }
+
+    /// Fades the card out at full size; the overlay's removal transition carries the fade.
+    private func close() {
+        withAnimation(Self.fade) { router.isShowingProfileCard = false }
     }
 
     // MARK: - Brightness -

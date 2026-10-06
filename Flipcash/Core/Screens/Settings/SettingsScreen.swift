@@ -36,7 +36,6 @@ struct SettingsScreen: View {
         Background(color: .backgroundMain) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    profileSection
                     securitySection
                     privacySection
                     advancedSection
@@ -55,37 +54,6 @@ struct SettingsScreen: View {
     }
 
     // MARK: - Sections -
-
-    /// Interim: Edit Profile replaces this section.
-    private var profileSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsSectionHeader("Profile")
-
-            SettingsRow(systemImage: "person.text.rectangle", title: "Display Name", insets: insets) {
-                router.push(.changeDisplayName)
-            }
-
-            // No balance gate here: the gate exists to stop squatting at claim time. A user who
-            // already holds a handle has cleared it, and re-gating a change would hold their
-            // handle hostage to a balance that has since moved.
-            if let username = session.profile?.username {
-                SettingsRow(systemImage: "at", title: "Username", insets: insets) {
-                    router.push(.username(username))
-                }
-                .accessibilityIdentifier("account-change-username-row")
-            }
-
-            SettingsRow(asset: .profilePicture, title: "Profile Picture", insets: insets) {
-                router.push(.changeProfilePicture)
-            }
-            .accessibilityIdentifier("account-profile-picture-row")
-
-            SettingsRow(asset: .coins, title: "Minimum To Chat", insets: insets) {
-                router.push(.setMinimumTip(isSetupStep: false))
-            }
-            .accessibilityIdentifier("account-minimum-tip-row")
-        }
-    }
 
     private var securitySection: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -140,10 +108,12 @@ struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsSectionHeader("Account")
 
-            SettingsRow(systemImage: "person.crop.circle", title: "Account Info", insets: insets) {
-                router.push(.accountInfo)
+            if betaFlags.canViewAccountInfo {
+                SettingsRow(systemImage: "person.crop.circle", title: "Account Info", badge: .beta, insets: insets) {
+                    router.push(.accountInfo)
+                }
+                .accessibilityIdentifier("settings-account-info-row")
             }
-            .accessibilityIdentifier("settings-account-info-row")
 
             SettingsRow(asset: .logout, title: "Log Out", insets: insets) {
                 dialogItem = .alert(
