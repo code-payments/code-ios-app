@@ -190,7 +190,7 @@ private struct FieldCard: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.appTextSmall)
+                        .font(.appTextCaption)
                         .foregroundStyle(Color.textSecondary)
                     Text(value ?? placeholder)
                         .font(.appTextMedium)
