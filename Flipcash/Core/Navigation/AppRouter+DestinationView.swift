@@ -210,17 +210,6 @@ struct DestinationView: View {
             ConversationScreen(context: .existing(conversationID), openKeyboard: true)
                 .id(conversationID)
 
-        case .tipConversationForUser(let userID):
-            // Opened before the chat exists, so the screen is given the person
-            // and derives the chat id itself. `.id` forces fresh view identity.
-            ConversationScreen(context: .tipDM(counterpart: userID))
-                .id(userID)
-
-        case .tipConversationForUserSendingCash(let userID):
-            // The profile's Send Cash: the same chat, with the send started on open.
-            ConversationScreen(context: .tipDM(counterpart: userID), startSendCash: true)
-                .id(userID)
-
         case .userProfile(let userID, let origin):
             UserProfileScreen(userID: userID, origin: origin)
                 .id(userID)

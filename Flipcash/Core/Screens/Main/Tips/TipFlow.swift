@@ -11,8 +11,7 @@ private let logger = Logger(label: "flipcash.tip-flow")
 
 /// Session-scoped orchestrator for opening someone's tipcard. Entered from a
 /// scanned tipcode or a legacy `/tip/<userId>` link, it gates the entry (profile), resolves
-/// the recipient, shows the card, and hands over to their chat — where the
-/// amount is chosen and sent (node 10074:18893).
+/// the recipient, shows the card, and hands over to their profile.
 @Observable
 final class TipFlow {
 
@@ -22,7 +21,7 @@ final class TipFlow {
 
     @ObservationIgnored private var prepTask: Task<Void, Never>?
 
-    /// The hold between the card landing and the chat opening. Held so a
+    /// The hold between the card landing and the profile opening. Held so a
     /// dismissed card cancels the hand-off, and so a second entry can't start
     /// while one is mid-flight.
     @ObservationIgnored private var routeTask: Task<Void, Never>?
@@ -53,11 +52,9 @@ final class TipFlow {
     /// (routed to the user's own profile), then a tippable profile (held +
     /// profile creation presented).
     ///
-    /// No balance gate: this flow no longer moves money, it opens a chat. The
-    /// giveable-balance check belongs to the send the chat makes, and
-    /// `ConversationScreen.sendCash()` already applies it there — gating the
-    /// card as well would stop an empty-balance user from reaching a
-    /// conversation they can read and reply in.
+    /// No balance gate: this flow no longer moves money, it opens a profile.
+    /// The giveable-balance check belongs to the payment that starts the chat,
+    /// which the profile applies.
     func begin(userID: UserID) {
         // Tipping yourself is a payment no-op, so there's no flow to start from
         // your own code — show the user their own profile rather than swallow
@@ -154,9 +151,8 @@ final class TipFlow {
                 }
 
                 guard !Task.isCancelled else { return }
-                // The chat is created by the first tip, so until then the
-                // conversation's only source for the counterpart's name,
-                // picture, and handle is the profile this resolve fetched.
+                // The profile screen reads this instead of fetching again; see
+                // `UserProfileOrigin.arrivesFetched`.
                 session.cacheUserProfile(profile, for: userID)
                 present(userID: userID, profile: profile)
                 await loadAvatar(userID: userID, picture: profile.profilePicture)
@@ -182,12 +178,11 @@ final class TipFlow {
     }
 
     /// Shows the resolved card, holds it long enough to read whose it is, then
-    /// pops it away as the chat with them pushes in underneath.
+    /// pops it away as their profile pushes in underneath.
     ///
     /// The card is the confirmation that the right code was scanned, not a
-    /// place to compose from: the amount is chosen in the chat, behind the
-    /// "Start Chatting" CTA, which is where the username lookup already lands
-    /// (node 10074:18893).
+    /// place to compose from. The profile is where the chat starts, and it is
+    /// where a scan lands even once the DM exists, offering Open Chat there.
     private func present(userID: UserID, profile: Profile) {
         // The card is resolved and about to show, whether reached from a scan or
         // a deep link — the second step of the Scanned → Presented → Sent Tip funnel.
@@ -199,9 +194,9 @@ final class TipFlow {
         keyboard.suppress()
 
         // A tip deep link can beat the app's foreground stream refresh, so kick the
-        // rate stream to reconnect now, while the card animates in. The chat's CTA
-        // names the fee in the display currency and its amount screen priced in it,
-        // so both want a rate the moment they appear.
+        // rate stream to reconnect now, while the card animates in. The profile's
+        // pinned button names the fee in the display currency, so it wants a rate
+        // the moment it appears.
         ratesController.ensureStreamConnected()
 
         session.billState = BillState(bill: .tipcard(
@@ -213,11 +208,11 @@ final class TipFlow {
         session.presentationState = .visible(.pop)
 
         // The card's pop is given 750ms to settle and be read, then it leaves
-        // and the chat arrives together: the dismissal and the route happen in
-        // the same tick, so the card's 100ms exit plays over the chat pushing
+        // and the profile arrives together: the dismissal and the route happen in
+        // the same tick, so the card's 100ms exit plays over the profile pushing
         // in rather than handing back to the camera in between. Cancelled by
         // `cancel()`, so a card the user drags away during the hold never drops
-        // them into a chat they backed out of.
+        // them onto a profile they backed out of.
         routeTask = Task { [weak self] in
             defer { self?.routeTask = nil }
             try? await Task.delay(milliseconds: 750)
@@ -228,10 +223,11 @@ final class TipFlow {
             }
 
             // `navigate` rather than `push`: the card is an app-root overlay
-            // raised over whichever tab the scan or link arrived on, and a tip
-            // DM belongs on the Tips stack. This brings that tab forward with
-            // the chat as its only entry, so Back lands on the chat list.
-            router.navigate(to: .tipConversationForUser(userID))
+            // raised over whichever tab the scan or link arrived on, and the DM
+            // the profile leads to belongs on the Tips stack. This brings that
+            // tab forward with the profile as its only entry, so Back lands on
+            // the chat list.
+            router.navigate(to: .userProfile(userID, origin: .scan))
         }
     }
 

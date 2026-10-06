@@ -129,7 +129,7 @@ public struct TransactionDetails: Sendable, Equatable, Hashable {
     /// nothing else.
     public let canCancel: Bool
 
-    /// Whether the counterparty's conversation can be opened from here.
+    /// Whether the counterparty can be opened from here: their DM, or their profile until it exists.
     public let canViewInChat: Bool
 
     /// The line the header actually renders.
@@ -177,10 +177,9 @@ extension TransactionDetails {
         self.fee = swap?.fee
         self.received = swap?.toFiat
         self.canCancel = activity.cancellableCashLinkMetadata != nil
-        // Opening the conversation needs somebody to open it with, and only a
-        // user id identifies one — a phone-number counterparty has no chat. The
-        // display name is not required: the chat screen derives its own header
-        // from the id (see `AppRouter.Destination.tipConversationForUser`).
+        // Opening the person needs somebody to open, and only a user id
+        // identifies one — a phone-number counterparty has no chat or profile.
+        // The display name is not required: the profile fetches its own.
         self.canViewInChat = activity.counterparty?.userID != nil
     }
 
