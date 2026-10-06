@@ -8,9 +8,8 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-/// The username lookup opens the counterpart's chat (node 9443:8928), which
-/// does not exist server-side until the first tip. These cover what the screen
-/// has to resolve from the fetched profile alone in the meantime.
+/// The username lookup opens the counterpart's profile until a DM with them
+/// exists, and the DM after that.
 @MainActor
 @Suite("Username lookup routing")
 struct UsernameLookupRoutingTests {
@@ -26,26 +25,20 @@ struct UsernameLookupRoutingTests {
 
     // MARK: - Destination -
 
-    @Test("The chat destination belongs to the tips stack")
-    func destination_ownedByTipsStack() {
-        #expect(AppRouter.Destination.tipConversationForUser(UUID()).owningStack == .tips)
-    }
-
-    @Test("The chat destination logs the counterpart as its payload")
-    func destination_payloadIsCounterpart() {
+    @Test("Without a DM, the lookup lands on the profile, owned by the tips stack, keyed by the user")
+    func destination_withoutDMIsTheProfile() {
         let userID = UUID()
-        let destination = AppRouter.Destination.tipConversationForUser(userID)
-        #expect(destination.description == "tipConversationForUser")
+        let destination = DMRoute.destination(for: userID, dmID: nil, origin: .usernameLookup)
+        #expect(destination == .userProfile(userID, origin: .usernameLookup))
+        #expect(destination.owningStack == .tips)
         #expect(destination.payload == userID.uuidString)
     }
 
-    @Test("Two lookups of the same person are the same destination")
-    func destination_isStablePerCounterpart() {
-        let userID = UUID()
-        #expect(
-            AppRouter.Destination.tipConversationForUser(userID)
-                == AppRouter.Destination.tipConversationForUser(userID)
-        )
+    @Test("With a DM, the lookup lands on the chat")
+    func destination_withDMIsTheChat() {
+        let (me, them) = (UUID(), UUID())
+        let dmID = ConversationID.tipDm(between: me, and: them)
+        #expect(DMRoute.destination(for: them, dmID: dmID, origin: .usernameLookup) == .tipConversation(dmID))
     }
 
     // MARK: - Context -
@@ -95,21 +88,26 @@ struct UsernameLookupRoutingTests {
         #expect(router[.tips].count == 2)
     }
 
-    @Test("Back from a chat opened by handle lands on the chat list")
-    func backStack_rewriteLeavesOnlyTheChat() {
+    @Test(
+        "Back from a profile or chat opened by handle lands on the chat list",
+        arguments: [false, true]
+    )
+    func backStack_rewriteLeavesOnlyTheDestination(hasDM: Bool) {
         let router = AppRouter()
         router.activeTabStack = .tips
         router.push(.newChat)
         router.push(.usernameLookup)
 
-        let chat = AppRouter.Destination.tipConversationForUser(UUID())
-        let depthWithChat = router[.tips].count + 1
-        router.push(chat)
-        #expect(router[.tips].count == depthWithChat)
+        let them = UUID()
+        let dmID = hasDM ? ConversationID.tipDm(between: UUID(), and: them) : nil
+        let destination = DMRoute.destination(for: them, dmID: dmID, origin: .usernameLookup)
+        let depthWithDestination = router[.tips].count + 1
+        router.push(destination)
+        #expect(router[.tips].count == depthWithDestination)
 
         // What the screen does once the push has started: neither the picker
         // nor the lookup is somewhere Back belongs, and the list is the root.
-        router.setPath([chat], on: .tips)
+        router.setPath([destination], on: .tips)
         #expect(router[.tips].count == 1)
     }
 

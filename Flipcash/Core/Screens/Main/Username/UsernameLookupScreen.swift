@@ -141,16 +141,15 @@ struct UsernameLookupScreen: View {
                 buttonState = .success
                 try await Task.delay(milliseconds: 500)
 
-                // Your own handle has no chat to open — one tipcard is what
-                // scanning your own code already shows.
+                // Your own handle has no chat to open — scanning your own code
+                // already shows your own profile.
                 guard userID != session.userID else {
                     sessionContainer.tipFlow.begin(userID: userID)
                     return
                 }
 
-                // The chat is created by the first tip, so until then the
-                // screen's only source for the counterpart's name, picture, and
-                // handle is the profile this lookup just fetched.
+                // The profile screen reads this instead of fetching again, and a
+                // chat with no record yet reads its counterpart from it.
                 session.cacheUserProfile(profile, for: userID)
 
                 // Detached before the push: covering this screen fires the
@@ -158,16 +157,22 @@ struct UsernameLookupScreen: View {
                 // that has to run anyway.
                 lookupTask = nil
 
-                let chat = AppRouter.Destination.tipConversationForUser(userID)
+                // The DM once it exists, the profile until then: the profile is
+                // where the chat starts.
+                let destination = DMRoute.destination(
+                    for: userID,
+                    dmID: sessionContainer.conversationController.tipDMID(withUserID: userID),
+                    origin: .usernameLookup
+                )
 
                 // Measured rather than assumed: this screen is reached through
                 // the New Chat picker today and was reached straight off the
                 // chat list before it, so a fixed depth silently stops matching
                 // the moment a screen is added to or removed from the route.
-                let depthWithChat = router[.tips].count + 1
-                router.push(chat)
+                let depthWithDestination = router[.tips].count + 1
+                router.push(destination)
 
-                // Well inside the push transition, so the remounted chat settles
+                // Well inside the push transition, so the remounted screen settles
                 // behind the animation rather than in front of the user. Late
                 // enough that SwiftUI has committed the push as its own update:
                 // rewriting in the same tick coalesces the two into a leaf swap,
@@ -175,17 +180,17 @@ struct UsernameLookupScreen: View {
                 try await Task.delay(milliseconds: 150)
 
                 // Unless they went back while it landed: the lookup left with
-                // them, and rewriting the path would drag the chat back.
-                guard router[.tips].count == depthWithChat else { return }
+                // them, and rewriting the path would drag the screen back.
+                guard router[.tips].count == depthWithDestination else { return }
 
                 // Unanimated, because nothing is arriving — only the entry
                 // underneath is leaving. Animated, SwiftUI stages the remount as
-                // a second push: the same chat sliding in over the one already
+                // a second push: the same screen sliding in over the one already
                 // on screen.
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    router.setPath([chat], on: .tips)
+                    router.setPath([destination], on: .tips)
                 }
 
             } catch {

@@ -361,32 +361,47 @@ nonisolated enum UserProfileOrigin: Hashable {
     case mention
     /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.
     case deeplink
+    /// Their code scanned with the camera, or their profile QR link opened, after the card shows.
+    case scan
+    /// A username search from New Chat, with no DM yet.
+    case usernameLookup
+    /// A transaction's details, with no DM yet.
+    case transaction
 
     /// Whether Open Chat returns to the DM the profile was opened from rather than pushing a
     /// second copy of it.
     var returnsToExistingDM: Bool {
         switch self {
-        case .directMessage:                          return true
-        case .groupMember, .mention, .deeplink:       return false
+        case .directMessage:
+            return true
+        case .groupMember, .mention, .deeplink, .scan, .usernameLookup, .transaction:
+            return false
         }
     }
 
     /// Whether the profile was fetched and cached just before the screen opened, so the screen
-    /// reads the cache instead of fetching again. A link is looked up before it navigates.
+    /// reads the cache instead of fetching again. A link, a scan, and a username search all look the
+    /// person up before they navigate.
     var arrivesFetched: Bool {
         switch self {
-        case .deeplink:                               return true
-        case .directMessage, .groupMember, .mention:  return false
+        case .deeplink, .scan, .usernameLookup:
+            return true
+        case .directMessage, .groupMember, .mention, .transaction:
+            return false
         }
     }
 
     /// Whether blocking closes just the profile rather than resetting its stack. From a chat the
     /// stack beneath can hold the blocked person's DM, so it resets; a link opened the profile over
-    /// whatever the user was on, and that is where blocking returns them.
+    /// whatever the user was on, and that is where blocking returns them, as does a transaction's
+    /// details. A scan or a username search opens the profile as the Chats tab's only entry, so a
+    /// reset lands on the chat list either way.
     var blockReturnsToOpener: Bool {
         switch self {
-        case .deeplink:                               return true
-        case .directMessage, .groupMember, .mention:  return false
+        case .deeplink, .transaction:
+            return true
+        case .directMessage, .groupMember, .mention, .scan, .usernameLookup:
+            return false
         }
     }
 }

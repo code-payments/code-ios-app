@@ -13,25 +13,31 @@ import FlipcashCore
 @Suite("User profile chat actions")
 struct UserProfileChatActionsTests {
 
-    @Test("Blocking from a link-opened profile returns to where the link was followed")
-    func deeplink_blockReturnsToOpener() {
-        #expect(UserProfileOrigin.deeplink.blockReturnsToOpener)
+    @Test(
+        "Blocking from a link or a transaction returns to the screen the profile opened over",
+        arguments: [UserProfileOrigin.deeplink, .transaction]
+    )
+    func openerOrigins_blockReturnsToOpener(_ origin: UserProfileOrigin) {
+        #expect(origin.blockReturnsToOpener)
     }
 
     @Test(
         "Blocking from a chat-opened profile resets the stack, which can hold the blocked DM",
-        arguments: [UserProfileOrigin.directMessage, .groupMember, .mention]
+        arguments: [UserProfileOrigin.directMessage, .groupMember, .mention, .scan, .usernameLookup]
     )
     func chatOrigins_blockResetsStack(_ origin: UserProfileOrigin) {
         #expect(!origin.blockReturnsToOpener)
     }
 
-    @Test("Only a link-opened profile arrives already fetched")
-    func arrivesFetched_onlyFromDeeplink() {
+    @Test("A link, a scan, and a username search arrive already fetched; the rest fetch")
+    func arrivesFetched_onlyAfterALookup() {
         #expect(UserProfileOrigin.deeplink.arrivesFetched)
+        #expect(UserProfileOrigin.scan.arrivesFetched)
+        #expect(UserProfileOrigin.usernameLookup.arrivesFetched)
         #expect(!UserProfileOrigin.directMessage.arrivesFetched)
         #expect(!UserProfileOrigin.groupMember.arrivesFetched)
         #expect(!UserProfileOrigin.mention.arrivesFetched)
+        #expect(!UserProfileOrigin.transaction.arrivesFetched)
     }
 
     @Test("Open Chat returns to the DM only when the profile was opened from that DM")
@@ -40,6 +46,9 @@ struct UserProfileChatActionsTests {
         #expect(!UserProfileOrigin.groupMember.returnsToExistingDM)
         #expect(!UserProfileOrigin.mention.returnsToExistingDM)
         #expect(!UserProfileOrigin.deeplink.returnsToExistingDM)
+        #expect(!UserProfileOrigin.scan.returnsToExistingDM)
+        #expect(!UserProfileOrigin.usernameLookup.returnsToExistingDM)
+        #expect(!UserProfileOrigin.transaction.returnsToExistingDM)
     }
 
     // MARK: - Destinations -
@@ -54,15 +63,5 @@ struct UserProfileChatActionsTests {
         #expect(fromGroup.description == "userProfile")
         #expect(fromDM.payload == userID.uuidString)
         #expect(fromDM.owningStack == .tips)
-    }
-
-    @Test("Send Cash's chat destination logs apart from the plain chat, keyed by the counterpart")
-    func sendingCash_destination() {
-        let userID = UUID()
-        let destination = AppRouter.Destination.tipConversationForUserSendingCash(userID)
-        #expect(destination.description == "tipConversationForUserSendingCash")
-        #expect(destination.payload == userID.uuidString)
-        #expect(destination.owningStack == .tips)
-        #expect(destination != .tipConversationForUser(userID))
     }
 }
