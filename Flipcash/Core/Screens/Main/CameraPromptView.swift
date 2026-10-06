@@ -49,13 +49,13 @@ nonisolated enum CameraPrompt: Equatable {
     func message(embedded: Bool) -> String {
         switch self {
         case .requestPermission:
-            embedded ? "Start your camera to scan a Tip Card"
+            embedded ? "Start your camera to scan a Profile Card"
                      : "Flipcash uses your camera to scan and grab cash"
         case .openSettings:
-            embedded ? "Turn on Camera in Settings to scan a Tip Card"
+            embedded ? "Turn on Camera in Settings to scan a Profile Card"
                      : "You need to turn on Camera in Settings to scan Codes"
         case .startCamera:
-            embedded ? "Start your camera to scan a Tip Card"
+            embedded ? "Start your camera to scan a Profile Card"
                      : "You need to start your camera to grab cash"
         }
     }

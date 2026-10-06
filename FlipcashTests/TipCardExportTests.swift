@@ -45,7 +45,7 @@ struct TipCardExportTests {
         let url = try #require(TipCardExport.file(for: .svg, codeData: .placeholder35, name: nil))
         defer { TipCardExport.discard(url) }
 
-        #expect(url.lastPathComponent == "Tip Card.svg")
+        #expect(url.lastPathComponent == "Profile Card.svg")
     }
 
     /// A display name is server-supplied text landing in a path component.

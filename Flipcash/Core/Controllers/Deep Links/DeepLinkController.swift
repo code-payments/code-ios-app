@@ -326,7 +326,7 @@ struct DeepLinkAction {
 
     private static func showLookupFailed(isScan: Bool, on session: Session) {
         session.dialogItem = .error(
-            title: isScan ? "Couldn't Open Tip Card" : "Couldn't Open Profile",
+            title: isScan ? "Couldn't Open Profile Card" : "Couldn't Open Profile",
             subtitle: "Please check your connection and try again"
         )
     }
