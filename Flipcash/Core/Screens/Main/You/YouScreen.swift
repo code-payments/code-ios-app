@@ -86,7 +86,7 @@ struct YouScreen: View {
             }
         }
         .fullScreenCover(isPresented: Bindable(router).isShowingProfileCard) {
-            ProfileCardScreen(previewCache: previewCache)
+            ProfileCardScreen()
         }
         .task(id: profilePicture?.thumbnailBlobID) {
             // There is no card to share, and so no preview worth rendering, until
