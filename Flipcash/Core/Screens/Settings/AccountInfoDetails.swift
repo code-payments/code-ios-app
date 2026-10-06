@@ -12,6 +12,8 @@ import FlipcashCore
 /// token-account model in FlipcashCore.
 nonisolated struct AccountInfoDetails {
 
+    /// One copyable line on Account Info: what the row shows, and what a tap
+    /// puts on the clipboard when the two differ.
     struct Row: Hashable {
         let title: String
         let display: String
