@@ -34,6 +34,14 @@ struct UserProfileChatActionsTests {
         #expect(!UserProfileOrigin.mention.arrivesFetched)
     }
 
+    @Test("Open Chat returns to the DM only when the profile was opened from that DM")
+    func openChat_returnsToDMOnlyFromDirectMessage() {
+        #expect(UserProfileOrigin.directMessage.returnsToExistingDM)
+        #expect(!UserProfileOrigin.groupMember.returnsToExistingDM)
+        #expect(!UserProfileOrigin.mention.returnsToExistingDM)
+        #expect(!UserProfileOrigin.deeplink.returnsToExistingDM)
+    }
+
     // MARK: - Destinations -
 
     @Test("The origin is part of the profile destination's identity but not its log keys")
