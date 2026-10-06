@@ -7,11 +7,13 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 import FlipcashCore
 import Kingfisher
 
 /// A recycled cell for a photo row: the photo at the transcript's bubble width and a clamped aspect,
-/// its caption as a text bubble directly under it, and the reaction pills, in a `ChatColumnCell`.
+/// a reply's quote laid over its top-leading corner, its caption as a text bubble directly under it,
+/// and the reaction pills, in a `ChatColumnCell`.
 ///
 /// The photo draws from, in order: the local image of a pending send this device staged, the
 /// resolved download URL (fading in over the BlurHash), or the BlurHash alone. A BlurHash-only row —
@@ -28,6 +30,13 @@ public final class ChatMediaCell: ChatColumnCell {
     private static let fadeDuration: TimeInterval = 0.25
     /// The progress capsule's inset from the photo's bottom-right corner.
     private static let progressInset: CGFloat = 10
+    /// The quote's gap from the photo's top and leading edges. Tighter than a text reply's surround:
+    /// at the photo's corner a wider gap leaves the panel a corner that reads as square.
+    static let quoteInset: CGFloat = 4
+    /// The share of the photo's width the quote may take, so some of the photo always shows beside it.
+    static let quoteMaxWidthFraction: CGFloat = 0.8
+    /// Near-opaque, so the quote reads over any photo, light or dark.
+    private static let quoteGroundAlpha: CGFloat = 0.85
 
     private let stack = UIStackView()
     private let imageBubble = BubbleBackgroundView()
@@ -36,6 +45,9 @@ public final class ChatMediaCell: ChatColumnCell {
     let unavailableLabel = UILabel()
     /// Shows how far an outgoing photo's send has got, until it is sent or fails.
     let progressOverlay = ChatPhotoProgressOverlay()
+    /// A reply's quote, drawn over the photo. A sibling of the photo rather than its subview, so it
+    /// stays its own accessibility element and its tap never reaches the photo's.
+    let quotePanel = ChatQuotePanelView()
     let captionBubble = BubbleBackgroundView()
     let captionLabel = UILabel()
     let reactionRow = ReactionPillRowView()
@@ -55,6 +67,11 @@ public final class ChatMediaCell: ChatColumnCell {
 
     /// Fired when the viewer taps the photo. Never fires for a BlurHash-only or a failed row.
     var onImageTap: (() -> Void)?
+    /// Called with the quoted row's stable id when the viewer taps the quote.
+    var onQuoteTap: ((String) -> Void)? {
+        get { quotePanel.onTap }
+        set { quotePanel.onTap = newValue }
+    }
     /// Fired when the viewer taps a reaction pill — the argument is the toggled emoji.
     var onReactionTap: ((String) -> Void)?
     /// Fired on a long-press of a reaction pill, to open the reactors sheet scoped to that emoji.
@@ -96,6 +113,11 @@ public final class ChatMediaCell: ChatColumnCell {
         stack.addArrangedSubview(imageBubble)
         stack.addArrangedSubview(captionBubble)
 
+        quotePanel.ground = UIColor(Color.backgroundMain).withAlphaComponent(Self.quoteGroundAlpha)
+        quotePanel.isHidden = true
+        quotePanel.translatesAutoresizingMaskIntoConstraints = false
+        stack.addSubview(quotePanel)
+
         installColumn(content: stack, accessory: reactionRow)
         reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
         reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
@@ -127,6 +149,11 @@ public final class ChatMediaCell: ChatColumnCell {
             unavailableLabel.centerYAnchor.constraint(equalTo: imageBubble.centerYAnchor),
             unavailableLabel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.captionInset),
             unavailableLabel.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor, constant: -Self.captionInset),
+
+            quotePanel.topAnchor.constraint(equalTo: imageBubble.topAnchor, constant: Self.quoteInset),
+            quotePanel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.quoteInset),
+            quotePanel.widthAnchor.constraint(lessThanOrEqualTo: imageBubble.widthAnchor, multiplier: Self.quoteMaxWidthFraction),
+            quotePanel.bottomAnchor.constraint(lessThanOrEqualTo: imageBubble.bottomAnchor, constant: -Self.quoteInset),
 
             captionLabel.topAnchor.constraint(equalTo: captionBubble.topAnchor, constant: Self.captionPadding),
             captionLabel.bottomAnchor.constraint(equalTo: captionBubble.bottomAnchor, constant: -Self.captionPadding),
@@ -166,12 +193,14 @@ public final class ChatMediaCell: ChatColumnCell {
     ///   - localImage: the picked image of a pending send this device staged, or nil.
     ///   - progress: the send progress of a pending photo this device staged, or nil.
     ///   - remote: where the photo downloads from, or nil until it is resolved.
+    ///   - quoteThumbnail: where a quoted photo's thumbnail loads from, or nil.
     public func configure(
         with message: ChatMessage,
         maxWidth: CGFloat,
         localImage: UIImage?,
         progress: ChatPhotoSendProgress? = nil,
         remote: ChatMediaLocation?,
+        quoteThumbnail: ChatMediaLocation? = nil,
         authorImageData: Data? = nil
     ) {
         guard case .media(let media) = message.content else { return }
@@ -219,6 +248,18 @@ public final class ChatMediaCell: ChatColumnCell {
             identity: message.id
         )
         stack.alignment = isFromSelf ? .trailing : .leading
+
+        if let quote = message.quote {
+            quotePanel.configure(with: quote, thumbnail: quoteThumbnail)
+            quotePanel.cornerRadii = ChatQuotePanelView.photoOverlayRadii(
+                photoTopLeading: imageBubble.radii.topLeading,
+                inset: Self.quoteInset
+            )
+            quotePanel.isHidden = false
+        } else {
+            quotePanel.clear()
+            quotePanel.isHidden = true
+        }
 
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth
