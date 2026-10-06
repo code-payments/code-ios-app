@@ -77,7 +77,7 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
 
                     if let bio, !bio.isEmpty {
                         Text(bio)
-                            .font(.appTextBody)
+                            .font(.appTextMessage)
                             .foregroundStyle(Color.textMain)
                             .multilineTextAlignment(.leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
