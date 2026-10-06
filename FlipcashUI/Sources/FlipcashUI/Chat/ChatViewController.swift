@@ -840,18 +840,14 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     /// The message whose bubble is at `point` if a double tap there should present the reaction
-    /// strip. Only text bubbles take one: link cards, cash cards, quote panels and reaction pills
-    /// keep their instant single tap.
+    /// strip. Text and photo bubbles take one: link cards, cash cards, quote panels and reaction
+    /// pills keep their instant single tap.
     private func doubleTapTarget(at point: CGPoint) -> ChatMessage? {
         guard !isUpdating, !isShowingContextMenu,
               let indexPath = collectionView.indexPathForItem(at: point),
               let message = message(at: indexPath),
-              message.offersReactionStrip, !message.rendersAsBareLinkCard,
+              message.takesDoubleTapReaction,
               let cell = collectionView.cellForItem(at: indexPath) as? BubbleCarrying else { return nil }
-        switch message.content {
-        case .text: break
-        case .cash, .deleted, .unavailable, .shareProfile, .media: return nil
-        }
         let bubble = cell.liftPreviewView
         guard bubble.bounds.contains(bubble.convert(point, from: collectionView)) else { return nil }
         var view = collectionView.hitTest(point, with: nil)
@@ -1365,6 +1361,19 @@ extension ChatViewController: UIGestureRecognizerDelegate {
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         let exclusive: [UIGestureRecognizer?] = [swipeToReply.recognizer, bubbleLongPress]
         return !exclusive.contains { $0 === gestureRecognizer || $0 === otherGestureRecognizer }
+    }
+
+    /// Holds a photo's open-the-viewer tap until the double tap fails, so the second tap of a double
+    /// tap reacts instead of opening the photo. The double tap only receives touches on a photo that
+    /// can take a reaction, so any other photo still opens on a single tap with no wait.
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer === bubbleDoubleTap else { return false }
+        var view = otherGestureRecognizer.view
+        while let current = view {
+            if let cell = current as? ChatMediaCell { return cell.imageTap === otherGestureRecognizer }
+            view = current.superview
+        }
+        return false
     }
 }
 
