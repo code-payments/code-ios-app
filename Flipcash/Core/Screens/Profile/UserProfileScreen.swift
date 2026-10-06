@@ -152,6 +152,8 @@ private struct UserProfileContent: View {
         // On iOS 26 the pinned button joins the bottom scroll edge effect, so content fades under it.
         .scrollEdgeBar(.bottom) {
             pinnedButton
+                // Toasts rise above the button rather than covering it.
+                .toastClearance(toasts)
         }
         // The system bar carries back and the overflow menu, and the soft edge the banner scrolls under.
         .toolbar {
