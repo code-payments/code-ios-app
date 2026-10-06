@@ -153,7 +153,8 @@ struct ProfilePhotoScreen: View {
             try await state.uploadPhoto(
                 with: SessionProfilePictureUploader(
                     session: sessionContainer.session,
-                    flipClient: container.flipClient
+                    flipClient: container.flipClient,
+                    slot: .avatar
                 )
             )
 

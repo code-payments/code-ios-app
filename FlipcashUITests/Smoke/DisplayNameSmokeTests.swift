@@ -54,6 +54,7 @@ final class DisplayNameSmokeTests: BaseUITestCase {
 
         // MARK: Change the name from Settings.
         waitAndTap(settings.gear)
+        waitAndTap(settings.editProfileRow)
         waitAndTap(settings.displayNameRow)
 
         let save = app.buttons["profile-name-next-button"]
@@ -103,16 +104,17 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         // `ProfileNameScreen(completion: .back)` pops itself only once
         // `SetDisplayName` returns, so landing back on Settings is proof the
         // new name was accepted and moderated — a rejection keeps the editor up
-        // behind a dialog. It pops just the one screen, so this is Settings
+        // behind a dialog. It pops just the one screen, so this is Edit Profile
         // rather than the You tab root.
         XCTAssertTrue(
             settings.displayNameRow.waitForExistence(timeout: 60),
-            "Expected the name editor to pop back to Settings once the name saved. On screen: [\(visibleText())]"
+            "Expected the name editor to pop back to Edit Profile once the name saved. On screen: [\(visibleText())]"
         )
 
         // MARK: The profile survives the rename.
         // Unwind the last screen by hand: the tab bar stays hidden while the
         // You tab has a stack, so there is no You button to tap back to.
+        waitAndTap(app.navigationBars.buttons.firstMatch)
         waitAndTap(app.navigationBars.buttons.firstMatch)
         assertMainScreenReached(timeout: 30, "Expected the You tab root after backing out of Settings")
         XCTAssertTrue(

@@ -10,9 +10,12 @@ import Testing
 @Suite("Settings routing")
 struct SettingsRoutingTests {
 
-    @Test("Settings and Account Info are owned by the You stack", arguments: [
+    @Test("Settings, Account Info and the profile editors are owned by the You stack", arguments: [
         AppRouter.Destination.settings,
         AppRouter.Destination.accountInfo,
+        AppRouter.Destination.editProfile,
+        AppRouter.Destination.editBio,
+        AppRouter.Destination.changeCoverPicture,
     ])
     func owningStack(destination: AppRouter.Destination) {
         #expect(destination.owningStack == .you)
@@ -26,6 +29,20 @@ struct SettingsRoutingTests {
         router.push(.settings)
 
         #expect(router[.you] == AppRouter.navigationPath(.settings))
+    }
+
+    @Test("Popping Edit Bio after a save returns to Edit Profile")
+    func savePopsBackToEditProfile() {
+        let router = AppRouter()
+
+        router.activeTabStack = .you
+        router.push(.editProfile)
+        router.push(.editBio)
+        #expect(router[.you] == AppRouter.navigationPath(.editProfile, .editBio))
+
+        router.popTopmost()
+
+        #expect(router[.you] == AppRouter.navigationPath(.editProfile))
     }
 
     @Test("Log names are stable and carry no payload")
