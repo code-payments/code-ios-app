@@ -33,40 +33,23 @@ struct EditFeaturedGroupsScreen: View {
         @Bindable var model = model
 
         Background(color: .backgroundMain) {
-            List {
-                Section {
-                    ForEach(model.visibleCandidates) { group in
-                        row(group)
-                    }
-                } header: {
-                    ListHeader("\(model.selection.count) of \(FeaturedGroups.limit) selected")
-                } footer: {
-                    if !model.candidates.isEmpty {
-                        Text("These public groups will appear on your public profile")
-                            .font(.appTextCaption)
-                            .foregroundStyle(Color.textSecondary)
-                    }
+            VStack(spacing: 0) {
+                content
+
+                Button(action: save) {
+                    ButtonStateLabel("Save", state: buttonState)
                 }
-                .listRowSeparator(.hidden)
+                .buttonStyle(.filled)
+                .disabled(!model.canSave)
+                .accessibilityIdentifier("edit-featured-groups-save")
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
             }
-            .listStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .overlay { emptyState }
         }
         .navigationTitle("Favorite Groups")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $model.query, prompt: "Search your public groups")
-        .scrollEdgeBar(.bottom) {
-            Button(action: save) {
-                ButtonStateLabel("Save", state: buttonState)
-            }
-            .buttonStyle(.filled)
-            .disabled(!model.canSave)
-            .accessibilityIdentifier("edit-featured-groups-save")
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-        }
         .dialog(item: $dialog)
         .task { await model.loadCandidates() }
         .onChange(of: model.failure) { _, failure in
@@ -81,6 +64,42 @@ struct EditFeaturedGroupsScreen: View {
         }
         // Leaving the screen abandons the submission: its only continuation is a pop.
         .onDisappear { saveTask?.cancel() }
+    }
+
+    /// The list appears whole once the feed is read, rather than growing from the featured groups.
+    @ViewBuilder
+    private var content: some View {
+        switch model.loadState {
+        case .loading:
+            ProgressView()
+                .tint(Color.textSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .loaded, .failed:
+            list
+        }
+    }
+
+    private var list: some View {
+        List {
+            Section {
+                ForEach(model.visibleCandidates) { group in
+                    row(group)
+                }
+            } header: {
+                ListHeader("\(model.selection.count) of \(FeaturedGroups.limit) selected")
+            } footer: {
+                if !model.candidates.isEmpty {
+                    Text("These public groups will appear on your public profile")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+        }
+        .listStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .overlay { emptyState }
     }
 
     private func row(_ group: Conversation) -> some View {
