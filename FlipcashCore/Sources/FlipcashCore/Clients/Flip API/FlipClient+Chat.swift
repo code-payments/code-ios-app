@@ -132,6 +132,33 @@ extension FlipClient {
         return RosterPage(members: members, rosterSummary: rosterSummary)
     }
 
+    /// A sample of up to 100 recent chatters in a public group, with whether more exist. Unlike
+    /// ``getRoster(owner:conversationID:)`` it needs no membership, so it is the call for a preview or
+    /// lobby view. `owner` is optional because a public group needs no auth; a private group or a DM
+    /// is `.denied`.
+    public func sampleChatters(owner: KeyPair?, conversationID: ConversationID) async throws -> (chatters: [SampledChatter], hasMore: Bool) {
+        let page = try await withCheckedThrowingContinuation { c in
+            chatService.sampleChatters(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+        return (page.chatters, page.hasMore)
+    }
+
+    /// Replaces the signed-in user's featured groups (at most 10, in order) and returns the
+    /// resulting list. A private group is `.denied`.
+    public func setFeaturedGroups(owner: KeyPair, conversationIDs: [ConversationID]) async throws -> [Conversation] {
+        try await withCheckedThrowingContinuation { c in
+            chatService.setFeaturedGroups(owner: owner, conversationIDs: conversationIDs) { c.resume(with: $0) }
+        }
+    }
+
+    /// The groups `username` features, list-view shaped: no members, viewer state, last message or
+    /// cover picture. `owner` is optional.
+    public func getFeaturedGroups(owner: KeyPair?, username: Username) async throws -> [Conversation] {
+        try await withCheckedThrowingContinuation { c in
+            chatService.getFeaturedGroups(owner: owner, username: username) { c.resume(with: $0) }
+        }
+    }
+
     /// The people to suggest after an `@` in a group chat, most relevant first; see
     /// ``MentionSuggestion``. Fetch it once per composing session and filter it locally.
     public func getMentionSuggestions(owner: KeyPair, conversationID: ConversationID) async throws -> [MentionSuggestion] {

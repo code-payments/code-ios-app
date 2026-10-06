@@ -59,7 +59,7 @@ public struct ConversationStore: Sendable {
 
     /// Replace the feed from a paged load, sorted most-recent-activity first.
     public mutating func setFeed(_ conversations: [Conversation]) {
-        let merged = conversations.map { keepingNewerActivity(keepingSelfReadPointer(seated($0))) }
+        let merged = conversations.map { keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0)))) }
         self.conversations = merged.sorted { $0.lastActivity > $1.lastActivity }
     }
 
@@ -69,7 +69,7 @@ public struct ConversationStore: Sendable {
     public mutating func setFeed(_ conversations: [Conversation], type: ConversationType) {
         // Only the incoming rows are merged: re-merging the other types against themselves would
         // read the store's own copy as the server acknowledging an unsynced READ pointer.
-        let incoming = conversations.filter { $0.type == type }.map { keepingNewerActivity(keepingSelfReadPointer(seated($0))) }
+        let incoming = conversations.filter { $0.type == type }.map { keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0)))) }
         self.conversations = (self.conversations.filter { $0.type != type } + incoming)
             .sorted { $0.lastActivity > $1.lastActivity }
     }
@@ -382,6 +382,9 @@ public struct ConversationStore: Sendable {
         case .pictureChanged(let conversationID, let picture):
             applyPictureChanged(picture, in: conversationID)
             return .none
+        case .coverPictureChanged(let conversationID, let coverPicture):
+            applyCoverPictureChanged(coverPicture, in: conversationID)
+            return .none
         case .lobbyChanged:
             // Lobby membership is not part of the feed; no consumer holds it yet.
             return .none
@@ -524,6 +527,9 @@ public struct ConversationStore: Sendable {
                 }
             case .left(let userID):
                 conversations[index].members.removeAll { $0.userID == userID }
+            case .membershipChanged:
+                // The summary below is the whole change: the member list stays as cached.
+                break
             }
             conversations[index].rosterSummary = update.rosterSummary
         }
@@ -557,11 +563,19 @@ public struct ConversationStore: Sendable {
         conversations[index].description = description.isEmpty ? nil : description
     }
 
-    /// Apply a picture change delivered via `MetadataUpdate.PictureChanged`. Same best-effort,
+    /// Apply a picture change delivered via `MetadataUpdate.ProfilePictureChanged`. Same best-effort,
     /// no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the store doesn't hold.
     public mutating func applyPictureChanged(_ picture: ProfilePicture, in conversationID: ConversationID) {
         guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
         conversations[index].picture = picture
+    }
+
+    /// Apply a cover picture change delivered via `MetadataUpdate.CoverPictureChanged`. Same
+    /// best-effort, no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the store
+    /// doesn't hold.
+    public mutating func applyCoverPictureChanged(_ coverPicture: ProfilePicture, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        conversations[index].coverPicture = coverPicture
     }
 
     /// Drops the cached viewer state for a chat the signed-in user just left.
@@ -575,7 +589,7 @@ public struct ConversationStore: Sendable {
     }
 
     private mutating func upsert(_ conversation: Conversation) {
-        var conversation = keepingNewerActivity(keepingSelfReadPointer(seated(conversation)))
+        var conversation = keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated(conversation))))
         if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
             if conversation.type == .group {
                 conversation.members = mergedMembers(conversation.members, over: conversations[index].members)
@@ -635,6 +649,19 @@ public struct ConversationStore: Sendable {
            (held.id, held.eventSequence) > (incoming.id, incoming.eventSequence) {
             conversation.lastMessage = held
         }
+        return conversation
+    }
+
+    /// `conversation` with the stored row's cover picture kept when the incoming copy carries none.
+    /// The feed RPCs may omit the cover even when one is set, so an unset cover there is "not
+    /// reported", not "cleared"; `GetChat` and `coverPictureChanged` are what change it.
+    private func keepingCoverPicture(_ conversation: Conversation) -> Conversation {
+        guard conversation.coverPicture == nil,
+              let held = conversations.first(where: { $0.id == conversation.id })?.coverPicture else {
+            return conversation
+        }
+        var conversation = conversation
+        conversation.coverPicture = held
         return conversation
     }
 
