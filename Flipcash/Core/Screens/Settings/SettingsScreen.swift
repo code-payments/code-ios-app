@@ -108,10 +108,12 @@ struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsSectionHeader("Account")
 
-            SettingsRow(systemImage: "person.crop.circle", title: "Account Info", insets: insets) {
-                router.push(.accountInfo)
+            if betaFlags.canViewAccountInfo {
+                SettingsRow(systemImage: "person.crop.circle", title: "Account Info", badge: .beta, insets: insets) {
+                    router.push(.accountInfo)
+                }
+                .accessibilityIdentifier("settings-account-info-row")
             }
-            .accessibilityIdentifier("settings-account-info-row")
 
             SettingsRow(asset: .logout, title: "Log Out", insets: insets) {
                 dialogItem = .alert(

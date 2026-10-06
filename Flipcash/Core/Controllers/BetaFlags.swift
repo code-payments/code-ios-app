@@ -67,6 +67,9 @@ class BetaFlags {
     /// You-tab long press share this gate, so the two never disagree.
     var canSwitchAccounts: Bool { accessGranted }
 
+    /// Whether Settings shows the Account Info row.
+    var canViewAccountInfo: Bool { accessGranted }
+
     /// Enables or disables a beta flag and persists the change to disk.
     func set(_ option: Option, enabled: Bool) {
         if enabled {
