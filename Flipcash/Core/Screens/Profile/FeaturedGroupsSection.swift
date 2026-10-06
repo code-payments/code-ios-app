@@ -74,14 +74,13 @@ struct FeaturedGroupRow<Trailing: View>: View {
                     .foregroundStyle(Color.textMain)
                     .lineLimit(1)
                 Text(subtitle)
-                    .font(.appTextCaption)
+                    .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
             Spacer(minLength: 12)
             trailing
         }
-        .frame(minHeight: 66)
         .task(id: group.picture?.thumbnailBlobID) {
             await sessionContainer.profileAvatars.load(.chat(group.id), picture: group.picture)
         }
