@@ -28,7 +28,7 @@ struct TipcardScreen: View {
         Background(color: .backgroundMain) {
             legacyContent
         }
-        .navigationTitle("My Tip Card")
+        .navigationTitle("My Profile Card")
         .toolbarTitleDisplayMode(.inline)
         .task(id: profilePicture?.thumbnailBlobID) {
             previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
@@ -39,7 +39,7 @@ struct TipcardScreen: View {
 
     private var legacyContent: some View {
         VStack(spacing: 0) {
-            Text("Share Your Tip Card to Get Tipped")
+            Text("Share Your Profile Card to Get Tipped")
                 .font(.appTextLarge)
                 .foregroundStyle(Color.textMain)
                 .multilineTextAlignment(.center)

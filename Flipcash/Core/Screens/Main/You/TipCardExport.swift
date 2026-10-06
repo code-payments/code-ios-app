@@ -101,7 +101,7 @@ enum TipCardExport {
             .replacingOccurrences(of: ":", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let stem = if let subject, !subject.isEmpty { "Chat with \(subject)" } else { "Tip Card" }
+        let stem = if let subject, !subject.isEmpty { "Chat with \(subject)" } else { "Profile Card" }
         return "\(stem).\(format.rawValue)"
     }
 

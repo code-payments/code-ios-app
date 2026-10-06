@@ -172,7 +172,7 @@ final class TipFlow {
     /// read, so a miss is a fetch that didn't land rather than a wrong address.
     static var failureDialog: DialogItem {
         .error(
-            title: "Couldn't Open Tip Card",
+            title: "Couldn't Open Profile Card",
             subtitle: "Please check your connection and try again"
         )
     }
