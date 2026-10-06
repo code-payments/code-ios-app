@@ -164,3 +164,67 @@ struct ConversationDescriptionEditTests {
         #expect(cleared?.value == "")
     }
 }
+
+@Suite("EditChat request construction")
+struct EditChatRequestTests {
+
+    private let conversationID = ConversationID(data: Data(repeating: 7, count: 32))
+    private let cover = BlobID(data: Data(repeating: 0x0C, count: 16))
+
+    private func request(
+        title: String? = nil,
+        description: ConversationDescriptionEdit = .unchanged,
+        pictureBlobID: BlobID? = nil,
+        coverPictureBlobID: BlobID? = nil
+    ) throws -> Flipcash_Chat_V1_EditChatRequest {
+        ChatService.editChatRequest(
+            owner: try #require(KeyPair.generate()),
+            conversationID: conversationID,
+            title: title,
+            description: description,
+            pictureBlobID: pictureBlobID,
+            coverPictureBlobID: coverPictureBlobID
+        )
+    }
+
+    @Test("A cover blob is sent as cover_picture, apart from the profile picture")
+    func coverSet() throws {
+        let request = try request(coverPictureBlobID: cover)
+
+        #expect(request.hasCoverPicture)
+        #expect(request.coverPicture.blobID.value == cover.data)
+        #expect(!request.hasProfilePicture)
+        #expect(!request.hasTitle)
+        #expect(!request.hasDescription_p)
+        #expect(request.hasAuth)
+    }
+
+    @Test("A nil cover leaves cover_picture unset")
+    func coverNil() throws {
+        let request = try request(title: "Renamed")
+
+        #expect(!request.hasCoverPicture)
+        #expect(request.title.value == "Renamed")
+        #expect(request.hasAuth)
+    }
+
+    @Test("A set description is sent with its text")
+    func descriptionSet() throws {
+        let request = try request(description: .set("About us"))
+
+        #expect(request.hasDescription_p)
+        #expect(request.description_p.value == "About us")
+        #expect(!request.hasCoverPicture)
+        #expect(request.hasAuth)
+    }
+
+    @Test("A cleared description is sent as an empty value; unchanged leaves it unset")
+    func descriptionClearAndUnchanged() throws {
+        let cleared = try request(description: .clear)
+        #expect(cleared.hasDescription_p)
+        #expect(cleared.description_p.value == "")
+
+        let unchanged = try request()
+        #expect(!unchanged.hasDescription_p)
+    }
+}
