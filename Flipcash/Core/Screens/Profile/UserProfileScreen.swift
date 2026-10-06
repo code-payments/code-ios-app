@@ -9,12 +9,11 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The counterpart's Flipcash profile, carrying the actions the viewer has over the person rather
-/// than over one chat: muting the DM with them, and blocking them outright.
+/// Another user's Flipcash profile: the shared header and stats, a ⋯ menu carrying the actions the
+/// viewer has over the person, and one pinned button that starts, opens, or restores the chat.
 ///
 /// Reached from a tip DM's title, from a face in a group transcript, and from a person link. All land
-/// here because all are the same question — who is this — so Block works on the person either way. The mute row
-/// silences the DM with them, so it shows only when the profile was opened from that DM.
+/// here because all are the same question — who is this — so Block works on the person either way.
 struct UserProfileScreen: View {
     let userID: UserID
     let origin: UserProfileOrigin
@@ -26,15 +25,6 @@ struct UserProfileScreen: View {
     var body: some View {
         let seed = sessionContainer.conversationController.counterpartSeed(forUserID: userID)
         UserProfileContent(
-            // Nil until a tip creates the chat server-side, and re-read on every pass, so a DM that
-            // appears while the screen is open brings its mute row with it.
-            conversationID: origin.showsMute
-                ? sessionContainer.conversationController.tipDM(withUserID: userID)?.id
-                : nil,
-            showsChatActions: origin.showsChatActions(
-                profileUserID: userID,
-                selfUserID: sessionContainer.conversationController.selfUserID
-            ),
             model: UserProfileViewModel(
                 userID: userID,
                 flipClient: sessionContainer.flipClient,
@@ -52,152 +42,259 @@ struct UserProfileScreen: View {
 }
 
 private struct UserProfileContent: View {
-    /// The DM to mute, or nil when there is no chat with this person yet or the profile wasn't
-    /// opened from it.
-    let conversationID: ConversationID?
-    /// Whether to offer Message and Send Cash — see ``UserProfileOrigin/showsChatActions(profileUserID:selfUserID:)``.
-    let showsChatActions: Bool
 
     @Environment(AppRouter.self) private var router
+    @Environment(SessionContainer.self) private var sessionContainer
     @Environment(RatesController.self) private var ratesController
     @Environment(ConversationController.self) private var conversationController
+    @Environment(BlocklistController.self) private var blocklistController
 
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
+    @State private var isPickingMuteDuration = false
+    @State private var isReporting = false
+    @State private var startChattingRequest: StartChattingRequest?
+    /// Set when the payment lands; promoted to `awaitingChat` once the sheet has dismissed.
+    @State private var didPayToStartChatting = false
+    /// True from the sheet's dismissal until the chat's record arrives over the feed, so the push
+    /// happens once and only for a chat this screen just paid for.
+    @State private var awaitingChat = false
 
-    init(conversationID: ConversationID?, showsChatActions: Bool, model: UserProfileViewModel) {
-        self.conversationID = conversationID
-        self.showsChatActions = showsChatActions
+    init(model: UserProfileViewModel) {
         _model = State(initialValue: model)
     }
 
+    /// What the start-chatting sheet is opened for, snapshotted at the tap.
+    private struct StartChattingRequest: Identifiable {
+        let target: SendTarget
+        let fee: FiatAmount
+
+        var id: SendTarget { target }
+    }
+
+    // MARK: - Derived state -
+
+    private var session: Session { sessionContainer.session }
+
+    private var isSelf: Bool { model.userID == session.userID }
+
+    private var isBlocked: Bool { blocklistController.isBlocked(model.userID) }
+
+    private var dmID: ConversationID? { conversationController.tipDMID(withUserID: model.userID) }
+
+    private var fee: FiatAmount? {
+        let currency = ratesController.balanceCurrency
+        return StartChattingFee.amount(
+            recipientFee: model.minDmChatInitFee,
+            presets: session.userFlags?.tipPresets(for: currency),
+            currency: currency,
+            rates: ratesController.cachedRates
+        )
+    }
+
+    private var pinnedAction: ProfilePinnedAction {
+        ProfilePinnedAction.resolve(isSelf: isSelf, isBlocked: isBlocked, dmID: dmID, fee: fee)
+    }
+
+    private var isMuted: Bool {
+        guard let dmID else { return false }
+        return conversationController.conversation(withID: dmID)?.isMuted() ?? false
+    }
+
+    private var menuItems: [ProfileMenuItem] {
+        guard !isSelf else { return [] }
+        return ProfileMenuItems.resolve(isBlocked: isBlocked, hasDM: dmID != nil, isMuted: isMuted)
+    }
+
+    private var sendTarget: SendTarget {
+        .tip(TipRecipient(userID: model.userID, displayName: model.displayName, username: model.username, origin: .tipcard))
+    }
+
+    // MARK: - Body -
+
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(spacing: 16) {
-                ContactAvatarView(
-                    id: model.userID.uuidString,
-                    displayName: model.displayName,
-                    imageData: model.imageData,
-                    blurhash: model.blurhash,
-                    size: 88
-                )
-                .padding(.top, 40)
+            ScrollView {
+                VStack(spacing: 16) {
+                    ProfileHeaderView(
+                        userID: model.userID,
+                        displayName: model.displayName,
+                        handle: model.handle,
+                        bio: model.bio,
+                        avatarData: model.imageData,
+                        avatarBlurhash: model.blurhash,
+                        coverPicture: model.coverPicture,
+                        customization: model.customization,
+                        statusChip: statusChip,
+                        bannerActions: { EmptyView() },
+                        underHandle: { EmptyView() }
+                    )
 
-                VStack(spacing: 0) {
-                    // The handle and join date read as a block under the name, so
-                    // they group tighter than the screen's other spacing (node
-                    // 9443:8928).
-                    VStack(spacing: 5) {
-                        Text(model.displayName)
-                            .font(.appDisplaySmall)
-                            .foregroundStyle(.textMain)
-
-                        if let handle = model.handle {
-                            Text(handle)
-                                .font(.appTextSmall)
-                                .foregroundStyle(.textSecondary)
-                        }
-
-                        if let joined = model.joinedText {
-                            Text(joined)
-                                .font(.appTextSmall)
-                                .foregroundStyle(.textSecondary)
-                        }
-                    }
-
-                    // Centered between the join date and the first row's text, 25pt each side;
-                    // the row's own top inset supplies the lower 25.
-                    HStack(spacing: 0) {
-                        if showsChatActions {
-                            ProfileActionButton(title: "Message") {
-                                Image(systemName: "bubble.left.fill")
-                                    .font(.appTextLarge)
-                            } action: {
-                                router.push(.tipConversationForUser(model.userID))
-                            }
-                            .accessibilityIdentifier("profile-message")
-
-                            // Hidden for now; the destination and `startSendCash` stay wired, so
-                            // bringing it back is uncommenting this.
-                            // ProfileActionButton(title: "Send Cash") {
-                            //     // The chat's collapsed Send Cash style, so € and ¥ read the same here.
-                            //     Text(ratesController.balanceCurrency.compactSymbol)
-                            //         .font(.appTextXL)
-                            // } action: {
-                            //     router.push(.tipConversationForUserSendingCash(model.userID))
-                            // }
-                            // .accessibilityIdentifier("profile-send-cash")
-                        }
-
-                        ProfileActionButton(title: "Share") {
-                            Image.asset(.shareOS)
-                                .renderingMode(.template)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                        } action: {
-                            model.share()
-                        }
-                        .accessibilityIdentifier("profile-share")
-                    }
-                    .padding(.top, 25)
-
-                    // Under the actions rather than the name, so the actions sit at the same height on
-                    // every profile; only a DM's profile, the one with a mute, holds the chip's line.
-                    if let conversationID {
-                        ChatMuteStatusLabel(conversationID: conversationID)
-                            .padding(.top, 16)
-                    }
-
-                    VStack(spacing: 0) {
-                        // Mute, then report, then block: the reversible and routine first, then the
-                        // one that asks someone else to look, then the one that ends the relationship.
-                        // Same shape as a group's profile, where leaving holds the last place.
-                        if let conversationID {
-                            ChatMuteRow(conversationID: conversationID, insets: rowInsets)
-                        }
-
-                        ReportRow(target: .user(model.userID), insets: rowInsets)
-
-                        Row(insets: rowInsets) {
-                            Image(systemName: "nosign")
-                                .frame(minWidth: 45)
-                            Text("Block")
-                                .foregroundStyle(.textMain)
-                            Spacer()
-                        } action: {
-                            dialogItem = blockDialog()
-                        }
-                        .accessibilityIdentifier("chat-block")
-                    }
-                    .font(.appDisplayXS)
+                    ProfileStatsCard(minimumToChat: fee, joinedAt: model.joinedAt)
                 }
-
-                Spacer()
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
         }
         .safeAreaInset(edge: .bottom) {
-            if showsE2eeFooter {
-                E2eeFooter(kind: .dm)
-            }
+            pinnedButton
         }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
+        .toolbar { toolbarContent }
         .dialog(item: $dialogItem)
+        .sheet(isPresented: $isPickingMuteDuration) {
+            if let dmID {
+                MuteChatSheet(conversationID: dmID, isPresented: $isPickingMuteDuration)
+            }
+        }
+        .fullScreenCover(isPresented: $isReporting) {
+            NavigationStack {
+                ReportFlowScreen(target: .user(model.userID))
+            }
+        }
+        .sheet(item: $startChattingRequest, onDismiss: {
+            guard didPayToStartChatting else { return }
+            didPayToStartChatting = false
+            awaitingChat = true
+        }) { request in
+            StartChattingSheet(target: request.target, fee: request.fee) {
+                didPayToStartChatting = true
+            }
+        }
+        .onChange(of: dmID) { _, id in
+            guard awaitingChat, let id else { return }
+            awaitingChat = false
+            router.push(.tipConversation(id))
+        }
+        // The record normally lands within a moment; past this the profile stays put and its
+        // button has already flipped to Open Chat.
+        .task(id: awaitingChat) {
+            guard awaitingChat else { return }
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled else { return }
+            awaitingChat = false
+        }
         .task { await model.loadProfile() }
+    }
+
+    // MARK: - Header chip -
+
+    private var statusChip: AnyView? {
+        if isBlocked {
+            return AnyView(
+                ProfileStatusChip(systemImage: "nosign", text: "Blocked", tint: .warning, fill: .warningSecondary)
+                    .accessibilityIdentifier("profile-blocked-badge")
+            )
+        }
+        if let dmID {
+            return AnyView(ChatMuteStatusLabel(conversationID: dmID))
+        }
+        return nil
+    }
+
+    // MARK: - Toolbar -
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                model.share()
+            } label: {
+                Image.asset(.shareOS)
+                    .renderingMode(.template)
+            }
+            .accessibilityIdentifier("profile-share")
+        }
+
+        if !menuItems.isEmpty {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    ForEach(menuItems, id: \.title) { item in
+                        Button(role: item.isDestructive ? .destructive : nil) {
+                            perform(item)
+                        } label: {
+                            Label(item.title, systemImage: item.systemImage)
+                        }
+                    }
+                } label: {
+                    Image.system(.ellipsis)
+                }
+                .accessibilityIdentifier("profile-overflow")
+            }
+        }
+    }
+
+    private func perform(_ item: ProfileMenuItem) {
+        switch item {
+        case .mute:
+            isPickingMuteDuration = true
+        case .unmute:
+            guard let dmID else { return }
+            Task {
+                do {
+                    try await conversationController.unmute(conversationID: dmID)
+                } catch {
+                    ErrorReporting.captureError(error, reason: "Failed to unmute chat from profile")
+                }
+            }
+        case .report:
+            isReporting = true
+        case .block:
+            dialogItem = blockDialog()
+        case .unblock:
+            Task { await model.unblock() }
+        }
+    }
+
+    // MARK: - Pinned action -
+
+    @ViewBuilder
+    private var pinnedButton: some View {
+        if let title = pinnedAction.title {
+            VStack(spacing: 8) {
+                Button(title) {
+                    tapPinned()
+                }
+                .buttonStyle(.filled)
+                .accessibilityIdentifier("profile-pinned-action")
+
+                if showsE2eeFooter {
+                    E2eeFooter(kind: .dm)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+        } else if showsE2eeFooter {
+            E2eeFooter(kind: .dm)
+        }
+    }
+
+    private func tapPinned() {
+        switch pinnedAction {
+        case .none:
+            break
+        case .unblock:
+            Task { await model.unblock() }
+        case .openChat(let id):
+            router.push(.tipConversation(id))
+        case .startChattingUnpriced:
+            router.presentSendAmount(sendTarget)
+        case .startChatting(let fee):
+            let rate = ratesController.rateForBalanceCurrency()
+            if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat, context: .sendTips) {
+                session.dialogItem = dialog
+                return
+            }
+            startChattingRequest = StartChattingRequest(target: sendTarget, fee: fee)
+        }
     }
 
     /// Only a DM that will actually be encrypted claims to be — see ``E2eePolicy``.
     private var showsE2eeFooter: Bool {
-        guard let conversationID, let conversation = conversationController.conversation(withID: conversationID) else {
+        guard let dmID, let conversation = conversationController.conversation(withID: dmID) else {
             return false
         }
         return E2eePolicy.shouldEncrypt(conversation)
-    }
-
-    private var rowInsets: EdgeInsets {
-        .init(top: 25, leading: 0, bottom: 25, trailing: 0)
     }
 
     private func blockDialog() -> DialogItem {
@@ -223,25 +320,6 @@ nonisolated enum UserProfileOrigin: Hashable {
     case mention
     /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.
     case deeplink
-
-    /// Whether the profile offers Message and Send Cash: not from the DM they would lead back
-    /// into, and never on the viewer's own profile.
-    func showsChatActions(profileUserID: UserID, selfUserID: UserID) -> Bool {
-        guard profileUserID != selfUserID else { return false }
-        switch self {
-        case .directMessage:                    return false
-        case .groupMember, .mention, .deeplink: return true
-        }
-    }
-
-    /// Whether the profile offers muting the DM with this person: only from that DM, since from a
-    /// group the row would read as muting the group.
-    var showsMute: Bool {
-        switch self {
-        case .directMessage:                    return true
-        case .groupMember, .mention, .deeplink: return false
-        }
-    }
 
     /// Whether the profile was fetched and cached just before the screen opened, so the screen
     /// reads the cache instead of fetching again. A link is looked up before it navigates.
@@ -273,7 +351,11 @@ final class UserProfileViewModel {
 
     private(set) var username: Username?
     private(set) var blurhash: String?
-    private(set) var joinedText: String?
+    private(set) var bio: String?
+    private(set) var coverPicture: ProfilePicture?
+    private(set) var customization: TipCardCustomization?
+    private(set) var joinedAt: Date?
+    private(set) var minDmChatInitFee: FiatAmount?
 
     /// What to call this person: their name when they have one, their handle
     /// when they don't. A handle is public and stable, so it beats the generic
@@ -342,15 +424,27 @@ final class UserProfileViewModel {
         if let name = profile.displayName, !name.isEmpty { self.name = name }
         if let username = profile.username { self.username = username }
         if blurhash == nil { blurhash = profile.profilePicture?.thumbnailBlurhash }
-        if let joined = profile.joinedLine {
-            joinedText = joined
-        }
+        bio = profile.bio
+        coverPicture = profile.coverPicture
+        customization = profile.tipCardCustomization
+        if let joinedAt = profile.joinedAt { self.joinedAt = joinedAt }
+        minDmChatInitFee = profile.minDmChatInitFee
     }
 
     /// Opens the share sheet on this person's public link, the one their own You tab shares.
     func share() {
         let item = TipCodeShareItem.profile(url: .tipcard(for: userID, username: username), displayName: name)
         ShareSheet.present(activityItem: item) { _ in }
+    }
+
+    /// Lifts the block; the badge and pinned button follow the blocklist. A failure says so.
+    func unblock() async {
+        do {
+            try await blocklistController.unblock(userID: userID)
+        } catch {
+            session.dialogItem = .error(title: "Something Went Wrong", subtitle: "We were unable to unblock the user. Please try again")
+            ErrorReporting.captureError(error, reason: "Failed to unblock user")
+        }
     }
 
     /// Blocks the user and closes the profile — see ``UserProfileOrigin/blockReturnsToOpener``. The

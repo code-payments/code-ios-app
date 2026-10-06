@@ -1683,6 +1683,12 @@ final class ConversationController {
         }
     }
 
+    /// The ID of the tip DM with `userID`, or nil when the chat hasn't started. The single "chat
+    /// started" rule: the visible DM. Hidden chats are excluded, and a block takes precedence anyway.
+    func tipDMID(withUserID userID: UserID) -> ConversationID? {
+        tipDM(withUserID: userID)?.id
+    }
+
     private func contactName(for conversationID: ConversationID) -> String? {
         guard let name = contactNaming.contactDisplayName(forDMChat: conversationID),
               !name.isEmpty else {

@@ -8,44 +8,10 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-/// A person's profile offers Message and Send Cash into the DM with them, except where that would
-/// lead back to where the viewer came from or point at themselves.
+/// How a person's profile behaves by the surface it was opened from.
 @MainActor
 @Suite("User profile chat actions")
 struct UserProfileChatActionsTests {
-
-    // MARK: - Visibility -
-
-    @Test("A group member's profile offers the chat actions")
-    func groupMember_showsChatActions() {
-        #expect(UserProfileOrigin.groupMember.showsChatActions(profileUserID: UUID(), selfUserID: UUID()))
-    }
-
-    @Test("A profile opened from the DM with that person hides the chat actions")
-    func directMessage_hidesChatActions() {
-        #expect(!UserProfileOrigin.directMessage.showsChatActions(profileUserID: UUID(), selfUserID: UUID()))
-    }
-
-    @Test(
-        "The viewer's own profile hides the chat actions from either origin",
-        arguments: [UserProfileOrigin.groupMember, .directMessage, .mention, .deeplink]
-    )
-    func ownProfile_hidesChatActions(_ origin: UserProfileOrigin) {
-        let me = UUID()
-        #expect(!origin.showsChatActions(profileUserID: me, selfUserID: me))
-    }
-
-    @Test("A profile opened from a person link offers the chat actions but not mute")
-    func deeplink_showsChatActionsButNotMute() {
-        #expect(UserProfileOrigin.deeplink.showsChatActions(profileUserID: UUID(), selfUserID: UUID()))
-        #expect(!UserProfileOrigin.deeplink.showsMute)
-    }
-
-    @Test("Only a profile opened from the DM offers muting it")
-    func mute_showsOnlyFromDirectMessage() {
-        #expect(UserProfileOrigin.directMessage.showsMute)
-        #expect(!UserProfileOrigin.groupMember.showsMute)
-    }
 
     @Test("Blocking from a link-opened profile returns to where the link was followed")
     func deeplink_blockReturnsToOpener() {

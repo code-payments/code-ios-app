@@ -103,10 +103,6 @@ struct ChatMuteStatusLabel: View {
     }
 
     private func chipLabel(_ string: String) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "bell.slash")
-            Text(string)
-        }
-        .chip(.tinted(.warning, on: .warningSecondary))
+        ProfileStatusChip(systemImage: "bell.slash", text: string, tint: .warning, fill: .warningSecondary)
     }
 }
