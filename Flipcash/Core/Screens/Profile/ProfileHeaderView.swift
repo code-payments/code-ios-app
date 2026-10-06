@@ -92,8 +92,7 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
     }
 }
 
-/// The share button in the header's action row: an icon on the app's glass circle, the same chrome
-/// as the toolbar's gear and ⋯.
+/// The share button in the header's action row: an icon on a flat filled circle.
 struct ProfileActionCircle: View {
 
     let image: Image
@@ -105,14 +104,14 @@ struct ProfileActionCircle: View {
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 20, height: 20)
-                .foregroundStyle(Color.textMain)
+                .frame(width: 22, height: 22)
+                .frame(width: ProfileActionButtonStyle.height, height: ProfileActionButtonStyle.height)
         }
-        .liquidGlassButtonStyle(shape: .circle)
+        .buttonStyle(ProfileActionButtonStyle())
     }
 }
 
-/// The header's "Edit Profile" button, a glass capsule beside ``ProfileActionCircle``.
+/// The header's "Edit Profile" button, a flat filled capsule beside ``ProfileActionCircle``.
 struct ProfileEditCapsule: View {
 
     let action: () -> Void
@@ -121,8 +120,25 @@ struct ProfileEditCapsule: View {
         Button(action: action) {
             Text("Edit Profile")
                 .font(.appTextSmall)
-                .foregroundStyle(Color.textMain)
+                .padding(.horizontal, 18)
         }
-        .liquidGlassButtonStyle()
+        .buttonStyle(ProfileActionButtonStyle())
+    }
+}
+
+/// The header buttons' chrome: a capsule filled at 10% of the action colour, one step above the
+/// row tone of the stats card beneath them.
+private struct ProfileActionButtonStyle: ButtonStyle {
+
+    static var height: CGFloat { 38 }
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.textMain)
+            .frame(height: Self.height)
+            .background(Capsule().fill(Color.action.opacity(0.1)))
+            .contentShape(Capsule())
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
