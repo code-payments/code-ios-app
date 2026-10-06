@@ -188,6 +188,7 @@ struct GroupEventsTests {
         (ErrorStartChat.pictureBlobNotAccepted, "PictureBlobNotAccepted"),
         (ErrorStartChat.invalidRules, "InvalidRules"),
         (ErrorEditChat.pictureBlobNotAccepted, "PictureBlobNotAccepted"),
+        (ErrorEditChat.coverPictureBlobNotAccepted, "CoverPictureBlobNotAccepted"),
         (ErrorJoinChat.notFound, "NotFound"),
         (ErrorLeaveChat.denied, "Denied"),
         (ErrorMuteChat.notFound, "NotFound"),

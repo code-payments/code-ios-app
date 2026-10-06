@@ -361,32 +361,27 @@ final class ChatService: Sendable {
         }
     }
 
-    /// Edits a group chat's title, description, and/or picture. Every field is optional — only fields set on the
+    /// Edits a group chat's title, description, picture, and/or cover picture. Every field is optional — only fields set on the
     /// request change, atomically; a request that sets nothing is a no-op returning `.ok`. Only a
     /// member the server permits to edit (``ConversationViewerState/canEdit``) may call this; anyone
     /// else is `.denied`.
     ///
-    /// `pictureBlobID`, when supplied, must already be `READY` (uploaded via `BlobService`) — this
-    /// call does not upload it, mirroring `startChat`'s `pictureBlobID` contract. On `.titleModerated`
+    /// `pictureBlobID` and `coverPictureBlobID`, when supplied, must already be `READY` (uploaded via
+    /// `BlobService`) — this call does not upload them, mirroring `startChat`'s `pictureBlobID` contract. On `.titleModerated`
     /// the server also reports which category flagged the title, carried the same way
     /// `ErrorStartChat.titleModerated` carries it; `.descriptionModerated` works the same way.
     ///
     /// `description` is ``ConversationDescriptionEdit/unchanged`` by default; use `.clear` to remove
     /// an existing description.
-    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
-        let request = Flipcash_Chat_V1_EditChatRequest.with {
-            $0.chatID = conversationID.proto
-            if let title {
-                $0.title = .with { $0.value = title }
-            }
-            if let description = description.proto {
-                $0.description_p = description
-            }
-            if let pictureBlobID {
-                $0.profilePicture = .with { $0.blobID = .with { $0.value = pictureBlobID.data } }
-            }
-            $0.auth = owner.authFor(message: $0)
-        }
+    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
+        let request = Self.editChatRequest(
+            owner: owner,
+            conversationID: conversationID,
+            title: title,
+            description: description,
+            pictureBlobID: pictureBlobID,
+            coverPictureBlobID: coverPictureBlobID
+        )
 
         Task {
             do {
@@ -407,6 +402,27 @@ final class ChatService: Sendable {
             } catch {
                 await MainActor.run { completion(.failure(.unknown)) }
             }
+        }
+    }
+
+    /// The signed `EditChat` request; a nil title or blob and an `.unchanged` description leave that
+    /// field unset, so the server keeps its current value.
+    static func editChatRequest(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit, pictureBlobID: BlobID?, coverPictureBlobID: BlobID?) -> Flipcash_Chat_V1_EditChatRequest {
+        Flipcash_Chat_V1_EditChatRequest.with {
+            $0.chatID = conversationID.proto
+            if let title {
+                $0.title = .with { $0.value = title }
+            }
+            if let description = description.proto {
+                $0.description_p = description
+            }
+            if let pictureBlobID {
+                $0.profilePicture = .with { $0.blobID = .with { $0.value = pictureBlobID.data } }
+            }
+            if let coverPictureBlobID {
+                $0.coverPicture = .with { $0.blobID = .with { $0.value = coverPictureBlobID.data } }
+            }
+            $0.auth = owner.authFor(message: $0)
         }
     }
 
