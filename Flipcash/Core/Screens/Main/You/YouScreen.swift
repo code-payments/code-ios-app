@@ -76,6 +76,8 @@ struct YouScreen: View {
             }
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
+            // The blur only belongs once the banner has scrolled up under the bar.
+            .hidesTopScrollEdge(untilOffset: ProfileCoverBanner<EmptyView>.height / 2)
         }
         // The system bar carries the gear and, on iOS 26, the soft edge the banner scrolls under.
         .toolbar {
