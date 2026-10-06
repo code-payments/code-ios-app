@@ -16,8 +16,9 @@ struct EditGroupIncomplete: Error {}
 ///
 /// One instance per edit rather than one shared across the Edit list's rows: `EditChat` treats
 /// every field as *unset means unchanged*, so a name edit and a picture edit are two independent
-/// partial updates. ``saveTitle(for:using:)`` and ``savePicture(for:using:)`` each send only their
-/// own field, which is what keeps editing the name from clearing the picture.
+/// partial updates. ``saveTitle(for:using:)``, ``savePicture(for:using:)`` and
+/// ``saveCover(for:using:)`` each send only their own field, which is what keeps editing the name
+/// from clearing the picture.
 @MainActor
 @Observable
 final class EditGroupModel {
@@ -78,8 +79,8 @@ final class EditGroupModel {
         return validatedTitle != currentTitle
     }
 
-    /// Whether Save is enabled for the picture: one has been picked and nothing is in flight. The
-    /// group's existing picture is not a submission, so this stays shut until the user picks.
+    /// Whether Save is enabled for the picture or the cover: one has been picked and nothing is in
+    /// flight. The group's existing image is not a submission, so this stays shut until the user picks.
     var canSavePicture: Bool {
         !isSaving && picture != nil
     }
@@ -134,6 +135,31 @@ final class EditGroupModel {
                 coverPictureBlobID: nil
             )
         }
+    }
+
+    /// Uploads the picked picture as the group's cover, waits for the server to finalize it, then
+    /// sends it alone and returns the chat's post-edit metadata.
+    ///
+    /// The same upload as ``savePicture(for:using:)``, landing in `cover_picture` instead, so the
+    /// group's own picture and title are left untouched. Untracked: the shared analytics schema
+    /// has no cover field yet, and recording it as a picture edit would miscount both.
+    func saveCover(for conversationID: ConversationID, using editor: some GroupChatEditing) async throws -> Conversation {
+        guard picture != nil else {
+            throw EditGroupIncomplete()
+        }
+
+        isSaving = true
+        defer { isSaving = false }
+
+        let blobID = try await uploadPicture(using: editor)
+
+        return try await editor.editChat(
+            conversationID: conversationID,
+            title: nil,
+            description: .unchanged,
+            pictureBlobID: nil,
+            coverPictureBlobID: blobID
+        )
     }
 
     /// Runs the `EditChat` call and reports what it returned as a `field` edit.

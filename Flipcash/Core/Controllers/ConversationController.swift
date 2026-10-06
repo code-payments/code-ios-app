@@ -1153,9 +1153,10 @@ final class ConversationController {
     }
 
     /// Seats the metadata `EditChat` returns for a chat the signed-in user just edited, so its
-    /// profile and the Chats list show the new title or picture without waiting for anything else.
+    /// profile and the Chats list show the new title, description, picture or cover without waiting
+    /// for anything else.
     ///
-    /// Applies the two fields through the very mutators the `titleChanged` / `pictureChanged` stream
+    /// Applies the fields through the very mutators the matching `MetadataUpdate` stream
     /// events apply — deliberately, rather than `.metadataRefresh`. Two reasons, both load-bearing:
     ///
     /// - `.metadataRefresh` upserts the whole conversation, replacing the held row outright. The
@@ -1168,6 +1169,9 @@ final class ConversationController {
         if let title = conversation.title {
             store.applyTitleChanged(title, in: conversation.id)
         }
+        // Unconditional, unlike the others: the response is the full post-edit metadata, and a
+        // cleared description arrives as nil, which has to land as a clear.
+        store.applyDescriptionChanged(conversation.description ?? "", in: conversation.id)
         if let picture = conversation.picture {
             store.applyPictureChanged(picture, in: conversation.id)
         }

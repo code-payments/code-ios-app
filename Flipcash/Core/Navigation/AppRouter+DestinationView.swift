@@ -234,6 +234,30 @@ struct DestinationView: View {
         case .editGroupPicture(let conversationID):
             EditGroupPictureScreen(conversationID: conversationID)
                 .id(conversationID)
+
+        case .editGroupCover(let conversationID):
+            EditGroupCoverScreen(conversationID: conversationID)
+                .id(conversationID)
+
+        case .editGroupDescription(let conversationID):
+            // Seeded here, like `.editBio`, so the field opens on the description it is about to
+            // replace. The response carries the post-edit metadata, so the store is seated from it.
+            let editor = SessionGroupChatEditor(session: sessionContainer.session, flipClient: container.flipClient)
+            let conversationController = conversationController
+            EditGroupDescriptionScreen(model: EditGroupDescriptionModel(
+                description: conversationController.conversation(withID: conversationID)?.description ?? "",
+                saving: { edit in
+                    let conversation = try await editor.editChat(
+                        conversationID: conversationID,
+                        title: nil,
+                        description: edit,
+                        pictureBlobID: nil,
+                        coverPictureBlobID: nil
+                    )
+                    conversationController.applyEdit(conversation)
+                }
+            ))
+            .id(conversationID)
         }
     }
 }

@@ -15,6 +15,8 @@ struct GroupChangeDialogTests {
     @Test("Names the field in the title and the confirming button", arguments: [
         (DialogItem.GroupField.name, "Group Name"),
         (.picture, "Group Picture"),
+        (.cover, "Group Cover"),
+        (.description, "Group Description"),
     ])
     func namesField(field: DialogItem.GroupField, label: String) {
         let item = DialogItem.confirmGroupChange(field) {}
@@ -28,6 +30,8 @@ struct GroupChangeDialogTests {
     @Test("Says the group's, not the user's own", arguments: [
         DialogItem.GroupField.name,
         .picture,
+        .cover,
+        .description,
     ])
     func qualifiesTheFieldAsTheGroups(field: DialogItem.GroupField) {
         let item = DialogItem.confirmGroupChange(field) {}
@@ -39,6 +43,8 @@ struct GroupChangeDialogTests {
     @Test("States the change in the body", arguments: [
         (DialogItem.GroupField.name, "This will change the group name for everyone in it"),
         (.picture, "This will change the group picture for everyone in it"),
+        (.cover, "This will change the group cover for everyone in it"),
+        (.description, "This will change the group description for everyone in it"),
     ])
     func statesTheChange(field: DialogItem.GroupField, body: String) {
         let item = DialogItem.confirmGroupChange(field) {}
@@ -49,6 +55,8 @@ struct GroupChangeDialogTests {
     @Test("Confirms over Cancel", arguments: [
         DialogItem.GroupField.name,
         .picture,
+        .cover,
+        .description,
     ])
     func actions(field: DialogItem.GroupField) {
         let item = DialogItem.confirmGroupChange(field) {}
@@ -60,6 +68,8 @@ struct GroupChangeDialogTests {
     @Test("Runs the caller's work only once the change is confirmed", arguments: [
         DialogItem.GroupField.name,
         .picture,
+        .cover,
+        .description,
     ])
     func confirmAction_runsHandler(field: DialogItem.GroupField) {
         var confirmed = false
@@ -73,6 +83,8 @@ struct GroupChangeDialogTests {
     @Test("Cancel leaves the caller's work unrun", arguments: [
         DialogItem.GroupField.name,
         .picture,
+        .cover,
+        .description,
     ])
     func cancelAction_doesNotRunHandler(field: DialogItem.GroupField) {
         var confirmed = false
@@ -84,11 +96,13 @@ struct GroupChangeDialogTests {
 
     /// Both edits land on everyone in the group at once, so both carry the alert's weight rather
     /// than the grey banner the reversible profile fields use.
-    @Test("Red banner for both", arguments: [
+    @Test("Red banner for every field", arguments: [
         DialogItem.GroupField.name,
         .picture,
+        .cover,
+        .description,
     ])
-    func bothAreDestructive(field: DialogItem.GroupField) {
+    func everyFieldIsDestructive(field: DialogItem.GroupField) {
         let item = DialogItem.confirmGroupChange(field) {}
 
         #expect(item.style == .destructive)
@@ -98,6 +112,8 @@ struct GroupChangeDialogTests {
     @Test("Not an error worth reporting", arguments: [
         DialogItem.GroupField.name,
         .picture,
+        .cover,
+        .description,
     ])
     func untracked(field: DialogItem.GroupField) {
         #expect(DialogItem.confirmGroupChange(field) {}.tracked == false)
