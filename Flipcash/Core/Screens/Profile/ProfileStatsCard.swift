@@ -40,7 +40,7 @@ struct ProfileStatsCard: View {
     }
 
     private func stat(title: String, value: String, valueFont: Font, identifier: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.appTextCaption)
                 .foregroundStyle(Color.textSecondary)
