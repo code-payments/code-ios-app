@@ -823,8 +823,8 @@ public final class ChatViewController: UICollectionViewController {
         }
     }
 
-    /// The message whose row is at `point` if a long press there should lift it. A reaction pill
-    /// keeps its own long press, which opens its reactors sheet.
+    /// The message whose row is at `point` if a long press there should lift it. The reaction row
+    /// keeps its own long press, which opens the reactors sheet.
     private func longPressTarget(at point: CGPoint) -> ChatMessage? {
         guard !isUpdating, !isShowingContextMenu,
               let indexPath = collectionView.indexPathForItem(at: point),
