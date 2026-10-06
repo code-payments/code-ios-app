@@ -30,8 +30,8 @@ struct SettingsUIScreen {
     var accessKeyRow: XCUIElement { app.buttons["Access Key"] }
     var applicationLogsRow: XCUIElement { app.buttons["Application Logs"] }
 
-    /// The Profile row that opens Edit Profile.
-    var editProfileRow: XCUIElement { app.buttons["settings-edit-profile"] }
+    /// The You tab button that opens Edit Profile.
+    var editProfileButton: XCUIElement { app.buttons["you-edit-profile"] }
 
     /// Edit Profile's row that opens the display-name editor.
     var displayNameRow: XCUIElement { app.buttons["edit-profile-name"] }
