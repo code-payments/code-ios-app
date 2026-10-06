@@ -194,13 +194,11 @@ struct ConversationScreen: View {
     /// the amount the CTA names is the one the amount screen enforces.
     private var startChattingFee: FiatAmount? {
         guard !chatExists, let userID = tipCounterpart?.userID else { return nil }
-        let currency = ratesController.balanceCurrency
-        return TipFloor.toOpenDM(
-            recipientFee: session.cachedUserProfile(for: userID)?.minDmChatInitFee,
-            presets: session.userFlags?.tipPresets(for: currency),
-            in: currency,
-            rates: ratesController.cachedRates
-        )?.displayed
+        return StartChattingFee.amount(
+            for: session.cachedUserProfile(for: userID),
+            session: session,
+            ratesController: ratesController
+        )
     }
 
     /// Whether a chat exists to hold a transcript. An `existing` conversation

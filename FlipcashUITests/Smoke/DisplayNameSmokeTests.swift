@@ -37,19 +37,19 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         // arrives already tippable.
         createFreshAccount()
 
-        // MARK: The card is there, with its actions.
+        // MARK: The profile is there, with its actions.
         settings.openYouTab(from: self)
         XCTAssertTrue(
-            app.buttons["you-share-button"].waitForExistence(timeout: 30),
-            "Expected the tip card's Share action on a named account. On screen: [\(visibleText())]"
+            app.buttons["you-share"].waitForExistence(timeout: 30),
+            "Expected the profile's Share menu on a named account. On screen: [\(visibleText())]"
         )
         XCTAssertTrue(
-            app.buttons["you-download-button"].exists,
-            "Expected the tip card's Download action alongside Share"
+            app.staticTexts["profile-name"].exists,
+            "Expected the profile header's name, not the name-less setup prompt"
         )
         XCTAssertTrue(
-            app.buttons["you-fullscreen-button"].exists,
-            "Expected the card itself, not the name-less setup prompt"
+            app.buttons["you-edit-profile"].exists,
+            "Expected the Edit Profile button under the stats"
         )
 
         // MARK: Change the name from Settings.
@@ -110,14 +110,14 @@ final class DisplayNameSmokeTests: BaseUITestCase {
             "Expected the name editor to pop back to Settings once the name saved. On screen: [\(visibleText())]"
         )
 
-        // MARK: The card survives the rename.
+        // MARK: The profile survives the rename.
         // Unwind the last screen by hand: the tab bar stays hidden while the
         // You tab has a stack, so there is no You button to tap back to.
         waitAndTap(app.navigationBars.buttons.firstMatch)
         assertMainScreenReached(timeout: 30, "Expected the You tab root after backing out of Settings")
         XCTAssertTrue(
-            app.buttons["you-share-button"].waitForExistence(timeout: 30),
-            "Expected the tip card still on the You tab after renaming"
+            app.buttons["you-share"].waitForExistence(timeout: 30),
+            "Expected the profile still on the You tab after renaming"
         )
     }
 }
