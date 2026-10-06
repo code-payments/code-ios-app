@@ -13,6 +13,7 @@ struct EditProfileScreen: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(RatesController.self) private var ratesController
 
     @State private var dialog: DialogItem?
 
@@ -153,8 +154,9 @@ struct EditProfileScreen: View {
         }
     }
 
+    /// What others pay to start a chat, matching the You tab's stats card.
     private var minimumToChat: String? {
-        profile?.minDmChatInitFee?.formatted()
+        StartChattingFee.amount(for: profile, session: session, ratesController: ratesController)?.formatted()
     }
 
     private func nonEmpty(_ string: String?) -> String? {
