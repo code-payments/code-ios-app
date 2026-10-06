@@ -34,8 +34,6 @@ struct EditFeaturedGroupsScreen: View {
 
         Background(color: .backgroundMain) {
             list
-                // Rows scroll under Save but are blurred out there, not left readable.
-                .hardScrollEdge(for: .bottom)
                 .scrollEdgeBar(.bottom) {
                     Button(action: save) {
                         ButtonStateLabel("Save", state: buttonState)

@@ -20,13 +20,6 @@ extension View {
         modifier(SoftScrollEdge(edges: edges))
     }
 
-    /// Uses the hard scroll edge effect on iOS 26+, so content under a bar on `edges` is blurred
-    /// out rather than fading and staying legible. Overrides the app-wide soft edge for the
-    /// scrollable views below it. No-op below iOS 26.
-    public func hardScrollEdge(for edges: Edge.Set) -> some View {
-        modifier(HardScrollEdge(edges: edges))
-    }
-
     /// Hides the top scroll edge effect until the scroll view has moved past `offset`, for a screen
     /// whose content starts with a full-bleed image under the bar: at rest the effect would only
     /// darken that image and leave a visible band where it stops. No-op below iOS 26.
@@ -53,19 +46,6 @@ private struct SoftScrollEdge: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.scrollEdgeEffectStyle(.soft, for: edges)
-        } else {
-            content
-        }
-    }
-}
-
-private struct HardScrollEdge: ViewModifier {
-
-    let edges: Edge.Set
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.scrollEdgeEffectStyle(.hard, for: edges)
         } else {
             content
         }
