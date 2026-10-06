@@ -77,7 +77,8 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         titleButton.tap()
 
         // MARK: Block from the profile screen.
-        waitAndTap(app.buttons["Block"], timeout: 30, "Expected the Block row on the profile screen")
+        waitAndTap(app.buttons["profile-overflow"], timeout: 30, "Expected the overflow menu on the profile screen")
+        waitAndTap(app.buttons["Block"], timeout: 10, "Expected Block in the profile's overflow menu")
         let blockDialog = app.otherElements
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "Block "))
             .firstMatch
