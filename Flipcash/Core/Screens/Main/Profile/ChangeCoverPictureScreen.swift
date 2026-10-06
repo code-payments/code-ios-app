@@ -35,8 +35,7 @@ struct ChangeCoverPictureScreen: View {
                     Button("Choose File", systemImage: "folder") { isShowingFilePicker = true }
                 } label: {
                     ProfileCoverBanner(
-                        userID: session.userID,
-                        coverPicture: profile?.coverPicture,
+                        cover: .user(session.userID, picture: profile?.coverPicture),
                         preview: state.selectedImage
                     )
                     .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius))

@@ -7,6 +7,28 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
+/// What a cover banner draws: the picture, and the subject its bytes load and authorize under.
+struct ProfileCover {
+
+    let subject: ProfileAvatarStore.AvatarSubject
+    let picture: ProfilePicture?
+
+    private init(subject: ProfileAvatarStore.AvatarSubject, picture: ProfilePicture?) {
+        self.subject = subject
+        self.picture = picture
+    }
+
+    /// A user's cover.
+    static func user(_ userID: UserID, picture: ProfilePicture?) -> ProfileCover {
+        ProfileCover(subject: .cover(userID), picture: picture)
+    }
+
+    /// A group chat's cover.
+    static func group(_ conversationID: ConversationID, picture: ProfilePicture?) -> ProfileCover {
+        ProfileCover(subject: .groupCover(conversationID), picture: picture)
+    }
+}
+
 /// A profile's full-bleed cover: the picture once it has loaded, the blurhash while it does, and a
 /// flat gray when there is no picture.
 ///
@@ -15,8 +37,7 @@ struct ProfileCoverBanner<Controls: View>: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
-    let userID: UserID
-    let coverPicture: ProfilePicture?
+    let cover: ProfileCover
     /// A picked image not uploaded yet, drawn in place of the stored cover.
     var preview: UIImage? = nil
     /// The banner's height; a profile's own cover is ``height``.
@@ -29,13 +50,13 @@ struct ProfileCoverBanner<Controls: View>: View {
         Color.clear
             .frame(height: bannerHeight)
             .frame(maxWidth: .infinity)
-            .overlay { cover }
+            .overlay { image }
             .clipped()
             .overlay(alignment: .top) {
                 controls()
             }
-            .task(id: coverPicture?.blobID) {
-                await sessionContainer.profileAvatars.load(.cover(userID), picture: coverPicture)
+            .task(id: cover.picture?.blobID) {
+                await sessionContainer.profileAvatars.load(cover.subject, picture: cover.picture)
             }
             // `.contain` keeps the banner's controls as their own elements; a bare identifier
             // here would overwrite theirs.
@@ -44,11 +65,11 @@ struct ProfileCoverBanner<Controls: View>: View {
     }
 
     @ViewBuilder
-    private var cover: some View {
+    private var image: some View {
         if let preview {
             fill(preview)
-        } else if let coverPicture {
-            let data = sessionContainer.profileAvatars.data(for: .cover(userID))
+        } else if let coverPicture = cover.picture {
+            let data = sessionContainer.profileAvatars.data(for: cover.subject)
             if let data, let image = ContactAvatarCache.shared.image(forKey: "cover-\(coverPicture.blobID)", data: data) {
                 fill(image)
             } else if let preview = BlurHashCache.shared.image(for: coverPicture.thumbnailBlurhash) {
@@ -71,7 +92,7 @@ struct ProfileCoverBanner<Controls: View>: View {
 extension ProfileCoverBanner where Controls == EmptyView {
 
     /// A cover with nothing laid over it.
-    init(userID: UserID, coverPicture: ProfilePicture?, preview: UIImage? = nil, bannerHeight: CGFloat = Self.height) {
-        self.init(userID: userID, coverPicture: coverPicture, preview: preview, bannerHeight: bannerHeight, controls: { EmptyView() })
+    init(cover: ProfileCover, preview: UIImage? = nil, bannerHeight: CGFloat = Self.height) {
+        self.init(cover: cover, preview: preview, bannerHeight: bannerHeight, controls: { EmptyView() })
     }
 }

@@ -41,7 +41,7 @@ struct EditProfileScreen: View {
                     fieldCards
                         .padding(.top, 20)
                 }
-                .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
+                .padding(.horizontal, ProfileHeaderMetrics.inset)
                 .padding(.vertical, 24)
             }
         }
@@ -59,7 +59,7 @@ struct EditProfileScreen: View {
         Button {
             router.push(.changeCoverPicture)
         } label: {
-            ProfileCoverBanner(userID: session.userID, coverPicture: profile?.coverPicture, bannerHeight: Self.coverHeight)
+            ProfileCoverBanner(cover: .user(session.userID, picture: profile?.coverPicture), bannerHeight: Self.coverHeight)
                 .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
         }
         .buttonStyle(.plain)

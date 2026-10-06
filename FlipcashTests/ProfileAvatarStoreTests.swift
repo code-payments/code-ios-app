@@ -189,6 +189,37 @@ struct ProfileAvatarStoreTests {
         #expect(!coverCache.holds(picture.thumbnailBlobID))
     }
 
+    /// A group's cover is the chat's blob, so it must authorize through the chat, not a member.
+    @Test("A group cover loads the original blob under the chat's context, into the cover pool")
+    func groupCoverLoadsOriginalUnderChatContext() async {
+        let conversationID = ConversationID(data: Data(repeating: 7, count: 32))
+        let picture = ProfilePicture(blobID: BlobID(uuid: UUID()), thumbnailBlobID: BlobID(uuid: UUID()))
+        let avatarCache = Self.cache()
+        let coverCache = Self.cache()
+        var mintedBlobs: [BlobID] = []
+        var mintedContexts: [BlobAccessContext] = []
+
+        let store = ProfileAvatarStore(
+            cache: avatarCache,
+            coverCache: coverCache,
+            mintURL: { blobID, subject in
+                mintedBlobs.append(blobID)
+                mintedContexts.append(subject.accessContext)
+                return URL(string: "https://example.test/\(blobID)")!
+            },
+            fetch: { _ in Self.bytes }
+        )
+
+        await store.load(.groupCover(conversationID), picture: picture)
+
+        #expect(mintedBlobs == [picture.blobID])
+        #expect(mintedContexts == [.chatProfile(conversationID)])
+        #expect(store.data(for: AvatarSubject.groupCover(conversationID)) == Self.bytes)
+        #expect(store.data(for: AvatarSubject.chat(conversationID)) == nil)
+        #expect(coverCache.holds(picture.blobID))
+        #expect(!avatarCache.holds(picture.blobID))
+    }
+
     /// Bytes already on disk are the common case at launch, and paying for a round trip there would
     /// put a blurhash on screen for the length of one.
     @Test("Bytes already on disk need no fetch")
