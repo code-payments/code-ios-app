@@ -115,8 +115,8 @@ struct ConversationStreamEventDecodeTests {
             $0.chatUpdate = .with {
                 $0.chat = .with { $0.value = conversationBytes }
                 $0.metadataUpdates = [.with {
-                    $0.pictureChanged = .with {
-                        $0.newPicture = .with {
+                    $0.profilePictureChanged = .with {
+                        $0.newProfilePicture = .with {
                             $0.renditions = [.with {
                                 $0.role = .original
                                 $0.blobID = .with { $0.value = blobBytes }
@@ -141,12 +141,73 @@ struct ConversationStreamEventDecodeTests {
             $0.chatUpdate = .with {
                 $0.chat = .with { $0.value = conversationBytes }
                 $0.metadataUpdates = [.with {
-                    $0.pictureChanged = .init()
+                    $0.profilePictureChanged = .init()
                 }]
             }
         }
 
         #expect(ConversationStreamEvent.decode(event).isEmpty)
+    }
+
+    @Test("CoverPictureChanged decodes to a coverPictureChanged event")
+    func coverPictureChanged() {
+        let blobBytes = Data(repeating: 0x05, count: 16)
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.metadataUpdates = [.with {
+                    $0.coverPictureChanged = .with {
+                        $0.newCoverPicture = .with {
+                            $0.renditions = [.with {
+                                $0.role = .original
+                                $0.blobID = .with { $0.value = blobBytes }
+                            }]
+                        }
+                    }
+                }]
+            }
+        }
+
+        let decoded = ConversationStreamEvent.decode(event)
+        guard case .coverPictureChanged(let conversationID, let cover) = decoded.first else {
+            Issue.record("expected .coverPictureChanged"); return
+        }
+        #expect(conversationID == ConversationID(data: conversationBytes))
+        #expect(cover.blobID == BlobID(data: blobBytes))
+    }
+
+    @Test("CoverPictureChanged with no picture set decodes to nothing")
+    func coverPictureChangedWithoutPicture() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.metadataUpdates = [.with { $0.coverPictureChanged = .init() }]
+            }
+        }
+
+        #expect(ConversationStreamEvent.decode(event).isEmpty)
+    }
+
+    @Test("MembershipChanged decodes to a roster update carrying only the summary")
+    func rosterMembershipChanged() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.rosterUpdates = .with {
+                    $0.rosterUpdates = [.with {
+                        $0.rosterSummary = rosterSummary(9, 4)
+                        $0.membershipChanged = .init()
+                    }]
+                }
+            }
+        }
+
+        guard case .rosterChanged(_, let updates) = ConversationStreamEvent.decode(event).first else {
+            Issue.record("expected .rosterChanged"); return
+        }
+        #expect(updates.count == 1)
+        #expect(updates[0].rosterSummary == ConversationRosterSummary(memberCount: 9, version: 4))
+        guard case .membershipChanged = updates[0].change else { Issue.record("expected .membershipChanged"); return }
     }
 
     @Test("An event batch and a metadata update decode to both events in order")

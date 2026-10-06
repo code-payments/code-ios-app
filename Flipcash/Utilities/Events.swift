@@ -542,6 +542,7 @@ extension Analytics {
             case .denied:                                         "Denied"
             case .titleModerated:                                 "TitleModerated"
             case .pictureBlobNotAccepted:                         "PictureBlobNotAccepted"
+            case .coverPictureBlobNotAccepted:                    "CoverPictureBlobNotAccepted"
             case .invalidRules:                                   "InvalidRules"
             case .rulesNotSatisfied:                              "RulesNotSatisfied"
             case .descriptionModerated:                           "DescriptionModerated"
@@ -553,6 +554,7 @@ extension Analytics {
             case .notFound:                                       "NotFound"
             case .titleModerated:                                 "TitleModerated"
             case .pictureBlobNotAccepted:                         "PictureBlobNotAccepted"
+            case .coverPictureBlobNotAccepted:                    "CoverPictureBlobNotAccepted"
             case .descriptionModerated:                           "DescriptionModerated"
             case .unknown, .transportFailure, .cancelled, .rejected: "Network"
             }

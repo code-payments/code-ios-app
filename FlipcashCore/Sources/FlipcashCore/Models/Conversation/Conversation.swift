@@ -40,6 +40,12 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// The chat's picture. Only ever set for group chats.
     public var picture: ProfilePicture?
 
+    /// The group's cover picture. Only ever set for group chats. The feed RPCs may leave it unset
+    /// even when the group has one, so the store keeps a held cover when a feed copy carries none —
+    /// `GetChat` is what fetches it. Not persisted: a conversation restored from the local database
+    /// reports `nil` until the server's copy refreshes it.
+    public var coverPicture: ProfilePicture?
+
     /// Summary of the chat's roster. Tells whether ``members`` — a subset for
     /// a large group chat — is stale without needing to hold the full list.
     /// See ``ConversationRosterSummary``.
@@ -71,7 +77,7 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// persisted, like ``isPrivate``.
     public var inLobby: Bool
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false, description: String? = nil) {
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false, description: String? = nil, coverPicture: ProfilePicture? = nil) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -82,6 +88,7 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.description = description
         self.latestEventSequence = latestEventSequence
         self.picture = picture
+        self.coverPicture = coverPicture
         self.rosterSummary = rosterSummary
         self.rules = rules
         self.viewerState = viewerState
@@ -169,7 +176,8 @@ extension Conversation {
         self.title = proto.title.isEmpty ? nil : proto.title
         self.description = proto.description_p.isEmpty ? nil : proto.description_p
         self.latestEventSequence = proto.latestEventSequence
-        self.picture = proto.hasPicture ? ProfilePicture(proto.picture) : nil
+        self.picture = proto.hasProfilePicture ? ProfilePicture(proto.profilePicture) : nil
+        self.coverPicture = proto.hasCoverPicture ? ProfilePicture(proto.coverPicture) : nil
         self.rosterSummary = ConversationRosterSummary(proto.rosterSummary)
         self.rules = proto.hasRules ? ConversationRules(proto.rules) : nil
         self.viewerState = proto.hasViewerState ? ConversationViewerState(proto.viewerState) : nil
