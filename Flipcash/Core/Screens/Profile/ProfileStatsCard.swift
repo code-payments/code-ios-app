@@ -50,7 +50,9 @@ struct ProfileStatsCard: View {
                 .foregroundStyle(Color.textMain)
         }
         .padding(.leading, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 18)
+        // Top-aligned so both labels share a baseline even though the values differ in size.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
     }

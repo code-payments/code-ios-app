@@ -102,14 +102,9 @@ private struct UserProfileContent: View {
         ProfilePinnedAction.resolve(isSelf: isSelf, isBlocked: isBlocked, dmID: dmID, fee: fee)
     }
 
-    private var isMuted: Bool {
-        guard let dmID else { return false }
-        return conversationController.conversation(withID: dmID)?.isMuted() ?? false
-    }
-
     private var menuItems: [ProfileMenuItem] {
         guard !isSelf else { return [] }
-        return ProfileMenuItems.resolve(isBlocked: isBlocked, hasDM: dmID != nil, isMuted: isMuted)
+        return ProfileMenuItems.resolve(isBlocked: isBlocked, hasDM: dmID != nil)
     }
 
     /// Whether this profile is the visible top of its stack, with its tab or sheet active.
@@ -137,7 +132,7 @@ private struct UserProfileContent: View {
                         avatarBlurhash: model.blurhash,
                         coverPicture: model.coverPicture,
                         statusChip: statusChip,
-                        bannerControls: { bannerControls },
+                        bannerControls: { EmptyView() },
                         rowActions: { shareButton },
                         underHandle: { EmptyView() }
                     )
@@ -150,11 +145,18 @@ private struct UserProfileContent: View {
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        // On iOS 26 the pinned button joins the bottom scroll edge effect, so content fades under it.
+        .scrollEdgeBar(.bottom) {
             pinnedButton
         }
-        // The system bar is hidden; the interactive swipe-back stays with the navigation controller.
-        .toolbar(.hidden, for: .navigationBar)
+        // The system bar carries back and the overflow menu, and the soft edge the banner scrolls under.
+        .toolbar {
+            if !menuItems.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    overflowMenu
+                }
+            }
+        }
         .sheet(isPresented: $isShowingShare, onDismiss: handleShareChoice) {
             ProfileShareSheet(subtitle: shareSubtitle, offersCard: false) { shareChoice = $0 }
         }
@@ -214,46 +216,21 @@ private struct UserProfileContent: View {
 
     // MARK: - Banner controls -
 
-    private var bannerControls: some View {
-        HStack {
-            Button {
-                router.popTopmost()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color.textMain)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Back")
-            .accessibilityIdentifier("profile-back")
-
-            Spacer()
-
-            if !menuItems.isEmpty {
-                Menu {
-                    ForEach(menuItems, id: \.title) { item in
-                        Button(role: item.isDestructive ? .destructive : nil) {
-                            perform(item)
-                        } label: {
-                            Label(item.title, systemImage: item.systemImage)
-                        }
-                    }
+    private var overflowMenu: some View {
+        Menu {
+            ForEach(menuItems, id: \.title) { item in
+                Button(role: item.isDestructive ? .destructive : nil) {
+                    perform(item)
                 } label: {
-                    Image.system(.ellipsis)
-                        .renderingMode(.template)
-                        .foregroundStyle(Color.textMain)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                    Label(item.title, systemImage: item.systemImage)
                 }
-                .accessibilityLabel("More")
-                .accessibilityIdentifier("profile-overflow")
             }
+        } label: {
+            Image.system(.ellipsis)
+                .renderingMode(.template)
         }
-        .padding(.leading, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset - 10)
-        .padding(.trailing, 12)
-        .padding(.top, 67)
+        .accessibilityLabel("More")
+        .accessibilityIdentifier("profile-overflow")
     }
 
     private var shareButton: some View {
@@ -288,22 +265,6 @@ private struct UserProfileContent: View {
         switch item {
         case .mute:
             isPickingMuteDuration = true
-        case .unmute:
-            guard let dmID else { return }
-            let chatType = conversationController.conversation(withID: dmID)?.type
-            Task {
-                do {
-                    try await conversationController.unmute(conversationID: dmID)
-                    Analytics.chatUnmuted(chatType: chatType, error: nil)
-                } catch {
-                    Analytics.chatUnmuted(chatType: chatType, error: error)
-                    session.dialogItem = .error(
-                        title: "Something Went Wrong",
-                        subtitle: "We were unable to unmute this chat. Please try again"
-                    )
-                    ErrorReporting.captureError(error, reason: "Failed to unmute chat")
-                }
-            }
         case .report:
             isReporting = true
         case .block:
@@ -336,20 +297,8 @@ private struct UserProfileContent: View {
                 }
             }
             .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
-            .padding(.top, 40)
+            .padding(.top, 12)
             .padding(.bottom, 8)
-            .background {
-                LinearGradient(
-                    stops: [
-                        .init(color: Color.backgroundMain.opacity(0), location: 0),
-                        .init(color: Color.backgroundMain.opacity(0.96), location: 0.3),
-                        .init(color: Color.backgroundMain, location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea(edges: .bottom)
-            }
         } else if showsE2eeFooter {
             E2eeFooter(kind: .dm)
         }

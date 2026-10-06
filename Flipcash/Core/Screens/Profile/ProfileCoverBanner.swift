@@ -44,9 +44,9 @@ struct ProfileCoverBanner<Controls: View>: View {
         if let coverPicture {
             let data = sessionContainer.profileAvatars.data(for: .cover(userID))
             if let data, let image = ContactAvatarCache.shared.image(forKey: "cover-\(coverPicture.blobID)", data: data) {
-                shaded(image)
+                fill(image)
             } else if let preview = BlurHashCache.shared.image(for: coverPicture.thumbnailBlurhash) {
-                shaded(preview)
+                fill(preview)
             } else {
                 Color.coverPlaceholder
             }
@@ -55,10 +55,9 @@ struct ProfileCoverBanner<Controls: View>: View {
         }
     }
 
-    private func shaded(_ image: UIImage) -> some View {
+    private func fill(_ image: UIImage) -> some View {
         Image(uiImage: image)
             .resizable()
             .scaledToFill()
-            .overlay { Color.black.opacity(0.16) }
     }
 }
