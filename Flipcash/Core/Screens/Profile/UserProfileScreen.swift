@@ -138,7 +138,7 @@ private struct UserProfileContent: View {
                     )
 
                     ProfileStatsCard(minimumToChat: fee, joinedAt: model.joinedAt)
-                        .padding(.top, 19)
+                        .padding(.top, 20)
                 }
                 .padding(.bottom, 24)
             }
@@ -234,12 +234,9 @@ private struct UserProfileContent: View {
     }
 
     private var shareButton: some View {
-        Button {
+        ProfileActionCircle(image: Image.asset(.shareOS)) {
             isShowingShare = true
-        } label: {
-            ProfileActionCircle(image: Image.asset(.shareOS))
         }
-        .buttonStyle(.plain)
         .accessibilityLabel("Share profile")
         .accessibilityIdentifier("profile-share")
     }
@@ -280,17 +277,8 @@ private struct UserProfileContent: View {
     private var pinnedButton: some View {
         if let title = pinnedAction.title {
             VStack(spacing: 8) {
-                Button(action: tapPinned) {
-                    Text(title)
-                        .font(.default(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.textAction)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 60)
-                        .background(Color.action, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("profile-pinned-action")
+                CodeButton(style: .filled, title: title, action: tapPinned)
+                    .accessibilityIdentifier("profile-pinned-action")
 
                 if showsE2eeFooter {
                     E2eeFooter(kind: .dm)

@@ -53,7 +53,7 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
 
                 Spacer(minLength: 8)
 
-                HStack(spacing: 14) {
+                HStack(spacing: 12) {
                     rowActions()
                 }
                 .padding(.top, 20)
@@ -64,10 +64,7 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 8) {
                         Text(displayName)
-                            .font(.default(size: 28, weight: .bold))
-                            .tracking(-0.6)
-                            .lineSpacing(1)
-                            .frame(minHeight: 35)
+                            .font(.appDisplaySmall)
                             .foregroundStyle(Color.textMain)
                             .accessibilityIdentifier("profile-name")
 
@@ -79,8 +76,7 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
 
                     if let handle {
                         Text(handle)
-                            .font(.default(size: 14, weight: .regular))
-                            .frame(minHeight: 22)
+                            .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
                             .accessibilityIdentifier("profile-handle")
                     }
@@ -89,41 +85,42 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
 
                     if let bio, !bio.isEmpty {
                         Text(bio)
-                            .font(.default(size: 15, weight: .regular))
-                            .lineSpacing(4)
+                            .font(.appTextBody)
                             .foregroundStyle(Color.textMain)
                             .multilineTextAlignment(.leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 14)
+                            .padding(.top, 12)
                             .accessibilityIdentifier("profile-bio")
                     }
                 }
-                .padding(.top, 7)
+                .padding(.top, 8)
                 .padding(.horizontal, Self.inset)
             }
         }
     }
 }
 
-/// A 38pt disc in the header's action row, filled at the row-surface tint.
+/// The share button in the header's action row: an icon on the app's glass circle, the same chrome
+/// as the toolbar's gear and ⋯.
 struct ProfileActionCircle: View {
 
     let image: Image
+    let action: () -> Void
 
     var body: some View {
-        image
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .frame(width: 22, height: 22)
-            .foregroundStyle(Color.textMain)
-            .frame(width: 38, height: 38)
-            .background(Color.rowSeparator, in: Circle())
-            .contentShape(Circle())
+        Button(action: action) {
+            image
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 20)
+                .foregroundStyle(Color.textMain)
+        }
+        .liquidGlassButtonStyle(shape: .circle)
     }
 }
 
-/// The header's "Edit Profile" capsule.
+/// The header's "Edit Profile" button, a glass capsule beside ``ProfileActionCircle``.
 struct ProfileEditCapsule: View {
 
     let action: () -> Void
@@ -131,13 +128,9 @@ struct ProfileEditCapsule: View {
     var body: some View {
         Button(action: action) {
             Text("Edit Profile")
-                .font(.default(size: 12, weight: .semibold))
+                .font(.appTextSmall)
                 .foregroundStyle(Color.textMain)
-                .padding(.horizontal, 18)
-                .frame(height: 38)
-                .background(Color.rowSeparator, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .liquidGlassButtonStyle()
     }
 }
