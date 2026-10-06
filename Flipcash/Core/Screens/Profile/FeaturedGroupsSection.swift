@@ -24,10 +24,10 @@ struct FeaturedGroupsSection: View {
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
                     .padding(.top, 24)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 24)
                     .accessibilityAddTraits(.isHeader)
 
-                VStack(spacing: 2) {
+                VStack(spacing: 16) {
                     ForEach(groups) { group in
                         Button { onTap(group.id) } label: {
                             FeaturedGroupRow(group: group) { EmptyView() }
