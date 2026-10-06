@@ -26,7 +26,7 @@ struct ProfileCardScreen: View {
 
     /// The backdrop and chrome fade on this; the cover itself is presented without animation.
     @State private var isRevealed = false
-    /// The card springs on this, separately, so it can bounce while the backdrop eases.
+    /// The card's scale springs on this, separately, so it can bounce while its opacity eases with the backdrop.
     @State private var isCardShown = false
 
     /// The card's width, from the full-screen frame (302 of the 402pt frame).
@@ -60,7 +60,7 @@ struct ProfileCardScreen: View {
                             subtitle: username.map(\.handle)
                         )
                         .scaleEffect(isCardShown ? 1 : Self.revealScale)
-                        .opacity(isCardShown ? 1 : 0)
+                        .opacity(isRevealed ? 1 : 0)
                         .padding(.horizontal, Self.horizontalInset)
                         .containerRelativeFrame(.vertical, alignment: .center)
                     }
@@ -154,11 +154,10 @@ struct ProfileCardScreen: View {
         withAnimation(Self.revealSpring) { isCardShown = true }
     }
 
-    /// Plays the reveal backwards, then removes the cover without its slide-down.
+    /// Fades the card and backdrop out at full size, then removes the cover without its slide-down.
     private func close() {
         withAnimation(Self.fade) {
             isRevealed = false
-            isCardShown = false
         } completion: {
             var transaction = Transaction()
             transaction.disablesAnimations = true
