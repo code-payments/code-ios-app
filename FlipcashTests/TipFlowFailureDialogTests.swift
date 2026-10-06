@@ -17,7 +17,7 @@ struct TipFlowFailureDialogTests {
     func failedResolve_genericError() {
         let item = TipFlow.failureDialog
         #expect(item.style == .destructive)
-        #expect(item.title == "Couldn't Open Tip Card")
+        #expect(item.title == "Couldn't Open Profile Card")
         #expect(item.subtitle == "Please check your connection and try again")
     }
 }

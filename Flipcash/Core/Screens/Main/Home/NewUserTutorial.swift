@@ -23,7 +23,7 @@ nonisolated enum TutorialItem: TutorialItemPresentable {
     var title: String {
         switch self {
         case .addMoney:    return "Add Money"
-        case .scanTipCard: return "Scan a Tip Card"
+        case .scanTipCard: return "Scan a Profile Card"
         }
     }
 

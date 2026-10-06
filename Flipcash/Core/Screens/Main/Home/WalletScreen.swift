@@ -15,7 +15,7 @@ struct WalletScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
-    /// Invoked by the tutorial's "Scan a Tip Card" step to switch to the Scan tab.
+    /// Invoked by the tutorial's "Scan a Profile Card" step to switch to the Scan tab.
     let onScanTipCard: () -> Void
 
     var body: some View {
