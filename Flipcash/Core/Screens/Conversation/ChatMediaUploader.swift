@@ -104,8 +104,9 @@ enum ChatMediaUploadError: Error {
         case .noMatchingConstraint, .encryptionNotAllowed, .encodingFailed:
             false
         case .sealUnavailable(let error):
-            // A peer key that couldn't be fetched may arrive; one shared-core refuses never will.
-            error is PeerKeyUnavailable
+            // A peer key that couldn't be fetched may arrive, as may a chat lost to the network
+            // (transport failures classify as suppressed); one shared-core refuses never will.
+            error is PeerKeyUnavailable || (error as? ServerError)?.reportingLevel == .suppressed
         case .rejected(let reason):
             switch reason {
             case .moderation:
@@ -125,7 +126,7 @@ extension ChatMediaUploadError: ServerError {
         case .noMatchingConstraint, .encryptionNotAllowed, .encodingFailed:
             .error
         case .sealUnavailable(let error):
-            error is PeerKeyUnavailable ? .info : .error
+            error is PeerKeyUnavailable ? .info : (error as? ServerError)?.reportingLevel ?? .error
         case .rejected:
             .info
         case .failed(let error):
