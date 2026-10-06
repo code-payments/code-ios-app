@@ -111,14 +111,6 @@ extension AppRouter {
         /// trace shows "post-tip, keyboard up" distinctly, and so the ordinary
         /// tip-list / push-notification opens stay keyboard-closed untouched.
         case tipConversationWithKeyboard(ConversationID)
-        /// A tip DM named by its counterpart rather than its chat id — the
-        /// username lookup's destination. The chat is created by the first tip,
-        /// so before then there is no id to push; the screen derives one.
-        case tipConversationForUser(UserID)
-        /// Same chat as `tipConversationForUser`, opened with Send Cash already started — the
-        /// profile's Send Cash button. A sibling case for the same reason as
-        /// `tipConversationWithKeyboard`: the trace shows the send-first open distinctly.
-        case tipConversationForUserSendingCash(UserID)
         /// A person's Flipcash profile, pushed from a tip DM's title/card or a group member's face;
         /// hosts the Block action. `origin` decides whether it offers a way into the DM.
         case userProfile(UserID, origin: UserProfileOrigin)
@@ -156,8 +148,7 @@ extension AppRouter {
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
-                 .tipConversation, .tipConversationWithKeyboard, .tipConversationForUser,
-                 .tipConversationForUserSendingCash, .userProfile, .chatProfile,
+                 .tipConversation, .tipConversationWithKeyboard, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .archivedChats:
                 return .tips
             }
@@ -209,8 +200,6 @@ extension AppRouter {
             case .newPublicGroup:               "newPublicGroup"
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
-            case .tipConversationForUser:       "tipConversationForUser"
-            case .tipConversationForUserSendingCash: "tipConversationForUserSendingCash"
             case .userProfile:                  "userProfile"
             case .chatProfile:                  "chatProfile"
             case .editGroup:                    "editGroup"
@@ -244,9 +233,7 @@ extension AppRouter {
                  .editGroupName(let conversationID),
                  .editGroupPicture(let conversationID):
                 return conversationID.description
-            case .userProfile(let userID, _),
-                 .tipConversationForUser(let userID),
-                 .tipConversationForUserSendingCash(let userID):
+            case .userProfile(let userID, _):
                 return userID.uuidString
             case .username(let username):
                 return username?.value

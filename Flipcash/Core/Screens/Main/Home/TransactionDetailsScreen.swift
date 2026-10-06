@@ -71,15 +71,16 @@ struct TransactionDetailsScreen: View {
                         idCard
 
                         if let userID = activity.counterparty?.userID, details.canViewInChat {
-                            Button("View in Chat") {
+                            let dmID = sessionContainer.conversationController.tipDMID(withUserID: userID)
+                            Button(dmID == nil ? "View Profile" : "View in Chat") {
                                 // Pushed onto the stack this screen is already
                                 // on, not routed to the Chat tab: a cross-stack
                                 // jump swaps the tab out from under the
                                 // transition, so the bar and the conversation
-                                // list both show before the chat lands. Pushed,
-                                // the chat arrives from the entry it belongs to
-                                // and back returns here.
-                                router.push(.tipConversationForUser(userID))
+                                // list both show before the screen lands.
+                                // Pushed, it arrives from the entry it belongs
+                                // to and back returns here.
+                                router.push(DMRoute.destination(for: userID, dmID: dmID, origin: .transaction))
                             }
                             .buttonStyle(.filled05)
                         }
