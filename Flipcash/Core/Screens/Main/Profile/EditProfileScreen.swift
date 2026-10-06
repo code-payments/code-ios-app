@@ -61,9 +61,8 @@ struct EditProfileScreen: View {
             ProfileCoverBanner(userID: session.userID, coverPicture: profile?.coverPicture, bannerHeight: Self.coverHeight)
                 .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
                 .overlay(alignment: .topTrailing) {
-                    // Opaque: the standard chip's row fill is translucent and vanishes on a photo.
                     Text("Change cover")
-                        .chip(.tinted(.textMain, on: .backgroundMain))
+                        .modifier(CoverChip())
                         .padding(Self.cardSpacing)
                 }
         }
@@ -211,5 +210,22 @@ private struct FieldCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The "Change cover" label over the cover photo: a Liquid Glass capsule on iOS 26, and on iOS 18 an
+/// opaque chip, since the standard chip's row fill is translucent and vanishes on a photo.
+private struct CoverChip: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .glassEffect(.regular, in: .capsule)
+        } else {
+            content.chip(.tinted(.textMain, on: .backgroundMain))
+        }
     }
 }
