@@ -18,32 +18,39 @@ struct ProfileStatsCard: View {
             stat(
                 title: "Minimum to Chat",
                 value: minimumToChat?.formatted() ?? "—",
+                valueFont: .default(size: 23, weight: .semibold),
                 identifier: "profile-stat-minimum"
             )
+            .frame(width: 176)
 
             Color.rowSeparator
-                .frame(width: 1, height: 32)
+                .frame(width: 1, height: 48)
 
             stat(
                 title: "Date Joined",
-                value: joinedAt?.formatted(.dateTime.month(.abbreviated).year()) ?? "—",
+                value: joinedAt?.formatted(.dateTime.month(.wide).year()) ?? "—",
+                valueFont: .default(size: 17, weight: .medium),
                 identifier: "profile-stat-joined"
             )
+            .frame(maxWidth: .infinity)
         }
-        .padding(.vertical, 16)
-        .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(height: 84)
+        .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
     }
 
-    private func stat(title: String, value: String, identifier: String) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
+    private func stat(title: String, value: String, valueFont: Font, identifier: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.appTextSmall)
+                .font(.default(size: 11, weight: .medium))
+                .frame(minHeight: 15)
                 .foregroundStyle(Color.textSecondary)
+            Text(value)
+                .font(valueFont)
+                .foregroundStyle(Color.textMain)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
     }
