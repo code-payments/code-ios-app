@@ -60,14 +60,18 @@ struct EditProfileScreen: View {
         } label: {
             ProfileCoverBanner(userID: session.userID, coverPicture: profile?.coverPicture, bannerHeight: Self.coverHeight)
                 .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
-                .overlay(alignment: .topTrailing) {
-                    Text("Change cover")
-                        .modifier(CoverChip())
-                        .padding(Self.cardSpacing)
-                }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("edit-profile-cover")
+        .overlay(alignment: .topTrailing) {
+            Button("Change cover") {
+                router.push(.changeCoverPicture)
+            }
+            .buttonStyle(.plain)
+            .modifier(CoverChip())
+            .padding(Self.cardSpacing)
+            .accessibilityIdentifier("edit-profile-change-cover")
+        }
     }
 
     /// The avatar overlapping the cover's bottom edge, with a camera badge and a caption beside it.
@@ -213,7 +217,7 @@ private struct FieldCard: View {
     }
 }
 
-/// The "Change cover" label over the cover photo: a Liquid Glass capsule on iOS 26, and on iOS 18 an
+/// The "Change cover" button over the cover photo: an interactive Liquid Glass capsule on iOS 26, and on iOS 18 an
 /// opaque chip, since the standard chip's row fill is translucent and vanishes on a photo.
 private struct CoverChip: ViewModifier {
     func body(content: Content) -> some View {
@@ -223,7 +227,7 @@ private struct CoverChip: ViewModifier {
                 .foregroundStyle(Color.textMain)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .glassEffect(.regular, in: .capsule)
+                .glassEffect(.regular.tint(Color.backgroundMain.opacity(0.6)).interactive(), in: .capsule)
         } else {
             content.chip(.tinted(.textMain, on: .backgroundMain))
         }
