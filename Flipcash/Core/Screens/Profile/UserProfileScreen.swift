@@ -144,6 +144,8 @@ private struct UserProfileContent: View {
             }
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
+            // The blur only belongs once the banner has scrolled up under the bar.
+            .hidesTopScrollEdge(untilOffset: ProfileCoverBanner<EmptyView>.height / 2)
         }
         // On iOS 26 the pinned button joins the bottom scroll edge effect, so content fades under it.
         .scrollEdgeBar(.bottom) {
