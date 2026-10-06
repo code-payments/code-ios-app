@@ -61,6 +61,36 @@ struct ConversationRosterTests {
 
     // MARK: - Roster updates
 
+    @Test("A membership change advances the summary and keeps the cached member list")
+    func membershipChangedKeepsMembers() {
+        var store = ConversationStore()
+        store.setFeed([group(1, members: [member(1), member(2)], memberCount: 2, version: 4)])
+
+        let update = DecodedRosterUpdate(
+            rosterSummary: ConversationRosterSummary(memberCount: 40, version: 5),
+            change: .membershipChanged
+        )
+        store.applyRosterUpdates([update], in: conversationID(1))
+
+        let conversation = store.conversations[0]
+        #expect(conversation.members.map(\.userID) == [userID(1), userID(2)])
+        #expect(conversation.rosterSummary == ConversationRosterSummary(memberCount: 40, version: 5))
+    }
+
+    @Test("A membership change at or below the cached version is dropped")
+    func membershipChangedStaleVersionDropped() {
+        var store = ConversationStore()
+        store.setFeed([group(1, members: [member(1)], memberCount: 1, version: 5)])
+
+        let update = DecodedRosterUpdate(
+            rosterSummary: ConversationRosterSummary(memberCount: 99, version: 5),
+            change: .membershipChanged
+        )
+        store.applyRosterUpdates([update], in: conversationID(1))
+
+        #expect(store.conversations[0].rosterSummary == ConversationRosterSummary(memberCount: 1, version: 5))
+    }
+
     @Test("A join appends the member and advances the summary")
     func joinAppendsMember() {
         var store = ConversationStore()

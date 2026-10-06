@@ -211,6 +211,30 @@ struct ChatMediaUploaderTests {
         #expect(blob.storeAttempts == 0)
     }
 
+    @Test("A chat that couldn't be fetched offline leaves the photo retryable, and reports nothing")
+    func offlineChatFetchIsRetryable() async {
+        let blob = MockChatMediaBlobStore()
+        var uploader = ChatMediaUploader(blob: blob)
+        uploader.seal = { throw ErrorGetChat.transportFailure }
+
+        let error = await Self.uploadError(uploader)
+
+        #expect(error?.isRetryable == true)
+        #expect(error?.isTerminal == false)
+        #expect(error?.reportingLevel == .suppressed)
+        #expect(blob.storeAttempts == 0)
+    }
+
+    @Test("A chat the server refuses to return leaves the photo unretryable")
+    func deniedChatFetchIsNotRetryable() async {
+        var uploader = ChatMediaUploader(blob: MockChatMediaBlobStore())
+        uploader.seal = { throw ErrorGetChat.denied }
+
+        let error = await Self.uploadError(uploader)
+
+        #expect(error?.isRetryable == false)
+    }
+
     // MARK: - Gate -
 
     @Test("Camera and Photos show in an encrypted DM, a plaintext chat, and not before the chat loads")

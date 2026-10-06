@@ -144,7 +144,7 @@ final class ChatService: Sendable {
                     $0.description_p = description
                 }
                 if let pictureBlobID {
-                    $0.picture = .with { $0.value = pictureBlobID.data }
+                    $0.profilePicture = .with { $0.value = pictureBlobID.data }
                 }
                 if let rules {
                     $0.rules = rules.proto
@@ -383,7 +383,7 @@ final class ChatService: Sendable {
                 $0.description_p = description
             }
             if let pictureBlobID {
-                $0.picture = .with { $0.blobID = .with { $0.value = pictureBlobID.data } }
+                $0.profilePicture = .with { $0.blobID = .with { $0.value = pictureBlobID.data } }
             }
             $0.auth = owner.authFor(message: $0)
         }
@@ -403,6 +403,100 @@ final class ChatService: Sendable {
                 }
                 await MainActor.run { completion(.success(Conversation(response.chat))) }
             } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    struct SampledChattersPage: Sendable {
+        let chatters: [SampledChatter]
+        let hasMore: Bool
+    }
+
+    /// Samples up to 100 recent chatters of a public group, the roster alternative for a viewer who
+    /// is not a member. A private group or a DM is `.denied`. A public group needs no auth, so
+    /// `owner` is optional.
+    func sampleChatters(owner: KeyPair?, conversationID: ConversationID, completion: @Sendable @escaping (Result<SampledChattersPage, ErrorSampleChatters>) -> Void) {
+        let request = Flipcash_Chat_V1_SampleChattersRequest.with {
+            $0.chatID = conversationID.proto
+            if let owner {
+                $0.auth = owner.authFor(message: $0)
+            }
+        }
+
+        Task {
+            do {
+                let response = try await service.sampleChatters(request, options: .unaryDefault)
+                guard response.result == .ok else {
+                    logger.error("Failed to sample chatters", metadata: ["result": "\(response.result)"])
+                    await MainActor.run { completion(.failure(ErrorSampleChatters(response.result))) }
+                    return
+                }
+                let page = SampledChattersPage(
+                    chatters: response.chatters.compactMap(SampledChatter.init),
+                    hasMore: response.hasMore_p
+                )
+                await MainActor.run { completion(.success(page)) }
+            } catch let error as RPCError {
+                logger.error("Failed to sample chatters at the transport", metadata: ["code": "\(error.code)"])
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Replaces the signed-in user's featured groups with `conversationIDs` (at most 10, in order)
+    /// and returns the resulting list. A private group is `.denied`.
+    func setFeaturedGroups(owner: KeyPair, conversationIDs: [ConversationID], completion: @Sendable @escaping (Result<[Conversation], ErrorSetFeaturedGroups>) -> Void) {
+        let request = Flipcash_Chat_V1_SetFeaturedGroupsRequest.with {
+            $0.chatIds = conversationIDs.map(\.proto)
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.setFeaturedGroups(request, options: .unaryDefault)
+                guard response.result == .ok else {
+                    logger.error("Failed to set featured groups", metadata: ["result": "\(response.result)"])
+                    await MainActor.run { completion(.failure(ErrorSetFeaturedGroups(response.result))) }
+                    return
+                }
+                let groups = response.featuredGroups.map(Conversation.init)
+                await MainActor.run { completion(.success(groups)) }
+            } catch let error as RPCError {
+                logger.error("Failed to set featured groups at the transport", metadata: ["code": "\(error.code)"])
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Fetches the groups `username` features. The groups are list-view shaped: no members, viewer
+    /// state, last message or cover picture. Auth is optional, so `owner` may be `nil`.
+    func getFeaturedGroups(owner: KeyPair?, username: Username, completion: @Sendable @escaping (Result<[Conversation], ErrorGetFeaturedGroups>) -> Void) {
+        let request = Flipcash_Chat_V1_GetFeaturedGroupsRequest.with {
+            $0.username = username.proto
+            if let owner {
+                $0.auth = owner.authFor(message: $0)
+            }
+        }
+
+        Task {
+            do {
+                let response = try await service.getFeaturedGroups(request, options: .unaryDefault)
+                guard response.result == .ok else {
+                    logger.error("Failed to fetch featured groups", metadata: ["result": "\(response.result)"])
+                    await MainActor.run { completion(.failure(ErrorGetFeaturedGroups(response.result))) }
+                    return
+                }
+                let groups = response.featuredGroups.map(Conversation.init)
+                await MainActor.run { completion(.success(groups)) }
+            } catch let error as RPCError {
+                logger.error("Failed to fetch featured groups at the transport", metadata: ["code": "\(error.code)"])
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
                 await MainActor.run { completion(.failure(.unknown)) }
@@ -670,6 +764,7 @@ public enum ErrorStartChat: Error, Sendable, Equatable {
     case invalidRules
     case rulesNotSatisfied
     case descriptionModerated(Flipcash_Moderation_V1_FlaggedCategory)
+    case coverPictureBlobNotAccepted
     case unknown
     case transportFailure
     case cancelled
@@ -751,7 +846,37 @@ public enum ErrorEditChat: Error, Sendable, Equatable {
     case notFound
     case titleModerated(Flipcash_Moderation_V1_FlaggedCategory)
     case pictureBlobNotAccepted
+    case coverPictureBlobNotAccepted
     case descriptionModerated(Flipcash_Moderation_V1_FlaggedCategory)
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
+}
+
+/// Mapped explicitly from `SampleChattersResponse.Result`; no `.ok` case, like ``ErrorGetRoster``.
+public enum ErrorSampleChatters: Error, Sendable, Equatable {
+    case denied
+    case notFound
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
+}
+
+/// Mapped explicitly from `SetFeaturedGroupsResponse.Result`; no `.ok` case, like ``ErrorGetRoster``.
+public enum ErrorSetFeaturedGroups: Error, Sendable, Equatable {
+    case denied
+    case notFound
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
+}
+
+/// Mapped explicitly from `GetFeaturedGroupsResponse.Result`; no `.ok` case, like ``ErrorGetRoster``.
+public enum ErrorGetFeaturedGroups: Error, Sendable, Equatable {
+    case notFound
     case unknown
     case transportFailure
     case cancelled
@@ -872,7 +997,7 @@ extension ErrorStartChat: ServerError, TransportClassifiableError {
         switch self {
         case .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .titleModerated, .pictureBlobNotAccepted, .invalidRules, .rulesNotSatisfied, .descriptionModerated: .info
+        case .denied, .titleModerated, .pictureBlobNotAccepted, .coverPictureBlobNotAccepted, .invalidRules, .rulesNotSatisfied, .descriptionModerated: .info
         case .unknown, .rejected: .error
         }
     }
@@ -892,7 +1017,7 @@ extension ErrorStartChat {
             self = .denied
         case .titleModerated:
             self = .titleModerated(flaggedCategory)
-        case .pictureBlobNotAccepted:
+        case .profilePictureBlobNotAccepted:
             self = .pictureBlobNotAccepted
         case .invalidRules:
             self = .invalidRules
@@ -900,6 +1025,8 @@ extension ErrorStartChat {
             self = .rulesNotSatisfied
         case .descriptionModerated:
             self = .descriptionModerated(flaggedCategory)
+        case .coverPictureBlobNotAccepted:
+            self = .coverPictureBlobNotAccepted
         case .UNRECOGNIZED:
             self = .unknown
         }
@@ -1090,7 +1217,7 @@ extension ErrorEditChat: ServerError, TransportClassifiableError {
         switch self {
         case .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted, .descriptionModerated: .info
+        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted, .coverPictureBlobNotAccepted, .descriptionModerated: .info
         case .unknown, .rejected: .error
         }
     }
@@ -1111,12 +1238,85 @@ extension ErrorEditChat {
             self = .notFound
         case .titleModerated:
             self = .titleModerated(flaggedCategory)
-        case .pictureBlobNotAccepted:
+        case .profilePictureBlobNotAccepted:
             self = .pictureBlobNotAccepted
+        case .coverPictureBlobNotAccepted:
+            self = .coverPictureBlobNotAccepted
         case .descriptionModerated:
             self = .descriptionModerated(flaggedCategory)
         case .UNRECOGNIZED:
             self = .unknown
+        }
+    }
+}
+
+extension ErrorSampleChatters: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorSampleChatters {
+    /// Maps a non-`.ok` `SampleChattersResponse.Result` to its domain error; total over the proto
+    /// enum, with `.ok` and `.UNRECOGNIZED` folding to `.unknown`.
+    init(_ result: Flipcash_Chat_V1_SampleChattersResponse.Result) {
+        switch result {
+        case .ok: self = .unknown
+        case .denied: self = .denied
+        case .notFound: self = .notFound
+        case .UNRECOGNIZED: self = .unknown
+        }
+    }
+}
+
+extension ErrorSetFeaturedGroups: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorSetFeaturedGroups {
+    /// Maps a non-`.ok` `SetFeaturedGroupsResponse.Result` to its domain error; total over the proto
+    /// enum, with `.ok` and `.UNRECOGNIZED` folding to `.unknown`.
+    init(_ result: Flipcash_Chat_V1_SetFeaturedGroupsResponse.Result) {
+        switch result {
+        case .ok: self = .unknown
+        case .denied: self = .denied
+        case .notFound: self = .notFound
+        case .UNRECOGNIZED: self = .unknown
+        }
+    }
+}
+
+extension ErrorGetFeaturedGroups: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .transportFailure: .suppressed
+        case .cancelled: .info
+        case .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetFeaturedGroups {
+    /// Maps a non-`.ok` `GetFeaturedGroupsResponse.Result` to its domain error; total over the proto
+    /// enum, with `.ok` and `.UNRECOGNIZED` folding to `.unknown`.
+    init(_ result: Flipcash_Chat_V1_GetFeaturedGroupsResponse.Result) {
+        switch result {
+        case .ok: self = .unknown
+        case .notFound: self = .notFound
+        case .UNRECOGNIZED: self = .unknown
         }
     }
 }

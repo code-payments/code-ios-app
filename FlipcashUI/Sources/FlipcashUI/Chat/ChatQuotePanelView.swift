@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 import FlipcashCore
 import Kingfisher
 
@@ -21,6 +22,21 @@ final class ChatQuotePanelView: UIView {
 
     private var targetStableID: String?
 
+    /// A solid fill under the author's tint, for a panel laid over a photo rather than inside a
+    /// filled bubble; nil leaves the tint on whatever is behind the panel.
+    var ground: UIColor? {
+        didSet { backgroundColor = ground }
+    }
+
+    /// Per-corner radii for a panel nested in something other than a text bubble; nil keeps the
+    /// uniform radius concentric with a text bubble.
+    var cornerRadii: RectangleCornerRadii? {
+        didSet { setNeedsLayout() }
+    }
+
+    /// Carries the author's tint, so ``ground`` can sit beneath it.
+    private let tintView = UIView()
+    private let cornerMask = CAShapeLayer()
     private let rule = UIView()
     private let authorLabel = UILabel()
     private let snippetLabel = UILabel()
@@ -87,6 +103,9 @@ final class ChatQuotePanelView: UIView {
         layer.cornerCurve = .continuous
         clipsToBounds = true
 
+        tintView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(tintView)
+
         rule.translatesAutoresizingMaskIntoConstraints = false
         addSubview(rule)
 
@@ -150,6 +169,11 @@ final class ChatQuotePanelView: UIView {
         textTrailingToEdge.isActive = true
 
         NSLayoutConstraint.activate(horizontal + [
+            tintView.topAnchor.constraint(equalTo: topAnchor),
+            tintView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            tintView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            tintView.trailingAnchor.constraint(equalTo: trailingAnchor),
+
             // Flush against the cell's leading edge and the full height of it, so the cell reads as
             // a quote rather than a card with a line drawn near it. The corner radius clips it.
             rule.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -171,6 +195,32 @@ final class ChatQuotePanelView: UIView {
         accessibilityIdentifier = "chat-quote-panel"
     }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if let cornerRadii {
+            layer.cornerRadius = 0
+            cornerMask.path = BubbleBackgroundView.path(radii: cornerRadii, in: bounds)
+            layer.mask = cornerMask
+        } else {
+            layer.cornerRadius = Self.cornerRadius
+            layer.mask = nil
+        }
+    }
+
+    /// The corners of a panel laid `inset` in from a photo's top-leading corner, concentric with it.
+    /// The nested corner follows the photo's, so it flattens when grouping flattens the photo; the
+    /// other three take what a rounded corner would give. All are floored at the grouped radius.
+    static func photoOverlayRadii(photoTopLeading: CGFloat, inset: CGFloat) -> RectangleCornerRadii {
+        let floor = BubbleBackgroundView.groupedRadius
+        let free = max(BubbleBackgroundView.baseRadius - inset, floor)
+        return RectangleCornerRadii(
+            topLeading: max(photoTopLeading - inset, floor),
+            bottomLeading: free,
+            bottomTrailing: free,
+            topTrailing: free
+        )
+    }
+
     /// - Parameter thumbnail: where a quoted photo's thumbnail loads from, or nil until it resolves.
     func configure(with quote: ChatQuote, thumbnail: ChatMediaLocation? = nil) {
         targetStableID = quote.stableID
@@ -180,7 +230,7 @@ final class ChatQuotePanelView: UIView {
         let ruleColor = ComplementaryPalette.uiColor(.start, for: quote.authorID)
         rule.backgroundColor = ruleColor
         authorLabel.textColor = ComplementaryPalette.uiNameColor(for: quote.authorID)
-        backgroundColor = ruleColor.withAlphaComponent(Self.cellTint)
+        tintView.backgroundColor = ruleColor.withAlphaComponent(Self.cellTint)
         // An unavailable original has no author to name, so the author line collapses rather than
         // rendering an empty run.
         authorLabel.text = quote.authorName

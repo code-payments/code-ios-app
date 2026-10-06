@@ -180,6 +180,16 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         }
     }
 
+    /// Whether a double tap on this row's bubble brings up the reaction strip on its own. Cash and
+    /// profile cards and bare link cards keep their instant single tap instead.
+    public var takesDoubleTapReaction: Bool {
+        guard offersReactionStrip, !rendersAsBareLinkCard else { return false }
+        switch content {
+        case .text, .media:                                 return true
+        case .cash, .deleted, .unavailable, .shareProfile:  return false
+        }
+    }
+
     public init(
         id: String,
         serverID: MessageID? = nil,

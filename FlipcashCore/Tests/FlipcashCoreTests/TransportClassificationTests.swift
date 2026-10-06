@@ -99,6 +99,9 @@ struct TransportClassificationTests {
     @Test func errorGetRoster() { assertClassifies(ErrorGetRoster.self) }
     @Test func errorGetMentionSuggestions() { assertClassifies(ErrorGetMentionSuggestions.self) }
     @Test func errorEditChat() { assertClassifies(ErrorEditChat.self) }
+    @Test func errorSampleChatters() { assertClassifies(ErrorSampleChatters.self) }
+    @Test func errorSetFeaturedGroups() { assertClassifies(ErrorSetFeaturedGroups.self) }
+    @Test func errorGetFeaturedGroups() { assertClassifies(ErrorGetFeaturedGroups.self) }
     @Test func errorReport() { assertClassifies(ErrorReport.self) }
 
     // In-band outcomes fall outside the generic four-case contract.
@@ -127,7 +130,7 @@ struct TransportClassificationTests {
 
         // Every other result maps to its payload-less case, unaffected by the category argument.
         #expect(ErrorStartChat(.denied, flaggedCategory: .nsfw) == .denied)
-        #expect(ErrorStartChat(.pictureBlobNotAccepted, flaggedCategory: .nsfw) == .pictureBlobNotAccepted)
+        #expect(ErrorStartChat(.profilePictureBlobNotAccepted, flaggedCategory: .nsfw) == .pictureBlobNotAccepted)
         #expect(ErrorStartChat(.invalidRules, flaggedCategory: .nsfw) == .invalidRules)
         #expect(ErrorStartChat(.rulesNotSatisfied, flaggedCategory: .nsfw) == .rulesNotSatisfied)
     }
@@ -150,7 +153,49 @@ struct TransportClassificationTests {
         // Every other result maps to its payload-less case, unaffected by the category argument.
         #expect(ErrorEditChat(.denied, flaggedCategory: .nsfw) == .denied)
         #expect(ErrorEditChat(.notFound, flaggedCategory: .nsfw) == .notFound)
-        #expect(ErrorEditChat(.pictureBlobNotAccepted, flaggedCategory: .nsfw) == .pictureBlobNotAccepted)
+        #expect(ErrorEditChat(.profilePictureBlobNotAccepted, flaggedCategory: .nsfw) == .pictureBlobNotAccepted)
+        #expect(ErrorEditChat(.coverPictureBlobNotAccepted, flaggedCategory: .nsfw) == .coverPictureBlobNotAccepted)
+    }
+
+    // `EditChatResponse.Result` was renumbered upstream (COVER_PICTURE_BLOB_NOT_ACCEPTED = 5 inserted,
+    // DESCRIPTION_MODERATED 5 -> 6). The mapping is by case name, so this pins it to the wire numbers
+    // the 0.18.0 contract defines rather than to any positional order.
+    @Test("ErrorEditChat maps every EditChatResponse.Result by wire number, including the renumbered ones")
+    func errorEditChatRenumberedWireValues() {
+        let wire: [(Int, ErrorEditChat)] = [
+            (1, .denied),
+            (2, .notFound),
+            (3, .titleModerated(.nsfw)),
+            (4, .pictureBlobNotAccepted),
+            (5, .coverPictureBlobNotAccepted),
+            (6, .descriptionModerated(.nsfw)),
+        ]
+        for (raw, expected) in wire {
+            let result = Flipcash_Chat_V1_EditChatResponse.Result(rawValue: raw)
+            #expect(result != nil)
+            #expect(ErrorEditChat(result ?? .ok, flaggedCategory: .nsfw) == expected, "raw \(raw)")
+        }
+        #expect(ErrorEditChat(Flipcash_Chat_V1_EditChatResponse.Result(rawValue: 99) ?? .ok, flaggedCategory: .nsfw) == .unknown)
+    }
+
+    @Test("ErrorStartChat maps the appended COVER_PICTURE_BLOB_NOT_ACCEPTED = 7")
+    func errorStartChatCoverPicture() {
+        let result = Flipcash_Chat_V1_StartChatResponse.Result(rawValue: 7)
+        #expect(result == .coverPictureBlobNotAccepted)
+        #expect(ErrorStartChat(result ?? .ok, flaggedCategory: .nsfw) == .coverPictureBlobNotAccepted)
+        #expect(ErrorStartChat(.coverPictureBlobNotAccepted, flaggedCategory: .nsfw).reportingLevel == .info)
+        #expect(ErrorEditChat.coverPictureBlobNotAccepted.reportingLevel == .info)
+    }
+
+    @Test("Featured-group and sampled-chatter errors map their results explicitly")
+    func featuredAndSampledMapResults() {
+        #expect(ErrorSampleChatters(.denied) == .denied)
+        #expect(ErrorSampleChatters(.notFound) == .notFound)
+        #expect(ErrorSampleChatters(.ok) == .unknown)
+        #expect(ErrorSetFeaturedGroups(.denied) == .denied)
+        #expect(ErrorSetFeaturedGroups(.notFound) == .notFound)
+        #expect(ErrorGetFeaturedGroups(.notFound) == .notFound)
+        #expect(ErrorGetFeaturedGroups(.ok) == .unknown)
     }
 
     // `ErrorGetRoster` has no payload-carrying case, but it's still mapped explicitly from
