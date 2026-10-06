@@ -219,7 +219,7 @@ extension ErrorBlob: ServerError {
 
 /// The surface a blob read is authorized through, for blobs the caller does
 /// not own. See `flipcash.blob.v1.AccessContext`.
-public enum BlobAccessContext: Sendable {
+public enum BlobAccessContext: Sendable, Equatable {
 
     /// Reading a rendition of `userID`'s current profile picture.
     case userProfile(UserID)

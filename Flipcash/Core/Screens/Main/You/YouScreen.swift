@@ -27,7 +27,6 @@ struct YouScreen: View {
     /// Warms the share-sheet preview image ahead of the share tap so it never
     /// lands on the tap; keyed by user.
     @State private var previewCache = TipCodePreviewCache()
-    @State private var isShowingProfileCard = false
 
     /// The balance gate, raised when the claim row is tapped below the minimum.
     @State private var usernameDialog: DialogItem?
@@ -115,15 +114,21 @@ struct YouScreen: View {
             }
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { safeAreaTop = $0 }
         }
-        .fullScreenCover(isPresented: $isShowingProfileCard) {
-            ProfileCardScreen()
+        .fullScreenCover(isPresented: Bindable(router).isShowingProfileCard) {
+            ProfileCardScreen(previewCache: previewCache)
         }
         .task(id: profilePicture?.thumbnailBlobID) {
-            await sessionContainer.profileAvatars.load(userID: sessionContainer.session.userID, picture: profilePicture)
             // There is no card to share, and so no preview worth rendering, until
-            // the profile has a name.
-            guard displayName != nil else { return }
-            previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
+            // the profile has a name. Warmed before the avatar download so a slow
+            // network cannot hold it back.
+            if displayName != nil {
+                previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
+            }
+            await sessionContainer.profileAvatars.load(userID: sessionContainer.session.userID, picture: profilePicture)
+        }
+        // A cash link raises the bill without touching the router, and it would draw under the card.
+        .onChange(of: sessionContainer.session.isShowingBill) { _, isShowing in
+            if isShowing { router.isShowingProfileCard = false }
         }
         .dialog(item: $usernameDialog)
     }
@@ -167,7 +172,7 @@ struct YouScreen: View {
     private var shareMenu: some View {
         Menu {
             Button("Share Profile", action: shareTipCard)
-            Button("Show Profile Card") { isShowingProfileCard = true }
+            Button("Show Profile Card") { router.isShowingProfileCard = true }
         } label: {
             bannerControl(systemName: "square.and.arrow.up")
         }
