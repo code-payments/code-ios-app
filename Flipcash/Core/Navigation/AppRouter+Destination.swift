@@ -56,8 +56,11 @@ extension AppRouter {
         case usdcDepositAddress
 
         // Settings flow
-        case settingsMyAccount
-        /// The display name on its own, edited from My Account. The full
+        /// The Settings list, opened from the gear on the You tab.
+        case settings
+        /// The account's phone, email, user ID and public key, opened from Settings.
+        case accountInfo
+        /// The display name on its own, edited from Settings. The full
         /// profile-setup flow starts on the same screen but carries on to the
         /// tip card; this one returns to the settings list.
         case changeDisplayName
@@ -65,15 +68,14 @@ extension AppRouter {
         /// The full profile-setup flow uses `.profilePhoto`, which carries on to
         /// the tip card; this one returns to the screen that opened it.
         case changeProfilePicture
-        /// The public handle, claimed from the You page or changed from My
-        /// Account. One destination for both: the screen seeds itself from the
+        /// The public handle, claimed from the You page or changed from
+        /// Settings. One destination for both: the screen seeds itself from the
         /// handle already on the profile, so there is nothing to distinguish.
         case username(Username?)
         /// The minimum a tipper must pay to open a DM. `isSetupStep` marks the
-        /// You tab's checklist apart from a lone edit in My Account; it reaches
+        /// You tab's checklist apart from a lone edit in Settings; it reaches
         /// the payload only, since the screen is the same from either.
         case setMinimumTip(isSetupStep: Bool)
-        case settingsAdvancedFeatures
         case settingsAdvancedBetaFeatures
         case settingsAppSettings
         case settingsAccountSelection
@@ -141,8 +143,8 @@ extension AppRouter {
                  .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
-            case .settingsMyAccount, .changeDisplayName, .changeProfilePicture, .username,
-                 .setMinimumTip, .settingsAdvancedFeatures,
+            case .settings, .accountInfo, .changeDisplayName, .changeProfilePicture, .username,
+                 .setMinimumTip,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .you
@@ -176,12 +178,12 @@ extension AppRouter {
             case .withdrawCurrency:             "withdrawCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
-            case .settingsMyAccount:            "settingsMyAccount"
+            case .settings:                     "settings"
+            case .accountInfo:                  "accountInfo"
             case .changeDisplayName:            "changeDisplayName"
             case .changeProfilePicture:         "changeProfilePicture"
             case .username:                     "username"
             case .setMinimumTip:                "setMinimumTip"
-            case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAdvancedBetaFeatures: "settingsAdvancedBetaFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
             case .settingsAccountSelection:     "settingsAccountSelection"
@@ -243,8 +245,7 @@ extension AppRouter {
             case .activity,
                  .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
-                 .settingsMyAccount, .changeDisplayName, .changeProfilePicture,
-                 .settingsAdvancedFeatures,
+                 .settings, .accountInfo, .changeDisplayName, .changeProfilePicture,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,

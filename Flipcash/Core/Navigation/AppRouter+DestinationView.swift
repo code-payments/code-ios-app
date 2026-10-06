@@ -82,8 +82,10 @@ struct DestinationView: View {
 
         // MARK: - Settings flow
 
-        case .settingsMyAccount:
-            SettingsMyAccountScreen()
+        case .settings:
+            SettingsScreen()
+        case .accountInfo:
+            AccountInfoScreen()
 
         case .changeDisplayName:
             ChangeDisplayNameScreen(currentName: sessionContainer.session.profile?.displayName ?? "")
@@ -106,8 +108,6 @@ struct DestinationView: View {
                 )
             )
 
-        case .settingsAdvancedFeatures:
-            SettingsAdvancedFeaturesScreen()
 
         case .settingsAdvancedBetaFeatures:
             SettingsAdvancedBetaFeaturesScreen()

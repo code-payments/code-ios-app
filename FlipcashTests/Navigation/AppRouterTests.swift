@@ -370,7 +370,7 @@ struct AppRouterTests {
             AppRouter.Destination.discoverCurrencies,
             AppRouter.Destination.currencyCreationSummary,
             AppRouter.Destination.currencyCreationWizard,
-            AppRouter.Destination.settingsMyAccount,
+            AppRouter.Destination.settings,
             AppRouter.Destination.withdraw,
         ]
     )

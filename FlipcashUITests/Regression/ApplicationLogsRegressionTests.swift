@@ -18,10 +18,9 @@ final class ApplicationLogsRegressionTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Navigate: Wallet → You → Advanced → Application Logs
+        // Navigate: Wallet → You → gear → Application Logs
         settings.open(from: self)
-        settings.navigateToAdvancedFeatures(from: self)
-        waitAndTap(settings.applicationLogsRow)
+        scrollUpToAndTap(settings.applicationLogsRow, in: settings.scrollView)
 
         // Verify the Application Logs screen is displayed
         let title = app.navigationBars["Application Logs"]

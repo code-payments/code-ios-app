@@ -38,7 +38,7 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         createFreshAccount()
 
         // MARK: The card is there, with its actions.
-        settings.open(from: self)
+        settings.openYouTab(from: self)
         XCTAssertTrue(
             app.buttons["you-share-button"].waitForExistence(timeout: 30),
             "Expected the tip card's Share action on a named account. On screen: [\(visibleText())]"
@@ -52,8 +52,8 @@ final class DisplayNameSmokeTests: BaseUITestCase {
             "Expected the card itself, not the name-less setup prompt"
         )
 
-        // MARK: Change the name from My Account.
-        settings.navigateToMyAccount(from: self)
+        // MARK: Change the name from Settings.
+        waitAndTap(settings.gear)
         waitAndTap(settings.displayNameRow)
 
         let save = app.buttons["profile-name-next-button"]

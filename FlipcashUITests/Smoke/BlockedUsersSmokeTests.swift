@@ -25,16 +25,15 @@ final class BlockedUsersSmokeTests: BaseUITestCase {
 
     /// Wallet → You → My Account → Blocked lands on the Blocked list and it
     /// loads its state (empty or populated) without hanging.
-    func testBlockedUsers_reachableFromMyAccount() {
+    func testBlockedUsers_reachableFromSettings() {
         let settings = SettingsUIScreen(app: app)
         let blocked = BlockedUsersUIScreen(app: app)
 
         assertMainScreenReached()
 
         settings.open(from: self)
-        settings.navigateToMyAccount(from: self)
 
-        waitAndTap(settings.blockedRow)
+        scrollUpToAndTap(settings.blockedRow, in: settings.scrollView)
 
         blocked.assertLoaded(from: self)
     }

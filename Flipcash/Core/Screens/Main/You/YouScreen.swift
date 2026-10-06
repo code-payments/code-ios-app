@@ -10,7 +10,7 @@ import FlipcashUI
 
 /// The "You" tab (Figma node 9276:4634): the user's tip card, a "Full Screen"
 /// affordance, the copyable public link, the Share/Download pair, and the
-/// settings list — the tab-bar entry into My Account / Advanced.
+/// gear that pushes Settings.
 ///
 /// Tapping the card (or "Full Screen") expands it here on the page: everything
 /// under it slides out, the tab bar hides, and the card grows into the middle of
@@ -18,31 +18,22 @@ import FlipcashUI
 /// nothing is pushed or presented — so the card never leaves this screen.
 /// Pulling the expanded card up walks it back to its slot under the finger, so
 /// it can be put away without reaching for the close button.
-/// Settings rows push onto the tab's `.you` stack, so they never touch the v1
+/// Settings pushes onto the tab's `.you` stack, so it never touches the v1
 /// scanner's Settings sheet.
 ///
 /// A profile with no display name has no card: the page then shows the
 /// add-your-name invitation in the card's place and drops the link and share
-/// affordances, but still renders — the settings rows are this account's only
-/// way to reach My Account, and with it Log Out.
-///
-/// The two settings rows carry Android's own drawables (`MenuItems.kt`) rather
-/// than SF Symbols: `person.text.rectangle` is already the Display Name row's
-/// glyph one screen down, so the nearest system symbol would read as a repeat.
+/// affordances, but still renders — the gear is this account's only way to
+/// reach Settings, and with it Log Out.
 struct YouScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
-    @Environment(BetaFlags.self) private var betaFlags
     @Environment(TipCardPresentation.self) private var presentation
 
     /// Warms the share-sheet preview image ahead of the share tap so it never
     /// lands on the tap; keyed by user.
     @State private var previewCache = TipCodePreviewCache()
-    /// The version footer's beta-access easter egg — the tap count and the line
-    /// it shows for the last few taps.
-    @State private var versionUnlock = VersionTapUnlock()
-    @Environment(ToastController.self) private var toasts
     @State private var isShowingDownloadOptions = false
 
     /// The format tapped in the download sheet, held until the sheet is gone so
@@ -94,9 +85,7 @@ struct YouScreen: View {
     /// the card picks up from where it stands instead of jumping that distance.
     private static let dragActivationSlack: CGFloat = 10
 
-    private let rowInsets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
-
-    /// The gap the page keeps between the version footer and the tab bar.
+    /// The gap the page keeps between its last row and the tab bar.
     private static let tabBarGap: CGFloat = 24
 
     /// How far below the safe area the top fade runs out. Matches `WalletScreen`.
@@ -157,6 +146,13 @@ struct YouScreen: View {
                 }
                 .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { safeAreaTop = $0 }
 
+                // Sibling of the scroll view, not an overlay on it: the ZStack
+                // already sits below the status bar, so no `safeAreaTop` offset.
+                settingsGear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .opacity(isExpanded ? 0 : 1)
+                    .allowsHitTesting(!isExpanded)
+
                 if isExpanded {
                     closeButton
                         .transition(.opacity)
@@ -191,7 +187,7 @@ struct YouScreen: View {
     ///
     /// A profile without a display name has no card to draw, so the slot carries
     /// the invitation to add one instead. The rest of the page stays where it is
-    /// either way — settings included, which is the only route to logging out.
+    /// either way — the gear included, which is the only route to logging out.
     @ViewBuilder
     private var cardSection: some View {
         if let name = displayName {
@@ -348,13 +344,31 @@ struct YouScreen: View {
         .opacity(0.5)
     }
 
+    // MARK: - Settings gear -
+
+    private var settingsGear: some View {
+        Button {
+            router.push(.settings)
+        } label: {
+            Image(systemName: "gearshape")
+                .font(.system(size: 20))
+                .foregroundStyle(Color.textMain)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
+        .padding(.trailing, 8)
+        .accessibilityLabel("Settings")
+        .accessibilityIdentifier("you-settings")
+    }
+
     // MARK: - Page -
 
     /// Everything below the card — the part that clears out when the card expands.
     ///
     /// The link and the Share/Download pair all address a card that a name-less
-    /// profile does not have, so they sit out until it does; the settings rows
-    /// take up the slack. The checklist shows either way, since naming the
+    /// profile does not have, so they sit out until it does. The checklist shows either way, since naming the
     /// profile is one of its chores.
     private var pageContent: some View {
         VStack(spacing: 0) {
@@ -395,30 +409,7 @@ struct YouScreen: View {
                         .accessibilityIdentifier("you-username-progress-card")
                 }
             }
-
-            settingsList
-                .padding(.top, displayName == nil && !profileTutorialState.isVisible ? 48 : 19)
-
-            // v2 scrolls the version string with the content rather than
-            // pinning it above the tab bar (the v1 Settings sheet pinned it).
-            versionFooter
-                .padding(.top, 32)
         }
-    }
-
-    // MARK: - Settings list -
-
-    private var settingsList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsRow(asset: .myAccount, title: "My Account", insets: rowInsets) {
-                router.push(.settingsMyAccount)
-            }
-            SettingsRow(asset: .advanced, title: "Advanced", insets: rowInsets) {
-                router.push(.settingsAdvancedFeatures)
-            }
-        }
-        .font(.appDisplayXS)
-        .foregroundStyle(Color.textMain)
     }
 
     // MARK: - Username progress -
@@ -454,32 +445,6 @@ struct YouScreen: View {
                 action: { presentBalanceGate(minimum: minimum) }
             )
         }
-    }
-
-    private var versionFooter: some View {
-        Button {
-            let message = versionUnlock.registerTap(isUnlocked: betaFlags.accessGranted) {
-                betaFlags.setAccessGranted(!betaFlags.accessGranted)
-            }
-            if let message {
-                // Two seconds and swapped in place, so consecutive taps read as one countdown. Without an action the toast
-                // lets taps through, so it never blocks the version string at the bottom of the list.
-                toasts.show(
-                    .init(message, messageIdentifier: "you-version-toast", width: .fit, duration: .seconds(2)),
-                    inPlace: true
-                )
-            }
-        } label: {
-            Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
-                .lineLimit(1)
-                .font(.appTextHeading)
-                .foregroundStyle(Color.textSecondary)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("you-version-footer")
     }
 
     // MARK: - Content -
