@@ -279,12 +279,12 @@ private struct UserProfileContent: View {
     private var pinnedButton: some View {
         if let title = pinnedAction.title {
             VStack(spacing: 8) {
-                CodeButton(style: .filled, title: title, action: tapPinned)
-                    .accessibilityIdentifier("profile-pinned-action")
-
                 if showsE2eeFooter {
                     E2eeFooter(kind: .dm)
                 }
+
+                CodeButton(style: .filled, title: title, action: tapPinned)
+                    .accessibilityIdentifier("profile-pinned-action")
             }
             .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
             .padding(.top, 12)
