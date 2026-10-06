@@ -30,8 +30,11 @@ struct SettingsUIScreen {
     var accessKeyRow: XCUIElement { app.buttons["Access Key"] }
     var applicationLogsRow: XCUIElement { app.buttons["Application Logs"] }
 
-    /// The Profile row that opens the display-name editor.
-    var displayNameRow: XCUIElement { app.buttons["Display Name"] }
+    /// The Profile row that opens Edit Profile.
+    var editProfileRow: XCUIElement { app.buttons["settings-edit-profile"] }
+
+    /// Edit Profile's row that opens the display-name editor.
+    var displayNameRow: XCUIElement { app.buttons["edit-profile-name"] }
 
     /// The Privacy row that opens the Blocked list.
     var blockedRow: XCUIElement { app.buttons["Blocked"] }

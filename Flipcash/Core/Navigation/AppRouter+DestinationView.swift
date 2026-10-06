@@ -87,6 +87,22 @@ struct DestinationView: View {
         case .accountInfo:
             AccountInfoScreen()
 
+        case .editProfile:
+            EditProfileScreen()
+
+        case .editBio:
+            // Seeded here so the field opens on the bio it is about to replace.
+            let session = sessionContainer.session
+            let flipClient = container.flipClient
+            EditBioScreen(model: EditBioModel(
+                bio: session.profile?.bio ?? "",
+                saving: { try await flipClient.setBio($0, owner: session.ownerKeyPair) },
+                refresh: { try await session.updateProfile() }
+            ))
+
+        case .changeCoverPicture:
+            ChangeCoverPictureScreen()
+
         case .changeDisplayName:
             ChangeDisplayNameScreen(currentName: sessionContainer.session.profile?.displayName ?? "")
 

@@ -60,6 +60,12 @@ extension AppRouter {
         case settings
         /// The account's phone, email, user ID and public key, opened from Settings.
         case accountInfo
+        /// The signed-in user's profile fields in one list, opened from Settings.
+        case editProfile
+        /// The bio on its own, pushed from Edit Profile.
+        case editBio
+        /// The cover banner on its own, pushed from Edit Profile.
+        case changeCoverPicture
         /// The display name on its own, edited from Settings. The full
         /// profile-setup flow starts on the same screen but carries on to the
         /// tip card; this one returns to the settings list.
@@ -143,7 +149,8 @@ extension AppRouter {
                  .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
-            case .settings, .accountInfo, .changeDisplayName, .changeProfilePicture, .username,
+            case .settings, .accountInfo, .editProfile, .editBio, .changeCoverPicture,
+                 .changeDisplayName, .changeProfilePicture, .username,
                  .setMinimumTip,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
@@ -180,6 +187,9 @@ extension AppRouter {
             case .usdcDepositAddress:           "usdcDepositAddress"
             case .settings:                     "settings"
             case .accountInfo:                  "accountInfo"
+            case .editProfile:                  "editProfile"
+            case .editBio:                      "editBio"
+            case .changeCoverPicture:           "changeCoverPicture"
             case .changeDisplayName:            "changeDisplayName"
             case .changeProfilePicture:         "changeProfilePicture"
             case .username:                     "username"
@@ -245,7 +255,8 @@ extension AppRouter {
             case .activity,
                  .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
-                 .settings, .accountInfo, .changeDisplayName, .changeProfilePicture,
+                 .settings, .accountInfo, .editProfile, .editBio, .changeCoverPicture,
+                 .changeDisplayName, .changeProfilePicture,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,

@@ -56,34 +56,15 @@ struct SettingsScreen: View {
 
     // MARK: - Sections -
 
-    /// Interim: Edit Profile replaces this section.
+    /// Interim: Slice 3 removes this row once the You tab has its own Edit Profile button.
     private var profileSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsSectionHeader("Profile")
 
-            SettingsRow(systemImage: "person.text.rectangle", title: "Display Name", insets: insets) {
-                router.push(.changeDisplayName)
+            SettingsRow(systemImage: "person.text.rectangle", title: "Edit Profile", insets: insets) {
+                router.push(.editProfile)
             }
-
-            // No balance gate here: the gate exists to stop squatting at claim time. A user who
-            // already holds a handle has cleared it, and re-gating a change would hold their
-            // handle hostage to a balance that has since moved.
-            if let username = session.profile?.username {
-                SettingsRow(systemImage: "at", title: "Username", insets: insets) {
-                    router.push(.username(username))
-                }
-                .accessibilityIdentifier("account-change-username-row")
-            }
-
-            SettingsRow(asset: .profilePicture, title: "Profile Picture", insets: insets) {
-                router.push(.changeProfilePicture)
-            }
-            .accessibilityIdentifier("account-profile-picture-row")
-
-            SettingsRow(asset: .coins, title: "Minimum To Chat", insets: insets) {
-                router.push(.setMinimumTip(isSetupStep: false))
-            }
-            .accessibilityIdentifier("account-minimum-tip-row")
+            .accessibilityIdentifier("settings-edit-profile")
         }
     }
 

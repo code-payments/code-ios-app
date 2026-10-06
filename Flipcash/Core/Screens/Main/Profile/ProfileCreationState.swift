@@ -115,7 +115,7 @@ final class ProfileCreationState {
             throw ErrorBlob.rejected(reason)
         }
 
-        try await uploader.setProfilePicture(blobID: blobID)
+        try await uploader.attach(blobID: blobID)
         try await uploader.refreshProfile()
     }
 
