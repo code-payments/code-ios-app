@@ -27,12 +27,10 @@ struct FeaturedGroupsSection: View {
                     .padding(.bottom, 12)
                     .accessibilityAddTraits(.isHeader)
 
-                VStack(spacing: 0) {
+                VStack(spacing: 2) {
                     ForEach(groups) { group in
                         Button { onTap(group.id) } label: {
                             FeaturedGroupRow(group: group) { EmptyView() }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -40,15 +38,8 @@ struct FeaturedGroupsSection: View {
                         .accessibilityLabel(Text(group.featuredRowAccessibilityLabel))
                         .accessibilityAddTraits(.isButton)
                         .accessibilityIdentifier("profile-featured-group")
-
-                        if group.id != groups.last?.id {
-                            Color.rowSeparator
-                                .frame(height: 1)
-                                .padding(.leading, 72)
-                        }
                     }
                 }
-                .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
             }
             .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
             .accessibilityIdentifier("profile-featured-groups")
@@ -68,15 +59,29 @@ struct FeaturedGroupRow<Trailing: View>: View {
     private var subtitle: String { group.featuredRowSubtitle }
 
     var body: some View {
-        RecipientRowBody(
-            avatarID: group.id.description,
-            title: group.groupLinkTitle,
-            subtitle: AttributedString(subtitle),
-            imageData: sessionContainer.profileAvatars.data(for: .chat(group.id)),
-            blurhash: group.picture?.thumbnailBlurhash
-        ) {
+        HStack(spacing: 14) {
+            ContactAvatarView(
+                id: group.id.description,
+                displayName: group.groupLinkTitle,
+                imageData: sessionContainer.profileAvatars.data(for: .chat(group.id)),
+                blurhash: group.picture?.thumbnailBlurhash,
+                size: 48,
+                cornerRadius: 15
+            )
+            VStack(alignment: .leading, spacing: 3) {
+                Text(group.groupLinkTitle)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 12)
             trailing
         }
+        .frame(minHeight: 66)
         .task(id: group.picture?.thumbnailBlobID) {
             await sessionContainer.profileAvatars.load(.chat(group.id), picture: group.picture)
         }

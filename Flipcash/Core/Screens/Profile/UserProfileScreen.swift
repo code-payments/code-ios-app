@@ -495,13 +495,16 @@ final class UserProfileViewModel {
         await profileAvatars.load(userID: userID, picture: profile.profilePicture)
     }
 
-    /// Reads the groups this person features, once their handle is known. Best effort: a profile
-    /// without the section is still the profile.
+    /// Reads the groups this person features, once their handle is known. A failure leaves the
+    /// section hidden; the rest of the profile stands.
     func loadFeaturedGroups() async {
-        guard let username,
-              let groups = try? await flipClient.getFeaturedGroups(owner: owner, username: username)
-        else { return }
-        featuredGroups = groups
+        guard let username else { return }
+        do {
+            featuredGroups = try await flipClient.getFeaturedGroups(owner: owner, username: username)
+        } catch {
+            guard !Task.isCancelled else { return }
+            ErrorReporting.captureError(error, reason: "Failed to load featured groups")
+        }
     }
 
     private func apply(_ profile: Profile) {

@@ -21,14 +21,25 @@ public struct ContactAvatarView: View {
     /// The monogram's color. Full-strength by default; a surface whose design mutes the initials
     /// passes a dimmer one.
     public let initialsColor: Color
+    /// Rounds the avatar into a square with this corner radius; `nil` keeps it a circle.
+    public let cornerRadius: CGFloat?
 
-    public init(id: String, displayName: String, imageData: Data? = nil, blurhash: String? = nil, size: CGFloat = 44, initialsColor: Color = .textMain) {
+    public init(id: String, displayName: String, imageData: Data? = nil, blurhash: String? = nil, size: CGFloat = 44, initialsColor: Color = .textMain, cornerRadius: CGFloat? = nil) {
+        self.cornerRadius = cornerRadius
         self.id = id
         self.displayName = displayName
         self.imageData = imageData
         self.blurhash = blurhash
         self.size = size
         self.initialsColor = initialsColor
+    }
+
+    private var clipShape: AnyShape {
+        if let cornerRadius {
+            AnyShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        } else {
+            AnyShape(Circle())
+        }
     }
 
     public var body: some View {
@@ -61,7 +72,7 @@ public struct ContactAvatarView: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(Circle())
+        .clipShape(clipShape)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(displayName.isEmpty ? "Contact" : displayName))
         .accessibilityAddTraits(.isImage)
