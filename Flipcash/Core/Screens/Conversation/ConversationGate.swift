@@ -232,11 +232,17 @@ private func unmetBalance(
     }
     // The contract allows at most one mint today; empty means every mint counts.
     let mint = requirement.mints.first
-    let held = mint.map { session.balance(for: $0)?.usdf ?? .usd(0) } ?? session.totalBalance.usdfValue
-    guard held.roundedToSmallestUnit() >= required else {
+    guard heldBalance(in: mint, session: session).roundedToSmallestUnit() >= required else {
         return .minimumBalance(amount: requirement.amount, mint: mint)
     }
     return nil
+}
+
+/// What the user holds toward a balance requirement, in USD: the one mint's holding when the
+/// requirement names one, else every holding together.
+@MainActor
+func heldBalance(in mint: PublicKey?, session: some ConversationGateReading) -> FiatAmount {
+    mint.map { session.balance(for: $0)?.usdf ?? .usd(0) } ?? session.totalBalance.usdfValue
 }
 
 /// Picks the requirement to name: the first unmet minimum balance, since it is
