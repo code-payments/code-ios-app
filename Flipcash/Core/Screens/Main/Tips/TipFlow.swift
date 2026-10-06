@@ -50,7 +50,7 @@ final class TipFlow {
     // MARK: - Entry -
 
     /// Handles a scanned or deeplinked tipcode. Gates in order: own-id codes
-    /// (routed to the user's own tip card), then a tippable profile (held +
+    /// (routed to the user's own profile), then a tippable profile (held +
     /// profile creation presented).
     ///
     /// No balance gate: this flow no longer moves money, it opens a chat. The
@@ -60,7 +60,7 @@ final class TipFlow {
     /// conversation they can read and reply in.
     func begin(userID: UserID) {
         // Tipping yourself is a payment no-op, so there's no flow to start from
-        // your own code — show the user their own tip card rather than swallow
+        // your own code — show the user their own profile rather than swallow
         // the scan or tap. `showOwnTipCard()` absorbs the repeat calls the
         // per-frame scanner makes until the camera tears down.
         guard userID != session.userID else {

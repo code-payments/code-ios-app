@@ -54,4 +54,26 @@ struct StartChattingFeeTests {
 
         #expect(amount == nil)
     }
+
+    /// The session overload only supplies the user's balance currency and cached rates.
+    @Test("The profile's fee is read in the rates controller's balance currency")
+    func profileFeeUsesBalanceCurrency() {
+        let ratesController = RatesController(container: .mock, database: .mock)
+        let currency = ratesController.balanceCurrency
+        // In the balance currency already, so the result does not depend on loaded rates.
+        let fee = FiatAmount(value: Decimal(string: "0.33")!, currency: currency)
+        let profile = Profile(displayName: "Ted", phone: Optional<Phone>.none, email: nil, minDmChatInitFee: fee)
+
+        let amount = StartChattingFee.amount(for: profile, session: .mock, ratesController: ratesController)
+
+        let expected = StartChattingFee.amount(
+            recipientFee: fee,
+            presets: nil,
+            currency: currency,
+            rates: ratesController.cachedRates
+        )
+        #expect(amount != nil)
+        #expect(amount == expected)
+        #expect(amount?.currency == currency)
+    }
 }

@@ -1,10 +1,12 @@
-# Drives the You tab's export path end to end, once per format: card page ->
-# Download -> pick a format -> the system share sheet holding the written file.
+# Drives the You tab's export path end to end, once per format: Share menu ->
+# Show Profile Card -> Download -> pick a format -> the system share sheet holding the written file.
 appId: com.flipcash.app.ios
 ---
 - launchApp
 - tapOn: "You"
-- assertVisible: "Full Screen"
+- tapOn:
+    id: "you-share"
+- tapOn: "Show Profile Card"
 
 # --- SVG ---
 - tapOn:
@@ -23,6 +25,9 @@ appId: com.flipcash.app.ios
 # Relaunching is the cheapest way to get the system sheet off screen.
 - launchApp
 - tapOn: "You"
+- tapOn:
+    id: "you-share"
+- tapOn: "Show Profile Card"
 - tapOn:
     id: "you-download-button"
 - tapOn:

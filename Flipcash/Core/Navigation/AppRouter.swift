@@ -63,7 +63,16 @@ final class AppRouter {
     /// is showing; the topmost-stack mutators (`push`, `popTopmost`, …) fall
     /// back to this so in-tab navigation lands on the right stack.
     /// `HomeTabView` keeps it in sync with the selected tab.
-    var activeTabStack: Stack?
+    var activeTabStack: Stack? {
+        didSet {
+            if activeTabStack != oldValue { isShowingProfileCard = false }
+        }
+    }
+
+    /// Whether the You tab's profile card is up. It is a cover local to `YouScreen`, which the
+    /// sheet stack cannot see, so the router closes it itself whenever sheets are dismissed, a
+    /// tab is requested or the selected tab changes — otherwise a deep link would land beneath it.
+    var isShowingProfileCard = false
 
     /// A token the wallet should open in its expanded card state, rather than
     /// as a pushed screen. Deep links use this so following a link lands where
@@ -86,7 +95,11 @@ final class AppRouter {
     /// A tab the router wants brought forward, named by the stack it owns.
     /// `HomeTabView` selects it and clears this. Deep-link routing only; nothing
     /// else drives tab selection.
-    var requestedTabStack: Stack?
+    var requestedTabStack: Stack? {
+        didSet {
+            if requestedTabStack != nil { isShowingProfileCard = false }
+        }
+    }
 
     /// The stack that `push`/`pop`-style calls target: the presented sheet's
     /// stack, or — when no sheet is up and a tab is the active surface — the
@@ -458,6 +471,7 @@ final class AppRouter {
     /// re-open instead.
     func dismissSheet() {
         guard let dismissing = presentedSheets.popLast() else { return }
+        isShowingProfileCard = false
         dismissedStacks.insert(dismissing.stack)
         logger.info("Dismissed sheet", metadata: [
             "sheet": "\(dismissing)",
@@ -577,10 +591,10 @@ final class AppRouter {
         logger.info("Routed to wallet", metadata: ["stack": "\(Stack.balance)"])
     }
 
-    /// Surfaces the user's own tip card: the You tab at its root.
+    /// Surfaces the user's own profile: the You tab at its root.
     ///
     /// Not expressible as `navigate(to:)` — the You tab's stack is entered by
-    /// tab selection and has no destination that names the card.
+    /// tab selection and has no destination that names the profile.
     ///
     /// Idempotent, like `navigate(to:)`: the scanner decodes a tipcode every
     /// frame until its camera tears down, so arriving is not allowed to re-fire

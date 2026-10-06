@@ -99,4 +99,50 @@ struct YouTabRoutingTests {
         router.popTopmost()
         #expect(router[.you].isEmpty)
     }
+
+    // MARK: - Profile card -
+
+    @Test("dismissing a sheet closes the profile card")
+    func dismissSheet_closesProfileCard() {
+        let router = AppRouter()
+        router.present(.give)
+        router.isShowingProfileCard = true
+
+        router.dismissSheet()
+
+        #expect(!router.isShowingProfileCard)
+    }
+
+    @Test("changing the selected tab closes the profile card")
+    func tabChange_closesProfileCard() {
+        let router = AppRouter()
+        router.activeTabStack = .you
+        router.isShowingProfileCard = true
+
+        router.activeTabStack = .balance
+
+        #expect(!router.isShowingProfileCard)
+    }
+
+    @Test("re-publishing the same tab leaves the profile card up")
+    func sameTab_keepsProfileCard() {
+        let router = AppRouter()
+        router.activeTabStack = .you
+        router.isShowingProfileCard = true
+
+        router.activeTabStack = .you
+
+        #expect(router.isShowingProfileCard)
+    }
+
+    @Test("a deep-link tab request closes the profile card")
+    func tabRequest_closesProfileCard() {
+        let router = AppRouter()
+        router.activeTabStack = .you
+        router.isShowingProfileCard = true
+
+        router.requestedTabStack = .balance
+
+        #expect(!router.isShowingProfileCard)
+    }
 }

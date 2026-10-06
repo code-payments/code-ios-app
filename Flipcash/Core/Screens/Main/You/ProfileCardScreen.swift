@@ -15,9 +15,8 @@ struct ProfileCardScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(\.dismiss) private var dismiss
 
-    /// Warms the share-sheet preview image ahead of the share tap so it never
-    /// lands on the tap.
-    @State private var previewCache = TipCodePreviewCache()
+    /// Warmed by `YouScreen`, which outlives this screen, so reopening reuses the render.
+    let previewCache: TipCodePreviewCache
     @State private var isShowingDownloadOptions = false
 
     /// The format tapped in the download sheet, held until the sheet is gone so
@@ -69,6 +68,7 @@ struct ProfileCardScreen: View {
                         .padding(.top, 24)
                 }
                 .padding(.horizontal, Self.horizontalInset)
+                .containerRelativeFrame(.vertical, alignment: .center)
             }
         }
         .sheet(isPresented: $isShowingDownloadOptions, onDismiss: exportPendingDownload) {
@@ -76,9 +76,6 @@ struct ProfileCardScreen: View {
                 onSelect: { pendingDownload = $0; isShowingDownloadOptions = false },
                 onCancel: { isShowingDownloadOptions = false }
             )
-        }
-        .task(id: profile?.profilePicture?.thumbnailBlobID) {
-            previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
         }
         .onAppear(perform: boostBrightness)
         .onDisappear(perform: restoreBrightness)

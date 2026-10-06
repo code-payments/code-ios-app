@@ -254,8 +254,8 @@ struct DeepLinkAction {
     }
 
     /// Whether a person link names the viewer, answerable without a lookup only when the id or the
-    /// handle is already known locally. A link to the viewer keeps opening their own tip card, as it
-    /// did before person links opened a profile.
+    /// handle is already known locally. A link to the viewer opens their own profile, the same as
+    /// scanning their own code.
     static func isOwnLink(
         _ identifier: ProfileIdentifier,
         selfUserID: UserID,
@@ -425,7 +425,7 @@ struct DeepLinkAction {
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
                 // `begin` owns the own-id case: a self link lands on the user's
-                // own tip card rather than starting a tip.
+                // own profile rather than starting a tip.
                 container.tipFlow.begin(userID: userID)
             }
 

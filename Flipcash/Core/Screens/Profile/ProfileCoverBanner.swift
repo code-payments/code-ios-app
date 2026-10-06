@@ -32,6 +32,9 @@ struct ProfileCoverBanner<Actions: View>: View {
             .task(id: coverPicture?.blobID) {
                 await sessionContainer.profileAvatars.load(.cover(userID), picture: coverPicture)
             }
+            // `.contain` keeps the Share and Settings buttons as their own elements; a bare
+            // identifier here would overwrite theirs.
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("profile-cover")
     }
 

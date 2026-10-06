@@ -37,6 +37,10 @@ public final class BlobCache: @unchecked Sendable {
     /// the directory needs a ceiling; the coldest entries go first.
     public static let profilePictures = BlobCache(name: "Avatars", limitBytes: 24 * 1024 * 1024)
 
+    /// Full-size profile covers. Kept apart from ``profilePictures`` so a few megabyte banners
+    /// cannot evict the avatar thumbnails.
+    public static let profileCovers = BlobCache(name: "Covers", limitBytes: 48 * 1024 * 1024)
+
     /// The parent of every kind's directory.
     ///
     /// Having one lets ``clearAll()`` delete the lot without a registry of kinds to keep in sync. A
