@@ -30,7 +30,7 @@ nonisolated enum TutorialItem: TutorialItemPresentable {
     var subtitle: String {
         switch self {
         case .addMoney:    return "Add money to your account"
-        case .scanTipCard: return "Give your first tip"
+        case .scanTipCard: return "Send your first message"
         }
     }
 
