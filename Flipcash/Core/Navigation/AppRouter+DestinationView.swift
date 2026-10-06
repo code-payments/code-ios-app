@@ -100,6 +100,23 @@ struct DestinationView: View {
                 refresh: { try await session.updateProfile() }
             ))
 
+        case .editFeaturedGroups:
+            let session = sessionContainer.session
+            let flipClient = container.flipClient
+            let featuredGroups = sessionContainer.featuredGroups
+            let conversationController = sessionContainer.conversationController
+            EditFeaturedGroupsScreen(model: EditFeaturedGroupsModel(
+                featured: featuredGroups.groups,
+                loadingFeatured: {
+                    // The list is read by handle; with none there is nothing to read back.
+                    guard let username = session.profile?.username else { return [] }
+                    return await featuredGroups.load(username: username) ? featuredGroups.groups : nil
+                },
+                joinedGroups: { await conversationController.loadGroupFeed() },
+                saving: { try await flipClient.setFeaturedGroups(owner: session.ownerKeyPair, conversationIDs: $0) },
+                saved: { featuredGroups.replace(with: $0) }
+            ))
+
         case .changeCoverPicture:
             ChangeCoverPictureScreen()
 
