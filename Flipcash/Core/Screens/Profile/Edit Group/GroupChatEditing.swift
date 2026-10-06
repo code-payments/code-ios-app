@@ -24,13 +24,15 @@ protocol GroupChatEditing {
 
     /// Applies a partial edit and returns the chat's post-edit metadata.
     ///
-    /// Both fields are independently optional and *unset means unchanged*, so a caller editing the
-    /// name passes `pictureBlobID: nil` and leaves the picture alone. Passing neither is a no-op
-    /// the server answers `OK`.
+    /// Every field is independently optional and *unset means unchanged*, so a caller editing the
+    /// name passes `description: .unchanged` and nil blobs and leaves the rest alone; `.clear`
+    /// removes the description. Changing nothing is a no-op the server answers `OK`.
     func editChat(
         conversationID: ConversationID,
         title: String?,
-        pictureBlobID: BlobID?
+        description: ConversationDescriptionEdit,
+        pictureBlobID: BlobID?,
+        coverPictureBlobID: BlobID?
     ) async throws -> Conversation
 }
 
@@ -51,13 +53,17 @@ struct SessionGroupChatEditor: GroupChatEditing {
     func editChat(
         conversationID: ConversationID,
         title: String?,
-        pictureBlobID: BlobID?
+        description: ConversationDescriptionEdit,
+        pictureBlobID: BlobID?,
+        coverPictureBlobID: BlobID?
     ) async throws -> Conversation {
         try await flipClient.editChat(
             owner: session.ownerKeyPair,
             conversationID: conversationID,
             title: title,
-            pictureBlobID: pictureBlobID
+            description: description,
+            pictureBlobID: pictureBlobID,
+            coverPictureBlobID: coverPictureBlobID
         )
     }
 }

@@ -91,17 +91,32 @@ struct ComposerChipTests {
         #expect(composer.canSubmit)
     }
 
-    @Test("A chip that failed holds the send back until it is removed")
-    func failedChipDisablesSend() throws {
+    @Test("A chip that failed for good holds the send back until it is removed")
+    func unretryableChipDisablesSend() throws {
         let composer = ComposerModel()
         composer.draft = "look"
         let chip = try #require(composer.stageChip(image: testImage(), uploader: uploader))
-        chip.state = .failed(.retryable)
+        chip.state = .failed(.notRetryable)
 
         #expect(!composer.canSubmit)
 
         composer.removeChip(chip.id)
         #expect(composer.canSubmit)
+    }
+
+    @Test("A chip whose upload failed offline can still be sent")
+    func retryableChipStillSends() throws {
+        let composer = ComposerModel()
+        composer.draft = "look"
+        let chip = try #require(composer.stageChip(image: testImage(), uploader: uploader))
+        chip.state = .failed(.retryable)
+
+        #expect(composer.canSubmit)
+        guard case .media(let chips, caption: "look") = composer.outgoing else {
+            Issue.record("expected the chip to go out as media")
+            return
+        }
+        #expect(chips.map(\.id) == [chip.id])
     }
 
     @Test("Clearing after a send empties both the text and the chips")

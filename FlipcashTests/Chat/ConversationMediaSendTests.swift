@@ -292,6 +292,41 @@ struct ConversationMediaSendTests {
         #expect(chip.progress.phase == .sent, "the retried upload brings the overlay back and ends it sent")
     }
 
+    @Test("Sending a photo whose upload already failed offline uploads it again and posts it")
+    func sendRestartsFailedUpload() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        let blob = MockChatMediaBlobStore()
+        blob.storeResults = [.failure(ErrorBlob.network(URLError(.notConnectedToInternet)))]
+        let chip = ComposerChip(image: testImage())
+        chip.startUpload(using: ChatMediaUploader(blob: blob, backoff: []))
+        _ = try? await chip.uploadTask?.value
+        #expect(chip.state == .failed(.retryable))
+
+        let sent = await controller.sendMedia([chip], caption: nil, to: conversationID)
+
+        #expect(sent)
+        #expect(blob.storeAttempts == 2)
+        #expect(mock.sentMedia.map(\.blobID) == [MockChatMediaBlobStore.blobID])
+        #expect(pendingMedia(controller).isEmpty)
+    }
+
+    @Test("Sending a photo that failed for good does not upload it again")
+    func sendLeavesUnretryableFailure() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        let blob = MockChatMediaBlobStore()
+        blob.finalization = .failure(ErrorBlob.rejected(.moderation))
+        let chip = ComposerChip(image: testImage())
+        chip.startUpload(using: ChatMediaUploader(blob: blob, backoff: []))
+        _ = try? await chip.uploadTask?.value
+        #expect(chip.state == .failed(.notRetryable))
+
+        #expect(!(await controller.sendMedia([chip], caption: nil, to: conversationID)))
+        #expect(blob.storeAttempts == 1)
+        #expect(pendingMedia(controller).map(\.status) == [.failed])
+    }
+
     @Test("A photo refused by moderation is not retried")
     func moderationIsNotRetried() async throws {
         let mock = MockConversations()

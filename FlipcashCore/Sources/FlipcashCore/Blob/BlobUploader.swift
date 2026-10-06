@@ -137,14 +137,19 @@ final class BlobUploader: Sendable {
     /// The MIME type every end-to-end encrypted upload declares; the server refuses any other.
     static let encryptedMimeType = "application/octet-stream"
 
+    /// How many finalization polls may be lost in transit back to back before the wait gives up.
+    static let maxConsecutiveLostPolls = 3
+
     /// Polls until the blob is finalized.
     ///
     /// Returns immediately when it is already ready; a rejection is terminal. A poll lost in transit
-    /// is retried, since iOS drops the connection when it suspends the app mid-wait. The `timeout`
-    /// budget is counted in polls rather than wall time, so time spent suspended doesn't use it up.
+    /// is retried, since iOS drops the connection when it suspends the app mid-wait, but
+    /// ``maxConsecutiveLostPolls`` in a row throw `ErrorBlob.network`. The `timeout` budget is
+    /// counted in polls rather than wall time, so time spent suspended doesn't use it up.
     func awaitFinalization(blobID: BlobID, owner: KeyPair) async throws {
         let maxPolls = max(1, Int((timeout / pollInterval).rounded(.up)))
         var polls = 0
+        var lostInARow = 0
 
         while true {
             try Task.checkCancellation()
@@ -161,14 +166,21 @@ final class BlobUploader: Sendable {
                     ])
                     throw ErrorBlob.rejected(reason)
                 case .pending, .processing:
-                    break
+                    lostInARow = 0
                 }
             } catch ErrorBlob.network(let error) {
                 try Task.checkCancellation()
+                lostInARow += 1
                 logger.info("Blob poll lost in transit", metadata: [
                     "blobId": "\(blobID)",
                     "error": "\(error)",
+                    "lostInARow": "\(lostInARow)",
                 ])
+                // Offline, each poll waits out its RPC deadline, so the poll budget alone would
+                // hold the send for minutes.
+                if lostInARow >= Self.maxConsecutiveLostPolls {
+                    throw ErrorBlob.network(error)
+                }
             }
 
             guard polls < maxPolls else {

@@ -163,6 +163,91 @@ struct ChatMediaCellTests {
         #expect(cell.captionBubble.isHidden)
     }
 
+    // MARK: - Reply quote -
+
+    private static let quote = ChatQuote(stableID: "7", authorName: "Ada", snippet: "dinner at 7?", kind: .text)
+
+    @Test("A photo sent as a reply shows the quote over it")
+    func reply_showsQuote() {
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(
+            with: ChatMessage(id: "1", content: .media(media()), sender: .me, quote: Self.quote),
+            maxWidth: 240,
+            localImage: nil,
+            remote: nil
+        )
+        #expect(cell.quotePanel.isHidden == false)
+    }
+
+    @Test("A photo that is not a reply hides the quote")
+    func plain_hidesQuote() {
+        let cell = configuredCell(media())
+        #expect(cell.quotePanel.isHidden)
+    }
+
+    @Test("A recycled cell drops the previous row's quote")
+    func reuse_dropsQuote() {
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(
+            with: ChatMessage(id: "1", content: .media(media()), sender: .me, quote: Self.quote),
+            maxWidth: 240,
+            localImage: nil,
+            remote: nil
+        )
+        cell.configure(with: outgoing(id: "2"), maxWidth: 240, localImage: nil, remote: nil)
+        #expect(cell.quotePanel.isHidden)
+    }
+
+    @Test("A long quote stays inside the photo, within its width cap")
+    func longQuote_staysInsidePhoto() {
+        let long = ChatQuote(stableID: "7", authorName: "Ada", snippet: String(repeating: "wide ", count: 40), kind: .text)
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 600))
+        cell.configure(
+            with: ChatMessage(id: "1", content: .media(media()), sender: .other, quote: long),
+            maxWidth: 240,
+            localImage: nil,
+            remote: nil
+        )
+        cell.contentView.frame = cell.bounds
+        cell.layoutIfNeeded()
+
+        let photo = cell.imageView.convert(cell.imageView.bounds, to: cell)
+        let quote = cell.quotePanel.convert(cell.quotePanel.bounds, to: cell)
+        #expect(quote.width > 0)
+        #expect(photo.insetBy(dx: -0.5, dy: -0.5).contains(quote))
+        #expect(quote.width <= photo.width * ChatMediaCell.quoteMaxWidthFraction + 0.5)
+        #expect(abs(quote.minX - photo.minX - ChatMediaCell.quoteInset) < 0.5)
+        #expect(abs(quote.minY - photo.minY - ChatMediaCell.quoteInset) < 0.5)
+    }
+
+    @Test("The quote's corners are concentric with the photo's, floored at the grouped radius")
+    func quoteCorners_concentricWithPhoto() {
+        let rounded = ChatQuotePanelView.photoOverlayRadii(photoTopLeading: BubbleBackgroundView.baseRadius, inset: 4)
+        #expect(rounded.topLeading == 8)
+        #expect(rounded.topTrailing == 8)
+        #expect(rounded.bottomLeading == 8)
+        #expect(rounded.bottomTrailing == 8)
+
+        let flattened = ChatQuotePanelView.photoOverlayRadii(photoTopLeading: BubbleBackgroundView.groupedRadius, inset: 4)
+        #expect(flattened.topLeading == BubbleBackgroundView.groupedRadius)
+        #expect(flattened.topTrailing == 8)
+    }
+
+    @Test("The quote reports the row it jumps to")
+    func quote_reportsItsTarget() {
+        var tapped: String?
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(
+            with: ChatMessage(id: "1", content: .media(media()), sender: .other, quote: Self.quote),
+            maxWidth: 240,
+            localImage: nil,
+            remote: nil
+        )
+        cell.onQuoteTap = { tapped = $0 }
+        cell.quotePanel.simulateTap()
+        #expect(tapped == "7")
+    }
+
     @Test("A viewable row shows its reactions and takes a tap")
     func viewableRow() {
         let cell = configuredCell(media(), remoteURL: Self.remoteURL)

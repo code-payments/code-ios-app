@@ -11,8 +11,8 @@ import SwiftUI
 import FlipcashCore
 
 /// One reaction pill: emoji + count, capsule-shaped over the same wash a received bubble sits on.
-/// A self-reacted pill draws a grey outline, which never changes its width. Tap toggles the reaction; long-press opens the reactors sheet scoped to this
-/// emoji — there is no cross-emoji "All" view to open instead.
+/// A self-reacted pill draws a grey outline, which never changes its width. Tap toggles the reaction; the row it
+/// sits in owns the long press, so a press just off the pill still opens the reactors sheet.
 final class ReactionPillView: UIView {
 
     private let stack = UIStackView()
@@ -23,9 +23,8 @@ final class ReactionPillView: UIView {
     private lazy var countWidth = countLabel.widthAnchor.constraint(equalToConstant: Self.countWidth(digits: 2))
 
     /// Fired on a plain tap. Nil (rather than swallowing the tap in `configure`) so a viewer who
-    /// cannot react — a group previewer — still gets a working long-press.
+    /// cannot react — a group previewer — still gets the row's long press.
     var onTap: (() -> Void)?
-    var onLongPress: (() -> Void)?
 
     private(set) var pill: ReactionPill?
     /// The emoji this pill last drew, so the row can keep the pill across a reconfigure.
@@ -68,16 +67,14 @@ final class ReactionPillView: UIView {
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
         addGestureRecognizer(tap)
-        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(longPressed))
-        addGestureRecognizer(longPress)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     /// - Parameters:
-    ///   - canReact: false withholds nothing here — the pill always draws and always opens the
-    ///     reactors sheet on long-press. Only the tap-to-toggle is disabled, per spec (a group
+    ///   - canReact: false withholds nothing here — the pill always draws, and the row's long press
+    ///     still opens the reactors sheet. Only the tap-to-toggle is disabled, per spec (a group
     ///     previewer's tap is inert).
     ///   - countDigits: the digits of room the count keeps, which sets the pill's width.
     ///   - animated: whether a change to a pill already on screen animates: the count rolls to its new
@@ -141,11 +138,6 @@ final class ReactionPillView: UIView {
 
     @objc private func tapped() {
         onTap?()
-    }
-
-    @objc private func longPressed(_ recognizer: UILongPressGestureRecognizer) {
-        guard recognizer.state == .began else { return }
-        onLongPress?()
     }
 }
 #endif

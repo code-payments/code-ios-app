@@ -209,7 +209,7 @@ struct ConversationModelMappingTests {
                 $0.memberCount = 12
                 $0.version = 3
             }
-            $0.picture = .with {
+            $0.profilePicture = .with {
                 $0.renditions = [.with {
                     $0.role = .original
                     $0.blobID = .with { $0.value = Data(repeating: 0x01, count: 16) }
@@ -231,8 +231,27 @@ struct ConversationModelMappingTests {
         let conversation = Conversation(proto)
         #expect(conversation.rosterSummary == ConversationRosterSummary(memberCount: 12, version: 3))
         #expect(conversation.picture != nil)
+        #expect(conversation.coverPicture == nil)
         #expect(conversation.rules?.listener == [.staff])
         #expect(conversation.rules?.speaker == [.minimumBalance(MinimumBalanceRequirement(amount: .usd(5.0)))])
+    }
+
+    @Test("Metadata cover_picture maps to coverPicture, apart from the profile picture")
+    func coverPictureMaps() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .group
+            $0.coverPicture = .with {
+                $0.renditions = [.with {
+                    $0.role = .original
+                    $0.blobID = .with { $0.value = Data(repeating: 0x07, count: 16) }
+                }]
+            }
+        }
+
+        let conversation = Conversation(proto)
+        #expect(conversation.coverPicture?.blobID == BlobID(data: Data(repeating: 0x07, count: 16)))
+        #expect(conversation.picture == nil)
     }
 
     @Test("Metadata without roster summary or rules maps to defaults")

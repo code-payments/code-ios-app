@@ -18,7 +18,7 @@ struct EditGroupModelTests {
     /// Records what the form asked of the server, and answers with whatever the test set.
     private final class SpyEditor: GroupChatEditing {
 
-        private(set) var editCalls: [(title: String?, blobID: BlobID?)] = []
+        private(set) var editCalls: [(title: String?, description: ConversationDescriptionEdit, blobID: BlobID?, coverBlobID: BlobID?)] = []
         private(set) var storeBlobCallCount = 0
         private(set) var finalizationCallCount = 0
 
@@ -50,9 +50,11 @@ struct EditGroupModelTests {
         func editChat(
             conversationID: ConversationID,
             title: String?,
-            pictureBlobID: BlobID?
+            description: ConversationDescriptionEdit,
+            pictureBlobID: BlobID?,
+            coverPictureBlobID: BlobID?
         ) async throws -> Conversation {
-            editCalls.append((title, pictureBlobID))
+            editCalls.append((title, description, pictureBlobID, coverPictureBlobID))
             callOrder.append("edit")
             if let error = nextEditError {
                 nextEditError = nil
@@ -166,6 +168,8 @@ struct EditGroupModelTests {
         #expect(editor.editCalls.count == 1)
         #expect(editor.editCalls[0].title == "GoodBoys")
         #expect(editor.editCalls[0].blobID == nil)
+        #expect(editor.editCalls[0].description == .unchanged)
+        #expect(editor.editCalls[0].coverBlobID == nil)
     }
 
     @Test("A name edit uploads nothing")
@@ -192,6 +196,8 @@ struct EditGroupModelTests {
         #expect(editor.editCalls.count == 1)
         #expect(editor.editCalls[0].title == nil)
         #expect(editor.editCalls[0].blobID != nil)
+        #expect(editor.editCalls[0].description == .unchanged)
+        #expect(editor.editCalls[0].coverBlobID == nil)
     }
 
     @Test("A picture edit finalizes the blob before sending it, never after")

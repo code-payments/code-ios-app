@@ -65,6 +65,20 @@ struct ReactionUITests {
         #expect(message.offersReactionStrip == !isRedacted)
     }
 
+    @Test("Double-tapping a photo or a text bubble brings up the strip")
+    func photoAndTextTakeDoubleTap() {
+        let media = ChatMediaContent(blobID: nil, width: 100, height: 100, blurhash: nil, caption: nil, isRedacted: false)
+        #expect(Self.makeMessage(content: .media(media), sender: .other).takesDoubleTapReaction)
+        #expect(Self.makeMessage(content: .text("hi"), sender: .other).takesDoubleTapReaction)
+    }
+
+    @Test("A redacted photo or a deleted message takes no double tap")
+    func ineligibleRowsTakeNoDoubleTap() {
+        let redacted = ChatMediaContent(blobID: nil, width: 100, height: 100, blurhash: nil, caption: nil, isRedacted: true)
+        #expect(!Self.makeMessage(content: .media(redacted), sender: .other).takesDoubleTapReaction)
+        #expect(!Self.makeMessage(content: .deleted("This message was deleted"), sender: .other).takesDoubleTapReaction)
+    }
+
     @Test("The viewer's own message still in flight never offers the strip")
     func inFlightSendNoStrip() {
         let message = Self.makeMessage(content: .text("hi"), sender: .me, receipt: nil, isUnsent: true)

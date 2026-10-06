@@ -57,6 +57,10 @@ public enum ConversationStreamEvent: Sendable {
     /// devices. Best-effort and applied as received, like ``titleChanged``.
     case pictureChanged(conversationID: ConversationID, picture: ProfilePicture)
 
+    /// A group chat's cover picture changed (via `Chat.EditChat`), including on the editor's other
+    /// devices. Best-effort and applied as received, like ``titleChanged``.
+    case coverPictureChanged(conversationID: ConversationID, coverPicture: ProfilePicture)
+
     /// Reactions on messages in the chat changed. Best-effort and outside the gap-detected event
     /// log: each update is applied by its per-emoji version, and a missed one is reconciled by the
     /// next reaction summary.
@@ -181,6 +185,10 @@ public enum RosterChange: Sendable {
     /// A member left. Naming the signed-in user means the recipient is no longer a member and should
     /// remove the chat from their feed.
     case left(userID: UserID)
+    /// Membership changed in a way the update doesn't itemize (`RosterUpdate.MembershipChanged`).
+    /// Only the summary applies: the cached member list stays as it is, and the update is not a
+    /// version gap, so it never triggers a roster refetch.
+    case membershipChanged
 }
 
 extension ConversationStreamEvent {
@@ -213,11 +221,14 @@ extension ConversationStreamEvent {
                 events.append(.titleChanged(conversationID: conversationID, title: changed.newTitle))
             case .descriptionChanged(let changed):
                 events.append(.descriptionChanged(conversationID: conversationID, description: changed.newDescription))
-            case .pictureChanged(let changed):
+            case .profilePictureChanged(let changed):
                 // `ProfilePicture.init?` fails without an original rendition — required on the
                 // wire, but treated the same as an absent picture rather than force-unwrapped.
-                guard changed.hasNewPicture, let picture = ProfilePicture(changed.newPicture) else { break }
+                guard changed.hasNewProfilePicture, let picture = ProfilePicture(changed.newProfilePicture) else { break }
                 events.append(.pictureChanged(conversationID: conversationID, picture: picture))
+            case .coverPictureChanged(let changed):
+                guard changed.hasNewCoverPicture, let coverPicture = ProfilePicture(changed.newCoverPicture) else { break }
+                events.append(.coverPictureChanged(conversationID: conversationID, coverPicture: coverPicture))
             case nil:
                 break
             }
@@ -296,7 +307,7 @@ extension DecodedMutation {
 
 extension DecodedRosterUpdate {
     /// Nil when the update carries no roster summary (nothing to version-compare against) or its kind
-    /// is neither joined nor left (a future oneof case this client doesn't know about yet).
+    /// is not one this client knows about yet.
     init?(_ proto: Flipcash_Chat_V1_RosterUpdate) {
         guard proto.hasRosterSummary else { return nil }
         let rosterSummary = ConversationRosterSummary(proto.rosterSummary)
@@ -308,6 +319,8 @@ extension DecodedRosterUpdate {
         case .memberLeft(let left):
             guard let userID = try? UUID(data: left.userID.value) else { return nil }
             self.init(rosterSummary: rosterSummary, change: .left(userID: userID))
+        case .membershipChanged:
+            self.init(rosterSummary: rosterSummary, change: .membershipChanged)
         case nil:
             return nil
         }

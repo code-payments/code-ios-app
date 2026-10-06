@@ -875,7 +875,7 @@ final class ConversationController {
             // unknown chat here means the feed hasn't landed, and the feed will bring the state
             // with it. Nothing to fetch.
             return
-        case .titleChanged, .pictureChanged, .descriptionChanged:
+        case .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged:
             // Only delivered to a chat's members, same reasoning as `.viewerStateChanged`: an unknown
             // chat here means the feed hasn't landed yet, and it will bring the current title/picture
             // with it. Nothing to fetch.
@@ -1171,6 +1171,9 @@ final class ConversationController {
         if let picture = conversation.picture {
             store.applyPictureChanged(picture, in: conversation.id)
         }
+        if let coverPicture = conversation.coverPicture {
+            store.applyCoverPictureChanged(coverPicture, in: conversation.id)
+        }
         persistConversation(conversation.id)
     }
 
@@ -1223,6 +1226,10 @@ final class ConversationController {
                 guard userID == selfUserID else { continue }
                 store.setMembership(false, in: conversationID)
                 persistMembership(false, in: conversationID)
+            case .membershipChanged:
+                // Names no user, so there is no own-membership change to record; the store has
+                // already applied the summary.
+                continue
             }
         }
     }
@@ -1382,7 +1389,8 @@ final class ConversationController {
             // until the next metadata fetch — the same reason the roster summary is cached.
             persistConversation(conversationID)
         case .titleChanged(let conversationID, _),
-             .pictureChanged(let conversationID, _):
+             .pictureChanged(let conversationID, _),
+             .coverPictureChanged(let conversationID, _):
             // Cached like the roster summary/mute above, so a cold restore shows the edited
             // title/picture rather than the stale one until the next full metadata fetch.
             persistConversation(conversationID)
@@ -2126,6 +2134,13 @@ final class ConversationController {
         let assertion = BackgroundTimeAssertion(assertions: backgroundTasks)
         assertion.begin()
         defer { assertion.end() }
+
+        // A chip that failed retryably (offline, say) is sendable; tapping Send is its retry.
+        for chip in chips {
+            if case .failed(.retryable) = chip.state {
+                chip.retryUpload()
+            }
+        }
 
         let sends = ChatMediaSendPlan.mediaMessages(chips: chips, caption: caption, replyTo: repliedTo).map { message in
             (message: message, clientMessageID: insertPendingMedia(message, into: conversationID))

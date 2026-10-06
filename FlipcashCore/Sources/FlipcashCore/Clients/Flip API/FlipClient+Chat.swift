@@ -132,6 +132,33 @@ extension FlipClient {
         return RosterPage(members: members, rosterSummary: rosterSummary)
     }
 
+    /// A sample of up to 100 recent chatters in a public group, with whether more exist. Unlike
+    /// ``getRoster(owner:conversationID:)`` it needs no membership, so it is the call for a preview or
+    /// lobby view. `owner` is optional because a public group needs no auth; a private group or a DM
+    /// is `.denied`.
+    public func sampleChatters(owner: KeyPair?, conversationID: ConversationID) async throws -> (chatters: [SampledChatter], hasMore: Bool) {
+        let page = try await withCheckedThrowingContinuation { c in
+            chatService.sampleChatters(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+        return (page.chatters, page.hasMore)
+    }
+
+    /// Replaces the signed-in user's featured groups (at most 10, in order) and returns the
+    /// resulting list. A private group is `.denied`.
+    public func setFeaturedGroups(owner: KeyPair, conversationIDs: [ConversationID]) async throws -> [Conversation] {
+        try await withCheckedThrowingContinuation { c in
+            chatService.setFeaturedGroups(owner: owner, conversationIDs: conversationIDs) { c.resume(with: $0) }
+        }
+    }
+
+    /// The groups `username` features, list-view shaped: no members, viewer state, last message or
+    /// cover picture. `owner` is optional.
+    public func getFeaturedGroups(owner: KeyPair?, username: Username) async throws -> [Conversation] {
+        try await withCheckedThrowingContinuation { c in
+            chatService.getFeaturedGroups(owner: owner, username: username) { c.resume(with: $0) }
+        }
+    }
+
     /// The people to suggest after an `@` in a group chat, most relevant first; see
     /// ``MentionSuggestion``. Fetch it once per composing session and filter it locally.
     public func getMentionSuggestions(owner: KeyPair, conversationID: ConversationID) async throws -> [MentionSuggestion] {
@@ -140,18 +167,19 @@ extension FlipClient {
         }
     }
 
-    /// Edits a group chat's title, description, and/or picture; a `nil` title or picture and an
-    /// `.unchanged` description leave that field as it is, and changing nothing is a no-op that still
-    /// returns the current metadata. Pass `.clear` to remove the description. Only a
-    /// member with ``ConversationViewerState/canEdit`` may call this.
+    /// Edits a group chat's title, description, picture, and/or cover picture; a `nil` title, picture
+    /// or cover picture and an `.unchanged` description leave that field as it is, and changing
+    /// nothing is a no-op that still returns the current metadata. Pass `.clear` to remove the
+    /// description. Only a member with ``ConversationViewerState/canEdit`` may call this.
     ///
-    /// `pictureBlobID` must already be `READY` (uploaded via `BlobService`) — this call does not
-    /// upload it. Real changes also arrive on the event stream as `MetadataUpdate.titleChanged`/
-    /// `.descriptionChanged`/`.pictureChanged` for the chat's other members (and the caller's other devices); this call's
-    /// return value is only this device's confirmation.
-    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?) async throws -> Conversation {
+    /// `pictureBlobID` and `coverPictureBlobID` must already be `READY` (uploaded via `BlobService`) —
+    /// this call does not upload them. Real changes also arrive on the event stream as
+    /// `MetadataUpdate.titleChanged`/`.descriptionChanged`/`.pictureChanged`/`.coverPictureChanged`
+    /// for the chat's other members (and the caller's other devices); this call's return value is
+    /// only this device's confirmation.
+    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
-            chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID) { c.resume(with: $0) }
+            chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID, coverPictureBlobID: coverPictureBlobID) { c.resume(with: $0) }
         }
     }
 

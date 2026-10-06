@@ -107,6 +107,48 @@ struct ConversationMetadataEditTests {
 
         #expect(store.conversations.isEmpty)
     }
+
+    @Test("A cover picture change is applied to the matching chat, leaving the profile picture alone")
+    func coverPictureChangeApplies() {
+        var store = ConversationStore()
+        store.apply(.metadataRefresh(group(1)))
+
+        let cover = picture(0x03)
+        store.applyCoverPictureChanged(cover, in: conversationID(1))
+
+        #expect(store.conversations[0].coverPicture == cover)
+        #expect(store.conversations[0].picture == nil)
+    }
+
+    @Test("A cover picture change for a chat the store doesn't hold is a no-op")
+    func coverPictureChangeForUnknownChatNoOps() {
+        var store = ConversationStore()
+        store.applyCoverPictureChanged(picture(0x03), in: conversationID(1))
+        #expect(store.conversations.isEmpty)
+    }
+
+    @Test("A feed result without a cover does not clear a cached cover; one with a cover replaces it")
+    func feedWithoutCoverKeepsCachedCover() {
+        let cover = picture(0x03)
+        var store = ConversationStore()
+        store.apply(.metadataRefresh(group(1)))
+        store.applyCoverPictureChanged(cover, in: conversationID(1))
+
+        store.setGroupFeed([group(1, title: "from feed")])
+        #expect(store.conversations[0].coverPicture == cover)
+        #expect(store.conversations[0].title == "from feed")
+
+        store.setFeed([group(1)], type: .group)
+        #expect(store.conversations[0].coverPicture == cover)
+
+        store.setFeed([group(1)])
+        #expect(store.conversations[0].coverPicture == cover)
+
+        var fresh = group(1)
+        fresh.coverPicture = picture(0x04)
+        store.apply(.metadataRefresh(fresh))
+        #expect(store.conversations[0].coverPicture == picture(0x04))
+    }
 }
 
 @Suite("Conversation description edit")
@@ -120,5 +162,69 @@ struct ConversationDescriptionEditTests {
         let cleared = ConversationDescriptionEdit.clear.proto
         #expect(cleared != nil)
         #expect(cleared?.value == "")
+    }
+}
+
+@Suite("EditChat request construction")
+struct EditChatRequestTests {
+
+    private let conversationID = ConversationID(data: Data(repeating: 7, count: 32))
+    private let cover = BlobID(data: Data(repeating: 0x0C, count: 16))
+
+    private func request(
+        title: String? = nil,
+        description: ConversationDescriptionEdit = .unchanged,
+        pictureBlobID: BlobID? = nil,
+        coverPictureBlobID: BlobID? = nil
+    ) throws -> Flipcash_Chat_V1_EditChatRequest {
+        ChatService.editChatRequest(
+            owner: try #require(KeyPair.generate()),
+            conversationID: conversationID,
+            title: title,
+            description: description,
+            pictureBlobID: pictureBlobID,
+            coverPictureBlobID: coverPictureBlobID
+        )
+    }
+
+    @Test("A cover blob is sent as cover_picture, apart from the profile picture")
+    func coverSet() throws {
+        let request = try request(coverPictureBlobID: cover)
+
+        #expect(request.hasCoverPicture)
+        #expect(request.coverPicture.blobID.value == cover.data)
+        #expect(!request.hasProfilePicture)
+        #expect(!request.hasTitle)
+        #expect(!request.hasDescription_p)
+        #expect(request.hasAuth)
+    }
+
+    @Test("A nil cover leaves cover_picture unset")
+    func coverNil() throws {
+        let request = try request(title: "Renamed")
+
+        #expect(!request.hasCoverPicture)
+        #expect(request.title.value == "Renamed")
+        #expect(request.hasAuth)
+    }
+
+    @Test("A set description is sent with its text")
+    func descriptionSet() throws {
+        let request = try request(description: .set("About us"))
+
+        #expect(request.hasDescription_p)
+        #expect(request.description_p.value == "About us")
+        #expect(!request.hasCoverPicture)
+        #expect(request.hasAuth)
+    }
+
+    @Test("A cleared description is sent as an empty value; unchanged leaves it unset")
+    func descriptionClearAndUnchanged() throws {
+        let cleared = try request(description: .clear)
+        #expect(cleared.hasDescription_p)
+        #expect(cleared.description_p.value == "")
+
+        let unchanged = try request()
+        #expect(!unchanged.hasDescription_p)
     }
 }

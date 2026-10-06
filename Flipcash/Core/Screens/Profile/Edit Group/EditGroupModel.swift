@@ -102,7 +102,9 @@ final class EditGroupModel {
             try await editor.editChat(
                 conversationID: conversationID,
                 title: title,
-                pictureBlobID: nil
+                description: .unchanged,
+                pictureBlobID: nil,
+                coverPictureBlobID: nil
             )
         }
     }
@@ -127,7 +129,9 @@ final class EditGroupModel {
             try await editor.editChat(
                 conversationID: conversationID,
                 title: nil,
-                pictureBlobID: blobID
+                description: .unchanged,
+                pictureBlobID: blobID,
+                coverPictureBlobID: nil
             )
         }
     }

@@ -170,6 +170,14 @@ struct EditGroupPictureScreen: View {
                 subtitle: "Try a different photo"
             )
 
+        case ErrorEditChat.coverPictureBlobNotAccepted:
+            logger.info("Group cover picture not accepted")
+            ErrorReporting.captureError(error, reason: "Group cover picture not accepted")
+            dialog = .error(
+                title: "This Photo Isn't Allowed",
+                subtitle: "Try a different photo"
+            )
+
         case ErrorEditChat.denied:
             logger.info("Group edit denied")
             ErrorReporting.captureError(error, reason: "Group edit denied")
