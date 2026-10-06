@@ -5,7 +5,7 @@
 
 import XCTest
 
-/// Rides a tipcard link from the link to the chat it opens, without committing
+/// Rides a tipcard link from the link to the profile it opens, without committing
 /// a transfer. The tipcard deeplink stands in for scanning, which a simulator
 /// camera can't do.
 ///
@@ -33,19 +33,18 @@ final class TipsSmokeTests: BaseUITestCase {
         executionTimeAllowance = 600
     }
 
-    /// A tipcard link shows the recipient's card and then lands the sender in
-    /// the chat with them, where the amount is chosen. The chat doesn't exist
-    /// until the first tip, so what proves the landing is the send control the
-    /// empty thread offers — no message list, no transfer.
-    func testTipDeeplink_opensTheChat() throws {
+    /// A tipcard link shows the recipient's card and then opens their
+    /// profile, whose pinned button starts or opens the chat. The profile
+    /// proves the landing; no transfer is made.
+    func testTipDeeplink_opensTheProfile() throws {
         assertMainScreenReached()
 
         app.open(URL(string: "flipcash://tip/\(Self.recipientID)")!)
 
-        let sendButton = app.buttons["send-cash-button"]
+        let pinnedAction = app.buttons["profile-pinned-action"]
         XCTAssertTrue(
-            sendButton.waitForExistence(timeout: 180),
-            "The tip chat never appeared. On screen: [\(visibleText())]"
+            pinnedAction.waitForExistence(timeout: 180),
+            "The recipient's profile never appeared. On screen: [\(visibleText())]"
         )
     }
 }
