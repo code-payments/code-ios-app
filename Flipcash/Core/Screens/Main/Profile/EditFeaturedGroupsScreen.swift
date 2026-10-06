@@ -34,20 +34,28 @@ struct EditFeaturedGroupsScreen: View {
 
         Background(color: .backgroundMain) {
             List {
-                Section(header: ListHeader("\(model.selection.count) of \(FeaturedGroups.limit) selected")) {
+                Section {
                     ForEach(model.visibleCandidates) { group in
                         row(group)
                     }
+                } header: {
+                    ListHeader("\(model.selection.count) of \(FeaturedGroups.limit) selected")
+                } footer: {
+                    if !model.candidates.isEmpty {
+                        Text("These public groups will appear on your public profile")
+                            .font(.appTextCaption)
+                            .foregroundStyle(Color.textSecondary)
+                    }
                 }
-                .listRowSeparatorTint(Color.rowSeparator)
+                .listRowSeparator(.hidden)
             }
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
             .overlay { emptyState }
         }
-        .navigationTitle("Favorite Public Groups")
+        .navigationTitle("Favorite Groups")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $model.query, prompt: "Search Groups")
+        .searchable(text: $model.query, prompt: "Search your public groups")
         .scrollEdgeBar(.bottom) {
             Button(action: save) {
                 ButtonStateLabel("Save", state: buttonState)

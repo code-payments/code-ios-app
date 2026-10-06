@@ -7,7 +7,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The "Favorite Public Groups" card on a profile, one row per group in the owner's order. Draws
+/// The "Favorite Public Groups" section on a profile, one row per group in the owner's order. Draws
 /// nothing when the list is empty.
 struct FeaturedGroupsSection: View {
 
