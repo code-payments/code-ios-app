@@ -7,7 +7,7 @@ import XCTest
 
 /// Covers the display name and the tip card it earns: a freshly registered
 /// account lands on the You tab with a card it can share, and the name behind
-/// that card can be changed from Settings.
+/// that card can be changed from Edit Profile.
 ///
 /// This replaces the old profile-creation walkthrough (Tips intro → name →
 /// photo → tipcard), which has no subject left. The name step is mandatory
@@ -101,10 +101,9 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         )
 
         // `ProfileNameScreen(completion: .back)` pops itself only once
-        // `SetDisplayName` returns, so landing back on Settings is proof the
+        // `SetDisplayName` returns, so landing back on Edit Profile is proof the
         // new name was accepted and moderated — a rejection keeps the editor up
-        // behind a dialog. It pops just the one screen, so this is Edit Profile
-        // rather than the You tab root.
+        // behind a dialog.
         XCTAssertTrue(
             settings.displayNameRow.waitForExistence(timeout: 60),
             "Expected the name editor to pop back to Edit Profile once the name saved. On screen: [\(visibleText())]"
@@ -113,9 +112,9 @@ final class DisplayNameSmokeTests: BaseUITestCase {
         // MARK: The profile survives the rename.
         // Unwind the last screen by hand: the tab bar stays hidden while the
         // You tab has a stack, so there is no You button to tap back to.
+        // Edit Profile is one push from the root; a second tap would land on the gear.
         waitAndTap(app.navigationBars.buttons.firstMatch)
-        waitAndTap(app.navigationBars.buttons.firstMatch)
-        assertMainScreenReached(timeout: 30, "Expected the You tab root after backing out of Settings")
+        assertMainScreenReached(timeout: 30, "Expected the You tab root after backing out of Edit Profile")
         XCTAssertTrue(
             app.buttons["you-share"].waitForExistence(timeout: 30),
             "Expected the profile still on the You tab after renaming"
