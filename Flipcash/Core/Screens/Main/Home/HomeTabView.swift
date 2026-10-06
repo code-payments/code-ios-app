@@ -66,15 +66,13 @@ struct HomeTabView: View {
     /// Hide the tab bar whenever the active tab has pushed a screen (e.g. Wallet →
     /// Currency Info → Give) so that screen owns the full height, while a
     /// bill/tipcard is up (the app-root overlay owns the screen then, as the v1
-    /// bill replaced the bottom bar), and while the You tab's card is expanded.
+    /// bill replaced the bottom bar).
     /// Sheets already cover the bar, so only in-tab pushes need handling here.
     @State private var cardExpansion = WalletCardExpansion()
-    @State private var tipCardPresentation = TipCardPresentation()
 
     private var isTabBarHidden: Bool {
         selection.hidesTabBar(
             isWalletCardExpanded: cardExpansion.isExpanded,
-            isTipCardExpanded: tipCardPresentation.isExpanded,
             isShowingBill: sessionContainer.session.isShowingBill,
             hasPushedScreen: selection.pushStack.map { !router[$0].isEmpty } ?? false
         )
@@ -102,8 +100,6 @@ struct HomeTabView: View {
             .onChange(of: selection) { _, tab in
                 router.activeTabStack = tab.pushStack
                 if tab == .chat { hasOpenedChat = true }
-                // Leaving the tab puts the card back (and the brightness with it).
-                tipCardPresentation.collapse()
             }
             .onDisappear { router.activeTabStack = nil }
             .onChange(of: router.presentedSheet != nil || sessionContainer.session.isShowingBill, initial: true) { _, covered in
@@ -330,7 +326,6 @@ struct HomeTabView: View {
             }
         case .tipCard:
             TipCardTab()
-                .environment(tipCardPresentation)
         }
     }
 }
@@ -358,15 +353,13 @@ extension HomeTab {
     /// hiding on it everywhere left that tab with no bar and no way back.
     func hidesTabBar(
         isWalletCardExpanded: Bool,
-        isTipCardExpanded: Bool,
         isShowingBill: Bool,
         hasPushedScreen: Bool
     ) -> Bool {
         if isShowingBill || hasPushedScreen { return true }
         switch self {
         case .wallet:        return isWalletCardExpanded
-        case .tipCard:       return isTipCardExpanded
-        case .scan, .chat:   return false
+        case .tipCard, .scan, .chat: return false
         }
     }
 }

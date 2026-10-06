@@ -12,6 +12,8 @@ import FlipcashCore
 @Suite("ProfileAvatarStore")
 struct ProfileAvatarStoreTests {
 
+    private typealias AvatarSubject = ProfileAvatarStore.AvatarSubject
+
     /// A suspension the test releases by hand, so a fetch can be held mid-flight while the callers
     /// around it are cancelled. Not cancellation-aware: the fetch under test checks cancellation
     /// itself, the way `URLSession` does.
@@ -121,6 +123,40 @@ struct ProfileAvatarStoreTests {
 
         #expect(await second.value == Self.bytes)
         #expect(fetches.value == 1)
+    }
+
+    /// The banner shows the original, not the avatar-sized rendition the same picture carries.
+    @Test("A cover loads the original blob, independently of the avatar")
+    func coverLoadsOriginalAndCachesApartFromAvatar() async {
+        let userID = UUID()
+        let picture = ProfilePicture(
+            blobID: BlobID(uuid: UUID()),
+            thumbnailBlobID: BlobID(uuid: UUID())
+        )
+        let minted = Counter()
+        var mintedBlobs: [BlobID] = []
+
+        let store = ProfileAvatarStore(
+            cache: Self.cache(),
+            mintURL: { blobID, _ in
+                mintedBlobs.append(blobID)
+                minted.increment()
+                return URL(string: "https://example.test/\(blobID)")!
+            },
+            fetch: { _ in Self.bytes }
+        )
+
+        await store.load(.cover(userID), picture: picture)
+
+        #expect(mintedBlobs == [picture.blobID])
+        #expect(store.data(for: AvatarSubject.cover(userID)) == Self.bytes)
+        #expect(store.data(for: userID) == nil)
+
+        await store.load(.user(userID), picture: picture)
+
+        #expect(mintedBlobs == [picture.blobID, picture.thumbnailBlobID])
+        #expect(store.data(for: userID) == Self.bytes)
+        #expect(minted.value == 2)
     }
 
     /// Bytes already on disk are the common case at launch, and paying for a round trip there would

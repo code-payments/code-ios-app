@@ -92,7 +92,7 @@ enum TipCardExport {
 
     // MARK: - Naming -
 
-    /// `Tip Ada.svg` — the name the share sheet shows and the file the user
+    /// `Chat with Ada.svg` — the name the share sheet shows and the file the user
     /// ends up with. Path separators are dropped so a display name can't steer
     /// where the file is written.
     private static func filename(for format: TipCardDownloadFormat, name: String?) -> String {
@@ -101,7 +101,7 @@ enum TipCardExport {
             .replacingOccurrences(of: ":", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let stem = if let subject, !subject.isEmpty { "Tip \(subject)" } else { "Tip Card" }
+        let stem = if let subject, !subject.isEmpty { "Chat with \(subject)" } else { "Tip Card" }
         return "\(stem).\(format.rawValue)"
     }
 

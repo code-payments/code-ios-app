@@ -23,12 +23,23 @@ final class ProfileAvatarStore {
     enum AvatarSubject: Hashable, Sendable {
         case user(UserID)
         case chat(ConversationID)
+        /// A user's cover banner. Authorizes like the user's avatar but holds the full-size blob.
+        case cover(UserID)
 
         /// The context this subject's blobs authorize through.
         var accessContext: BlobAccessContext {
             switch self {
             case .user(let userID):           .userProfile(userID)
             case .chat(let conversationID):   .chatProfile(conversationID)
+            case .cover(let userID):          .userProfile(userID)
+            }
+        }
+
+        /// The blob of `picture` this subject renders: avatars use the thumbnail, a cover the original.
+        func blobID(for picture: ProfilePicture) -> BlobID {
+            switch self {
+            case .user, .chat:   picture.thumbnailBlobID
+            case .cover:         picture.blobID
             }
         }
     }
@@ -91,12 +102,12 @@ final class ProfileAvatarStore {
         await load(.user(userID), picture: picture)
     }
 
-    /// Makes a subject's current thumbnail available to ``data(for:)``.
+    /// Makes a subject's current picture available to ``data(for:)``.
     ///
     /// Returns without a round trip when the bytes are already in memory or on disk for that exact
     /// blob, and joins the fetch already running for that subject rather than starting a second one.
     func load(_ subject: AvatarSubject, picture: ProfilePicture?) async {
-        guard let blobID = picture?.thumbnailBlobID else { return }
+        guard let blobID = picture.map(subject.blobID(for:)) else { return }
 
         // A different blob under the same id is a changed picture, not a cache hit.
         if blobBySubject[subject] == blobID, dataBySubject[subject] != nil { return }
