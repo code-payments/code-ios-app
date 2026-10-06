@@ -24,6 +24,11 @@ struct ProfileCardScreen: View {
     /// The brightness to put back on close — set only when this screen raised it.
     @State private var previousBrightness: CGFloat?
 
+    /// The backdrop and chrome fade on this; the cover itself is presented without animation.
+    @State private var isRevealed = false
+    /// The card springs on this, separately, so it can bounce while the backdrop eases.
+    @State private var isCardShown = false
+
     /// The card's width, from the full-screen frame (302 of the 402pt frame).
     private static let maxCardWidth: CGFloat = 302
     private static let horizontalInset: CGFloat = 20
@@ -32,9 +37,18 @@ struct ProfileCardScreen: View {
     private static let minimumScanBrightness: CGFloat = 0.4
     private static let boostedBrightness: CGFloat = 0.6
 
+    /// The scanned-card pop from `BillCanvas` (0.55 scale, 0.4s at 0.4 damping).
+    private static let revealScale: CGFloat = 0.55
+    private static let revealSpring: Animation = .spring(duration: 0.4, bounce: 0.6)
+    private static let fade: Animation = .easeOut(duration: 0.25)
+
     var body: some View {
         NavigationStack {
-            Background(color: .backgroundMain) {
+            ZStack {
+                Color.backgroundMain
+                    .ignoresSafeArea()
+                    .opacity(isRevealed ? 1 : 0)
+
                 ScrollView(showsIndicators: false) {
                     if let name = displayName {
                         TipcardView(
@@ -45,14 +59,17 @@ struct ProfileCardScreen: View {
                             tintOpacity: 0.36,
                             subtitle: username.map(\.handle)
                         )
+                        .scaleEffect(isCardShown ? 1 : Self.revealScale)
+                        .opacity(isCardShown ? 1 : 0)
                         .padding(.horizontal, Self.horizontalInset)
                         .containerRelativeFrame(.vertical, alignment: .center)
                     }
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                Button("Close") { dismiss() }
+                Button("Close", action: close)
                     .buttonStyle(.subtle)
+                    .opacity(isRevealed ? 1 : 0)
                     .accessibilityIdentifier("profile-card-close")
                     .padding(.horizontal, Self.horizontalInset)
             }
@@ -65,16 +82,22 @@ struct ProfileCardScreen: View {
                     }
                     .accessibilityLabel("Download")
                     .accessibilityIdentifier("you-download-button")
+                    .opacity(isRevealed ? 1 : 0)
                 }
             }
+            .containerBackground(.clear, for: .navigation)
         }
+        .presentationBackground(.clear)
         .sheet(isPresented: $isShowingDownloadOptions, onDismiss: exportPendingDownload) {
             TipCardDownloadSheet(
                 onSelect: { pendingDownload = $0; isShowingDownloadOptions = false },
                 onCancel: { isShowingDownloadOptions = false }
             )
         }
-        .onAppear(perform: boostBrightness)
+        .onAppear {
+            boostBrightness()
+            reveal()
+        }
         .onDisappear(perform: restoreBrightness)
     }
 
@@ -120,6 +143,26 @@ struct ProfileCardScreen: View {
             // The sheet has taken its copy by now, whether or not the user went
             // through with it.
             TipCardExport.discard(file)
+        }
+    }
+
+    // MARK: - Reveal -
+
+    private func reveal() {
+        Haptics.vibrate()
+        withAnimation(Self.fade) { isRevealed = true }
+        withAnimation(Self.revealSpring) { isCardShown = true }
+    }
+
+    /// Plays the reveal backwards, then removes the cover without its slide-down.
+    private func close() {
+        withAnimation(Self.fade) {
+            isRevealed = false
+            isCardShown = false
+        } completion: {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { dismiss() }
         }
     }
 
