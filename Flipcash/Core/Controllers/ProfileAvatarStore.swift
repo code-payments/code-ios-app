@@ -25,6 +25,8 @@ final class ProfileAvatarStore {
         case chat(ConversationID)
         /// A user's cover banner. Authorizes like the user's avatar but holds the full-size blob.
         case cover(UserID)
+        /// A group chat's cover banner. Authorizes like the chat's picture but holds the full-size blob.
+        case groupCover(ConversationID)
 
         /// The context this subject's blobs authorize through.
         var accessContext: BlobAccessContext {
@@ -32,14 +34,15 @@ final class ProfileAvatarStore {
             case .user(let userID):           .userProfile(userID)
             case .chat(let conversationID):   .chatProfile(conversationID)
             case .cover(let userID):          .userProfile(userID)
+            case .groupCover(let conversationID): .chatProfile(conversationID)
             }
         }
 
         /// The blob of `picture` this subject renders: avatars use the thumbnail, a cover the original.
         func blobID(for picture: ProfilePicture) -> BlobID {
             switch self {
-            case .user, .chat:   picture.thumbnailBlobID
-            case .cover:         picture.blobID
+            case .user, .chat:          picture.thumbnailBlobID
+            case .cover, .groupCover:   picture.blobID
             }
         }
     }
@@ -145,7 +148,10 @@ final class ProfileAvatarStore {
 
     /// Covers hold the full-size blob, so they get their own budget rather than crowding out thumbnails.
     private func cache(for subject: AvatarSubject) -> BlobCache {
-        if case .cover = subject { coverCache } else { cache }
+        switch subject {
+        case .user, .chat:          cache
+        case .cover, .groupCover:   coverCache
+        }
     }
 
     /// Download URLs expire, so one is minted per fetch and never stored.

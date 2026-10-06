@@ -36,7 +36,7 @@ struct ProfileStatsCard: View {
         }
         .frame(height: 84)
         .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
-        .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
+        .padding(.horizontal, ProfileHeaderMetrics.inset)
     }
 
     private func stat(title: String, value: String, valueFont: Font, identifier: String) -> some View {
