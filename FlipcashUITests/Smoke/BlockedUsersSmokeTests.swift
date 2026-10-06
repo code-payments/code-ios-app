@@ -5,7 +5,7 @@
 
 import XCTest
 
-/// Smoke tests for the Blocked users list reached from the You tab › My Account
+/// Smoke tests for the Blocked users list reached from the You tab › Settings
 /// › Blocked.
 ///
 /// **Scope.** These cover the navigation into the list and that the screen loads
@@ -23,18 +23,17 @@ final class BlockedUsersSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    /// Wallet → You → My Account → Blocked lands on the Blocked list and it
+    /// Wallet → You → Settings → Blocked lands on the Blocked list and it
     /// loads its state (empty or populated) without hanging.
-    func testBlockedUsers_reachableFromMyAccount() {
+    func testBlockedUsers_reachableFromSettings() {
         let settings = SettingsUIScreen(app: app)
         let blocked = BlockedUsersUIScreen(app: app)
 
         assertMainScreenReached()
 
         settings.open(from: self)
-        settings.navigateToMyAccount(from: self)
 
-        waitAndTap(settings.blockedRow)
+        scrollUpToAndTap(settings.blockedRow, in: settings.scrollView)
 
         blocked.assertLoaded(from: self)
     }

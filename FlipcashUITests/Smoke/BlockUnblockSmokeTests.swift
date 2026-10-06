@@ -95,10 +95,9 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
             "Expected '\(name)' tip conversation to disappear from the Chat tab after blocking"
         )
 
-        // MARK: Unblock from You › My Account › Blocked.
+        // MARK: Unblock from You › Settings › Blocked.
         settings.open(from: self)
-        settings.navigateToMyAccount(from: self)
-        waitAndTap(settings.blockedRow)
+        scrollUpToAndTap(settings.blockedRow, in: settings.scrollView)
         blocked.assertLoaded(from: self)
 
         let blockedRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
@@ -135,7 +134,7 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         try await super.tearDown()
     }
 
-    /// Navigates You › My Account › Blocked and unblocks `name` if present,
+    /// Navigates You › Settings › Blocked and unblocks `name` if present,
     /// tolerating every step so a failed test's teardown stays quiet. It cannot
     /// reuse `SettingsUIScreen`'s navigation helpers: those assert, and a
     /// teardown assertion would mask the failure that brought us here.
@@ -144,8 +143,8 @@ final class BlockUnblockSmokeTests: BaseUITestCase {
         let you = app.tabBars.buttons["You"].firstMatch
         guard you.waitForExistence(timeout: 30) else { return }
         you.tap()
-        guard scrollTo(settings.myAccountRow, in: settings.scrollView) else { return }
-        settings.myAccountRow.tap()
+        guard settings.gear.waitForExistence(timeout: 30) else { return }
+        settings.gear.tap()
         guard scrollTo(settings.blockedRow, in: settings.scrollView) else { return }
         settings.blockedRow.tap()
 

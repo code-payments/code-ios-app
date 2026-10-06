@@ -22,8 +22,8 @@ struct YouTabRoutingTests {
     func push_onActiveYouTab_landsOnYouStack() {
         let router = AppRouter()
         router.activeTabStack = .you
-        router.push(.settingsMyAccount)
-        #expect(router[.you] == AppRouter.navigationPath(.settingsMyAccount))
+        router.push(.settings)
+        #expect(router[.you] == AppRouter.navigationPath(.settings))
         #expect(router[.balance].isEmpty) // never leaks onto another tab's stack
     }
 
@@ -31,7 +31,7 @@ struct YouTabRoutingTests {
     func showOwnTipCard_inTabUI_selectsYouTabAtRoot() {
         let router = AppRouter()
         // Drilled into My Account behind a sheet — where a self link can land.
-        router.setPath([.settingsMyAccount], on: .you)
+        router.setPath([.settings], on: .you)
         router.present(.give)
 
         router.showOwnTipCard()
@@ -60,7 +60,7 @@ struct YouTabRoutingTests {
     func showOwnTipCard_fromPushedYouScreen_popsToRoot() {
         let router = AppRouter()
         router.activeTabStack = .you
-        router.push(.settingsMyAccount)
+        router.push(.settings)
 
         router.showOwnTipCard()
 
@@ -72,13 +72,13 @@ struct YouTabRoutingTests {
     func changeDisplayName_pushesAndPopsOnYouStack() {
         let router = AppRouter()
         router.activeTabStack = .you
-        router.push(.settingsMyAccount)
+        router.push(.settings)
         router.push(.changeDisplayName)
-        #expect(router[.you] == AppRouter.navigationPath(.settingsMyAccount, .changeDisplayName))
+        #expect(router[.you] == AppRouter.navigationPath(.settings, .changeDisplayName))
 
         // What `ProfileNameScreen(completion: .back)` runs once the name saves.
         router.popTopmost()
-        #expect(router[.you] == AppRouter.navigationPath(.settingsMyAccount))
+        #expect(router[.you] == AppRouter.navigationPath(.settings))
     }
 
     @Test("changing the profile picture belongs to the You tab, not the setup flow's stack")

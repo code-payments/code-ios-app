@@ -43,14 +43,14 @@ struct SwitchAccountSheetTests {
     func dismiss_returnsToTab() {
         let router = AppRouter()
         router.activeTabStack = .you
-        router.push(.settingsMyAccount)
+        router.push(.settings)
         router.present(.switchAccount)
 
         router.dismissSheet()
 
         #expect(router.presentedSheet == nil)
         #expect(router.activeTabStack == .you)
-        #expect(router[.you] == AppRouter.navigationPath(.settingsMyAccount))
+        #expect(router[.you] == AppRouter.navigationPath(.settings))
     }
 
     @Test("a self tipcard scan dismisses the switcher on its way to the You tab")

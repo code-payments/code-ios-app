@@ -5,7 +5,7 @@
 
 import XCTest
 
-/// Page object for `BlockedUsersScreen` — the Settings › My Account › Blocked
+/// Page object for `BlockedUsersScreen` — the Settings › Blocked
 /// list.
 @MainActor
 struct BlockedUsersUIScreen {
