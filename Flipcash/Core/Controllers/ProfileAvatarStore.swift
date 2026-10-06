@@ -23,12 +23,23 @@ final class ProfileAvatarStore {
     enum AvatarSubject: Hashable, Sendable {
         case user(UserID)
         case chat(ConversationID)
+        /// A user's cover banner. Authorizes like the user's avatar but holds the full-size blob.
+        case cover(UserID)
 
         /// The context this subject's blobs authorize through.
         var accessContext: BlobAccessContext {
             switch self {
             case .user(let userID):           .userProfile(userID)
             case .chat(let conversationID):   .chatProfile(conversationID)
+            case .cover(let userID):          .userProfile(userID)
+            }
+        }
+
+        /// The blob of `picture` this subject renders: avatars use the thumbnail, a cover the original.
+        func blobID(for picture: ProfilePicture) -> BlobID {
+            switch self {
+            case .user, .chat:   picture.thumbnailBlobID
+            case .cover:         picture.blobID
             }
         }
     }
@@ -43,6 +54,7 @@ final class ProfileAvatarStore {
     /// merely turned away could not learn that the fetch it skipped had failed, and nothing retried.
     @ObservationIgnored private var inFlight: [AvatarSubject: Task<Void, Never>] = [:]
     @ObservationIgnored private let cache: BlobCache
+    @ObservationIgnored private let coverCache: BlobCache
     @ObservationIgnored private let mintURL: (BlobID, AvatarSubject) async throws -> URL?
     @ObservationIgnored private let fetch: (URL) async throws -> Data
 
@@ -52,19 +64,27 @@ final class ProfileAvatarStore {
     ///   - fetch: downloads the bytes at a URL.
     init(
         cache: BlobCache = .profilePictures,
+        coverCache: BlobCache = .profileCovers,
         mintURL: @escaping (BlobID, AvatarSubject) async throws -> URL?,
         fetch: @escaping (URL) async throws -> Data = { url in
             try await URLSession.shared.data(from: url).0
         }
     ) {
         self.cache   = cache
+        self.coverCache = coverCache
         self.mintURL = mintURL
         self.fetch   = fetch
     }
 
-    convenience init(flipClient: FlipClient, owner: KeyPair, cache: BlobCache = .profilePictures) {
+    convenience init(
+        flipClient: FlipClient,
+        owner: KeyPair,
+        cache: BlobCache = .profilePictures,
+        coverCache: BlobCache = .profileCovers
+    ) {
         self.init(
             cache: cache,
+            coverCache: coverCache,
             mintURL: { blobID, subject in
                 try await flipClient.blobDownloadURL(
                     blobID: blobID,
@@ -91,16 +111,17 @@ final class ProfileAvatarStore {
         await load(.user(userID), picture: picture)
     }
 
-    /// Makes a subject's current thumbnail available to ``data(for:)``.
+    /// Makes a subject's current picture available to ``data(for:)``.
     ///
     /// Returns without a round trip when the bytes are already in memory or on disk for that exact
     /// blob, and joins the fetch already running for that subject rather than starting a second one.
     func load(_ subject: AvatarSubject, picture: ProfilePicture?) async {
-        guard let blobID = picture?.thumbnailBlobID else { return }
+        guard let blobID = picture.map(subject.blobID(for:)) else { return }
 
         // A different blob under the same id is a changed picture, not a cache hit.
         if blobBySubject[subject] == blobID, dataBySubject[subject] != nil { return }
 
+        let cache = cache(for: subject)
         if let cached = cache.data(for: blobID) {
             store(cached, subject: subject, blobID: blobID)
             return
@@ -122,13 +143,18 @@ final class ProfileAvatarStore {
         await task.value
     }
 
+    /// Covers hold the full-size blob, so they get their own budget rather than crowding out thumbnails.
+    private func cache(for subject: AvatarSubject) -> BlobCache {
+        if case .cover = subject { coverCache } else { cache }
+    }
+
     /// Download URLs expire, so one is minted per fetch and never stored.
     private func download(blobID: BlobID, subject: AvatarSubject) async {
         do {
             guard let url = try await mintURL(blobID, subject) else { return }
 
             let data = try await fetch(url)
-            cache.write(data, for: blobID)
+            cache(for: subject).write(data, for: blobID)
             store(data, subject: subject, blobID: blobID)
         } catch {
             guard !Task.isCancelled else { return }

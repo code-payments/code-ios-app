@@ -18,7 +18,7 @@ struct TipCardExportTests {
         let url = try #require(TipCardExport.file(for: .svg, codeData: .placeholder35, name: "Ada"))
         defer { TipCardExport.discard(url) }
 
-        #expect(url.lastPathComponent == "Tip Ada.svg")
+        #expect(url.lastPathComponent == "Chat with Ada.svg")
 
         let svg = try String(contentsOf: url, encoding: .utf8)
         #expect(svg.hasPrefix("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1024\""))
@@ -34,7 +34,7 @@ struct TipCardExportTests {
         let url = try #require(TipCardExport.file(for: .png, codeData: .placeholder35, name: "Ada"))
         defer { TipCardExport.discard(url) }
 
-        #expect(url.lastPathComponent == "Tip Ada.png")
+        #expect(url.lastPathComponent == "Chat with Ada.png")
 
         let image = try #require(UIImage(data: try Data(contentsOf: url)))
         #expect(image.size == CGSize(width: 1024, height: 1024))
@@ -54,7 +54,7 @@ struct TipCardExportTests {
         let url = try #require(TipCardExport.file(for: .svg, codeData: .placeholder35, name: "../../etc/Ada"))
         defer { TipCardExport.discard(url) }
 
-        #expect(url.lastPathComponent == "Tip .. .. etc Ada.svg")
+        #expect(url.lastPathComponent == "Chat with .. .. etc Ada.svg")
     }
 
     @Test("Discarding an export takes its directory with it")
