@@ -82,7 +82,6 @@ struct EditFeaturedGroupsScreen: View {
             FeaturedGroupRow(group: group) {
                 CheckView(active: model.isSelected(group.id))
             }
-            .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
