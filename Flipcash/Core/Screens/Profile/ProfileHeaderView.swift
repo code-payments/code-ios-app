@@ -128,14 +128,15 @@ struct ProfileActionCircle: View {
     }
 }
 
-/// The header's "Edit Profile" button, a flat filled capsule beside ``ProfileActionCircle``.
+/// The header's edit button ("Edit Profile" unless titled otherwise), a flat filled capsule beside ``ProfileActionCircle``.
 struct ProfileEditCapsule: View {
 
+    var title: String = "Edit Profile"
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text("Edit Profile")
+            Text(title)
                 .font(.appTextSmall)
                 .padding(.horizontal, 18)
         }

@@ -31,7 +31,7 @@ struct EditGroupScreen: View {
     }
 
     private var requirements: GroupBalanceRequirements? {
-        GroupBalanceRequirements(rules: conversation?.rules)
+        GroupBalanceRequirements(conversation?.rules)
     }
 
     var body: some View {

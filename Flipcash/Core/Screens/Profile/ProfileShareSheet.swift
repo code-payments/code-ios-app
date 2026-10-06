@@ -20,7 +20,10 @@ enum ProfileShareChoice {
 /// `offersCard` false drops the card row, for a profile that has no card to show.
 struct ProfileShareSheet: View {
 
+    var title: String = "Share User Profile"
     let subtitle: String?
+    /// The first row, which reports ``ProfileShareChoice/share``.
+    var shareRow: (title: String, icon: Image) = ("Share Profile", Image.asset(.shareOS))
     let offersCard: Bool
     let onChoose: (ProfileShareChoice) -> Void
 
@@ -43,7 +46,7 @@ struct ProfileShareSheet: View {
                 }
 
                 VStack(spacing: 12) {
-                    row(icon: Image.asset(.shareOS), title: "Share Profile", identifier: "profile-share-row", choice: .share)
+                    row(icon: shareRow.icon, title: shareRow.title, identifier: "profile-share-row", choice: .share)
                     if offersCard {
                         row(icon: Image(systemName: "person.crop.rectangle"), title: "Show Profile Card", identifier: "profile-card-row", choice: .showCard)
                     }
@@ -59,7 +62,7 @@ struct ProfileShareSheet: View {
     /// Centred title with a close button, the same title bar as ``MuteChatSheet``.
     private var header: some View {
         ZStack {
-            Text("Share User Profile")
+            Text(title)
                 .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
 
