@@ -254,6 +254,67 @@ struct EditGroupModelTests {
 
         #expect(editor.storeBlobCallCount == 2)
     }
+
+    // MARK: - Cover -
+
+    @Test("A cover edit sends the blob as the cover alone, leaving the title and picture unchanged")
+    func coverEditSendsOnlyTheCover() async throws {
+        let model = EditGroupModel(title: "BadBoys")
+        model.select(picture: swatch())
+        let editor = SpyEditor()
+
+        _ = try await model.saveCover(for: conversationID, using: editor)
+
+        #expect(editor.editCalls.count == 1)
+        #expect(editor.editCalls[0].coverBlobID != nil)
+        #expect(editor.editCalls[0].blobID == nil)
+        #expect(editor.editCalls[0].title == nil)
+        #expect(editor.editCalls[0].description == .unchanged)
+        #expect(editor.callOrder == ["store", "finalize", "edit"])
+    }
+
+    @Test("A cover the moderator refuses is never sent, and the next save uploads fresh bytes")
+    func moderatedCoverNeverReachesTheEdit() async throws {
+        let model = EditGroupModel()
+        model.select(picture: swatch())
+        let editor = SpyEditor()
+        editor.nextFinalizationError = ErrorBlob.rejected(.moderation)
+
+        await #expect(throws: ErrorBlob.self) {
+            try await model.saveCover(for: conversationID, using: editor)
+        }
+        #expect(editor.editCalls.isEmpty)
+
+        _ = try await model.saveCover(for: conversationID, using: editor)
+
+        #expect(editor.storeBlobCallCount == 2)
+        #expect(editor.editCalls.count == 1)
+    }
+
+    @Test("A cover the edit itself refuses surfaces as that error")
+    func refusedCoverSurfaces() async {
+        let model = EditGroupModel()
+        model.select(picture: swatch())
+        let editor = SpyEditor()
+        editor.nextEditError = ErrorEditChat.coverPictureBlobNotAccepted
+
+        await #expect(throws: ErrorEditChat.coverPictureBlobNotAccepted) {
+            try await model.saveCover(for: conversationID, using: editor)
+        }
+    }
+
+    @Test("A cover save with nothing picked sends nothing")
+    func coverWithoutPictureSendsNothing() async {
+        let model = EditGroupModel()
+        let editor = SpyEditor()
+
+        await #expect(throws: EditGroupIncomplete.self) {
+            try await model.saveCover(for: conversationID, using: editor)
+        }
+
+        #expect(editor.storeBlobCallCount == 0)
+        #expect(editor.editCalls.isEmpty)
+    }
 }
 
 @MainActor

@@ -7,49 +7,49 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// What a group's editor can change, one row each (node 10187:110373).
+/// A group's editor, in Edit Profile's shape: the cover and photo at the top, then a card per field,
+/// each opening its own screen that saves on its own.
 ///
-/// The design draws four rows — Icon, Membership Card, Description and Social Links — but only the
-/// first has contract support: `EditChatRequest` carries a title and a picture and nothing else, so
-/// the other three would be rows that cannot save. Name is the counterpart the design omits, styled
-/// to match. The design's "Icon" is called Picture here, matching both the contract's
-/// `EditChatRequest.picture` and the row Android ships.
+/// Balance Requirements is read-only: `EditChatRequest` carries no rules, and nothing changes a
+/// group's rules after `StartChat`.
 struct EditGroupScreen: View {
 
     let conversationID: ConversationID
 
     @Environment(ConversationController.self) private var conversationController
+    @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
+
+    @State private var mintNames: [PublicKey: String] = [:]
+
+    private static let coverHeight: CGFloat = 126
+    private static let avatarSize: CGFloat = 68
+    private static let cardSpacing: CGFloat = 12
 
     private var conversation: Conversation? {
         conversationController.conversation(withID: conversationID)
     }
 
+    private var requirements: GroupBalanceRequirements? {
+        GroupBalanceRequirements(conversation?.rules)
+    }
+
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(spacing: 0) {
-                Row(insets: rowInsets, accessory: .chevron) {
-                    Image.system(.photo)
-                        .frame(minWidth: 45)
-                    Text("Picture")
-                } action: {
-                    router.push(.editGroupPicture(conversationID))
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    cover
+                    photo
+                    fieldCards
+                        .padding(.top, 20)
+                    if let requirements {
+                        balanceRequirements(requirements)
+                            .padding(.top, 28)
+                    }
                 }
-                .accessibilityIdentifier("edit-group-picture")
-
-                Row(insets: rowInsets, accessory: .chevron) {
-                    Image.system(.textformat)
-                        .frame(minWidth: 45)
-                    Text("Name")
-                } action: {
-                    router.push(.editGroupName(conversationID))
-                }
-                .accessibilityIdentifier("edit-group-name")
-
-                Spacer()
+                .padding(.horizontal, ProfileHeaderMetrics.inset)
+                .padding(.vertical, 24)
             }
-            .font(.appDisplayXS)
-            .padding(.horizontal, 20)
         }
         .navigationTitle("Edit Group")
         .toolbarTitleDisplayMode(.inline)
@@ -59,12 +59,143 @@ struct EditGroupScreen: View {
         .onChange(of: conversation?.canEdit ?? false) { _, canEdit in
             if !canEdit { router.popTopmost() }
         }
+        .task(id: conversation?.picture?.thumbnailBlobID) {
+            await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
+        }
+        // The mint may be one the user holds nothing of, so the local store can miss and the fetch
+        // is what fills it.
+        .task(id: requirements?.mints) {
+            let session = sessionContainer.session
+            var names: [PublicKey: String] = [:]
+            for mint in requirements?.mints ?? [] {
+                if let stored = session.storedMintMetadata(for: mint) {
+                    names[mint] = stored.name
+                } else if let fetched = try? await session.fetchMintMetadata(mint: mint).name {
+                    names[mint] = fetched
+                }
+            }
+            mintNames = names
+        }
     }
 
-    /// The 25pt vertical rhythm every other list in the app uses, near enough to the design's ~24pt
-    /// that matching the app is the better trade. Leading inset is zero because the row's own icon
-    /// column starts the content; the 20pt screen padding holds it off the edge.
-    private var rowInsets: EdgeInsets {
-        .init(top: 25, leading: 0, bottom: 25, trailing: 0)
+    // MARK: - Cover & photo -
+
+    private var cover: some View {
+        Button {
+            router.push(.editGroupCover(conversationID))
+        } label: {
+            ProfileCoverBanner(cover: .group(conversationID, picture: conversation?.coverPicture), bannerHeight: Self.coverHeight)
+                .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("edit-group-cover")
+        .overlay(alignment: .topTrailing) {
+            Button("Change cover") {
+                router.push(.editGroupCover(conversationID))
+            }
+            .buttonStyle(.plain)
+            .modifier(CoverChip())
+            .padding(Self.cardSpacing)
+            .accessibilityIdentifier("edit-group-change-cover")
+        }
+    }
+
+    /// The group picture overlapping the cover's bottom edge, with a camera badge and a caption beside it.
+    private var photo: some View {
+        Button {
+            router.push(.editGroupPicture(conversationID))
+        } label: {
+            HStack(alignment: .bottom, spacing: Self.cardSpacing) {
+                ContactAvatarView(
+                    id: conversationID.description,
+                    displayName: conversation?.title ?? "",
+                    imageData: sessionContainer.profileAvatars.data(for: .chat(conversationID)),
+                    blurhash: conversation?.picture?.thumbnailBlurhash,
+                    size: Self.avatarSize
+                )
+                .overlay { Circle().strokeBorder(Color.backgroundMain, lineWidth: 5) }
+                .overlay(alignment: .bottomTrailing) { cameraBadge }
+
+                Text("Change photo")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.bottom, 6)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("edit-group-picture")
+        .padding(.top, -Self.avatarSize / 2)
+        .padding(.leading, 16)
+    }
+
+    private var cameraBadge: some View {
+        Image.asset(.camera)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 16, height: 16)
+            .frame(width: 28, height: 28)
+            .background(Circle().fill(Color.action.opacity(0.1)))
+            .background(Circle().fill(Color.backgroundMain))
+            .offset(x: 6, y: 2)
+    }
+
+    // MARK: - Fields -
+
+    private var fieldCards: some View {
+        VStack(spacing: Self.cardSpacing) {
+            FieldCard(title: "Group name", value: nonEmpty(conversation?.title), placeholder: "Add a name") {
+                router.push(.editGroupName(conversationID))
+            }
+            .accessibilityIdentifier("edit-group-name")
+
+            FieldCard(title: "Description", value: nonEmpty(conversation?.description), placeholder: "Add a description", lineLimit: 3) {
+                router.push(.editGroupDescription(conversationID))
+            }
+            .accessibilityIdentifier("edit-group-description")
+        }
+    }
+
+    // MARK: - Balance requirements -
+
+    private func balanceRequirements(_ requirements: GroupBalanceRequirements) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Balance Requirements")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+
+            VStack(spacing: 0) {
+                requirementRow("Join", requirements.join)
+                Divider()
+                    .overlay(Color.rowSeparator)
+                requirementRow("Chat", requirements.chat)
+            }
+            .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+
+            Text("People keep their balance. These amounts determine who can join and send messages.")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+        }
+        .accessibilityIdentifier("edit-group-balance-requirements")
+    }
+
+    private func requirementRow(_ title: String, _ requirement: MinimumBalanceRequirement?) -> some View {
+        HStack {
+            Text(title)
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+            Spacer()
+            Text(requirement.map { GroupBalanceRequirements.formatted($0, mintName: $0.mints.first.flatMap { mintNames[$0] }) } ?? "None")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func nonEmpty(_ string: String?) -> String? {
+        guard let string, !string.isEmpty else { return nil }
+        return string
     }
 }

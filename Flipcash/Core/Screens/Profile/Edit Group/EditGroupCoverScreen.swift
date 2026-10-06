@@ -1,5 +1,5 @@
 //
-//  EditGroupPictureScreen.swift
+//  EditGroupCoverScreen.swift
 //  Flipcash
 //
 
@@ -8,11 +8,11 @@ import UniformTypeIdentifiers
 import FlipcashCore
 import FlipcashUI
 
-private let logger = Logger(label: "flipcash.edit-group-picture")
+private let logger = Logger(label: "flipcash.edit-group-cover")
 
-/// Replaces a group's picture. The Picture row's destination (node 10187:110373), drawn the way
-/// ``ProfilePhotoScreen`` draws the profile photo: the picture itself is the picker.
-struct EditGroupPictureScreen: View {
+/// Replaces a group's cover banner, pushed from Edit Group's cover. Drawn the way
+/// ``ChangeCoverPictureScreen`` draws the profile cover: the banner itself is the picker.
+struct EditGroupCoverScreen: View {
 
     let conversationID: ConversationID
 
@@ -26,18 +26,7 @@ struct EditGroupPictureScreen: View {
     @State private var isShowingFilePicker = false
     @State private var submitTask: Task<Void, Never>?
     @State private var dialog: DialogItem?
-
-    /// Drives Save: spinner while uploading, then the checkmark the rest of the app shows on a
-    /// completed action.
     @State private var buttonState: ButtonState = .normal
-
-    /// The picture already on the group, so the screen opens on what it is about to replace rather
-    /// than on an empty circle. Drawn but never submitted — Save stays shut until a new one is
-    /// picked.
-    @State private var currentPicture: UIImage?
-
-    private static let avatarSize: CGFloat = 158
-    private static let plusSize: CGFloat = 64
 
     private var isSubmitting: Bool { submitTask != nil }
 
@@ -48,29 +37,27 @@ struct EditGroupPictureScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                Spacer()
-
                 Menu {
                     Button("Photo Library", systemImage: "photo.on.rectangle") { isShowingPhotoPicker = true }
                     Button("Choose File", systemImage: "folder") { isShowingFilePicker = true }
                 } label: {
-                    CircleImage(
-                        image: model.picture ?? currentPicture,
-                        size: Self.avatarSize,
-                        plusSize: Self.plusSize
+                    ProfileCoverBanner(
+                        cover: .group(conversationID, picture: conversation?.coverPicture),
+                        preview: model.picture
                     )
+                    .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius))
+                    .overlay {
+                        if model.picture == nil && conversation?.coverPicture == nil {
+                            Image(systemName: "plus")
+                                .font(.appDisplayMedium)
+                                .foregroundStyle(Color.textSecondary)
+                        }
+                    }
                 }
                 .menuIndicator(.hidden)
                 .disabled(isSubmitting)
-                .accessibilityIdentifier("edit-group-picture-picker")
-
-                if let title = conversation?.title {
-                    Text(title)
-                        .font(.appDisplayCompact)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                        .padding(.top, 21)
-                }
+                .accessibilityIdentifier("edit-group-cover-picker")
+                .padding(.top, 20)
 
                 Spacer()
 
@@ -78,16 +65,16 @@ struct EditGroupPictureScreen: View {
                     ButtonStateLabel("Save", state: buttonState)
                 }
                 .buttonStyle(.filled)
-                // The checkmark hold keeps the picture selected, so the button needs the state to
-                // stay shut against a second submission.
+                // The checkmark hold keeps the cover selected, so the button needs the state to stay
+                // shut against a second submission.
                 .disabled(!model.canSavePicture || !buttonState.isNormal || isSubmitting)
-                .accessibilityIdentifier("edit-group-picture-save-button")
+                .accessibilityIdentifier("edit-group-cover-save-button")
                 .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .navigationTitle("Picture")
+        .navigationTitle("Cover")
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
         .fullScreenCover(isPresented: $isShowingPhotoPicker) {
@@ -103,24 +90,14 @@ struct EditGroupPictureScreen: View {
             allowsMultipleSelection: false,
             onCompletion: handleFileImport
         )
-        // Keyed on the blob so a picture that changes underneath — including the one this screen
-        // just saved — is what the circle ends up drawing.
-        .task(id: conversation?.picture?.thumbnailBlobID) {
-            currentPicture = await ProfilePictureLoader.thumbnail(
-                for: conversation?.picture,
-                using: container.flipClient,
-                owner: sessionContainer.session.ownerKeyPair
-            )
-        }
         .onDisappear { submitTask?.cancel() }
     }
 
-    /// Save proposes; the dialog commits. Nothing is uploaded or sent until the user confirms, so
-    /// the whole group sees a new picture only on a second, deliberate tap.
+    /// Save proposes; the dialog commits, as it does for the group's picture.
     private func submit() {
         guard model.canSavePicture, !isSubmitting else { return }
 
-        dialog = .confirmGroupChange(.picture) { save() }
+        dialog = .confirmGroupChange(.cover) { save() }
     }
 
     private func save() {
@@ -130,7 +107,7 @@ struct EditGroupPictureScreen: View {
             defer { submitTask = nil }
 
             do {
-                let conversation = try await model.savePicture(
+                let conversation = try await model.saveCover(
                     for: conversationID,
                     using: SessionGroupChatEditor(
                         session: sessionContainer.session,
@@ -138,12 +115,9 @@ struct EditGroupPictureScreen: View {
                     )
                 )
 
-                // The response carries the post-edit metadata, so the store is seated from it
-                // rather than from a refetch.
                 conversationController.applyEdit(conversation)
 
                 buttonState = .success
-                // Same beat the rest of the app holds its checkmark for.
                 try? await Task.delay(milliseconds: 500)
 
                 guard !Task.isCancelled else { return }
@@ -151,21 +125,16 @@ struct EditGroupPictureScreen: View {
 
             } catch {
                 buttonState = .normal
-                handle(error)
+                guard !Task.isCancelled else { return }
+                dialog = .groupImageEditFailed(error, image: .cover)
             }
         }
-    }
-
-    private func handle(_ error: Error) {
-        guard !Task.isCancelled else { return }
-        dialog = .groupImageEditFailed(error, image: .picture)
     }
 
     private func handleFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
-            logger.info("Group picture file import failed", metadata: ["error": "\(error)"])
-            return
+            logger.info("Group cover file import failed", metadata: ["error": "\(error)"])
 
         case .success(let urls):
             guard let url = urls.first else { return }
