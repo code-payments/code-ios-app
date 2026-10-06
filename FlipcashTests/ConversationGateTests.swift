@@ -13,43 +13,10 @@ import FlipcashStore
 @Suite("Group chat participation gate")
 struct ConversationGateTests {
 
-    /// Stands in for `Session`, which the gate reads three things from.
-    private final class StubHoldings: ConversationGateReading {
-        var isStaff: Bool
-        var userID: UserID
-        var totalBalance: ExchangedFiat
-        private var balances: [PublicKey: StoredBalance]
+    private typealias StubHoldings = StubGateHoldings
 
-        init(isStaff: Bool = false, userID: UserID = UUID(), totalUSD: Decimal = 0, balances: [PublicKey: StoredBalance] = [:]) {
-            self.isStaff = isStaff
-            self.userID = userID
-            self.totalBalance = ExchangedFiat(
-                nativeAmount: .usd(totalUSD),
-                rate: Rate(fx: 1, currency: .usd)
-            )
-            self.balances = balances
-        }
-
-        func balance(for mint: PublicKey) -> StoredBalance? {
-            balances[mint]
-        }
-    }
-
-    /// A USDF holding worth `usd`, which is the one mint whose stored USD value
-    /// needs no bonding curve.
     private func holding(usd: Decimal) throws -> StoredBalance {
-        try StoredBalance(
-            quarks: NSDecimalNumber(decimal: usd * 1_000_000).uint64Value,
-            symbol: "USDF",
-            name: "USDF Coin",
-            supplyFromBonding: nil,
-            sellFeeBps: nil,
-            mint: .usdf,
-            vmAuthority: nil,
-            updatedAt: Date(),
-            imageURL: nil,
-            costBasis: 0
-        )
+        try .usdfHolding(usd: usd)
     }
 
     private func minimumBalance(_ usd: Decimal, mints: [PublicKey] = []) -> MinimumBalanceRequirement {

@@ -9,13 +9,13 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// What the chat's mute currently is, drawn under the title on both chat settings surfaces —
+/// What the chat's mute currently is, drawn in the action row of both profile headers —
 /// "Muted until 5:56 PM" for a timed mute, plain "Muted" for an indefinite one, and nothing at all
 /// while the chat is audible.
 ///
 /// Stating the deadline is what makes a timed mute trustworthy: without it a timed mute can't be
 /// told apart from an indefinite one, and the user has no way to know when the chat comes back.
-/// It sits here rather than on ``ChatMuteRow`` because the row has no room for it.
+/// The Mute action itself lives in the ⋯ menu, which has no room to say it.
 ///
 /// Drawn as a chip rather than as another line of secondary text: the lines above it are the chat's
 /// own identity — its name, its size, when someone joined — and this is the viewer's setting. Given
