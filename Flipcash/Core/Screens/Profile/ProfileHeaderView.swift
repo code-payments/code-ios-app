@@ -7,10 +7,12 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// A profile's top block: cover, avatar overlapping it, name, handle and bio.
+/// A profile's top block: a full-bleed cover, the avatar overlapping it, an action row, then name,
+/// handle and bio, all left-aligned on a 24pt inset.
 ///
-/// A nil `displayName` leaves the name block out, for a profile that has not named itself yet.
-struct ProfileHeaderView<BannerActions: View, UnderHandle: View>: View {
+/// The caller lets the view run under the status bar. A nil `displayName` leaves the name block out,
+/// for a profile that has not named itself yet.
+struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: View>: View {
 
     let userID: UserID
     let displayName: String?
@@ -19,65 +21,123 @@ struct ProfileHeaderView<BannerActions: View, UnderHandle: View>: View {
     let avatarData: Data?
     let avatarBlurhash: String?
     let coverPicture: ProfilePicture?
-    let customization: TipCardCustomization?
     let statusChip: AnyView?
-    @ViewBuilder let bannerActions: () -> BannerActions
+    @ViewBuilder let bannerControls: () -> BannerControls
+    @ViewBuilder let rowActions: () -> RowActions
     @ViewBuilder let underHandle: () -> UnderHandle
 
-    private static var avatarSize: CGFloat { 88 }
+    static var inset: CGFloat { 24 }
+
+    private static var avatarSize: CGFloat { 84 }
+    /// How far the avatar rises over the banner.
+    private static var avatarOverlap: CGFloat { 42 }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             ProfileCoverBanner(
                 userID: userID,
                 coverPicture: coverPicture,
-                customization: customization,
-                actions: bannerActions
+                controls: bannerControls
             )
 
-            ContactAvatarView(
-                id: userID.uuidString,
-                displayName: displayName ?? "",
-                imageData: avatarData,
-                blurhash: avatarBlurhash,
-                size: Self.avatarSize
-            )
-            .overlay { Circle().strokeBorder(Color.backgroundMain, lineWidth: 4) }
-            .padding(.top, -Self.avatarSize / 2)
+            HStack(alignment: .top, spacing: 0) {
+                ContactAvatarView(
+                    id: userID.uuidString,
+                    displayName: displayName ?? "",
+                    imageData: avatarData,
+                    blurhash: avatarBlurhash,
+                    size: Self.avatarSize
+                )
+                .overlay { Circle().strokeBorder(Color.backgroundMain, lineWidth: 5) }
+                .padding(.top, -Self.avatarOverlap)
+
+                Spacer(minLength: 8)
+
+                HStack(spacing: 14) {
+                    rowActions()
+                }
+                .padding(.top, 20)
+            }
+            .padding(.horizontal, Self.inset)
 
             if let displayName {
-                VStack(spacing: 4) {
-                    Text(displayName)
-                        .font(.appDisplaySmall)
-                        .foregroundStyle(Color.textMain)
-                        .multilineTextAlignment(.center)
-                        .accessibilityIdentifier("profile-name")
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 8) {
+                        Text(displayName)
+                            .font(.default(size: 28, weight: .bold))
+                            .tracking(-0.6)
+                            .lineSpacing(1)
+                            .frame(minHeight: 35)
+                            .foregroundStyle(Color.textMain)
+                            .accessibilityIdentifier("profile-name")
+
+                        if let statusChip {
+                            statusChip
+                                .fixedSize()
+                        }
+                    }
 
                     if let handle {
                         Text(handle)
-                            .font(.appTextMedium)
+                            .font(.default(size: 14, weight: .regular))
+                            .frame(minHeight: 22)
                             .foregroundStyle(Color.textSecondary)
                             .accessibilityIdentifier("profile-handle")
                     }
 
                     underHandle()
-                }
-                .padding(.top, 12)
 
-                if let statusChip {
-                    statusChip
-                        .padding(.top, 8)
+                    if let bio, !bio.isEmpty {
+                        Text(bio)
+                            .font(.default(size: 15, weight: .regular))
+                            .lineSpacing(4)
+                            .foregroundStyle(Color.textMain)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 14)
+                            .accessibilityIdentifier("profile-bio")
+                    }
                 }
-
-                if let bio, !bio.isEmpty {
-                    Text(bio)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textMain)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 12)
-                        .accessibilityIdentifier("profile-bio")
-                }
+                .padding(.top, 7)
+                .padding(.horizontal, Self.inset)
             }
         }
+    }
+}
+
+/// A 38pt disc in the header's action row, filled at the row-surface tint.
+struct ProfileActionCircle: View {
+
+    let image: Image
+
+    var body: some View {
+        image
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 22, height: 22)
+            .foregroundStyle(Color.textMain)
+            .frame(width: 38, height: 38)
+            .background(Color.rowSeparator, in: Circle())
+            .contentShape(Circle())
+    }
+}
+
+/// The header's "Edit Profile" capsule.
+struct ProfileEditCapsule: View {
+
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text("Edit Profile")
+                .font(.default(size: 12, weight: .semibold))
+                .foregroundStyle(Color.textMain)
+                .padding(.horizontal, 18)
+                .frame(height: 38)
+                .background(Color.rowSeparator, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

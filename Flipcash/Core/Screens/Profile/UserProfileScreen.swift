@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import FlipcashCore
 import FlipcashUI
 
@@ -49,9 +50,12 @@ private struct UserProfileContent: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(ConversationController.self) private var conversationController
     @Environment(BlocklistController.self) private var blocklistController
+    @Environment(ToastController.self) private var toasts
 
     let origin: UserProfileOrigin
 
+    @State private var isShowingShare = false
+    @State private var shareChoice: ProfileShareChoice?
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
     @State private var isPickingMuteDuration = false
@@ -123,7 +127,7 @@ private struct UserProfileContent: View {
     var body: some View {
         Background(color: .backgroundMain) {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 0) {
                     ProfileHeaderView(
                         userID: model.userID,
                         displayName: model.displayName,
@@ -132,23 +136,28 @@ private struct UserProfileContent: View {
                         avatarData: model.imageData,
                         avatarBlurhash: model.blurhash,
                         coverPicture: model.coverPicture,
-                        customization: model.customization,
                         statusChip: statusChip,
-                        bannerActions: { EmptyView() },
+                        bannerControls: { bannerControls },
+                        rowActions: { shareButton },
                         underHandle: { EmptyView() }
                     )
 
                     ProfileStatsCard(minimumToChat: fee, joinedAt: model.joinedAt)
+                        .padding(.top, 19)
                 }
-                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
+            // The banner runs under the status bar.
+            .ignoresSafeArea(edges: .top)
         }
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             pinnedButton
         }
-        .navigationTitle("")
-        .toolbarTitleDisplayMode(.inline)
-        .toolbar { toolbarContent }
+        // The system bar is hidden; the interactive swipe-back stays with the navigation controller.
+        .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $isShowingShare, onDismiss: handleShareChoice) {
+            ProfileShareSheet(subtitle: shareSubtitle, offersCard: false) { shareChoice = $0 }
+        }
         .dialog(item: $dialogItem)
         .sheet(isPresented: $isPickingMuteDuration) {
             if let dmID {
@@ -203,23 +212,26 @@ private struct UserProfileContent: View {
         return nil
     }
 
-    // MARK: - Toolbar -
+    // MARK: - Banner controls -
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
+    private var bannerControls: some View {
+        HStack {
             Button {
-                model.share()
+                router.popTopmost()
             } label: {
-                Image.asset(.shareOS)
-                    .renderingMode(.template)
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(Color.textMain)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .accessibilityLabel("Share profile")
-            .accessibilityIdentifier("profile-share")
-        }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back")
+            .accessibilityIdentifier("profile-back")
 
-        if !menuItems.isEmpty {
-            ToolbarItem(placement: .topBarTrailing) {
+            Spacer()
+
+            if !menuItems.isEmpty {
                 Menu {
                     ForEach(menuItems, id: \.title) { item in
                         Button(role: item.isDestructive ? .destructive : nil) {
@@ -230,11 +242,46 @@ private struct UserProfileContent: View {
                     }
                 } label: {
                     Image.system(.ellipsis)
+                        .renderingMode(.template)
+                        .foregroundStyle(Color.textMain)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("More")
                 .accessibilityIdentifier("profile-overflow")
             }
         }
+        .padding(.leading, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset - 10)
+        .padding(.trailing, 12)
+        .padding(.top, 67)
+    }
+
+    private var shareButton: some View {
+        Button {
+            isShowingShare = true
+        } label: {
+            ProfileActionCircle(image: Image.asset(.shareOS))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Share profile")
+        .accessibilityIdentifier("profile-share")
+    }
+
+    private func handleShareChoice() {
+        defer { shareChoice = nil }
+        switch shareChoice {
+        case .share:
+            model.share()
+        case .copyLink:
+            UIPasteboard.general.string = model.shareURL.absoluteString
+            toasts.show(.init("Copied", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
+        case .showCard, nil:
+            break
+        }
+    }
+
+    private var shareSubtitle: String? {
+        [model.displayName, model.handle].compactMap { $0 }.joined(separator: " · ")
     }
 
     private func perform(_ item: ProfileMenuItem) {
@@ -272,18 +319,37 @@ private struct UserProfileContent: View {
     private var pinnedButton: some View {
         if let title = pinnedAction.title {
             VStack(spacing: 8) {
-                Button(title) {
-                    tapPinned()
+                Button(action: tapPinned) {
+                    Text(title)
+                        .font(.default(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.textAction)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(Color.action, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.filled)
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("profile-pinned-action")
 
                 if showsE2eeFooter {
                     E2eeFooter(kind: .dm)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
+            .padding(.top, 40)
             .padding(.bottom, 8)
+            .background {
+                LinearGradient(
+                    stops: [
+                        .init(color: Color.backgroundMain.opacity(0), location: 0),
+                        .init(color: Color.backgroundMain.opacity(0.96), location: 0.3),
+                        .init(color: Color.backgroundMain, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea(edges: .bottom)
+            }
         } else if showsE2eeFooter {
             E2eeFooter(kind: .dm)
         }
@@ -471,9 +537,12 @@ final class UserProfileViewModel {
         minDmChatInitFee = profile.minDmChatInitFee
     }
 
+    /// This person's public link, the one their own You tab shares.
+    var shareURL: URL { .tipcard(for: userID, username: username) }
+
     /// Opens the share sheet on this person's public link, the one their own You tab shares.
     func share() {
-        let item = TipCodeShareItem.profile(url: .tipcard(for: userID, username: username), displayName: name)
+        let item = TipCodeShareItem.profile(url: shareURL, displayName: name)
         ShareSheet.present(activityItem: item) { _ in }
     }
 

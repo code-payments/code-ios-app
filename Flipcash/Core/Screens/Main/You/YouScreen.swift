@@ -9,11 +9,12 @@ import FlipcashCore
 import FlipcashUI
 
 /// The "You" tab: the user's own profile — cover, avatar, name, handle and bio — with the stats
-/// card, an Edit Profile button, and the finish-your-profile checklist.
+/// card.
 ///
-/// The banner carries two controls: Share, whose menu shares the profile link or presents the
-/// tip card full screen (`ProfileCardScreen`), and the gear that pushes Settings. Settings pushes
-/// onto the tab's `.you` stack, so it never touches the v1 scanner's Settings sheet.
+/// The banner carries the "You" title and the gear that pushes Settings; the action row beside the
+/// avatar carries Edit Profile and Share, whose sheet shares the profile link, presents the tip card
+/// full screen (`ProfileCardScreen`), or copies the link. Settings pushes onto the tab's `.you`
+/// stack, so it never touches the v1 scanner's Settings sheet.
 ///
 /// A profile with no display name has no card: the page then shows the add-your-name invitation
 /// in place of the name block and drops Share, but still renders — the gear is this account's only
@@ -23,6 +24,7 @@ struct YouScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
     @Environment(RatesController.self) private var ratesController
+    @Environment(ToastController.self) private var toasts
 
     /// Warms the share-sheet preview image ahead of the share tap so it never
     /// lands on the tap; keyed by user.
@@ -31,17 +33,11 @@ struct YouScreen: View {
     /// The balance gate, raised when the claim row is tapped below the minimum.
     @State private var usernameDialog: DialogItem?
 
-    /// The top safe-area inset, which sizes the hand-drawn top fade.
-    @State private var safeAreaTop: CGFloat = 0
-
-    /// The page's horizontal inset.
-    private static let horizontalInset: CGFloat = 20
+    @State private var isShowingShare = false
+    @State private var shareChoice: ProfileShareChoice?
 
     /// The gap the page keeps between its last row and the tab bar.
     private static let tabBarGap: CGFloat = 24
-
-    /// How far below the safe area the top fade runs out. Matches `WalletScreen`.
-    private static let topFadeLength: CGFloat = 20
 
     /// Bottom inset for the scrolling content. Mirrors `WalletScreen`: the iOS 26
     /// tab bar sits in the safe area, so the gap is the whole inset there; the
@@ -59,11 +55,11 @@ struct YouScreen: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     header
-                        .padding(.top, 8)
 
                     if displayName == nil {
                         setupPrompt
                             .padding(.top, 24)
+                            .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
                     } else {
                         ProfileStatsCard(
                             minimumToChat: StartChattingFee.amount(
@@ -73,47 +69,15 @@ struct YouScreen: View {
                             ),
                             joinedAt: profile?.joinedAt
                         )
-                        .padding(.top, 24)
-
-                        // The Edit Profile slice repoints this to `.editProfile`.
-                        Button("Edit Profile") {
-                            router.push(.settings)
-                        }
-                        .buttonStyle(.filled05)
-                        .padding(.top, 12)
-                        .accessibilityIdentifier("you-edit-profile")
-                    }
-
-                    if profileTutorialState.isVisible {
-                        TutorialChecklistCard(
-                            title: "Finish Your Profile",
-                            items: profileTutorialState.items,
-                            onTap: handleProfileTutorialTap
-                        )
-                        .padding(.top, 32)
-                        .accessibilityIdentifier("you-profile-tutorial-card")
+                        .padding(.top, 19)
                     }
                 }
-                .padding(.horizontal, Self.horizontalInset)
                 .padding(.bottom, bottomContentInset)
             }
-            // The app-wide soft edge effect is drawn from a bar's own
-            // background, and this tab has no navigation bar at all, so it
-            // covers the bottom (tab bar) but not the top — what scrolls up
-            // into the status bar has to be faded by hand. Same treatment as
-            // `WalletScreen`, the app's other bar-less tab.
-            .overlay(alignment: .top) {
-                LinearGradient(
-                    colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: safeAreaTop + Self.topFadeLength)
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
-            }
-            .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { safeAreaTop = $0 }
+            // The banner runs under the status bar.
+            .ignoresSafeArea(edges: .top)
         }
+        .toolbar(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: Bindable(router).isShowingProfileCard) {
             ProfileCardScreen(previewCache: previewCache)
         }
@@ -131,6 +95,9 @@ struct YouScreen: View {
             if isShowing { router.isShowingProfileCard = false }
         }
         .dialog(item: $usernameDialog)
+        .sheet(isPresented: $isShowingShare, onDismiss: handleShareChoice) {
+            ProfileShareSheet(subtitle: shareSubtitle, offersCard: true) { shareChoice = $0 }
+        }
     }
 
     // MARK: - Header -
@@ -144,23 +111,37 @@ struct YouScreen: View {
             avatarData: sessionContainer.profileAvatars.data(for: sessionContainer.session.userID),
             avatarBlurhash: profilePicture?.thumbnailBlurhash,
             coverPicture: profile?.coverPicture,
-            customization: profile?.tipCardCustomization,
             statusChip: nil,
-            bannerActions: {
-                HStack(spacing: 8) {
-                    if displayName != nil {
-                        shareMenu
-                    }
+            bannerControls: {
+                HStack {
+                    Text("You")
+                        .font(.default(size: 23, weight: .semibold))
+                        .foregroundStyle(Color.textMain)
+                    Spacer()
                     settingsGear
+                }
+                .padding(.leading, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
+                .padding(.trailing, 12)
+                .padding(.top, 65)
+            },
+            rowActions: {
+                ProfileEditCapsule {
+                    // The Edit Profile slice repoints this to `.editProfile`.
+                    router.push(.settings)
+                }
+                .accessibilityIdentifier("you-edit-profile")
+
+                if displayName != nil {
+                    shareButton
                 }
             },
             underHandle: {
                 if shouldPromptForUsername {
                     Button(action: claimUsername) {
                         Text("Claim your username ›")
-                            .font(.appTextSmall)
+                            .font(.default(size: 14, weight: .medium))
                             .foregroundStyle(Color.textMain)
-                            .padding(.vertical, 4)
+                            .frame(minHeight: 22)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("you-claim-username")
@@ -169,13 +150,13 @@ struct YouScreen: View {
         )
     }
 
-    private var shareMenu: some View {
-        Menu {
-            Button("Share Profile", action: shareTipCard)
-            Button("Show Profile Card") { router.isShowingProfileCard = true }
+    private var shareButton: some View {
+        Button {
+            isShowingShare = true
         } label: {
-            bannerControl(systemName: "square.and.arrow.up")
+            ProfileActionCircle(image: Image.asset(.shareOS))
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("Share")
         .accessibilityIdentifier("you-share")
     }
@@ -184,21 +165,15 @@ struct YouScreen: View {
         Button {
             router.push(.settings)
         } label: {
-            bannerControl(systemName: "gearshape")
+            Image(systemName: "gearshape")
+                .font(.system(size: 22))
+                .foregroundStyle(Color.textMain)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Settings")
         .accessibilityIdentifier("you-settings")
-    }
-
-    /// A glyph on a dark disc, legible over any cover picture.
-    private func bannerControl(systemName: String) -> some View {
-        Image(systemName: systemName)
-            .font(.system(size: 16))
-            .foregroundStyle(Color.white)
-            .frame(width: 36, height: 36)
-            .background(Color.black.opacity(0.4), in: Circle())
-            .contentShape(Circle())
     }
 
     // MARK: - No name -
@@ -298,7 +273,6 @@ struct YouScreen: View {
 
     private var profile: Profile? { sessionContainer.session.profile }
     private var profilePicture: ProfilePicture? { profile?.profilePicture }
-    private var profileTutorialState: ProfileTutorialState { .init(profile: profile) }
 
     private var displayName: String? {
         guard let name = profile?.displayName, !name.isEmpty else { return nil }
@@ -322,6 +296,11 @@ struct YouScreen: View {
         TipCode.Payload(userID: sessionContainer.session.userID).codeData()
     }
 
+    private var shareSubtitle: String? {
+        guard let displayName else { return nil }
+        return [displayName, username?.handle].compactMap { $0 }.joined(separator: " · ")
+    }
+
     private var url: URL { .tipcard(for: sessionContainer.session.userID, username: username) }
 
     // MARK: - Actions -
@@ -335,6 +314,21 @@ struct YouScreen: View {
         ShareSheet.present(activityItem: item) { _ in }
     }
 
+    private func handleShareChoice() {
+        defer { shareChoice = nil }
+        switch shareChoice {
+        case .share:    shareTipCard()
+        case .showCard: router.isShowingProfileCard = true
+        case .copyLink: copyLink()
+        case nil:       break
+        }
+    }
+
+    private func copyLink() {
+        UIPasteboard.general.string = url.absoluteString
+        toasts.show(.init("Copied", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
+    }
+
     /// Opens the claim screen once the balance clears the minimum, and the
     /// balance gate until then.
     private func claimUsername() {
@@ -343,17 +337,6 @@ struct YouScreen: View {
             router.push(.username(username))
         case .addMoney(let minimum, _, _):
             presentBalanceGate(minimum: minimum)
-        }
-    }
-
-    private func handleProfileTutorialTap(_ item: ProfileTutorialItem) {
-        switch item {
-        case .displayName:
-            router.push(.changeDisplayName)
-        case .profilePicture:
-            router.push(.changeProfilePicture)
-        case .minimumTipAmount:
-            router.push(.setMinimumTip(isSetupStep: true))
         }
     }
 

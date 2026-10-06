@@ -39,6 +39,8 @@ extension ShapeStyle where Self == Color {
     public static var backgroundSecondary: Color         { Color("backgroundSecondary") }
     public static var backgroundRow: Color               { Color.white.opacity(0.05) }
     public static var rowSeparator: Color                { Color.white.opacity(0.1) }
+    /// `#323234` — the flat fill behind a profile's cover banner when the profile has no cover picture.
+    public static var coverPlaceholder: Color            { Color(r: 50, g: 50, b: 52) }
 
     public static var unreadIndicator: Color             { Color(r: 10,  g: 132, b: 255) }
 
