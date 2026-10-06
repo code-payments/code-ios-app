@@ -89,7 +89,7 @@ struct ProfileNameScreen: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
-        .onAppear { isNameFocused = true }
+        .focusAfterPush($isNameFocused)
         // Leaving the screen abandons the submission: its only continuation is a
         // push onto a stack this screen no longer sits on.
         .onDisappear { submitTask?.cancel() }

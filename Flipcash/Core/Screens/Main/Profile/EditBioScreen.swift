@@ -77,7 +77,7 @@ struct EditBioScreen: View {
         .navigationTitle("Bio")
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
-        .onAppear { isFocused = true }
+        .focusAfterPush($isFocused)
         .onChange(of: model.failure == nil) { _, isNil in
             guard !isNil else { return }
             model.failure = nil
