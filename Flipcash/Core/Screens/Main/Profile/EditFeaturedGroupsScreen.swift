@@ -33,19 +33,22 @@ struct EditFeaturedGroupsScreen: View {
         @Bindable var model = model
 
         Background(color: .backgroundMain) {
-            VStack(spacing: 0) {
-                list
-
-                Button(action: save) {
-                    ButtonStateLabel("Save", state: buttonState)
+            list
+                // Rows scroll under Save but are blurred out there, not left readable.
+                .hardScrollEdge(for: .bottom)
+                .scrollEdgeBar(.bottom) {
+                    Button(action: save) {
+                        ButtonStateLabel("Save", state: buttonState)
+                    }
+                    .buttonStyle(.filled)
+                    // The disabled fill is translucent; without this the rows show through it.
+                    .background(Color.backgroundMain, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius))
+                    .disabled(!model.canSave)
+                    .accessibilityIdentifier("edit-featured-groups-save")
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 20)
                 }
-                .buttonStyle(.filled)
-                .disabled(!model.canSave)
-                .accessibilityIdentifier("edit-featured-groups-save")
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
-            }
         }
         .navigationTitle("Favorite Groups")
         .navigationBarTitleDisplayMode(.inline)
