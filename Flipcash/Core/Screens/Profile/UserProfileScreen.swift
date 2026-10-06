@@ -141,6 +141,11 @@ private struct UserProfileContent: View {
 
                     ProfileStatsCard(minimumToChat: fee, joinedAt: model.joinedAt)
                         .padding(.top, 20)
+
+                    FeaturedGroupsSection(groups: model.featuredGroups) {
+                        router.push(.tipConversation($0))
+                    }
+                    .padding(.top, 20)
                 }
                 .padding(.bottom, 24)
             }
@@ -202,7 +207,10 @@ private struct UserProfileContent: View {
         .onAppear {
             if position == nil { position = router.positionOfTopmost() }
         }
-        .task { await model.loadProfile() }
+        .task {
+            await model.loadProfile()
+            await model.loadFeaturedGroups()
+        }
     }
 
     // MARK: - Status badges -
@@ -421,6 +429,8 @@ final class UserProfileViewModel {
     private(set) var customization: TipCardCustomization?
     private(set) var joinedAt: Date?
     private(set) var minDmChatInitFee: FiatAmount?
+    /// The public groups this person features, in their order.
+    private(set) var featuredGroups: [Conversation] = []
 
     /// What to call this person: their name when they have one, their handle
     /// when they don't. A handle is public and stable, so it beats the generic
@@ -483,6 +493,15 @@ final class UserProfileViewModel {
         session.cacheUserProfile(profile, for: userID)
         apply(profile)
         await profileAvatars.load(userID: userID, picture: profile.profilePicture)
+    }
+
+    /// Reads the groups this person features, once their handle is known. Best effort: a profile
+    /// without the section is still the profile.
+    func loadFeaturedGroups() async {
+        guard let username,
+              let groups = try? await flipClient.getFeaturedGroups(owner: owner, username: username)
+        else { return }
+        featuredGroups = groups
     }
 
     private func apply(_ profile: Profile) {

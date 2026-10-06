@@ -64,6 +64,8 @@ extension AppRouter {
         case editProfile
         /// The bio on its own, pushed from Edit Profile.
         case editBio
+        /// The public groups shown on the signed-in user's profile, chosen from Edit Profile.
+        case editFeaturedGroups
         /// The cover banner on its own, pushed from Edit Profile.
         case changeCoverPicture
         /// The display name on its own, edited from Settings. The full
@@ -141,7 +143,7 @@ extension AppRouter {
                  .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
-            case .settings, .accountInfo, .editProfile, .editBio, .changeCoverPicture,
+            case .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture, .username,
                  .setMinimumTip,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
@@ -180,6 +182,7 @@ extension AppRouter {
             case .accountInfo:                  "accountInfo"
             case .editProfile:                  "editProfile"
             case .editBio:                      "editBio"
+            case .editFeaturedGroups:           "editFeaturedGroups"
             case .changeCoverPicture:           "changeCoverPicture"
             case .changeDisplayName:            "changeDisplayName"
             case .changeProfilePicture:         "changeProfilePicture"
@@ -242,7 +245,7 @@ extension AppRouter {
             case .activity,
                  .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
-                 .settings, .accountInfo, .editProfile, .editBio, .changeCoverPicture,
+                 .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
