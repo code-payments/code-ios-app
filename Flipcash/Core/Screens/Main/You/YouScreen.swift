@@ -300,11 +300,18 @@ struct YouScreen: View {
         ShareSheet.present(activityItem: item) { _ in }
     }
 
+    /// Presents the card without the cover's slide-up, so its own scan-style reveal is the only motion.
+    private func showProfileCard() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { router.isShowingProfileCard = true }
+    }
+
     private func handleShareChoice() {
         defer { shareChoice = nil }
         switch shareChoice {
         case .share:    shareTipCard()
-        case .showCard: router.isShowingProfileCard = true
+        case .showCard: showProfileCard()
         case .copyLink: copyLink()
         case nil:       break
         }
