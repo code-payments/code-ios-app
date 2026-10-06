@@ -236,6 +236,9 @@ private struct UserProfileContent: View {
                 } label: {
                     Label(item.title, systemImage: item.systemImage)
                 }
+                // Menu icons follow the app's white tint while the title follows the role, so a
+                // destructive entry's icon is tinted red to match its title.
+                .tint(item.isDestructive ? .red : nil)
             }
         } label: {
             Image.system(.ellipsis)
