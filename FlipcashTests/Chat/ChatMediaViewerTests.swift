@@ -45,9 +45,9 @@ struct ChatMediaViewerTests {
 
     @Test("A viewable photo opens with its blob and URL")
     func viewablePhotoOpens() throws {
-        let request = try #require(request(message(media())))
-        #expect(request.blobID == Self.blobID)
-        #expect(request.remote?.url == Self.remoteURL)
+        let viewer = try #require(request(message(media())))
+        #expect(viewer.blobID == Self.blobID)
+        #expect(viewer.remote?.url == Self.remoteURL)
     }
 
     @Test("A redacted photo, or one seen while previewing a group, never opens")
@@ -69,8 +69,8 @@ struct ChatMediaViewerTests {
 
     @Test("A pending send opens on its staged image")
     func pendingSendOpens() throws {
-        let request = try #require(request(message(media()), localImage: Self.localImage, remoteURL: nil))
-        #expect(request.localImage === Self.localImage)
+        let viewer = try #require(request(message(media()), localImage: Self.localImage, remoteURL: nil))
+        #expect(viewer.localImage === Self.localImage)
     }
 
     // MARK: - Viewer
