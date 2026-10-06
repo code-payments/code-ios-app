@@ -8,14 +8,16 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// The user's tip card full screen (Figma node 9277:121410), with Download in the toolbar and Close
-/// pinned to the bottom. Presented over the You tab from the profile's Share menu.
+/// The user's profile card over the You tab, with Close pinned to the bottom. Drawn
+/// inside the tab rather than as a cover so the tab's own toolbar button, swapped to
+/// Download, stays the only glass in the corner.
 struct ProfileCardScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
-    @Environment(\.dismiss) private var dismiss
+    @Environment(AppRouter.self) private var router
 
-    @State private var isShowingDownloadOptions = false
+    /// Raised by the You tab's toolbar button while the card is up.
+    @Binding var isShowingDownloadOptions: Bool
 
     /// The format tapped in the download sheet, held until the sheet is gone so
     /// the share sheet has a settled controller to present on.
@@ -24,7 +26,7 @@ struct ProfileCardScreen: View {
     /// The brightness to put back on close — set only when this screen raised it.
     @State private var previousBrightness: CGFloat?
 
-    /// The backdrop and chrome fade on this; the cover itself is presented without animation.
+    /// The backdrop and Close fade in on this; removal fades the whole overlay instead.
     @State private var isRevealed = false
     /// The card's scale springs on this, separately, so it can bounce while its opacity eases with the backdrop.
     @State private var isCardShown = false
@@ -40,54 +42,40 @@ struct ProfileCardScreen: View {
     /// The scanned-card pop from `BillCanvas` (0.55 scale, 0.4s at 0.4 damping).
     private static let revealScale: CGFloat = 0.55
     private static let revealSpring: Animation = .spring(duration: 0.4, bounce: 0.6)
-    private static let fade: Animation = .easeOut(duration: 0.25)
+
+    /// The open and close fade, shared with the toolbar glyph swap so the two move together.
+    static let fade: Animation = .easeOut(duration: 0.25)
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.backgroundMain
-                    .ignoresSafeArea()
-                    .opacity(isRevealed ? 1 : 0)
+        ZStack {
+            Color.backgroundMain
+                .ignoresSafeArea()
+                .opacity(isRevealed ? 1 : 0)
 
-                ScrollView(showsIndicators: false) {
-                    if let name = displayName {
-                        TipcardView(
-                            size: cardSize,
-                            name: name,
-                            avatar: nil,
-                            codeData: codeData,
-                            tintOpacity: 0.36,
-                            subtitle: username.map(\.handle)
-                        )
-                        .scaleEffect(isCardShown ? 1 : Self.revealScale)
-                        .opacity(isRevealed ? 1 : 0)
-                        .padding(.horizontal, Self.horizontalInset)
-                        .containerRelativeFrame(.vertical, alignment: .center)
-                    }
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                Button("Close", action: close)
-                    .buttonStyle(.subtle)
+            ScrollView(showsIndicators: false) {
+                if let name = displayName {
+                    TipcardView(
+                        size: cardSize,
+                        name: name,
+                        avatar: nil,
+                        codeData: codeData,
+                        tintOpacity: 0.36,
+                        subtitle: username.map(\.handle)
+                    )
+                    .scaleEffect(isCardShown ? 1 : Self.revealScale)
                     .opacity(isRevealed ? 1 : 0)
-                    .accessibilityIdentifier("profile-card-close")
                     .padding(.horizontal, Self.horizontalInset)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isShowingDownloadOptions = true
-                    } label: {
-                        Image.asset(.fileDownload)
-                    }
-                    .accessibilityLabel("Download")
-                    .accessibilityIdentifier("you-download-button")
-                    .opacity(isRevealed ? 1 : 0)
+                    .containerRelativeFrame(.vertical, alignment: .center)
                 }
             }
-            .containerBackground(.clear, for: .navigation)
         }
-        .presentationBackground(.clear)
+        .safeAreaInset(edge: .bottom) {
+            Button("Close", action: close)
+                .buttonStyle(.subtle)
+                .opacity(isRevealed ? 1 : 0)
+                .accessibilityIdentifier("profile-card-close")
+                .padding(.horizontal, Self.horizontalInset)
+        }
         .sheet(isPresented: $isShowingDownloadOptions, onDismiss: exportPendingDownload) {
             TipCardDownloadSheet(
                 onSelect: { pendingDownload = $0; isShowingDownloadOptions = false },
@@ -154,15 +142,9 @@ struct ProfileCardScreen: View {
         withAnimation(Self.revealSpring) { isCardShown = true }
     }
 
-    /// Fades the card and backdrop out at full size, then removes the cover without its slide-down.
+    /// Fades the card out at full size; the overlay's removal transition carries the fade.
     private func close() {
-        withAnimation(Self.fade) {
-            isRevealed = false
-        } completion: {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) { dismiss() }
-        }
+        withAnimation(Self.fade) { router.isShowingProfileCard = false }
     }
 
     // MARK: - Brightness -

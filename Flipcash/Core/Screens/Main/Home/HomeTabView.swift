@@ -74,6 +74,7 @@ struct HomeTabView: View {
         selection.hidesTabBar(
             isWalletCardExpanded: cardExpansion.isExpanded,
             isShowingBill: sessionContainer.session.isShowingBill,
+            isShowingProfileCard: router.isShowingProfileCard,
             hasPushedScreen: selection.pushStack.map { !router[$0].isEmpty } ?? false
         )
     }
@@ -354,12 +355,14 @@ extension HomeTab {
     func hidesTabBar(
         isWalletCardExpanded: Bool,
         isShowingBill: Bool,
+        isShowingProfileCard: Bool,
         hasPushedScreen: Bool
     ) -> Bool {
         if isShowingBill || hasPushedScreen { return true }
         switch self {
         case .wallet:        return isWalletCardExpanded
-        case .tipCard, .scan, .chat: return false
+        case .tipCard:       return isShowingProfileCard
+        case .scan, .chat:   return false
         }
     }
 }
