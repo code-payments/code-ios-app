@@ -131,9 +131,11 @@ private struct UserProfileContent: View {
                         avatarData: model.imageData,
                         avatarBlurhash: model.blurhash,
                         coverPicture: model.coverPicture,
-                        statusChip: statusChip,
                         bannerControls: { EmptyView() },
-                        rowActions: { shareButton },
+                        rowActions: {
+                            statusBadges
+                            shareButton
+                        },
                         underHandle: { EmptyView() }
                     )
 
@@ -201,19 +203,20 @@ private struct UserProfileContent: View {
         .task { await model.loadProfile() }
     }
 
-    // MARK: - Header chip -
+    // MARK: - Status badges -
 
-    private var statusChip: AnyView? {
-        if isBlocked {
-            return AnyView(
+    /// Blocked and muted are separate settings, so each gets its own badge. They sit in the action
+    /// row, whose height the share button sets, so one coming or going never moves the bio below.
+    private var statusBadges: some View {
+        HStack(spacing: 8) {
+            if isBlocked {
                 ProfileStatusChip(systemImage: "nosign", text: "Blocked", tint: .warning, fill: .warningSecondary)
                     .accessibilityIdentifier("profile-blocked-badge")
-            )
+            }
+            if let dmID {
+                ChatMuteStatusLabel(conversationID: dmID, reservesSpace: false)
+            }
         }
-        if let dmID {
-            return AnyView(ChatMuteStatusLabel(conversationID: dmID))
-        }
-        return nil
     }
 
     // MARK: - Banner controls -

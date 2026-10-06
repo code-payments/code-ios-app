@@ -118,7 +118,6 @@ struct YouScreen: View {
             avatarData: sessionContainer.profileAvatars.data(for: sessionContainer.session.userID),
             avatarBlurhash: profilePicture?.thumbnailBlurhash,
             coverPicture: profile?.coverPicture,
-            statusChip: nil,
             bannerControls: { EmptyView() },
             rowActions: {
                 ProfileEditCapsule {

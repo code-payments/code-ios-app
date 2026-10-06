@@ -21,7 +21,6 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
     let avatarData: Data?
     let avatarBlurhash: String?
     let coverPicture: ProfilePicture?
-    let statusChip: AnyView?
     @ViewBuilder let bannerControls: () -> BannerControls
     @ViewBuilder let rowActions: () -> RowActions
     @ViewBuilder let underHandle: () -> UnderHandle
@@ -62,17 +61,10 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
 
             if let displayName {
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 8) {
-                        Text(displayName)
-                            .font(.appDisplaySmall)
-                            .foregroundStyle(Color.textMain)
-                            .accessibilityIdentifier("profile-name")
-
-                        if let statusChip {
-                            statusChip
-                                .fixedSize()
-                        }
-                    }
+                    Text(displayName)
+                        .font(.appDisplaySmall)
+                        .foregroundStyle(Color.textMain)
+                        .accessibilityIdentifier("profile-name")
 
                     if let handle {
                         Text(handle)
