@@ -94,7 +94,7 @@ struct EditGroupNameScreen: View {
         // a display name; a bar title on top of it would ask twice.
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
-        .onAppear { isNameFocused = true }
+        .focusAfterPush($isNameFocused)
         // Leaving the screen abandons the submission: its only continuation is a pop off a stack
         // this screen no longer sits on.
         .onDisappear { submitTask?.cancel() }

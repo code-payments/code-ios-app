@@ -90,10 +90,8 @@ struct UsernameEntryScreen: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
-        .onAppear {
-            input = currentUsername?.value ?? ""
-            isFocused = true
-        }
+        .onAppear { input = currentUsername?.value ?? "" }
+        .focusAfterPush($isFocused)
         // Leaving abandons the submission: its only continuation pops a stack
         // this screen no longer sits on.
         .onDisappear { submitTask?.cancel() }
