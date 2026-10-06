@@ -60,7 +60,7 @@ extension AppRouter {
         case settings
         /// The account's phone, email, user ID and public key, opened from Settings.
         case accountInfo
-        /// The signed-in user's profile fields in one list, opened from Settings.
+        /// The signed-in user's profile fields in one list, opened from the You tab's Edit Profile button.
         case editProfile
         /// The bio on its own, pushed from Edit Profile.
         case editBio

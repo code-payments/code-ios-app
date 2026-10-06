@@ -52,9 +52,8 @@ final class DisplayNameSmokeTests: BaseUITestCase {
             "Expected the Edit Profile button under the stats"
         )
 
-        // MARK: Change the name from Settings.
-        waitAndTap(settings.gear)
-        waitAndTap(settings.editProfileRow)
+        // MARK: Change the name from Edit Profile.
+        waitAndTap(settings.editProfileButton)
         waitAndTap(settings.displayNameRow)
 
         let save = app.buttons["profile-name-next-button"]

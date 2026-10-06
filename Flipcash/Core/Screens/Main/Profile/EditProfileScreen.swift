@@ -8,7 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// The signed-in user's profile fields in one list: cover, photo, then a row per field showing
-/// its current value. Pushed from Settings.
+/// its current value. Pushed from the You tab's Edit Profile button.
 struct EditProfileScreen: View {
 
     @Environment(AppRouter.self) private var router
@@ -16,23 +16,10 @@ struct EditProfileScreen: View {
 
     @State private var dialog: DialogItem?
 
-    private static let avatarSize: CGFloat = 96
-    private static let rowInsets = EdgeInsets(top: 20, leading: 20, bottom: 20, trailing: 20)
+    private static let rowInsets = EdgeInsets(top: 25, leading: 20, bottom: 25, trailing: 20)
 
     private var session: Session { sessionContainer.session }
     private var profile: Profile? { session.profile }
-
-    private var avatarImage: UIImage? {
-        sessionContainer.profileAvatars
-            .data(for: session.userID)
-            .flatMap(UIImage.init(data:))
-    }
-
-    private var coverImage: UIImage? {
-        sessionContainer.profileAvatars
-            .data(for: .cover(session.userID))
-            .flatMap(UIImage.init(data:))
-    }
 
     /// Whether the handle still needs claiming: none yet, or one the server assigned.
     private var needsUsernameClaim: Bool {
@@ -55,9 +42,6 @@ struct EditProfileScreen: View {
         .navigationTitle("Edit Profile")
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialog)
-        .task(id: profile?.coverPicture?.blobID) {
-            await sessionContainer.profileAvatars.load(.cover(session.userID), picture: profile?.coverPicture)
-        }
         .task(id: profile?.profilePicture?.thumbnailBlobID) {
             await sessionContainer.profileAvatars.load(userID: session.userID, picture: profile?.profilePicture)
         }
@@ -65,28 +49,35 @@ struct EditProfileScreen: View {
 
     // MARK: - Header -
 
+    /// The You tab's cover and avatar at the same sizes, each a button to its own editor.
     private var header: some View {
-        ZStack(alignment: .bottomLeading) {
+        VStack(alignment: .leading, spacing: 0) {
             Button {
                 router.push(.changeCoverPicture)
             } label: {
-                CoverBanner(image: coverImage, fill: CoverBanner.fill(for: profile))
+                ProfileCoverBanner(userID: session.userID, coverPicture: profile?.coverPicture)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("edit-profile-cover")
-            .padding(.bottom, Self.avatarSize / 2)
 
             Button {
                 router.push(.changeProfilePicture)
             } label: {
-                CircleImage(image: avatarImage, size: Self.avatarSize, plusSize: 36)
-                    .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 4))
+                ContactAvatarView(
+                    id: session.userID.uuidString,
+                    displayName: profile?.displayName ?? "",
+                    imageData: sessionContainer.profileAvatars.data(for: session.userID),
+                    blurhash: profile?.profilePicture?.thumbnailBlurhash,
+                    size: ProfileHeaderView<EmptyView, EmptyView, EmptyView>.avatarSize
+                )
+                .overlay { Circle().strokeBorder(Color.backgroundMain, lineWidth: 5) }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("edit-profile-photo")
-            .padding(.leading, 20)
+            .padding(.top, -ProfileHeaderView<EmptyView, EmptyView, EmptyView>.avatarOverlap)
+            .padding(.leading, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
+            .padding(.bottom, 8)
         }
-        .padding(.bottom, 8)
     }
 
     // MARK: - Rows -
@@ -166,12 +157,13 @@ private struct FieldRow: View {
             Text(title)
                 .font(.appDisplayXS)
                 .foregroundStyle(Color.textMain)
-            Spacer(minLength: 12)
+            // `Row` puts its own spacer before the chevron, so the value claims the width to sit against it.
             Text(value ?? placeholder)
                 .font(.appTextMedium)
                 .foregroundStyle(value == nil || valueIsPrompt ? Color.textSecondary : Color.textMain)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         } action: {
             action()
         }

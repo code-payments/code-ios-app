@@ -121,8 +121,7 @@ struct YouScreen: View {
             bannerControls: { EmptyView() },
             rowActions: {
                 ProfileEditCapsule {
-                    // The Edit Profile slice repoints this to `.editProfile`.
-                    router.push(.settings)
+                    router.push(.editProfile)
                 }
                 .accessibilityIdentifier("you-edit-profile")
 

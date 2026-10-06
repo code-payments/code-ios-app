@@ -36,7 +36,6 @@ struct SettingsScreen: View {
         Background(color: .backgroundMain) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    profileSection
                     securitySection
                     privacySection
                     advancedSection
@@ -55,18 +54,6 @@ struct SettingsScreen: View {
     }
 
     // MARK: - Sections -
-
-    /// Interim: Slice 3 removes this row once the You tab has its own Edit Profile button.
-    private var profileSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SettingsSectionHeader("Profile")
-
-            SettingsRow(systemImage: "person.text.rectangle", title: "Edit Profile", insets: insets) {
-                router.push(.editProfile)
-            }
-            .accessibilityIdentifier("settings-edit-profile")
-        }
-    }
 
     private var securitySection: some View {
         VStack(alignment: .leading, spacing: 0) {

@@ -10,35 +10,6 @@ import FlipcashUI
 
 private let logger = Logger(label: "flipcash.profile-cover")
 
-/// A 3:1 banner: the image when there is one, otherwise a flat fill in the profile-card colour.
-struct CoverBanner: View {
-
-    /// The cover to draw, or nil to draw ``fill``.
-    let image: UIImage?
-    /// What an empty cover is filled with.
-    let fill: Color
-
-    var body: some View {
-        Color.clear
-            .aspectRatio(3, contentMode: .fit)
-            .overlay {
-                if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    fill
-                }
-            }
-            .clipped()
-    }
-
-    /// The fill for an empty cover: the card colour the user chose, or the card tone when unset.
-    static func fill(for profile: Profile?) -> Color {
-        profile?.tipCardCustomization.flatMap { Color(hex: $0.colorHex) } ?? Color.backgroundRow
-    }
-}
-
 /// Changing the cover banner on its own, pushed from Edit Profile. Owns its upload state so a
 /// cover can never resume an avatar blob.
 struct ChangeCoverPictureScreen: View {
@@ -56,12 +27,6 @@ struct ChangeCoverPictureScreen: View {
     private var session: Session { sessionContainer.session }
     private var profile: Profile? { session.profile }
 
-    private var currentCover: UIImage? {
-        sessionContainer.profileAvatars
-            .data(for: .cover(session.userID))
-            .flatMap(UIImage.init(data:))
-    }
-
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
@@ -69,15 +34,19 @@ struct ChangeCoverPictureScreen: View {
                     Button("Photo Library", systemImage: "photo.on.rectangle") { isShowingPhotoPicker = true }
                     Button("Choose File", systemImage: "folder") { isShowingFilePicker = true }
                 } label: {
-                    CoverBanner(image: state.selectedImage ?? currentCover, fill: CoverBanner.fill(for: profile))
-                        .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius))
-                        .overlay {
-                            if state.selectedImage == nil && currentCover == nil {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 40, weight: .light))
-                                    .foregroundStyle(Color.textSecondary)
-                            }
+                    ProfileCoverBanner(
+                        userID: session.userID,
+                        coverPicture: profile?.coverPicture,
+                        preview: state.selectedImage
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius))
+                    .overlay {
+                        if state.selectedImage == nil && profile?.coverPicture == nil {
+                            Image(systemName: "plus")
+                                .font(.appDisplayMedium)
+                                .foregroundStyle(Color.textSecondary)
                         }
+                    }
                 }
                 .menuIndicator(.hidden)
                 .disabled(state.isUploading)
@@ -116,10 +85,6 @@ struct ChangeCoverPictureScreen: View {
         .task(id: state.uploadAttemptID) {
             guard state.hasPendingUpload else { return }
             await upload()
-        }
-        // Keyed on the blob so the cover this screen just uploaded is what the banner ends up drawing.
-        .task(id: profile?.coverPicture?.blobID) {
-            await sessionContainer.profileAvatars.load(.cover(session.userID), picture: profile?.coverPicture)
         }
     }
 
