@@ -60,7 +60,7 @@ struct YouScreen: View {
                     if displayName == nil {
                         setupPrompt
                             .padding(.top, 24)
-                            .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
+                            .padding(.horizontal, ProfileHeaderMetrics.inset)
                     } else {
                         ProfileStatsCard(
                             minimumToChat: StartChattingFee.amount(
@@ -124,13 +124,18 @@ struct YouScreen: View {
 
     private var header: some View {
         ProfileHeaderView(
-            userID: sessionContainer.session.userID,
-            displayName: displayName,
-            handle: username.map(\.handle),
-            bio: profile?.bio,
-            avatarData: sessionContainer.profileAvatars.data(for: sessionContainer.session.userID),
-            avatarBlurhash: profilePicture?.thumbnailBlurhash,
-            coverPicture: profile?.coverPicture,
+            cover: .user(sessionContainer.session.userID, picture: profile?.coverPicture),
+            title: displayName,
+            subtitle: username.map(\.handle),
+            bodyText: profile?.bio,
+            avatar: {
+                ProfileHeaderAvatar(
+                    id: sessionContainer.session.userID.uuidString,
+                    displayName: displayName ?? "",
+                    imageData: sessionContainer.profileAvatars.data(for: sessionContainer.session.userID),
+                    blurhash: profilePicture?.thumbnailBlurhash
+                )
+            },
             bannerControls: { EmptyView() },
             rowActions: {
                 ProfileEditCapsule {
@@ -142,7 +147,7 @@ struct YouScreen: View {
                     shareButton
                 }
             },
-            underHandle: {
+            underSubtitle: {
                 if shouldPromptForUsername {
                     Button(action: claimUsername) {
                         Text("Claim your username ›")

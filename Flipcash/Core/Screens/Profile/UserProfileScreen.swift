@@ -124,19 +124,24 @@ private struct UserProfileContent: View {
             ScrollView {
                 VStack(spacing: 0) {
                     ProfileHeaderView(
-                        userID: model.userID,
-                        displayName: model.displayName,
-                        handle: model.handle,
-                        bio: model.bio,
-                        avatarData: model.imageData,
-                        avatarBlurhash: model.blurhash,
-                        coverPicture: model.coverPicture,
+                        cover: .user(model.userID, picture: model.coverPicture),
+                        title: model.displayName,
+                        subtitle: model.handle,
+                        bodyText: model.bio,
+                        avatar: {
+                            ProfileHeaderAvatar(
+                                id: model.userID.uuidString,
+                                displayName: model.displayName,
+                                imageData: model.imageData,
+                                blurhash: model.blurhash
+                            )
+                        },
                         bannerControls: { EmptyView() },
                         rowActions: {
                             statusBadges
                             shareButton
                         },
-                        underHandle: { EmptyView() }
+                        underSubtitle: { EmptyView() }
                     )
 
                     ProfileStatsCard(minimumToChat: fee, joinedAt: model.joinedAt)
@@ -299,7 +304,7 @@ private struct UserProfileContent: View {
                 CodeButton(style: .filled, title: title, action: tapPinned)
                     .accessibilityIdentifier("profile-pinned-action")
             }
-            .padding(.horizontal, ProfileHeaderView<EmptyView, EmptyView, EmptyView>.inset)
+            .padding(.horizontal, ProfileHeaderMetrics.inset)
             .padding(.top, 12)
             .padding(.bottom, 8)
         } else if showsE2eeFooter {

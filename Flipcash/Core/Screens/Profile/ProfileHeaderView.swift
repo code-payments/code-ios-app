@@ -7,48 +7,45 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// A profile's top block: a full-bleed cover, the avatar overlapping it, an action row, then name,
-/// handle and bio, all left-aligned on a 24pt inset.
-///
-/// The caller lets the view run under the status bar. A nil `displayName` leaves the name block out,
-/// for a profile that has not named itself yet.
-struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: View>: View {
+/// The profile header's layout constants, shared with the sections laid out beneath it.
+enum ProfileHeaderMetrics {
 
-    let userID: UserID
-    let displayName: String?
-    let handle: String?
-    let bio: String?
-    let avatarData: Data?
-    let avatarBlurhash: String?
-    let coverPicture: ProfilePicture?
-    @ViewBuilder let bannerControls: () -> BannerControls
-    @ViewBuilder let rowActions: () -> RowActions
-    @ViewBuilder let underHandle: () -> UnderHandle
-
+    /// The horizontal inset everything below the banner sits on.
     static var inset: CGFloat { 24 }
 
     static var avatarSize: CGFloat { 84 }
     /// How far the avatar rises over the banner.
     static var avatarOverlap: CGFloat { 42 }
+}
+
+/// A profile's top block: a full-bleed cover, the caller's avatar overlapping it, an action row,
+/// then title, subtitle and body text, all left-aligned on a 24pt inset.
+///
+/// The caller lets the view run under the status bar. A nil `title` leaves the text block out,
+/// for a profile that has not named itself yet.
+struct ProfileHeaderView<Avatar: View, BannerControls: View, RowActions: View, UnderSubtitle: View>: View {
+
+    let cover: ProfileCover
+    let title: String?
+    let subtitle: String?
+    let bodyText: String?
+    /// Drawn at ``ProfileHeaderMetrics/avatarSize``; the header adds the ring and the overlap.
+    @ViewBuilder let avatar: () -> Avatar
+    @ViewBuilder let bannerControls: () -> BannerControls
+    @ViewBuilder let rowActions: () -> RowActions
+    @ViewBuilder let underSubtitle: () -> UnderSubtitle
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ProfileCoverBanner(
-                userID: userID,
-                coverPicture: coverPicture,
+                cover: cover,
                 controls: bannerControls
             )
 
             HStack(alignment: .top, spacing: 0) {
-                ContactAvatarView(
-                    id: userID.uuidString,
-                    displayName: displayName ?? "",
-                    imageData: avatarData,
-                    blurhash: avatarBlurhash,
-                    size: Self.avatarSize
-                )
-                .overlay { Circle().strokeBorder(Color.backgroundMain, lineWidth: 5) }
-                .padding(.top, -Self.avatarOverlap)
+                avatar()
+                    .overlay { Circle().strokeBorder(Color.backgroundMain, lineWidth: 5) }
+                    .padding(.top, -ProfileHeaderMetrics.avatarOverlap)
 
                 Spacer(minLength: 8)
 
@@ -57,26 +54,26 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
                 }
                 .padding(.top, 20)
             }
-            .padding(.horizontal, Self.inset)
+            .padding(.horizontal, ProfileHeaderMetrics.inset)
 
-            if let displayName {
+            if let title {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(displayName)
+                    Text(title)
                         .font(.appDisplaySmall)
                         .foregroundStyle(Color.textMain)
                         .accessibilityIdentifier("profile-name")
 
-                    if let handle {
-                        Text(handle)
+                    if let subtitle {
+                        Text(subtitle)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
                             .accessibilityIdentifier("profile-handle")
                     }
 
-                    underHandle()
+                    underSubtitle()
 
-                    if let bio, !bio.isEmpty {
-                        Text(bio)
+                    if let bodyText, !bodyText.isEmpty {
+                        Text(bodyText)
                             .font(.appTextMessage)
                             .foregroundStyle(Color.textMain)
                             .multilineTextAlignment(.leading)
@@ -86,9 +83,29 @@ struct ProfileHeaderView<BannerControls: View, RowActions: View, UnderHandle: Vi
                     }
                 }
                 .padding(.top, 8)
-                .padding(.horizontal, Self.inset)
+                .padding(.horizontal, ProfileHeaderMetrics.inset)
             }
         }
+    }
+}
+
+/// A person's avatar for the header's avatar slot: their picture, or their monogram, at the
+/// header's size.
+struct ProfileHeaderAvatar: View {
+
+    let id: String
+    let displayName: String
+    let imageData: Data?
+    let blurhash: String?
+
+    var body: some View {
+        ContactAvatarView(
+            id: id,
+            displayName: displayName,
+            imageData: imageData,
+            blurhash: blurhash,
+            size: ProfileHeaderMetrics.avatarSize
+        )
     }
 }
 
@@ -111,14 +128,15 @@ struct ProfileActionCircle: View {
     }
 }
 
-/// The header's "Edit Profile" button, a flat filled capsule beside ``ProfileActionCircle``.
+/// The header's edit button ("Edit Profile" unless titled otherwise), a flat filled capsule beside ``ProfileActionCircle``.
 struct ProfileEditCapsule: View {
 
+    var title: String = "Edit Profile"
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text("Edit Profile")
+            Text(title)
                 .font(.appTextSmall)
                 .padding(.horizontal, 18)
         }
