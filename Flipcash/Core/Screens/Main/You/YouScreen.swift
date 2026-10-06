@@ -71,6 +71,11 @@ struct YouScreen: View {
                             joinedAt: profile?.joinedAt
                         )
                         .padding(.top, 19)
+
+                        FeaturedGroupsSection(groups: sessionContainer.featuredGroups.groups) {
+                            router.push(.tipConversation($0))
+                        }
+                        .padding(.top, 20)
                     }
                 }
                 .padding(.bottom, bottomContentInset)
@@ -100,6 +105,10 @@ struct YouScreen: View {
                 previewCache.warm(TipCode.Payload(userID: sessionContainer.session.userID))
             }
             await sessionContainer.profileAvatars.load(userID: sessionContainer.session.userID, picture: profilePicture)
+        }
+        .task(id: username) {
+            guard let username else { return }
+            await sessionContainer.featuredGroups.load(username: username)
         }
         // A cash link raises the bill without touching the router, and it would draw under the card.
         .onChange(of: sessionContainer.session.isShowingBill) { _, isShowing in

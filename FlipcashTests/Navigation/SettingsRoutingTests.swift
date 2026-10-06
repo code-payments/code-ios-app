@@ -15,6 +15,7 @@ struct SettingsRoutingTests {
         AppRouter.Destination.accountInfo,
         AppRouter.Destination.editProfile,
         AppRouter.Destination.editBio,
+        AppRouter.Destination.editFeaturedGroups,
         AppRouter.Destination.changeCoverPicture,
     ])
     func owningStack(destination: AppRouter.Destination) {

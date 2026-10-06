@@ -136,6 +136,11 @@ struct EditProfileScreen: View {
                 router.push(.setMinimumTip(isSetupStep: false))
             }
             .accessibilityIdentifier("edit-profile-minimum")
+
+            FieldCard(title: "Favorite Public Groups", value: featuredGroupsSummary, placeholder: "Add groups") {
+                router.push(.editFeaturedGroups)
+            }
+            .accessibilityIdentifier("edit-profile-featured-groups")
         }
     }
 
@@ -152,6 +157,13 @@ struct EditProfileScreen: View {
             }
             .accessibilityIdentifier("edit-profile-username")
         }
+    }
+
+    /// How many groups the profile features, or nil for none.
+    private var featuredGroupsSummary: String? {
+        let count = sessionContainer.featuredGroups.groups.count
+        guard count > 0 else { return nil }
+        return count == 1 ? "1 group" : "\(count) groups"
     }
 
     /// What others pay to start a chat, matching the You tab's stats card.
