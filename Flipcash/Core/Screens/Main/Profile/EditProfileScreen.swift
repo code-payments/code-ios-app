@@ -132,7 +132,7 @@ struct EditProfileScreen: View {
             }
             .accessibilityIdentifier("edit-profile-bio")
 
-            FieldCard(title: "Minimum to Chat", value: minimumToChat, placeholder: "Not set") {
+            FieldCard(title: "Minimum To Chat", value: minimumToChat, placeholder: "Not set") {
                 router.push(.setMinimumTip(isSetupStep: false))
             }
             .accessibilityIdentifier("edit-profile-minimum")
