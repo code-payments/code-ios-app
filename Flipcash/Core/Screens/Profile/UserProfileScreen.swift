@@ -136,8 +136,8 @@ private struct UserProfileContent: View {
                             )
                         },
                         bannerControls: { EmptyView() },
+                        coverAccessory: { statusBadges },
                         rowActions: {
-                            statusBadges
                             shareButton
                         },
                         underSubtitle: { EmptyView() }
@@ -226,12 +226,14 @@ private struct UserProfileContent: View {
 
     // MARK: - Status badges -
 
-    /// Blocked and muted are separate settings, so each gets its own badge. They sit in the action
-    /// row, whose height the share button sets, so one coming or going never moves the bio below.
+    /// Blocked and muted are separate settings, so each gets its own badge. They sit on the cover,
+    /// whose height is fixed, so one coming or going never moves the bio below.
     private var statusBadges: some View {
         HStack(spacing: 8) {
             if isBlocked {
                 ProfileStatusChip(systemImage: "nosign", text: "Blocked", tint: .warning, fill: .warningSecondary)
+                    // The mute chip gives up width first, falling back to plain "Muted".
+                    .fixedSize()
                     .accessibilityIdentifier("profile-blocked-badge")
             }
             if let dmID {

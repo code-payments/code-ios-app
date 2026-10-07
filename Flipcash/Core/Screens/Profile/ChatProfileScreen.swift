@@ -125,10 +125,14 @@ struct ChatProfileScreen: View {
                             )
                         },
                         bannerControls: { EmptyView() },
-                        rowActions: {
+                        // On the cover rather than in the action row: a timed mute's label is
+                        // wide enough to wrap Edit Group and push Share off the screen.
+                        coverAccessory: {
                             if isMember {
                                 ChatMuteStatusLabel(conversationID: conversationID, reservesSpace: false)
                             }
+                        },
+                        rowActions: {
                             if canEdit {
                                 ProfileEditCapsule(title: "Edit Group") {
                                     router.push(.editGroup(conversationID))
