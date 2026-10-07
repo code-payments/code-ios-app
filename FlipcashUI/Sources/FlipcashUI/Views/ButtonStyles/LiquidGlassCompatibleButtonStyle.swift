@@ -47,9 +47,8 @@ extension View {
 
     /// Applies Apple's prominent button style — `.glassProminent` on iOS 26+,
     /// `.borderedProminent` on earlier versions.
-    /// The app tints everything white, which a prominent style takes as its fill —
-    /// opting back out to the system accent has to name the colour, because
-    /// `.tint(nil)` resolves to the white `AccentColor` asset and drops the fill.
+    /// The app tints everything white, which a prominent style takes as its fill,
+    /// so the style names its blue rather than relying on the `AccentColor` asset.
     /// The label colour cannot be set here — a prominent style applies its own
     /// foreground inside the style, so it overrides anything set on the button.
     /// Colour the label's content instead.
