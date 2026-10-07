@@ -33,10 +33,9 @@ extension MessageCapability {
     /// Whether the menu should render this row in its destructive style.
     public var isDestructive: Bool {
         switch self {
-        // Report is not destructive, though a reviewer will expect it to be: nothing is destroyed
-        // and nothing is irreversible from the reporter's side. The red row belongs to delete.
-        case .copy, .reply, .edit, .report: false
-        case .delete:                       true
+        // Report is red to match Report on the profile menus, though nothing is destroyed.
+        case .copy, .reply, .edit: false
+        case .delete, .report:     true
         }
     }
 }

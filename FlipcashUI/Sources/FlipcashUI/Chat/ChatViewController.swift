@@ -1608,7 +1608,7 @@ private extension MessageCapability {
         case .reply:  .replyArrow
         case .edit:   .pencil
         case .delete: .trash
-        case .report: .flag
+        case .report: .exclamationBubble
         }
     }
 }

@@ -97,8 +97,8 @@ struct MessageCapabilityMenuTests {
         #expect(notified.map(\.1) == [.edit, .delete])
     }
 
-    @Test("Report renders last, and is not marked destructive")
-    func reportIsOfferedButNotDestructive() {
+    @Test("Report renders last, and is marked destructive")
+    func reportIsOfferedAndDestructive() {
         let controller = loadedController([
             .message(ChatMessage(id: "1", text: "hi", sender: .other, actions: [.copy, .reply, .report]))
         ])
@@ -110,7 +110,7 @@ struct MessageCapabilityMenuTests {
             Issue.record("expected a Report action")
             return
         }
-        #expect(!report.attributes.contains(.destructive))
+        #expect(report.attributes.contains(.destructive))
     }
 
     @Test("Report reports the row's id to the screen")

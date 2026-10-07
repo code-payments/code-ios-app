@@ -24,7 +24,7 @@ nonisolated enum ProfileMenuItem: Equatable {
     var systemImage: String {
         switch self {
         case .mute:    return "bell.slash"
-        case .report:  return "flag"
+        case .report:  return "exclamationmark.bubble"
         case .block:   return "nosign"
         case .unblock: return "checkmark.circle"
         }
