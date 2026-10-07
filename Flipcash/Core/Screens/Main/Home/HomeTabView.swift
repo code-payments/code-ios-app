@@ -109,6 +109,19 @@ struct HomeTabView: View {
             .onChange(of: sessionContainer.session.profile?.username, initial: true) { _, username in
                 sessionContainer.chatArchive.setViewerUsername(username)
             }
+            // Fetched here rather than on the You tab, so its groups and their
+            // avatars are in hand before the tab is first opened.
+            .task(id: sessionContainer.session.profile?.username) {
+                guard let username = sessionContainer.session.profile?.username else { return }
+                let featuredGroups = sessionContainer.featuredGroups
+                guard await featuredGroups.load(username: username) else { return }
+                let avatars = sessionContainer.profileAvatars
+                await withTaskGroup(of: Void.self) { group in
+                    for conversation in featuredGroups.groups {
+                        group.addTask { await avatars.load(.chat(conversation.id), picture: conversation.picture) }
+                    }
+                }
+            }
             // Keyed on the blob, so setting or replacing a picture reloads the
             // icon and clearing one drops it back to the glyph.
             .task(id: profilePicture?.thumbnailBlobID) {
