@@ -722,6 +722,8 @@ final class SessionContainer {
         self.featuredGroups = FeaturedGroups(fetching: { [weak flipClient] username in
             guard let flipClient else { return [] }
             return try await flipClient.getFeaturedGroups(owner: owner, username: username)
+        }, fillingCovers: { [weak conversationController] groups in
+            await conversationController?.fullConversations(for: groups) ?? [:]
         })
         conversationController.reactions.recents = recentReactions
         conversationController.start()

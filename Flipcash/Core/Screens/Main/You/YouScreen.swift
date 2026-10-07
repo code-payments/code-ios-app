@@ -24,6 +24,7 @@ struct YouScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
     @Environment(RatesController.self) private var ratesController
+    @Environment(ConversationController.self) private var conversationController
 
     /// Warms the share-sheet preview image ahead of the share tap so it never
     /// lands on the tap; keyed by user.
@@ -72,8 +73,11 @@ struct YouScreen: View {
                         )
                         .padding(.top, 19)
 
-                        FeaturedGroupsSection(groups: sessionContainer.featuredGroups.groups) {
-                            router.push(.chatProfile($0, origin: .featuredGroup))
+                        FeaturedGroupsSection(groups: sessionContainer.featuredGroups.groups) { id in
+                            if let group = sessionContainer.featuredGroups.group(withID: id) {
+                                conversationController.hold(group)
+                            }
+                            router.push(.chatProfile(id, origin: .featuredGroup))
                         }
                         .padding(.top, 20)
                     }

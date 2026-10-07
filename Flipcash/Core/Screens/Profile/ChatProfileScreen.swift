@@ -13,7 +13,7 @@ import FlipcashStore
 
 /// A group chat's own profile (node 10913:358): the shared profile header with the group's cover,
 /// picture and description, who is chatting, what it takes to join and to chat, and one pinned
-/// button that joins, buys in, or opens the chat.
+/// button that opens the chat.
 ///
 /// Reached by tapping the chat's head card or its navigation title, the way a DM's title opens the
 /// counterpart's profile. The actions a member has over the group sit in the ⋯ menu, and Leave Chat
@@ -33,11 +33,11 @@ struct ChatProfileScreen: View {
     @State private var isPickingMuteDuration = false
     @State private var isReporting = false
     @State private var isShowingE2ee = false
-    @State private var isJoining = false
     @State private var isLeaving = false
     @State private var dialogItem: DialogItem?
     @State private var chatters: [SampledChatter] = []
     @State private var mintMetadata: [PublicKey: StoredMintMetadata] = [:]
+    @State private var mintNamesTimedOut = false
 
     private var session: Session { sessionContainer.session }
 
@@ -66,25 +66,6 @@ struct ChatProfileScreen: View {
         conversation?.isPrivate ?? false
     }
 
-    // MARK: - Gate -
-
-    /// Recomputed on each observation tick, so a balance that crosses a minimum or a rate that
-    /// lands moves the button without a reopen.
-    private var gate: ConversationGate {
-        guard let conversation else { return .open }
-        return conversationGate(
-            session: session,
-            rules: conversation.rules,
-            creator: conversation.creator,
-            rates: ratesController.cachedRates
-        )
-    }
-
-    private var cta: GroupProfileCTA {
-        guard conversation != nil else { return .none }
-        return GroupProfileCTA.resolve(gate: gate, isMember: isMember)
-    }
-
     private var requirements: GroupBalanceRequirements? {
         GroupBalanceRequirements(conversation?.rules)
     }
@@ -97,6 +78,13 @@ struct ChatProfileScreen: View {
             mints.append(mint)
         }
         return mints
+    }
+
+    /// Whether the requirements can be stated: every token they name is known, so "$10" never turns
+    /// into "$10 of NYC" in front of the viewer. A token that won't resolve stops holding them back
+    /// after a moment.
+    private var requirementsNamed: Bool {
+        mintNamesTimedOut || namedMints.allSatisfy { $0 == .usdf || mintMetadata[$0] != nil }
     }
 
     /// "$10 of NYC", or the bare amount for a dollar-token or any-holding rule: the dollar amount
@@ -158,7 +146,7 @@ struct ChatProfileScreen: View {
                             .padding(.top, 24)
                     }
 
-                    if let requirements {
+                    if let requirements, requirementsNamed {
                         balanceRequirements(requirements)
                             .padding(.top, 24)
                     }
@@ -218,6 +206,12 @@ struct ChatProfileScreen: View {
                 }
             }
             mintMetadata = metadata
+        }
+        .task(id: namedMints) {
+            mintNamesTimedOut = false
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            mintNamesTimedOut = true
         }
     }
 
@@ -336,23 +330,9 @@ struct ChatProfileScreen: View {
 
     @ViewBuilder
     private var pinnedActions: some View {
-        let cta = cta
-        if cta != .none || isMember {
+        if conversation != nil {
             VStack(spacing: 8) {
-                if let line = requirementLine(cta) {
-                    Text(line)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .accessibilityIdentifier("group-profile-requirement-line")
-                }
-                if let ctaTitle = ctaTitle(cta) {
-                    Button { tap(cta) } label: {
-                        ButtonStateLabel(ctaTitle, state: isJoining ? .loading : .normal)
-                    }
-                    .buttonStyle(.filled)
-                    .disabled(isJoining)
-                    .accessibilityIdentifier("group-profile-cta")
-                }
+                openChatButton
                 if isMember {
                     Button {
                         dialogItem = leaveDialog()
@@ -373,49 +353,11 @@ struct ChatProfileScreen: View {
         }
     }
 
-    /// The full requirement over a Buy button, which itself names only the shortfall.
-    private func requirementLine(_ cta: GroupProfileCTA) -> String? {
-        switch cta {
-        case .buyToJoin(let amount, let mint):
-            return "\(holding(amount, mint: mint)) Required to Join"
-        case .buyToChat(let amount, let mint):
-            return "\(holding(amount, mint: mint)) Required to Chat"
-        case .none, .join, .openChat:
-            return nil
-        }
-    }
-
-    private func ctaTitle(_ cta: GroupProfileCTA) -> String? {
-        switch cta {
-        case .none:
-            return nil
-        case .join:
-            return "Join"
-        case .openChat:
-            return "Open Chat"
-        case .buyToJoin(let amount, let mint):
-            return "Buy \(holding(shortfall(of: amount, mint: mint), mint: mint)) to Join"
-        case .buyToChat(let amount, let mint):
-            return "Buy \(holding(shortfall(of: amount, mint: mint), mint: mint)) to Chat"
-        }
-    }
-
-    /// The amount still to buy, or the whole requirement when no rate can restate the gap.
-    private func shortfall(of amount: FiatAmount, mint: PublicKey?) -> FiatAmount {
-        balanceShortfall(of: amount, mint: mint, holdings: session, rates: ratesController.cachedRates) ?? amount
-    }
-
-    private func tap(_ cta: GroupProfileCTA) {
-        switch cta {
-        case .none:
-            break
-        case .join:
-            join()
-        case .openChat:
-            showChat()
-        case .buyToJoin(_, let mint), .buyToChat(_, let mint):
-            buy(mint)
-        }
+    /// Joining and buying in happen in the chat's own gate, so the profile only ever opens it.
+    private var openChatButton: some View {
+        Button("Open Chat") { showChat() }
+            .buttonStyle(.filled)
+            .accessibilityIdentifier("group-profile-cta")
     }
 
     /// Returns to the chat when it sits underneath, otherwise pushes it over this profile.
@@ -425,47 +367,6 @@ struct ChatProfileScreen: View {
             router.popTopmost()
         case .featuredGroup:
             router.push(.tipConversation(conversationID))
-        }
-    }
-
-    /// Buys the mint the requirement names, or opens add-cash when there is no one token to buy: a
-    /// rule spanning every holding, or a dollar-token one, which adding cash satisfies directly.
-    private func buy(_ mint: PublicKey?) {
-        guard let mint, mint != .usdf else {
-            Analytics.groupGateFundingTapped(method: .addCash, gateMint: mint)
-            router.presentAddMoney(.general, source: .chat)
-            return
-        }
-        Analytics.groupGateFundingTapped(method: .buyToken, gateMint: mint)
-        router.push(.buyCurrency(mint))
-    }
-
-    /// Joins, then shows the chat, which loads its transcript once the gate stops
-    /// obscuring it. A refused join leaves the profile as it was, so the failure is said out loud.
-    private func join() {
-        guard !isJoining else { return }
-        isJoining = true
-        // Read before the join, which seats a roster that already counts the viewer.
-        let memberCount = conversation?.rosterSummary.memberCount ?? 0
-        let gated = conversation?.rules?.listener.isEmpty == false
-        Task {
-            defer { isJoining = false }
-            do {
-                try await conversationController.join(conversationID: conversationID)
-                Analytics.groupJoined(error: nil, memberCount: memberCount, gated: gated)
-                showChat()
-            } catch {
-                Analytics.groupJoined(error: error, memberCount: memberCount, gated: gated)
-                let subtitle: String
-                if case ErrorJoinChat.rulesNotSatisfied = error {
-                    subtitle = "You don't meet this chat's requirements yet."
-                } else {
-                    subtitle = "Something went wrong. Please try again."
-                }
-                session.dialogItem = .alert(title: "Couldn't Join Chat", subtitle: subtitle) {
-                    DialogAction.okay(kind: .standard)
-                }
-            }
         }
     }
 

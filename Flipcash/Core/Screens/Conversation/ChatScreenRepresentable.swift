@@ -93,6 +93,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let showsGatePlaceholder: Bool
     /// Display name of the mint the gate's requirement names, once resolved.
     let gateMintName: String?
+    /// How much more the gate's minimum asks the user to hold, when there is a gap to state.
+    let gateShortfall: FiatAmount?
     /// Opens the buy or add-cash flow from the gate panel's CTA.
     let onGateAddFunds: () -> Void
     /// Joins the chat from the gate panel's Join button.
@@ -300,6 +302,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 composer: composer,
                 gate: gate,
                 gateMintName: gateMintName,
+                gateShortfall: gateShortfall,
                 onGateAddFunds: onGateAddFunds,
                 onGateJoin: onGateJoin,
                 isJoiningChat: isJoiningChat,

@@ -196,11 +196,7 @@ final class ConversationController {
         }
         do {
             let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
-            store.apply(.metadataRefresh(conversation))
-            // The server copy, not the store's: the store drops a tombstone preview, and the
-            // database wants the row so the repair below can tell the newest message was deleted.
-            persistConversation(conversation)
-            refreshFeedPreview(for: conversationID)
+            hold(conversation)
             return conversation
         } catch {
             logger.error("Failed to hydrate conversation on demand", metadata: [
@@ -209,6 +205,34 @@ final class ConversationController {
             ])
             ErrorReporting.captureError(error, reason: "Failed to hydrate conversation on demand")
             return nil
+        }
+    }
+
+    /// Holds a conversation fetched elsewhere, so a screen opened on it finds it populated. A
+    /// no-op when the store already has the chat, whose copy is the fresher one.
+    func hold(_ conversation: Conversation) {
+        guard self.conversation(withID: conversation.id) == nil else { return }
+        store.apply(.metadataRefresh(conversation))
+        // The server copy, not the store's: the store drops a tombstone preview, and the
+        // database wants the row so the repair below can tell the newest message was deleted.
+        persistConversation(conversation)
+        refreshFeedPreview(for: conversation.id)
+    }
+
+    /// Each group as the server answers it in full, keyed by id. A featured list's rows omit the
+    /// cover; these carry it. Fetched in parallel, and a failed fetch leaves its group out.
+    func fullConversations(for groups: [Conversation]) async -> [ConversationID: Conversation] {
+        await withTaskGroup(of: Conversation?.self) { taskGroup in
+            for group in groups {
+                taskGroup.addTask { [fetching, owner] in
+                    try? await fetching.getChat(owner: owner, conversationID: group.id)
+                }
+            }
+            var full: [ConversationID: Conversation] = [:]
+            for await conversation in taskGroup {
+                if let conversation { full[conversation.id] = conversation }
+            }
+            return full
         }
     }
 
