@@ -154,6 +154,7 @@ private struct UserProfileContent: View {
                 }
                 .padding(.bottom, 24)
             }
+            .profilePinnedBackdropClearance()
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
             // The blur only belongs once the banner has scrolled up under the bar.
@@ -162,6 +163,7 @@ private struct UserProfileContent: View {
         // On iOS 26 the pinned button joins the bottom scroll edge effect, so content fades under it.
         .scrollEdgeBar(.bottom) {
             pinnedButton
+                .profilePinnedBackdrop()
                 // Toasts rise above the button rather than covering it.
                 .toastClearance(toasts)
         }
@@ -238,7 +240,11 @@ private struct UserProfileContent: View {
 
     private var overflowMenu: some View {
         Menu {
-            ForEach(menuItems, id: \.title) { item in
+            ForEach(Array(menuItems.enumerated()), id: \.element.title) { index, item in
+                // A divider wherever the red entries start or stop, so they sit apart.
+                if index > 0, menuItems[index - 1].isDestructive != item.isDestructive {
+                    Divider()
+                }
                 Button(role: item.isDestructive ? .destructive : nil) {
                     perform(item)
                 } label: {

@@ -73,7 +73,7 @@ final class MessageLiftOverlay: NSObject, UIGestureRecognizerDelegate {
             safeArea: (window.safeAreaInsets.top, window.safeAreaInsets.bottom),
             stripHeight: entries == nil ? nil : ReactionStripView.height,
             stripGap: ReactionStripView.bubbleGap,
-            menuSize: menuActions.map { MessageMenuView.size(rows: $0.count) }
+            menuSize: menuActions.map { MessageMenuView.size(for: $0) }
         )
 
         let scale = layout.bubble.height / home.height

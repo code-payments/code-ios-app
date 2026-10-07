@@ -328,11 +328,14 @@ struct ChatProfileScreen: View {
                     .buttonStyle(.subtle)
                     .disabled(isLeaving)
                     .accessibilityIdentifier("chat-profile-leave")
+                    // A text-only button is a full button tall, so its frame already leaves room
+                    // under the title; let that room overlap the home indicator's inset.
+                    .padding(.bottom, -12)
                 }
             }
             .padding(.horizontal, ProfileHeaderMetrics.inset)
             .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.bottom, isMember ? 0 : 8)
         }
     }
 
@@ -459,32 +462,29 @@ struct ChatProfileScreen: View {
 
     private var overflowMenu: some View {
         Menu {
-            // Invite and Mute are a member's: someone reading a gated preview has no link to hand
-            // out and no viewer state to mute.
+            Button {
+                isShowingE2ee = true
+            } label: {
+                Label("Encryption", systemImage: "lock.open")
+            }
+            // Mute is a member's: someone reading a gated preview has no viewer state to mute.
             if isMember {
-                Button {
-                    openInvite()
-                } label: {
-                    Label("Invite People", systemImage: "person.badge.plus")
-                }
                 Button {
                     isPickingMuteDuration = true
                 } label: {
                     Label("Mute Notifications", systemImage: "bell.slash")
                 }
             }
+            Divider()
             // Outside the membership check: a group you have already left is the one you are most
             // likely to report.
-            Button {
+            Button(role: .destructive) {
                 isReporting = true
             } label: {
-                Label("Report", systemImage: "exclamationmark.bubble")
+                Label("Report", systemImage: "flag")
             }
-            Button {
-                isShowingE2ee = true
-            } label: {
-                Label("Encryption", systemImage: "lock")
-            }
+            // Menu icons follow the app's white tint while the title follows the role.
+            .tint(.red)
         } label: {
             Image.system(.ellipsis)
                 .renderingMode(.template)
