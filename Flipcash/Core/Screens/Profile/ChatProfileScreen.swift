@@ -188,6 +188,7 @@ struct ChatProfileScreen: View {
             // A favorite group can be one the user isn't in, which the feed doesn't hold.
             let conversation = await conversationController.hydratedConversation(withID: conversationID)
             await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
+            await conversationController.fillCoverPicture(for: conversationID)
         }
         // Waits for the conversation to land before asking: a private group's sample is denied.
         .task(id: conversation.map { $0.isPrivate } ) {
