@@ -481,7 +481,7 @@ struct ChatProfileScreen: View {
             Button(role: .destructive) {
                 isReporting = true
             } label: {
-                Label("Report", systemImage: "flag")
+                Label("Report", systemImage: "exclamationmark.bubble")
             }
             // Menu icons follow the app's white tint while the title follows the role.
             .tint(.red)
