@@ -101,6 +101,11 @@ struct UsernameLookupScreen: View {
         .onDisappear { lookupTask?.cancel() }
     }
 
+    /// Where a found handle lands: always the profile, whose Message button opens any DM.
+    static func destination(for userID: UserID) -> AppRouter.Destination {
+        .userProfile(userID, origin: .usernameLookup)
+    }
+
     private func submit() {
         guard buttonState.isNormal else { return }
 
@@ -157,13 +162,7 @@ struct UsernameLookupScreen: View {
                 // that has to run anyway.
                 lookupTask = nil
 
-                // The DM once it exists, the profile until then: the profile is
-                // where the chat starts.
-                let destination = DMRoute.destination(
-                    for: userID,
-                    dmID: sessionContainer.conversationController.tipDMID(withUserID: userID),
-                    origin: .usernameLookup
-                )
+                let destination = Self.destination(for: userID)
 
                 // Measured rather than assumed: this screen is reached through
                 // the New Chat picker today and was reached straight off the
