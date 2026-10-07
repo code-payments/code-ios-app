@@ -73,7 +73,7 @@ struct YouScreen: View {
                         .padding(.top, 19)
 
                         FeaturedGroupsSection(groups: sessionContainer.featuredGroups.groups) {
-                            router.push(.tipConversation($0))
+                            router.push(.chatProfile($0))
                         }
                         .padding(.top, 20)
                     }

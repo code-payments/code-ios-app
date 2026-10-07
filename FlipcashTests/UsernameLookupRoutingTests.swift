@@ -8,28 +8,20 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-/// The username lookup opens the counterpart's profile until a DM with them
-/// exists, and the DM after that.
+/// The username lookup always opens the counterpart's profile, whether or not a DM exists.
 @MainActor
 @Suite("Username lookup routing")
 struct UsernameLookupRoutingTests {
 
     // MARK: - Destination -
 
-    @Test("Without a DM, the lookup lands on the profile, owned by the tips stack, keyed by the user")
-    func destination_withoutDMIsTheProfile() {
+    @Test("The lookup lands on the profile, owned by the tips stack, keyed by the user")
+    func destination_isTheProfile() {
         let userID = UUID()
-        let destination = DMRoute.destination(for: userID, dmID: nil, origin: .usernameLookup)
+        let destination = UsernameLookupScreen.destination(for: userID)
         #expect(destination == .userProfile(userID, origin: .usernameLookup))
         #expect(destination.owningStack == .tips)
         #expect(destination.payload == userID.uuidString)
-    }
-
-    @Test("With a DM, the lookup lands on the chat")
-    func destination_withDMIsTheChat() {
-        let (me, them) = (UUID(), UUID())
-        let dmID = ConversationID.tipDm(between: me, and: them)
-        #expect(DMRoute.destination(for: them, dmID: dmID, origin: .usernameLookup) == .tipConversation(dmID))
     }
 
     // MARK: - Context -
@@ -58,19 +50,14 @@ struct UsernameLookupRoutingTests {
         #expect(router[.tips].count == 2)
     }
 
-    @Test(
-        "Back from a profile or chat opened by handle lands on the chat list",
-        arguments: [false, true]
-    )
-    func backStack_rewriteLeavesOnlyTheDestination(hasDM: Bool) {
+    @Test("Back from a profile opened by handle lands on the chat list")
+    func backStack_rewriteLeavesOnlyTheDestination() {
         let router = AppRouter()
         router.activeTabStack = .tips
         router.push(.newChat)
         router.push(.usernameLookup)
 
-        let them = UUID()
-        let dmID = hasDM ? ConversationID.tipDm(between: UUID(), and: them) : nil
-        let destination = DMRoute.destination(for: them, dmID: dmID, origin: .usernameLookup)
+        let destination = UsernameLookupScreen.destination(for: UUID())
         let depthWithDestination = router[.tips].count + 1
         router.push(destination)
         #expect(router[.tips].count == depthWithDestination)
