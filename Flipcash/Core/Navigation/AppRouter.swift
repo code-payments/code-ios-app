@@ -56,7 +56,13 @@ final class AppRouter {
     /// `presentedSheet` when nested sheets are present.
     var rootSheet: SheetPresentation? { presentedSheets.first }
 
-    private var paths: [Stack: NavigationPath] = [:]
+    private var paths: [Stack: NavigationPath] = [:] {
+        didSet { lastPush = nil }
+    }
+
+    /// The destination `push` last appended, and onto which stack. Any other change
+    /// to `paths` clears it, so it names the top of that stack whenever it is set.
+    @ObservationIgnored private var lastPush: (stack: Stack, destination: Destination)?
 
     /// The stack owned by the currently-selected tab. A tab is the active
     /// surface without being a *sheet*, so `presentedSheet` is nil while a tab
@@ -137,6 +143,9 @@ final class AppRouter {
     /// stack would silently corrupt that stack's path until the user later
     /// surfaces it.
     ///
+    /// Pushing the destination already on top of the stack is a no-op, so a
+    /// repeated tap can't stack a second copy of the same screen.
+    ///
     /// Cross-stack navigation is `navigate(to:)`'s job, not `push`'s.
     func push(_ destination: Destination) {
         guard let stack = topmostStack else {
@@ -145,7 +154,14 @@ final class AppRouter {
             ])
             return
         }
+        // Repeated taps land before the push transition finishes; each would stack
+        // another copy of the same screen.
+        if let lastPush, lastPush.stack == stack, lastPush.destination == destination {
+            logger.info("Duplicate push dropped", metadata: navigationMetadata(stack: stack, destination: destination))
+            return
+        }
         paths[stack, default: NavigationPath()].append(destination)
+        lastPush = (stack, destination)
         logger.info("Push", metadata: navigationMetadata(stack: stack, destination: destination))
     }
 
