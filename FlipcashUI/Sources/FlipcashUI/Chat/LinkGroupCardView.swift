@@ -16,8 +16,8 @@ import FlipcashCore
 /// Built from the chat's public record only. The roster is private to members whatever the group's
 /// mode, so there are no member avatars here and no names.
 ///
-/// SwiftUI content hosted in a UIKit view, for the same reason as ``ChatGroupCardCell``: the picture
-/// is the same `ContactAvatarView` the chat's own head card draws. Only the button takes a tap; it
+/// SwiftUI content hosted in a UIKit view, so the picture is the same `ContactAvatarView` the rest of
+/// the app draws. Only the button takes a tap; it
 /// routes through the chat link, whose screen offers the join or the buy itself.
 final class LinkGroupCardView: UIView {
 
@@ -144,37 +144,41 @@ final class LinkGroupCardView: UIView {
     }
 }
 
-/// The card's body, per the group head card (nodes 10125:19157, 10127:118280, 10127:116723): the
-/// same radius, ring, avatar ring, title and requirement styling, with a tinted band across the top.
-///
-/// Shared by two hosts rather than forked between them: ``LinkGroupCardView`` draws it wherever a
-/// group's invite link appears in a transcript (CTA "View", into the group), and
-/// ``ChatGroupCardCell``'s ``GroupCardView`` draws it at the head of a group's own transcript (CTA
-/// "Invite People" for a member, into the invite sheet; no button for anyone else). The CTA's label
-/// and action are the only things that differ between the two, so they are the only things passed in.
+/// The metrics both link cards share, from the group card's design (node 10125:19157).
+enum LinkCardMetrics {
+    static let radius: CGFloat = 12
+    static let borderOpacity: Double = 0.1
+    static let horizontalPadding: CGFloat = 12
+    static let titleGap: CGFloat = 13
+    static let requirementGap: CGFloat = 11
+}
+
+/// The card's body (nodes 10125:19157, 10127:118280, 10127:116723): picture, title, member count and
+/// requirement under a tinted band, with a button into the group. ``LinkGroupCardView`` draws it
+/// wherever a group's invite link appears in a transcript.
 struct LinkGroupCardContent: View {
 
     let state: LinkCard.Group.State
     /// The card's outline: its place in a bubble run inside a transcript, every corner at the head
     /// card's radius on its own.
     var cornerRadii = RectangleCornerRadii(
-        topLeading: GroupCardView.Layout.radius,
-        bottomLeading: GroupCardView.Layout.radius,
-        bottomTrailing: GroupCardView.Layout.radius,
-        topTrailing: GroupCardView.Layout.radius
+        topLeading: LinkCardMetrics.radius,
+        bottomLeading: LinkCardMetrics.radius,
+        bottomTrailing: LinkCardMetrics.radius,
+        topTrailing: LinkCardMetrics.radius
     )
-    /// The button's label — "View" from a transcript link, "Invite People" from a group's own head
-    /// card. Nil leaves the button out of a resolved card, which is then as tall as its content.
+    /// The button's label. Nil leaves the button out of a resolved card, which is then as tall as
+    /// its content.
     var ctaTitle: String? = Copy.view
     /// Called when the button is tapped.
     var onAction: () -> Void = {}
     /// The button's UI-test handle, which differs by host.
     var ctaAccessibilityIdentifier: String = "group-card-cta"
-    /// Taps the picture/title band open, same as the head card's own chevron used to. Nil leaves
-    /// the band inert, as it is inline in a transcript, where only the button leads anywhere.
+    /// Taps the picture/title band open. Nil leaves the band inert, as it is inline in a
+    /// transcript, where only the button leads anywhere.
     var onTapCard: (() -> Void)? = nil
 
-    /// Values this card adds to the head card's ``GroupCardView/Layout``. Named so Android can copy
+    /// Values this card adds to ``LinkCardMetrics``. Named so Android can copy
     /// them one for one.
     enum Layout {
         /// The tinted band across the top of the card.
@@ -193,8 +197,6 @@ struct LinkGroupCardContent: View {
     enum Copy {
         /// A group's invite link, met in a transcript.
         static let view = "View"
-        /// A group's own head card, for a member.
-        static let invite = "Invite People"
         static let unavailable = "Group Unavailable"
     }
 
@@ -204,7 +206,7 @@ struct LinkGroupCardContent: View {
 
             if case .resolved(let group) = state {
                 text(for: group)
-                    .padding(.horizontal, GroupCardView.Layout.horizontalPadding)
+                    .padding(.horizontal, LinkCardMetrics.horizontalPadding)
                     // Measured at its ideal height whatever the row proposes: under a short
                     // proposal `Text` drops the requirement's second line for an ellipsis.
                     .fixedSize(horizontal: false, vertical: true)
@@ -214,17 +216,17 @@ struct LinkGroupCardContent: View {
                 Spacer(minLength: Layout.buttonGap)
 
                 button
-                    .padding(.horizontal, GroupCardView.Layout.horizontalPadding)
-                    .padding(.bottom, GroupCardView.Layout.horizontalPadding)
+                    .padding(.horizontal, LinkCardMetrics.horizontalPadding)
+                    .padding(.bottom, LinkCardMetrics.horizontalPadding)
             } else {
-                Spacer(minLength: GroupCardView.Layout.horizontalPadding)
+                Spacer(minLength: LinkCardMetrics.horizontalPadding)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous))
         .overlay {
             UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous)
-                .strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity))
+                .strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity))
         }
     }
 
@@ -234,7 +236,7 @@ struct LinkGroupCardContent: View {
                 .font(.appTextLarge)
                 .foregroundStyle(Color.textMain)
                 .lineLimit(1)
-                .padding(.top, GroupCardView.Layout.titleGap)
+                .padding(.top, LinkCardMetrics.titleGap)
 
             Text(group.memberCount)
                 .font(.default(size: 13, weight: .medium))
@@ -246,7 +248,7 @@ struct LinkGroupCardContent: View {
                     .font(.default(size: 15, weight: .medium))
                     .foregroundStyle(Color.textMain.opacity(0.5))
                     .multilineTextAlignment(.center)
-                    .padding(.top, GroupCardView.Layout.requirementGap)
+                    .padding(.top, LinkCardMetrics.requirementGap)
             }
         }
     }
@@ -267,7 +269,7 @@ struct LinkGroupCardContent: View {
                     blurhash: group.blurHash,
                     size: Layout.avatar
                 )
-                .overlay { Circle().strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity)) }
+                .overlay { Circle().strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity)) }
                 // Centred on the band's bottom edge.
                 .padding(.top, Layout.bandHeight - Layout.avatar / 2)
             }

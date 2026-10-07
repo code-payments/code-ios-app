@@ -27,7 +27,7 @@ public final class ChatScrollBenchmarkViewController: UIViewController {
         /// How many message rows the window holds.
         public var messageCount: Int
         /// How many distinct authors the rows round-robin over; 0 builds a DM-shaped window with no
-        /// author attribution and no head card.
+        /// author attribution.
         public var authorCount: Int
         /// Points per second the scripted scroll travels at. 2000 is a hard flick.
         public var velocity: CGFloat
@@ -252,14 +252,7 @@ public final class ChatScrollBenchmarkViewController: UIViewController {
         let authors = self.authors(count: configuration.authorCount)
 
         var items: [ChatItem] = []
-        items.reserveCapacity(total + 1)
-        if !authors.isEmpty {
-            items.append(.groupCard(ChatGroupCard(
-                title: "Flipcash Staff",
-                avatarID: "benchmark-group",
-                requirement: "Minimum Balance: $1.00 of Jeffy"
-            )))
-        }
+        items.reserveCapacity(total)
 
         // The harness builds messages directly rather than through `ChatItem.from`, so it has to
         // reach the same two conclusions the mapper does: which rows render bare, and where that

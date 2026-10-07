@@ -42,15 +42,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Where a link card looks its link up — see ``LinkCardFeed``. Container-scoped, so it outlives
     /// both this view and the rows that subscribe to it.
     let linkCardSource: any LinkCardSource
-    /// Fired when the user taps the profile card's call to action. The owner opens the
-    /// counterpart's contact card (or the add-contact sheet), same as tapping the nav title.
-    let onContactAction: () -> Void
-    /// Fired when the user taps the transcript's head card — the counterpart's in a tip DM, the
-    /// chat's own in a group; nil disables the card tap.
-    let onProfileTap: (() -> Void)?
-    /// Fired when the user taps the group head card's "Invite People". The card draws the
-    /// button only when it both asks for it and this is set.
-    let onGroupInvite: (() -> Void)?
     /// Fired when the user taps the "Encrypted" marker above a DM's first encrypted message.
     let onEncryptionMarkerTap: () -> Void
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
@@ -166,9 +157,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.pendingMediaProgress = { [conversationController] id in
             conversationController.pendingMediaProgress(forMessageID: id)
         }
-        screen.onContactAction = onContactAction
-        screen.onProfileTap = onProfileTap
-        screen.onGroupInvite = onGroupInvite
         screen.onEncryptionMarkerTap = onEncryptionMarkerTap
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
@@ -215,9 +203,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onMediaTap = onMediaTap
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
-        screen.onContactAction = onContactAction
-        screen.onProfileTap = onProfileTap
-        screen.onGroupInvite = onGroupInvite
         screen.onEncryptionMarkerTap = onEncryptionMarkerTap
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)

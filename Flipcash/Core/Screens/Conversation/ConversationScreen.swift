@@ -71,11 +71,6 @@ struct ConversationScreen: View {
     /// Whether a `JoinChat` is in flight, so the gate panel's button stops taking taps. The join has
     /// no other UI state — it either seats membership, which re-resolves the gate, or it alerts.
     @State private var isJoiningChat = false
-    /// Memoizes the head-carded transcript — see ``TranscriptHead``.
-    @State private var transcriptHead = TranscriptHead()
-    /// Whether the invite sheet is up. A link is the only way into a group, so a member's head card
-    /// hands one out.
-    @State private var isInviting = false
     /// Whether the encryption explainer opened from the transcript's marker is showing.
     @State private var isShowingEncryptionInfo = false
     @State private var messageReport: MessageReportRequest?
@@ -220,9 +215,7 @@ struct ConversationScreen: View {
         return conversationController.conversation(withID: conversationID) == nil
     }
 
-    /// The rule verdicts behind ``gate``, kept separately because the head card states the chat's
-    /// advertised listener rule (``ConversationGate/headline``) whether or not the viewer is short
-    /// of it, and the presentation only ever carries something unmet.
+    /// The rule verdicts behind ``gate``.
     private var gateVerdicts: ConversationGate {
         guard let conversationID,
               let conversation = conversationController.conversation(withID: conversationID)
@@ -302,45 +295,6 @@ struct ConversationScreen: View {
 
     /// The transcript's rows, with the group's own card in front of them.
     ///
-    /// The card is assembled here rather than in the mapper for the reason ``authorAvatars`` is:
-    /// its picture bytes would otherwise ride in `ConversationLoadCoordinator.Inputs`, which is
-    /// byte-compared on every observation tick, and into the shared app-group container the mapped
-    /// rows are cached to in the clear. Reading the avatar store from `body` is also what makes a
-    /// landing picture redraw the card.
-    private var transcriptItems: [ChatItem] {
-        transcriptHead.prepending(groupCard, to: coordinator?.items ?? [])
-    }
-
-    /// The group's card at the head of its transcript, or nil for a DM and once the history is too
-    /// long to head — the same rule the counterpart's profile card follows.
-    private var groupCard: ChatGroupCard? {
-        guard let group = groupConversation, coordinator?.headsHistory == true else { return nil }
-        return ChatGroupCard(
-            title: conversationController.displayName(for: group),
-            avatarID: group.id.description,
-            memberCount: group.rosterSummary.peopleCount,
-            imageData: groupAvatarSubject.flatMap { sessionContainer.profileAvatars.data(for: $0) },
-            blurhash: group.picture?.thumbnailBlurhash,
-            requirement: groupCardRequirement,
-            showsInvite: showsGroupInvite
-        )
-    }
-
-    /// Whether the head card offers the invite link: any group the viewer belongs to, however many
-    /// have joined. A viewer who hasn't joined has no link to hand out, so their card has no button.
-    private var showsGroupInvite: Bool {
-        guard let group = groupConversation else { return false }
-        return conversationController.isMember(of: group)
-    }
-
-    /// The chat's entry rule as the card states it (node 10125:19164), or nil when the chat states
-    /// none. It states the rule whether or not the viewer satisfies it, so it reads the chat's
-    /// advertised listener rule rather than anything the gate found unmet. The line is broken after
-    /// the label rather than wherever the card's width falls, as the design breaks it.
-    private var groupCardRequirement: String? {
-        groupRequirementLine(gateVerdicts.headline, mintName: headlineMint.flatMap { mintNames[$0] })
-    }
-
     /// The mint the gate's requirement names, when it names one. A requirement with no mint applies
     /// across every holding, so there is no single token to buy.
     private var gateMint: PublicKey? {
@@ -352,20 +306,9 @@ struct ConversationScreen: View {
         }
     }
 
-    /// The mint the head card's line names. Not always ``gateMint``: a member reads an `.open`
-    /// chat, which names nothing to satisfy, and the card still states the rule the chat runs on.
-    private var headlineMint: PublicKey? {
-        gateVerdicts.headline.flatMap(Self.mint(of:))
-    }
-
-    /// Every mint the gate's copy has to name, deduplicated — at most one per requirement, and the
-    /// same one in a chat that gates on a single token.
+    /// The mints the gate's copy has to name: the requirement's, when it names one.
     private var gateMints: [PublicKey] {
-        var mints: [PublicKey] = []
-        for mint in [gateMint, headlineMint].compactMap({ $0 }) where !mints.contains(mint) {
-            mints.append(mint)
-        }
-        return mints
+        gateMint.map { [$0] } ?? []
     }
 
     /// Ticker for the requirement the panel names, once its metadata lands.
@@ -399,7 +342,7 @@ struct ConversationScreen: View {
         pagesHistory: Bool
     ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
-            items: transcriptItems,
+            items: (coordinator?.items ?? []),
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
@@ -411,9 +354,6 @@ struct ConversationScreen: View {
             ownProfile: ownProfile,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
-            onContactAction: openContactCard,
-            onProfileTap: profileTapAction,
-            onGroupInvite: openGroupInvite,
             onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
@@ -733,13 +673,6 @@ struct ConversationScreen: View {
         .sheet(isPresented: $isShowingEncryptionInfo) {
             E2eeLearnMoreSheet(kind: .dm, isPresented: $isShowingEncryptionInfo)
         }
-        .fullScreenCover(isPresented: $isInviting) {
-            if let conversationID {
-                ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
-                    router.push(.tipConversation(chatID))
-                }
-            }
-        }
         .fullScreenCover(item: $messageReport) { report in
             NavigationStack {
                 ReportFlowScreen(
@@ -956,7 +889,7 @@ struct ConversationScreen: View {
     /// The transcript's own `ChatMessage` for a row, by its stable id — what the reaction handlers
     /// need (pills, `canReact`), as opposed to `handleMessageAction`'s `ConversationMessage` lookup.
     private func chatMessage(withStableID stableID: String) -> ChatMessage? {
-        for item in transcriptItems {
+        for item in (coordinator?.items ?? []) {
             if case .message(let message) = item, message.id == stableID {
                 return message
             }
@@ -1184,15 +1117,6 @@ struct ConversationScreen: View {
         )
     }
 
-    /// The head card's invite button.
-    private func openGroupInvite() {
-        Analytics.groupInviteSheetOpened(
-            source: .chat,
-            memberCount: groupConversation?.rosterSummary.memberCount ?? 0
-        )
-        isInviting = true
-    }
-
     /// Moves the READ pointer past a message the transcript reports on screen.
     private func markSeen(_ messageID: MessageID) {
         guard let conversationID else { return }
@@ -1373,72 +1297,11 @@ struct ConversationScreen: View {
                 conversationID: id,
                 controller: conversationController,
                 session: session,
-                knownAuthors: sessionContainer.knownAuthors,
-                // `profileAvatars` is captured directly so the coordinator retains
-                // one small store, not the whole session container.
-                profileCard: { [context, contactSyncController, conversationController, session, profileAvatars = sessionContainer.profileAvatars] in
-                    // A group cards itself — the address book has nothing to say about a chat, and
-                    // the unknown-contact fallback below would flag one as an unknown person.
-                    guard conversationController.conversation(withID: id)?.type != .group else {
-                        return nil
-                    }
-                    return Self.profileCard(
-                        context: context,
-                        conversationID: id,
-                        directory: contactSyncController.resolvedContacts.onFlipcash,
-                        controller: conversationController,
-                        profileAvatars: profileAvatars
-                    )
-                }
+                knownAuthors: sessionContainer.knownAuthors
             )
         }
     }
 
-    /// The card relationship for a tip DM. A tip DM has no address-book
-    /// relationship to fall back on, so a counterpart who hasn't claimed a
-    /// handle keeps the name-only card they had before handles existed.
-    static func tipDMCounterpart(_ member: ConversationMember?) -> ChatProfileCard.Counterpart {
-        guard let username = member?.username else { return .none }
-        return .handle(username)
-    }
-
-    /// The transcript's profile card for the counterpart, resolved live from the directory the
-    /// same way the nav title is: the synced contact when there is one, the profile-only tip
-    /// counterpart for a tip DM, otherwise the counterpart's formatted number flagged as an
-    /// unknown contact.
-    private static func profileCard(
-        context: ConversationContext,
-        conversationID: ConversationID,
-        directory: [ResolvedContact],
-        controller: ConversationController,
-        profileAvatars: ProfileAvatarStore
-    ) -> ChatProfileCard {
-        if let conversation = controller.conversation(withID: conversationID),
-           conversation.type == .tipDm {
-            let counterpart = conversation.counterpart(excluding: controller.selfUserID)
-            return ChatProfileCard(
-                name: controller.displayName(for: conversation),
-                avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
-                imageData: profileAvatars.data(for: counterpart?.userID),
-                blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
-                counterpart: Self.tipDMCounterpart(counterpart)
-            )
-        }
-        if let contact = context.resolvedContact(in: directory) {
-            return ChatProfileCard(
-                name: contact.displayName,
-                avatarID: contact.contactId,
-                imageData: contact.imageData,
-                counterpart: .contact(phone: contact.nationalPhone)
-            )
-        }
-        return ChatProfileCard(
-            name: controller.displayName(forConversationID: conversationID),
-            avatarID: conversationID.description,
-            imageData: nil,
-            counterpart: .unknown
-        )
-    }
 
 }
 
@@ -1537,29 +1400,3 @@ private struct ConversationTitleLabel: View {
     }
 }
 
-/// Keeps one array for a head card sitting above an unchanged transcript.
-///
-/// A DM hands the loader's own `[ChatItem]` straight through, so the transcript's `newItems != items`
-/// check settles on buffer identity and costs nothing. Prepending a card builds a fresh array on every
-/// body pass, which defeats that check and deep-compares every row instead — on each of the many body
-/// passes a push, a pop or an opening reply strip causes. Returning the previous array whenever both
-/// inputs are unchanged puts the group back on the same O(1) path.
-///
-/// A reference type held in `@State`: it is read during `body` and must not invalidate the view when
-/// it remembers something.
-@MainActor private final class TranscriptHead {
-
-    private var lastCard: ChatGroupCard?
-    private var lastTail: [ChatItem] = []
-    private var composed: [ChatItem] = []
-
-    /// `tail` with `card` in front of it, or `tail` itself when there is no card.
-    func prepending(_ card: ChatGroupCard?, to tail: [ChatItem]) -> [ChatItem] {
-        guard let card else { return tail }
-        if card == lastCard, tail == lastTail { return composed }
-        lastCard = card
-        lastTail = tail
-        composed = [.groupCard(card)] + tail
-        return composed
-    }
-}

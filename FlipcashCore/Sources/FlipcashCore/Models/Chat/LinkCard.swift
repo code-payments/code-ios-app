@@ -236,7 +236,7 @@ extension LinkCard {
             public let imageData: Data?
             /// The chat picture's BlurHash: the avatar's preview and the band's tint.
             public let blurHash: String?
-            /// The entry rule as the chat's own head card states it, or nil when it states none.
+            /// The chat's entry rule as a line of copy, or nil when it states none.
             public let requirement: String?
 
             public init(

@@ -14,7 +14,7 @@ import FlipcashUI
 /// picture and description, who is chatting, what it takes to join and to chat, and one pinned
 /// button that joins, buys in, or opens the chat.
 ///
-/// Reached by tapping the chat's head card or its navigation title, the way a DM's title opens the
+/// Reached by tapping the chat's navigation title, the way a DM's title opens the
 /// counterpart's profile. The actions a member has over the group sit in the ⋯ menu, and Leave Chat
 /// sits under the pinned button.
 struct ChatProfileScreen: View {
@@ -372,7 +372,7 @@ struct ChatProfileScreen: View {
         case .join:
             join()
         case .openChat:
-            // The only way here is the chat's own head card or title, so the chat is underneath.
+            // Reached from the chat's title, so the chat is underneath.
             router.popTopmost()
         case .buyToJoin(_, let mint), .buyToChat(_, let mint):
             buy(mint)
