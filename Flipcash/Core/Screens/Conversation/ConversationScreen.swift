@@ -151,7 +151,7 @@ struct ConversationScreen: View {
                     memberCount: group.rosterSummary.memberCount,
                     isMember: conversationController.isMember(of: group)
                 )
-                router.push(.chatProfile(group.id))
+                router.push(.chatProfile(group.id, origin: .chat))
             }
         }
         guard let userID = tipCounterpart?.userID else { return nil }

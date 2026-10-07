@@ -20,6 +20,7 @@ import FlipcashUI
 struct ChatProfileScreen: View {
 
     let conversationID: ConversationID
+    let origin: ChatProfileOrigin
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
@@ -374,10 +375,19 @@ struct ChatProfileScreen: View {
         case .join:
             join()
         case .openChat:
-            // The only way here is the chat's own head card or title, so the chat is underneath.
-            router.popTopmost()
+            showChat()
         case .buyToJoin(_, let mint), .buyToChat(_, let mint):
             buy(mint)
+        }
+    }
+
+    /// Returns to the chat when it sits underneath, otherwise pushes it over this profile.
+    private func showChat() {
+        switch origin {
+        case .chat:
+            router.popTopmost()
+        case .featuredGroup:
+            router.push(.tipConversation(conversationID))
         }
     }
 
@@ -393,7 +403,7 @@ struct ChatProfileScreen: View {
         router.push(.buyCurrency(mint))
     }
 
-    /// Joins, then returns to the chat underneath, which loads its transcript once the gate stops
+    /// Joins, then shows the chat, which loads its transcript once the gate stops
     /// obscuring it. A refused join leaves the profile as it was, so the failure is said out loud.
     private func join() {
         guard !isJoining else { return }
@@ -406,7 +416,7 @@ struct ChatProfileScreen: View {
             do {
                 try await conversationController.join(conversationID: conversationID)
                 Analytics.groupJoined(error: nil, memberCount: memberCount, gated: gated)
-                router.popTopmost()
+                showChat()
             } catch {
                 Analytics.groupJoined(error: error, memberCount: memberCount, gated: gated)
                 let subtitle: String
@@ -512,4 +522,12 @@ struct ChatProfileScreen: View {
             ErrorReporting.captureError(error, reason: "Failed to leave group")
         }
     }
+}
+
+/// Where a group's profile was opened from.
+nonisolated enum ChatProfileOrigin: Hashable {
+    /// The group chat's own navigation title, so the chat sits underneath.
+    case chat
+    /// A favorite group on the You tab or someone's profile, with no chat underneath.
+    case featuredGroup
 }

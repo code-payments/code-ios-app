@@ -147,7 +147,7 @@ private struct UserProfileContent: View {
                         .padding(.top, 20)
 
                     FeaturedGroupsSection(groups: model.featuredGroups) {
-                        router.push(.chatProfile($0))
+                        router.push(.chatProfile($0, origin: .featuredGroup))
                     }
                     .padding(.top, 20)
                 }
