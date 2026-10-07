@@ -157,6 +157,37 @@ struct ConversationGateTests {
         #expect(ConversationGatePresentation.readOnly(.unsupported).obscuresTranscript == false)
     }
 
+    @Test("An open chat lets a cash link in it be collected")
+    func cashCollectionBlock_open() {
+        #expect(ConversationGatePresentation.open.cashCollectionBlock(allowsReactions: true) == nil)
+    }
+
+    @Test("A non-member is told to join before collecting")
+    func cashCollectionBlock_join() {
+        #expect(ConversationGatePresentation.join(nil).cashCollectionBlock(allowsReactions: false) == .notMember)
+        #expect(ConversationGatePresentation.join(.staff).cashCollectionBlock(allowsReactions: false) == .notMember)
+    }
+
+    @Test("A broadcast chat's audience still collects what the creator posts")
+    func cashCollectionBlock_creatorOnly_collects() {
+        let gate = conversationGate(session: StubHoldings(), rules: ConversationRules(speaker: [.creator]), creator: UUID(), rates: noRates)
+        #expect(gate.allowsReactions)
+        #expect(conversationGatePresentation(gate, isMember: true).cashCollectionBlock(allowsReactions: gate.allowsReactions) == nil)
+    }
+
+    @Test("A member who can't chat can't collect", arguments: [ConversationSpeakerRule.never, .staff])
+    func cashCollectionBlock_cannotChat(rule: ConversationSpeakerRule) {
+        let gate = conversationGate(session: StubHoldings(), rules: ConversationRules(speaker: [rule]), rates: noRates)
+        #expect(!gate.allowsReactions)
+        #expect(conversationGatePresentation(gate, isMember: true).cashCollectionBlock(allowsReactions: gate.allowsReactions) == .cannotChat)
+    }
+
+    @Test("Unmet or unknown listener rules refuse a collect")
+    func cashCollectionBlock_blockedOrUndetermined() {
+        #expect(ConversationGatePresentation.blocked(.staff).cashCollectionBlock(allowsReactions: false) == .cannotChat)
+        #expect(ConversationGatePresentation.undetermined.cashCollectionBlock(allowsReactions: true) == .cannotChat)
+    }
+
     @Test("A staff member satisfies a staff-only chat")
     func staffRule_staffUser_satisfied() {
         let rules = ConversationRules(listener: [.staff])
