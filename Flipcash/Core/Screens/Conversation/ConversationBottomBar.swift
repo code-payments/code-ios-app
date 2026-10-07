@@ -360,10 +360,21 @@ struct ConversationBottomBar: View {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .composerGlass(in: field, id: "field", namespace: composerGlassNamespace)
-            if leadingControl == .cash, cashIsShown {
+            if leadingControl == .cash {
+                // Kept mounted and tucked into the field's trailing end while hidden. Removed, it
+                // stood past the join distance and dissolved in place under the widening field.
+                let side = BarMetrics.contentHeight
+                let tucked = side * 0.4
                 Color.clear
-                    .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
-                    .composerGlass(in: Circle(), id: "cash", namespace: composerGlassNamespace)
+                    .frame(width: cashIsShown ? side : 0, height: side)
+                    .padding(.leading, cashIsShown ? 0 : -Self.leadingSpacing)
+                    .overlay(alignment: .trailing) {
+                        Color.clear
+                            .frame(width: cashIsShown ? side : tucked, height: cashIsShown ? side : tucked)
+                            .composerGlass(in: Circle(), id: "cash", namespace: composerGlassNamespace)
+                            // Centred in the field's rounded end, clear of its edge.
+                            .padding(.trailing, cashIsShown ? 0 : (side - tucked) / 2)
+                    }
             }
         }
         if #available(iOS 26, *) {
