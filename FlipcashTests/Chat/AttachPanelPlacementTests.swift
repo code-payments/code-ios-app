@@ -177,7 +177,7 @@ struct AttachPanelPlacementTests {
         #expect(abs(host.barHeight - expected) < 1, "Bar is \(host.barHeight) tall, expected \(expected)")
     }
 
-    @Test("The menu's leading edge is the composer field's, past the compact margin and the `$` beside it")
+    @Test("The menu's leading edge is the composer field's, past the compact margin")
     func menu_linesUpWithField() async throws {
         let host = try AttachPanelHost()
         defer { host.tearDown() }
@@ -185,7 +185,7 @@ struct AttachPanelPlacementTests {
 
         let plus = host.model.overKeyboard.plusFrame
         let menu = AttachSurfaceLayout.menuRect(plus: plus, size: CGSize(width: 280, height: 200), placement: .standsOnPlus)
-        let field = BarMetrics.compactInset + BarMetrics.contentHeight + ConversationBottomBar.leadingSpacing
+        let field = BarMetrics.compactInset
         #expect(abs(menu.minX - field) < 1, "Menu starts at \(menu.minX), the field at \(field)")
     }
 
