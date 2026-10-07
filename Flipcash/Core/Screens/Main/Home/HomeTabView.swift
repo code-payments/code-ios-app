@@ -371,12 +371,10 @@ extension HomeTab {
 
 /// The Chat tab — the tip conversations surface. Mirrors `TipsSheetRoot` (the
 /// `.tips` sheet) as embedded tab chrome: the same `NavigationStack` bound to
-/// `router[.tips]` and the same profile-creation state, minus the sheet's close
-/// button.
+/// `router[.tips]`, minus the sheet's close button.
 private struct ChatTab: View {
 
     @Environment(AppRouter.self) private var router
-    @State private var creationState = ProfileCreationState()
 
     var body: some View {
         @Bindable var router = router
@@ -384,7 +382,6 @@ private struct ChatTab: View {
             TipsScreen(isEmbedded: true)
                 .appRouterDestinations()
         }
-        .environment(creationState)
     }
 }
 

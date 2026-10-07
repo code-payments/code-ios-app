@@ -10,9 +10,9 @@ private let logger = Logger(label: "flipcash.profile-creation")
 
 /// Drives profile creation across the name and photo screens.
 ///
-/// Owned by the Tips sheet root so the name entered on one screen survives the
-/// push to the next, and so a resumable upload outlives the screen that
-/// started it.
+/// Owned by the session container, so every stack that can push the name and
+/// photo screens finds it, the name entered on one screen survives the push to
+/// the next, and a resumable upload outlives the screen that started it.
 @Observable
 final class ProfileCreationState {
 

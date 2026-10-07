@@ -532,6 +532,8 @@ final class SessionContainer {
     let profileAvatars: ProfileAvatarStore
     /// Identities for chat senders the chat's own roster leaves out — see ``KnownAuthorDirectory``.
     let knownAuthors: KnownAuthorDirectory
+    /// The in-progress profile setup, shared by every stack that can push its screens.
+    let profileCreationState = ProfileCreationState()
     /// Fills cash link cards in for chat transcripts. Container-scoped so a link shared into two
     /// conversations is looked up once, and holding a `GiftCardAccountReading` rather than the
     /// `Client` it was built from — rendering a card must never reach a path that claims it.
@@ -789,6 +791,7 @@ final class SessionContainer {
             .environment(onrampDeeplinkInbox)
             .environment(conversationController)
             .environment(blocklistController)
+            .environment(profileCreationState)
     }
 }
 

@@ -102,14 +102,11 @@ private struct BuySheetRoot: View {
 }
 
 /// Root view for the `.tips` sheet — owns the `NavigationStack` bound to
-/// `router[.tips]` and the profile-creation state.
-///
-/// The state lives here, not on a screen: the name entered on one push has to
-/// survive the next, and an upload must outlive the screen that started it.
+/// `router[.tips]`.
 struct TipsSheetRoot: View {
 
     @Environment(AppRouter.self) private var router
-    @State private var creationState = ProfileCreationState()
+    @Environment(ProfileCreationState.self) private var creationState
 
     var body: some View {
         @Bindable var router = router
@@ -123,7 +120,6 @@ struct TipsSheetRoot: View {
                     }
                 }
         }
-        .environment(creationState)
         // A rejected blob is terminal and a reserved upload is signed against
         // one byte count, so dismissing mid-upload loses real work.
         .interactiveDismissDisabled(creationState.isUploading)
