@@ -9,9 +9,9 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// What the chat's mute currently is, drawn in the action row of both profile headers —
-/// "Muted until 5:56 PM" for a timed mute, plain "Muted" for an indefinite one, and nothing at all
-/// while the chat is audible.
+/// What the chat's mute currently is, drawn on the cover of both profile headers —
+/// "Muted until 5:56 PM" for a timed mute, plain "Muted" for an indefinite one or a timed one too
+/// wide for the space, and nothing at all while the chat is audible.
 ///
 /// Stating the deadline is what makes a timed mute trustworthy: without it a timed mute can't be
 /// told apart from an indefinite one, and the user has no way to know when the chat comes back.
@@ -74,16 +74,19 @@ struct ChatMuteStatusLabel: View {
             }
 
             if let text {
-                chipLabel(text)
-                    .accessibilityIdentifier("chat-mute-status")
-                    // Replaced rather than resized. A chip that keeps its identity across a text
-                    // change interpolates its width, and the glyphs inside don't interpolate with
-                    // it: they are drawn at the new string's size against a frame still growing
-                    // from the old one's, so the label either spills out of the capsule or slides
-                    // sideways into place. Keying identity on the string makes every change an
-                    // insert and a remove, which has no width to interpolate.
-                    .transition(.scale(scale: 0.85).combined(with: .opacity))
-                    .id(text)
+                ViewThatFits(in: .horizontal) {
+                    chipLabel(text)
+                    chipLabel("Muted")
+                }
+                .accessibilityIdentifier("chat-mute-status")
+                // Replaced rather than resized. A chip that keeps its identity across a text
+                // change interpolates its width, and the glyphs inside don't interpolate with
+                // it: they are drawn at the new string's size against a frame still growing
+                // from the old one's, so the label either spills out of the capsule or slides
+                // sideways into place. Keying identity on the string makes every change an
+                // insert and a remove, which has no width to interpolate.
+                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                .id(text)
             }
         }
         .padding(.top, reservesSpace ? 3 : 0)
@@ -109,5 +112,6 @@ struct ChatMuteStatusLabel: View {
 
     private func chipLabel(_ string: String) -> some View {
         ProfileStatusChip(systemImage: "bell.slash", text: string, tint: .warning, fill: .warningSecondary)
+            .lineLimit(1)
     }
 }

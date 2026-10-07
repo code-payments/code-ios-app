@@ -23,7 +23,7 @@ enum ProfileHeaderMetrics {
 ///
 /// The caller lets the view run under the status bar. A nil `title` leaves the text block out,
 /// for a profile that has not named itself yet.
-struct ProfileHeaderView<Avatar: View, BannerControls: View, RowActions: View, UnderSubtitle: View>: View {
+struct ProfileHeaderView<Avatar: View, BannerControls: View, CoverAccessory: View, RowActions: View, UnderSubtitle: View>: View {
 
     let cover: ProfileCover
     let title: String?
@@ -32,6 +32,9 @@ struct ProfileHeaderView<Avatar: View, BannerControls: View, RowActions: View, U
     /// Drawn at ``ProfileHeaderMetrics/avatarSize``; the header adds the ring and the overlap.
     @ViewBuilder let avatar: () -> Avatar
     @ViewBuilder let bannerControls: () -> BannerControls
+    /// Sits on the cover's bottom edge beside the avatar. The cover is a fixed height, so content
+    /// that arrives late, such as a status chip, never moves the rest of the header.
+    @ViewBuilder let coverAccessory: () -> CoverAccessory
     @ViewBuilder let rowActions: () -> RowActions
     @ViewBuilder let underSubtitle: () -> UnderSubtitle
 
@@ -41,6 +44,15 @@ struct ProfileHeaderView<Avatar: View, BannerControls: View, RowActions: View, U
                 cover: cover,
                 controls: bannerControls
             )
+            .overlay(alignment: .bottomLeading) {
+                HStack(spacing: 0) {
+                    coverAccessory()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, ProfileHeaderMetrics.inset + ProfileHeaderMetrics.avatarSize + 12)
+                .padding(.trailing, ProfileHeaderMetrics.inset)
+                .padding(.bottom, 8)
+            }
 
             HStack(alignment: .top, spacing: 0) {
                 avatar()

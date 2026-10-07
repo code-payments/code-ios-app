@@ -150,6 +150,7 @@ struct YouScreen: View {
                 )
             },
             bannerControls: { EmptyView() },
+            coverAccessory: { EmptyView() },
             rowActions: {
                 ProfileEditCapsule {
                     router.push(.editProfile)
