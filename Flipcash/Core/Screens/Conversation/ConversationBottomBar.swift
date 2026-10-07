@@ -181,7 +181,7 @@ enum BarMetrics {
 enum ConversationBarLeadingControl: Equatable {
     /// The way out of an edit.
     case cancelEdit
-    /// The round `$` beside the field, shown while the draft is empty.
+    /// The round `$` on the field's right, shown while the draft is empty.
     case cash
     /// Nothing beside the field.
     case none
@@ -264,15 +264,9 @@ struct ConversationBottomBar: View {
     /// update, so the split animates without carrying the field's text change with it.
     @State private var cashIsShown = true
 
-    /// How far left of the field the row starts, for the attach menu to open out to.
-    private var menuLeadingReach: CGFloat {
-        switch leadingControl {
-        case .cash:
-            cashIsShown ? BarMetrics.contentHeight + Self.leadingSpacing : 0
-        case .cancelEdit, .none:
-            0
-        }
-    }
+    /// How far left of the field the row starts, for the attach menu to open out to. `$` stands to
+    /// the field's right, so nothing does.
+    private var menuLeadingReach: CGFloat { 0 }
     @Namespace private var composerGlassNamespace
     /// Whether the chat takes photos; false for an E2EE DM, whose encryption does not cover media.
     var acceptsMedia: Bool = false
@@ -299,7 +293,7 @@ struct ConversationBottomBar: View {
     private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
     /// `$` splitting from the field's glass and joining back into it.
     private static let cashSpring = Animation.spring(duration: 0.4, bounce: 0.3)
-    /// The gap between the leading control and the field. The composer's glass joins across no
+    /// The gap between the field and the control beside it: cancel-edit on its left, `$` on its right. The composer's glass joins across no
     /// more than this, so `$` stays bridged to the field while it travels and pinches off at rest.
     static let leadingSpacing: CGFloat = 10
 
@@ -336,7 +330,7 @@ struct ConversationBottomBar: View {
         }
     }
 
-    /// The glass behind the leading control and the field, drawn as one layer apart from them so
+    /// The glass behind the field and the controls beside it, drawn as one layer apart from them so
     /// `$` splits from the field and joins back into it. The real controls sit above it, outside the
     /// container: in one, the glass composites above sibling content and covers the typed text.
     @ViewBuilder
@@ -347,18 +341,17 @@ struct ConversationBottomBar: View {
             case .cancelEdit:
                 // The button's size, so the field's glass starts where the field does.
                 Color.clear.frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
-            case .cash:
-                if cashIsShown {
-                    Color.clear
-                        .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
-                        .composerGlass(in: Circle(), id: "cash", namespace: composerGlassNamespace)
-                }
-            case .none:
+            case .cash, .none:
                 EmptyView()
             }
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .composerGlass(in: field, id: "field", namespace: composerGlassNamespace)
+            if leadingControl == .cash, cashIsShown {
+                Color.clear
+                    .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
+                    .composerGlass(in: Circle(), id: "cash", namespace: composerGlassNamespace)
+            }
         }
         if #available(iOS 26, *) {
             GlassEffectContainer(spacing: Self.leadingSpacing) { layout }
@@ -381,12 +374,7 @@ struct ConversationBottomBar: View {
                 switch leadingControl {
                 case .cancelEdit:
                     CancelEditButton { composer.endEditing() }
-                case .cash:
-                    if cashIsShown {
-                        ComposerCashButton(symbol: symbol, action: onSendCash)
-                            .transition(.scale(scale: 0.4).combined(with: .opacity))
-                    }
-                case .none:
+                case .cash, .none:
                     EmptyView()
                 }
                 ConversationComposer(
@@ -401,6 +389,10 @@ struct ConversationBottomBar: View {
                 )
                 // Over the row's other controls, which the attach panel floats across.
                 .zIndex(1)
+                if leadingControl == .cash, cashIsShown {
+                    ComposerCashButton(symbol: symbol, action: onSendCash)
+                        .transition(.scale(scale: 0.4).combined(with: .opacity))
+                }
             }
             .background {
                 composerGlass
