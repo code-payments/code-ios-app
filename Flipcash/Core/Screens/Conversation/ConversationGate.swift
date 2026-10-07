@@ -354,13 +354,12 @@ func conversationGatePresentation(_ gate: ConversationGate, isMember: Bool) -> C
     }
 }
 
-/// The chat's entry rule as its head card states it (node 10125:19164), or nil when it states none.
+/// The chat's entry rule as the group invite link card states it (node 10125:19164), or nil when it states none.
 ///
 /// States the rule whether or not the viewer satisfies it. The line is broken after the label
 /// rather than wherever the card's width falls, as the design breaks it. A dollar-token rule is
 /// already fully stated by its dollar amount, so naming the token too says the same thing twice;
 /// any other token genuinely needs naming, because the same $100 is a different quantity of each.
-/// Shared by the head card and the group invite link card so the two word a rule identically.
 func groupRequirementLine(_ headline: ConversationGateRequirement?, mintName: String?) -> String? {
     switch headline {
     case .minimumBalance(let amount, let mint):

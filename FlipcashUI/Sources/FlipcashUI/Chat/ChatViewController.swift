@@ -82,17 +82,6 @@ public final class ChatViewController: UICollectionViewController {
     /// carries no resolution state and a lookup landing cannot change a row's diff.
     public weak var linkCardSource: (any LinkCardSource)?
 
-    /// Called when the user taps the profile card's call to action; the owner opens the
-    /// counterpart's contact card (or the add-contact sheet), same as the nav title.
-    public var onContactAction: (() -> Void)?
-
-    /// Called when the user taps the transcript's head card — the counterpart's in a tip DM, the
-    /// chat's own in a group. The owner opens that subject's profile; nil disables the tap.
-    public var onProfileTap: (() -> Void)?
-
-    /// Called when the user taps the group card's "Invite People"; the owner hands out the
-    /// chat's invite link. nil leaves the card without the offer.
-    public var onGroupInvite: (() -> Void)?
     /// Called when the "Encrypted" marker is tapped; nil leaves it inert.
     public var onEncryptionMarkerTap: (() -> Void)?
 
@@ -155,7 +144,7 @@ public final class ChatViewController: UICollectionViewController {
                     configure(cell, with: message)
                 case .typingIndicator(let typists):
                     (cell as? ChatTypingIndicatorCell)?.configure(typists: typists, imageData: authorAvatars)
-                case .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker:
+                case .dateSeparator, .unreadDivider, .encryptionMarker:
                     continue
                 }
             }
@@ -344,8 +333,6 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
         collectionView.register(ChatEncryptionMarkerCell.self, forCellWithReuseIdentifier: ChatEncryptionMarkerCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
-        collectionView.register(ChatProfileCardCell.self, forCellWithReuseIdentifier: ChatProfileCardCell.reuseIdentifier)
-        collectionView.register(ChatGroupCardCell.self, forCellWithReuseIdentifier: ChatGroupCardCell.reuseIdentifier)
 
         swipeToReply.isBlocked = { [weak self] in
             guard let self else { return true }
@@ -531,7 +518,7 @@ public final class ChatViewController: UICollectionViewController {
         let arrivals = (start..<new.count).compactMap { row -> (row: Int, message: ChatMessage)? in
             switch new[row] {
             case .message(let message): (row, message)
-            case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: nil
+            case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker: nil
             }
         }
         guard let taker = TypingDotsHandoff.takerIndex(
@@ -558,7 +545,7 @@ public final class ChatViewController: UICollectionViewController {
         switch item {
         case .typingIndicator(let typists):
             typists.isEmpty ? [.counterpart] : Set(typists.map { .member($0.id) })
-        case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker:
+        case .message, .dateSeparator, .unreadDivider, .encryptionMarker:
             nil
         }
     }
@@ -574,7 +561,7 @@ public final class ChatViewController: UICollectionViewController {
         guard items.indices.contains(index) else { return nil }
         switch items[index] {
         case .message(let message): return message
-        case .typingIndicator, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: return nil
+        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker: return nil
         }
     }
 
@@ -608,23 +595,6 @@ public final class ChatViewController: UICollectionViewController {
         switch item {
         case .typingIndicator(let typists):
             (cell as! ChatTypingIndicatorCell).configure(typists: typists, imageData: authorAvatars)
-        case .profileCard(let card):
-            let profileTap: (() -> Void)? = onProfileTap == nil ? nil : { [weak self] in self?.onProfileTap?() }
-            (cell as! ChatProfileCardCell).configure(
-                with: card,
-                onContactAction: { [weak self] in self?.onContactAction?() },
-                onProfileTap: profileTap
-            )
-        case .groupCard(let card):
-            let cardTap: (() -> Void)? = onProfileTap == nil ? nil : { [weak self] in self?.onProfileTap?() }
-            let invite: (() -> Void)? = onGroupInvite == nil ? nil : { [weak self] in self?.onGroupInvite?() }
-            let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
-            (cell as! ChatGroupCardCell).configure(
-                with: card,
-                inviteCardWidth: width * Self.maxBubbleWidthFraction,
-                onTap: cardTap,
-                onInvite: invite
-            )
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .unreadDivider(let count):
@@ -1317,7 +1287,7 @@ extension ChatViewController: ChatLayoutDelegate {
         guard items.indices.contains(indexPath.item) else { return false }
         switch items[indexPath.item] {
         case .dateSeparator, .unreadDivider, .encryptionMarker: return true
-        case .message, .typingIndicator, .profileCard, .groupCard: return false
+        case .message, .typingIndicator: return false
         }
     }
 
@@ -1334,7 +1304,7 @@ extension ChatViewController: ChatLayoutDelegate {
         switch items[indexPath.item] {
         case .message(let message): return message.sender
         case .typingIndicator: return .other
-        case .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: return nil
+        case .dateSeparator, .unreadDivider, .encryptionMarker: return nil
         }
     }
 }

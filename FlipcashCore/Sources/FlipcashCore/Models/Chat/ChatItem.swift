@@ -22,11 +22,6 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     /// In a group, `typists` holds the newest few people typing, oldest first, drawn as avatars
     /// ahead of the bubble; it is empty in a DM, which draws the bubble alone.
     case typingIndicator(typists: [ChatAuthor])
-    /// The counterpart's profile card at the head of a short transcript.
-    case profileCard(ChatProfileCard)
-    /// The group's own card at the head of a short group transcript — picture, title, and the
-    /// rule the chat runs on.
-    case groupCard(ChatGroupCard)
     /// The "Encrypted" line above the first end-to-end-encrypted message in the transcript, or at
     /// its head when every message is encrypted. At most one per transcript.
     case encryptionMarker
@@ -38,8 +33,6 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
         case .unreadDivider: "unread-divider"
         // Independent of `typists`, so a typist joining or leaving updates the row in place.
         case .typingIndicator: "typing-indicator"
-        case .profileCard: "profile-card"
-        case .groupCard: "group-card"
         case .encryptionMarker: "encryption-marker"
         }
     }
@@ -52,7 +45,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     public var messageID: String? {
         switch self {
         case .message(let message): message.messageID
-        case .dateSeparator, .unreadDivider, .typingIndicator, .profileCard, .groupCard, .encryptionMarker: nil
+        case .dateSeparator, .unreadDivider, .typingIndicator, .encryptionMarker: nil
         }
     }
 

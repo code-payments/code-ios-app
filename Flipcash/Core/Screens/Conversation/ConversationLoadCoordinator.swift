@@ -20,11 +20,6 @@ final class ConversationLoadCoordinator {
     /// The rendered transcript, produced off the main thread and landed here as immutable state.
     private(set) var items: [ChatItem] = []
 
-    /// Whether ``items`` is the whole locally-known history, and so carries the transcript's head
-    /// card. Landed with `items` rather than read from the loader, so a view that draws its own
-    /// head card (a group's) turns it on and off in step with the rows it sits above.
-    private(set) var headsHistory = false
-
     /// The people the landed transcript attributes its rows to, in the order the window first shows
     /// them, then the group's typists the rows leave out. The view fetches their avatars from this: the mapped rows carry only a BlurHash —
     /// thumbnail bytes must not ride in ``Inputs``, which is compared on every observation tick, nor
@@ -43,10 +38,6 @@ final class ConversationLoadCoordinator {
 
     private let controller: ConversationController
     private let session: Session
-    /// Supplies the counterpart's profile card, resolved live — it runs inside the observation
-    /// scope, so whatever it reads (the contact directory, the conversation) re-triggers mapping.
-    /// Nil for a chat with no counterpart to card.
-    private let profileCard: @MainActor () -> ChatProfileCard?
     /// Names senders the chat's own roster leaves out, from what the device already knows about
     /// them. Observed like every other input, so a reload re-attributes the window in place.
     private let knownAuthors: KnownAuthorDirectory
@@ -86,14 +77,12 @@ final class ConversationLoadCoordinator {
         conversationID: ConversationID,
         controller: ConversationController,
         session: Session,
-        knownAuthors: KnownAuthorDirectory,
-        profileCard: @escaping @MainActor () -> ChatProfileCard?
+        knownAuthors: KnownAuthorDirectory
     ) {
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
         self.knownAuthors = knownAuthors
-        self.profileCard = profileCard
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
         let boundary = controller.unreadBoundary(for: conversationID)
         self.openingUnreadBoundary = boundary
@@ -168,7 +157,6 @@ final class ConversationLoadCoordinator {
             let mapped = await Task.detached { Self.map(inputs, authors: authors) }.value
             guard let self, !Task.isCancelled else { return }
             self.items = mapped
-            self.headsHistory = inputs.headsHistory
             self.attributedMembers = attribution.members
             self.unattributedSenders = attribution.unnamed
         }
@@ -182,7 +170,6 @@ final class ConversationLoadCoordinator {
         attributedMembers = attribution.members
         unattributedSenders = attribution.unnamed
         items = Self.map(inputs, authors: Self.authors(from: attribution.members))
-        headsHistory = inputs.headsHistory
         scheduleWindowExpiry(for: inputs)
     }
 
@@ -236,8 +223,8 @@ final class ConversationLoadCoordinator {
         // record hasn't landed yet has no gate to read, so it keeps the member menu.
         let access = conversation.map { Self.access(isMember: controller.isMember(of: $0), gate: controller.gateConversation($0)) }
         let counterpartName = conversation?.counterpart(excluding: controller.selfUserID)?.displayName ?? ""
-        // The head card belongs only above a short transcript — a long or paged history drops it,
-        // and the nav title opens the same place it would.
+        // Whether the window reaches the start of the chat, which decides where the encryption
+        // marker can sit.
         let headsHistory = loader.isEntireHistory(windowCount: window.count)
         // The window first — a reply to a nearby message resolves with no database read at all —
         // then the table, for a reply pointing above the window. Nothing pages the server: a quote
@@ -266,7 +253,6 @@ final class ConversationLoadCoordinator {
             // Capped here rather than in `map`, so a typist the row will never draw is neither
             // compared on every tick nor sent off to have their picture fetched.
             typists: Array(controller.typists(in: conversationID).suffix(ChatItem.maxTypingAvatars)),
-            profileCard: headsHistory ? profileCard() : nil,
             branding: branding,
             conversation: conversation,
             // A chat whose record hasn't landed yet has no gate to read, so it keeps the member menu.
@@ -355,9 +341,6 @@ final class ConversationLoadCoordinator {
                 : []
             items.append(.typingIndicator(typists: typists))
         }
-        if let card = inputs.profileCard {
-            items.insert(.profileCard(card), at: 0)
-        }
         return items
     }
 
@@ -425,7 +408,6 @@ final class ConversationLoadCoordinator {
         var suppressReceiptFor: String?
         /// The other members typing, oldest first, capped at ``ChatItem/maxTypingAvatars``.
         var typists: [UserID]
-        var profileCard: ChatProfileCard?
         var branding: [PublicKey: Branding]
         var conversation: Conversation?
         /// False for a non-member reading a group they have not joined, who is offered no Reply.
@@ -449,7 +431,7 @@ final class ConversationLoadCoordinator {
         /// Identities for senders the chat's own roster leaves out. Compared by identity — see
         /// ``KnownAuthorDirectory/Snapshot``.
         var knownAuthors: KnownAuthorDirectory.Snapshot
-        /// Whether the window is the whole locally-known history — see ``headsHistory``.
+        /// Whether the window is the whole locally-known history, so nothing older sits above it.
         var headsHistory: Bool
         /// Where the divider goes; `.none` draws none.
         var unreadBoundary: UnreadBoundary

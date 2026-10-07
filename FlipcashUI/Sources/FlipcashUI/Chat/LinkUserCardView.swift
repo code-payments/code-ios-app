@@ -281,7 +281,7 @@ struct LinkUserCardContent: View {
         .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .leading)
         .background { backdrop }
         .clipShape(outline)
-        .overlay { outline.strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity)) }
+        .overlay { outline.strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity)) }
         .contentShape(outline)
     }
 
@@ -302,7 +302,7 @@ struct LinkUserCardContent: View {
                 ContactAvatarView(id: "", displayName: "", size: Layout.avatar)
             }
         }
-        .overlay { Circle().strokeBorder(Color.white.opacity(GroupCardView.Layout.borderOpacity)) }
+        .overlay { Circle().strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity)) }
     }
 
     private var identity: some View {

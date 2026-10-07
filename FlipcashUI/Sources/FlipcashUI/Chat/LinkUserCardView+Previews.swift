@@ -177,7 +177,7 @@ private struct LinkCardShimmerSample: UIViewRepresentable {
             ground: UIColor(Color.backgroundRow),
             highlight: UIColor.white.withAlphaComponent(0.06)
         )
-        view.layer.cornerRadius = GroupCardView.Layout.radius
+        view.layer.cornerRadius = LinkCardMetrics.radius
         view.layer.cornerCurve = .continuous
         view.setShimmering(true)
         return view

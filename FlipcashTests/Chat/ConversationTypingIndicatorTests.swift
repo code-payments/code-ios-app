@@ -54,8 +54,7 @@ struct ConversationTypingIndicatorTests {
             conversationID: .test(1),
             controller: controller,
             session: .mock,
-            knownAuthors: KnownAuthorDirectory(read: { [:] }, fetch: { _ in throw CancellationError() }, cache: { _, _ in }),
-            profileCard: { nil }
+            knownAuthors: KnownAuthorDirectory(read: { [:] }, fetch: { _ in throw CancellationError() }, cache: { _, _ in })
         )
         return (mock, controller, coordinator)
     }
@@ -70,7 +69,7 @@ struct ConversationTypingIndicatorTests {
             switch item {
             case .typingIndicator(let typists):
                 return typists
-            case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker:
+            case .message, .dateSeparator, .unreadDivider, .encryptionMarker:
                 continue
             }
         }
@@ -176,7 +175,7 @@ struct ConversationTypingIndicatorTests {
         for item in items {
             switch item {
             case .typingIndicator(let typists): return typists
-            case .message, .dateSeparator, .unreadDivider, .profileCard, .groupCard, .encryptionMarker: continue
+            case .message, .dateSeparator, .unreadDivider, .encryptionMarker: continue
             }
         }
         return nil

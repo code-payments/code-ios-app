@@ -236,11 +236,6 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.pendingMediaProgress = newValue }
     }
 
-    public var onContactAction: (() -> Void)? {
-        get { transcript.onContactAction }
-        set { transcript.onContactAction = newValue }
-    }
-
     /// Avatar bytes for the transcript's authors, keyed by user id — see
     /// ``ChatViewController/authorAvatars``.
     public var authorAvatars: [UserID: Data] {
@@ -248,17 +243,6 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.authorAvatars = newValue }
     }
 
-    /// Forwards head-card taps from the transcript to the owner.
-    public var onProfileTap: (() -> Void)? {
-        get { transcript.onProfileTap }
-        set { transcript.onProfileTap = newValue }
-    }
-
-    /// Forwards the group head card's invite tap from the transcript to the owner.
-    public var onGroupInvite: (() -> Void)? {
-        get { transcript.onGroupInvite }
-        set { transcript.onGroupInvite = newValue }
-    }
 
     /// Forwards the "Encrypted" marker's tap from the transcript to the owner.
     public var onEncryptionMarkerTap: (() -> Void)? {
