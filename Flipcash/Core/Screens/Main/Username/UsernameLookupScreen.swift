@@ -202,7 +202,7 @@ struct UsernameLookupScreen: View {
                 // `.suppressed`, so gating here would duplicate that judgement.
                 ErrorReporting.captureError(error, reason: "Failed to look up username")
 
-                errorDialog = .usernameLookup(for: error)
+                errorDialog = .connectionFailure(.usernameLookup(for: error), path: container.networkPath.state)
             }
         }
     }

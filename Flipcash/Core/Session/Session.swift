@@ -58,6 +58,12 @@ class Session {
     /// ``DialogWindow`` in a separate `UIWindow` above all sheets.
     var dialogItem: DialogItem?
 
+    /// Shows `fallback` for a request that never reached the server, or a dialog naming the
+    /// Cellular Data switch when that switch is what blocked the request.
+    func showConnectionFailure(_ fallback: DialogItem) {
+        dialogItem = .connectionFailure(fallback, path: container.networkPath.state)
+    }
+
     /// Whether the standalone Bill Designer overlay is presented over
     /// the scan screen. Toggled by the Settings → Advanced Features row.
     var isShowingBillDesigner: Bool = false
@@ -1813,7 +1819,7 @@ class Session {
                 )
 
                 if error is ErrorFetchBalance {
-                    dialogItem = .error(title: "Unable to Find Cash", subtitle: "Please check your connection and try again")
+                    showConnectionFailure(.error(title: "Unable to Find Cash", subtitle: "Please check your connection and try again"))
                 } else {
                     dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                 }

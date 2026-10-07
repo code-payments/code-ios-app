@@ -21,6 +21,7 @@ class Container {
     let notificationController: NotificationController
     let databaseStore: DatabaseStore
     let toasts: ToastController
+    let networkPath: NetworkPathMonitor
 
     @ObservationIgnored lazy var sessionAuthenticator = SessionAuthenticator(container: self)
     @ObservationIgnored lazy var deepLinkController   = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
@@ -42,6 +43,7 @@ class Container {
         self.notificationController = NotificationController()
         self.databaseStore          = DatabaseStore()
         self.toasts                 = ToastController()
+        self.networkPath            = NetworkPathMonitor()
         
         _ = sessionAuthenticator
     }
@@ -56,6 +58,7 @@ class Container {
             .environment(preferences)
             .environment(notificationController)
             .environment(toasts)
+            .environment(networkPath)
     }
     
     static func configureFirebase() {

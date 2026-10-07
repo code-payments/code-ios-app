@@ -708,9 +708,9 @@ final class SendAmountViewModel {
     }
 
     private func showResolveFailedError() {
-        session.dialogItem = .error(
+        session.showConnectionFailure(.error(
             title: "Couldn't Send",
             subtitle: "We couldn't reach the network. Please try again."
-        )
+        ))
     }
 }

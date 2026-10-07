@@ -1303,10 +1303,10 @@ struct ConversationScreen: View {
         case .noSuchAccount:
             session.dialogItem = .info(title: "No Such Account", subtitle: "Nobody has claimed \(username.handle)")
         case .lookupFailed:
-            session.dialogItem = .error(
+            session.showConnectionFailure(.error(
                 title: "Couldn't Open Profile",
                 subtitle: "Please check your connection and try again"
-            )
+            ))
         }
     }
 

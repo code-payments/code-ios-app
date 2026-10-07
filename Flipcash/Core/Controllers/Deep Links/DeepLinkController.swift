@@ -325,10 +325,10 @@ struct DeepLinkAction {
     }
 
     private static func showLookupFailed(isScan: Bool, on session: Session) {
-        session.dialogItem = .error(
+        session.showConnectionFailure(.error(
             title: isScan ? "Couldn't Open Profile Card" : "Couldn't Open Profile",
             subtitle: "Please check your connection and try again"
-        )
+        ))
     }
 
     /// Looks a person up through the same memo a person card or a tapped mention uses.

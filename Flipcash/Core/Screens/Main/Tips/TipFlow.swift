@@ -163,7 +163,7 @@ final class TipFlow {
                     "error": "\(error)",
                 ])
                 ErrorReporting.captureError(error, reason: "Failed to prepare tip recipient")
-                session.dialogItem = Self.failureDialog
+                session.showConnectionFailure(Self.failureDialog)
             }
         }
     }
