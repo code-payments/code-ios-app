@@ -28,8 +28,6 @@ struct ChatProfileScreen: View {
     @Environment(ToastController.self) private var toasts
 
     @State private var isInviting = false
-    @State private var isShowingShare = false
-    @State private var shareChoice: ProfileShareChoice?
     @State private var isPickingMuteDuration = false
     @State private var isReporting = false
     @State private var isShowingE2ee = false
@@ -171,16 +169,8 @@ struct ChatProfileScreen: View {
             }
         }
         .dialog(item: $dialogItem)
-        .sheet(isPresented: $isShowingShare, onDismiss: handleShareChoice) {
-            ProfileShareSheet(
-                title: "Share Group",
-                subtitle: title,
-                shareRow: ("Share on Flipcash", Image(systemName: "paperplane")),
-                offersCard: false
-            ) { shareChoice = $0 }
-        }
-        .sheet(isPresented: $isInviting) {
-            GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting) { chatID in
+        .fullScreenCover(isPresented: $isInviting) {
+            ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
                 router.push(.tipConversation(chatID))
             }
         }
@@ -430,24 +420,10 @@ struct ChatProfileScreen: View {
 
     private var shareButton: some View {
         ProfileActionCircle(image: Image.asset(.shareOS)) {
-            isShowingShare = true
+            openInvite()
         }
         .accessibilityLabel("Share group")
         .accessibilityIdentifier("chat-profile-share")
-    }
-
-    /// Runs once the share sheet is gone, so a following sheet doesn't present over it.
-    private func handleShareChoice() {
-        defer { shareChoice = nil }
-        switch shareChoice {
-        case .share:
-            openInvite()
-        case .copyLink:
-            UIPasteboard.general.string = URL.groupChatInvite(for: conversationID).absoluteString
-            toasts.show(.init("Copied", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
-        case .showCard, nil:
-            break
-        }
     }
 
     private func openInvite() {

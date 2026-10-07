@@ -733,9 +733,9 @@ struct ConversationScreen: View {
         .sheet(isPresented: $isShowingEncryptionInfo) {
             E2eeLearnMoreSheet(kind: .dm, isPresented: $isShowingEncryptionInfo)
         }
-        .sheet(isPresented: $isInviting) {
+        .fullScreenCover(isPresented: $isInviting) {
             if let conversationID {
-                GroupInviteSheet(conversationID: conversationID, isPresented: $isInviting) { chatID in
+                ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
                     router.push(.tipConversation(chatID))
                 }
             }

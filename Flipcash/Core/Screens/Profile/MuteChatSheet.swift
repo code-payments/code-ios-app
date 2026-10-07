@@ -11,7 +11,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// How long to silence a chat's notifications for. Drawn as the chats flow's action rows, the way
-/// ``GroupInviteSheet`` draws its two.
+/// ``ShareToChatsSheet`` draws its two.
 ///
 /// The durations are the client's choice; the contract admits only two mute shapes — until a
 /// timestamp, or forever — so every timed option is the same shape with a different offset.
@@ -112,7 +112,7 @@ struct MuteChatSheet: View {
     }
 
     /// The sheet's own title bar — ``PartialSheet`` sizes itself to its content, so there is no
-    /// navigation bar to hang a title on. Mirrors ``GroupInviteSheet/header``.
+    /// navigation bar to hang a title on. Mirrors ``ShareToChatsSheet/header``.
     private var header: some View {
         ZStack {
             Text("Mute Notifications")
