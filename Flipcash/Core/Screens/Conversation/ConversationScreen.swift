@@ -1237,7 +1237,7 @@ struct ConversationScreen: View {
     /// Where a tapped link card lands, which is not the same place for every kind.
     ///
     /// A cash card goes out through the deep-link path its URL would have taken — claiming is that
-    /// path's job and the card has no part in it — unless the viewer has not joined the group. A
+    /// path's job and the card has no part in it — unless the viewer can't chat here. A
     /// group card and a token card push onto this chat's own stack instead, so back returns to the
     /// conversation that held the link: the deep-link handler's `.chat` and `.token` routes both
     /// replace the stack. The pushed group screen gates itself, offering the join or the buy, so the
@@ -1245,10 +1245,14 @@ struct ConversationScreen: View {
     private func openLinkCard(_ card: LinkCard, messageStableID: String) {
         switch card {
         case .cash(let cash):
-            // A non-member can read a group whose listener rules they meet, but the cash posted in
-            // it is for the people in it.
-            if case .join = gate {
+            switch gate.cashCollectionBlock(allowsReactions: gateVerdicts.allowsReactions) {
+            case nil:
+                break
+            case .notMember:
                 session.dialogItem = .info(title: "Join to Collect", subtitle: "Join this chat to collect cash sent in it.")
+                return
+            case .cannotChat:
+                session.dialogItem = .info(title: "Chat to Collect", subtitle: "Only people who can chat here can collect cash sent in it.")
                 return
             }
             noteCashLinkTap(entropy: cash.entropy, messageStableID: messageStableID)

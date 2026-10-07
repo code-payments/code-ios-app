@@ -329,6 +329,28 @@ enum ConversationGatePresentation: Equatable {
         case .join, .blocked, .readOnly, .undetermined:  return true
         }
     }
+
+    /// Why a cash link posted in this chat can't be collected from it, or nil when it can.
+    ///
+    /// Cash sent into a chat is for the people who can take part in it. A member held back only by
+    /// a rule that withholds posting, not reacting (``ConversationGate/allowsReactions``) — a
+    /// broadcast chat's audience — still collects what the creator posts. Android draws the same line.
+    func cashCollectionBlock(allowsReactions: Bool) -> CashCollectionBlock? {
+        switch self {
+        case .open:                     return nil
+        case .join:                     return .notMember
+        case .readOnly:                 return allowsReactions ? nil : .cannotChat
+        case .blocked, .undetermined:   return .cannotChat
+        }
+    }
+}
+
+/// Why a cash link in a chat can't be collected from it.
+enum CashCollectionBlock: Equatable {
+    /// The viewer reads the chat but hasn't joined it.
+    case notMember
+    /// The viewer can't send in the chat.
+    case cannotChat
 }
 
 /// Turns a rule verdict plus membership into what the screen draws.
