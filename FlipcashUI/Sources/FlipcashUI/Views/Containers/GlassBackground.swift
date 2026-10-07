@@ -94,14 +94,26 @@ extension View {
         if #available(iOS 26, *) {
             glassEffect(.regular.tint(Color.white.opacity(0.03)).interactive(), in: shape)
                 .glassEffectID(id, in: namespace)
+                .glassEffectTransition(.matchedGeometry)
         } else {
             background(Color.white.opacity(0.03), in: shape)
                 .background(.ultraThinMaterial, in: shape)
         }
     }
 
-    /// The chat composer's light rim around `shape`, brightest along the top.
+    /// The chat composer's light rim around `shape`, brightest along the top, before iOS 26. Liquid
+    /// Glass lights its own edge, and that edge follows composer glass joined into one shape where a
+    /// stroke per control would cross itself.
+    @ViewBuilder
     public func composerRim(in shape: some InsettableShape) -> some View {
+        if #available(iOS 26, *) {
+            self
+        } else {
+            composerRimStroke(in: shape)
+        }
+    }
+
+    private func composerRimStroke(in shape: some InsettableShape) -> some View {
         overlay {
             shape
                 .strokeBorder(
