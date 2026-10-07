@@ -34,6 +34,26 @@ protocol GroupChatEditing {
         pictureBlobID: BlobID?,
         coverPictureBlobID: BlobID?
     ) async throws -> Conversation
+
+    /// Replaces the minimum balance `role` requires and returns the chat's post-edit metadata.
+    func setMinimumBalance(
+        conversationID: ConversationID,
+        role: GroupBalanceRole,
+        requirement: MinimumBalanceRequirement
+    ) async throws -> Conversation
+}
+
+/// Which of a group's minimum balances an edit replaces: the listener rule for ``join``, the
+/// speaker rule for ``chat``.
+nonisolated enum GroupBalanceRole: Hashable, Sendable {
+    case join
+    case chat
+}
+
+/// Thrown by ``SessionGroupChatEditor/setMinimumBalance(conversationID:role:requirement:)`` until
+/// the contract carries a way to change a group's rules.
+enum ErrorSetGroupMinimumBalance: Error {
+    case unavailable
 }
 
 /// Edits on behalf of the signed-in owner.
@@ -65,5 +85,16 @@ struct SessionGroupChatEditor: GroupChatEditing {
             pictureBlobID: pictureBlobID,
             coverPictureBlobID: coverPictureBlobID
         )
+    }
+
+    // Stubbed: flipcash2-client-protocol 0.18.0 has no RPC that changes a group's rules after
+    // `StartChat`, and `EditChatRequest` carries none. Replace this body with the FlipClient call
+    // once the contract adds one, and seat the returned rules in `ConversationController.applyEdit`.
+    func setMinimumBalance(
+        conversationID: ConversationID,
+        role: GroupBalanceRole,
+        requirement: MinimumBalanceRequirement
+    ) async throws -> Conversation {
+        throw ErrorSetGroupMinimumBalance.unavailable
     }
 }

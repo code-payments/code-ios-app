@@ -69,6 +69,15 @@ struct EditGroupModelTests {
                 title: title
             )
         }
+
+        func setMinimumBalance(
+            conversationID: ConversationID,
+            role: GroupBalanceRole,
+            requirement: MinimumBalanceRequirement
+        ) async throws -> Conversation {
+            Issue.record("The form never edits balance requirements")
+            throw ErrorSetGroupMinimumBalance.unavailable
+        }
     }
 
     private let conversationID = ConversationID.test(7)
