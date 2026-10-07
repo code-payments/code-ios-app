@@ -116,8 +116,9 @@ extension AppRouter {
         /// A person's Flipcash profile, pushed from a tip DM's title/card or a group member's face;
         /// hosts the Block action. `origin` decides whether it offers a way into the DM.
         case userProfile(UserID, origin: UserProfileOrigin)
-        /// A group chat's own profile, pushed from its navigation title.
-        case chatProfile(ConversationID)
+        /// A group chat's own profile, pushed from its navigation title or a favorite group. `origin`
+        /// decides whether Open Chat returns to the chat underneath or opens it.
+        case chatProfile(ConversationID, origin: ChatProfileOrigin)
         /// What an editor can change about a group, pushed from the chat profile's overflow menu.
         /// Only reachable while ``Conversation/canEdit`` holds.
         case editGroup(ConversationID)
@@ -238,7 +239,7 @@ extension AppRouter {
                 return activity.id.base58
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID),
-                 .chatProfile(let conversationID),
+                 .chatProfile(let conversationID, _),
                  .editGroup(let conversationID),
                  .editGroupName(let conversationID),
                  .editGroupPicture(let conversationID),

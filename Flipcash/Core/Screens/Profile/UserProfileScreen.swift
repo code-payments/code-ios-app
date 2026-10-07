@@ -147,7 +147,7 @@ private struct UserProfileContent: View {
                         .padding(.top, 20)
 
                     FeaturedGroupsSection(groups: model.featuredGroups) {
-                        router.push(.tipConversation($0))
+                        router.push(.chatProfile($0, origin: .featuredGroup))
                     }
                     .padding(.top, 20)
                 }
@@ -374,7 +374,7 @@ nonisolated enum UserProfileOrigin: Hashable {
     case deeplink
     /// Their code scanned with the camera, or their profile QR link opened, after the card shows.
     case scan
-    /// A username search from New Chat, with no DM yet.
+    /// A username search from New Chat, whether or not a DM exists.
     case usernameLookup
     /// A transaction's details, with no DM yet.
     case transaction

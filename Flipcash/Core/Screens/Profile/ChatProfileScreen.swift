@@ -9,17 +9,19 @@ import SwiftUI
 import UIKit
 import FlipcashCore
 import FlipcashUI
+import FlipcashStore
 
 /// A group chat's own profile (node 10913:358): the shared profile header with the group's cover,
 /// picture and description, who is chatting, what it takes to join and to chat, and one pinned
 /// button that joins, buys in, or opens the chat.
 ///
-/// Reached by tapping the chat's navigation title, the way a DM's title opens the
+/// Reached by tapping the chat's head card or its navigation title, the way a DM's title opens the
 /// counterpart's profile. The actions a member has over the group sit in the ⋯ menu, and Leave Chat
 /// sits under the pinned button.
 struct ChatProfileScreen: View {
 
     let conversationID: ConversationID
+    let origin: ChatProfileOrigin
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
@@ -35,7 +37,7 @@ struct ChatProfileScreen: View {
     @State private var isLeaving = false
     @State private var dialogItem: DialogItem?
     @State private var chatters: [SampledChatter] = []
-    @State private var mintNames: [PublicKey: String] = [:]
+    @State private var mintMetadata: [PublicKey: StoredMintMetadata] = [:]
 
     private var session: Session { sessionContainer.session }
 
@@ -101,7 +103,7 @@ struct ChatProfileScreen: View {
     /// already states it, the way the gate panel words it.
     private func holding(_ amount: FiatAmount, mint: PublicKey?) -> String {
         let formatted = amount.formattedDroppingZeroFraction()
-        guard let mint, mint != .usdf, let name = mintNames[mint] else { return formatted }
+        guard let mint, mint != .usdf, let name = mintMetadata[mint]?.name else { return formatted }
         return "\(formatted) of \(name)"
     }
 
@@ -151,6 +153,11 @@ struct ChatProfileScreen: View {
                         .padding(.top, 24)
                     }
 
+                    if let token = requirements?.soleToken.flatMap({ mintMetadata[$0] }) {
+                        tokenSection(token)
+                            .padding(.top, 24)
+                    }
+
                     if let requirements {
                         balanceRequirements(requirements)
                             .padding(.top, 24)
@@ -190,6 +197,8 @@ struct ChatProfileScreen: View {
             }
         }
         .task {
+            // A favorite group can be one the user isn't in, which the feed doesn't hold.
+            let conversation = await conversationController.hydratedConversation(withID: conversationID)
             await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
         }
         // Waits for the conversation to land before asking: a private group's sample is denied.
@@ -200,15 +209,15 @@ struct ChatProfileScreen: View {
         // Name the requirements in the token they ask for. The mint may be one the user holds
         // nothing of, so the local store can miss and the fetch is what fills it.
         .task(id: namedMints) {
-            var names: [PublicKey: String] = [:]
+            var metadata: [PublicKey: StoredMintMetadata] = [:]
             for mint in namedMints {
                 if let stored = session.storedMintMetadata(for: mint) {
-                    names[mint] = stored.name
-                } else if let fetched = try? await session.fetchMintMetadata(mint: mint).name {
-                    names[mint] = fetched
+                    metadata[mint] = stored
+                } else if let fetched = try? await session.fetchMintMetadata(mint: mint) {
+                    metadata[mint] = fetched
                 }
             }
-            mintNames = names
+            mintMetadata = metadata
         }
     }
 
@@ -224,6 +233,37 @@ struct ChatProfileScreen: View {
         } catch {
             chatters = []
         }
+    }
+
+    // MARK: - Token -
+
+    private func tokenSection(_ token: StoredMintMetadata) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Token")
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+                .accessibilityAddTraits(.isHeader)
+
+            Button {
+                Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
+                router.push(.currencyInfo(token.mint))
+            } label: {
+                HStack {
+                    TokenIconWithName(url: token.imageURL, monogramID: token.mint.base58, name: token.name, iconSize: 32)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 56)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+            .accessibilityIdentifier("group-profile-token")
+        }
+        .padding(.horizontal, ProfileHeaderMetrics.inset)
     }
 
     // MARK: - Balance Requirements -
@@ -372,10 +412,19 @@ struct ChatProfileScreen: View {
         case .join:
             join()
         case .openChat:
-            // Reached from the chat's title, so the chat is underneath.
-            router.popTopmost()
+            showChat()
         case .buyToJoin(_, let mint), .buyToChat(_, let mint):
             buy(mint)
+        }
+    }
+
+    /// Returns to the chat when it sits underneath, otherwise pushes it over this profile.
+    private func showChat() {
+        switch origin {
+        case .chat:
+            router.popTopmost()
+        case .featuredGroup:
+            router.push(.tipConversation(conversationID))
         }
     }
 
@@ -391,7 +440,7 @@ struct ChatProfileScreen: View {
         router.push(.buyCurrency(mint))
     }
 
-    /// Joins, then returns to the chat underneath, which loads its transcript once the gate stops
+    /// Joins, then shows the chat, which loads its transcript once the gate stops
     /// obscuring it. A refused join leaves the profile as it was, so the failure is said out loud.
     private func join() {
         guard !isJoining else { return }
@@ -404,7 +453,7 @@ struct ChatProfileScreen: View {
             do {
                 try await conversationController.join(conversationID: conversationID)
                 Analytics.groupJoined(error: nil, memberCount: memberCount, gated: gated)
-                router.popTopmost()
+                showChat()
             } catch {
                 Analytics.groupJoined(error: error, memberCount: memberCount, gated: gated)
                 let subtitle: String
@@ -510,4 +559,12 @@ struct ChatProfileScreen: View {
             ErrorReporting.captureError(error, reason: "Failed to leave group")
         }
     }
+}
+
+/// Where a group's profile was opened from.
+nonisolated enum ChatProfileOrigin: Hashable {
+    /// The group chat's own navigation title, so the chat sits underneath.
+    case chat
+    /// A favorite group on the You tab or someone's profile, with no chat underneath.
+    case featuredGroup
 }

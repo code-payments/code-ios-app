@@ -231,8 +231,8 @@ struct DestinationView: View {
             UserProfileScreen(userID: userID, origin: origin)
                 .id(userID)
 
-        case .chatProfile(let conversationID):
-            ChatProfileScreen(conversationID: conversationID)
+        case .chatProfile(let conversationID, let origin):
+            ChatProfileScreen(conversationID: conversationID, origin: origin)
                 .id(conversationID)
 
         case .editGroup(let conversationID):

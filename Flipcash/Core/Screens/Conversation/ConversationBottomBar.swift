@@ -291,11 +291,21 @@ struct ConversationBottomBar: View {
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
     private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
-    /// `$` splitting from the field's glass and joining back into it.
-    private static let cashSpring = Animation.spring(duration: 0.4, bounce: 0.3)
+    /// `$` splitting from the field's glass and joining back into it. Low bounce, so the overshoot
+    /// does not carry the drop back into the field it just left.
+    private static let cashSpring = Animation.spring(duration: 0.42, bounce: 0.12)
+    /// How long `$` waits for the send arrow to shrink out of the spot it buds from.
+    private static let cashBudDelay: TimeInterval = 0.1
+    /// `$`'s glyph between the field's trailing edge, where its glass buds, and its own place.
+    private static let cashGlyphTravel = AnyTransition
+        .offset(x: -(BarMetrics.contentHeight / 2 + leadingSpacing))
+        .combined(with: .scale(scale: 0.4))
     /// The gap between the field and the control beside it: cancel-edit on its left, `$` on its right. The composer's glass joins across no
     /// more than this, so `$` stays bridged to the field while it travels and pinches off at rest.
     static let leadingSpacing: CGFloat = 10
+    /// How close the composer's glass shapes come before they flow together: under the resting gap,
+    /// so `$` is bridged to the field while it travels and stands clear of it at rest.
+    private static let glassJoinDistance: CGFloat = 8
 
     /// Whether the bar sits inset from the screen's sides: at rest with the keyboard down. It widens
     /// to the full edge inset as the keyboard comes up.
@@ -354,7 +364,7 @@ struct ConversationBottomBar: View {
             }
         }
         if #available(iOS 26, *) {
-            GlassEffectContainer(spacing: Self.leadingSpacing) { layout }
+            GlassEffectContainer(spacing: Self.glassJoinDistance) { layout }
         } else {
             layout
         }
@@ -385,13 +395,21 @@ struct ConversationBottomBar: View {
                     hidesPlus: showsCard,
                     // Swapped out in one frame for the surface, which is drawn as `+` where it stands.
                     plusIsStoodInFor: model.surfaceStandsInForPlus && motion.animatesGeometry,
-                    onAttachOpen: onAttachOpen
+                    onAttachOpen: onAttachOpen,
+                    sendWaitsForCashJoin: leadingControl == .cash
                 )
                 // Over the row's other controls, which the attach panel floats across.
                 .zIndex(1)
                 if leadingControl == .cash, cashIsShown {
                     ComposerCashButton(symbol: symbol, action: onSendCash)
-                        .transition(.scale(scale: 0.4).combined(with: .opacity))
+                        // Rides the glass out of the field's trailing end and back into it, never
+                        // seen inside the field: it shows once the bud is out and goes as it leaves.
+                        .transition(.asymmetric(
+                            insertion: Self.cashGlyphTravel
+                                .combined(with: .opacity.animation(.easeIn(duration: 0.12).delay(Self.cashBudDelay + 0.06))),
+                            removal: Self.cashGlyphTravel
+                                .combined(with: .opacity.animation(.easeOut(duration: 0.1)))
+                        ))
                 }
             }
             .background {
@@ -401,7 +419,9 @@ struct ConversationBottomBar: View {
             .onAppear { cashIsShown = composer.draft.isEmpty }
             .onChange(of: composer.draft.isEmpty) { _, isEmpty in
                 guard cashIsShown != isEmpty else { return }
-                withAnimation(Self.cashSpring) { cashIsShown = isEmpty }
+                withAnimation(isEmpty ? Self.cashSpring.delay(Self.cashBudDelay) : Self.cashSpring) {
+                    cashIsShown = isEmpty
+                }
             }
             .onChange(of: menuLeadingReach, initial: true) { _, reach in
                 model.overKeyboard.menuLeadingReach = reach
@@ -991,12 +1011,17 @@ struct ConversationComposer: View {
     var plusIsStoodInFor = false
     /// Fired as `+` opens the attach panel with the given rows.
     var onAttachOpen: ([AttachMenuItem]) -> Void = { _ in }
+    /// Whether `$` stands beside the field and merges into it as the draft starts, so the send
+    /// arrow waits for it to land instead of appearing over it.
+    var sendWaitsForCashJoin = false
 
     @Environment(ConversationController.self) private var conversationController
     @FocusState private var isFocused: Bool
 
     /// Send button scale-in/out as text appears/clears.
     private static let sendButtonSpring = ChatMotion.sendButton.animation
+    /// How long the send arrow waits for `$` to merge into the field's trailing end.
+    private static let cashJoinDelay: TimeInterval = 0.16
     /// The text's and chips' inset from the field's leading edge.
     private static let leadingInset: CGFloat = 14
     /// The stacked text's inset from the field's leading edge, matched to its inset from the top so
@@ -1226,7 +1251,10 @@ struct ConversationComposer: View {
         // rode the text field's update, which carries no animation, so the pop never played.
         .onAppear { submitIsShown = showsSubmit }
         .onChange(of: showsSubmit) { _, shows in
-            withAnimation(Self.sendButtonSpring) { submitIsShown = shows }
+            let waits = shows && sendWaitsForCashJoin && !composer.isEditing
+            withAnimation(waits ? Self.sendButtonSpring.delay(Self.cashJoinDelay) : Self.sendButtonSpring) {
+                submitIsShown = shows
+            }
         }
     }
 
