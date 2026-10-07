@@ -208,15 +208,36 @@ final class ConversationController {
         }
     }
 
-    /// Holds a conversation fetched elsewhere, so a screen opened on it finds it populated. A
-    /// no-op when the store already has the chat, whose copy is the fresher one.
+    /// Holds a conversation fetched elsewhere, so a screen opened on it finds it populated. When the
+    /// store already has the chat its copy is the fresher one, and only a cover it lacks is taken.
     func hold(_ conversation: Conversation) {
-        guard self.conversation(withID: conversation.id) == nil else { return }
+        if let stored = self.conversation(withID: conversation.id) {
+            if stored.coverPicture == nil, let cover = conversation.coverPicture {
+                applyCover(cover, to: conversation.id)
+            }
+            return
+        }
         store.apply(.metadataRefresh(conversation))
         // The server copy, not the store's: the store drops a tombstone preview, and the
         // database wants the row so the repair below can tell the newest message was deleted.
         persistConversation(conversation)
         refreshFeedPreview(for: conversation.id)
+    }
+
+    /// Fetches the cover of a stored group whose copy has none. The feed's list rows leave the cover
+    /// out, so a joined group holds one only after a full `GetChat`. A failed fetch leaves it unset.
+    func fillCoverPicture(for conversationID: ConversationID) async {
+        guard let stored = conversation(withID: conversationID), stored.coverPicture == nil,
+              let fetched = try? await fetching.getChat(owner: owner, conversationID: conversationID),
+              let cover = fetched.coverPicture else {
+            return
+        }
+        applyCover(cover, to: conversationID)
+    }
+
+    private func applyCover(_ cover: ProfilePicture, to conversationID: ConversationID) {
+        _ = store.apply(.coverPictureChanged(conversationID: conversationID, coverPicture: cover))
+        persistConversation(conversationID)
     }
 
     /// Each group as the server answers it in full, keyed by id. A featured list's rows omit the
