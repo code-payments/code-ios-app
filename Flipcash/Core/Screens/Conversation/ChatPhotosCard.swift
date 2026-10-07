@@ -114,6 +114,8 @@ struct ChatPhotosCard: View {
             matching: .images,
             photoLibrary: .shared()
         )
+        // The presented picker takes the app's white root tint, which hides the white number on its selection badges.
+        .tint(.blue)
         .onAppear {
             if opensLibraryOnAppear {
                 pick.showsLibrary = true
