@@ -65,8 +65,7 @@ struct FeaturedGroupRow<Trailing: View>: View {
                 displayName: group.groupLinkTitle,
                 imageData: sessionContainer.profileAvatars.data(for: .chat(group.id)),
                 blurhash: group.picture?.thumbnailBlurhash,
-                size: 48,
-                cornerRadius: 15
+                size: 48
             )
             VStack(alignment: .leading, spacing: 3) {
                 Text(group.groupLinkTitle)
