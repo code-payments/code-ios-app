@@ -152,6 +152,38 @@ struct GroupProfileStateTests {
         #expect(GroupBalanceRequirements(rules) == nil)
     }
 
+    // MARK: - Sole token
+
+    @Test("A group whose requirements name one token surfaces it")
+    func soleTokenShared() {
+        let rules = ConversationRules(
+            listener: [.minimumBalance(minimum(10, mints: [.jeffy]))],
+            speaker: [.minimumBalance(minimum(25, mints: [.jeffy]))]
+        )
+        #expect(GroupBalanceRequirements(rules)?.soleToken == .jeffy)
+    }
+
+    @Test("A token named by one requirement is surfaced when the other spans every mint")
+    func soleTokenBesideAnyHolding() {
+        let rules = ConversationRules(
+            listener: [.minimumBalance(minimum(10))],
+            speaker: [.minimumBalance(minimum(25, mints: [.jeffy]))]
+        )
+        #expect(GroupBalanceRequirements(rules)?.soleToken == .jeffy)
+    }
+
+    @Test("No token is surfaced for two tokens, the dollar token, or any holding", arguments: [
+        ConversationRules(
+            listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(10), mints: [.jeffy]))],
+            speaker: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(25), mints: [.usdf]))]
+        ),
+        ConversationRules(listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(10), mints: [.usdf]))]),
+        ConversationRules(listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(10)))]),
+    ])
+    func soleTokenAbsent(rules: ConversationRules) {
+        #expect(GroupBalanceRequirements(rules)?.soleToken == nil)
+    }
+
     // MARK: - Shortfall
 
     @Test("The shortfall is the requirement less what is held")
