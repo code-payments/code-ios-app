@@ -148,11 +148,6 @@ struct ChatProfileScreen: View {
                         .padding(.top, 24)
                     }
 
-                    if let token = requirements?.soleToken.flatMap({ mintMetadata[$0] }) {
-                        tokenSection(token)
-                            .padding(.top, 24)
-                    }
-
                     if let requirements {
                         balanceRequirements(requirements)
                             .padding(.top, 24)
@@ -228,37 +223,6 @@ struct ChatProfileScreen: View {
         }
     }
 
-    // MARK: - Token -
-
-    private func tokenSection(_ token: StoredMintMetadata) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Token")
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
-                .accessibilityAddTraits(.isHeader)
-
-            Button {
-                Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
-                router.push(.currencyInfo(token.mint))
-            } label: {
-                HStack {
-                    TokenIconWithName(url: token.imageURL, monogramID: token.mint.base58, name: token.name, iconSize: 32)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                }
-                .padding(.horizontal, 16)
-                .frame(height: 56)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
-            .accessibilityIdentifier("group-profile-token")
-        }
-        .padding(.horizontal, ProfileHeaderMetrics.inset)
-    }
-
     // MARK: - Balance Requirements -
 
     private func balanceRequirements(_ requirements: GroupBalanceRequirements) -> some View {
@@ -268,11 +232,17 @@ struct ChatProfileScreen: View {
                 .foregroundStyle(Color.textMain)
                 .accessibilityAddTraits(.isHeader)
 
+            let token = requirements.soleToken.flatMap { mintMetadata[$0] }
             VStack(spacing: 0) {
-                requirementRow("Join", requirements.join, identifier: "group-profile-join-minimum")
+                if let token {
+                    tokenRow(token)
+                    Color.rowSeparator
+                        .frame(height: 1)
+                }
+                requirementRow("Join", requirements.join, namesToken: token == nil, identifier: "group-profile-join-minimum")
                 Color.rowSeparator
                     .frame(height: 1)
-                requirementRow("Chat", requirements.chat, identifier: "group-profile-chat-minimum")
+                requirementRow("Chat", requirements.chat, namesToken: token == nil, identifier: "group-profile-chat-minimum")
             }
             .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
 
@@ -292,13 +262,37 @@ struct ChatProfileScreen: View {
         .padding(.horizontal, ProfileHeaderMetrics.inset)
     }
 
-    private func requirementRow(_ label: String, _ requirement: MinimumBalanceRequirement?, identifier: String) -> some View {
+    /// The chat's one token, opening its info page. The rows below then state bare amounts.
+    private func tokenRow(_ token: StoredMintMetadata) -> some View {
+        Button {
+            Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
+            router.push(.currencyInfo(token.mint))
+        } label: {
+            HStack {
+                Text("Community Currency")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                Spacer()
+                TokenIconWithName(url: token.imageURL, monogramID: token.mint.base58, name: token.name, iconSize: 24)
+                Image(systemName: "chevron.right")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("group-profile-token")
+    }
+
+    private func requirementRow(_ label: String, _ requirement: MinimumBalanceRequirement?, namesToken: Bool, identifier: String) -> some View {
         HStack {
             Text(label)
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textSecondary)
             Spacer()
-            Text(requirement.map { holding($0.amount, mint: $0.mints.first) } ?? "None")
+            Text(requirement.map { holding($0.amount, mint: namesToken ? $0.mints.first : nil) } ?? "None")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
         }
