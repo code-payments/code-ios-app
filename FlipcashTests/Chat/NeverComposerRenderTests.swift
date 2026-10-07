@@ -20,7 +20,7 @@ struct NeverComposerRenderTests {
 
     private func render(_ requirement: ConversationGateRequirement = .never, width: CGFloat = 402) throws -> (image: UIImage, pill: CGSize) {
         let panel = ConversationGatePanel(
-            presentation: .readOnly(requirement), mintName: nil, onAddFunds: {}, onJoin: {}, isJoining: false
+            presentation: .readOnly(requirement), mintName: nil, shortfall: nil, onAddFunds: {}, onJoin: {}, isJoining: false
         )
         let host = UIHostingController(rootView: ZStack(alignment: .bottom) {
             Color.backgroundMain

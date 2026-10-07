@@ -314,6 +314,21 @@ struct ConversationScreen: View {
     /// Ticker for the requirement the panel names, once its metadata lands.
     private var gateMintName: String? { gateMint.flatMap { mintNames[$0] } }
 
+    /// How much more the gate's minimum asks the user to hold, for the panel's Buy button.
+    private var gateShortfall: FiatAmount? {
+        let requirement: ConversationGateRequirement
+        switch gate {
+        case .open, .undetermined, .join:   return nil
+        case .blocked(let r), .readOnly(let r): requirement = r
+        }
+        switch requirement {
+        case .minimumBalance(let amount, let mint):
+            return balanceShortfall(of: amount, mint: mint, holdings: session, rates: ratesController.cachedRates)
+        case .staff, .never, .creator, .unsupported:
+            return nil
+        }
+    }
+
     private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
         switch requirement {
         case .minimumBalance(_, let mint):  mint
@@ -385,6 +400,7 @@ struct ConversationScreen: View {
             // cached opens on the placeholder and paints once with its history.
             showsGatePlaceholder: (gate.withholdsTranscript || !didInitialRead) && (coordinator?.items.isEmpty ?? true),
             gateMintName: gateMintName,
+            gateShortfall: gateShortfall,
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,
             isJoiningChat: isJoiningChat,
@@ -1095,8 +1111,26 @@ struct ConversationScreen: View {
             router.presentAddMoney(.general, source: .chat)
             return
         }
+        guard canPayForGateShortfall(buying: gateMint) else {
+            Analytics.groupGateFundingTapped(method: .addCash, gateMint: gateMint)
+            router.presentAddMoney(.buyCurrency, source: .buyShortfall)
+            return
+        }
         Analytics.groupGateFundingTapped(method: .buyToken, gateMint: gateMint)
         router.push(.buyCurrency(gateMint))
+    }
+
+    /// Whether one held balance can pay for the gap, as the buy flow pays from a single source and
+    /// can't spend the token being bought. With no gap to state, any spendable balance will do.
+    private func canPayForGateShortfall(buying mint: PublicKey) -> Bool {
+        let rate = ratesController.rateForBalanceCurrency()
+        let sources = session.balances(for: rate).filter {
+            $0.stored.mint != mint && $0.exchangedFiat.hasDisplayableValue()
+        }
+        guard let needed = gateShortfall?.converted(to: .usd, rates: ratesController.cachedRates) else {
+            return !sources.isEmpty
+        }
+        return sources.contains { $0.exchangedFiat.usdfValue >= needed }
     }
 
     /// Sends `Group: Gate Shown` the first time this visit draws a join gate. A gate that is

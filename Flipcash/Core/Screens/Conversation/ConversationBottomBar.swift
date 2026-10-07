@@ -241,6 +241,8 @@ struct ConversationBottomBar: View {
     /// Display name of the mint the gate's requirement names, once resolved. See
     /// ``ConversationGatePanel``.
     var gateMintName: String? = nil
+    /// How much more the gate's minimum asks the user to hold; see ``ConversationGatePanel/shortfall``.
+    var gateShortfall: FiatAmount? = nil
     /// Opens the buy or add-cash flow from the gate panel's CTA.
     var onGateAddFunds: () -> Void = {}
     /// Joins the chat from the gate panel's Join button.
@@ -330,6 +332,7 @@ struct ConversationBottomBar: View {
             ConversationGatePanel(
                 presentation: gate,
                 mintName: gateMintName,
+                shortfall: gateShortfall,
                 onAddFunds: onGateAddFunds,
                 onJoin: onGateJoin,
                 isJoining: isJoiningChat

@@ -26,6 +26,11 @@ struct ConversationGatePanel: View {
     /// drops the "of X" clause rather than printing a placeholder.
     let mintName: String?
 
+    /// How much more the user must hold to meet a minimum-balance requirement, in its currency.
+    /// Nil when there is none to buy or no rate can state it, and the button falls back to a
+    /// bare Buy More / Add Cash.
+    let shortfall: FiatAmount?
+
     /// Opens the buy flow for the requirement's mint, or add-cash when the requirement spans every
     /// mint. Never called for ``ConversationGateRequirement/staff``, which has no button.
     let onAddFunds: () -> Void
@@ -101,8 +106,14 @@ struct ConversationGatePanel: View {
         .padding(.horizontal, Layout.cardPadding)
         .padding(.bottom, Layout.cardPadding)
         .background {
-            RoundedRectangle(cornerRadius: Metrics.boxRadius)
-                .fill(Color.backgroundRow)
+            // Frosted like Android's card: the transcript scrolling behind it blurs, tinted toward
+            // the screen so the line stays readable.
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Color.backgroundMain.opacity(0.3)
+                Color.backgroundRow
+            }
+            .clipShape(.rect(cornerRadius: Metrics.boxRadius))
         }
         .padding(.horizontal, Layout.screenInset)
         .padding(.vertical, BarMetrics.contentPadding)
@@ -128,8 +139,8 @@ struct ConversationGatePanel: View {
         case .minimumBalance(let amount, let mint):
             let holding = requirementAmount(amount, mint: mint)
             switch presentation {
-            case .readOnly:                               return "Minimum Balance to Send Messages: \(holding)"
-            case .open, .undetermined, .join, .blocked:   return "Minimum Balance: \(holding)"
+            case .readOnly:                               return "\(holding) Required to Chat"
+            case .open, .undetermined, .join, .blocked:   return "\(holding) Required to Join"
             }
         case .staff:
             switch presentation {
@@ -169,7 +180,7 @@ struct ConversationGatePanel: View {
             // through: `join` seats membership from the reply it gets back, so the gate has already
             // resolved to the composer by the time the call returns.
             Button(action: onJoin) {
-                ButtonStateLabel("Join Chat", state: isJoining ? .loading : .normal)
+                ButtonStateLabel("Join", state: isJoining ? .loading : .normal)
             }
                 .buttonStyle(.filled)
                 .disabled(isJoining)
@@ -178,6 +189,7 @@ struct ConversationGatePanel: View {
             switch requirement {
             case .minimumBalance(_, let mint):
                 Button(addFundsTitle(mint: mint), action: onAddFunds)
+                    .accessibilityIdentifier("conversation-gate-add-funds")
                     .buttonStyle(.filled)
             case .staff, .never, .creator, .unsupported:
                 // Nothing the user can do about being staff, about a chat nobody may post in, or about not being its creator,
@@ -192,9 +204,22 @@ struct ConversationGatePanel: View {
     /// add cash rather than to a buy flow; a named mint whose metadata hasn't arrived yet still
     /// buys the right thing, it just can't say which.
     private func addFundsTitle(mint: PublicKey?) -> String {
-        guard let mint, mint != .usdf else { return "Add Cash" }
-        guard let mintName else { return "Buy More" }
-        return "Buy More \(mintName)"
+        let action: String
+        switch presentation {
+        case .readOnly:                               action = "Chat"
+        case .open, .undetermined, .join, .blocked:   action = "Join"
+        }
+        let amount = shortfall?.formatted()
+        guard let mint, mint != .usdf else {
+            guard let amount else { return "Add Cash" }
+            return "Add \(amount) to \(action)"
+        }
+        switch (amount, mintName) {
+        case let (amount?, name?):  return "Buy \(amount) of \(name) to \(action)"
+        case let (amount?, nil):    return "Buy \(amount) to \(action)"
+        case let (nil, name?):      return "Buy More \(name)"
+        case (nil, nil):            return "Buy More"
+        }
     }
 
     /// Node 10125:19197 — a 356pt card in a 402pt frame, 12pt above its contents and 6pt around

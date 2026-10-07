@@ -146,8 +146,11 @@ private struct UserProfileContent: View {
                     ProfileStatsCard(minimumToChat: fee, joinedAt: model.joinedAt)
                         .padding(.top, 20)
 
-                    FeaturedGroupsSection(groups: model.featuredGroups) {
-                        router.push(.chatProfile($0, origin: .featuredGroup))
+                    FeaturedGroupsSection(groups: model.featuredGroups) { id in
+                        if let group = model.featuredGroups.first(where: { $0.id == id }) {
+                            conversationController.hold(group)
+                        }
+                        router.push(.chatProfile(id, origin: .featuredGroup))
                     }
                     .padding(.top, 20)
                 }
@@ -221,6 +224,8 @@ private struct UserProfileContent: View {
         .task {
             await model.loadProfile()
             await model.loadFeaturedGroups()
+            let full = await conversationController.fullConversations(for: model.featuredGroups)
+            model.fillCovers(full)
         }
     }
 
@@ -508,6 +513,11 @@ final class UserProfileViewModel {
             guard !Task.isCancelled else { return }
             ErrorReporting.captureError(error, reason: "Failed to load featured groups")
         }
+    }
+
+    /// Swaps in the full rows that carry each group's cover, keeping any group without one.
+    func fillCovers(_ full: [ConversationID: Conversation]) {
+        featuredGroups = featuredGroups.map { full[$0.id] ?? $0 }
     }
 
     private func apply(_ profile: Profile) {
