@@ -55,7 +55,6 @@ private struct UserProfileContent: View {
     let origin: UserProfileOrigin
 
     @State private var isShowingShare = false
-    @State private var shareChoice: ProfileShareChoice?
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
     @State private var isPickingMuteDuration = false
@@ -175,8 +174,13 @@ private struct UserProfileContent: View {
                 }
             }
         }
-        .sheet(isPresented: $isShowingShare, onDismiss: handleShareChoice) {
-            ProfileShareSheet(subtitle: shareSubtitle, offersCard: false) { shareChoice = $0 }
+        .fullScreenCover(isPresented: $isShowingShare) {
+            ShareToChatsSheet(
+                subject: .user(url: model.shareURL, displayName: model.name, directChatID: dmID),
+                isPresented: $isShowingShare
+            ) { chatID in
+                router.push(.tipConversation(chatID))
+            }
         }
         .dialog(item: $dialogItem)
         .sheet(isPresented: $isPickingMuteDuration) {
@@ -268,23 +272,6 @@ private struct UserProfileContent: View {
         }
         .accessibilityLabel("Share profile")
         .accessibilityIdentifier("profile-share")
-    }
-
-    private func handleShareChoice() {
-        defer { shareChoice = nil }
-        switch shareChoice {
-        case .share:
-            model.share()
-        case .copyLink:
-            UIPasteboard.general.string = model.shareURL.absoluteString
-            toasts.show(.init("Copied", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
-        case .showCard, nil:
-            break
-        }
-    }
-
-    private var shareSubtitle: String? {
-        [model.displayName, model.handle].compactMap { $0 }.joined(separator: " · ")
     }
 
     private func perform(_ item: ProfileMenuItem) {
@@ -534,12 +521,6 @@ final class UserProfileViewModel {
 
     /// This person's public link, the one their own You tab shares.
     var shareURL: URL { .tipcard(for: userID, username: username) }
-
-    /// Opens the share sheet on this person's public link, the one their own You tab shares.
-    func share() {
-        let item = TipCodeShareItem.profile(url: shareURL, displayName: name)
-        ShareSheet.present(activityItem: item) { _ in }
-    }
 
     /// Lifts the block; the badge and pinned button follow the blocklist. A failure says so.
     func unblock() async {

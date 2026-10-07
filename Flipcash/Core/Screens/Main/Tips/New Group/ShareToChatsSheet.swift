@@ -1,5 +1,5 @@
 //
-//  GroupInviteSheet.swift
+//  ShareToChatsSheet.swift
 //  Flipcash
 //
 
@@ -8,14 +8,22 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a group's invite link by
-/// Share or Copy, or post it straight into recent chats with an optional message.
-///
-/// A group is not discoverable — the link built from its id is the only way in — so every path here
-/// sends the same URL.
-struct GroupInviteSheet: View {
+/// What ``ShareToChatsSheet`` hands out.
+enum ShareToChatsSubject {
+    /// A group's invite link. A group is not discoverable — the link built from its id is the only
+    /// way in.
+    case group(ConversationID)
+    /// A person's public profile link, the one their own You tab shares. `preview` is the tip-code
+    /// image for the system share sheet's card, when one is rendered. `directChatID` is the viewer's
+    /// DM with them, left out of the picker so nobody is sent their own profile.
+    case user(url: URL, displayName: String?, preview: TipCodePreview? = nil, directChatID: ConversationID?)
+}
 
-    let conversationID: ConversationID
+/// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a link by Share or Copy,
+/// or post it straight into recent chats with an optional message.
+struct ShareToChatsSheet: View {
+
+    let subject: ShareToChatsSubject
 
     @Binding var isPresented: Bool
 
@@ -37,11 +45,52 @@ struct GroupInviteSheet: View {
     @State private var headerHeight: CGFloat = 0
     @FocusState private var isMessageFocused: Bool
 
-    init(conversationID: ConversationID, isPresented: Binding<Bool>, onInvited: @escaping (ConversationID) -> Void) {
-        self.conversationID = conversationID
+    init(subject: ShareToChatsSubject, isPresented: Binding<Bool>, onInvited: @escaping (ConversationID) -> Void) {
+        self.subject = subject
         self._isPresented = isPresented
         self.onInvited = onInvited
-        self._model = State(initialValue: InvitePeopleViewModel(url: .groupChatInvite(for: conversationID)))
+        let url: URL = switch subject {
+        case .group(let id): .groupChatInvite(for: id)
+        case .user(let url, _, _, _): url
+        }
+        self._model = State(initialValue: InvitePeopleViewModel(url: url))
+    }
+
+    /// The group being invited to, nil when sharing a person.
+    private var groupID: ConversationID? {
+        switch subject {
+        case .group(let id): id
+        case .user: nil
+        }
+    }
+
+    /// The chat the picker leaves out: the group itself, or the DM with the person shared.
+    private var excludedChatID: ConversationID? {
+        switch subject {
+        case .group(let id): id
+        case .user(_, _, _, let directChatID): directChatID
+        }
+    }
+
+    private var sheetTitle: String {
+        switch subject {
+        case .group: "Invite People"
+        case .user: "Share Profile"
+        }
+    }
+
+    private var copyTitle: String {
+        switch subject {
+        case .group: "Copy Invite Link"
+        case .user: "Copy Link"
+        }
+    }
+
+    private var sendTitle: String {
+        switch subject {
+        case .group: "Invite"
+        case .user: "Send"
+        }
     }
 
     /// The group's own title, which names it in the shared message.
@@ -55,13 +104,13 @@ struct GroupInviteSheet: View {
     }
 
     private var conversation: Conversation? {
-        conversationController.conversation(withID: conversationID)
+        groupID.flatMap(conversationController.conversation(withID:))
     }
 
-    /// The chats the Chats tab lists, newest activity first: 1:1 chats and joined groups, less the
-    /// group being invited to. Search and people outside recent chats are out of scope.
+    /// The chats the Chats tab lists, newest activity first: 1:1 chats and joined groups, less
+    /// ``excludedChatID``. Search and people outside recent chats are out of scope.
     private var recentChats: [Conversation] {
-        conversationController.chatListConversations.filter { $0.id != conversationID }
+        conversationController.chatListConversations.filter { $0.id != excludedChatID }
     }
 
     /// The group's picture for the share sheet's own preview card.
@@ -70,9 +119,19 @@ struct GroupInviteSheet: View {
     /// every render of a sheet that shows it nowhere. Nil while the avatar hasn't loaded or the
     /// group has none — the card then carries the name alone.
     private func icon() -> UIImage? {
-        sessionContainer.profileAvatars
-            .data(for: .chat(conversationID))
+        groupID
+            .flatMap { sessionContainer.profileAvatars.data(for: .chat($0)) }
             .flatMap(UIImage.init(data:))
+    }
+
+    /// What Share hands the system share sheet: the group's preview card, or the person's.
+    private func shareItem() -> UIActivityItemSource {
+        switch subject {
+        case .group:
+            GroupInviteShareItem(url: model.url, title: title, icon: icon())
+        case .user(let url, let displayName, let preview, _):
+            TipCodeShareItem.profile(url: url, displayName: displayName, preview: preview)
+        }
     }
 
     var body: some View {
@@ -136,21 +195,21 @@ struct GroupInviteSheet: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .presentationDetents([.large])
         .presentationBackground(Color.backgroundMain)
         .interactiveDismissDisabled(model.isSending)
         .task {
             // Idempotent: the store returns without a round trip once the bytes are in memory or
             // on disk. Loading here rather than relying on the presenting screen keeps the preview
             // card's icon independent of which screen opened the sheet.
-            await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
+            guard let groupID else { return }
+            await sessionContainer.profileAvatars.load(.chat(groupID), picture: conversation?.picture)
         }
     }
 
     /// The sheet's own title bar: a centred title and a glass close button on the right.
     private var header: some View {
         ZStack {
-            Text("Invite People")
+            Text(sheetTitle)
                 .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
 
@@ -173,14 +232,12 @@ struct GroupInviteSheet: View {
                     .resizable()
                     .scaledToFit()
             } action: {
-                Analytics.groupInviteShared(method: .share)
-                ShareSheet.present(
-                    activityItem: GroupInviteShareItem(url: model.url, title: title, icon: icon())
-                ) { _ in }
+                if groupID != nil { Analytics.groupInviteShared(method: .share) }
+                ShareSheet.present(activityItem: shareItem()) { _ in }
             }
             .accessibilityIdentifier("group-invite-send")
 
-            ShareTile(title: didCopy ? "Copied" : "Copy Invite Link") {
+            ShareTile(title: didCopy ? "Copied" : copyTitle) {
                 if didCopy {
                     Image.system(.circleCheck)
                         .resizable()
@@ -230,7 +287,7 @@ struct GroupInviteSheet: View {
 
             Button(action: invite) {
                 ZStack {
-                    Text("Invite").opacity(model.isSending ? 0 : 1)
+                    Text(sendTitle).opacity(model.isSending ? 0 : 1)
                     if model.isSending {
                         ProgressView().tint(Color.textAction)
                     }
@@ -272,7 +329,7 @@ struct GroupInviteSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: BarMetrics.fieldMinHeight)
 
-            Text("Invite")
+            Text(sendTitle)
                 .font(.default(size: 17, weight: .medium))
                 .padding(.horizontal, 14)
                 .frame(height: BarMetrics.fieldMinHeight)
@@ -301,7 +358,7 @@ struct GroupInviteSheet: View {
     }
 
     private func copy() {
-        Analytics.groupInviteShared(method: .theCopy)
+        if groupID != nil { Analytics.groupInviteShared(method: .theCopy) }
         UIPasteboard.general.string = model.url.absoluteString
         withAnimation(.easeInOut(duration: 0.15)) {
             didCopy = true
@@ -338,7 +395,7 @@ private struct ShareTile<Icon: View>: View {
             .padding(.vertical, 16)
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, minHeight: 95)
-            .background(Color.white.opacity(0.05))
+            .background(Color.backgroundRow)
             .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         }

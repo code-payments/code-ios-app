@@ -15,6 +15,8 @@ struct ChatActionRow: View {
 
     let icon: Image
     let title: String
+    /// The card's fill: ``Color/backgroundRow`` over the main background, lighter on a lifted sheet.
+    var background: Color = .backgroundRow
     let accessibilityIdentifier: String
     let action: () -> Void
 
@@ -36,7 +38,7 @@ struct ChatActionRow: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.backgroundRow, in: .rect(cornerRadius: Metrics.buttonRadius))
+            .background(background, in: .rect(cornerRadius: Metrics.buttonRadius))
             .contentShape(.rect(cornerRadius: Metrics.buttonRadius))
         }
         .buttonStyle(.plain)

@@ -10,77 +10,45 @@ import FlipcashUI
 enum ProfileShareChoice {
     case share
     case showCard
-    case copyLink
 }
 
-/// The bottom sheet behind a profile's Share button: share the link, show the profile card, or copy the link.
+/// The bottom sheet behind the You tab's Share button: share the profile, or show the profile card.
+/// Drawn as the "Add Money With" sheet is. Other people's profiles and groups share through
+/// ``ShareToChatsSheet`` directly.
 ///
 /// A row dismisses the sheet and reports its choice through `onChoose`; the presenter acts on it from
-/// the sheet's `onDismiss`, so a share sheet or cover never presents over a sheet that is leaving.
-/// `offersCard` false drops the card row, for a profile that has no card to show.
+/// the sheet's `onDismiss`, so a following sheet or cover never presents over a sheet that is leaving.
 struct ProfileShareSheet: View {
 
-    var title: String = "Share User Profile"
-    let subtitle: String?
-    /// The first row, which reports ``ProfileShareChoice/share``.
-    var shareRow: (title: String, icon: Image) = ("Share Profile", Image.asset(.shareOS))
-    let offersCard: Bool
     let onChoose: (ProfileShareChoice) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        PartialSheet(background: .backgroundMain) {
-            VStack(spacing: 20) {
-                header
-
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
-                        // Same floor as ``MuteChatSheet``'s caption: `PartialSheet` can propose less
-                        // height than the text needs while it corrects to its measured size.
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity)
+        PartialSheet {
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Share User Profile")
+                        .font(.appBarButton)
+                        .foregroundStyle(Color.textMain)
+                    Spacer()
                 }
+                .padding(.vertical, 20)
 
-                VStack(spacing: 12) {
-                    row(icon: shareRow.icon, title: shareRow.title, identifier: "profile-share-row", choice: .share)
-                    if offersCard {
-                        row(icon: Image(systemName: "person.crop.rectangle"), title: "Show Profile Card", identifier: "profile-card-row", choice: .showCard)
-                    }
-                    row(icon: Image.asset(.chainLink), title: "Copy Link", identifier: "profile-copy-link-row", choice: .copyLink)
-                }
+                row(icon: Image.asset(.shareOS), title: "Share Profile", identifier: "profile-share-row", choice: .share)
+                row(icon: Image(systemName: "person.crop.rectangle"), title: "Show Profile Card", identifier: "profile-card-row", choice: .showCard)
+
+                Button("Dismiss") { dismiss() }
+                    .buttonStyle(.subtle)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 20)
-            .padding(.bottom, bottomPadding)
+            .padding(.horizontal)
+            .padding(.top)
         }
-    }
-
-    /// Centred title with a close button, the same title bar as ``MuteChatSheet``.
-    private var header: some View {
-        ZStack {
-            Text(title)
-                .font(.appBarButton)
-                .foregroundStyle(Color.textMain)
-
-            HStack {
-                Spacer()
-                CloseButton(style: .glass) { dismiss() }
-            }
-        }
-    }
-
-    /// 16 under the last row, less what the sheet already holds back for the home indicator.
-    private var bottomPadding: CGFloat {
-        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
-        return max(0, 16 - reserved)
     }
 
     private func row(icon: Image, title: String, identifier: String, choice: ProfileShareChoice) -> some View {
-        ChatActionRow(icon: icon, title: title, accessibilityIdentifier: identifier) {
+        // The Add Money rows' fill, which reads on this sheet's lighter background.
+        ChatActionRow(icon: icon, title: title, background: Color.white.opacity(0.1), accessibilityIdentifier: identifier) {
             onChoose(choice)
             dismiss()
         }

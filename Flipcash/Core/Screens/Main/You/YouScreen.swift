@@ -24,7 +24,6 @@ struct YouScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
     @Environment(RatesController.self) private var ratesController
-    @Environment(ToastController.self) private var toasts
 
     /// Warms the share-sheet preview image ahead of the share tap so it never
     /// lands on the tap; keyed by user.
@@ -35,6 +34,7 @@ struct YouScreen: View {
 
     @State private var isShowingShare = false
     @State private var shareChoice: ProfileShareChoice?
+    @State private var isSharingToChats = false
     @State private var isShowingCardDownload = false
 
     /// The gap the page keeps between its last row and the tab bar.
@@ -116,7 +116,20 @@ struct YouScreen: View {
         }
         .dialog(item: $usernameDialog)
         .sheet(isPresented: $isShowingShare, onDismiss: handleShareChoice) {
-            ProfileShareSheet(subtitle: shareSubtitle, offersCard: true) { shareChoice = $0 }
+            ProfileShareSheet { shareChoice = $0 }
+        }
+        .fullScreenCover(isPresented: $isSharingToChats) {
+            ShareToChatsSheet(
+                subject: .user(
+                    url: url,
+                    displayName: displayName,
+                    preview: previewCache.preview(for: sessionContainer.session.userID),
+                    directChatID: nil
+                ),
+                isPresented: $isSharingToChats
+            ) { chatID in
+                router.push(.tipConversation(chatID))
+            }
         }
     }
 
@@ -312,23 +325,9 @@ struct YouScreen: View {
         TipCode.Payload(userID: sessionContainer.session.userID).codeData()
     }
 
-    private var shareSubtitle: String? {
-        guard let displayName else { return nil }
-        return [displayName, username?.handle].compactMap { $0 }.joined(separator: " · ")
-    }
-
     private var url: URL { .tipcard(for: sessionContainer.session.userID, username: username) }
 
     // MARK: - Actions -
-
-    private func shareTipCard() {
-        let item = TipCodeShareItem.profile(
-            url: url,
-            displayName: displayName,
-            preview: previewCache.preview(for: sessionContainer.session.userID)
-        )
-        ShareSheet.present(activityItem: item) { _ in }
-    }
 
     /// Shows the card; it runs its own scan-style reveal, and the toolbar glyph fades to Download alongside.
     private func showProfileCard() {
@@ -338,16 +337,10 @@ struct YouScreen: View {
     private func handleShareChoice() {
         defer { shareChoice = nil }
         switch shareChoice {
-        case .share:    shareTipCard()
+        case .share:    isSharingToChats = true
         case .showCard: showProfileCard()
-        case .copyLink: copyLink()
         case nil:       break
         }
-    }
-
-    private func copyLink() {
-        UIPasteboard.general.string = url.absoluteString
-        toasts.show(.init("Copied", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
     }
 
     /// Opens the claim screen once the balance clears the minimum, and the
