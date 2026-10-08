@@ -83,12 +83,7 @@ struct SettingsScreen: View {
             }
 
             if !trustedWebsites.entries.isEmpty {
-                SettingsRow(
-                    systemImage: "globe",
-                    title: "Trusted Websites",
-                    value: "\(trustedWebsites.entries.count)",
-                    insets: insets
-                ) {
+                SettingsRow(systemImage: "globe", title: "Trusted Websites", insets: insets) {
                     router.push(.trustedWebsites)
                 }
                 .accessibilityIdentifier("settings-trusted-websites-row")
