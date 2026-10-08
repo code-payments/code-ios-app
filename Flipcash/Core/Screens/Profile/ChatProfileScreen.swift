@@ -342,7 +342,7 @@ struct ChatProfileScreen: View {
         if origin == .chat {
             Color.clear
                 .frame(height: 0)
-                .profilePinnedBackdrop(isActive: scrollFit.overflows)
+                .profileBarlessFade(isActive: scrollFit.overflows)
         } else if conversation != nil {
             VStack(spacing: 8) {
                 openChatButton

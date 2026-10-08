@@ -8,6 +8,29 @@
 import SwiftUI
 import UIKit
 
+/// The chat's bottom dissolve as a ramp of background opacities: clear for most of its height, then
+/// a late rise that stops short of opaque, so content behind the bottom edge still shows faintly.
+public enum ChatFade {
+
+    private static let curve = UnitCurve.bezier(
+        startControlPoint: UnitPoint(x: 0.42, y: 0.18),
+        endControlPoint: UnitPoint(x: 0.17, y: 1.04)
+    )
+    private static let endOpacity = 0.9
+    private static let samples = 32
+
+    /// The ramp sampled top to bottom, as a location and the background's opacity there.
+    static let stops: [(location: Double, opacity: Double)] = (0...samples).map {
+        let location = Double($0) / Double(samples)
+        return (location, endOpacity * curve.value(at: location))
+    }
+
+    /// The ramp in `color`, for a top-to-bottom gradient.
+    public static func gradient(_ color: Color) -> Gradient {
+        Gradient(stops: stops.map { .init(color: color.opacity($0.opacity), location: $0.location) })
+    }
+}
+
 /// The dissolve from the transcript into the bottom of the screen: a ramp from nothing to the chat
 /// background, starting at the bar's top edge and reaching full opacity only at the screen's bottom
 /// edge, or the keyboard's top edge while one is up. The bar floats over it with no surface of its
@@ -19,15 +42,6 @@ import UIKit
 @MainActor
 final class ComposerFadeView: UIView {
 
-    /// The ramp's shape: clear for most of its height, then a late rise into the background.
-    private static let curve = UnitCurve.bezier(
-        startControlPoint: UnitPoint(x: 0.42, y: 0.18),
-        endControlPoint: UnitPoint(x: 0.17, y: 1.04)
-    )
-    /// Short of opaque, so a bubble behind the bar's bottom edge still shows faintly.
-    private static let endOpacity = 0.9
-    private static let samples = 32
-
     private let colorRamp = GradientView()
 
     init() {
@@ -35,10 +49,9 @@ final class ComposerFadeView: UIView {
         isUserInteractionEnabled = false
         addSubview(colorRamp)
         let base = UIColor(Color.backgroundMain)
-        let stops = (0...Self.samples).map { Double($0) / Double(Self.samples) }
         colorRamp.set(
-            colors: stops.map { base.withAlphaComponent(Self.endOpacity * Self.curve.value(at: $0)) },
-            locations: stops.map { NSNumber(value: $0) }
+            colors: ChatFade.stops.map { base.withAlphaComponent($0.opacity) },
+            locations: ChatFade.stops.map { NSNumber(value: $0.location) }
         )
     }
 
