@@ -29,28 +29,10 @@ import FlipcashCore
         return try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
     }
 
-    /// Vectors iOS answers ahead of the canonical fixture, by name, with the card kind it gives.
-    /// The fixture still says what Android does; each entry goes when the fixture is updated after
-    /// Android ships the same card.
-    private static let aheadOfFixture: [String: String] = [
-        // Person cards: the fixture's "not in phase 1" (open decision 4).
-        "tip-card-by-id": "user",
-    ]
-
     @Test func cardEligibilityMatchesTheCrossPlatformVectors() throws {
         let classifier = LinkCardClassifier()
 
         for vector in try loadFixture().vectors {
-            if let kind = Self.aheadOfFixture[vector.name] {
-                let links = vector.spans.compactMap { span in
-                    URL(string: span.url).map {
-                        DetectedLink(range: NSRange(location: span.start, length: span.end - span.start), url: $0)
-                    }
-                }
-                #expect(classifier.firstCard(in: links)?.kindName == kind, "vector `\(vector.name)` is ahead of the fixture")
-                continue
-            }
-
             let links = vector.spans.compactMap { span in
                 URL(string: span.url).map {
                     DetectedLink(range: NSRange(location: span.start, length: span.end - span.start), url: $0)
@@ -159,15 +141,38 @@ import FlipcashCore
     }
 
     /// `Route` reads any single-segment path as a handle, so only the host gate keeps an invite on
-    /// another service from becoming a person card.
+    /// another service from becoming a person card. It is an outside page, so it gets a web card.
     @Test(arguments: [
         "https://discord.gg/x",
         "https://t.me/satoshi",
         "https://example.com/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b",
         "https://example.com/tip/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b",
     ])
-    func aPersonShapedLinkOnAnotherHostStaysALink(text: String) throws {
+    func aPersonShapedLinkOnAnotherHostIsAWebCard(text: String) throws {
+        #expect(try Self.card(for: text)?.kindName == "web")
+    }
+
+    /// No cleartext, no IP literal, no local-network name: none of these is fetched, so none gets a card.
+    @Test(arguments: [
+        "http://example.com/a",
+        "https://8.8.8.8/a",
+        "https://[2606:4700::1111]/a",
+        "https://printer.local/a",
+        "https://intranet/a",
+    ])
+    func anUnfetchableLinkGetsNoWebCard(text: String) throws {
         #expect(try Self.card(for: text) == nil)
+    }
+
+    /// A Flipcash card later in the message beats an outside page earlier in it.
+    @Test func aFlipcashCardBeatsAnEarlierWebLink() throws {
+        let web = try #require(URL(string: "https://example.com/a"))
+        let group = try #require(URL(string: "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162"))
+        let links = [
+            DetectedLink(range: NSRange(location: 0, length: 21), url: web),
+            DetectedLink(range: NSRange(location: 22, length: 66), url: group),
+        ]
+        #expect(LinkCardClassifier().firstCard(in: links)?.kindName == "group")
     }
 
     /// A page the website serves is not somebody's handle, whatever case the link is typed in.
@@ -195,6 +200,7 @@ private extension LinkCard {
         case .token: "token"
         case .group: "group"
         case .user: "user"
+        case .web: "web"
         }
     }
 }

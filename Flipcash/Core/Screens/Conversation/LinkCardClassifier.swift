@@ -39,8 +39,21 @@ nonisolated struct LinkCardClassifier {
     /// built from, and the bubble draws the card in place of that span. A jump-wrapped link's text
     /// is the wrapper while its `url` is the target, so a later search for the URL would find
     /// nothing to remove.
+    ///
+    /// A Flipcash card anywhere in the message beats an outside page earlier in it. Only when there is
+    /// none does the first outside `https` link become a web card.
     func firstCard(in links: [DetectedLink]) -> LinkCard? {
-        links.lazy.compactMap { classify($0) }.first
+        links.lazy.compactMap { classify($0) }.first ?? links.lazy.compactMap { web($0) }.first
+    }
+
+    /// An outside `https` link. A Flipcash host never falls through to here, whatever its path, and
+    /// that includes a jump wrapper around an outside target.
+    private func web(_ link: DetectedLink) -> LinkCard? {
+        guard link.url.scheme?.lowercased() == "https",
+              let host = URLComponents(url: link.url, resolvingAgainstBaseURL: false)?.percentEncodedHost?.lowercased(),
+              !Route.flipcashHosts.contains(host),
+              WebLinks.isEligibleHost(host) else { return nil }
+        return .web(LinkCard.Web(url: link.url, range: link.range))
     }
 
     /// Single-segment paths the website serves itself, which `Route` would otherwise read as
