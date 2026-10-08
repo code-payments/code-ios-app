@@ -131,6 +131,8 @@ extension ChatLinkMessageCell {
         switch card {
         case .cash, .token, .group: true
         case .user, nil:            false
+        // Widens only while a preview draws, which the card's own width constraint handles.
+        case .web:                  false
         }
     }
 }

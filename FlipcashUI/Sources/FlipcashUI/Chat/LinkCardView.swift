@@ -219,20 +219,23 @@ final class LinkCardView: UIView {
             tokenView.isHidden = true
             setSized(.user)
             return userView.configure(with: Self.userState(state), linkedHandle: user.linkedHandle, loading: loading)
+
+        case .web:
+            fatalError("Task 7: web card view")
         }
     }
 
     private static func cashState(_ state: LinkCard.State?) -> LinkCard.Cash.State {
         switch state {
         case .cash(let cash):       cash
-        case .token, .group, .user, nil: .unresolved
+        case .token, .group, .user, .web, nil: .unresolved
         }
     }
 
     private static func tokenState(_ state: LinkCard.State?) -> LinkCard.Token.State {
         switch state {
         case .token(let token):     token
-        case .cash, .group, .user, nil: .unresolved
+        case .cash, .group, .user, .web, nil: .unresolved
         }
     }
 
@@ -240,7 +243,7 @@ final class LinkCardView: UIView {
     private static func groupState(_ state: LinkCard.State?) -> LinkCard.Group.State? {
         switch state {
         case .group(let group):     group
-        case .cash, .token, .user, nil: nil
+        case .cash, .token, .user, .web, nil: nil
         }
     }
 
@@ -248,7 +251,7 @@ final class LinkCardView: UIView {
     private static func userState(_ state: LinkCard.State?) -> LinkCard.User.State? {
         switch state {
         case .user(let user):               user
-        case .cash, .token, .group, nil:    nil
+        case .cash, .token, .group, .web, nil: nil
         }
     }
 }

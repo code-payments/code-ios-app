@@ -98,6 +98,8 @@ final class LinkCardFeed: LinkCardSource {
             memo.states[card.resolutionKey]
         case .group, .user:
             fetched[card.resolutionKey].map(present)
+        case .web:
+            nil // Task 6
         }
     }
 
@@ -149,6 +151,8 @@ final class LinkCardFeed: LinkCardSource {
                 let facts = await resolver.user(user.identity)
                 deliverFetched(facts.map(Fetched.user), missing: .user(.notFound), for: key)
             }
+        case .web:
+            break // Task 6
         }
     }
 

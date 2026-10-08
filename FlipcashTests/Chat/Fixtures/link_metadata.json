@@ -1,0 +1,460 @@
+{
+  "algorithm": "link-metadata",
+  "note": "Generic web link previews. pages: HTML as fetched (decode as UTF-8) plus the URL after redirects, to the card's metadata or null. Only the head is read; og:title, else <title>, is required; og:description, else meta description; og:image resolved against finalUrl and dropped unless https on an eligible host. host is finalUrl's host minus one leading www.; og:url and og:site_name are never read. hosts: whether a host may be fetched, checked on the first request and on every redirect. addresses: whether a resolved address may be connected to; both apps connect only to an address that passed, so DNS rebinding is stopped on both. cacheKeys: the persisted key is web:<key>. Behavior parity, not a computation with an external reference.",
+  "limits": {
+    "maxBodyBytes": 524288,
+    "maxImageBytes": 2097152,
+    "maxRedirects": 3,
+    "timeoutSeconds": 5,
+    "maxConcurrent": 4,
+    "resolvedTtlHours": 168,
+    "emptyTtlHours": 24
+  },
+  "pages": [
+    {
+      "name": "og-basic",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Hello\"><meta property=\"og:description\" content=\"World\"><meta property=\"og:image\" content=\"https://cdn.example.com/i.png\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "Hello",
+        "description": "World",
+        "imageUrl": "https://cdn.example.com/i.png",
+        "host": "example.com"
+      },
+      "note": "The three tags a card uses. host drops one leading www."
+    },
+    {
+      "name": "title-fallback",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><title>  Plain\n  title </title><meta name=\"description\" content=\"Desc\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "Plain title",
+        "description": "Desc",
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "No og:title: <title> text, whitespace collapsed. No og:description: meta name=description."
+    },
+    {
+      "name": "og-beats-title",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><title>Fallback</title><meta property=\"og:title\" content=\"Preferred\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "Preferred",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "og:title wins regardless of order."
+    },
+    {
+      "name": "empty-og-falls-back",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"   \"><title>Real</title></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "Real",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "A value empty after trimming is absent, so the fallback applies."
+    },
+    {
+      "name": "first-og-wins",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"One\"><meta property=\"og:title\" content=\"Two\"><meta property=\"og:image\" content=\"/1.png\"><meta property=\"og:image\" content=\"/2.png\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "One",
+        "description": null,
+        "imageUrl": "https://www.example.com/1.png",
+        "host": "example.com"
+      },
+      "note": "First non-empty wins for every field."
+    },
+    {
+      "name": "relative-image",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"T\"><meta property=\"og:image\" content=\"../img/x.png\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "T",
+        "description": null,
+        "imageUrl": "https://www.example.com/img/x.png",
+        "host": "example.com"
+      },
+      "note": "Resolved against finalUrl with RFC 3986 rules."
+    },
+    {
+      "name": "protocol-relative-image",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"T\"><meta property=\"og:image\" content=\"//cdn.example.com/x.png\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "T",
+        "description": null,
+        "imageUrl": "https://cdn.example.com/x.png",
+        "host": "example.com"
+      },
+      "note": "Takes finalUrl's scheme."
+    },
+    {
+      "name": "http-image-dropped",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"T\"><meta property=\"og:image\" content=\"http://cdn.example.com/x.png\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "T",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "Cleartext is not permitted. The card draws without an image."
+    },
+    {
+      "name": "private-image-dropped",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"T\"><meta property=\"og:image\" content=\"https://192.168.0.1/x.png\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "T",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "An image on an ineligible host is dropped, not fetched."
+    },
+    {
+      "name": "localhost-image-dropped",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"T\"><meta property=\"og:image\" content=\"https://localhost/x.png\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "T",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "Same rule, by name."
+    },
+    {
+      "name": "entities",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Tom &amp; Jerry &#8212; &quot;live&quot; &#x2014; it&#39;s &apos;on&apos;&nbsp;now &copy;\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "Tom & Jerry — \"live\" — it's 'on' now &copy;",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "The decoded set is fixed. NBSP becomes a collapsed space. An unknown named entity stays as written."
+    },
+    {
+      "name": "single-and-unquoted-attributes",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<html><head><META PROPERTY='og:title' CONTENT='Quoted'><meta property=og:description content=Bare></head></html>",
+      "expect": {
+        "title": "Quoted",
+        "description": "Bare",
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "Tag and attribute names and property values are case-insensitive. Values may be single-, double- or un-quoted."
+    },
+    {
+      "name": "name-attribute-og",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta name=\"og:title\" content=\"Via name\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "Via name",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "Some sites put og: tags in name=. property or name, either matches."
+    },
+    {
+      "name": "body-tags-ignored",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<html><head><title>Head</title></head><body><meta property=\"og:title\" content=\"Body\"></body></html>",
+      "expect": {
+        "title": "Head",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "Only the head is read."
+    },
+    {
+      "name": "no-head-tag",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><meta property=\"og:title\" content=\"Headless\"><body><p>x</p></body>",
+      "expect": {
+        "title": "Headless",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "note": "No <head>: everything before <body> counts."
+    },
+    {
+      "name": "site-name-and-og-url-ignored",
+      "finalUrl": "https://evil.example.net/x",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Sign in\"><meta property=\"og:site_name\" content=\"Coinbase\"><meta property=\"og:url\" content=\"https://coinbase.com/\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "Sign in",
+        "description": null,
+        "imageUrl": null,
+        "host": "evil.example.net"
+      },
+      "note": "The domain shown is finalUrl's host. Page-written identity is never read."
+    },
+    {
+      "name": "host-after-redirect",
+      "finalUrl": "https://news.example.org/story",
+      "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Story\"></head><body><p>body</p></body></html>",
+      "expect": {
+        "title": "Story",
+        "description": null,
+        "imageUrl": null,
+        "host": "news.example.org"
+      },
+      "note": "finalUrl is the URL after redirects. Only one leading www. is dropped; other subdomains stay."
+    },
+    {
+      "name": "no-title-no-card",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "<!doctype html><html><head><meta property=\"og:description\" content=\"Only a description\"><meta property=\"og:image\" content=\"https://cdn.example.com/i.png\"></head><body><p>body</p></body></html>",
+      "expect": null,
+      "note": "A card needs a title."
+    },
+    {
+      "name": "empty-document",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "",
+      "expect": null,
+      "note": "Nothing to read."
+    },
+    {
+      "name": "not-really-html",
+      "finalUrl": "https://www.example.com/a/b",
+      "html": "{\"title\":\"json\"}",
+      "expect": null,
+      "note": "No tags at all."
+    }
+  ],
+  "hosts": [
+    {
+      "host": "example.com",
+      "eligible": true,
+      "note": ""
+    },
+    {
+      "host": "www.example.com",
+      "eligible": true,
+      "note": ""
+    },
+    {
+      "host": "send.flipcash.com.evil.com",
+      "eligible": true,
+      "note": "Eligible to fetch. It is an outside host."
+    },
+    {
+      "host": "xn--80ak6aa92e.com",
+      "eligible": true,
+      "note": "Punycode is a name like any other."
+    },
+    {
+      "host": "localhost",
+      "eligible": false,
+      "note": ""
+    },
+    {
+      "host": "LOCALHOST",
+      "eligible": false,
+      "note": "Compared lowercased."
+    },
+    {
+      "host": "printer.local",
+      "eligible": false,
+      "note": "mDNS."
+    },
+    {
+      "host": "router.internal",
+      "eligible": false,
+      "note": ""
+    },
+    {
+      "host": "dev.localhost",
+      "eligible": false,
+      "note": ""
+    },
+    {
+      "host": "intranet",
+      "eligible": false,
+      "note": "Single label."
+    },
+    {
+      "host": "127.0.0.1",
+      "eligible": false,
+      "note": "Every IP literal, public or not."
+    },
+    {
+      "host": "192.168.1.10",
+      "eligible": false,
+      "note": ""
+    },
+    {
+      "host": "8.8.8.8",
+      "eligible": false,
+      "note": "Public, and still a literal."
+    },
+    {
+      "host": "[::1]",
+      "eligible": false,
+      "note": "Bracketed IPv6 literal."
+    },
+    {
+      "host": "[2606:4700::1111]",
+      "eligible": false,
+      "note": ""
+    }
+  ],
+  "cacheKeys": [
+    {
+      "url": "https://example.com/a",
+      "key": "https://example.com/a"
+    },
+    {
+      "url": "HTTPS://Example.COM/A?B=1",
+      "key": "https://example.com/A?B=1"
+    },
+    {
+      "url": "https://example.com/a#section",
+      "key": "https://example.com/a"
+    },
+    {
+      "url": "https://example.com:443/a",
+      "key": "https://example.com/a"
+    },
+    {
+      "url": "https://example.com:8443/a",
+      "key": "https://example.com:8443/a"
+    },
+    {
+      "url": "https://example.com/a?x=1&y=2#f",
+      "key": "https://example.com/a?x=1&y=2"
+    }
+  ],
+  "addresses": [
+    {
+      "address": "93.184.215.14",
+      "public": true,
+      "note": "public IPv4"
+    },
+    {
+      "address": "2606:2800:21f:cb07:6820:80da:af6b:8b2c",
+      "public": true,
+      "note": "public IPv6"
+    },
+    {
+      "address": "0.1.2.3",
+      "public": false,
+      "note": "0.0.0.0/8"
+    },
+    {
+      "address": "10.1.2.3",
+      "public": false,
+      "note": "10/8"
+    },
+    {
+      "address": "100.64.0.1",
+      "public": false,
+      "note": "CGNAT 100.64/10, low end"
+    },
+    {
+      "address": "100.127.255.254",
+      "public": false,
+      "note": "CGNAT 100.64/10, high end"
+    },
+    {
+      "address": "100.128.0.1",
+      "public": true,
+      "note": "just past CGNAT"
+    },
+    {
+      "address": "127.0.0.1",
+      "public": false,
+      "note": "loopback"
+    },
+    {
+      "address": "169.254.169.254",
+      "public": false,
+      "note": "link-local; cloud metadata endpoint"
+    },
+    {
+      "address": "172.16.0.1",
+      "public": false,
+      "note": "172.16/12, low end"
+    },
+    {
+      "address": "172.31.255.254",
+      "public": false,
+      "note": "172.16/12, high end"
+    },
+    {
+      "address": "172.32.0.1",
+      "public": true,
+      "note": "just past 172.16/12"
+    },
+    {
+      "address": "192.168.1.1",
+      "public": false,
+      "note": "192.168/16"
+    },
+    {
+      "address": "224.0.0.1",
+      "public": false,
+      "note": "multicast"
+    },
+    {
+      "address": "255.255.255.255",
+      "public": false,
+      "note": "broadcast"
+    },
+    {
+      "address": "::",
+      "public": false,
+      "note": "IPv6 unspecified"
+    },
+    {
+      "address": "::1",
+      "public": false,
+      "note": "IPv6 loopback"
+    },
+    {
+      "address": "fd12:3456::1",
+      "public": false,
+      "note": "unique-local fc00::/7"
+    },
+    {
+      "address": "fe80::1",
+      "public": false,
+      "note": "link-local"
+    },
+    {
+      "address": "fec0::1",
+      "public": false,
+      "note": "deprecated site-local"
+    },
+    {
+      "address": "ff02::1",
+      "public": false,
+      "note": "multicast"
+    },
+    {
+      "address": "::ffff:10.0.0.1",
+      "public": false,
+      "note": "IPv4-mapped, judged by 10.0.0.1"
+    },
+    {
+      "address": "::ffff:93.184.215.14",
+      "public": true,
+      "note": "IPv4-mapped, judged by its public IPv4"
+    }
+  ]
+}

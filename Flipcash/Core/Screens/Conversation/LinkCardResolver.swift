@@ -76,6 +76,9 @@ actor LinkCardResolver {
         case .user:
             assertionFailure("A person card resolves through user(_:), not resolve(_:)")
             return .user(.notFound)
+        case .web:
+            assertionFailure("A web card resolves through web(_:), not resolve(_:)")
+            return .web(.none)
         }
     }
 
@@ -178,6 +181,8 @@ nonisolated extension LinkCard {
             case .userID(let userID):     "user:id:\(userID.uuidString.lowercased())"
             case .username(let username): "user:handle:\(username.value)"
             }
+        // The same key Android persists, so a page reads the same on both.
+        case .web(let web): "web:\(WebLinks.cacheKey(web.url) ?? web.url.absoluteString)"
         }
     }
 

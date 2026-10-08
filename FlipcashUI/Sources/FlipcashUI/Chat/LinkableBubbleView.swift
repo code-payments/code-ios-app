@@ -276,7 +276,7 @@ public final class LinkableBubbleView: UIView {
             self.card = card
             cardTap.isEnabled = switch card {
             case .group, .user: false
-            case .cash, .token: true
+            case .cash, .token, .web: true
             }
             cardView.cornerRadii = radii
             cardView.configure(with: card, source: linkCardSource)

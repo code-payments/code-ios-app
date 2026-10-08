@@ -1291,6 +1291,9 @@ struct ConversationScreen: View {
             }
             noteCashLinkTap(entropy: cash.entropy, messageStableID: messageStableID)
             openLink(card.url)
+        case .web:
+            // Through the same "You're Leaving Flipcash" path as a tap on the link text.
+            openLink(card.url)
         case .group(let group):
             // A link to the chat already on screen has nowhere to go.
             guard group.chatID != conversationID else { return }

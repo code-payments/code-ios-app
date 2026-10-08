@@ -19,6 +19,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
     case token(Token)
     case group(Group)
     case user(User)
+    case web(Web)
 
     /// The URL the card stands for, jump wrapper already unwrapped. Tapping the card opens this.
     public var url: URL {
@@ -27,6 +28,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case .token(let token): token.url
         case .group(let group): group.url
         case .user(let user): user.url
+        case .web(let web): web.url
         }
     }
 
@@ -41,6 +43,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case .token(let token): token.range
         case .group(let group): group.range
         case .user(let user): user.range
+        case .web(let web): web.range
         }
     }
 
@@ -53,14 +56,16 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case token(Token.State)
         case group(Group.State)
         case user(User.State)
+        case web(Web.State)
 
         /// Whether the lookup came back with something. A failure of any kind is `unresolved` (or
         /// `unavailable` for a group, `notFound` for a person), which is the one answer not worth remembering — the next
-        /// look asks again.
+        /// look asks again. A web page's `none` is false here too, though it is remembered for a day:
+        /// a web failure never reaches a state at all.
         public var isResolved: Bool {
             switch self {
-            case .cash(.resolved), .token(.resolved), .group(.resolved), .user(.resolved):  true
-            case .cash(.unresolved), .token(.unresolved), .group(.unavailable), .user(.notFound): false
+            case .cash(.resolved), .token(.resolved), .group(.resolved), .user(.resolved), .web(.resolved):  true
+            case .cash(.unresolved), .token(.unresolved), .group(.unavailable), .user(.notFound), .web(.none): false
             }
         }
     }
@@ -350,6 +355,52 @@ extension LinkCard {
     }
 }
 
+// MARK: - Web -
+
+extension LinkCard {
+
+    /// An outside `https` page. Unlike the Flipcash cards it does not replace its link: the text
+    /// stays as written and the card draws under it, and only when the page had something to show.
+    public struct Web: Hashable, Sendable, Codable {
+
+        public let url: URL
+        /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
+        public let location: Int
+        public let length: Int
+
+        public var range: NSRange { NSRange(location: location, length: length) }
+
+        public init(url: URL, range: NSRange) {
+            self.url = url
+            self.location = range.location
+            self.length = range.length
+        }
+
+        /// No loading case: an absent state is loading, and loading draws nothing.
+        public enum State: Hashable, Sendable, Codable {
+            /// The host answered with nothing to show. Remembered for `WebLinks.emptyTTL`.
+            case none
+            case resolved(Resolved)
+        }
+
+        /// What the page said about itself, cleaned for display.
+        public struct Resolved: Hashable, Sendable, Codable {
+            public let title: String
+            public let description: String?
+            public let imageURL: URL?
+            /// The final URL's host after redirects, minus one leading `www.`. Never from the page.
+            public let host: String
+
+            public init(title: String, description: String?, imageURL: URL?, host: String) {
+                self.title = title
+                self.description = description
+                self.imageURL = imageURL
+                self.host = host
+            }
+        }
+    }
+}
+
 // MARK: - The span the card takes -
 
 nonisolated extension LinkCard {
@@ -362,6 +413,7 @@ nonisolated extension LinkCard {
         case .token(let token): .token(Token(url: token.url, mint: token.mint, range: range))
         case .group(let group): .group(Group(url: group.url, chatID: group.chatID, range: range))
         case .user(let user):   .user(User(url: user.url, identity: user.identity, range: range))
+        case .web(let web):     .web(Web(url: web.url, range: range))
         }
     }
 }
