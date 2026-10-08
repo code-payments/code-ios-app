@@ -55,6 +55,7 @@ private struct UserProfileContent: View {
     let origin: UserProfileOrigin
 
     @State private var isShowingShare = false
+    @State private var scrollFit = ProfileScrollFit()
     @State private var model: UserProfileViewModel
     @State private var dialogItem: DialogItem?
     @State private var isPickingMuteDuration = false
@@ -99,6 +100,18 @@ private struct UserProfileContent: View {
 
     private var pinnedAction: ProfilePinnedAction {
         ProfilePinnedAction.resolve(isSelf: isSelf, isBlocked: isBlocked, dmID: dmID, fee: fee)
+    }
+
+    /// Whether the bottom bar gives way because Open Chat would only go back to the DM underneath.
+    /// The encryption line then ends the scroll instead.
+    private var hidesPinnedBar: Bool {
+        guard origin.returnsToExistingDM else { return false }
+        switch pinnedAction {
+        case .openChat:
+            return true
+        case .none, .unblock, .startChatting, .startChattingUnpriced:
+            return false
+        }
     }
 
     private var menuItems: [ProfileMenuItem] {
@@ -153,10 +166,20 @@ private struct UserProfileContent: View {
                         router.push(.chatProfile(id, origin: .featuredGroup))
                     }
                     .padding(.top, 20)
+
+                    if hidesPinnedBar, showsE2eeFooter {
+                        // Holds the encryption line at the bottom of the screen when the content
+                        // is short.
+                        Spacer(minLength: 24)
+                        E2eeFooter(kind: .dm)
+                            .padding(.horizontal, ProfileHeaderMetrics.inset)
+                    }
                 }
+                .frame(minHeight: max(scrollFit.visibleHeight - 24, 0), alignment: .top)
                 .padding(.bottom, 24)
             }
-            .profilePinnedBackdropClearance()
+            .profilePinnedBackdropClearance(isActive: !hidesPinnedBar || scrollFit.overflows)
+            .profileScrollFit($scrollFit)
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
             // The blur only belongs once the banner has scrolled up under the bar.
@@ -165,7 +188,7 @@ private struct UserProfileContent: View {
         // On iOS 26 the pinned button joins the bottom scroll edge effect, so content fades under it.
         .scrollEdgeBar(.bottom) {
             pinnedButton
-                .profilePinnedBackdrop()
+                .profilePinnedBackdrop(isActive: !hidesPinnedBar || scrollFit.overflows)
                 // Toasts rise above the button rather than covering it.
                 .toastClearance(toasts)
         }
@@ -298,7 +321,10 @@ private struct UserProfileContent: View {
 
     @ViewBuilder
     private var pinnedButton: some View {
-        if let title = pinnedAction.title {
+        if hidesPinnedBar {
+            // Nothing to pin, but content that scrolls still fades out under the home indicator.
+            Color.clear.frame(height: 0)
+        } else if let title = pinnedAction.title {
             VStack(spacing: 8) {
                 if showsE2eeFooter {
                     E2eeFooter(kind: .dm)

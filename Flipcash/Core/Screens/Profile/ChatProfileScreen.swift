@@ -16,8 +16,9 @@ import FlipcashStore
 /// button that opens the chat.
 ///
 /// Reached by tapping the chat's head card or its navigation title, the way a DM's title opens the
-/// counterpart's profile. The actions a member has over the group sit in the ⋯ menu, and Leave Chat
-/// sits under the pinned button.
+/// counterpart's profile. The actions a member has over the group sit in the ⋯ menu. Opened from
+/// the chat, there is no pinned button, since the chat is one back away, and Leave Chat ends the
+/// scroll; otherwise Leave Chat sits under the pinned button.
 struct ChatProfileScreen: View {
 
     let conversationID: ConversationID
@@ -38,6 +39,7 @@ struct ChatProfileScreen: View {
     @State private var chatters: [SampledChatter] = []
     @State private var mintMetadata: [PublicKey: StoredMintMetadata] = [:]
     @State private var mintNamesTimedOut = false
+    @State private var scrollFit = ProfileScrollFit()
 
     private var session: Session { sessionContainer.session }
 
@@ -145,9 +147,19 @@ struct ChatProfileScreen: View {
                         balanceRequirements(requirements)
                             .padding(.top, 24)
                     }
+
+                    if origin == .chat, isMember {
+                        // Holds Leave Chat at the bottom of the screen when the content is short.
+                        Spacer(minLength: 24)
+                        leaveButton
+                            .padding(.horizontal, ProfileHeaderMetrics.inset)
+                    }
                 }
+                .frame(minHeight: max(scrollFit.visibleHeight - 24, 0), alignment: .top)
                 .padding(.bottom, 24)
             }
+            .profilePinnedBackdropClearance(isActive: origin != .chat || scrollFit.overflows)
+            .profileScrollFit($scrollFit)
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
             // The blur only belongs once the banner has scrolled up under the bar.
@@ -325,21 +337,20 @@ struct ChatProfileScreen: View {
 
     @ViewBuilder
     private var pinnedActions: some View {
-        if conversation != nil {
+        // Opened from the chat, the chat is one back away and Leave Chat ends the scroll instead;
+        // the empty bar fades out content that scrolls under the home indicator.
+        if origin == .chat {
+            Color.clear
+                .frame(height: 0)
+                .profilePinnedBackdrop(isActive: scrollFit.overflows)
+        } else if conversation != nil {
             VStack(spacing: 8) {
                 openChatButton
                 if isMember {
-                    Button {
-                        dialogItem = leaveDialog()
-                    } label: {
-                        ButtonStateLabel("Leave Chat", state: isLeaving ? .loading : .normal)
-                    }
-                    .buttonStyle(.subtle)
-                    .disabled(isLeaving)
-                    .accessibilityIdentifier("chat-profile-leave")
-                    // A text-only button is a full button tall, so its frame already leaves room
-                    // under the title; let that room overlap the home indicator's inset.
-                    .padding(.bottom, -12)
+                    leaveButton
+                        // A text-only button is a full button tall, so its frame already leaves
+                        // room under the title; let that room overlap the home indicator's inset.
+                        .padding(.bottom, -12)
                 }
             }
             .padding(.horizontal, ProfileHeaderMetrics.inset)
@@ -419,6 +430,17 @@ struct ChatProfileScreen: View {
     }
 
     // MARK: - Leave -
+
+    private var leaveButton: some View {
+        Button {
+            dialogItem = leaveDialog()
+        } label: {
+            ButtonStateLabel("Leave Chat", state: isLeaving ? .loading : .normal)
+        }
+        .buttonStyle(.subtle)
+        .disabled(isLeaving)
+        .accessibilityIdentifier("chat-profile-leave")
+    }
 
     private func leaveDialog() -> DialogItem {
         .info(
