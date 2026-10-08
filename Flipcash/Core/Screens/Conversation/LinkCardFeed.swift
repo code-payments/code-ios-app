@@ -158,7 +158,12 @@ final class LinkCardFeed: LinkCardSource {
                     deliver(.web(held), for: key, generation: generation)
                     return
                 }
-                guard let state = await resolver.web(web) else { return }
+                // A failure is not remembered, but the card still hears it: a link-only message's
+                // placeholder has to give way to its text bubble.
+                guard let state = await resolver.web(web) else {
+                    deliver(.web(.none), for: key, generation: generation)
+                    return
+                }
                 memo.recordWeb(state, for: key)
                 deliver(.web(state), for: key, generation: generation)
             }

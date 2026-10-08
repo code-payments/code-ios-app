@@ -361,6 +361,19 @@ extension LinkCardFeedTests {
         #expect(memo.web(card.resolutionKey) == nil)
     }
 
+    /// A link-only message's placeholder gives way to its text bubble only if the card hears the failure.
+    @Test func aFailedWebLookupTellsTheCardNothingAndForgetsIt() async {
+        struct Offline: Error {}
+        let memo = LinkCardMemo()
+        let card = Self.webCard("https://example.com/a")
+        let feed = Self.feed(memo: memo, web: { _ in throw Offline() })
+
+        var states = feed.states(for: card).makeAsyncIterator()
+        #expect(await states.next() == .web(.none))
+        #expect(memo.web(card.resolutionKey) == nil)
+        #expect(feed.known(card) == nil)
+    }
+
     private final class Clock: @unchecked Sendable {
         var now: Date
         init(_ now: Date) { self.now = now }

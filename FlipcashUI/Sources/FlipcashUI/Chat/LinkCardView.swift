@@ -38,7 +38,7 @@ final class LinkCardView: UIView {
     private let tokenView = LinkTokenCardView()
     private let groupView = LinkGroupCardView()
     private let userView = LinkUserCardView()
-    private let webView = LinkWebCardView()
+    let webView = LinkWebCardView()
 
     /// A card whose content sets the slot's height.
     private enum Sized { case group, user, web }
@@ -65,9 +65,17 @@ final class LinkCardView: UIView {
     /// Where the web card's image comes from: the source the card was last configured with.
     private weak var imageSource: (any LinkCardSource)?
 
-    /// Whether a web card's page preview is drawn: what widens the bubble around it.
+    /// Whether a web card that is still waiting on its page draws the placeholder: set for a message
+    /// that is only its link, before ``configure(with:source:)``.
+    var webShowsPlaceholder = false
+
+    /// Whether a web card's page preview, or its placeholder, is drawn: what widens the bubble around
+    /// it, and what a link-only message is drawn bare for.
     var drawsWebPreview: Bool {
-        if case .preview = webView.content { true } else { false }
+        switch webView.content {
+        case .preview, .placeholder: true
+        case .nothing, .chip: false
+        }
     }
 
     /// The subscription to the card currently shown. Cancelled before every reconfigure and on
@@ -291,26 +299,41 @@ final class LinkCardView: UIView {
             tokenView.isHidden = true
             setSized(.web)
             webView.loadImage = { [weak self] url in await self?.imageSource?.webImage(for: url) }
-            return webView.configure(with: Self.webContent(state, chip: chipHost(web)))
+            let placeholder = webShowsPlaceholder && loading ? Self.displayHost(of: web) : nil
+            return webView.configure(with: Self.webContent(
+                state, chip: chipHost(web), placeholder: placeholder.map { ($0, web.url) }
+            ))
         }
     }
 
     /// The chip's host when `web` waits behind the chip, else nil.
     private func chipHost(_ web: LinkCard.Web) -> String? {
         guard awaitsChip(web) else { return nil }
+        return Self.displayHost(of: web)
+    }
+
+    /// The link's own host as the chip and placeholder show it, without its "www.".
+    private static func displayHost(of web: LinkCard.Web) -> String {
         let host = WebLinks.host(of: web.url) ?? web.url.host() ?? ""
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
-    /// Loading and `.none` draw nothing, or the chip while it is waiting to be tapped.
-    private static func webContent(_ state: LinkCard.State?, chip host: String?) -> LinkWebCardView.Content {
+    /// `.none` draws nothing. Loading draws the chip while it waits to be tapped, the placeholder for
+    /// a link-only message, and otherwise nothing.
+    private static func webContent(
+        _ state: LinkCard.State?,
+        chip host: String?,
+        placeholder: (host: String, url: URL)?
+    ) -> LinkWebCardView.Content {
         switch state {
         case .web(.resolved(let page)):
             return .preview(page)
         case .web(.none):
             return .nothing
         case .cash, .token, .group, .user, nil:
-            return host.map { .chip(host: $0) } ?? .nothing
+            if let host { return .chip(host: host) }
+            if let placeholder { return .placeholder(host: placeholder.host, url: placeholder.url) }
+            return .nothing
         }
     }
 

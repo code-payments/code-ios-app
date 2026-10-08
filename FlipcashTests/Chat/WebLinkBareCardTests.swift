@@ -118,8 +118,8 @@ struct WebLinkBareCardTests {
         #expect(textView(bubble)?.isHidden == true)
     }
 
-    @Test("While loading the row keeps its bubble, then goes bare when the preview lands")
-    func loadingThenResolved_swapsToBare() async {
+    @Test("While loading a link-only row draws its placeholder bare, then fills it in place")
+    func loadingThenResolved_fillsThePlaceholder() async {
         let source = Source()
         let message = Self.message()
         let bubble = bubble(source)
@@ -127,13 +127,38 @@ struct WebLinkBareCardTests {
         bubble.onBareChange = { changes += 1 }
         bubble.configure(with: message)
 
-        #expect(!bubble.isBare)
-        #expect(textView(bubble)?.isHidden == false)
+        #expect(bubble.isBare)
+        #expect(textView(bubble)?.isHidden == true)
 
         source.yield(.web(.resolved(Self.page)), for: Self.card(of: message))
-        #expect(await settle { bubble.isBare })
-        #expect(changes == 1)
-        #expect(textView(bubble)?.isHidden == true)
+        #expect(await settle { if case .preview = bubble.cardView.webView.content { true } else { false } })
+        #expect(bubble.isBare)
+        #expect(changes == 0)
+    }
+
+    @Test("A placeholder whose page has nothing puts the text bubble back")
+    func loadingThenNone_restoresTheBubble() async {
+        let source = Source()
+        let message = Self.message()
+        let bubble = bubble(source)
+        bubble.configure(with: message)
+        #expect(bubble.isBare)
+
+        source.yield(.web(.none), for: Self.card(of: message))
+        #expect(await settle { !bubble.isBare })
+        #expect(textView(bubble)?.attributedText.string == Self.link)
+    }
+
+    @Test("A remembered nothing draws the text bubble from the first frame, no placeholder")
+    func rememberedNone_skipsThePlaceholder() {
+        let source = Source()
+        let message = Self.message()
+        source.answers[Self.card(of: message)] = .web(.none)
+        let bubble = bubble(source)
+        bubble.configure(with: message)
+
+        #expect(!bubble.isBare)
+        #expect(bubble.cardView.webView.content == .nothing)
     }
 
     @Test("A preview that goes away puts the text bubble back, never an empty row")
@@ -163,6 +188,17 @@ struct WebLinkBareCardTests {
         #expect(textView(bubble)?.isHidden == false)
     }
 
+    @Test("Text beside a loading link draws nothing under it")
+    func textAndLoadingLink_drawsNoPlaceholder() {
+        let source = Source()
+        let message = Self.message(prefix: "look ")
+        let bubble = bubble(source)
+        bubble.configure(with: message)
+
+        #expect(!bubble.isBare)
+        #expect(bubble.cardView.webView.content == .nothing)
+    }
+
     @Test("A link-only row at its chip keeps its bubble")
     func chip_keepsTheBubble() {
         let source = Source()
@@ -171,6 +207,40 @@ struct WebLinkBareCardTests {
         bubble.configure(with: message)
 
         #expect(!bubble.isBare)
+    }
+
+    @Test("Tapping a link-only row's chip draws the placeholder while it loads")
+    func chipTapped_drawsThePlaceholder() {
+        let source = Source()
+        let message = Self.message()
+        let bubble = bubble(source, mode: .tapToLoad)
+        bubble.configure(with: message)
+        #expect(!bubble.isBare)
+
+        bubble.cardView.webView.chip.sendActions(for: .touchUpInside)
+
+        #expect(bubble.isBare)
+        #expect(bubble.cardView.webView.content == .placeholder(host: "example.com", url: URL(string: Self.link)!))
+    }
+
+    @Test("The placeholder shows the link's host without www, holds the image slot, and reads as the link")
+    func placeholder_content() throws {
+        let url = try #require(URL(string: "https://www.example.com/a"))
+        let view = LinkWebCardView(frame: CGRect(x: 0, y: 0, width: 250, height: 300))
+        view.configure(with: .placeholder(host: "example.com", url: url))
+
+        #expect(view.hostLabel.text == "example.com")
+        #expect(view.imageSlot == .loading)
+        #expect(view.titleLabel.isHidden)
+        #expect(view.descriptionLabel.isHidden)
+        let panel = try #require(view.hostLabel.superview?.superview)
+        #expect(panel.isAccessibilityElement)
+        #expect(panel.accessibilityLabel == url.absoluteString)
+
+        view.configure(with: .preview(Self.page))
+        #expect(!panel.isAccessibilityElement)
+        #expect(!view.titleLabel.isHidden)
+        #expect(view.imageSlot == .none)
     }
 
     // MARK: - Buttons keep their single tap

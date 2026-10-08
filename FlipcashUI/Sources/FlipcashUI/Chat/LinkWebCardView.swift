@@ -13,7 +13,8 @@ import FlipcashCore
 /// its bubble. Or, for a viewer outside the group, the "Show preview" chip that asks for it.
 ///
 /// It draws nothing at all while the page is loading or had nothing to show, and then takes no
-/// height, so the bubble stays the text bubble it would have been.
+/// height, so the bubble stays the text bubble it would have been. The exception is a message that
+/// is only its link: there the card stands in for the hidden text while it loads, as a placeholder.
 final class LinkWebCardView: UIView {
 
     /// What the card is drawing.
@@ -21,6 +22,9 @@ final class LinkWebCardView: UIView {
         case nothing
         case chip(host: String)
         case preview(LinkCard.Web.Resolved)
+        /// A link-only message's card while its page loads: the link's own host over shimmering
+        /// stand-ins for the image and title.
+        case placeholder(host: String, url: URL)
     }
 
     /// Called when the chip is tapped.
@@ -45,6 +49,12 @@ final class LinkWebCardView: UIView {
     let titleLabel = UILabel()
     let descriptionLabel = UILabel()
     let chip = UIButton(type: .system)
+    private let imageShimmer = LinkCardShimmerView(ground: nil, highlight: LinkWebCardView.shimmerHighlight)
+    private let titleBars = UIStackView()
+    private let titleBarShimmers = [
+        LinkCardShimmerView(ground: LinkWebCardView.barGround, highlight: LinkWebCardView.shimmerHighlight),
+        LinkCardShimmerView(ground: LinkWebCardView.barGround, highlight: LinkWebCardView.shimmerHighlight),
+    ]
 
     /// Whether `point`, in this view's coordinates, is on the "Show preview" chip.
     func hasButton(at point: CGPoint) -> Bool {
@@ -88,12 +98,29 @@ final class LinkWebCardView: UIView {
         descriptionLabel.textColor = UIColor.white.withAlphaComponent(0.75)
         descriptionLabel.numberOfLines = 2
 
+        imageShimmer.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(imageShimmer)
+
+        titleBars.axis = .vertical
+        titleBars.alignment = .leading
+        titleBars.spacing = 6
+        titleBars.isHidden = true
+        for bar in titleBarShimmers {
+            bar.roundCorners(to: 4)
+            bar.translatesAutoresizingMaskIntoConstraints = false
+            titleBars.addArrangedSubview(bar)
+            bar.heightAnchor.constraint(equalToConstant: 12).isActive = true
+        }
+        titleBarShimmers[0].widthAnchor.constraint(equalTo: titleBars.widthAnchor).isActive = true
+        titleBarShimmers[1].widthAnchor.constraint(equalTo: titleBars.widthAnchor, multiplier: 0.6).isActive = true
+
         stack.axis = .vertical
         stack.spacing = 2
         stack.translatesAutoresizingMaskIntoConstraints = false
-        for label in [hostLabel, titleLabel, descriptionLabel] {
-            stack.addArrangedSubview(label)
+        for view in [hostLabel, titleBars, titleLabel, descriptionLabel] {
+            stack.addArrangedSubview(view)
         }
+        stack.setCustomSpacing(6, after: hostLabel)
         panel.addSubview(stack)
 
         chip.titleLabel?.font = .default(size: 13, weight: .bold)
@@ -127,6 +154,13 @@ final class LinkWebCardView: UIView {
             imageView.topAnchor.constraint(equalTo: panel.topAnchor),
             imageView.leadingAnchor.constraint(equalTo: panel.leadingAnchor),
             imageView.trailingAnchor.constraint(equalTo: panel.trailingAnchor),
+
+            imageShimmer.topAnchor.constraint(equalTo: imageView.topAnchor),
+            imageShimmer.leadingAnchor.constraint(equalTo: imageView.leadingAnchor),
+            imageShimmer.trailingAnchor.constraint(equalTo: imageView.trailingAnchor),
+            imageShimmer.bottomAnchor.constraint(equalTo: imageView.bottomAnchor),
+
+            titleBars.widthAnchor.constraint(equalTo: stack.widthAnchor),
 
             stackBelowImage,
             stack.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 10),
@@ -199,7 +233,18 @@ final class LinkWebCardView: UIView {
 
     private func apply(_ content: Content) {
         let previousImageURL = Self.imageURL(of: self.content)
+        let wasPlaceholder = Self.isPlaceholder(self.content)
         self.content = content
+        let isPlaceholder = Self.isPlaceholder(content)
+        titleBars.isHidden = !isPlaceholder
+        titleLabel.isHidden = isPlaceholder
+        imageShimmer.isHidden = !isPlaceholder
+        imageShimmer.setShimmering(isPlaceholder)
+        titleBarShimmers.forEach { $0.setShimmering(isPlaceholder) }
+        // The placeholder hides the link's text, so it reads out as the link.
+        panel.isAccessibilityElement = isPlaceholder
+        panel.accessibilityLabel = nil
+        panel.accessibilityTraits = isPlaceholder ? .link : []
 
         switch content {
         case .nothing:
@@ -228,10 +273,27 @@ final class LinkWebCardView: UIView {
             titleLabel.text = page.title
             descriptionLabel.text = page.description
             descriptionLabel.isHidden = page.description == nil
+
+        case .placeholder(let host, let url):
+            chip.isHidden = true
+            chipBottom.isActive = false
+            panel.isHidden = false
+            collapse.isActive = false
+            panelBottom.isActive = true
+            hostLabel.text = host
+            titleLabel.text = nil
+            descriptionLabel.text = nil
+            descriptionLabel.isHidden = true
+            panel.accessibilityLabel = url.absoluteString
         }
 
         let imageURL = Self.imageURL(of: content)
-        if imageURL != previousImageURL {
+        if isPlaceholder {
+            // Held at the image's shape, as most pages answer with one.
+            imageTask?.cancel()
+            imageTask = nil
+            setImageSlot(.loading)
+        } else if imageURL != previousImageURL || wasPlaceholder {
             imageTask?.cancel()
             imageTask = nil
             if let imageURL, let loadImage {
@@ -296,6 +358,12 @@ final class LinkWebCardView: UIView {
     }
 
     private static let loadingTint = UIColor.white.withAlphaComponent(0.15)
+    private static let barGround = UIColor.white.withAlphaComponent(0.12)
+    private static let shimmerHighlight = UIColor.white.withAlphaComponent(0.06)
+
+    private static func isPlaceholder(_ content: Content) -> Bool {
+        if case .placeholder = content { true } else { false }
+    }
 
     private static func imageURL(of content: Content) -> URL? {
         if case .preview(let page) = content { page.imageURL } else { nil }

@@ -20,7 +20,7 @@ public final class LinkableBubbleView: UIView {
     private let background = BubbleBackgroundView()
     private let textView = LinkTextView()
     private let editedLabel = EditedMarker.makeLabel()
-    private let cardView = LinkCardView()
+    let cardView = LinkCardView()
 
     /// Called when the user taps a detected link.
     var onOpenURL: ((URL) -> Void)?
@@ -313,6 +313,7 @@ public final class LinkableBubbleView: UIView {
         // frame rather than swapping out of a bubble.
         if case .web = message.linkPreview?.card, let card = message.linkPreview?.card {
             self.card = card
+            cardView.webShowsPlaceholder = message.isOnlyItsWebLink
             cardView.configure(with: card, source: linkCardSource)
         }
         lay(message, quoteThumbnail: quoteThumbnail)
