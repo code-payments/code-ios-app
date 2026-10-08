@@ -67,7 +67,7 @@ struct AttachWarmUpTests {
         #expect(warmUp.isReady(for: .cash))
     }
 
-    @Test("A card whose content is late opens within the readiness budget anyway")
+    @Test("A card whose content is late opens within the readiness budget anyway", .timingSensitive)
     func whenReadyGivesUpAtBudget() async {
         let warmUp = AttachWarmUp(cameraAccess: { .denied })
         let start = ContinuousClock.now

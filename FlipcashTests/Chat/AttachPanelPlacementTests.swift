@@ -189,7 +189,7 @@ struct AttachPanelPlacementTests {
         #expect(abs(menu.minX - field) < 1, "Menu starts at \(menu.minX), the field at \(field)")
     }
 
-    @Test("The card stands on the composer over the transcript, takes taps on itself, and lets taps above it through")
+    @Test("The card stands on the composer over the transcript, takes taps on itself, and lets taps above it through", .timingSensitive)
     func card_overlaysTranscript() async throws {
         let host = try AttachPanelHost()
         defer { host.tearDown() }
@@ -217,7 +217,7 @@ struct AttachPanelPlacementTests {
         #expect(aboveHit.map { !$0.isDescendant(of: host.barHost.view) } ?? true, "The bar swallows taps above the card")
     }
 
-    @Test("Adding from the card shrinks the surface onto the staged chip, which shows once it has landed")
+    @Test("Adding from the card shrinks the surface onto the staged chip, which shows once it has landed", .timingSensitive)
     func card_landsOnChip() async throws {
         let host = try AttachPanelHost()
         defer { host.tearDown() }
