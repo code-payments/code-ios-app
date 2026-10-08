@@ -188,7 +188,8 @@ private struct UserProfileContent: View {
         // On iOS 26 the pinned button joins the bottom scroll edge effect, so content fades under it.
         .scrollEdgeBar(.bottom) {
             pinnedButton
-                .profilePinnedBackdrop(isActive: !hidesPinnedBar || scrollFit.overflows)
+                .profilePinnedBackdrop(isActive: !hidesPinnedBar)
+                .profileBarlessFade(isActive: hidesPinnedBar && scrollFit.overflows)
                 // Toasts rise above the button rather than covering it.
                 .toastClearance(toasts)
         }
