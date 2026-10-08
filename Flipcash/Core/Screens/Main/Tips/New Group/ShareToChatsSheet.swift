@@ -16,11 +16,19 @@ enum ShareToChatsSubject {
     /// A person's public profile link, the one their own You tab shares. `preview` is the tip-code
     /// image for the system share sheet's card, when one is rendered. `directChatID` is the viewer's
     /// DM with them, left out of the picker so nobody is sent their own profile.
-    case user(url: URL, displayName: String?, preview: TipCodePreview? = nil, directChatID: ConversationID?)
+    case user(
+        userID: UserID,
+        username: Username?,
+        displayName: String?,
+        preview: TipCodePreview? = nil,
+        directChatID: ConversationID?
+    )
 }
 
 /// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a link by Share or Copy,
-/// or post it straight into recent chats with an optional message.
+/// or post it straight into recent chats with an optional message. A person with a name gets a third
+/// tile, Show Profile Card, which draws their card over the sheet; closing it uncovers the sheet as
+/// it was left.
 struct ShareToChatsSheet: View {
 
     let subject: ShareToChatsSubject
@@ -43,15 +51,20 @@ struct ShareToChatsSheet: View {
     @State private var model: InvitePeopleViewModel
     @State private var didCopy = false
     @State private var headerHeight: CGFloat = 0
+    @State private var isShowingCard = false
     @FocusState private var isMessageFocused: Bool
 
-    init(subject: ShareToChatsSubject, isPresented: Binding<Bool>, onInvited: @escaping (ConversationID) -> Void) {
+    init(
+        subject: ShareToChatsSubject,
+        isPresented: Binding<Bool>,
+        onInvited: @escaping (ConversationID) -> Void
+    ) {
         self.subject = subject
         self._isPresented = isPresented
         self.onInvited = onInvited
         let url: URL = switch subject {
         case .group(let id): .groupChatInvite(for: id)
-        case .user(let url, _, _, _): url
+        case .user(let userID, let username, _, _, _): .tipcard(for: userID, username: username)
         }
         self._model = State(initialValue: InvitePeopleViewModel(url: url))
     }
@@ -68,7 +81,19 @@ struct ShareToChatsSheet: View {
     private var excludedChatID: ConversationID? {
         switch subject {
         case .group(let id): id
-        case .user(_, _, _, let directChatID): directChatID
+        case .user(_, _, _, _, let directChatID): directChatID
+        }
+    }
+
+    /// The person whose card Show Profile Card draws. Nil for a group, and for a person with no
+    /// display name, who has no card.
+    private var card: ProfileCardScreen.Card? {
+        switch subject {
+        case .group:
+            return nil
+        case .user(let userID, let username, let displayName, _, _):
+            guard let displayName, !displayName.isEmpty else { return nil }
+            return ProfileCardScreen.Card(userID: userID, displayName: displayName, username: username)
         }
     }
 
@@ -129,8 +154,8 @@ struct ShareToChatsSheet: View {
         switch subject {
         case .group:
             GroupInviteShareItem(url: model.url, title: title, icon: icon())
-        case .user(let url, let displayName, let preview, _):
-            TipCodeShareItem.profile(url: url, displayName: displayName, preview: preview)
+        case .user(_, _, let displayName, let preview, _):
+            TipCodeShareItem.profile(url: model.url, displayName: displayName, preview: preview)
         }
     }
 
@@ -195,6 +220,14 @@ struct ShareToChatsSheet: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .overlay {
+            if isShowingCard, let card {
+                ProfileCardScreen(card: card) {
+                    withAnimation(ProfileCardScreen.fade) { isShowingCard = false }
+                }
+                .transition(.asymmetric(insertion: .identity, removal: .opacity))
+            }
+        }
         .presentationBackground(Color.backgroundMain)
         .interactiveDismissDisabled(model.isSending)
         .task {
@@ -223,7 +256,8 @@ struct ShareToChatsSheet: View {
         .onGeometryChange(for: CGFloat.self, of: \.size.height) { headerHeight = $0 }
     }
 
-    /// Share and Copy Invite Link as two tiles side by side, sized to the taller of the two.
+    /// Share and Copy Invite Link, plus Show Profile Card for a person with a card, as tiles side by
+    /// side, sized to the tallest.
     private var shareTiles: some View {
         HStack(spacing: 10) {
             ShareTile(title: "Share") {
@@ -252,6 +286,21 @@ struct ShareToChatsSheet: View {
                 copy()
             }
             .accessibilityIdentifier("group-invite-copy")
+
+            if card != nil {
+                ShareTile(title: "Show Profile Card") {
+                    // The Scan tab's outline glyph: the card is what the scanner reads.
+                    Image(HomeTab.scan.iconName(isSelected: false))
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                } action: {
+                    isMessageFocused = false
+                    // The card runs its own reveal on appear, so only its removal is animated.
+                    isShowingCard = true
+                }
+                .accessibilityIdentifier("profile-card-tile")
+            }
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -394,7 +443,8 @@ private struct ShareTile<Icon: View>: View {
             .foregroundStyle(Color.textMain)
             .padding(.vertical, 16)
             .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 95)
+            // Fills the row's height, so a tile whose title wraps doesn't stand taller than the rest.
+            .frame(maxWidth: .infinity, minHeight: 95, maxHeight: .infinity)
             .background(Color.backgroundRow)
             .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))

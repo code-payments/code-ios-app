@@ -202,7 +202,12 @@ private struct UserProfileContent: View {
         }
         .fullScreenCover(isPresented: $isShowingShare) {
             ShareToChatsSheet(
-                subject: .user(url: model.shareURL, displayName: model.name, directChatID: dmID),
+                subject: .user(
+                    userID: model.userID,
+                    username: model.username,
+                    displayName: model.name,
+                    directChatID: dmID
+                ),
                 isPresented: $isShowingShare
             ) { chatID in
                 router.push(.tipConversation(chatID))
@@ -556,9 +561,6 @@ final class UserProfileViewModel {
         if let joinedAt = profile.joinedAt { self.joinedAt = joinedAt }
         minDmChatInitFee = profile.minDmChatInitFee
     }
-
-    /// This person's public link, the one their own You tab shares.
-    var shareURL: URL { .tipcard(for: userID, username: username) }
 
     /// Lifts the block; the badge and pinned button follow the blocklist. A failure says so.
     func unblock() async {

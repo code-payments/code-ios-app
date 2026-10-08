@@ -8,16 +8,23 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// The user's profile card over the You tab, with Close pinned to the bottom. Drawn
-/// inside the tab rather than as a cover so the tab's own toolbar button, swapped to
-/// Download, stays the only glass in the corner.
+/// A person's profile card, drawn over the share sheet by its Show Profile Card tile, with Download
+/// in the top corner and Close pinned to the bottom.
 struct ProfileCardScreen: View {
 
-    @Environment(SessionContainer.self) private var sessionContainer
-    @Environment(AppRouter.self) private var router
+    /// Whose card this is.
+    struct Card {
+        let userID: UserID
+        let displayName: String
+        let username: Username?
+    }
 
-    /// Raised by the You tab's toolbar button while the card is up.
-    @Binding var isShowingDownloadOptions: Bool
+    let card: Card
+
+    /// Called by Close. The presenter animates the card away with ``fade``.
+    let onClose: () -> Void
+
+    @State private var isShowingDownloadOptions = false
 
     /// The format tapped in the download sheet, held until the sheet is gone so
     /// the share sheet has a settled controller to present on.
@@ -43,7 +50,7 @@ struct ProfileCardScreen: View {
     private static let revealScale: CGFloat = 0.55
     private static let revealSpring: Animation = .spring(duration: 0.4, bounce: 0.6)
 
-    /// The open and close fade, shared with the toolbar glyph swap so the two move together.
+    /// The open and close fade.
     static let fade: Animation = .easeOut(duration: 0.25)
 
     var body: some View {
@@ -53,24 +60,27 @@ struct ProfileCardScreen: View {
                 .opacity(isRevealed ? 1 : 0)
 
             ScrollView(showsIndicators: false) {
-                if let name = displayName {
-                    TipcardView(
-                        size: cardSize,
-                        name: name,
-                        avatar: nil,
-                        codeData: codeData,
-                        tintOpacity: 0.36,
-                        subtitle: username.map(\.handle)
-                    )
-                    .scaleEffect(isCardShown ? 1 : Self.revealScale)
-                    .opacity(isRevealed ? 1 : 0)
-                    .padding(.horizontal, Self.horizontalInset)
-                    .containerRelativeFrame(.vertical, alignment: .center)
-                }
+                TipcardView(
+                    size: cardSize,
+                    name: card.displayName,
+                    avatar: nil,
+                    codeData: codeData,
+                    tintOpacity: 0.36,
+                    subtitle: card.username.map(\.handle)
+                )
+                .scaleEffect(isCardShown ? 1 : Self.revealScale)
+                .opacity(isRevealed ? 1 : 0)
+                .padding(.horizontal, Self.horizontalInset)
+                .containerRelativeFrame(.vertical, alignment: .center)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            downloadButton
+                .opacity(isRevealed ? 1 : 0)
+                .padding(16)
+        }
         .safeAreaInset(edge: .bottom) {
-            Button("Close", action: close)
+            Button("Close", action: onClose)
                 .buttonStyle(.subtle)
                 .opacity(isRevealed ? 1 : 0)
                 .accessibilityIdentifier("profile-card-close")
@@ -91,17 +101,28 @@ struct ProfileCardScreen: View {
 
     // MARK: - Content -
 
-    private var profile: Profile? { sessionContainer.session.profile }
-
-    private var displayName: String? {
-        guard let name = profile?.displayName, !name.isEmpty else { return nil }
-        return name
+    private var codeData: Data {
+        TipCode.Payload(userID: card.userID).codeData()
     }
 
-    private var username: Username? { profile?.username }
+    /// Built as ``CloseButton``'s glass style so it reads as the sheet's close it covers.
+    private var downloadButton: some View {
+        Button {
+            isShowingDownloadOptions = true
+        } label: {
+            Image.asset(.fileDownload)
+                .foregroundStyle(Color.textMain)
+                .frame(width: Self.platterDiameter, height: Self.platterDiameter)
+        }
+        .liquidGlassButtonStyle(shape: .circle)
+        .accessibilityLabel("Download")
+        .accessibilityIdentifier("profile-card-download")
+    }
 
-    private var codeData: Data {
-        TipCode.Payload(userID: sessionContainer.session.userID).codeData()
+    /// iOS 26's glass button style insets its own label; the material fallback draws its circle
+    /// directly around the frame. Matches ``CloseButton``.
+    private static var platterDiameter: CGFloat {
+        if #available(iOS 26, *) { 32 } else { 44 }
     }
 
     private var cardSize: CGSize {
@@ -123,7 +144,7 @@ struct ProfileCardScreen: View {
         guard let format = pendingDownload else { return }
         pendingDownload = nil
 
-        guard let file = TipCardExport.file(for: format, codeData: codeData, name: displayName) else {
+        guard let file = TipCardExport.file(for: format, codeData: codeData, name: card.displayName) else {
             return
         }
 
@@ -140,11 +161,6 @@ struct ProfileCardScreen: View {
         Haptics.vibrate()
         withAnimation(Self.fade) { isRevealed = true }
         withAnimation(Self.revealSpring) { isCardShown = true }
-    }
-
-    /// Fades the card out at full size; the overlay's removal transition carries the fade.
-    private func close() {
-        withAnimation(Self.fade) { router.isShowingProfileCard = false }
     }
 
     // MARK: - Brightness -

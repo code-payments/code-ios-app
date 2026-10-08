@@ -69,16 +69,7 @@ final class AppRouter {
     /// is showing; the topmost-stack mutators (`push`, `popTopmost`, …) fall
     /// back to this so in-tab navigation lands on the right stack.
     /// `HomeTabView` keeps it in sync with the selected tab.
-    var activeTabStack: Stack? {
-        didSet {
-            if activeTabStack != oldValue { isShowingProfileCard = false }
-        }
-    }
-
-    /// Whether the You tab's profile card is up. It is a cover local to `YouScreen`, which the
-    /// sheet stack cannot see, so the router closes it itself whenever sheets are dismissed, a
-    /// tab is requested or the selected tab changes — otherwise a deep link would land beneath it.
-    var isShowingProfileCard = false
+    var activeTabStack: Stack?
 
     /// A token the wallet should open in its expanded card state, rather than
     /// as a pushed screen. Deep links use this so following a link lands where
@@ -101,11 +92,7 @@ final class AppRouter {
     /// A tab the router wants brought forward, named by the stack it owns.
     /// `HomeTabView` selects it and clears this. Deep-link routing only; nothing
     /// else drives tab selection.
-    var requestedTabStack: Stack? {
-        didSet {
-            if requestedTabStack != nil { isShowingProfileCard = false }
-        }
-    }
+    var requestedTabStack: Stack?
 
     /// The stack that `push`/`pop`-style calls target: the presented sheet's
     /// stack, or — when no sheet is up and a tab is the active surface — the
@@ -500,7 +487,6 @@ final class AppRouter {
     /// re-open instead.
     func dismissSheet() {
         guard let dismissing = presentedSheets.popLast() else { return }
-        isShowingProfileCard = false
         dismissedStacks.insert(dismissing.stack)
         logger.info("Dismissed sheet", metadata: [
             "sheet": "\(dismissing)",
