@@ -831,8 +831,8 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     /// The message whose bubble is at `point` if a double tap there should present the reaction
-    /// strip. Text and photo bubbles take one: link cards, cash cards, quote panels and reaction
-    /// pills keep their instant single tap.
+    /// strip. Text and photo bubbles and link cards take one: a link card's own buttons, cash cards,
+    /// quote panels and reaction pills keep their instant single tap.
     private func doubleTapTarget(at point: CGPoint) -> ChatMessage? {
         guard !isUpdating, !isShowingContextMenu,
               let indexPath = collectionView.indexPathForItem(at: point),
@@ -843,7 +843,8 @@ public final class ChatViewController: UICollectionViewController {
         guard bubble.bounds.contains(bubble.convert(point, from: collectionView)) else { return nil }
         var view = collectionView.hitTest(point, with: nil)
         while let current = view, current !== bubble {
-            if current is ReactionPillRowView || current is ChatQuotePanelView || current is LinkCardView { return nil }
+            if current is ReactionPillRowView || current is ChatQuotePanelView || current is UIControl { return nil }
+            if let card = current as? LinkCardView, card.hasButton(at: card.convert(point, from: collectionView)) { return nil }
             view = current.superview
         }
         return message
@@ -1354,14 +1355,18 @@ extension ChatViewController: UIGestureRecognizerDelegate {
         return !exclusive.contains { $0 === gestureRecognizer || $0 === otherGestureRecognizer }
     }
 
-    /// Holds a photo's open-the-viewer tap until the double tap fails, so the second tap of a double
-    /// tap reacts instead of opening the photo. The double tap only receives touches on a photo that
-    /// can take a reaction, so any other photo still opens on a single tap with no wait.
+    /// Holds a photo's open-the-viewer tap, and a link card's own tap, until the double tap fails, so
+    /// the second tap of a double tap reacts instead of opening what was tapped. The double tap only
+    /// receives touches on a row that can take a reaction, and never on a card's own button, so
+    /// those still act on a single tap with no wait.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer === bubbleDoubleTap else { return false }
         var view = otherGestureRecognizer.view
         while let current = view {
             if let cell = current as? ChatMediaCell { return cell.imageTap === otherGestureRecognizer }
+            if current is LinkCardView {
+                return (otherGestureRecognizer as? UITapGestureRecognizer)?.numberOfTapsRequired == 1
+            }
             view = current.superview
         }
         return false

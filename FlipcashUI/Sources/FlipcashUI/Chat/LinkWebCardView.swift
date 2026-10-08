@@ -45,6 +45,11 @@ final class LinkWebCardView: UIView {
     let titleLabel = UILabel()
     let descriptionLabel = UILabel()
     let chip = UIButton(type: .system)
+
+    /// Whether `point`, in this view's coordinates, is on the "Show preview" chip.
+    func hasButton(at point: CGPoint) -> Bool {
+        !chip.isHidden && chip.convert(chip.bounds, to: self).contains(point)
+    }
     private var collapse: NSLayoutConstraint!
     private var imageTask: Task<Void, Never>?
 
@@ -112,8 +117,10 @@ final class LinkWebCardView: UIView {
         imageCollapsed = imageView.heightAnchor.constraint(equalToConstant: 0)
 
         collapse = heightAnchor.constraint(equalToConstant: 0)
+        panelTop = panel.topAnchor.constraint(equalTo: topAnchor, constant: Self.topGap)
+        chipTop = chip.topAnchor.constraint(equalTo: topAnchor, constant: Self.topGap)
         NSLayoutConstraint.activate([
-            panel.topAnchor.constraint(equalTo: topAnchor, constant: Self.topGap),
+            panelTop,
             panel.leadingAnchor.constraint(equalTo: leadingAnchor),
             panel.trailingAnchor.constraint(equalTo: trailingAnchor),
 
@@ -126,7 +133,7 @@ final class LinkWebCardView: UIView {
             stack.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -10),
             stack.bottomAnchor.constraint(equalTo: panel.bottomAnchor, constant: -10),
 
-            chip.topAnchor.constraint(equalTo: topAnchor, constant: Self.topGap),
+            chipTop,
             chip.leadingAnchor.constraint(equalTo: leadingAnchor),
             chip.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
         ])
@@ -139,6 +146,38 @@ final class LinkWebCardView: UIView {
     }
 
     private var imageHeight: NSLayoutConstraint!
+    private var panelTop: NSLayoutConstraint!
+    private var chipTop: NSLayoutConstraint!
+
+    /// Whether the card stands on its own in place of its bubble: no gap above it, and the panel cut
+    /// to `cornerRadii` rather than rounded inside a bubble.
+    var isBare = false {
+        didSet {
+            guard isBare != oldValue else { return }
+            panelTop.constant = isBare ? 0 : Self.topGap
+            chipTop.constant = isBare ? 0 : Self.topGap
+            setNeedsLayout()
+        }
+    }
+
+    /// The bare panel's outline, for its place in its bubble run.
+    var cornerRadii = BubbleBackgroundView.standaloneRadii {
+        didSet { if cornerRadii != oldValue { setNeedsLayout() } }
+    }
+
+    private let panelMask = CAShapeLayer()
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if isBare {
+            panel.layer.cornerRadius = 0
+            panelMask.path = BubbleBackgroundView.path(radii: cornerRadii, in: panel.bounds)
+            panel.layer.mask = panelMask
+        } else {
+            panel.layer.cornerRadius = 10
+            panel.layer.mask = nil
+        }
+    }
     private var imageCollapsed: NSLayoutConstraint!
     private var chipBottom: NSLayoutConstraint!
     private var panelBottom: NSLayoutConstraint!

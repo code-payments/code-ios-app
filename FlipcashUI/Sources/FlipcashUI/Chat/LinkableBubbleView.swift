@@ -70,7 +70,14 @@ public final class LinkableBubbleView: UIView {
     private(set) var quotePanel = ChatQuotePanelView()
 
     /// Whether the row currently draws as the card on its own, with no bubble behind it.
-    private var isBare = false
+    private(set) var isBare = false
+    /// Called when a link-only web row switches between its text bubble and its bare card after
+    /// ``configure(with:quoteThumbnail:)``, as its preview lands or goes away.
+    var onBareChange: (() -> Void)?
+    /// The message and quote thumbnail last configured, for laying the row out again when its web
+    /// card's state changes.
+    private var message: ChatMessage?
+    private var quoteThumbnail: ChatMediaLocation?
 
     /// The body's inset from the bubble's edges, and the bubble's own vertical padding.
     private static let bodyInset: CGFloat = 12
@@ -162,8 +169,13 @@ public final class LinkableBubbleView: UIView {
         cardView.addGestureRecognizer(cardTap)
         cardView.onCardButton = { [weak self] in self?.cardTapped() }
         cardView.onHeightChange = { [weak self] in
-            self?.updateWebPreviewWidth()
-            self?.onCardHeightChange?()
+            guard let self else { return }
+            if let message, message.isOnlyItsWebLink, drawsBare(message) != isBare {
+                lay(message, quoteThumbnail: quoteThumbnail)
+                onBareChange?()
+            }
+            updateWebPreviewWidth()
+            onCardHeightChange?()
         }
         addSubview(cardView)
 
@@ -284,6 +296,8 @@ public final class LinkableBubbleView: UIView {
         textView.resignFirstResponder()
         quotePanel.onTap = nil
         card = nil
+        message = nil
+        quoteThumbnail = nil
         cardView.prepareForReuse()
     }
 
@@ -292,38 +306,65 @@ public final class LinkableBubbleView: UIView {
         // Shares the plain bubble's text builder so a link message gets the same body styling, the
         // same tombstone copy, and the same "Edited" reservation, with the link spans laid over it
         // from the preview the mapper already detected.
-        // The transcript gives a Flipcash card a row of its own, so such a row carries either text
-        // or the card. A web card is the exception and draws under its text.
-        let bare = message.rendersAsBareLinkCard
+        self.message = message
+        self.quoteThumbnail = quoteThumbnail
+        cardView.cornerRadii = Self.radii(for: message)
+        // Painted first, so a preview already remembered draws a link-only row bare from its first
+        // frame rather than swapping out of a bubble.
+        if case .web = message.linkPreview?.card, let card = message.linkPreview?.card {
+            self.card = card
+            cardView.configure(with: card, source: linkCardSource)
+        }
+        lay(message, quoteThumbnail: quoteThumbnail)
+    }
+
+    /// Whether `message` draws as its card alone. The transcript gives a Flipcash card a row of its
+    /// own, so that row always does; a web link with nothing else beside it does only while its
+    /// preview draws, and keeps its text bubble while loading, with nothing to show, or at its chip.
+    private func drawsBare(_ message: ChatMessage) -> Bool {
+        message.rendersAsBareLinkCard || (message.isOnlyItsWebLink && cardView.drawsWebPreview)
+    }
+
+    private static func radii(for message: ChatMessage) -> RectangleCornerRadii {
+        BubbleBackgroundView.radii(
+            isFromSelf: message.sender == .me,
+            groupedAbove: message.joinsBubbleAbove,
+            groupedBelow: message.joinsBubbleBelow
+        )
+    }
+
+    /// Lays the row out around a card already configured: text or bare, quote, chrome.
+    private func lay(_ message: ChatMessage, quoteThumbnail: ChatMediaLocation?) {
+        let bare = drawsBare(message)
         // Empty on a card row: the hidden text still widens the row, and a person card, which gives
         // its own width, would sit short of the column's edge inside it.
         textView.attributedText = bare ? nil : Self.linkedText(for: message)
         // A web card sits under the text rather than replacing it. Its layout comes off before the
         // switch between text and bare and goes on after it, so no row ever holds two bottoms.
         let webInText = !bare && { if case .web = message.linkPreview?.card { true } else { false } }()
+        // A row leaving its bare card drops the card's edges first, or they would fight the web
+        // card's place under the text.
+        if !bare { NSLayoutConstraint.deactivate(cardSides + [cardTopToBubble, cardTopToQuote]) }
         if !webInText { setWebInText(false) }
         setBare(bare)
         if webInText { setWebInText(true) }
         // One set of radii for the card and the chrome: a card sits in its bubble run exactly where
         // a text bubble would, with the same corners flattened toward its neighbours.
-        let radii = BubbleBackgroundView.radii(
-            isFromSelf: message.sender == .me,
-            groupedAbove: message.joinsBubbleAbove,
-            groupedBelow: message.joinsBubbleBelow
-        )
+        let radii = Self.radii(for: message)
         // A card row's "Edited" marker sits on the column's metadata line instead — see
         // `ChatLinkMessageCell`.
         editedLabel.isHidden = bare || !ChatBubbleView.showsEditedMarker(for: message)
 
+        cardView.webIsBare = bare
         if bare, let card = message.linkPreview?.card {
             cardView.isHidden = false
             self.card = card
+            // The web card takes its own taps: the preview opens the page.
             cardTap.isEnabled = switch card {
-            case .group, .user: false
-            case .cash, .token, .web: true
+            case .group, .user, .web: false
+            case .cash, .token: true
             }
-            cardView.cornerRadii = radii
-            cardView.configure(with: card, source: linkCardSource)
+            if case .web = card {} else { cardView.configure(with: card, source: linkCardSource) }
             NSLayoutConstraint.deactivate(cardCollapse)
             NSLayoutConstraint.activate(cardSides)
         } else if case .web = message.linkPreview?.card, let card = message.linkPreview?.card {
@@ -332,7 +373,6 @@ public final class LinkableBubbleView: UIView {
             // The web card takes its own taps: the preview opens the page, the chip asks for it.
             cardTap.isEnabled = false
             NSLayoutConstraint.deactivate(cardCollapse + cardSides)
-            cardView.configure(with: card, source: linkCardSource)
         } else {
             cardView.isHidden = true
             self.card = nil

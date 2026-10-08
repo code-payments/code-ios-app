@@ -165,6 +165,20 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         return linkPreview?.card != nil
     }
 
+    /// Whether this row is a web link and nothing else: everything outside the card's link is
+    /// whitespace or punctuation, the same rule the transcript uses to drop an empty row beside a
+    /// Flipcash card. Such a row draws its web card bare once the card has a preview to show.
+    public var isOnlyItsWebLink: Bool {
+        guard case .text(let text) = content, case .web(let web)? = linkPreview?.card else { return false }
+        let body = text as NSString
+        let link = web.range
+        guard link.location >= 0, link.length > 0, NSMaxRange(link) <= body.length else { return false }
+        let outside = body.substring(to: link.location) + body.substring(from: NSMaxRange(link))
+        return outside.unicodeScalars.allSatisfy(Self.carriesNothing.contains)
+    }
+
+    private static let carriesNothing = CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters)
+
     /// Whether a long-press on this row should offer the reaction strip above the context menu.
     /// False for a deleted message (a tombstone keeps whatever pills it has, but there is nothing
     /// left to add a new one to) and for the user's own message still in flight — the server has
@@ -182,10 +196,11 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         }
     }
 
-    /// Whether a double tap on this row's bubble brings up the reaction strip on its own. Cash and
-    /// profile cards and bare link cards keep their instant single tap instead.
+    /// Whether a double tap on this row's bubble brings up the reaction strip on its own. A link
+    /// card, bare or in a bubble, takes one too; its own buttons act on the first tap. Cash and
+    /// profile cards keep their instant single tap instead.
     public var takesDoubleTapReaction: Bool {
-        guard offersReactionStrip, !rendersAsBareLinkCard else { return false }
+        guard offersReactionStrip else { return false }
         switch content {
         case .text, .media:                                 return true
         case .cash, .deleted, .unavailable, .shareProfile:  return false

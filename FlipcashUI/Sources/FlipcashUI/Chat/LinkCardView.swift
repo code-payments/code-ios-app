@@ -78,6 +78,16 @@ final class LinkCardView: UIView {
     /// Called when a group card's button, or a person card, is tapped.
     var onCardButton: (() -> Void)?
 
+    /// Whether `point`, in this view's coordinates, is on one of the card's own buttons: the cash
+    /// card's "Claim" pill, the group card's "View" or the web card's "Show preview" chip. These
+    /// act on the first tap; the rest of a card takes the transcript's double tap.
+    func hasButton(at point: CGPoint) -> Bool {
+        if !cashView.isHidden, cashView.hasButton(at: convert(point, to: cashView)) { return true }
+        if !groupView.isHidden, groupView.hasButton(at: convert(point, to: groupView)) { return true }
+        if !webView.isHidden, webView.hasButton(at: convert(point, to: webView)) { return true }
+        return false
+    }
+
     /// The card's outline: `BubbleBackgroundView`'s radii for the card's place in its bubble run, so
     /// it groups with the bubbles around it exactly as a text bubble would. Every kind takes it,
     /// placeholder included.
@@ -87,7 +97,14 @@ final class LinkCardView: UIView {
             tokenView.cornerRadii = cornerRadii
             groupView.cornerRadii = cornerRadii
             userView.cornerRadii = cornerRadii
+            webView.cornerRadii = cornerRadii
         }
+    }
+
+    /// Whether a web card stands on its own in place of its bubble.
+    var webIsBare: Bool {
+        get { webView.isBare }
+        set { webView.isBare = newValue }
     }
 
     /// Called when an answer arriving after ``configure(with:source:)`` changes the card's height,

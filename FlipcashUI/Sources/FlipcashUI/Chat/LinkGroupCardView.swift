@@ -24,6 +24,15 @@ final class LinkGroupCardView: UIView {
     /// Called when the "View" button is tapped.
     var onStart: (() -> Void)?
 
+    /// The "View" button's frame in window coordinates, or `.null` while the card draws none.
+    private var actionFrame = CGRect.null
+
+    /// Whether `point`, in this view's coordinates, is on the "View" button.
+    func hasButton(at point: CGPoint) -> Bool {
+        guard let window, !actionFrame.isNull else { return false }
+        return actionFrame.contains(convert(point, to: window))
+    }
+
     /// Called when the content's height at the card's width changes, so the row can be measured
     /// again.
     var onHeightChange: (() -> Void)?
@@ -137,8 +146,14 @@ final class LinkGroupCardView: UIView {
     private func renderContent() {
         let display = shown?.state ?? .unavailable
         let radii = cornerRadii
+        actionFrame = .null
         content.configuration = UIHostingConfiguration {
-            LinkGroupCardContent(state: display, cornerRadii: radii, onAction: { [weak self] in self?.onStart?() })
+            LinkGroupCardContent(
+                state: display,
+                cornerRadii: radii,
+                onAction: { [weak self] in self?.onStart?() },
+                onActionFrame: { [weak self] in self?.actionFrame = $0 }
+            )
         }
         .margins(.all, 0)
     }
@@ -172,6 +187,9 @@ struct LinkGroupCardContent: View {
     var ctaTitle: String? = Copy.view
     /// Called when the button is tapped.
     var onAction: () -> Void = {}
+    /// Told the live button's frame in window coordinates, so the host can keep the transcript's
+    /// double tap off it.
+    var onActionFrame: ((CGRect) -> Void)? = nil
     /// The button's UI-test handle, which differs by host.
     var ctaAccessibilityIdentifier: String = "group-card-cta"
     /// Taps the picture/title band open. Nil leaves the band inert, as it is inline in a
@@ -299,6 +317,7 @@ struct LinkGroupCardContent: View {
                 Button(ctaTitle, action: onAction)
                     .buttonStyle(.filledCompact)
                     .accessibilityIdentifier(ctaAccessibilityIdentifier)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onActionFrame?($0) }
             }
         }
     }
