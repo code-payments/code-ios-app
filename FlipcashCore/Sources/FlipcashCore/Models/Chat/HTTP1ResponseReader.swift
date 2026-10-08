@@ -175,7 +175,15 @@ public nonisolated struct HTTP1ResponseReader {
             guard let colon = line.firstIndex(of: ":"), colon != line.startIndex else { throw MalformedResponse() }
             let name = line[..<colon].trimmingCharacters(in: .whitespaces).lowercased()
             let value = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
-            if parsed[name] == nil { parsed[name] = value }
+            switch (parsed[name], name) {
+            case (nil, _):
+                parsed[name] = value
+            case (let first?, "location"), (let first?, "content-length"):
+                // single-valued: a repeat must agree, or the response is ambiguous
+                guard first == value else { throw MalformedResponse() }
+            case (let first?, _):
+                parsed[name] = "\(first), \(value)"   // RFC 9110 5.3: list repeats join
+            }
         }
         status = code
         headers = parsed

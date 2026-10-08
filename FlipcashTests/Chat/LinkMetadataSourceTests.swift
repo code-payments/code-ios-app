@@ -120,6 +120,52 @@ struct LinkMetadataSourceTests {
         #expect(await counter.peak == 2)
     }
 
+    /// D12: a port other than 443 is never fetched, on the first URL or a hop.
+    @Test func nonDefaultPortIsNone() async throws {
+        let client = FakeClient(["https://example.com/": redirect("https://example.com:8443/")])
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com:6379/")!) == .none)
+        #expect(client.requested.isEmpty)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(client.requested == ["https://example.com/"])
+    }
+
+    /// D16: a relative Location keeps the current host, whatever its query holds.
+    @Test func relativeLocationWithEscapesInItsQueryIsFollowed() async throws {
+        let client = FakeClient([
+            "https://example.com/": redirect("/redir?to=https://a%20b"),
+            "https://example.com/redir?to=https://a%20b": html(Self.page),
+        ])
+        guard case .resolved = try await source(client).metadata(for: URL(string: "https://example.com/")!) else {
+            Issue.record("expected a resolved card"); return
+        }
+    }
+
+    @Test(arguments: ["//ex%61mple.org/x", "https:\\\\ex%61mple.org", "https://ex%61mple.org/"])
+    func escapedOrBackslashLocationIsNone(_ location: String) async throws {
+        let client = FakeClient(["https://example.com/": redirect(location)])
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(client.requested == ["https://example.com/"])
+    }
+
+    /// D17: every Content-Encoding value must be identity.
+    @Test(arguments: ["identity, gzip", "", "identity, "])
+    func anyNonIdentityOrEmptyEncodingTokenIsNone(_ encoding: String) async throws {
+        let client = FakeClient(["https://example.com/": html(Self.page, extra: ["content-encoding": encoding])])
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+    }
+
+    /// D18: one deadline covers every hop, and running out throws so nothing is remembered.
+    @Test func theDeadlineCoversTheWholeChain() async throws {
+        let client = FakeClient([
+            "https://example.com/": redirect("https://example.com/b"),
+            "https://example.com/b": html(Self.page),
+        ], delay: .milliseconds(150))
+        await #expect(throws: URLError.self) {
+            try await WebRedirects.follow(URL(string: "https://example.com/")!, client: client,
+                                          accept: "text/html", maxBytes: 1024, deadline: .milliseconds(200))
+        }
+    }
+
     // MARK: - Helpers
 
     private func source(_ client: FakeClient) -> PinnedLinkMetadataSource {
@@ -137,17 +183,20 @@ struct LinkMetadataSourceTests {
 
 private final class FakeClient: PinnedFetching, @unchecked Sendable {
     private let routes: [String: PinnedResponse]
+    private let delay: Duration?
     private let lock = NSLock()
     private var _requested: [String] = []
 
-    init(_ routes: [String: PinnedResponse]) {
+    init(_ routes: [String: PinnedResponse], delay: Duration? = nil) {
         self.routes = routes
+        self.delay = delay
     }
 
     var requested: [String] { lock.withLock { _requested } }
 
     func get(_ url: URL, accept: String, maxBytes: Int) async throws -> PinnedResponse {
         lock.withLock { _requested.append(url.absoluteString) }
+        if let delay { try await Task.sleep(for: delay) }
         guard let response = routes[url.absoluteString] else { throw URLError(.cannotConnectToHost) }
         return response
     }

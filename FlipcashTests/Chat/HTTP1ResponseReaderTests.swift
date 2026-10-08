@@ -94,10 +94,22 @@ struct HTTP1ResponseReaderTests {
         #expect(response.body == Data("ok".utf8))
     }
 
-    @Test func headersAreCaseInsensitiveAndKeepTheFirstValue() throws {
-        let wire = "HTTP/1.1 301 Moved\r\nLOCATION: https://a.example/\r\nlocation: https://b.example/\r\nContent-Length: 0\r\n\r\n"
+    @Test func headerNamesAreCaseInsensitive() throws {
+        let wire = "HTTP/1.1 301 Moved\r\nLOCATION: https://a.example/\r\nlocation: https://a.example/\r\nContent-Length: 0\r\n\r\n"
         let response = try read(Self.bytes(wire), byteAtATime: false)
         #expect(response.headers["location"] == "https://a.example/")
+    }
+
+    /// D17: a list header that repeats joins, so every Content-Encoding value is seen.
+    @Test func repeatedListHeadersJoin() throws {
+        let wire = "HTTP/1.1 200 OK\r\nContent-Encoding: identity\r\nContent-Encoding: gzip\r\nContent-Length: 0\r\n\r\n"
+        #expect(try read(Self.bytes(wire), byteAtATime: false).headers["content-encoding"] == "identity, gzip")
+    }
+
+    @Test(arguments: ["Location: https://a.example/\r\nLocation: https://b.example/", "Content-Length: 1\r\nContent-Length: 2"])
+    func conflictingSingleValuedHeadersAreMalformed(_ headers: String) {
+        let wire = Self.bytes("HTTP/1.1 301 Moved\r\n\(headers)\r\n\r\n")
+        #expect(throws: MalformedResponse.self) { try read(wire, byteAtATime: false) }
     }
 
     @Test func isHTMLReadsTheMediaType() throws {

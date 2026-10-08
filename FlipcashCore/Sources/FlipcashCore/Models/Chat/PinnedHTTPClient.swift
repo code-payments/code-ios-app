@@ -115,7 +115,7 @@ public nonisolated struct PinnedHTTPClient: PinnedFetching {
                     try await Self.send(request, on: connection)
                     var reader = HTTP1ResponseReader(maxBytes: maxBytes)
                     while true {
-                        let (data, isComplete) = try await Self.receive(on: connection)
+                        let (data, isComplete) = try await Self.receive(on: connection, idle: WebLinks.timeout)
                         if let data, !data.isEmpty, case .done(let response) = try reader.feed(data) {
                             return response
                         }
@@ -192,6 +192,20 @@ public nonisolated struct PinnedHTTPClient: PinnedFetching {
             connection.send(content: data, completion: .contentProcessed { error in
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
             })
+        }
+    }
+
+    /// One read, failing when no bytes arrive for `idle` seconds (D15), so a slow drip cannot hold a slot.
+    private static func receive(on connection: NWConnection, idle: TimeInterval) async throws -> (Data?, Bool) {
+        try await withThrowingTaskGroup(of: (Data?, Bool).self) { group in
+            group.addTask { try await receive(on: connection) }
+            group.addTask {
+                try await Task.sleep(for: .seconds(idle))
+                connection.cancel()   // resumes the pending receive with an error
+                throw URLError(.timedOut)
+            }
+            defer { group.cancelAll() }
+            return try await group.next()!
         }
     }
 

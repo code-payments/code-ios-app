@@ -24,8 +24,15 @@ public nonisolated enum WebLinks {
     public static func isEligibleHost(_ host: String) -> Bool {
         let h = host.lowercased()
         if h.hasPrefix("[") || h.contains(":") || isIPv4(h) { return false }
+        if h.hasSuffix(".") || isNumericLabels(h) { return false }
         if h == "localhost" || [".localhost", ".local", ".internal"].contains(where: h.hasSuffix) { return false }
         return h.contains(".")
+    }
+
+    /// Whether a preview may fetch `url`: `https`, an eligible host, and no port other than 443.
+    public static func isFetchable(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "https", let host = host(of: url) else { return false }
+        return isEligibleHost(host) && (url.port ?? 443) == 443
     }
 
     /// The host every preview step uses: the URL's IDNA (punycode) form, lowercased. Nil when there
@@ -48,6 +55,14 @@ public nonisolated enum WebLinks {
         components.fragment = nil
         if components.port == 443 { components.port = nil }
         return components.string
+    }
+
+    /// Labels a system resolver reads as an IP literal (`127.1`, `0x7f.0.0.1`): decimal, or `0x` hex.
+    private static func isNumericLabels(_ h: String) -> Bool {
+        h.split(separator: ".", omittingEmptySubsequences: false).allSatisfy { label in
+            if label.hasPrefix("0x") { return label.dropFirst(2).allSatisfy(\.isHexDigit) }
+            return !label.isEmpty && label.allSatisfy { $0.isASCII && $0.isNumber }
+        }
     }
 
     private static func isIPv4(_ h: String) -> Bool {

@@ -49,10 +49,9 @@ nonisolated struct LinkCardClassifier {
     /// An outside `https` link. A Flipcash host never falls through to here, whatever its path, and
     /// that includes a jump wrapper around an outside target.
     private func web(_ link: DetectedLink) -> LinkCard? {
-        guard link.url.scheme?.lowercased() == "https",
+        guard WebLinks.isFetchable(link.url),
               let host = WebLinks.host(of: link.url),
-              !Route.flipcashHosts.contains(host),
-              WebLinks.isEligibleHost(host) else { return nil }
+              !Route.flipcashHosts.contains(host) else { return nil }
         return .web(LinkCard.Web(url: link.url, range: link.range))
     }
 

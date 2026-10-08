@@ -185,9 +185,7 @@ public nonisolated enum WebPageParser {
 
     private static func imageURL(_ raw: String, relativeTo base: URL) -> URL? {
         guard let url = URL(string: raw, relativeTo: base)?.absoluteURL,
-              url.scheme?.lowercased() == "https",
-              let host = WebLinks.host(of: url),
-              WebLinks.isEligibleHost(host) else { return nil }
+              WebLinks.isFetchable(url) else { return nil }
         return url
     }
 }

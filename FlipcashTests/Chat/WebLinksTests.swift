@@ -60,4 +60,23 @@ struct WebLinksTests {
         #expect(WebLinks.resolvedTTL == TimeInterval(limits.resolvedTtlHours * 3600))
         #expect(WebLinks.emptyTTL == TimeInterval(limits.emptyTtlHours * 3600))
     }
+
+    /// D13: names a system resolver reads as IP literals, and trailing-dot names, are never eligible.
+    @Test(arguments: ["localhost.", "printer.local.", "example.com.", "127.1", "0x7f.0.0.1", "1.1.1.1.", "2130706433"])
+    func numericAndTrailingDotHostsAreIneligible(_ host: String) {
+        #expect(!WebLinks.isEligibleHost(host))
+    }
+
+    @Test(arguments: ["cafe.be", "0xide.com", "1password.com", "123.example"])
+    func wordsThatLookHexAreStillEligible(_ host: String) {
+        #expect(WebLinks.isEligibleHost(host))
+    }
+
+    /// D12: only the default https port is fetched.
+    @Test func onlyPort443IsFetchable() throws {
+        #expect(WebLinks.isFetchable(try #require(URL(string: "https://example.com/"))))
+        #expect(WebLinks.isFetchable(try #require(URL(string: "https://example.com:443/"))))
+        #expect(!WebLinks.isFetchable(try #require(URL(string: "https://example.com:6379/"))))
+        #expect(!WebLinks.isFetchable(try #require(URL(string: "http://example.com/"))))
+    }
 }

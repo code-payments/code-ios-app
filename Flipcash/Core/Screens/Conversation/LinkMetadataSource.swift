@@ -96,7 +96,21 @@ nonisolated enum WebRedirects {
 
     /// The first non-redirect response and the URL it came from. Nil when a hop is not allowed, a
     /// `Location` is unusable, or the chain needs more than `WebLinks.maxRedirects` redirects.
-    static func follow(_ start: URL, client: any PinnedFetching, accept: String, maxBytes: Int) async throws -> (PinnedResponse, URL)? {
+    /// Every hop shares one `deadline` (D18); running out throws, so the outcome is not remembered.
+    static func follow(_ start: URL, client: any PinnedFetching, accept: String, maxBytes: Int,
+                       deadline: Duration = .seconds(2 * WebLinks.timeout)) async throws -> (PinnedResponse, URL)? {
+        try await withThrowingTaskGroup(of: (PinnedResponse, URL)?.self) { group in
+            group.addTask { try await hops(start, client: client, accept: accept, maxBytes: maxBytes) }
+            group.addTask {
+                try await Task.sleep(for: deadline)
+                throw URLError(.timedOut)
+            }
+            defer { group.cancelAll() }
+            return try await group.next()!
+        }
+    }
+
+    private static func hops(_ start: URL, client: any PinnedFetching, accept: String, maxBytes: Int) async throws -> (PinnedResponse, URL)? {
         var current = start
         for _ in 0...WebLinks.maxRedirects {
             guard allowed(current) else { return nil }
@@ -109,9 +123,8 @@ nonisolated enum WebRedirects {
         return nil
     }
 
-    /// Whether a preview may fetch `url`: `https` on an eligible host.
     static func allowed(_ url: URL) -> Bool {
-        url.scheme?.lowercased() == "https" && WebLinks.host(of: url).map(WebLinks.isEligibleHost) == true
+        WebLinks.isFetchable(url)
     }
 }
 
@@ -145,7 +158,10 @@ actor FetchLimiter {
 private extension PinnedResponse {
     /// D2: we ask for `identity`, so any other encoding is a body we will not decode.
     nonisolated var isIdentityEncoded: Bool {
-        guard let encoding = headers["content-encoding"]?.trimmingCharacters(in: .whitespaces).lowercased() else { return true }
-        return encoding.isEmpty || encoding == "identity"
+        guard let encoding = headers["content-encoding"] else { return true }
+        // D17: every token, including an empty one, must read `identity`.
+        return encoding.split(separator: ",", omittingEmptySubsequences: false).allSatisfy {
+            $0.trimmingCharacters(in: .whitespaces).lowercased() == "identity"
+        }
     }
 }
