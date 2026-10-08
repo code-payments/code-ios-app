@@ -455,6 +455,71 @@
       "address": "::ffff:93.184.215.14",
       "public": true,
       "note": "IPv4-mapped, judged by its public IPv4"
+    },
+    {
+      "address": "64:ff9b::a00:1",
+      "public": false,
+      "note": "NAT64 64:ff9b::/96, judged by 10.0.0.1"
+    },
+    {
+      "address": "64:ff9b::808:808",
+      "public": true,
+      "note": "NAT64 64:ff9b::/96, judged by its public 8.8.8.8"
+    },
+    {
+      "address": "2002:a00:1::",
+      "public": false,
+      "note": "6to4 2002::/16, never public"
+    },
+    {
+      "address": "2002:808:808::",
+      "public": false,
+      "note": "6to4 2002::/16, never public even around a public IPv4"
+    },
+    {
+      "address": "::a00:1",
+      "public": false,
+      "note": "IPv4-compatible ::/96, never public"
+    },
+    {
+      "address": "::808:808",
+      "public": false,
+      "note": "IPv4-compatible ::/96, never public even around a public IPv4"
+    },
+    {
+      "address": "192.0.0.8",
+      "public": false,
+      "note": "IETF protocol assignments 192.0.0.0/24"
+    },
+    {
+      "address": "192.0.2.1",
+      "public": false,
+      "note": "TEST-NET-1 192.0.2.0/24"
+    },
+    {
+      "address": "192.0.3.1",
+      "public": true,
+      "note": "just past 192.0.2.0/24"
+    },
+    {
+      "address": "198.18.0.1",
+      "public": false,
+      "note": "benchmarking 198.18.0.0/15, low end"
+    },
+    {
+      "address": "198.19.255.255",
+      "public": false,
+      "note": "benchmarking 198.18.0.0/15, high end"
+    },
+    {
+      "address": "198.20.0.1",
+      "public": true,
+      "note": "just past 198.18.0.0/15"
+    },
+    {
+      "address": "240.0.0.1",
+      "public": false,
+      "note": "reserved 240.0.0.0/4"
     }
   ]
 }
