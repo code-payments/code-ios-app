@@ -12,9 +12,9 @@ import FlipcashUI
 /// card.
 ///
 /// The navigation bar carries the gear that pushes Settings; the action row beside the
-/// avatar carries Edit Profile and Share, whose sheet shares the profile link, presents the tip card
-/// full screen (`ProfileCardScreen`), or copies the link. Settings pushes onto the tab's `.you`
-/// stack, so it never touches the v1 scanner's Settings sheet.
+/// avatar carries Edit Profile and Share. Share opens the ``ShareToChatsSheet`` every profile shares
+/// through, whose Show Profile Card tile draws the tip card over it. Settings pushes onto the tab's
+/// `.you` stack, so it never touches the v1 scanner's Settings sheet.
 ///
 /// A profile with no display name has no card: the page then shows the add-your-name invitation
 /// in place of the name block and drops Share, but still renders — the gear is this account's only
@@ -33,10 +33,7 @@ struct YouScreen: View {
     /// The balance gate, raised when the claim row is tapped below the minimum.
     @State private var usernameDialog: DialogItem?
 
-    @State private var isShowingShare = false
-    @State private var shareChoice: ProfileShareChoice?
     @State private var isSharingToChats = false
-    @State private var isShowingCardDownload = false
 
     /// The gap the page keeps between its last row and the tab bar.
     private static let tabBarGap: CGFloat = 24
@@ -95,12 +92,6 @@ struct YouScreen: View {
                 settingsGear
             }
         }
-        .overlay {
-            if router.isShowingProfileCard {
-                ProfileCardScreen(isShowingDownloadOptions: $isShowingCardDownload)
-                    .transition(.asymmetric(insertion: .identity, removal: .opacity))
-            }
-        }
         .task(id: profilePicture?.thumbnailBlobID) {
             // There is no card to share, and so no preview worth rendering, until
             // the profile has a name. Warmed before the avatar download so a slow
@@ -114,18 +105,12 @@ struct YouScreen: View {
             guard let username else { return }
             await sessionContainer.featuredGroups.load(username: username)
         }
-        // A cash link raises the bill without touching the router, and it would draw under the card.
-        .onChange(of: sessionContainer.session.isShowingBill) { _, isShowing in
-            if isShowing { router.isShowingProfileCard = false }
-        }
         .dialog(item: $usernameDialog)
-        .sheet(isPresented: $isShowingShare, onDismiss: handleShareChoice) {
-            ProfileShareSheet { shareChoice = $0 }
-        }
         .fullScreenCover(isPresented: $isSharingToChats) {
             ShareToChatsSheet(
                 subject: .user(
-                    url: url,
+                    userID: sessionContainer.session.userID,
+                    username: username,
                     displayName: displayName,
                     preview: previewCache.preview(for: sessionContainer.session.userID),
                     directChatID: nil
@@ -182,32 +167,20 @@ struct YouScreen: View {
 
     private var shareButton: some View {
         ProfileActionCircle(image: Image.asset(.shareOS)) {
-            isShowingShare = true
+            isSharingToChats = true
         }
         .accessibilityLabel("Share")
         .accessibilityIdentifier("you-share")
     }
 
-    /// Settings, or Download while the profile card is up. One button so the glass
-    /// stays put and only the glyph changes.
     private var settingsGear: some View {
-        let showsDownload = router.isShowingProfileCard
-        return Button {
-            if showsDownload {
-                isShowingCardDownload = true
-            } else {
-                router.push(.settings)
-            }
+        Button {
+            router.push(.settings)
         } label: {
             Image(systemName: "gearshape")
-                .opacity(showsDownload ? 0 : 1)
-                .overlay {
-                    Image.asset(.fileDownload)
-                        .opacity(showsDownload ? 1 : 0)
-                }
         }
-        .accessibilityLabel(showsDownload ? "Download" : "Settings")
-        .accessibilityIdentifier(showsDownload ? "you-download-button" : "you-settings")
+        .accessibilityLabel("Settings")
+        .accessibilityIdentifier("you-settings")
     }
 
     // MARK: - No name -
@@ -330,23 +303,7 @@ struct YouScreen: View {
         TipCode.Payload(userID: sessionContainer.session.userID).codeData()
     }
 
-    private var url: URL { .tipcard(for: sessionContainer.session.userID, username: username) }
-
     // MARK: - Actions -
-
-    /// Shows the card; it runs its own scan-style reveal, and the toolbar glyph fades to Download alongside.
-    private func showProfileCard() {
-        withAnimation(ProfileCardScreen.fade) { router.isShowingProfileCard = true }
-    }
-
-    private func handleShareChoice() {
-        defer { shareChoice = nil }
-        switch shareChoice {
-        case .share:    isSharingToChats = true
-        case .showCard: showProfileCard()
-        case nil:       break
-        }
-    }
 
     /// Opens the claim screen once the balance clears the minimum, and the
     /// balance gate until then.
