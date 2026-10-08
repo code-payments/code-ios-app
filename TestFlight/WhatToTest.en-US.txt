@@ -1,5 +1,20 @@
 What to test in this build
 
+New in this release — verify each end to end:
+• The You tab is now your own profile, with Settings behind the gear
+• Edit your profile, including a bio and cover picture
+• View other people's profiles, and open one before you've messaged them
+• Send photos in chats, encrypted in private messages
+• Double-tap a photo to react to it
+• Favorite public groups from their profiles
+• Groups can have a cover picture and description
+• A group's profile links to its token and shows it in Balance Requirements
+• A cleaner one-row message composer, with Send Cash on the right
+• Redesigned group profile and Edit Group screens
+• Long-press anywhere in a reaction row to see who reacted
+• Convert is disabled when there's nothing to convert into
+• Chats refresh correctly when you return to the app
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
