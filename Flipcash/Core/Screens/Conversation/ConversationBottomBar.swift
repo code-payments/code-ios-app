@@ -161,7 +161,7 @@ enum BarMetrics {
     nonisolated static let fieldPadding: CGFloat = 8
     static let cornerRadius: CGFloat = 14
     /// The composer field's corner, rounder than the bar's other controls.
-    nonisolated static let fieldCornerRadius: CGFloat = 28
+    nonisolated static let fieldCornerRadius: CGFloat = fieldPadding + accessorySize / 2
     /// The height of every bar control: a single-line field plus its padding, and the height the
     /// Send Cash button morphs at while there is a composer beside it.
     nonisolated static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
@@ -349,11 +349,16 @@ struct ConversationBottomBar: View {
     @ViewBuilder
     private var composerGlass: some View {
         let field = RoundedRectangle(cornerRadius: BarMetrics.fieldCornerRadius, style: .continuous)
-        let layout = HStack(alignment: .bottom, spacing: Self.leadingSpacing) {
+        // No stack spacing: it is added per gap even where the item between is zero-wide, and a
+        // negative padding on that item is clamped to zero, so the field's glass came up short of
+        // the field by the spacing.
+        let layout = HStack(alignment: .bottom, spacing: 0) {
             switch leadingControl {
             case .cancelEdit:
                 // The button's size, so the field's glass starts where the field does.
-                Color.clear.frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
+                Color.clear
+                    .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
+                    .padding(.trailing, Self.leadingSpacing)
             case .cash, .none:
                 EmptyView()
             }
@@ -367,7 +372,7 @@ struct ConversationBottomBar: View {
                 let tucked = side * 0.4
                 Color.clear
                     .frame(width: cashIsShown ? side : 0, height: side)
-                    .padding(.leading, cashIsShown ? 0 : -Self.leadingSpacing)
+                    .padding(.leading, cashIsShown ? Self.leadingSpacing : 0)
                     .overlay(alignment: .trailing) {
                         Color.clear
                             .frame(width: cashIsShown ? side : tucked, height: cashIsShown ? side : tucked)
@@ -1038,9 +1043,10 @@ struct ConversationComposer: View {
     private static let cashJoinDelay: TimeInterval = 0.16
     /// The text's and chips' inset from the field's leading edge.
     private static let leadingInset: CGFloat = 14
-    /// The stacked text's inset from the field's leading edge, matched to its inset from the top so
-    /// the first line sits evenly in the corner.
-    private static let stackedLeadingInset: CGFloat = 12
+    /// The stacked text's insets from the field's leading and trailing edges.
+    private static let stackedHorizontalInset: CGFloat = 14
+    /// The stacked text's inset from the field's top edge.
+    private static let stackedTopInset: CGFloat = 16
     /// The gap between the row's controls and the text.
     private static let controlSpacing: CGFloat = 8
     /// The move between the one-row and stacked layouts.
@@ -1070,7 +1076,7 @@ struct ConversationComposer: View {
     }
 
     private func textLeadingPadding(stacked: Bool) -> CGFloat {
-        stacked ? Self.stackedLeadingInset - BarMetrics.fieldPadding : inlineLeadingPadding
+        stacked ? Self.stackedHorizontalInset - BarMetrics.fieldPadding : inlineLeadingPadding
     }
 
     private var inlineTrailingPadding: CGFloat { BarMetrics.accessorySize + Self.controlSpacing }
@@ -1119,10 +1125,13 @@ struct ConversationComposer: View {
             .font(.appTextMessage)
             .foregroundStyle(Color.textMain)
             .tint(.white)
-            .lineLimit(1...5)
+            .lineLimit(1...7)
             .focused($isFocused)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(minHeight: BarMetrics.fieldMinHeight)
+            // The multiline field's text view draws past its frame, so scrolled text would show
+            // through the row's padding. Clipping here makes the frame the scroll viewport.
+            .clipped()
             // Queried by the UI tests. The placeholder is not usable as a handle: it is gone the
             // moment there is a draft, so a test that types and then reads the field back finds
             // nothing. A multiline `TextField(axis:)` also surfaces as a text view wearing a
@@ -1168,9 +1177,11 @@ struct ConversationComposer: View {
                 }
                 // The text snaps to its new layout and `textShift` carries it there on the bar's spring.
                 .padding(.leading, textLeadingPadding(stacked: textIsStacked))
-                .padding(.trailing, textIsStacked ? 0 : inlineTrailingPadding)
+                .padding(.trailing, textIsStacked ? Self.stackedHorizontalInset - BarMetrics.fieldPadding : inlineTrailingPadding)
                 .offset(x: textShift)
                 // Position only, so it can spring with the bar without re-laying the text.
+                // Chips above stand in for the top inset.
+                .padding(.top, isStacked && composer.chips.isEmpty ? Self.stackedTopInset - BarMetrics.fieldPadding : 0)
                 .padding(.bottom, isStacked ? BarMetrics.accessorySize + BarMetrics.fieldVerticalPadding : 0)
             controls
         }
