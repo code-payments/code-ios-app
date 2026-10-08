@@ -1036,6 +1036,20 @@ struct ConversationComposer: View {
 
     @Environment(ConversationController.self) private var conversationController
     @FocusState private var isFocused: Bool
+    #if DEBUG
+    /// Spike: focus for the `UITextView` composer, which `@FocusState` cannot drive.
+    @State private var textViewFocused = false
+    private var textViewFocusBinding: Binding<Bool> { $textViewFocused }
+    private var fieldFocused: Bool {
+        get { ComposerTextViewSwitch.isOn ? textViewFocused : isFocused }
+        nonmutating set { if ComposerTextViewSwitch.isOn { textViewFocused = newValue } else { isFocused = newValue } }
+    }
+    #else
+    private var fieldFocused: Bool {
+        get { isFocused }
+        nonmutating set { isFocused = newValue }
+    }
+    #endif
 
     /// Send button scale-in/out as text appears/clears.
     private static let sendButtonSpring = ChatMotion.sendButton.animation
@@ -1121,7 +1135,7 @@ struct ConversationComposer: View {
 
     var body: some View {
         let motion = AttachMotion(reduceMotion: reduceMotion)
-        let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
+        let swiftUIField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
             .font(.appTextMessage)
             .foregroundStyle(Color.textMain)
             .tint(.white)
@@ -1137,6 +1151,28 @@ struct ConversationComposer: View {
             // nothing. A multiline `TextField(axis:)` also surfaces as a text view wearing a
             // text-field automation type, so the query has to be identifier-based, not type-based.
             .accessibilityIdentifier("composer-message-field")
+
+        #if DEBUG
+        // Spike switch: `-composerTextView YES` runs the UITextView composer beside today's.
+        let textField = Group {
+            if ComposerTextViewSwitch.isOn {
+                ComposerTextView(
+                    text: $composer.draft,
+                    selection: $composer.selection,
+                    isFocused: textViewFocusBinding,
+                    prompt: fieldPrompt,
+                    maxLines: 7
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minHeight: BarMetrics.fieldMinHeight)
+                .clipped()
+            } else {
+                swiftUIField
+            }
+        }
+        #else
+        let textField = swiftUIField
+        #endif
 
         // One row: `+`, the text, `$` until there is a draft, and send. Once the text wraps or takes
         // a newline the row stacks: the text spans the field and the controls drop to a row under
@@ -1198,7 +1234,7 @@ struct ConversationComposer: View {
                     .padding(.vertical, -BarMetrics.fieldPadding)
                     .padding(.trailing, -BarMetrics.fieldPadding)
                     .contentShape(Rectangle())
-                    .onTapGesture { isFocused = true }
+                    .onTapGesture { fieldFocused = true }
             }
         }
 
@@ -1229,7 +1265,7 @@ struct ConversationComposer: View {
         // Focus is the single source of `isComposing` — the button morph and the
         // screen's interactive-dismiss gate both key off it. Losing focus
         // (keyboard swiped down) ends composing.
-        .onChange(of: isFocused) { _, focused in
+        .onChange(of: fieldFocused) { _, focused in
             withAnimation(barMorphSpring) { model.isComposing = focused }
             if !focused, let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
@@ -1320,7 +1356,7 @@ struct ConversationComposer: View {
             // message.
             let draft = composer.persistableDraft
             composer.clear()
-            isFocused = true
+            fieldFocused = true
             switch outgoing {
             case .text(let text):
                 Task {
@@ -1343,7 +1379,7 @@ struct ConversationComposer: View {
             // the same text — the button is always there to be pressed.
             let text = composer.submission
             composer.endEditing()
-            isFocused = true
+            fieldFocused = true
             guard let text else { return }
             Task { await conversationController.edit(messageID: messageID, in: conversationID, to: text) }
         }
