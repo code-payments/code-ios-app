@@ -1215,7 +1215,9 @@ struct ConversationScreen: View {
     private func openLink(_ url: URL) {
         ChatLinkOpener(
             openDeepLink: { container.deepLinkController.open($0) },
-            openExternally: { ExternalLinkOpener(session: session).open($0) }
+            openExternally: {
+                ExternalLinkOpener(session: session, trustedWebsites: container.trustedWebsites).open($0)
+            }
         ).open(url)
     }
 

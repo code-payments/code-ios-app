@@ -165,6 +165,9 @@ struct DestinationView: View {
         case .blockedUsers:
             BlockedUsersScreen()
 
+        case .trustedWebsites:
+            TrustedWebsitesScreen()
+
         case .accessKey:
             AccessKeyBackupScreen(mnemonic: sessionContainer.session.keyAccount.mnemonic)
                 .navigationTitle("Access Key")

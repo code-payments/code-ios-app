@@ -23,16 +23,20 @@ public struct Dialog: View {
     public let title: String?
     public let subtitle: String?
     public let options: Options
+    public let checkbox: DialogCheckbox?
     public let dismiss: () -> Void
     public let actions: [DialogAction]
+
+    @State private var isChecked = false
     
     // MARK: - Init -
     
-    public init(style: Style, title: String?, subtitle: String?, options: Options = [], dismiss: @escaping () -> Void, actions: [DialogAction]) {
+    public init(style: Style, title: String?, subtitle: String?, options: Options = [], checkbox: DialogCheckbox? = nil, dismiss: @escaping () -> Void, actions: [DialogAction]) {
         self.style    = style
         self.title    = title
         self.subtitle = subtitle
         self.options  = options
+        self.checkbox = checkbox
         self.dismiss  = dismiss
         self.actions  = actions
     }
@@ -60,6 +64,10 @@ public struct Dialog: View {
             }
             .padding(.horizontal, 2)
             .foregroundStyle(Color.textMain)
+
+            if let checkbox {
+                checkboxRow(checkbox)
+            }
             
             VStack(spacing: 0) {
                 ForEach(actions, id: \.title) { action in
@@ -68,11 +76,11 @@ public struct Dialog: View {
                         title: action.title
                     ) {
                         if options.contains(.priorityAction) {
-                            action.action()
+                            action.perform(isChecked: isChecked)
                             dismiss()
                         } else {
                             dismiss()
-                            action.action()
+                            action.perform(isChecked: isChecked)
                         }
                     }
                     .padding(.top, action.kind.topPadding)
@@ -86,6 +94,28 @@ public struct Dialog: View {
         .background(style.backgroundColor)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(title ?? "Dialog")
+    }
+
+    private func checkboxRow(_ checkbox: DialogCheckbox) -> some View {
+        Button {
+            isChecked.toggle()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: isChecked ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 20))
+                Text(checkbox.label)
+                    .font(.default(size: 14, weight: .medium))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .contentShape(Rectangle())
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.textMain)
+        .accessibilityAddTraits(isChecked ? .isSelected : [])
+        .accessibilityIdentifier("dialog-checkbox")
     }
 }
 

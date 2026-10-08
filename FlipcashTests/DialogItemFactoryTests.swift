@@ -80,4 +80,44 @@ struct DialogItemFactoryTests {
         #expect(item.title == expectedTitle)
         #expect(item.style == .standard)
     }
+
+    @Test("Factories have no checkbox")
+    func factories_noCheckbox() {
+        #expect(DialogItem.error(title: "x", subtitle: "y").checkbox == nil)
+        #expect(DialogItem.alert(title: "x", subtitle: "y").checkbox == nil)
+        #expect(DialogItem.info(title: "x", subtitle: "y").checkbox == nil)
+        #expect(DialogItem.success(title: "x", subtitle: "y").checkbox == nil)
+    }
+
+    @Test(".checkbox adds a label and keeps the rest of the item")
+    func checkbox_keepsItem() {
+        var dismissed = false
+        let item = DialogItem.info(title: "x", subtitle: "y") {
+            .standard("A", action: {});
+            .cancel()
+        }
+        .onDismiss { dismissed = true }
+        .checkbox("Tick")
+        #expect(item.checkbox?.label == "Tick")
+        #expect(item.title == "x")
+        #expect(item.actions.map(\.title) == ["A", "Cancel"])
+        item.onDismiss?()
+        #expect(dismissed)
+    }
+
+    @Test(".onDismiss keeps the checkbox")
+    func onDismiss_keepsCheckbox() {
+        let item = DialogItem.info(title: "x", subtitle: "y").checkbox("Tick").onDismiss {}
+        #expect(item.checkbox?.label == "Tick")
+    }
+
+    @Test("A checked action receives the checkbox state; a plain one ignores it")
+    func perform_passesCheckedState() {
+        var received: Bool?
+        var plainRan = false
+        DialogAction.standard("A", checked: { received = $0 }).perform(isChecked: true)
+        DialogAction.standard("B", action: { plainRan = true }).perform(isChecked: true)
+        #expect(received == true)
+        #expect(plainRan)
+    }
 }
