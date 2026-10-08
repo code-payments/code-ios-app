@@ -42,6 +42,7 @@ struct ProfileHeaderView<Avatar: View, BannerControls: View, CoverAccessory: Vie
         VStack(alignment: .leading, spacing: 0) {
             ProfileCoverBanner(
                 cover: cover,
+                stretchesOnOverscroll: true,
                 controls: bannerControls
             )
             .overlay(alignment: .bottomLeading) {

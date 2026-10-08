@@ -42,6 +42,8 @@ struct ProfileCoverBanner<Controls: View>: View {
     var preview: UIImage? = nil
     /// The banner's height; a profile's own cover is ``height``.
     var bannerHeight: CGFloat = Self.height
+    /// Whether the picture grows upward into the top overscroll of the scroll view it heads.
+    var stretchesOnOverscroll: Bool = false
     @ViewBuilder let controls: () -> Controls
 
     static var height: CGFloat { 214 }
@@ -52,6 +54,11 @@ struct ProfileCoverBanner<Controls: View>: View {
             .frame(maxWidth: .infinity)
             .overlay { image }
             .clipped()
+            .visualEffect { [stretchesOnOverscroll] content, proxy in
+                let overscroll = stretchesOnOverscroll ? max(0, proxy.frame(in: .scrollView).minY) : 0
+                let height = max(proxy.size.height, 1)
+                return content.scaleEffect((height + overscroll) / height, anchor: .bottom)
+            }
             .overlay(alignment: .top) {
                 controls()
             }
