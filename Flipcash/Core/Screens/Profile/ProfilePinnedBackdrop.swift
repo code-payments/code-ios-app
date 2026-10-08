@@ -39,6 +39,24 @@ extension View {
         }
     }
 
+    /// Fades content into the bottom of a profile that pins no bar, the way the chat's transcript
+    /// dissolves under its composer: a ramp from the clearance's top edge to the screen's bottom edge.
+    /// `isActive` false draws nothing, for a screen whose content doesn't scroll.
+    func profileBarlessFade(isActive: Bool) -> some View {
+        background {
+            if isActive {
+                LinearGradient(
+                    gradient: ChatFade.gradient(Color.backgroundMain),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .padding(.top, -ProfilePinnedBackdrop.fadeHeight)
+                .ignoresSafeArea(edges: .bottom)
+                .allowsHitTesting(false)
+            }
+        }
+    }
+
     /// Ends a profile's scroll content above the fade ``profilePinnedBackdrop()`` draws over the
     /// pinned bar, so the last row is readable when scrolled to the bottom. Apply to the scroll view;
     /// `isActive` false leaves the margin off a screen that draws no backdrop.
