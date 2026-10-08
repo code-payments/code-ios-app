@@ -50,7 +50,7 @@ nonisolated struct LinkCardClassifier {
     /// that includes a jump wrapper around an outside target.
     private func web(_ link: DetectedLink) -> LinkCard? {
         guard link.url.scheme?.lowercased() == "https",
-              let host = URLComponents(url: link.url, resolvingAgainstBaseURL: false)?.percentEncodedHost?.lowercased(),
+              let host = WebLinks.host(of: link.url),
               !Route.flipcashHosts.contains(host),
               WebLinks.isEligibleHost(host) else { return nil }
         return .web(LinkCard.Web(url: link.url, range: link.range))

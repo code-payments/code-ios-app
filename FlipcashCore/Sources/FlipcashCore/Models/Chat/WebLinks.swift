@@ -20,8 +20,7 @@ public nonisolated enum WebLinks {
     public static let userAgent = "Mozilla/5.0 (compatible; FlipcashLinkPreview/1.0)"
 
     /// Whether a preview may fetch from `host`. IP literals never may, nor may a single label or a
-    /// local-network name. Pass the raw host from `URLComponents.percentEncodedHost`, which keeps an
-    /// IPv6 literal's brackets.
+    /// local-network name. Pass `host(of:)`, which keeps an IPv6 literal's brackets.
     public static func isEligibleHost(_ host: String) -> Bool {
         let h = host.lowercased()
         if h.hasPrefix("[") || h.contains(":") || isIPv4(h) { return false }
@@ -29,14 +28,23 @@ public nonisolated enum WebLinks {
         return h.contains(".")
     }
 
+    /// The host every preview step uses: the URL's IDNA (punycode) form, lowercased. Nil when there
+    /// is none or it carries a percent escape. `percentEncodedHost` is not this: Foundation hands back
+    /// `b%C3%BCcher.example` there even for a URL written as `xn--bcher-kva.example`.
+    public static func host(of url: URL) -> String? {
+        guard let host = URLComponents(url: url, resolvingAgainstBaseURL: false)?.encodedHost?.lowercased(),
+              !host.isEmpty, !host.contains("%"), host.allSatisfy(\.isASCII) else { return nil }
+        return host
+    }
+
     /// The memo key for `url`: scheme and host lowercased, fragment and `:443` dropped, path and
     /// query kept as written.
     public static func cacheKey(_ url: URL) -> String? {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let scheme = components.scheme?.lowercased(),
-              let host = components.percentEncodedHost?.lowercased() else { return nil }
+              let host = host(of: url) else { return nil }
         components.scheme = scheme
-        components.percentEncodedHost = host
+        components.encodedHost = host
         components.fragment = nil
         if components.port == 443 { components.port = nil }
         return components.string
