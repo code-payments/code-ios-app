@@ -33,6 +33,11 @@ class BaseUITestCase: XCTestCase {
 
         app.launchArguments = ["--ui-testing", "-AppleLocale", "en_US", "-AppleLanguages", "(en)"]
 
+        // Spike: `TEST_RUNNER_COMPOSER_TEXTVIEW=1` runs the suite on the UITextView composer.
+        if ProcessInfo.processInfo.environment["COMPOSER_TEXTVIEW"] == "1" {
+            app.launchArguments += ["-composerTextView", "YES"]
+        }
+
         if !enabledBetaFlags.isEmpty {
             app.launchArguments.append("--beta-flags=\(enabledBetaFlags.joined(separator: ","))")
         }

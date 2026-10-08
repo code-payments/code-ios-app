@@ -10,6 +10,7 @@ enum ComposerTextViewSwitch {
     static var isOn: Bool { UserDefaults.standard.bool(forKey: "composerTextView") }
 
     /// `-composerFormatMenu submenu` picks shape (b); anything else is the palette, shape (a).
+    static var iconOnlyPalette: Bool { UserDefaults.standard.string(forKey: "composerFormatMenu") == "icons" }
     static var usesSubmenu: Bool { UserDefaults.standard.string(forKey: "composerFormatMenu") == "submenu" }
 }
 
@@ -143,7 +144,11 @@ struct ComposerTextView: UIViewRepresentable {
         ) -> UIMenu? {
             guard range.length > 0, let view = textView as? FormatTextView else { return UIMenu(children: suggestedActions) }
             let actions = FormatAction.allCases.map { kind in
-                UIAction(title: kind.title, image: UIImage(systemName: kind.symbol)) { [weak view] _ in
+                UIAction(
+                    title: ComposerTextViewSwitch.iconOnlyPalette ? "" : kind.title,
+                    image: UIImage(systemName: kind.symbol),
+                    discoverabilityTitle: kind.title
+                ) { [weak view] _ in
                     view?.apply(kind)
                 }
             }
