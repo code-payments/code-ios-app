@@ -14,16 +14,18 @@ import FlipcashUI
 /// host in front of the user first. Android runs the same check with the same cases.
 nonisolated enum ExternalLinkCheck: Equatable {
 
-    /// Opens without a warning: our own scheme, an exact match on ``Route/flipcashHosts``, or a
-    /// scheme with no host (`mailto:`, the Settings app), which names no website.
+    /// Opens without a warning: our own scheme, an exact match on ``Route/flipcashHosts`` or on a
+    /// host the user trusted, or a scheme with no host (`mailto:`, the Settings app), which names
+    /// no website.
     case open
 
     /// Opens only once the user has seen `host` and chosen to go on.
     case warn(host: String)
 
-    /// Checks `url` against the first-party hosts on an exact match, so `evilflipcash.com` and
-    /// `flipcash.com.evil.tld` both warn.
-    init(url: URL) {
+    /// Checks `url` against the first-party hosts and `trustedHosts` on an exact match, so
+    /// `evilflipcash.com` and `flipcash.com.evil.tld` both warn, and trusting `x.com` does not
+    /// cover `mail.x.com`.
+    init(url: URL, trustedHosts: Set<String> = []) {
         if url.scheme?.lowercased() == Route.Path.customScheme {
             self = .open
             return
@@ -32,7 +34,11 @@ nonisolated enum ExternalLinkCheck: Equatable {
             self = .open
             return
         }
-        self = Route.flipcashHosts.contains(host) ? .open : .warn(host: host)
+        if Route.flipcashHosts.contains(host) || trustedHosts.contains(host) {
+            self = .open
+        } else {
+            self = .warn(host: host)
+        }
     }
 
     /// The host as the warning shows it: lowercased, and in its ASCII (punycode) form so a
@@ -61,14 +67,17 @@ struct ExternalLinkOpener {
     /// Where the warning is drawn.
     let session: Session
 
+    /// The hosts that skip the warning, and where Don't ask again saves one.
+    let trustedWebsites: TrustedWebsites
+
     /// Opens `url` now if ``ExternalLinkCheck`` allows it, otherwise once the user picks Open Website.
     func open(_ url: URL) {
-        switch ExternalLinkCheck(url: url) {
+        switch ExternalLinkCheck(url: url, trustedHosts: trustedWebsites.hosts) {
         case .open:
             UIApplication.shared.open(url)
 
         case .warn(let host):
-            session.dialogItem = .leavingFlipcash(host: host) {
+            session.dialogItem = .leavingFlipcash(host: host, trustedWebsites: trustedWebsites) {
                 UIApplication.shared.open(url)
             }
         }
@@ -79,15 +88,26 @@ extension DialogItem {
 
     /// The warning in front of a link to `host`, matching Android's copy word for word.
     ///
-    /// Open Website is the primary button. The body is not emphasised around the host as Android's
-    /// is: the dialog sets its whole subtitle in bold already.
-    static func leavingFlipcash(host: String, open: @escaping () -> Void) -> DialogItem {
-        .info(
+    /// Open Website is the primary button. Tapping it with Don't ask again ticked adds `host` to
+    /// `trustedWebsites`; Cancel and dismissing save nothing. The body is not emphasised around
+    /// the host as Android's is: the dialog sets its whole subtitle in bold already.
+    static func leavingFlipcash(
+        host: String,
+        trustedWebsites: TrustedWebsites,
+        open: @escaping () -> Void
+    ) -> DialogItem {
+        DialogItem.info(
             title: "You're Leaving Flipcash",
             subtitle: "This will open \(host). Never share your Access Key with a website"
         ) {
-            DialogAction.standard("Open Website", action: open)
+            DialogAction.standard("Open Website") { isChecked in
+                if isChecked {
+                    trustedWebsites.trust(host)
+                }
+                open()
+            }
             DialogAction.cancel()
         }
+        .checkbox("Don't ask again for \(host)")
     }
 }

@@ -22,6 +22,7 @@ struct SettingsScreen: View {
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(ToastController.self) private var toasts
+    @Environment(TrustedWebsites.self) private var trustedWebsites
 
     @State private var dialogItem: DialogItem?
     /// The version footer's beta-access easter egg — the tap count and the line
@@ -79,6 +80,18 @@ struct SettingsScreen: View {
 
             SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
                 router.push(.blockedUsers)
+            }
+
+            if !trustedWebsites.entries.isEmpty {
+                SettingsRow(
+                    systemImage: "globe",
+                    title: "Trusted Websites",
+                    value: "\(trustedWebsites.entries.count)",
+                    insets: insets
+                ) {
+                    router.push(.trustedWebsites)
+                }
+                .accessibilityIdentifier("settings-trusted-websites-row")
             }
         }
     }

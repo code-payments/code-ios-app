@@ -8,29 +8,31 @@
 import SwiftUI
 import FlipcashUI
 
-/// A standard tappable row for settings screens — icon + title + optional badge.
+/// A standard tappable row for settings screens — icon + title + optional trailing value and badge.
 struct SettingsRow: View {
 
     let image: Image
     let title: String
+    let value: String?
     let badge: Badge?
     let insets: EdgeInsets
     let action: VoidAction
 
-    init(image: Image, title: String, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
+    init(image: Image, title: String, value: String? = nil, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
         self.image = image
         self.title = title
+        self.value = value
         self.badge = badge
         self.insets = insets
         self.action = action
     }
 
-    init(asset: Asset, title: String, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
-        self.init(image: Image.asset(asset), title: title, badge: badge, insets: insets, action: action)
+    init(asset: Asset, title: String, value: String? = nil, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
+        self.init(image: Image.asset(asset), title: title, value: value, badge: badge, insets: insets, action: action)
     }
 
-    init(systemImage: String, title: String, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
-        self.init(image: Image(systemName: systemImage), title: title, badge: badge, insets: insets, action: action)
+    init(systemImage: String, title: String, value: String? = nil, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
+        self.init(image: Image(systemName: systemImage), title: title, value: value, badge: badge, insets: insets, action: action)
     }
 
     var body: some View {
@@ -40,6 +42,11 @@ struct SettingsRow: View {
                 .multilineTextAlignment(.leading)
                 .truncationMode(.tail)
             Spacer()
+            if let value {
+                Text(value)
+                    .font(.appTextMedium)
+                    .foregroundStyle(.textSecondary)
+            }
             if let badge {
                 badge
             }
