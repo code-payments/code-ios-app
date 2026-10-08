@@ -164,7 +164,7 @@ final class ConversationLoadCoordinator {
         mapTask?.cancel()
         mapTask = Task { [weak self] in
             let (mapped, webCards) = await Task.detached {
-                (Self.map(inputs, authors: authors), ChatItem.webCards(in: inputs.messages))
+                (Self.map(inputs, authors: authors), ChatItem.webCards(in: inputs.messages, webLinks: inputs.webLinks))
             }.value
             guard let self, !Task.isCancelled else { return }
             self.items = mapped
@@ -299,7 +299,8 @@ final class ConversationLoadCoordinator {
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory,
-            unreadBoundary: unreadBoundary(in: window)
+            unreadBoundary: unreadBoundary(in: window),
+            webLinks: BetaFlags.shared.hasEnabled(.webLinkPreviews)
         )
     }
 
@@ -322,7 +323,7 @@ final class ConversationLoadCoordinator {
     }
 
     nonisolated private static func map(_ inputs: Inputs, authors: [UserID: ChatAuthor]) -> [ChatItem] {
-        let classifier = LinkCardClassifier()
+        let classifier = LinkCardClassifier(webLinks: inputs.webLinks)
         var items = ChatItem.from(
             inputs.messages,
             selfUserID: inputs.selfUserID,
@@ -465,6 +466,8 @@ final class ConversationLoadCoordinator {
         var headsHistory: Bool
         /// Where the divider goes; `.none` draws none.
         var unreadBoundary: UnreadBoundary
+        /// Whether outside links become web cards; the `webLinkPreviews` flag, read live.
+        var webLinks: Bool = true
 
         struct Branding: Equatable, Sendable {
             var token: String

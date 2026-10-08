@@ -175,6 +175,40 @@ import FlipcashCore
         #expect(LinkCardClassifier().firstCard(in: links)?.kindName == "group")
     }
 
+    /// With `webLinkPreviews` off an outside link gets no card at all, so no chip and no prefetch.
+    @Test func webLinksOff_anOutsideLinkGetsNoCard() throws {
+        let web = try #require(URL(string: "https://example.com/a"))
+        let links = [DetectedLink(range: NSRange(location: 0, length: 21), url: web)]
+        #expect(LinkCardClassifier(webLinks: false).firstCard(in: links) == nil)
+        #expect(LinkCardClassifier(webLinks: true).firstCard(in: links)?.kindName == "web")
+    }
+
+    /// Turning web links off leaves Flipcash cards alone.
+    @Test func webLinksOff_aFlipcashCardStillDraws() throws {
+        let web = try #require(URL(string: "https://example.com/a"))
+        let group = try #require(URL(string: "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162"))
+        let links = [
+            DetectedLink(range: NSRange(location: 0, length: 21), url: web),
+            DetectedLink(range: NSRange(location: 22, length: 66), url: group),
+        ]
+        #expect(LinkCardClassifier(webLinks: false).firstCard(in: links)?.kindName == "group")
+    }
+
+    /// An outside link that fails the fetch rules is skipped for the next one that passes.
+    @Test func anIneligibleWebLinkFallsToTheNextOne() throws {
+        let port = try #require(URL(string: "https://example.com:6379/"))
+        let next = try #require(URL(string: "https://example.org/b"))
+        let links = [
+            DetectedLink(range: NSRange(location: 0, length: 25), url: port),
+            DetectedLink(range: NSRange(location: 26, length: 21), url: next),
+        ]
+        guard case .web(let web) = LinkCardClassifier().firstCard(in: links) else {
+            Issue.record("expected a web card")
+            return
+        }
+        #expect(web.url == next)
+    }
+
     /// A page the website serves is not somebody's handle, whatever case the link is typed in.
     @Test(arguments: [
         "https://flipcash.com/download",

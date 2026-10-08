@@ -58,8 +58,9 @@ nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) ->
 extension ChatItem {
 
     /// The web cards the text messages in `messages` would draw, one per message at most.
-    nonisolated static func webCards(in messages: [ConversationMessage]) -> [LinkCard] {
-        let classifier = LinkCardClassifier()
+    nonisolated static func webCards(in messages: [ConversationMessage], webLinks: Bool) -> [LinkCard] {
+        guard webLinks else { return [] }
+        let classifier = LinkCardClassifier(webLinks: webLinks)
         return messages.compactMap { message in
             guard case .text(let text) = message.content,
                   let card = detectedLink(in: text, card: { classifier.firstCard(in: $0) })?.card,

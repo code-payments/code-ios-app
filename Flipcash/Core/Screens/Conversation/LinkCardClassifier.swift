@@ -33,6 +33,10 @@ import FlipcashCore
 /// tap target in front of either is a phishing aid.
 nonisolated struct LinkCardClassifier {
 
+    /// Whether an outside link may become a web card. False while `webLinkPreviews` is off, so the
+    /// feature draws nothing at all: no card, no chip, no prefetch.
+    var webLinks: Bool = true
+
     /// The first card-eligible link wins; at most one card per message.
     ///
     /// Takes the detected links rather than their URLs because the card carries the span it was
@@ -43,7 +47,9 @@ nonisolated struct LinkCardClassifier {
     /// A Flipcash card anywhere in the message beats an outside page earlier in it. Only when there is
     /// none does the first outside `https` link become a web card.
     func firstCard(in links: [DetectedLink]) -> LinkCard? {
-        links.lazy.compactMap { classify($0) }.first ?? links.lazy.compactMap { web($0) }.first
+        if let card = links.lazy.compactMap({ classify($0) }).first { return card }
+        guard webLinks else { return nil }
+        return links.lazy.compactMap { web($0) }.first
     }
 
     /// An outside `https` link. A Flipcash host never falls through to here, whatever its path, and
