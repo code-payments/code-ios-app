@@ -32,6 +32,7 @@ actor LinkCardResolver {
     private let mintLookup: @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved
     private let groupLookup: @Sendable (ConversationID) async throws -> GroupLinkFacts
     private let userLookup: @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts
+    private let webLookup: @Sendable (URL) async throws -> LinkCard.Web.State
 
     /// The query per key, not the answer.
     ///
@@ -48,17 +49,21 @@ actor LinkCardResolver {
     private var tokenQueries: [PublicKey: Task<LinkCard.Token.State, Never>] = [:]
     private var groupQueries: [ConversationID: Task<GroupLinkFacts?, Never>] = [:]
     private var userQueries: [LinkCard.User.Identity: Task<Result<UserLinkFacts, any Error>, Never>] = [:]
+    /// In flight only: a web answer has a TTL, so ``LinkCardMemo`` holds it rather than this map.
+    private var webQueries: [String: Task<LinkCard.Web.State?, Never>] = [:]
 
     init(
         cashLookup: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved,
         mintLookup: @escaping @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved,
         groupLookup: @escaping @Sendable (ConversationID) async throws -> GroupLinkFacts,
-        userLookup: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts
+        userLookup: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts,
+        webLookup: @escaping @Sendable (URL) async throws -> LinkCard.Web.State
     ) {
         self.cashLookup = cashLookup
         self.mintLookup = mintLookup
         self.groupLookup = groupLookup
         self.userLookup = userLookup
+        self.webLookup = webLookup
     }
 
     /// How far a cash or token card's lookup got: resolved, or unresolved if it failed.
@@ -117,6 +122,23 @@ actor LinkCardResolver {
         let result = await query.value
         if case .failure = result, userQueries[identity] == query { userQueries[identity] = nil }
         return result
+    }
+
+    /// What a web page's head says, or nil on a failure, which is dropped so the next view asks again.
+    func web(_ card: LinkCard.Web) async -> LinkCard.Web.State? {
+        guard let key = WebLinks.cacheKey(card.url) else { return LinkCard.Web.State.none }
+        if let query = webQueries[key] { return await query.value }
+
+        let lookup = webLookup
+        let url = card.url
+        let query = Task<LinkCard.Web.State?, Never> {
+            try? await lookup(url)
+        }
+        webQueries[key] = query
+
+        let state = await query.value
+        if webQueries[key] == query { webQueries[key] = nil }
+        return state
     }
 
     /// Forgets what a cash link's lookup answered, so the next ask goes back to the server.

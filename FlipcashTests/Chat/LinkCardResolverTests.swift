@@ -33,9 +33,12 @@ import FlipcashCore
         },
         user: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts = { _ in
             Issue.record("the user lookup was called"); throw Offline()
+        },
+        web: @escaping @Sendable (URL) async throws -> LinkCard.Web.State = { _ in
+            Issue.record("the web lookup was called"); throw Offline()
         }
     ) -> LinkCardResolver {
-        LinkCardResolver(cashLookup: cash, mintLookup: mint, groupLookup: group, userLookup: user)
+        LinkCardResolver(cashLookup: cash, mintLookup: mint, groupLookup: group, userLookup: user, webLookup: web)
     }
 
     @Test func aFailedLookupStaysUnresolved() async throws {
@@ -194,6 +197,46 @@ import FlipcashCore
         #expect(LinkCard.token(Self.tokenCard).resolutionKey.hasPrefix("token:"))
     }
 
+    // MARK: - Web -
+
+    private static func webCard(_ url: String) -> LinkCard.Web {
+        LinkCard.Web(url: URL(string: url)!, range: NSRange(location: 0, length: url.utf16.count))
+    }
+
+    @Test func twoWebCardsThatDifferOnlyByFragmentShareOneLookup() async throws {
+        let calls = Counter()
+        let gate = Gate()
+        let resolver = Self.resolver(web: { _ in
+            await calls.increment()
+            await gate.wait()
+            return .none
+        })
+
+        async let first = resolver.web(Self.webCard("https://example.com/a#one"))
+        async let second = resolver.web(Self.webCard("https://example.com/a#two"))
+        try await Task.sleep(for: .milliseconds(50))
+        await gate.open()
+
+        #expect(await first == LinkCard.Web.State.none)
+        #expect(await second == LinkCard.Web.State.none)
+        #expect(await calls.value == 1)
+    }
+
+    @Test func aFailedWebLookupAnswersNilAndAsksAgain() async {
+        let calls = Counter()
+        let resolver = Self.resolver(web: { _ in await calls.increment(); throw Offline() })
+        let card = Self.webCard("https://example.com/")
+
+        #expect(await resolver.web(card) == nil)
+        #expect(await resolver.web(card) == nil)
+        #expect(await calls.value == 2)
+    }
+
+    @Test func aWebCardWithNoCacheKeyAnswersNoneWithoutALookup() async {
+        let resolver = Self.resolver()
+        #expect(await resolver.web(Self.webCard("https://ex%61mple.com/")) == LinkCard.Web.State.none)
+    }
+
     private actor Counter {
         private(set) var value = 0
         func increment() { value += 1 }
@@ -240,7 +283,8 @@ import FlipcashCore
             cashLookup: LinkCardResolver.giftCardLookup(reader: reader, viewer: viewer),
             mintLookup: { _ in throw Reader.Stop() },
             groupLookup: { _ in throw Reader.Stop() },
-            userLookup: { _ in throw Reader.Stop() }
+            userLookup: { _ in throw Reader.Stop() },
+            webLookup: { _ in throw Reader.Stop() }
         )
 
         let card = LinkCard.cash(
@@ -279,7 +323,8 @@ import FlipcashCore
             cashLookup: { _ in throw Reader.Stop() },
             mintLookup: LinkCardResolver.mintLookup(reader: reader),
             groupLookup: { _ in throw Reader.Stop() },
-            userLookup: { _ in throw Reader.Stop() }
+            userLookup: { _ in throw Reader.Stop() },
+            webLookup: { _ in throw Reader.Stop() }
         )
 
         let card = LinkCard.token(

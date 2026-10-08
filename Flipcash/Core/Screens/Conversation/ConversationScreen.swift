@@ -1338,7 +1338,8 @@ struct ConversationScreen: View {
                 conversationID: id,
                 controller: conversationController,
                 session: session,
-                knownAuthors: sessionContainer.knownAuthors
+                knownAuthors: sessionContainer.knownAuthors,
+                prefetchWebCards: { [linkCardFeed = sessionContainer.linkCardFeed] in linkCardFeed.prefetch($0) }
             )
         }
     }

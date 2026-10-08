@@ -36,7 +36,14 @@ import FlipcashCore
     private static func feed(
         memo: LinkCardMemo = LinkCardMemo(),
         claims: CashLinkClaimLog = CashLinkClaimLog(),
-        cash: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved
+        cash: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved = { _ in
+            Issue.record("the cash lookup was called")
+            throw CancellationError()
+        },
+        web: @escaping @Sendable (URL) async throws -> LinkCard.Web.State = { _ in
+            Issue.record("the web lookup was called")
+            throw CancellationError()
+        }
     ) -> LinkCardFeed {
         LinkCardFeed(
             resolver: LinkCardResolver(
@@ -52,7 +59,8 @@ import FlipcashCore
                 userLookup: { _ in
                     Issue.record("the user lookup was called")
                     throw CancellationError()
-                }
+                },
+                webLookup: web
             ),
             memo: memo,
             claims: claims,
@@ -287,5 +295,74 @@ import FlipcashCore
         memo.record(.cash(.unresolved), for: "cash:abc")
         memo.forget("cash:abc")
         #expect(memo.states["cash:abc"] == nil)
+    }
+
+}
+
+/// A web answer the memo holds paints at once; one it does not is looked up and remembered.
+@MainActor
+extension LinkCardFeedTests {
+
+    // MARK: - Web -
+
+    private static func webCard(_ url: String) -> LinkCard {
+        .web(LinkCard.Web(url: URL(string: url)!, range: NSRange(location: 0, length: url.utf16.count)))
+    }
+
+    nonisolated private static let page = LinkCard.Web.Resolved(title: "Title", description: nil, imageURL: nil, host: "example.com")
+
+    @Test func aRememberedWebAnswerPaintsWithoutWaiting() async {
+        let memo = LinkCardMemo()
+        let card = Self.webCard("https://example.com/a")
+        memo.recordWeb(.resolved(Self.page), for: card.resolutionKey)
+
+        let feed = Self.feed(memo: memo)
+        #expect(feed.known(card) == .web(.resolved(Self.page)))
+    }
+
+    @Test func aWebAnswerPastItsTTLReadsAsNothingKnown() async {
+        let clock = Clock(Date(timeIntervalSince1970: 0))
+        let memo = LinkCardMemo(now: { clock.now })
+        let card = Self.webCard("https://example.com/a")
+        memo.recordWeb(.none, for: card.resolutionKey)
+        clock.now = Date(timeIntervalSince1970: WebLinks.emptyTTL + 1)
+
+        #expect(Self.feed(memo: memo).known(card) == nil)
+    }
+
+    @Test func prefetchingAHeldWebCardDoesNotLookItUp() async {
+        let memo = LinkCardMemo()
+        let card = Self.webCard("https://example.com/a")
+        memo.recordWeb(.resolved(Self.page), for: card.resolutionKey)
+
+        let feed = Self.feed(memo: memo) // the default web lookup records an issue if called
+        feed.prefetch([card])
+        try? await Task.sleep(for: .milliseconds(50))
+    }
+
+    @Test func prefetchingAnUnheldWebCardRemembersTheAnswer() async {
+        let memo = LinkCardMemo()
+        let card = Self.webCard("https://example.com/a")
+        let feed = Self.feed(memo: memo, web: { _ in .resolved(Self.page) })
+
+        feed.prefetch([card])
+        #expect(await settle { feed.known(card) != nil })
+        #expect(feed.known(card) == .web(.resolved(Self.page)))
+    }
+
+    @Test func aFailedWebLookupIsNotRemembered() async {
+        struct Offline: Error {}
+        let memo = LinkCardMemo()
+        let card = Self.webCard("https://example.com/a")
+        let feed = Self.feed(memo: memo, web: { _ in throw Offline() })
+
+        feed.prefetch([card])
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(memo.web(card.resolutionKey) == nil)
+    }
+
+    private final class Clock: @unchecked Sendable {
+        var now: Date
+        init(_ now: Date) { self.now = now }
     }
 }

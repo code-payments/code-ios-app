@@ -57,6 +57,18 @@ nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) ->
 
 extension ChatItem {
 
+    /// The web cards the text messages in `messages` would draw, one per message at most.
+    nonisolated static func webCards(in messages: [ConversationMessage]) -> [LinkCard] {
+        let classifier = LinkCardClassifier()
+        return messages.compactMap { message in
+            guard case .text(let text) = message.content,
+                  let card = detectedLink(in: text, card: { classifier.firstCard(in: $0) })?.card,
+                  case .web = card
+            else { return nil }
+            return card
+        }
+    }
+
     /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
     /// formats cash amounts, derives the currency flag, inserts a date separator before the first
     /// message, whenever a gap longer than `gap` opens and at every change of day, and computes

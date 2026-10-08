@@ -99,7 +99,7 @@ final class LinkCardFeed: LinkCardSource {
         case .group, .user:
             fetched[card.resolutionKey].map(present)
         case .web:
-            nil // Task 6
+            memo.web(card.resolutionKey).map(LinkCard.State.web)
         }
     }
 
@@ -151,8 +151,24 @@ final class LinkCardFeed: LinkCardSource {
                 let facts = await resolver.user(user.identity)
                 deliverFetched(facts.map(Fetched.user), missing: .user(.notFound), for: key)
             }
-        case .web:
-            break // Task 6
+        case .web(let web):
+            Task { [resolver, memo] in
+                await memo.awaitLoaded()
+                if let held = memo.web(key) {
+                    deliver(.web(held), for: key, generation: generation)
+                    return
+                }
+                guard let state = await resolver.web(web) else { return }
+                memo.recordWeb(state, for: key)
+                deliver(.web(state), for: key, generation: generation)
+            }
+        }
+    }
+
+    /// Starts lookups for web cards that are not held yet. Callers decide whether a fetch may happen now.
+    func prefetch(_ cards: [LinkCard]) {
+        for case .web(let web) in cards where known(.web(web)) == nil {
+            ask(.web(web))
         }
     }
 
@@ -163,7 +179,9 @@ final class LinkCardFeed: LinkCardSource {
     // offline.
     private func deliver(_ state: LinkCard.State, for key: String, generation: Int) {
         guard generation == generations[key, default: 0] else { return }
-        if state.isResolved {
+        if case .web = state {
+            // Recorded with its TTL by the web branch of `ask`.
+        } else if state.isResolved {
             memo.record(state, for: key)
         }
         listeners[key]?.values.forEach { $0.yield(state) }
