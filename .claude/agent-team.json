@@ -11,7 +11,7 @@
     },
     "explorer": {
       "agent": "claude",
-      "model": "sonnet",
+      "model": "claude-haiku-5-5",
       "effort": "medium",
       "advisor": "fable",
       "reports_to": "orchestrator",
