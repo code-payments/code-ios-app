@@ -261,5 +261,64 @@ struct LinkCardViewTests {
         view.configure(with: Self.webCard("https://www.example.com/a"), source: Source())
         #expect(web(view)?.content == .chip(host: "example.com"))
     }
+
+    // MARK: - Web image slot
+
+    private static let pageWithImage = LinkCard.Web.Resolved(
+        title: "Example Title", description: nil,
+        imageURL: URL(string: "https://example.com/og.png")!, host: "example.com"
+    )
+
+    /// A card whose image load waits until the test hands it bytes, or nil for a failure.
+    private func imageCard() -> (LinkWebCardView, AsyncStream<Data?>.Continuation) {
+        let (stream, continuation) = AsyncStream<Data?>.makeStream()
+        let view = LinkWebCardView(frame: CGRect(x: 0, y: 0, width: 240, height: 0))
+        view.loadImage = { _ in
+            for await data in stream { return data }
+            return nil
+        }
+        return (view, continuation)
+    }
+
+    private static let pixel: Data = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 1))
+        .pngData { $0.fill(CGRect(x: 0, y: 0, width: 2, height: 1)) }
+
+    @Test("A preview with an image holds the image's slot while it loads")
+    func webImage_loading_holdsTheSlot() {
+        let (view, _) = imageCard()
+        view.configure(with: .preview(Self.pageWithImage))
+        #expect(view.imageSlot == .loading)
+    }
+
+    @Test("A loaded image fills the slot it held")
+    func webImage_loaded_fillsTheSlot() async {
+        let (view, continuation) = imageCard()
+        view.configure(with: .preview(Self.pageWithImage))
+        continuation.yield(Self.pixel)
+        for _ in 0..<50 where view.imageSlot == .loading { await Task.yield() }
+        guard case .loaded = view.imageSlot else {
+            Issue.record("expected a loaded image, got \(view.imageSlot)")
+            return
+        }
+    }
+
+    @Test("A failed image drops its slot and reports the height change")
+    func webImage_failed_dropsTheSlot() async {
+        let (view, continuation) = imageCard()
+        var changes = 0
+        view.onImageChange = { changes += 1 }
+        view.configure(with: .preview(Self.pageWithImage))
+        continuation.yield(nil)
+        for _ in 0..<50 where view.imageSlot == .loading { await Task.yield() }
+        #expect(view.imageSlot == .none)
+        #expect(changes == 1)
+    }
+
+    @Test("A preview with no image takes no slot")
+    func webImage_absent_takesNoSlot() {
+        let (view, _) = imageCard()
+        view.configure(with: .preview(Self.page))
+        #expect(view.imageSlot == .none)
+    }
 }
 

@@ -195,8 +195,12 @@ final class LinkWebCardView: UIView {
         if imageURL != previousImageURL {
             imageTask?.cancel()
             imageTask = nil
-            showImage(nil)
-            if let imageURL, let loadImage { load(imageURL, with: loadImage) }
+            if let imageURL, let loadImage {
+                setImageSlot(.loading)
+                load(imageURL, with: loadImage)
+            } else {
+                setImageSlot(.none)
+            }
         }
     }
 
@@ -205,20 +209,45 @@ final class LinkWebCardView: UIView {
         imageTask = Task { [weak self] in
             let data = await loadImage(url)
             guard !Task.isCancelled, let self, Self.imageURL(of: content) == url else { return }
-            guard let data, let image = UIImage(data: data) else { return }
-            showImage(image)
-            onImageChange?()
+            if let data, let image = UIImage(data: data) {
+                setImageSlot(.loaded(image))
+            } else {
+                setImageSlot(.none)
+                onImageChange?()
+            }
         }
     }
 
-    /// Called when the image arrives and the card grows to hold it.
+    /// Called when the image fails and the card drops the slot it held for it.
     var onImageChange: (() -> Void)?
 
-    private func showImage(_ image: UIImage?) {
-        imageView.image = image
-        imageView.isHidden = image == nil
+    /// What the image slot shows. The slot is held at the image's shape while it loads, so a
+    /// successful image doesn't move the text, and dropped only when the image fails.
+    enum ImageSlot: Equatable {
+        case none
+        case loading
+        case loaded(UIImage)
+    }
+
+    private(set) var imageSlot: ImageSlot = .none
+
+    private func setImageSlot(_ slot: ImageSlot) {
+        imageSlot = slot
+        switch slot {
+        case .none:
+            imageView.image = nil
+            imageView.isHidden = true
+        case .loading:
+            imageView.image = nil
+            imageView.isHidden = false
+            imageView.backgroundColor = Self.loadingTint
+        case .loaded(let image):
+            imageView.image = image
+            imageView.isHidden = false
+            imageView.backgroundColor = .clear
+        }
         // Off before on, so the two heights are never live together.
-        if image == nil {
+        if slot == .none {
             imageHeight.isActive = false
             imageCollapsed.isActive = true
         } else {
@@ -226,6 +255,8 @@ final class LinkWebCardView: UIView {
             imageHeight.isActive = true
         }
     }
+
+    private static let loadingTint = UIColor.white.withAlphaComponent(0.15)
 
     private static func imageURL(of content: Content) -> URL? {
         if case .preview(let page) = content { page.imageURL } else { nil }
