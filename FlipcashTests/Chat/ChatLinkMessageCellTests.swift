@@ -266,5 +266,34 @@ struct ChatLinkMessageCellTests {
         #expect(textView?.attributedText.string == text)
         #expect(chrome(cell) != nil)
     }
+
+    @Test("Tapping a web card opens its URL through the link path, not the card action")
+    func webCardTap_opensTheURL() {
+        let link = "https://example.com/a"
+        let range = NSRange(location: 0, length: (link as NSString).length)
+        let message = ChatMessage(
+            id: "1",
+            text: "\(link) hi",
+            sender: .me,
+            linkPreview: LinkPreview(
+                links: [DetectedLink(range: range, url: url(link))],
+                card: .web(LinkCard.Web(url: url(link), range: range))
+            )
+        )
+        let cell = makeCell()
+        var opened: [URL] = []
+        var cardTaps = 0
+        cell.onOpenURL = { opened.append($0) }
+        cell.onLinkCardTap = { _ in cardTaps += 1 }
+        cell.configure(with: message, maxWidth: 250)
+        _ = layOut(cell)
+
+        let cardView = cell.descendants(of: LinkCardView.self).first
+        #expect(cardView != nil)
+        cardView?.onCardButton?()
+
+        #expect(opened == [url(link)])
+        #expect(cardTaps == 0)
+    }
 }
 

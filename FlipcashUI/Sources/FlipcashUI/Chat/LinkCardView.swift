@@ -58,7 +58,7 @@ final class LinkCardView: UIView {
 
     /// Whether a web card asks for its page as it draws or waits for its chip. Set before
     /// ``configure(with:source:)``.
-    var webPreviewMode: WebLinkPreviewMode = .automatic
+    var webPreviewMode: WebLinkPreviewMode = .tapToLoad
     /// The web links this transcript's viewer has already asked to preview, so a recycled row does
     /// not put the chip back up in front of an answer they asked for.
     var webPreviewRequests = WebPreviewRequests()
