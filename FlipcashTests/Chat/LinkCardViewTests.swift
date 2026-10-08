@@ -174,4 +174,92 @@ struct LinkCardViewTests {
         view.configure(with: Self.cashCard("abc"), source: nil)
         #expect(!isShimmering(view))
     }
+
+    // MARK: - Web
+
+    private static func webCard(_ url: String = "https://example.com/a") -> LinkCard {
+        .web(LinkCard.Web(url: URL(string: url)!, range: NSRange(location: 0, length: (url as NSString).length)))
+    }
+
+    private static let page = LinkCard.Web.Resolved(
+        title: "Example Title", description: "About it", imageURL: nil, host: "example.com"
+    )
+
+    private func web(_ view: LinkCardView) -> LinkWebCardView? {
+        view.descendants(of: LinkWebCardView.self).first
+    }
+
+    @Test("A resolved web card shows its title and host")
+    func web_resolved_showsTitleAndHost() async {
+        let source = Source()
+        let card = Self.webCard()
+        source.answers[card] = .web(.resolved(Self.page))
+        let view = LinkCardView()
+        view.webPreviewMode = .automatic
+        view.configure(with: card, source: source)
+
+        #expect(web(view)?.content == .preview(Self.page))
+        #expect(web(view)?.titleLabel.text == "Example Title")
+        #expect(web(view)?.hostLabel.text == "example.com")
+        #expect(view.drawsWebPreview)
+    }
+
+    @Test("A web card with nothing to show draws nothing")
+    func web_none_drawsNothing() async {
+        let source = Source()
+        let card = Self.webCard()
+        source.answers[card] = .web(.none)
+        let view = LinkCardView()
+        view.webPreviewMode = .automatic
+        view.configure(with: card, source: source)
+
+        #expect(web(view)?.content == .nothing)
+        #expect(!view.drawsWebPreview)
+    }
+
+    @Test("Tap to load asks for nothing until the chip is tapped, then asks once")
+    func web_tapToLoad_asksOnlyAfterChip() async {
+        let source = Source()
+        let card = Self.webCard()
+        let view = LinkCardView()
+        view.webPreviewMode = .tapToLoad
+        view.configure(with: card, source: source)
+
+        #expect(source.asked.isEmpty)
+        #expect(web(view)?.content == .chip(host: "example.com"))
+
+        web(view)?.onShowPreview?()
+        #expect(await settle { source.asked.count == 1 })
+        source.yield(.web(.resolved(Self.page)), for: card)
+        #expect(await settle { web(view)?.content == .preview(Self.page) })
+        #expect(source.asked == [card])
+    }
+
+    @Test("A preview asked for through the chip stays asked for when the row is recycled")
+    func web_tapToLoad_rememberedAcrossReuse() async {
+        let source = Source()
+        let card = Self.webCard()
+        let requests = WebPreviewRequests()
+        let view = LinkCardView()
+        view.webPreviewMode = .tapToLoad
+        view.webPreviewRequests = requests
+        view.configure(with: card, source: source)
+        web(view)?.onShowPreview?()
+
+        let recycled = LinkCardView()
+        recycled.webPreviewMode = .tapToLoad
+        recycled.webPreviewRequests = requests
+        recycled.configure(with: card, source: source)
+        #expect(web(recycled)?.content != .chip(host: "example.com"))
+        #expect(await settle { source.asked.count == 2 })
+    }
+
+    @Test("The chip strips a leading www. from the host")
+    func web_chip_stripsWWW() async {
+        let view = LinkCardView()
+        view.webPreviewMode = .tapToLoad
+        view.configure(with: Self.webCard("https://www.example.com/a"), source: Source())
+        #expect(web(view)?.content == .chip(host: "example.com"))
+    }
 }
+

@@ -42,6 +42,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Where a link card looks its link up — see ``LinkCardFeed``. Container-scoped, so it outlives
     /// both this view and the rows that subscribe to it.
     let linkCardSource: any LinkCardSource
+    /// Whether web cards ask for their pages as they draw (DMs, members) or wait for the chip.
+    let webPreviewMode: WebLinkPreviewMode
     /// Fired when the user taps the "Encrypted" marker above a DM's first encrypted message.
     let onEncryptionMarkerTap: () -> Void
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
@@ -149,6 +151,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
+        screen.webPreviewMode = webPreviewMode
         screen.onMediaTap = onMediaTap
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
@@ -202,6 +205,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
+        screen.webPreviewMode = webPreviewMode
         screen.onMediaTap = onMediaTap
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt

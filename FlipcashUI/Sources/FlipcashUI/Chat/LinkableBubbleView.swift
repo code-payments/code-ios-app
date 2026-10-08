@@ -40,6 +40,21 @@ public final class LinkableBubbleView: UIView {
     /// Called when the card's height changes after the bubble was configured, as a group card's
     /// does when its lookup lands.
     var onCardHeightChange: (() -> Void)?
+    /// Whether a web card asks for its page as it draws or waits for its chip.
+    var webPreviewMode: WebLinkPreviewMode {
+        get { cardView.webPreviewMode }
+        set { cardView.webPreviewMode = newValue }
+    }
+    /// The transcript's record of the web previews its viewer asked for through the chip.
+    var webPreviewRequests: WebPreviewRequests {
+        get { cardView.webPreviewRequests }
+        set { cardView.webPreviewRequests = newValue }
+    }
+    /// The bubble's widest, which it takes while a web preview draws so the image is not cut to
+    /// the text's width.
+    var webPreviewBubbleWidth: CGFloat = 280 {
+        didSet { webPreviewWidth.constant = webPreviewBubbleWidth - 2 * Self.bodyInset }
+    }
 
     /// The card this row is currently drawing. The card is drawn in place of its URL, so the row
     /// has no text span to tap — without this it would render something that goes nowhere.
@@ -84,6 +99,14 @@ public final class LinkableBubbleView: UIView {
     /// panel collapses in both: a card pinned to the bubble's sides would otherwise put a floor
     /// under every link bubble's width.
     private var cardCollapse: [NSLayoutConstraint] = []
+    /// A web card under the text, inside the bubble: below the body, inset like it, and holding the
+    /// bubble's bottom in the body's place.
+    private var webCardInText: [NSLayoutConstraint] = []
+    /// Widens the bubble while a web preview draws. Just under required, so the bubble's own
+    /// maximum still wins.
+    private var webPreviewWidth: NSLayoutConstraint!
+    /// Whether the row draws a web card under its text.
+    private var isWebInText = false
     /// Collapses the panel to nothing when there is no quote, in both axes. Height alone is not
     /// enough: the panel is pinned to both of the bubble's sides, so whatever width it demands with
     /// nothing in it — the rule and its gutters — becomes a floor under every bubble's width, and a
@@ -138,7 +161,10 @@ public final class LinkableBubbleView: UIView {
         cardView.translatesAutoresizingMaskIntoConstraints = false
         cardView.addGestureRecognizer(cardTap)
         cardView.onCardButton = { [weak self] in self?.cardTapped() }
-        cardView.onHeightChange = { [weak self] in self?.onCardHeightChange?() }
+        cardView.onHeightChange = { [weak self] in
+            self?.updateWebPreviewWidth()
+            self?.onCardHeightChange?()
+        }
         addSubview(cardView)
 
         textTopToBubble = textView.topAnchor.constraint(equalTo: topAnchor, constant: Self.bodyPadding)
@@ -161,6 +187,14 @@ public final class LinkableBubbleView: UIView {
             cardView.leadingAnchor.constraint(equalTo: leadingAnchor),
             cardView.trailingAnchor.constraint(equalTo: trailingAnchor),
         ]
+        webCardInText = [
+            cardView.topAnchor.constraint(equalTo: textView.bottomAnchor),
+            cardView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.bodyInset),
+            cardView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.bodyInset),
+            cardView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.bodyPadding),
+        ]
+        webPreviewWidth = cardView.widthAnchor.constraint(equalToConstant: webPreviewBubbleWidth - 2 * Self.bodyInset)
+        webPreviewWidth.priority = .required - 1
         cardCollapse = [
             cardView.heightAnchor.constraint(equalToConstant: 0),
             cardView.widthAnchor.constraint(equalToConstant: 0),
@@ -217,7 +251,12 @@ public final class LinkableBubbleView: UIView {
     /// tap target; a group card takes taps only on its button and a person card is its own button,
     /// and both land here too.
     @objc func cardTapped() {
-        card.map { onLinkCardTap?($0) }
+        switch card {
+        // The same path as a tap on the link in the text, warning included.
+        case .web(let web): onOpenURL?(web.url)
+        case .cash, .token, .group, .user: card.map { onLinkCardTap?($0) }
+        case nil: break
+        }
     }
 
     /// Hands a tapped link or mention to its callback. Taps off every span fall through to nothing.
@@ -253,13 +292,18 @@ public final class LinkableBubbleView: UIView {
         // Shares the plain bubble's text builder so a link message gets the same body styling, the
         // same tombstone copy, and the same "Edited" reservation, with the link spans laid over it
         // from the preview the mapper already detected.
-        // The transcript gives a carded link a row of its own, so a row carries either text or the
-        // card — never both.
+        // The transcript gives a Flipcash card a row of its own, so such a row carries either text
+        // or the card. A web card is the exception and draws under its text.
         let bare = message.rendersAsBareLinkCard
         // Empty on a card row: the hidden text still widens the row, and a person card, which gives
         // its own width, would sit short of the column's edge inside it.
         textView.attributedText = bare ? nil : Self.linkedText(for: message)
+        // A web card sits under the text rather than replacing it. Its layout comes off before the
+        // switch between text and bare and goes on after it, so no row ever holds two bottoms.
+        let webInText = !bare && { if case .web = message.linkPreview?.card { true } else { false } }()
+        if !webInText { setWebInText(false) }
         setBare(bare)
+        if webInText { setWebInText(true) }
         // One set of radii for the card and the chrome: a card sits in its bubble run exactly where
         // a text bubble would, with the same corners flattened toward its neighbours.
         let radii = BubbleBackgroundView.radii(
@@ -282,6 +326,13 @@ public final class LinkableBubbleView: UIView {
             cardView.configure(with: card, source: linkCardSource)
             NSLayoutConstraint.deactivate(cardCollapse)
             NSLayoutConstraint.activate(cardSides)
+        } else if case .web = message.linkPreview?.card, let card = message.linkPreview?.card {
+            cardView.isHidden = false
+            self.card = card
+            // The web card takes its own taps: the preview opens the page, the chip asks for it.
+            cardTap.isEnabled = false
+            NSLayoutConstraint.deactivate(cardCollapse + cardSides)
+            cardView.configure(with: card, source: linkCardSource)
         } else {
             cardView.isHidden = true
             self.card = nil
@@ -291,6 +342,8 @@ public final class LinkableBubbleView: UIView {
             NSLayoutConstraint.deactivate(cardSides)
             NSLayoutConstraint.activate(cardCollapse)
         }
+
+        updateWebPreviewWidth()
 
         // Deactivate before activating: with two top constraints live the layout is unsatisfiable,
         // and UIKit resolves that by breaking one at random.
@@ -316,6 +369,26 @@ public final class LinkableBubbleView: UIView {
             bare: bare,
             identity: message.id
         )
+    }
+
+    /// Switches a text row between closing on its body and closing on a web card under the body.
+    private func setWebInText(_ webInText: Bool) {
+        guard webInText != isWebInText else { return }
+        isWebInText = webInText
+        // Deactivate before activating: two bottoms on one row is unsatisfiable.
+        if webInText {
+            textBottom.isActive = false
+            NSLayoutConstraint.activate(webCardInText)
+        } else {
+            NSLayoutConstraint.deactivate(webCardInText)
+            textBottom.isActive = !isBare
+        }
+        setNeedsLayout()
+    }
+
+    /// Holds the bubble at its widest while a web preview draws, and lets it hug its text otherwise.
+    private func updateWebPreviewWidth() {
+        webPreviewWidth.isActive = isWebInText && cardView.drawsWebPreview
     }
 
     /// Switches the row between a text bubble and the card on its own.

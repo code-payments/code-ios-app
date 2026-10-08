@@ -159,8 +159,10 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// a second, slightly larger card around the first. The transcript gives a carded link a row of
     /// its own and the sender's words the rows around it, so a row that carries a card is the card —
     /// a reply or an edited message included, whose quote and "Edited" marker stand outside it.
+    /// A web card is the exception: it draws inside the text bubble, under the sender's words.
     public var rendersAsBareLinkCard: Bool {
-        linkPreview?.card != nil
+        if case .web = linkPreview?.card { return false }
+        return linkPreview?.card != nil
     }
 
     /// Whether a long-press on this row should offer the reaction strip above the context menu.

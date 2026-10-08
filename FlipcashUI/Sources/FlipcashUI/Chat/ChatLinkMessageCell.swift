@@ -46,6 +46,19 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         didSet { bubble.linkCardSource = linkCardSource }
     }
 
+    /// Whether the bubble's web card asks for its page as it draws or waits for its chip. Set
+    /// before ``configure(with:maxWidth:authorImageData:quoteThumbnail:)``.
+    var webPreviewMode: WebLinkPreviewMode {
+        get { bubble.webPreviewMode }
+        set { bubble.webPreviewMode = newValue }
+    }
+
+    /// The transcript's record of the web previews its viewer asked for, shared by every row.
+    var webPreviewRequests: WebPreviewRequests {
+        get { bubble.webPreviewRequests }
+        set { bubble.webPreviewRequests = newValue }
+    }
+
     var bubbleView: LinkableBubbleView { bubble }
 
     /// Forwarded from the bubble's quote panel: the stable id of the row to jump to.
@@ -107,6 +120,7 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         bubbleMaxWidthConstraint.constant = maxWidth
         bubbleCardWidthConstraint.constant = maxWidth
         bubbleCardWidthConstraint.isActive = Self.cardFillsWidth(message.linkPreview?.card)
+        bubble.webPreviewBubbleWidth = maxWidth
         bubble.configure(with: message, quoteThumbnail: quoteThumbnail)
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth

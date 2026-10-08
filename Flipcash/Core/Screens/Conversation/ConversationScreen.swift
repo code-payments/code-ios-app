@@ -193,6 +193,16 @@ struct ConversationScreen: View {
     ///
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
+    /// DMs and members fetch web previews as they draw; anyone else, or a chat whose record has not
+    /// loaded yet, waits for the chip.
+    private var webPreviewMode: WebLinkPreviewMode {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID),
+              conversationController.isMember(of: conversation)
+        else { return .tapToLoad }
+        return .automatic
+    }
+
     private var gate: ConversationGatePresentation {
         guard let conversationID,
               let conversation = conversationController.conversation(withID: conversationID)
@@ -369,6 +379,7 @@ struct ConversationScreen: View {
             ownProfile: ownProfile,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
+            webPreviewMode: webPreviewMode,
             onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,

@@ -242,4 +242,29 @@ struct ChatLinkMessageCellTests {
         let bubble = cell.descendants(of: LinkableBubbleView.self).first
         #expect((bubble?.bounds.width ?? 0) < 250)
     }
+
+    @Test("A web card keeps the text visible and draws under it")
+    func webCard_keepsText() {
+        let link = "https://example.com/a"
+        let text = "look \(link)"
+        let range = NSRange(location: 5, length: (link as NSString).length)
+        let message = ChatMessage(
+            id: "1",
+            text: text,
+            sender: .me,
+            linkPreview: LinkPreview(
+                links: [DetectedLink(range: range, url: url(link))],
+                card: .web(LinkCard.Web(url: url(link), range: range))
+            )
+        )
+        let cell = makeCell()
+        cell.configure(with: message, maxWidth: 250)
+        _ = layOut(cell)
+
+        let textView = cell.descendants(of: UITextView.self).first
+        #expect(textView?.isHidden == false)
+        #expect(textView?.attributedText.string == text)
+        #expect(chrome(cell) != nil)
+    }
 }
+

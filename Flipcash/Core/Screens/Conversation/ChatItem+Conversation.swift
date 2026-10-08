@@ -508,6 +508,10 @@ extension ChatItem {
         guard let preview, let card = preview.card else {
             return [RowLayout(part: nil, text: nil, preview: preview)]
         }
+        // A web card draws inside the text bubble, under the text, with the link left in the text.
+        if case .web = card {
+            return [RowLayout(part: nil, text: nil, preview: preview)]
+        }
         let body = text as NSString
         let link = card.range
         guard link.location >= 0, link.length > 0, NSMaxRange(link) <= body.length else {
