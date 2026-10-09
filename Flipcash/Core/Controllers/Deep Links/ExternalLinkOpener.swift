@@ -71,13 +71,16 @@ struct ExternalLinkOpener {
     let trustedWebsites: TrustedWebsites
 
     /// Opens `url` now if ``ExternalLinkCheck`` allows it, otherwise once the user picks Open Website.
-    func open(_ url: URL) {
+    ///
+    /// `label` is the text a masked link shows in place of its address; the warning quotes it next
+    /// to the host. Leave it `nil` for a link whose text is its address.
+    func open(_ url: URL, label: String? = nil) {
         switch ExternalLinkCheck(url: url, trustedHosts: trustedWebsites.hosts) {
         case .open:
             UIApplication.shared.open(url)
 
         case .warn(let host):
-            session.dialogItem = .leavingFlipcash(host: host, trustedWebsites: trustedWebsites) {
+            session.dialogItem = .leavingFlipcash(host: host, label: label, trustedWebsites: trustedWebsites) {
                 UIApplication.shared.open(url)
             }
         }
@@ -91,14 +94,18 @@ extension DialogItem {
     /// Open Website is the primary button. Tapping it with Don't ask again ticked adds `host` to
     /// `trustedWebsites`; Cancel and dismissing save nothing. The body is not emphasised around
     /// the host as Android's is: the dialog sets its whole subtitle in bold already.
+    ///
+    /// A masked link passes its `label` so the subtitle reads `“label” will open host.`; a bare link
+    /// keeps `This will open host`.
     static func leavingFlipcash(
         host: String,
+        label: String? = nil,
         trustedWebsites: TrustedWebsites,
         open: @escaping () -> Void
     ) -> DialogItem {
         DialogItem.info(
             title: "You're Leaving Flipcash",
-            subtitle: "This will open \(host). Never share your Access Key with a website"
+            subtitle: subtitle(host: host, label: label)
         ) {
             DialogAction.standard("Open Website") { isChecked in
                 if isChecked {
@@ -109,5 +116,12 @@ extension DialogItem {
             DialogAction.cancel()
         }
         .checkbox("Don't ask again for \(host)")
+    }
+
+    private static func subtitle(host: String, label: String?) -> String {
+        guard let label else {
+            return "This will open \(host). Never share your Access Key with a website"
+        }
+        return "“\(label)” will open \(host). Never share your Access Key with a website."
     }
 }
