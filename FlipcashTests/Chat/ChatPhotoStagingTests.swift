@@ -147,6 +147,41 @@ struct ChatPhotoStagingTests {
         #expect(composer.chips.last?.image == picked[0])
     }
 
+    @Test("Dropped images stage as chips, and a non-image provider does not")
+    func droppedImagesStage() async {
+        let composer = ComposerModel()
+        let picked = images(2)
+        let providers = [
+            NSItemProvider(object: picked[0]),
+            NSItemProvider(object: "just text" as NSString),
+            NSItemProvider(object: picked[1]),
+        ]
+
+        let staged = await ChatPhotoStaging.stageDropped(providers, into: composer, uploader: uploader)
+
+        #expect(staged.count == 2)
+        #expect(composer.chips.map(\.image.size) == picked.map(\.size))
+    }
+
+    @Test("A dropped non-image provider stages nothing")
+    func droppedTextStagesNothing() async {
+        let composer = ComposerModel()
+
+        await ChatPhotoStaging.stageDropped([NSItemProvider(object: "text" as NSString)], into: composer, uploader: uploader)
+
+        #expect(composer.chips.isEmpty)
+    }
+
+    @Test("Dropping stops at a full composer")
+    func droppedStopsWhenFull() async {
+        let composer = ComposerModel()
+        let providers = images(ComposerModel.maxAttachments + 2).map { NSItemProvider(object: $0) }
+
+        await ChatPhotoStaging.stageDropped(providers, into: composer, uploader: uploader)
+
+        #expect(composer.chips.count == ComposerModel.maxAttachments)
+    }
+
     @Test("A photo with a sideways EXIF orientation decodes with the turn drawn into its pixels")
     func decodeBakesOrientation() async throws {
         let data = NSMutableData()

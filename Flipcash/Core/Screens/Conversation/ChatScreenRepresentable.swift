@@ -118,6 +118,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// selected, with the loader already reading them. Returns the chip the first was staged as,
     /// which the card shrinks into, when it could be staged at once.
     var onPhotosAdded: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> ComposerChip.ID? = { _, _ in nil }
+    /// Receives images dropped on the bar.
+    var onImagesDropped: ([NSItemProvider]) -> Void = { _ in }
     /// Mints a signed download URL for a photo in this chat. The transcript's resolver caches what it
     /// returns and never asks for a photo drawn only from its BlurHash.
     var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
@@ -331,6 +333,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onPhotosAdd: { [weak coordinator] items, preloader in
                     coordinator?.closeCard { onPhotosAdded(items, preloader) }
                 },
+                onImagesDropped: onImagesDropped,
                 onPhotosBack: { [model = barModel] in
                     // Back into the panel, with the keyboard left down.
                     model.returnToMenu()
