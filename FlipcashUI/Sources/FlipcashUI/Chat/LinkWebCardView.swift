@@ -201,15 +201,29 @@ final class LinkWebCardView: UIView {
 
     private let panelMask = CAShapeLayer()
 
+    /// The bare card's edge, the bare group card's outline. An opaque page image can match the chat
+    /// background, so without it the card's top has no edge.
+    let outline: CAShapeLayer = {
+        let layer = CAShapeLayer()
+        layer.fillColor = nil
+        layer.strokeColor = UIColor.white.withAlphaComponent(0.1).cgColor
+        layer.lineWidth = 1
+        return layer
+    }()
+
     override func layoutSubviews() {
         super.layoutSubviews()
         if isBare {
             panel.layer.cornerRadius = 0
             panelMask.path = BubbleBackgroundView.path(radii: cornerRadii, in: panel.bounds)
             panel.layer.mask = panelMask
+            // Inset by half the line so it sits inside the mask, and re-added so it draws over the image.
+            outline.path = BubbleBackgroundView.path(radii: cornerRadii, in: panel.bounds.insetBy(dx: 0.5, dy: 0.5))
+            panel.layer.addSublayer(outline)
         } else {
             panel.layer.cornerRadius = 10
             panel.layer.mask = nil
+            outline.removeFromSuperlayer()
         }
     }
     private var imageCollapsed: NSLayoutConstraint!

@@ -302,4 +302,18 @@ struct WebLinkBareCardTests {
         #expect(bubble?.isBare == true)
         #expect(bubble?.bounds.width == 250)
     }
+
+    /// L6: an opaque page image can match the chat background, so a bare card draws an outline over
+    /// it; inside a bubble the bubble is the edge.
+    @Test func aBareWebCardDrawsAnOutlineOverItsImage() {
+        let view = LinkWebCardView(frame: CGRect(x: 0, y: 0, width: 250, height: 300))
+        view.isBare = true
+        view.layoutIfNeeded()
+        #expect(view.outline.superlayer != nil)
+        #expect(view.outline.superlayer?.sublayers?.last === view.outline)
+
+        view.isBare = false
+        view.layoutIfNeeded()
+        #expect(view.outline.superlayer == nil)
+    }
 }
