@@ -27,6 +27,31 @@ struct LinkCardMemoWebTests {
         try await waitUntil { (try? database.linkPreviews(since: .distantPast))?.contains { $0.key == key } == true }
     }
 
+    /// A store whose load never returns until the test releases it.
+    private final class StuckStore: LinkPreviewStoring, @unchecked Sendable {
+        let release = DispatchSemaphore(value: 0)
+        func linkPreviews(since: Date) throws -> [LinkPreviewRow] { release.wait(); return [] }
+        func upsertLinkPreview(key: String, json: Data, updatedAt: Date) throws {}
+        func deleteLinkPreviews(before: Date) throws {}
+    }
+
+    @Test func aChatWaitsAtMost300MsForTheSavedRows() async {
+        let store = StuckStore()
+        defer { store.release.signal() }
+        let memo = LinkCardMemo(store: store)
+        #expect(!memo.isLoaded)
+        let start = ContinuousClock.now
+        await memo.awaitLoaded()
+        let waited = ContinuousClock.now - start
+        #expect(waited >= .milliseconds(290))
+        #expect(waited < .milliseconds(1000))
+        #expect(!memo.isLoaded)
+    }
+
+    @Test func aMemoWithNoStoreIsLoadedFromTheStart() {
+        #expect(LinkCardMemo().isLoaded)
+    }
+
     @Test func aRecordedAnswerSurvivesANewMemoOverTheSameStore() async throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }

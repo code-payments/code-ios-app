@@ -94,14 +94,17 @@ final class LinkCardMemo {
         }
     }
 
-    /// Returns once the stored answers are loaded, or after 500 ms, whichever comes first.
+    /// Whether the stored answers have loaded. Not observed; ``awaitLoaded()`` is how to wait for it.
+    var isLoaded: Bool { loaded }
+
+    /// Returns once the stored answers are loaded, or after 300 ms, whichever comes first (P22d).
     func awaitLoaded() async {
         guard !loaded else { return }
         let id = UUID()
         await withCheckedContinuation { continuation in
             loadWaiters[id] = continuation
             Task { [weak self] in
-                try? await Task.sleep(for: .milliseconds(500))
+                try? await Task.sleep(for: .milliseconds(300))
                 self?.loadWaiters.removeValue(forKey: id)?.resume()
             }
         }

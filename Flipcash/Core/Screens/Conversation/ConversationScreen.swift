@@ -53,6 +53,9 @@ struct ConversationScreen: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var didInitialRead = false
+    /// Set once the saved link previews have loaded or 300 ms have passed, so a chat opened right
+    /// after launch draws its cards from them instead of flashing placeholders (P22d).
+    @State private var waitedForLinkPreviews = false
     /// The chat whose stored draft has been put back, which is also what permits saving: an empty
     /// composer must not delete a stored draft in the frame before the restore runs.
     @State private var restoredDraftID: ConversationID?
@@ -367,7 +370,7 @@ struct ConversationScreen: View {
         pagesHistory: Bool
     ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
-            items: (coordinator?.items ?? []),
+            items: (waitedForLinkPreviews || sessionContainer.linkCardMemo.isLoaded) ? (coordinator?.items ?? []) : [],
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
@@ -621,6 +624,10 @@ struct ConversationScreen: View {
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
     private func loads(_ content: some View) -> some View {
         content
+        .task {
+            await sessionContainer.linkCardMemo.awaitLoaded()
+            waitedForLinkPreviews = true
+        }
         .task {
             // The probe runs once per OS build; after that this is a cached read.
             guard let contents = try? await EmojiCatalog.shared.load() else { return }
