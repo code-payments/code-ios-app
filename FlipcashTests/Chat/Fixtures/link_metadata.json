@@ -1,8 +1,8 @@
 {
   "algorithm": "link-metadata",
-  "note": "Generic web link previews. pages: HTML as fetched (decode as UTF-8) plus the URL after redirects, to the card's metadata or null. Only the head is read; og:title, else <title>, is required; og:description, else meta description; og:image resolved against finalUrl and dropped unless https on an eligible host. host is finalUrl's host minus one leading www.; og:url and og:site_name are never read. hosts: whether a host may be fetched, checked on the first request and on every redirect. addresses: whether a resolved address may be connected to; both apps connect only to an address that passed, so DNS rebinding is stopped on both. cacheKeys: the persisted key is web:<key>. Behavior parity, not a computation with an external reference.",
+  "note": "Generic web link previews. pages: HTML as fetched (decode as UTF-8) plus the URL after redirects, to the card's metadata or null. Only the head is read; og:title, else <title>, is required; og:description, else meta description; og:image resolved against finalUrl and dropped unless https on an eligible host. host is finalUrl's host minus one leading www.; og:url and og:site_name are never read. hosts: whether a host may be fetched, checked on the first request and on every redirect. addresses: whether a resolved address may be connected to; both apps connect only to an address that passed, so DNS rebinding is stopped on both. cacheKeys: the persisted key is web:<key>. lookups: a whole lookup against a scripted server, including the home-page fallback for 401, 403, 404 and a 2xx page with no card. Behavior parity, not a computation with an external reference.",
   "limits": {
-    "maxBodyBytes": 524288,
+    "maxBodyBytes": 1048576,
     "maxImageBytes": 2097152,
     "maxRedirects": 3,
     "timeoutSeconds": 5,
@@ -520,6 +520,802 @@
       "address": "240.0.0.1",
       "public": false,
       "note": "reserved 240.0.0.0/4"
+    }
+  ],
+  "lookups": [
+    {
+      "name": "fallback-401",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 401
+        },
+        {
+          "url": "https://example.com/",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Home\"><meta property=\"og:description\" content=\"Site\"><meta property=\"og:image\" content=\"https://cdn.example.com/h.png\"></head><body><p>body</p></body></html>"
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Home",
+        "description": "Site",
+        "imageUrl": "https://cdn.example.com/h.png",
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        },
+        {
+          "key": "https://example.com/",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "401, 403, 404 and a 2xx page with no title fetch https://<host>/ once and show its card."
+    },
+    {
+      "name": "fallback-403",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 403
+        },
+        {
+          "url": "https://example.com/",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Home\"><meta property=\"og:description\" content=\"Site\"><meta property=\"og:image\" content=\"https://cdn.example.com/h.png\"></head><body><p>body</p></body></html>"
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Home",
+        "description": "Site",
+        "imageUrl": "https://cdn.example.com/h.png",
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        },
+        {
+          "key": "https://example.com/",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "A private file. The home page is also cached under its own key."
+    },
+    {
+      "name": "fallback-404",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 404
+        },
+        {
+          "url": "https://example.com/",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Home\"><meta property=\"og:description\" content=\"Site\"><meta property=\"og:image\" content=\"https://cdn.example.com/h.png\"></head><body><p>body</p></body></html>"
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Home",
+        "description": "Site",
+        "imageUrl": "https://cdn.example.com/h.png",
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        },
+        {
+          "key": "https://example.com/",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "404 falls back too: private links on some sites answer 404."
+    },
+    {
+      "name": "fallback-no-title",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:description\" content=\"d\"></head><body><p>body</p></body></html>"
+        },
+        {
+          "url": "https://example.com/",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Home\"><meta property=\"og:description\" content=\"Site\"><meta property=\"og:image\" content=\"https://cdn.example.com/h.png\"></head><body><p>body</p></body></html>"
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Home",
+        "description": "Site",
+        "imageUrl": "https://cdn.example.com/h.png",
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        },
+        {
+          "key": "https://example.com/",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "A 2xx page that parses to no card."
+    },
+    {
+      "name": "no-fallback-410",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 410
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k"
+      ],
+      "result": "none",
+      "card": null,
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "none",
+          "card": null
+        }
+      ],
+      "note": "Gone for good: no fallback."
+    },
+    {
+      "name": "no-fallback-429",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 429
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k"
+      ],
+      "result": "none",
+      "card": null,
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "none",
+          "card": null
+        }
+      ],
+      "note": "Rate limited: a second request would make it worse."
+    },
+    {
+      "name": "no-fallback-503",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 503
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k"
+      ],
+      "result": "failure",
+      "card": null,
+      "cached": [],
+      "note": "5xx is a failure, never remembered, and never falls back."
+    },
+    {
+      "name": "no-fallback-non-html",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 200,
+          "contentType": "application/pdf"
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k"
+      ],
+      "result": "none",
+      "card": null,
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "none",
+          "card": null
+        }
+      ],
+      "note": "A 2xx file that is not HTML is not a page with no title."
+    },
+    {
+      "name": "root-no-fallback",
+      "url": "https://example.com/",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/",
+          "status": 403
+        }
+      ],
+      "fetches": [
+        "https://example.com/"
+      ],
+      "result": "none",
+      "card": null,
+      "cached": [
+        {
+          "key": "https://example.com/",
+          "state": "none",
+          "card": null
+        }
+      ],
+      "note": "Path already / with no query: no second request."
+    },
+    {
+      "name": "root-with-query-falls-back",
+      "url": "https://example.com/?ref=x",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/?ref=x",
+          "status": 403
+        },
+        {
+          "url": "https://example.com/",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Home\"><meta property=\"og:description\" content=\"Site\"><meta property=\"og:image\" content=\"https://cdn.example.com/h.png\"></head><body><p>body</p></body></html>"
+        }
+      ],
+      "fetches": [
+        "https://example.com/?ref=x",
+        "https://example.com/"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Home",
+        "description": "Site",
+        "imageUrl": "https://cdn.example.com/h.png",
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/?ref=x",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        },
+        {
+          "key": "https://example.com/",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "A query makes it a different page, so the home page is asked."
+    },
+    {
+      "name": "home-also-403",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 403
+        },
+        {
+          "url": "https://example.com/",
+          "status": 403
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/"
+      ],
+      "result": "none",
+      "card": null,
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "none",
+          "card": null
+        },
+        {
+          "key": "https://example.com/",
+          "state": "none",
+          "card": null
+        }
+      ],
+      "note": "The home page's own answer is cached, None included."
+    },
+    {
+      "name": "home-503",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 403
+        },
+        {
+          "url": "https://example.com/",
+          "status": 503
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/"
+      ],
+      "result": "failure",
+      "card": null,
+      "cached": [],
+      "note": "A home page failure fails the lookup; nothing is remembered."
+    },
+    {
+      "name": "home-cached-none",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [
+        {
+          "key": "https://example.com/",
+          "state": "none",
+          "card": null
+        }
+      ],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 403
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k"
+      ],
+      "result": "none",
+      "card": null,
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "none",
+          "card": null
+        }
+      ],
+      "note": "A remembered home-page None stops the fallback without a request."
+    },
+    {
+      "name": "home-cached-resolved",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [
+        {
+          "key": "https://example.com/",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 403
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Home",
+        "description": "Site",
+        "imageUrl": "https://cdn.example.com/h.png",
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "A remembered home-page card is reused without a request."
+    },
+    {
+      "name": "fallback-uses-final-host",
+      "url": "https://short.example.net/x",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://short.example.net/x",
+          "status": 301,
+          "location": "https://www.example.org/file/k"
+        },
+        {
+          "url": "https://www.example.org/file/k",
+          "status": 403
+        },
+        {
+          "url": "https://www.example.org/",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Org\"></head><body><p>body</p></body></html>"
+        }
+      ],
+      "fetches": [
+        "https://short.example.net/x",
+        "https://www.example.org/file/k",
+        "https://www.example.org/"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Org",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.org"
+      },
+      "cached": [
+        {
+          "key": "https://short.example.net/x",
+          "state": "resolved",
+          "card": {
+            "title": "Org",
+            "description": null,
+            "imageUrl": null,
+            "host": "example.org"
+          }
+        },
+        {
+          "key": "https://www.example.org/",
+          "state": "resolved",
+          "card": {
+            "title": "Org",
+            "description": null,
+            "imageUrl": null,
+            "host": "example.org"
+          }
+        }
+      ],
+      "note": "The home page is on the host after redirects; host keeps its www. in the request."
+    },
+    {
+      "name": "redirects-shared-3",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 301,
+          "location": "https://example.com/file/k2"
+        },
+        {
+          "url": "https://example.com/file/k2",
+          "status": 403
+        },
+        {
+          "url": "https://example.com/",
+          "status": 301,
+          "location": "https://www.example.com/"
+        },
+        {
+          "url": "https://www.example.com/",
+          "status": 301,
+          "location": "https://www.example.com/home"
+        },
+        {
+          "url": "https://www.example.com/home",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Home\"><meta property=\"og:description\" content=\"Site\"><meta property=\"og:image\" content=\"https://cdn.example.com/h.png\"></head><body><p>body</p></body></html>"
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/file/k2",
+        "https://example.com/",
+        "https://www.example.com/",
+        "https://www.example.com/home"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Home",
+        "description": "Site",
+        "imageUrl": "https://cdn.example.com/h.png",
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        },
+        {
+          "key": "https://example.com/",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "Both fetches share maxRedirects: 1 + 2 = 3 is allowed."
+    },
+    {
+      "name": "redirects-shared-4",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 301,
+          "location": "https://example.com/file/k2"
+        },
+        {
+          "url": "https://example.com/file/k2",
+          "status": 301,
+          "location": "https://example.com/file/k3"
+        },
+        {
+          "url": "https://example.com/file/k3",
+          "status": 403
+        },
+        {
+          "url": "https://example.com/",
+          "status": 301,
+          "location": "https://www.example.com/"
+        },
+        {
+          "url": "https://www.example.com/",
+          "status": 301,
+          "location": "https://www.example.com/home"
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/file/k2",
+        "https://example.com/file/k3",
+        "https://example.com/",
+        "https://www.example.com/"
+      ],
+      "result": "none",
+      "card": null,
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "none",
+          "card": null
+        }
+      ],
+      "note": "2 + 2 = 4 redirects: the fourth is never followed, so the link is None. The home key stores nothing: the budget was spent by the original link, and only a home answer reached within its own rules is stored."
+    },
+    {
+      "name": "title-past-512k",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 200,
+          "html": "<!doctype html><html><head><!--FILL--><meta property=\"og:title\" content=\"Deep\"></head><body></body></html>",
+          "fillBytes": 716800
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Deep",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Deep",
+            "description": null,
+            "imageUrl": null,
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "A head that runs past 512 KiB is read up to maxBodyBytes."
+    },
+    {
+      "name": "title-past-cap-falls-back",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 200,
+          "html": "<!doctype html><html><head><!--FILL--><meta property=\"og:title\" content=\"Deep\"></head><body></body></html>",
+          "fillBytes": 1126400
+        },
+        {
+          "url": "https://example.com/",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Home\"><meta property=\"og:description\" content=\"Site\"><meta property=\"og:image\" content=\"https://cdn.example.com/h.png\"></head><body><p>body</p></body></html>"
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k",
+        "https://example.com/"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Home",
+        "description": "Site",
+        "imageUrl": "https://cdn.example.com/h.png",
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        },
+        {
+          "key": "https://example.com/",
+          "state": "resolved",
+          "card": {
+            "title": "Home",
+            "description": "Site",
+            "imageUrl": "https://cdn.example.com/h.png",
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "Past maxBodyBytes the title is never read, so the page has no title and falls back."
+    },
+    {
+      "name": "stops-after-head",
+      "url": "https://example.com/file/k",
+      "cachedBefore": [],
+      "responses": [
+        {
+          "url": "https://example.com/file/k",
+          "status": 200,
+          "html": "<!doctype html><html><head><meta property=\"og:title\" content=\"Short\"></head><body><!--FILL--></body></html>",
+          "fillBytes": 2097152
+        }
+      ],
+      "fetches": [
+        "https://example.com/file/k"
+      ],
+      "result": "resolved",
+      "card": {
+        "title": "Short",
+        "description": null,
+        "imageUrl": null,
+        "host": "example.com"
+      },
+      "cached": [
+        {
+          "key": "https://example.com/file/k",
+          "state": "resolved",
+          "card": {
+            "title": "Short",
+            "description": null,
+            "imageUrl": null,
+            "host": "example.com"
+          }
+        }
+      ],
+      "note": "Reading stops once </head> is read; a 2 MiB body after it is never downloaded."
     }
   ]
 }

@@ -10,7 +10,7 @@ import Foundation
 /// The fetch rules for web link previews, held to `link_metadata.json` so both apps agree.
 public nonisolated enum WebLinks {
 
-    public static let maxBodyBytes = 512 * 1024
+    public static let maxBodyBytes = 1024 * 1024
     public static let maxImageBytes = 2 * 1024 * 1024
     public static let maxRedirects = 3
     public static let maxConcurrent = 4

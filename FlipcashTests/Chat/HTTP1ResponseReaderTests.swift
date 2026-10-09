@@ -15,8 +15,8 @@ struct HTTP1ResponseReaderTests {
     private static func bytes(_ text: String) -> Data { Data(text.utf8) }
 
     /// Feeds `data` whole, then at end of stream if it was not already done.
-    private func read(_ data: Data, maxBytes: Int = 1024, byteAtATime: Bool) throws -> PinnedResponse {
-        var reader = HTTP1ResponseReader(maxBytes: maxBytes)
+    private func read(_ data: Data, maxBytes: Int = 1024, stopsAtHeadEnd: Bool = false, byteAtATime: Bool) throws -> PinnedResponse {
+        var reader = HTTP1ResponseReader(maxBytes: maxBytes, stopsAtHeadEnd: stopsAtHeadEnd)
         let pieces = byteAtATime ? data.map { Data([$0]) } : [data]
         for piece in pieces {
             if case .done(let response) = try reader.feed(piece) { return response }
@@ -119,5 +119,40 @@ struct HTTP1ResponseReaderTests {
         #expect(try html("text/html; charset=utf-8"))
         #expect(try html("Application/XHTML+xml"))
         #expect(try !html("application/json"))
+    }
+
+    @Test(arguments: ["</HEAD>", "<BoDy>"])
+    func stopsAtTheHeadEndInEachFraming(_ marker: String) throws {
+        let page = "<html><head><title>a</title>\(marker)" + String(repeating: "x", count: 64)
+        let framings = [
+            "HTTP/1.1 200 OK\r\nContent-Length: \(page.utf8.count)\r\n\r\n\(page)",
+            "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n\(String(page.utf8.count, radix: 16))\r\n\(page)\r\n0\r\n\r\n",
+            "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n\(page)",
+        ]
+        for wire in framings {
+            // Byte at a time splits the marker across reads, and nothing past it is read.
+            var reader = HTTP1ResponseReader(maxBytes: 1024, stopsAtHeadEnd: true)
+            var stopped: PinnedResponse?
+            for byte in Self.bytes(wire) {
+                if case .done(let response) = try reader.feed(Data([byte])) { stopped = response; break }
+            }
+            let response = try #require(stopped, "\(wire)")
+            let body = String(decoding: response.body, as: UTF8.self)
+            #expect(body.hasSuffix(String(marker.dropLast())), "\(wire)")
+            #expect(!response.truncated)
+        }
+    }
+
+    @Test func readsTheWholeBodyWithoutTheHeadStop() throws {
+        let page = "<head></head><body>tail"
+        let response = try read(Self.bytes("HTTP/1.1 200 OK\r\nContent-Length: \(page.utf8.count)\r\n\r\n\(page)"), byteAtATime: true)
+        #expect(String(decoding: response.body, as: UTF8.self) == page)
+    }
+
+    @Test func aPageWithNoHeadEndReadsToTheCap() throws {
+        let response = try read(Self.bytes("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n" + String(repeating: "x", count: 40)),
+                                maxBytes: 16, stopsAtHeadEnd: true, byteAtATime: false)
+        #expect(response.body.count == 16)
+        #expect(response.truncated)
     }
 }

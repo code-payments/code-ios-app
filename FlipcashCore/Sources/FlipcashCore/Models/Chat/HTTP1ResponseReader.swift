@@ -59,6 +59,8 @@ public nonisolated struct HTTP1ResponseReader {
     }
 
     private let maxBytes: Int
+    private let stopsAtHeadEnd: Bool
+    private var headEndScanned = 0
     private var phase = Phase.head
     private var buffer = Data()
     private var scanned = 0
@@ -66,8 +68,11 @@ public nonisolated struct HTTP1ResponseReader {
     private var headers: [String: String] = [:]
     private var body = Data()
 
-    public init(maxBytes: Int) {
+    /// With `stopsAtHeadEnd`, the body ends at the first `</head` or `<body` (P23b), the same
+    /// point where the page parser stops reading.
+    public init(maxBytes: Int, stopsAtHeadEnd: Bool = false) {
         self.maxBytes = maxBytes
+        self.stopsAtHeadEnd = stopsAtHeadEnd
     }
 
     public mutating func feed(_ chunk: Data) throws -> Progress {
@@ -105,6 +110,7 @@ public nonisolated struct HTTP1ResponseReader {
                 body.append(buffer.prefix(take))
                 buffer = Data(buffer.dropFirst(take))
                 phase = .fixed(remaining: remaining - take)
+                if headEnded() { return .done(complete(truncated: false)) }
 
             case .chunkSize:
                 guard let line = try takeLine() else { return .needMore }
@@ -121,6 +127,7 @@ public nonisolated struct HTTP1ResponseReader {
                 body.append(buffer.prefix(take))
                 buffer = Data(buffer.dropFirst(take))
                 phase = remaining - take == 0 ? .chunkDataEnd : .chunkData(remaining: remaining - take)
+                if headEnded() { return .done(complete(truncated: false)) }
 
             case .chunkDataEnd:
                 guard let line = try takeLine() else { return .needMore }
@@ -137,14 +144,44 @@ public nonisolated struct HTTP1ResponseReader {
                     if buffer.count > room {
                         body.append(buffer.prefix(room))
                         buffer = Data()
-                        return .done(complete(truncated: true))
+                        return .done(complete(truncated: !headEnded()))
                     }
                     body.append(buffer)
                     buffer = Data()
+                    if headEnded() { return .done(complete(truncated: false)) }
                 }
                 return .needMore
             }
         }
+    }
+
+    private static let headEndMarkers: [[UInt8]] = [Array("</head".utf8), Array("<body".utf8)]
+
+    /// Whether the body now holds the end of the page head. Each call rescans only the bytes a
+    /// marker could still finish in, so a marker split across two reads is found.
+    private mutating func headEnded() -> Bool {
+        guard stopsAtHeadEnd, body.count > headEndScanned else { return false }
+        let longest = Self.headEndMarkers.map(\.count).max()!
+        let start = max(0, headEndScanned - (longest - 1))
+        headEndScanned = body.count
+        let bytes = body
+        let base = bytes.startIndex
+        var i = base + start
+        while i < bytes.endIndex {
+            if bytes[i] == UInt8(ascii: "<") {
+                for marker in Self.headEndMarkers where i + marker.count <= bytes.endIndex {
+                    var matched = true
+                    for (offset, expected) in marker.enumerated() where offset > 0 {
+                        let byte = bytes[i + offset]
+                        let lowered = (byte >= 65 && byte <= 90) ? byte + 32 : byte
+                        if lowered != expected { matched = false; break }
+                    }
+                    if matched { return true }
+                }
+            }
+            i += 1
+        }
+        return false
     }
 
     /// Reads the status line and headers once the blank line arrives, skipping interim 1xx blocks.

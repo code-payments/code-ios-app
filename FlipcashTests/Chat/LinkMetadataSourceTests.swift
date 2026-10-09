@@ -218,7 +218,7 @@ private final class FakeClient: PinnedFetching, @unchecked Sendable {
 
     var requested: [String] { lock.withLock { _requested } }
 
-    func get(_ url: URL, accept: String, maxBytes: Int) async throws -> PinnedResponse {
+    func get(_ url: URL, accept: String, maxBytes: Int, stopsAtHeadEnd: Bool) async throws -> PinnedResponse {
         lock.withLock { _requested.append(url.absoluteString) }
         if let delay { try await Task.sleep(for: delay) }
         guard let response = routes[url.absoluteString] else { throw URLError(.cannotConnectToHost) }

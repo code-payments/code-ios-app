@@ -72,8 +72,8 @@ public nonisolated struct PublicAddressResolver: Sendable {
 }
 
 public protocol PinnedFetching: Sendable {
-    /// One GET, no redirects followed.
-    func get(_ url: URL, accept: String, maxBytes: Int) async throws -> PinnedResponse
+    /// One GET, no redirects followed. With `stopsAtHeadEnd`, the body ends at the page head's end.
+    func get(_ url: URL, accept: String, maxBytes: Int, stopsAtHeadEnd: Bool) async throws -> PinnedResponse
 }
 
 /// One HTTP/1.1 GET over a connection to an address that was already checked.
@@ -86,7 +86,7 @@ public nonisolated struct PinnedHTTPClient: PinnedFetching {
         self.resolver = resolver
     }
 
-    public func get(_ url: URL, accept: String, maxBytes: Int) async throws -> PinnedResponse {
+    public func get(_ url: URL, accept: String, maxBytes: Int, stopsAtHeadEnd: Bool) async throws -> PinnedResponse {
         guard url.scheme?.lowercased() == "https", let host = Self.asciiHost(url) else { throw NotAllowed() }
         let address = try await resolver.resolve(host)
 
@@ -113,7 +113,7 @@ public nonisolated struct PinnedHTTPClient: PinnedFetching {
                 group.addTask {
                     try await Self.awaitReady(connection)
                     try await Self.send(request, on: connection)
-                    var reader = HTTP1ResponseReader(maxBytes: maxBytes)
+                    var reader = HTTP1ResponseReader(maxBytes: maxBytes, stopsAtHeadEnd: stopsAtHeadEnd)
                     while true {
                         let (data, isComplete) = try await Self.receive(on: connection, idle: WebLinks.timeout)
                         if let data, !data.isEmpty, case .done(let response) = try reader.feed(data) {
@@ -215,5 +215,12 @@ public nonisolated struct PinnedHTTPClient: PinnedFetching {
                 if let error { continuation.resume(throwing: error) } else { continuation.resume(returning: (data, isComplete)) }
             }
         }
+    }
+}
+
+public extension PinnedFetching {
+    /// One GET that reads the whole body up to `maxBytes`.
+    func get(_ url: URL, accept: String, maxBytes: Int) async throws -> PinnedResponse {
+        try await get(url, accept: accept, maxBytes: maxBytes, stopsAtHeadEnd: false)
     }
 }
