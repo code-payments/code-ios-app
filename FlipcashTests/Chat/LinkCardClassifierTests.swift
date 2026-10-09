@@ -223,6 +223,16 @@ import FlipcashCore
         #expect(card?.kindName == "web")
     }
 
+    /// A secret-bearing first segment is refused whatever its case.
+    @Test(arguments: [
+        "https://flipcash.com/LOGIN/e=KNi8pQr1n5hRU65vKJGge3",
+        "https://www.flipcash.com/Verify?code=123456",
+        "https://flipcash.com/CASH/x",
+    ])
+    func aSecretPathIsNeverAWebCard(text: String) throws {
+        #expect(try Self.card(for: text)?.kindName != "web")
+    }
+
     @Test func theHostAllowlistMatchesTheCrossPlatformFixture() throws {
         #expect(Set(try loadFixture().cardHosts) == Route.flipcashHosts)
     }
