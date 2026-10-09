@@ -577,6 +577,9 @@ final class SessionContainer {
     /// NotificationService extension reads it to decide whether a push may interrupt.
     let chatArchive: ChatArchiveStore
 
+    /// The signed-in user's private-group chat keys, in memory and reopened from the server.
+    let groupKeys: GroupKeyEnvelopes
+
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
 
@@ -662,6 +665,18 @@ final class SessionContainer {
             owner: owner.publicKey
         )
         self.chatArchive = chatArchive
+
+        self.groupKeys = GroupKeyEnvelopes(
+            sealer: SharedCoreGroupKeySealer(),
+            owner: session.ownerKeyPair,
+            selfUserID: session.userID,
+            setEnvelope: { [flipClient, owner = session.ownerKeyPair] conversationID, envelope in
+                try await flipClient.setKeyEnvelope(owner: owner, conversationID: conversationID, keyEnvelope: envelope)
+            },
+            getEnvelope: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getKeyEnvelope(owner: owner, conversationID: conversationID)
+            }
+        )
 
         let chatClient = EncryptedChatClient(
             client: flipClient,

@@ -104,6 +104,8 @@ extension AppRouter {
         case newChat
         /// The "New Public Group" form, opened from the New Chat screen.
         case newPublicGroup
+        /// The "New Private Group" form, opened from the New Chat screen.
+        case newPrivateGroup
         /// A tip DM conversation, pushed onto the `.tips` stack — from the
         /// Tips list or a tip-DM push notification.
         case tipConversation(ConversationID)
@@ -154,7 +156,7 @@ extension AppRouter {
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
                 return .you
-            case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
+            case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
                  .editGroupDescription, .archivedChats:
@@ -207,6 +209,7 @@ extension AppRouter {
             case .usernameLookup:               "usernameLookup"
             case .newChat:                      "newChat"
             case .newPublicGroup:               "newPublicGroup"
+            case .newPrivateGroup:              "newPrivateGroup"
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
             case .userProfile:                  "userProfile"
@@ -259,7 +262,7 @@ extension AppRouter {
                  .changeDisplayName, .changeProfilePicture,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
-                 .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
+                 .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .archivedChats:
                 return nil
             }

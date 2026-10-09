@@ -153,7 +153,30 @@ final class ChatService: Sendable {
             $0.idempotencyKey = .with { $0.value = idempotencyKey.data }
             $0.auth = owner.authFor(message: $0)
         }
+        startChat(request, completion: completion)
+    }
 
+    /// Starts a private group: one a host admits each member to, end-to-end encrypted under a chat
+    /// key the creator stores with `setKeyEnvelope` next. It has no rules, so no balance gate.
+    /// `idempotencyKey` follows the same rules as `startChat(owner:title:…)`.
+    func startPrivateChat(owner: KeyPair, title: String, description: String? = nil, pictureBlobID: BlobID?, idempotencyKey: UUID, completion: @Sendable @escaping (Result<Conversation, ErrorStartChat>) -> Void) {
+        let request = Flipcash_Chat_V1_StartChatRequest.with {
+            $0.privateGroup = .with {
+                $0.title = title
+                if let description, !description.isEmpty {
+                    $0.description_p = description
+                }
+                if let pictureBlobID {
+                    $0.profilePicture = .with { $0.value = pictureBlobID.data }
+                }
+            }
+            $0.idempotencyKey = .with { $0.value = idempotencyKey.data }
+            $0.auth = owner.authFor(message: $0)
+        }
+        startChat(request, completion: completion)
+    }
+
+    private func startChat(_ request: Flipcash_Chat_V1_StartChatRequest, completion: @Sendable @escaping (Result<Conversation, ErrorStartChat>) -> Void) {
         Task {
             do {
                 let response = try await service.startChat(request, options: .unaryDefault)

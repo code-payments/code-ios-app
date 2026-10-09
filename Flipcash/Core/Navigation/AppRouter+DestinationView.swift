@@ -213,6 +213,9 @@ struct DestinationView: View {
         case .newPublicGroup:
             NewPublicGroupScreen()
 
+        case .newPrivateGroup:
+            NewPublicGroupScreen(privacy: .private)
+
         case .archivedChats:
             ArchivedChatsScreen()
 

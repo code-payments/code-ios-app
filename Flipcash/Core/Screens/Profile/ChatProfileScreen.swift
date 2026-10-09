@@ -483,6 +483,7 @@ struct ChatProfileScreen: View {
 nonisolated enum ChatProfileOrigin: Hashable {
     /// The group chat's own navigation title, so the chat sits underneath.
     case chat
-    /// A favorite group on the You tab or someone's profile, with no chat underneath.
+    /// Anywhere with no chat underneath: a favorite group on the You tab or someone's profile, or
+    /// a private group just created.
     case featuredGroup
 }

@@ -10,7 +10,8 @@ import FlipcashUI
 private let logger = Logger(label: "flipcash.new-public-group")
 
 /// The "New Public Group" form: a name, an optional picture, and the balance a member has to hold
-/// to get in (node 10127:118014).
+/// to get in (node 10127:118014). For ``GroupPrivacy/private`` it is "New Private Group" (node
+/// 11203:65): no balance requirement, and a note on what privacy means instead.
 struct NewPublicGroupScreen: View {
 
     @Environment(Container.self) private var container
@@ -19,7 +20,7 @@ struct NewPublicGroupScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(AppRouter.self) private var router
 
-    @State private var model = NewPublicGroupModel()
+    @State private var model: NewPublicGroupModel
     @State private var isPickingPhoto = false
     @State private var isPickingCurrency = false
     @State private var isEnteringCustomAmount = false
@@ -29,6 +30,10 @@ struct NewPublicGroupScreen: View {
     @FocusState private var isTitleFocused: Bool
 
     private var session: Session { sessionContainer.session }
+
+    init(privacy: GroupPrivacy = .public) {
+        _model = State(initialValue: NewPublicGroupModel(privacy: privacy))
+    }
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -46,15 +51,25 @@ struct NewPublicGroupScreen: View {
                             .padding(.top, 8)
                     }
 
-                    requirementSection
-                        .padding(.top, 37)
+                    switch model.privacy {
+                    case .public:
+                        requirementSection
+                            .padding(.top, 37)
+                    case .private:
+                        Text("Only people you approve can join. Messages are end-to-end encrypted.")
+                            .font(.default(size: 13, weight: .medium))
+                            .foregroundStyle(Color.textSecondary)
+                            .padding(.horizontal, 12)
+                            .padding(.top, 8)
+                            .accessibilityIdentifier("new-private-group-footnote")
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .navigationTitle("New Public Group")
+        .navigationTitle(model.privacy == .private ? "New Private Group" : "New Public Group")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -269,7 +284,8 @@ struct NewPublicGroupScreen: View {
                 let conversation = try await model.create(
                     using: SessionGroupChatCreator(
                         session: session,
-                        flipClient: container.flipClient
+                        flipClient: container.flipClient,
+                        groupKeys: sessionContainer.groupKeys
                     )
                 )
 
@@ -288,7 +304,13 @@ struct NewPublicGroupScreen: View {
                 // form offering to create it twice or at the picker that opened the form. The
                 // chat list is this stack's root, so unwinding to it is the same as popping both.
                 router.popToRoot()
-                router.push(.tipConversation(conversation.id))
+                switch model.privacy {
+                case .public:
+                    router.push(.tipConversation(conversation.id))
+                case .private:
+                    // The host's first job is inviting people, which starts from the profile.
+                    router.push(.chatProfile(conversation.id, origin: .featuredGroup))
+                }
 
             } catch {
                 buttonState = .normal

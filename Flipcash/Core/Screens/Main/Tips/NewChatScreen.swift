@@ -32,6 +32,15 @@ struct NewChatScreen: View {
                     router.push(.newPublicGroup)
                 }
 
+                ChatActionRow(
+                    icon: .asset(.lock),
+                    title: "Create a Private Group",
+                    accessibilityIdentifier: "new-chat-private-group"
+                ) {
+                    Analytics.groupNewOpened()
+                    router.push(.newPrivateGroup)
+                }
+
                 Spacer()
             }
             .padding(.horizontal, 16)
