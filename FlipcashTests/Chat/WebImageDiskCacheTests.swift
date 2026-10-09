@@ -50,6 +50,34 @@ struct WebImageDiskCacheTests {
         #expect(disk.data(for: Self.a) == nil)
     }
 
+    @Test func touchingAFileKeepsItAsLongAsItsRow() {
+        let clock = Clock(Date(timeIntervalSince1970: 1_000_000))
+        let disk = WebImageDiskCache(directory: Self.directory(), now: { clock.now })
+        disk.store(Data([1]), for: Self.a)
+        clock.now += WebLinks.resolvedTTL - 10
+        disk.touch(Self.a)
+        clock.now += 20
+        #expect(disk.data(for: Self.a) == Data([1]))
+    }
+
+    @MainActor
+    @Test func reRecordingARowRestampsItsImage() async throws {
+        let clock = Clock(Date(timeIntervalSince1970: 1_000_000))
+        let directory = Self.directory()
+        let disk = WebImageDiskCache(directory: directory, now: { clock.now })
+        disk.store(Data([1]), for: Self.a)
+        let memo = LinkCardMemo(images: disk, now: { clock.now })
+        clock.now += WebLinks.resolvedTTL - 10
+        let restamped = clock.now
+        memo.recordWeb(.resolved(.init(title: "T", description: nil, imageURL: Self.a, host: "example.com")), for: "web:https://example.com/")
+        try await waitUntil {
+            let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+            return files.first.flatMap { try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate } == restamped
+        }
+        clock.now += 20
+        #expect(disk.data(for: Self.a) == Data([1]))
+    }
+
     @Test func overCapacityDropsTheOldestFirst() {
         let clock = Clock(Date(timeIntervalSince1970: 1_000_000))
         let disk = WebImageDiskCache(directory: Self.directory(), capacity: 10, now: { clock.now })

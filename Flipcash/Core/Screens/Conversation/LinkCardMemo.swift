@@ -79,9 +79,12 @@ final class LinkCardMemo {
     /// Remembers a web answer and writes it through to the store. Failures never reach here.
     func recordWeb(_ state: LinkCard.Web.State, for key: String) {
         let at = now()
+        let images = images
         if let replaced = Self.imageURL(of: webAnswers[key]?.state), replaced != Self.imageURL(of: state) {
-            let images = images
             Task.detached(priority: .utility) { images?.remove(replaced) }
+        }
+        if let kept = Self.imageURL(of: state) {
+            Task.detached(priority: .utility) { images?.touch(kept) }
         }
         webAnswers[key] = (state, at)
         guard let store else { return }

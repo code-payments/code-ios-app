@@ -11,9 +11,10 @@ import FlipcashCore
 
 /// Preview images kept on disk across launches, in a directory of their own (P22b, P22c).
 ///
-/// Only bytes that already passed the image rules are written. A file older than
-/// `WebLinks.resolvedTTL` reads as nil and is deleted, since its row has expired too, and the whole
-/// store is held under ``capacity`` by dropping the oldest files first.
+/// Only bytes that already passed the image rules are written. A file's time is its row's: it is
+/// restamped whenever the row is recorded again, so a file older than `WebLinks.resolvedTTL` belongs
+/// to an expired row, reads as nil and is deleted. The whole store is held under ``capacity`` by
+/// dropping the oldest files first.
 nonisolated final class WebImageDiskCache: @unchecked Sendable {
 
     static let shared = WebImageDiskCache(
@@ -57,6 +58,16 @@ nonisolated final class WebImageDiskCache: @unchecked Sendable {
             guard (try? data.write(to: file, options: .atomic)) != nil else { return }
             try? FileManager.default.setAttributes([.modificationDate: now()], ofItemAtPath: file.path)
             trim()
+        }
+    }
+
+    /// Restamps what is stored for `url` with the current time, as when the row pointing at it is
+    /// recorded again, so the file lives exactly as long as its row (P22c).
+    func touch(_ url: URL) {
+        lock.withLock {
+            let file = path(for: url)
+            guard modified(file) != nil else { return }
+            try? FileManager.default.setAttributes([.modificationDate: now()], ofItemAtPath: file.path)
         }
     }
 
