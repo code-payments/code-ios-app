@@ -87,6 +87,30 @@ struct LinkMetadataSourceTests {
         #expect(client.requested.isEmpty)
     }
 
+    @Test func anImageOnDiskIsReadWithoutFetching() async {
+        let disk = WebImageDiskCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let url = URL(string: "https://img.example.com/a.png")!
+        disk.store(Data([9]), for: url)
+        let client = FakeClient([:])
+        #expect(await WebImageSource(client: client, limiter: FetchLimiter(limit: 1), disk: disk).data(for: url) == Data([9]))
+        #expect(client.requested.isEmpty)
+    }
+
+    @Test func aFetchedImageIsWrittenToDiskAndAFailureIsNot() async {
+        let disk = WebImageDiskCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let good = URL(string: "https://img.example.com/a.png")!
+        let html = URL(string: "https://img.example.com/b.png")!
+        let client = FakeClient([
+            good.absoluteString: PinnedResponse(status: 200, headers: ["content-type": "image/png"], body: Data([1]), truncated: false),
+            html.absoluteString: PinnedResponse(status: 200, headers: ["content-type": "text/html"], body: Data([2]), truncated: false),
+        ])
+        let source = WebImageSource(client: client, limiter: FetchLimiter(limit: 1), disk: disk)
+        _ = await source.data(for: good)
+        _ = await source.data(for: html)
+        #expect(disk.data(for: good) == Data([1]))
+        #expect(disk.data(for: html) == nil)
+    }
+
     @Test func imageNeedsAnImageContentTypeAndFullBody() async {
         let bytes = Data([1, 2, 3])
         let ok = FakeClient(["https://img.example.com/a.png": PinnedResponse(status: 200, headers: ["content-type": "image/png"], body: bytes, truncated: false)])

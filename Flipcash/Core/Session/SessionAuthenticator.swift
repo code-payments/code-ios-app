@@ -618,7 +618,7 @@ final class SessionContainer {
         let coinbaseApiKey = (try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()) ?? ""
         let owner = session.ownerKeyPair
 
-        self.linkCardMemo = LinkCardMemo(store: database)
+        self.linkCardMemo = LinkCardMemo(store: database, images: .shared)
         self.linkCardResolver = LinkCardResolver(
             cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
             mintLookup: LinkCardResolver.mintLookup(reader: client),

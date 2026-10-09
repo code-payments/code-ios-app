@@ -59,16 +59,19 @@ nonisolated final class PinnedLinkMetadataSource: LinkMetadataSource {
 /// remembered as missing.
 nonisolated final class WebImageSource: @unchecked Sendable {
 
-    static let shared = WebImageSource()
+    static let shared = WebImageSource(disk: .shared)
 
     private let client: any PinnedFetching
     private let limiter: FetchLimiter
     // NSCache is thread-safe; it is the only mutable state here.
     private let cache = NSCache<NSURL, NSData>()
+    private let disk: WebImageDiskCache?
 
-    init(client: any PinnedFetching = PinnedHTTPClient(), limiter: FetchLimiter = .shared) {
+    /// A source with no `disk` keeps images in memory only.
+    init(client: any PinnedFetching = PinnedHTTPClient(), limiter: FetchLimiter = .shared, disk: WebImageDiskCache? = nil) {
         self.client = client
         self.limiter = limiter
+        self.disk = disk
     }
 
     /// The image bytes at `url` if a previous fetch is still held in memory.
@@ -79,6 +82,10 @@ nonisolated final class WebImageSource: @unchecked Sendable {
     /// The image bytes at `url`, or nil when it cannot be fetched under the rules.
     func data(for url: URL) async -> Data? {
         if let hit = cache.object(forKey: url as NSURL) { return hit as Data }
+        if let stored = disk?.data(for: url) {
+            cache.setObject(stored as NSData, forKey: url as NSURL)
+            return stored
+        }
         let data = try? await limiter.run { () -> Data? in
             guard let (response, _) = try await WebRedirects.follow(
                 url, client: self.client, accept: "image/*", maxBytes: WebLinks.maxImageBytes
@@ -92,6 +99,7 @@ nonisolated final class WebImageSource: @unchecked Sendable {
         }
         guard let data = data ?? nil else { return nil }
         cache.setObject(data as NSData, forKey: url as NSURL)
+        disk?.store(data, for: url)
         return data
     }
 }

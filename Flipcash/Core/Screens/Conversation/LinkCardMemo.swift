@@ -33,13 +33,16 @@ final class LinkCardMemo {
 
     private var webAnswers: [String: (state: LinkCard.Web.State, at: Date)] = [:]
     private let store: (any LinkPreviewStoring)?
+    private let images: WebImageDiskCache?
     private let now: @Sendable () -> Date
     private var loaded: Bool
     private var loadWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
-    /// A memo with no store keeps web answers for the session only.
-    init(store: (any LinkPreviewStoring)? = nil, now: @escaping @Sendable () -> Date = Date.init) {
+    /// A memo with no store keeps web answers for the session only. `images` is the disk store
+    /// whose files go when the rows pointing at them are replaced or expire (P22c).
+    init(store: (any LinkPreviewStoring)? = nil, images: WebImageDiskCache? = nil, now: @escaping @Sendable () -> Date = Date.init) {
         self.store = store
+        self.images = images
         self.now = now
         self.loaded = store == nil
         if let store { load(from: store) }
@@ -76,6 +79,10 @@ final class LinkCardMemo {
     /// Remembers a web answer and writes it through to the store. Failures never reach here.
     func recordWeb(_ state: LinkCard.Web.State, for key: String) {
         let at = now()
+        if let replaced = Self.imageURL(of: webAnswers[key]?.state), replaced != Self.imageURL(of: state) {
+            let images = images
+            Task.detached(priority: .utility) { images?.remove(replaced) }
+        }
         webAnswers[key] = (state, at)
         guard let store else { return }
         let json = StoredWeb(state).encoded
@@ -99,11 +106,17 @@ final class LinkCardMemo {
 
     private func load(from store: any LinkPreviewStoring) {
         let cutoff = now().addingTimeInterval(-WebLinks.resolvedTTL)
-        Task.detached(priority: .utility) { [weak self] in
+        Task.detached(priority: .utility) { [weak self, images] in
             let rows = (try? store.linkPreviews(since: cutoff)) ?? []
             try? store.deleteLinkPreviews(before: cutoff)
+            images?.removeAll(before: cutoff)
             await self?.finishLoad(rows)
         }
+    }
+
+    private static func imageURL(of state: LinkCard.Web.State?) -> URL? {
+        guard case .resolved(let page) = state else { return nil }
+        return page.imageURL
     }
 
     private func finishLoad(_ rows: [LinkPreviewRow]) {
