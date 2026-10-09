@@ -387,7 +387,7 @@ final class LinkWebCardView: UIView {
         if case .preview(let page) = content { page.imageURL } else { nil }
     }
 
-    /// The chip's label. Pending UX review together with Android's string.
+    /// The chip's label; Android draws the same string.
     static func chipTitle(host: String) -> String {
         "Show preview · \(host)"
     }
