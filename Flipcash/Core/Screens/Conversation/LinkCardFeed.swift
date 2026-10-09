@@ -33,6 +33,8 @@ final class LinkCardFeed: LinkCardSource {
     private let claims: CashLinkClaimLog
     private let groups: any GroupLinkPresenting
     private let users: any UserLinkPresenting
+    private let webImages: @Sendable (URL) async -> Data?
+    private let cachedWebImages: @Sendable (URL) -> Data?
 
     /// What a group or person link's lookup fetched.
     private enum Fetched {
@@ -74,13 +76,17 @@ final class LinkCardFeed: LinkCardSource {
         memo: LinkCardMemo,
         claims: CashLinkClaimLog,
         groups: any GroupLinkPresenting,
-        users: any UserLinkPresenting
+        users: any UserLinkPresenting,
+        webImages: @escaping @Sendable (URL) async -> Data? = { await WebImageSource.shared.data(for: $0) },
+        cachedWebImages: @escaping @Sendable (URL) -> Data? = { WebImageSource.shared.cached(for: $0) }
     ) {
         self.resolver = resolver
         self.memo = memo
         self.claims = claims
         self.groups = groups
         self.users = users
+        self.webImages = webImages
+        self.cachedWebImages = cachedWebImages
         observeSettledClaims()
         startClaimableRefresh()
     }
@@ -105,7 +111,17 @@ final class LinkCardFeed: LinkCardSource {
             memo.states[card.resolutionKey]
         case .group, .user:
             fetched[card.resolutionKey].map(present)
+        case .web:
+            memo.web(card.resolutionKey).map(LinkCard.State.web)
         }
+    }
+
+    func webImage(for url: URL) async -> Data? {
+        await webImages(url)
+    }
+
+    func cachedWebImage(for url: URL) -> Data? {
+        cachedWebImages(url)
     }
 
     func states(for card: LinkCard) -> AsyncStream<LinkCard.State> {
@@ -156,6 +172,29 @@ final class LinkCardFeed: LinkCardSource {
                 let facts = await resolver.user(user.identity)
                 deliverFetched(facts.map(Fetched.user), missing: .user(.notFound), for: key)
             }
+        case .web(let web):
+            Task { [resolver, memo] in
+                await memo.awaitLoaded()
+                if let held = memo.web(key) {
+                    deliver(.web(held), for: key, generation: generation)
+                    return
+                }
+                // A failure is not remembered, but the card still hears it: a link-only message's
+                // placeholder has to give way to its text bubble.
+                guard let state = await resolver.web(web) else {
+                    deliver(.web(.none), for: key, generation: generation)
+                    return
+                }
+                memo.recordWeb(state, for: key)
+                deliver(.web(state), for: key, generation: generation)
+            }
+        }
+    }
+
+    /// Starts lookups for web cards that are not held yet. Callers decide whether a fetch may happen now.
+    func prefetch(_ cards: [LinkCard]) {
+        for case .web(let web) in cards where known(.web(web)) == nil {
+            ask(.web(web))
         }
     }
 
@@ -166,7 +205,9 @@ final class LinkCardFeed: LinkCardSource {
     // offline.
     private func deliver(_ state: LinkCard.State, for key: String, generation: Int) {
         guard generation == generations[key, default: 0] else { return }
-        if state.isResolved {
+        if case .web = state {
+            // Recorded with its TTL by the web branch of `ask`.
+        } else if state.isResolved {
             memo.record(state, for: key)
         }
         listeners[key]?.values.forEach { $0.yield(state) }

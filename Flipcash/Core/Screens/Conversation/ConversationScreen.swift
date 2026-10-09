@@ -53,6 +53,9 @@ struct ConversationScreen: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var didInitialRead = false
+    /// Set once the saved link previews have loaded or 300 ms have passed, so a chat opened right
+    /// after launch draws its cards from them instead of flashing placeholders (P22d).
+    @State private var waitedForLinkPreviews = false
     /// The chat whose stored draft has been put back, which is also what permits saving: an empty
     /// composer must not delete a stored draft in the frame before the restore runs.
     @State private var restoredDraftID: ConversationID?
@@ -193,6 +196,16 @@ struct ConversationScreen: View {
     ///
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
+    /// DMs and members fetch web previews as they draw; anyone else, or a chat whose record has not
+    /// loaded yet, waits for the chip.
+    private var webPreviewMode: WebLinkPreviewMode {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID),
+              conversationController.isMember(of: conversation)
+        else { return .tapToLoad }
+        return .automatic
+    }
+
     private var gate: ConversationGatePresentation {
         guard let conversationID,
               let conversation = conversationController.conversation(withID: conversationID)
@@ -357,7 +370,7 @@ struct ConversationScreen: View {
         pagesHistory: Bool
     ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
-            items: (coordinator?.items ?? []),
+            items: (waitedForLinkPreviews || sessionContainer.linkCardMemo.isLoaded) ? (coordinator?.items ?? []) : [],
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
@@ -369,6 +382,7 @@ struct ConversationScreen: View {
             ownProfile: ownProfile,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
+            webPreviewMode: webPreviewMode,
             onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
@@ -610,6 +624,10 @@ struct ConversationScreen: View {
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
     private func loads(_ content: some View) -> some View {
         content
+        .task {
+            await sessionContainer.linkCardMemo.awaitLoaded()
+            waitedForLinkPreviews = true
+        }
         .task {
             // The probe runs once per OS build; after that this is a cached read.
             guard let contents = try? await EmojiCatalog.shared.load() else { return }
@@ -1293,6 +1311,9 @@ struct ConversationScreen: View {
             }
             noteCashLinkTap(entropy: cash.entropy, messageStableID: messageStableID)
             openLink(card.url)
+        case .web:
+            // Through the same "You're Leaving Flipcash" path as a tap on the link text.
+            openLink(card.url)
         case .group(let group):
             // A link to the chat already on screen has nowhere to go.
             guard group.chatID != conversationID else { return }
@@ -1345,7 +1366,8 @@ struct ConversationScreen: View {
                 conversationID: id,
                 controller: conversationController,
                 session: session,
-                knownAuthors: sessionContainer.knownAuthors
+                knownAuthors: sessionContainer.knownAuthors,
+                prefetchWebCards: { [linkCardFeed = sessionContainer.linkCardFeed] in linkCardFeed.prefetch($0) }
             )
         }
     }

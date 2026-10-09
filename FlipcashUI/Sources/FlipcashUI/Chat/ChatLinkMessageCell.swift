@@ -46,6 +46,19 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         didSet { bubble.linkCardSource = linkCardSource }
     }
 
+    /// Whether the bubble's web card asks for its page as it draws or waits for its chip. Set
+    /// before ``configure(with:maxWidth:authorImageData:quoteThumbnail:)``.
+    var webPreviewMode: WebLinkPreviewMode {
+        get { bubble.webPreviewMode }
+        set { bubble.webPreviewMode = newValue }
+    }
+
+    /// The transcript's record of the web previews its viewer asked for, shared by every row.
+    var webPreviewRequests: WebPreviewRequests {
+        get { bubble.webPreviewRequests }
+        set { bubble.webPreviewRequests = newValue }
+    }
+
     var bubbleView: LinkableBubbleView { bubble }
 
     /// Forwarded from the bubble's quote panel: the stable id of the row to jump to.
@@ -77,6 +90,12 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         // The transcript self-sizes on invalidation, so a card that grows after its lookup lands
         // re-measures its row instead of spilling over its neighbours until it scrolls back in.
         bubble.onCardHeightChange = { [weak self] in self?.contentView.invalidateIntrinsicContentSize() }
+        // A link-only web row going bare, or back, moves its "Edited" and changes its width.
+        bubble.onBareChange = { [weak self] in
+            guard let self, let shown else { return }
+            applyBareness(for: shown)
+            contentView.invalidateIntrinsicContentSize()
+        }
         // The pills get the widest a bubble can be, so a short message's row stays on one line.
         reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 280)
         reactionRowWidthConstraint.isActive = true
@@ -89,8 +108,14 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    /// The message and author image last configured, for re-applying bareness when it changes.
+    private var shown: ChatMessage?
+    private var authorImageData: Data?
+
     public override func prepareForReuse() {
         super.prepareForReuse()
+        shown = nil
+        authorImageData = nil
         bubble.prepareForReuse()
         reactionRow.prepareForReuse()
     }
@@ -106,18 +131,15 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     ) {
         bubbleMaxWidthConstraint.constant = maxWidth
         bubbleCardWidthConstraint.constant = maxWidth
-        bubbleCardWidthConstraint.isActive = Self.cardFillsWidth(message.linkPreview?.card)
+        bubble.webPreviewBubbleWidth = maxWidth
         bubble.configure(with: message, quoteThumbnail: quoteThumbnail)
+        shown = message
+        self.authorImageData = authorImageData
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = message.sender == .me
         reactionRow.configure(pills: message.reactions, canReact: message.canReact)
-        // A card row has no bubble to hold "Edited", so it goes on the metadata line with the receipt.
-        updateColumn(
-            for: message,
-            authorImageData: authorImageData,
-            showsEditedMarker: message.rendersAsBareLinkCard && ChatBubbleView.showsEditedMarker(for: message)
-        )
+        applyBareness(for: message)
         // A failed row's whole column is the retry target (ChatColumnCell); disable the bubble's own
         // text-view link taps so a tap on a failed message retries the send rather than opening the URL.
         bubble.isUserInteractionEnabled = !message.isFailed
@@ -125,12 +147,27 @@ public final class ChatLinkMessageCell: ChatColumnCell {
 }
 
 extension ChatLinkMessageCell {
+    /// Sets what follows from whether the bubble draws its card alone: a bare card runs to the full
+    /// width, and with no bubble to hold "Edited" it goes on the metadata line with the receipt.
+    private func applyBareness(for message: ChatMessage) {
+        let bare = bubble.isBare
+        bubbleCardWidthConstraint.isActive = bare && Self.cardFillsWidth(message.linkPreview?.card)
+        updateColumn(
+            for: message,
+            authorImageData: authorImageData,
+            showsEditedMarker: bare && ChatBubbleView.showsEditedMarker(for: message)
+        )
+    }
+
     /// Whether `card` runs to the bubble's full width. A person card hugs its content like a text
     /// bubble and gives its own width instead.
     static func cardFillsWidth(_ card: LinkCard?) -> Bool {
         switch card {
         case .cash, .token, .group: true
         case .user, nil:            false
+        // In its text bubble it widens only while a preview draws, which the card's own width
+        // constraint handles; bare, it fills the width like the other cards.
+        case .web:                  true
         }
     }
 }

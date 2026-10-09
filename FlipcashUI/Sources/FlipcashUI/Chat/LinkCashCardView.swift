@@ -79,6 +79,11 @@ final class LinkCashCardView: UIView {
     private let tokenLabel = UILabel()
     private let amountLabel = UILabel()
     private let stubPill = UIView()
+
+    /// Whether `point`, in this view's coordinates, is on the "Claim" pill.
+    func hasButton(at point: CGPoint) -> Bool {
+        !stubPill.isHidden && stubPill.convert(stubPill.bounds, to: self).contains(point)
+    }
     private let stubLabel = UILabel()
     private let tornLabel = UILabel()
 

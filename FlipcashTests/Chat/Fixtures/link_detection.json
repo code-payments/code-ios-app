@@ -1,6 +1,6 @@
 {
   "algorithm": "link-detection",
-  "note": "Chat link spans and card eligibility. Offsets are UTF-16 code units, half-open. `url` is the resolved URL (https:// prepended when the match had no scheme). `card` is null or the first card-eligible Flipcash link in the message, with its jump wrapper already unwrapped. A match whose following character is non-ASCII is rejected. Behavior parity, not a computation with an external reference.",
+  "note": "Chat link spans and card eligibility. Offsets are UTF-16 code units, half-open. `url` is the resolved URL (https:// prepended when the match had no scheme). `card` is null or the first card-eligible Flipcash link in the message, with its jump wrapper already unwrapped. `card` is null, the first Flipcash card in the message, or else the first https span whose host is outside cardHosts and eligible (see link_metadata.json hosts), with kind `web`. A card-host span that does not classify never becomes a web card, except on flipcash.com and www.flipcash.com (P25): there it is a web card unless its first path segment is login, verify, c or cash, or it has a fragment. A match whose following character is non-ASCII is rejected. Behavior parity, not a computation with an external reference.",
   "cardHosts": [
     "app.flipcash.com",
     "send.flipcash.com",
@@ -72,8 +72,11 @@
           "url": "https://flipcash.com/download"
         }
       ],
-      "card": null,
-      "note": "No scheme: still a link, resolved with https://. A reserved path, so no card."
+      "card": {
+        "kind": "web",
+        "url": "https://flipcash.com/download"
+      },
+      "note": "No scheme: still a link, resolved with https://. A marketing-host page, so a web card (P25)."
     },
     {
       "name": "app-host-cash-link",
@@ -124,8 +127,11 @@
           "url": "https://send.flipcash.com.evil.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
         }
       ],
-      "card": null,
-      "note": "A link, because it is one. Not a card: the host is not in cardHosts, and both route classifiers match on path alone, so nothing else would have stopped it."
+      "card": {
+        "kind": "web",
+        "url": "https://send.flipcash.com.evil.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "Not a Flipcash card: the host is not in cardHosts. It is an outside link, so it gets the web card any outside link gets, and that card shows send.flipcash.com.evil.com as its domain. Showing the real host is the defence."
     },
     {
       "name": "login-link",
@@ -163,8 +169,11 @@
           "url": "https://flipcash.com/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b"
         }
       ],
-      "card": null,
-      "note": "Card-eligible per the spec, but not in phase 1 (open decision 4). Span only."
+      "card": {
+        "kind": "user",
+        "url": "https://flipcash.com/2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b"
+      },
+      "note": "A person card by user id. Shipped on both apps ahead of this fixture."
     },
     {
       "name": "token-link",
@@ -242,7 +251,10 @@
           "url": "https://flipcash.com/download"
         }
       ],
-      "card": null,
+      "card": {
+        "kind": "web",
+        "url": "https://flipcash.com/download"
+      },
       "note": "A run of dropped characters is dropped whole: . , ; ! and a double quote."
     },
     {
@@ -272,8 +284,11 @@
           "url": "https://en.wikipedia.org/wiki/Foo_(bar)"
         }
       ],
-      "card": null,
-      "note": "A closing bracket the link opened is part of it. The full stop after it is not."
+      "card": {
+        "kind": "web",
+        "url": "https://en.wikipedia.org/wiki/Foo_(bar)"
+      },
+      "note": "A closing bracket the link opened is part of it. The full stop after it is not. An outside https link, so a web card."
     },
     {
       "name": "trailing-question-mark-kept",
@@ -285,7 +300,10 @@
           "url": "https://flipcash.com/download?"
         }
       ],
-      "card": null,
+      "card": {
+        "kind": "web",
+        "url": "https://flipcash.com/download?"
+      },
       "note": "? and : stay in the link, because NSDataDetector keeps them (it reads a trailing ? as an empty query). Pinned so neither side drops more than the other."
     },
     {
@@ -298,8 +316,366 @@
           "url": "https://flipcash.com/download"
         }
       ],
-      "card": null,
+      "card": {
+        "kind": "web",
+        "url": "https://flipcash.com/download"
+      },
       "note": "A single quote is dropped only when one opened the link. Unopened, it stays, as NSDataDetector keeps it."
+    },
+    {
+      "name": "bold-wrapped-link",
+      "text": "*example.com/foo*",
+      "spans": [
+        {
+          "start": 1,
+          "end": 16,
+          "url": "https://example.com/foo"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://example.com/foo"
+      },
+      "note": "Formatting markers follow the single-quote rule: a trailing * is dropped when a * directly precedes the link, so *example.com/foo* is bold around a whole link (text-format spec, decision 1)."
+    },
+    {
+      "name": "italic-wrapped-link",
+      "text": "_https://flipcash.com/download_",
+      "spans": [
+        {
+          "start": 1,
+          "end": 30,
+          "url": "https://flipcash.com/download"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://flipcash.com/download"
+      },
+      "note": "The same for _."
+    },
+    {
+      "name": "strike-wrapped-link",
+      "text": "~flipcash.com/download~",
+      "spans": [
+        {
+          "start": 1,
+          "end": 22,
+          "url": "https://flipcash.com/download"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://flipcash.com/download"
+      },
+      "note": "The same for ~."
+    },
+    {
+      "name": "bold-wrapped-cash-link",
+      "text": "*https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3*",
+      "spans": [
+        {
+          "start": 1,
+          "end": 55,
+          "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "Trimming the marker keeps it out of the entropy, so the card still forms. The bold around a card link is then not applied (text-format spec, decision 4)."
+    },
+    {
+      "name": "unopened-trailing-marker-kept",
+      "text": "see example.com/foo* now",
+      "spans": [
+        {
+          "start": 4,
+          "end": 20,
+          "url": "https://example.com/foo*"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://example.com/foo*"
+      },
+      "note": "With no marker before the link, a trailing * stays, as it does for a single quote. Patterns.WEB_URL and NSDataDetector both keep * _ and ~ at the end of a path (NSDataDetector checked on macOS 27)."
+    },
+    {
+      "name": "mismatched-marker-kept",
+      "text": "_example.com/foo*",
+      "spans": [
+        {
+          "start": 1,
+          "end": 17,
+          "url": "https://example.com/foo*"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://example.com/foo*"
+      },
+      "note": "Only the marker that opened is dropped. A _ before the link does not drop a trailing *."
+    },
+    {
+      "name": "bare-domain-trailing-underscore",
+      "text": "_example.com_",
+      "spans": [],
+      "card": null,
+      "note": "A bare domain glued to a trailing _ is not a link. NSDataDetector returns nothing here (macOS 27); Android rejects the match to agree (text-format spec, decision 1)."
+    },
+    {
+      "name": "bare-domain-underscore-no-opener",
+      "text": "see example.com_ now",
+      "spans": [],
+      "card": null,
+      "note": "The same without an opening _."
+    },
+    {
+      "name": "inner-marker-kept",
+      "text": "*example.com/a*b*",
+      "spans": [
+        {
+          "start": 1,
+          "end": 16,
+          "url": "https://example.com/a*b"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://example.com/a*b"
+      },
+      "note": "Only the last character is trimmed; a marker inside the path stays."
+    },
+    {
+      "name": "group-invite",
+      "text": "https://app.flipcash.com/chat/6f1c2a9e-3b7d-4e21-8c4a-0d9e7f6b5a13",
+      "spans": [
+        {
+          "start": 0,
+          "end": 66,
+          "url": "https://app.flipcash.com/chat/6f1c2a9e-3b7d-4e21-8c4a-0d9e7f6b5a13"
+        }
+      ],
+      "card": {
+        "kind": "group",
+        "url": "https://app.flipcash.com/chat/6f1c2a9e-3b7d-4e21-8c4a-0d9e7f6b5a13"
+      },
+      "note": "A bare /chat/<uuid> on a card host is a group card."
+    },
+    {
+      "name": "web-link",
+      "text": "read this https://www.example.com/articles/42?ref=chat",
+      "spans": [
+        {
+          "start": 10,
+          "end": 54,
+          "url": "https://www.example.com/articles/42?ref=chat"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://www.example.com/articles/42?ref=chat"
+      },
+      "note": "An outside https link is a web card. The card draws under the text; the span stays."
+    },
+    {
+      "name": "web-link-bare-domain",
+      "text": "example.com/x",
+      "spans": [
+        {
+          "start": 0,
+          "end": 13,
+          "url": "https://example.com/x"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://example.com/x"
+      },
+      "note": "A bare domain resolves with https://, so it can be a web card."
+    },
+    {
+      "name": "http-link-no-card",
+      "text": "http://example.com/x",
+      "spans": [
+        {
+          "start": 0,
+          "end": 20,
+          "url": "http://example.com/x"
+        }
+      ],
+      "card": null,
+      "note": "Neither app permits cleartext traffic. A link, not a card."
+    },
+    {
+      "name": "flipcash-card-beats-earlier-web-link",
+      "text": "https://www.example.com/articles/42?ref=chat and https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 44,
+          "url": "https://www.example.com/articles/42?ref=chat"
+        },
+        {
+          "start": 49,
+          "end": 103,
+          "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": {
+        "kind": "cash",
+        "url": "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+      },
+      "note": "A Flipcash card wins over a web link, wherever the web link sits."
+    },
+    {
+      "name": "flipcash-host-never-falls-through",
+      "text": "https://app.flipcash.com/download",
+      "spans": [
+        {
+          "start": 0,
+          "end": 33,
+          "url": "https://app.flipcash.com/download"
+        }
+      ],
+      "card": null,
+      "note": "An app., send. or jump. link that does not classify is never a web card."
+    },
+    {
+      "name": "marketing-host-falls-through",
+      "text": "https://flipcash.com/download",
+      "spans": [
+        {
+          "start": 0,
+          "end": 29,
+          "url": "https://flipcash.com/download"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://flipcash.com/download"
+      },
+      "note": "P25: flipcash.com and www.flipcash.com pages that do not classify are web cards."
+    },
+    {
+      "name": "www-marketing-root",
+      "text": "https://www.flipcash.com/",
+      "spans": [
+        {
+          "start": 0,
+          "end": 25,
+          "url": "https://www.flipcash.com/"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://www.flipcash.com/"
+      },
+      "note": "P25: the marketing root is a web card."
+    },
+    {
+      "name": "bare-marketing-root",
+      "text": "flipcash.com",
+      "spans": [
+        {
+          "start": 0,
+          "end": 12,
+          "url": "https://flipcash.com"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://flipcash.com"
+      },
+      "note": "P25: a bare domain gets https:// and becomes a web card."
+    },
+    {
+      "name": "apex-login-path-never-web",
+      "text": "https://flipcash.com/login/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 51,
+          "url": "https://flipcash.com/login/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": null,
+      "note": "P25: a first path segment of login, verify, c or cash is never fetched; the path can carry the account seed."
+    },
+    {
+      "name": "www-verify-never-web",
+      "text": "https://www.flipcash.com/verify?email=a%40b.com&code=123456",
+      "spans": [
+        {
+          "start": 0,
+          "end": 59,
+          "url": "https://www.flipcash.com/verify?email=a%40b.com&code=123456"
+        }
+      ],
+      "card": null,
+      "note": "P25: a verification code in the query is never fetched."
+    },
+    {
+      "name": "apex-fragment-never-web",
+      "text": "https://flipcash.com/#/e=KNi8pQr1n5hRU65vKJGge3",
+      "spans": [
+        {
+          "start": 0,
+          "end": 47,
+          "url": "https://flipcash.com/#/e=KNi8pQr1n5hRU65vKJGge3"
+        }
+      ],
+      "card": null,
+      "note": "P25: a marketing-host link with a fragment is never a web card."
+    },
+    {
+      "name": "login-then-web",
+      "text": "https://app.flipcash.com/login/#/e=KNi8pQr1n5hRU65vKJGge3 https://www.example.com/articles/42?ref=chat",
+      "spans": [
+        {
+          "start": 0,
+          "end": 57,
+          "url": "https://app.flipcash.com/login/#/e=KNi8pQr1n5hRU65vKJGge3"
+        },
+        {
+          "start": 58,
+          "end": 102,
+          "url": "https://www.example.com/articles/42?ref=chat"
+        }
+      ],
+      "card": {
+        "kind": "web",
+        "url": "https://www.example.com/articles/42?ref=chat"
+      },
+      "note": "The login link stays text. The next link is judged on its own."
+    },
+    {
+      "name": "jump-wrapped-outside-link",
+      "text": "https://jump.flipcash.com/#source=https%3A%2F%2Fexample.com%2Fx",
+      "spans": [
+        {
+          "start": 0,
+          "end": 63,
+          "url": "https://jump.flipcash.com/#source=https%3A%2F%2Fexample.com%2Fx"
+        }
+      ],
+      "card": null,
+      "note": "A jump wrapper never becomes a web card, whatever it wraps."
+    },
+    {
+      "name": "ip-literal-no-card",
+      "text": "https://192.168.1.10/admin",
+      "spans": [
+        {
+          "start": 0,
+          "end": 26,
+          "url": "https://192.168.1.10/admin"
+        }
+      ],
+      "card": null,
+      "note": "An IP literal host is never fetched."
     }
   ]
 }

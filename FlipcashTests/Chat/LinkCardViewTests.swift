@@ -174,4 +174,170 @@ struct LinkCardViewTests {
         view.configure(with: Self.cashCard("abc"), source: nil)
         #expect(!isShimmering(view))
     }
+
+    // MARK: - Web
+
+    private static func webCard(_ url: String = "https://example.com/a") -> LinkCard {
+        .web(LinkCard.Web(url: URL(string: url)!, range: NSRange(location: 0, length: (url as NSString).length)))
+    }
+
+    private static let page = LinkCard.Web.Resolved(
+        title: "Example Title", description: "About it", imageURL: nil, host: "example.com"
+    )
+
+    private func web(_ view: LinkCardView) -> LinkWebCardView? {
+        view.descendants(of: LinkWebCardView.self).first
+    }
+
+    @Test("A resolved web card shows its title and host")
+    func web_resolved_showsTitleAndHost() async {
+        let source = Source()
+        let card = Self.webCard()
+        source.answers[card] = .web(.resolved(Self.page))
+        let view = LinkCardView()
+        view.webPreviewMode = .automatic
+        view.configure(with: card, source: source)
+
+        #expect(web(view)?.content == .preview(Self.page))
+        #expect(web(view)?.titleLabel.text == "Example Title")
+        #expect(web(view)?.hostLabel.text == "example.com")
+        #expect(view.drawsWebPreview)
+    }
+
+    @Test("A web card with nothing to show draws nothing")
+    func web_none_drawsNothing() async {
+        let source = Source()
+        let card = Self.webCard()
+        source.answers[card] = .web(.none)
+        let view = LinkCardView()
+        view.webPreviewMode = .automatic
+        view.configure(with: card, source: source)
+
+        #expect(web(view)?.content == .nothing)
+        #expect(!view.drawsWebPreview)
+    }
+
+    @Test("Tap to load asks for nothing until the chip is tapped, then asks once")
+    func web_tapToLoad_asksOnlyAfterChip() async {
+        let source = Source()
+        let card = Self.webCard()
+        let view = LinkCardView()
+        view.webPreviewMode = .tapToLoad
+        view.configure(with: card, source: source)
+
+        #expect(source.asked.isEmpty)
+        #expect(web(view)?.content == .chip(host: "example.com"))
+
+        web(view)?.onShowPreview?()
+        #expect(await settle { source.asked.count == 1 })
+        source.yield(.web(.resolved(Self.page)), for: card)
+        #expect(await settle { web(view)?.content == .preview(Self.page) })
+        #expect(source.asked == [card])
+    }
+
+    @Test("A preview asked for through the chip stays asked for when the row is recycled")
+    func web_tapToLoad_rememberedAcrossReuse() async {
+        let source = Source()
+        let card = Self.webCard()
+        let requests = WebPreviewRequests()
+        let view = LinkCardView()
+        view.webPreviewMode = .tapToLoad
+        view.webPreviewRequests = requests
+        view.configure(with: card, source: source)
+        web(view)?.onShowPreview?()
+
+        let recycled = LinkCardView()
+        recycled.webPreviewMode = .tapToLoad
+        recycled.webPreviewRequests = requests
+        recycled.configure(with: card, source: source)
+        #expect(web(recycled)?.content != .chip(host: "example.com"))
+        #expect(await settle { source.asked.count == 2 })
+    }
+
+    @Test("The chip strips a leading www. from the host")
+    func web_chip_stripsWWW() async {
+        let view = LinkCardView()
+        view.webPreviewMode = .tapToLoad
+        view.configure(with: Self.webCard("https://www.example.com/a"), source: Source())
+        #expect(web(view)?.content == .chip(host: "example.com"))
+    }
+
+    // MARK: - Web image slot
+
+    private static let pageWithImage = LinkCard.Web.Resolved(
+        title: "Example Title", description: nil,
+        imageURL: URL(string: "https://example.com/og.png")!, host: "example.com"
+    )
+
+    /// A card whose image load waits until the test hands it bytes, or nil for a failure.
+    private func imageCard() -> (LinkWebCardView, AsyncStream<Data?>.Continuation) {
+        let (stream, continuation) = AsyncStream<Data?>.makeStream()
+        let view = LinkWebCardView(frame: CGRect(x: 0, y: 0, width: 240, height: 0))
+        view.loadImage = { _ in
+            for await data in stream { return data }
+            return nil
+        }
+        return (view, continuation)
+    }
+
+    private static let pixel: Data = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 1))
+        .pngData { $0.fill(CGRect(x: 0, y: 0, width: 2, height: 1)) }
+
+    @Test("A preview with an image holds the image's slot while it loads")
+    func webImage_loading_holdsTheSlot() {
+        let (view, _) = imageCard()
+        view.configure(with: .preview(Self.pageWithImage))
+        #expect(view.imageSlot == .loading)
+    }
+
+    @Test("A loaded image fills the slot it held")
+    func webImage_loaded_fillsTheSlot() async {
+        let (view, continuation) = imageCard()
+        view.configure(with: .preview(Self.pageWithImage))
+        continuation.yield(Self.pixel)
+        for _ in 0..<50 where view.imageSlot == .loading { await Task.yield() }
+        guard case .loaded = view.imageSlot else {
+            Issue.record("expected a loaded image, got \(view.imageSlot)")
+            return
+        }
+    }
+
+    @Test("A failed image drops its slot and reports the height change")
+    func webImage_failed_dropsTheSlot() async {
+        let (view, continuation) = imageCard()
+        var changes = 0
+        view.onImageChange = { changes += 1 }
+        view.configure(with: .preview(Self.pageWithImage))
+        continuation.yield(nil)
+        for _ in 0..<50 where view.imageSlot == .loading { await Task.yield() }
+        #expect(view.imageSlot == .none)
+        #expect(changes == 1)
+    }
+
+    @Test("An image already in memory fills the slot on the first frame (P22a)")
+    func webImage_cached_drawsOnFirstFrame() {
+        let (view, _) = imageCard()
+        view.cachedImage = { $0 == Self.pageWithImage.imageURL ? Self.pixel : nil }
+        view.configure(with: .preview(Self.pageWithImage))
+        guard case .loaded = view.imageSlot else {
+            Issue.record("expected the cached image on the first frame, got \(view.imageSlot)")
+            return
+        }
+    }
+
+    @Test("An image not in memory still holds the slot while it loads")
+    func webImage_cacheMiss_holdsTheSlot() {
+        let (view, _) = imageCard()
+        view.cachedImage = { _ in nil }
+        view.configure(with: .preview(Self.pageWithImage))
+        #expect(view.imageSlot == .loading)
+    }
+
+    @Test("A preview with no image takes no slot")
+    func webImage_absent_takesNoSlot() {
+        let (view, _) = imageCard()
+        view.configure(with: .preview(Self.page))
+        #expect(view.imageSlot == .none)
+    }
 }
+

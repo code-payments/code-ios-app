@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import UIKit
 import FlipcashCore
 import FlipcashUI
 
@@ -37,6 +38,10 @@ final class ConversationLoadCoordinator {
     let claimReplies: CashLinkClaimReplies
 
     private let controller: ConversationController
+    /// Starts lookups for web cards; called only while ``mayPrefetchWebCards(_:)`` holds.
+    private let prefetchWebCards: @MainActor ([LinkCard]) -> Void
+    /// Whether the app is in the foreground. A seam for tests.
+    private let isAppActive: @MainActor () -> Bool
     private let session: Session
     /// Names senders the chat's own roster leaves out, from what the device already knows about
     /// them. Observed like every other input, so a reload re-attributes the window in place.
@@ -77,10 +82,14 @@ final class ConversationLoadCoordinator {
         conversationID: ConversationID,
         controller: ConversationController,
         session: Session,
-        knownAuthors: KnownAuthorDirectory
+        knownAuthors: KnownAuthorDirectory,
+        prefetchWebCards: @escaping @MainActor ([LinkCard]) -> Void = { _ in },
+        isAppActive: @escaping @MainActor () -> Bool = { UIApplication.shared.applicationState == .active }
     ) {
         self.conversationID = conversationID
         self.controller = controller
+        self.prefetchWebCards = prefetchWebCards
+        self.isAppActive = isAppActive
         self.session = session
         self.knownAuthors = knownAuthors
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
@@ -154,12 +163,33 @@ final class ConversationLoadCoordinator {
         let authors = Self.authors(from: attribution.members)
         mapTask?.cancel()
         mapTask = Task { [weak self] in
-            let mapped = await Task.detached { Self.map(inputs, authors: authors) }.value
+            let (mapped, webCards) = await Task.detached {
+                (Self.map(inputs, authors: authors), ChatItem.webCards(in: inputs.messages, webLinks: inputs.webLinks))
+            }.value
             guard let self, !Task.isCancelled else { return }
             self.items = mapped
+            if !webCards.isEmpty, self.mayPrefetchWebCards(inputs) {
+                self.prefetchWebCards(webCards)
+            }
             self.attributedMembers = attribution.members
             self.unattributedSenders = attribution.unnamed
         }
+    }
+
+    // A chat whose record has not landed yet does not prefetch; its cards still resolve when drawn.
+    private func mayPrefetchWebCards(_ inputs: Inputs) -> Bool {
+        guard let conversation = inputs.conversation else { return false }
+        return Self.mayPrefetchWebCards(
+            isMember: controller.isMember(of: conversation),
+            isVisible: controller.visibleConversationID == conversationID,
+            isAppActive: isAppActive()
+        )
+    }
+
+    /// Whether a page's web cards fetch ahead of being drawn: only for the chat on screen, in the
+    /// foreground, and in a group only for a member (a DM always counts as membership).
+    static func mayPrefetchWebCards(isMember: Bool, isVisible: Bool, isAppActive: Bool) -> Bool {
+        isMember && isVisible && isAppActive
     }
 
     // Maps on the main thread and lands the whole result at once, rather than through `refresh`'s
@@ -269,7 +299,8 @@ final class ConversationLoadCoordinator {
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory,
-            unreadBoundary: unreadBoundary(in: window)
+            unreadBoundary: unreadBoundary(in: window),
+            webLinks: BetaFlags.shared.hasEnabled(.webLinkPreviews)
         )
     }
 
@@ -292,7 +323,7 @@ final class ConversationLoadCoordinator {
     }
 
     nonisolated private static func map(_ inputs: Inputs, authors: [UserID: ChatAuthor]) -> [ChatItem] {
-        let classifier = LinkCardClassifier()
+        let classifier = LinkCardClassifier(webLinks: inputs.webLinks)
         var items = ChatItem.from(
             inputs.messages,
             selfUserID: inputs.selfUserID,
@@ -435,6 +466,8 @@ final class ConversationLoadCoordinator {
         var headsHistory: Bool
         /// Where the divider goes; `.none` draws none.
         var unreadBoundary: UnreadBoundary
+        /// Whether outside links become web cards; the `webLinkPreviews` flag, read live.
+        var webLinks: Bool = true
 
         struct Branding: Equatable, Sendable {
             var token: String

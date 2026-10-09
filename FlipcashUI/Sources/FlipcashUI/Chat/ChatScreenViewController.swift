@@ -218,6 +218,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.linkCardSource = newValue }
     }
 
+    /// ``ChatViewController/webPreviewMode``.
+    public var webPreviewMode: WebLinkPreviewMode {
+        get { transcript.webPreviewMode }
+        set { transcript.webPreviewMode = newValue }
+    }
+
     /// Where a photo row gets its download URL — see ``ChatViewController/mediaURLResolver``.
     public var mediaURLResolver: ChatMediaURLResolver? {
         get { transcript.mediaURLResolver }
