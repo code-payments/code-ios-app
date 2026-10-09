@@ -148,18 +148,7 @@ extension EncryptedChatClient: ConversationMessaging {
     func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: UploadedPhoto, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
         try await refetchingOnRefusal(conversationID) {
             let seal = try await sealForSending(conversationID, owner: owner)
-            switch ChatPhotoSend.matching(photo, seal: seal, conversationID: conversationID) {
-            case .plain(let blobID):
-                return try await client.sendMediaMessage(owner: owner, conversationID: conversationID, blobID: blobID, caption: caption, repliedTo: repliedTo, clientMessageID: clientMessageID)
-            case .sealed(let sealed, let seal):
-                return try await client.sendSealedMediaMessage(owner: owner, conversationID: conversationID, photo: sealed, caption: caption, repliedTo: repliedTo, seal: seal, clientMessageID: clientMessageID)
-            case .mismatch:
-                logger.error("Photo was uploaded for a different encryption choice", metadata: [
-                    "conversationID": "\(conversationID)",
-                    "sealed": "\(seal != nil)",
-                ])
-                throw ErrorSendMessage.encryptionFailed
-            }
+            return try await client.sendMediaMessage(owner: owner, conversationID: conversationID, photo: photo, caption: caption, repliedTo: repliedTo, seal: seal, clientMessageID: clientMessageID)
         }
     }
 
