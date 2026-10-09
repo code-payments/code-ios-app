@@ -8,11 +8,12 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import FlipcashCore
 
 private let logger = Logger(label: "flipcash.chat-photo-staging")
 
-/// Turns photos picked from the library into composer chips.
+/// Turns photos picked from the library, or dropped on the composer, into composer chips.
 enum ChatPhotoStaging {
 
     /// Loads `items` one at a time in pick order and stages each photo that loads, stopping at the
@@ -62,6 +63,37 @@ enum ChatPhotoStaging {
             await stage(rest, into: composer, uploader: uploader, load: load)
         }
         return (handOff, remainder)
+    }
+
+    /// Returns the image `provider` carries, or `nil` when it carries none, cannot be loaded or
+    /// cannot be decoded. Dropped images take the same decode as picked ones, so a full-size
+    /// screenshot or photo does not sit in memory as an undecoded bitmap.
+    static func loadImage(_ provider: NSItemProvider) async -> UIImage? {
+        guard provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else { return nil }
+        let data: Data? = await withCheckedContinuation { continuation in
+            _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
+                if let error {
+                    logger.warning("Dropped image failed to load", metadata: ["error": "\(error)"])
+                }
+                continuation.resume(returning: data)
+            }
+        }
+        guard let data else { return nil }
+        guard let image = await decode(data) else {
+            logger.warning("Dropped image failed to decode", metadata: ["bytes": "\(data.count)"])
+            return nil
+        }
+        return image
+    }
+
+    /// Stages the images `providers` carry, in drop order, stopping at a full composer.
+    @discardableResult
+    static func stageDropped(
+        _ providers: [NSItemProvider],
+        into composer: ComposerModel,
+        uploader: ChatMediaUploader
+    ) async -> [ComposerChip] {
+        await stage(providers, into: composer, uploader: uploader, load: loadImage(_:))
     }
 
     /// Returns the photo `item` holds, or `nil` when it cannot be loaded or decoded.
