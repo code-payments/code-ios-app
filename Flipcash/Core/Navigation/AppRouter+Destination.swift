@@ -130,6 +130,9 @@ extension AppRouter {
         case editGroupCover(ConversationID)
         /// Setting or clearing a group's description, pushed from the Description card of `editGroup`.
         case editGroupDescription(ConversationID)
+        /// Replacing a group's join or chat minimum balance, pushed from a Balance Requirements row
+        /// of `editGroup`.
+        case editGroupBalanceRequirement(ConversationID, role: GroupBalanceRole)
         /// The list of archived chats, pushed from the Archived row on the Chats tab.
         case archivedChats
 
@@ -157,7 +160,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
                  .tipConversation, .tipConversationWithKeyboard, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats:
+                 .editGroupDescription, .editGroupBalanceRequirement, .archivedChats:
                 return .tips
             }
         }
@@ -216,6 +219,7 @@ extension AppRouter {
             case .editGroupPicture:             "editGroupPicture"
             case .editGroupCover:               "editGroupCover"
             case .editGroupDescription:         "editGroupDescription"
+            case .editGroupBalanceRequirement:  "editGroupBalanceRequirement"
             case .archivedChats:                "archivedChats"
             }
         }
@@ -246,6 +250,8 @@ extension AppRouter {
                  .editGroupCover(let conversationID),
                  .editGroupDescription(let conversationID):
                 return conversationID.description
+            case .editGroupBalanceRequirement(let conversationID, let role):
+                return "\(conversationID.description) \(role)"
             case .userProfile(let userID, _):
                 return userID.uuidString
             case .username(let username):

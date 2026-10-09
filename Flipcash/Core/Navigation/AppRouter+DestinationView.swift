@@ -16,6 +16,7 @@ struct DestinationView: View {
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(ConversationController.self) private var conversationController
+    @Environment(RatesController.self) private var ratesController
 
     let destination: AppRouter.Destination
 
@@ -270,6 +271,28 @@ struct DestinationView: View {
                         description: edit,
                         pictureBlobID: nil,
                         coverPictureBlobID: nil
+                    )
+                    conversationController.applyEdit(conversation)
+                }
+            ))
+            .id(conversationID)
+
+        case .editGroupBalanceRequirement(let conversationID, let role):
+            // Seeded here, like `.editGroupDescription`, so the keypad opens on the amount it is
+            // about to replace.
+            let editor = SessionGroupChatEditor(session: sessionContainer.session, flipClient: container.flipClient)
+            let conversationController = conversationController
+            let requirements = GroupBalanceRequirements(conversationController.conversation(withID: conversationID)?.rules)
+            EditGroupBalanceRequirementScreen(model: EditGroupBalanceRequirementModel(
+                role: role,
+                current: role == .join ? requirements?.join : requirements?.chat,
+                currency: ratesController.balanceCurrency,
+                rates: ratesController.cachedRates,
+                saving: { requirement in
+                    let conversation = try await editor.setMinimumBalance(
+                        conversationID: conversationID,
+                        role: role,
+                        requirement: requirement
                     )
                     conversationController.applyEdit(conversation)
                 }
