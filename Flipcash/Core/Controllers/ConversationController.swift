@@ -1571,7 +1571,7 @@ final class ConversationController {
 
     /// Counterpart name shown when neither the synced contacts, the feed, nor a
     /// shared phone number provides one.
-    nonisolated static let fallbackCounterpartName = "Flipcash User"
+    nonisolated static let fallbackCounterpartName = Conversation.fallbackCounterpartName
 
     /// The counterpart's name for a conversation: the synced contact's
     /// address-book name, else the server-provided member name from the feed,
@@ -1579,20 +1579,7 @@ final class ConversationController {
     /// Tip DMs skip the contact lookup — their derived ids can never match a
     /// contact's, so the directory scan is a guaranteed miss.
     func displayName(for conversation: Conversation) -> String {
-        // Group chats are named by their server-set title, not a counterpart.
-        if let title = conversation.title, !title.isEmpty {
-            return title
-        }
-        if conversation.type != .tipDm, let contactName = contactName(for: conversation.id) {
-            return contactName
-        }
-        guard let counterpart = conversation.counterpart(excluding: selfUserID) else {
-            return Self.fallbackCounterpartName
-        }
-        if !counterpart.displayName.isEmpty {
-            return counterpart.displayName
-        }
-        return counterpart.formattedPhoneNumber ?? Self.fallbackCounterpartName
+        conversation.displayName(selfUserID: selfUserID, contactName: contactName(for:))
     }
 
     /// The feed row's last-message line: the typing indicator while the

@@ -125,17 +125,7 @@ enum ChatPhotoStaging {
     /// layer's contents, and that rotation animates with the cell when a sent photo's bubble lands.
     @concurrent
     nonisolated static func decode(_ data: Data) async -> UIImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-              let width = properties[kCGImagePropertyPixelWidth] as? Int,
-              let height = properties[kCGImagePropertyPixelHeight] as? Int,
-              let upright = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                  kCGImageSourceCreateThumbnailFromImageAlways: true,
-                  kCGImageSourceCreateThumbnailWithTransform: true,
-                  kCGImageSourceThumbnailMaxPixelSize: max(width, height),
-              ] as CFDictionary) else {
-            return nil
-        }
+        guard let upright = await ChatPhotoDecoder.decode(data) else { return nil }
         return UIImage(cgImage: upright)
     }
 }

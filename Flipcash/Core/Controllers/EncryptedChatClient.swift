@@ -148,7 +148,7 @@ extension EncryptedChatClient: ConversationMessaging {
     func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: UploadedPhoto, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
         try await refetchingOnRefusal(conversationID) {
             let seal = try await sealForSending(conversationID, owner: owner)
-            switch Self.photoSend(photo, seal: seal, conversationID: conversationID) {
+            switch ChatPhotoSend.matching(photo, seal: seal, conversationID: conversationID) {
             case .plain(let blobID):
                 return try await client.sendMediaMessage(owner: owner, conversationID: conversationID, blobID: blobID, caption: caption, repliedTo: repliedTo, clientMessageID: clientMessageID)
             case .sealed(let sealed, let seal):
@@ -160,38 +160,6 @@ extension EncryptedChatClient: ConversationMessaging {
                 ])
                 throw ErrorSendMessage.encryptionFailed
             }
-        }
-    }
-
-    /// How an uploaded photo goes out given the chat's current seal.
-    enum PhotoSend: Equatable {
-        /// Plaintext, into a chat that doesn't encrypt.
-        case plain(BlobID)
-        /// Sealed, into the chat it was encrypted for.
-        case sealed(SealedPhoto, ChatSeal)
-        /// The photo was uploaded for a different encryption choice than the chat now makes.
-        case mismatch
-
-        static func == (lhs: PhotoSend, rhs: PhotoSend) -> Bool {
-            switch (lhs, rhs) {
-            case (.plain(let a), .plain(let b)):             a == b
-            case (.sealed(let a, _), .sealed(let b, _)):     a == b
-            case (.mismatch, .mismatch):                     true
-            case (.plain, _), (.sealed, _), (.mismatch, _):  false
-            }
-        }
-    }
-
-    /// Matches `photo` to `seal`: a plaintext blob never goes into a chat that encrypts, nor a
-    /// sealed one into a chat that doesn't or a different chat.
-    static func photoSend(_ photo: UploadedPhoto, seal: ChatSeal?, conversationID: ConversationID) -> PhotoSend {
-        switch (photo, seal) {
-        case (.plain(let blobID), nil):
-            .plain(blobID)
-        case (.sealed(let sealed), let seal?) where seal.conversationID == conversationID:
-            .sealed(sealed, seal)
-        case (.plain, _?), (.sealed, _):
-            .mismatch
         }
     }
 

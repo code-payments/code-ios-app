@@ -86,3 +86,5 @@ public final class ChatPhotoSendProgress {
         phase = .failed
     }
 }
+
+extension ChatPhotoSendProgress: ChatPhotoUploadProgress {}
