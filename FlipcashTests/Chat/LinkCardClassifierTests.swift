@@ -209,7 +209,8 @@ import FlipcashCore
         #expect(web.url == next)
     }
 
-    /// A page the website serves is not somebody's handle, whatever case the link is typed in.
+    /// A page the website serves is not somebody's handle, whatever case the link is typed in; it is
+    /// a web card of the page itself (P25).
     @Test(arguments: [
         "https://flipcash.com/download",
         "https://flipcash.com/Privacy",
@@ -217,8 +218,9 @@ import FlipcashCore
         "https://flipcash.com/currencycreator",
         "https://flipcash.com/api",
     ])
-    func aWebsitePageStaysALink(text: String) throws {
-        #expect(try Self.card(for: text) == nil)
+    func aWebsitePageIsAWebCard(text: String) throws {
+        let card = try Self.card(for: text)
+        #expect(card?.kindName == "web")
     }
 
     @Test func theHostAllowlistMatchesTheCrossPlatformFixture() throws {

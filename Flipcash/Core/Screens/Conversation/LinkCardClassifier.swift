@@ -52,13 +52,30 @@ nonisolated struct LinkCardClassifier {
         return links.lazy.compactMap { web($0) }.first
     }
 
-    /// An outside `https` link. A Flipcash host never falls through to here, whatever its path, and
-    /// that includes a jump wrapper around an outside target.
+    /// An outside `https` link, or a marketing page on the apex or `www`. Any other Flipcash host
+    /// never falls through to here, whatever its path, and that includes a jump wrapper around an
+    /// outside target.
     private func web(_ link: DetectedLink) -> LinkCard? {
         guard WebLinks.isFetchable(link.url),
-              let host = WebLinks.host(of: link.url),
-              !Route.flipcashHosts.contains(host) else { return nil }
+              let host = WebLinks.host(of: link.url) else { return nil }
+        if Route.flipcashHosts.contains(host) {
+            guard Self.marketingHosts.contains(host), Self.isMarketingPage(link.url) else { return nil }
+        }
         return .web(LinkCard.Web(url: link.url, range: link.range))
+    }
+
+    /// Flipcash hosts whose unclassified pages are fetched like any outside site.
+    static let marketingHosts: Set<String> = ["flipcash.com", "www.flipcash.com"]
+
+    /// First path segments that are never fetched: the path or query can carry the account seed or
+    /// a verification code.
+    private static let secretPaths: Set<String> = ["login", "verify", "c", "cash"]
+
+    /// A fragment can carry a cash link or seed, so a link with one is never fetched.
+    private static func isMarketingPage(_ url: URL) -> Bool {
+        guard url.fragment(percentEncoded: true) == nil else { return false }
+        let first = url.pathComponents.first { $0 != "/" }?.lowercased()
+        return first.map { !secretPaths.contains($0) } ?? true
     }
 
     /// Single-segment paths the website serves itself, which `Route` would otherwise read as
