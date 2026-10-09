@@ -90,6 +90,13 @@ final class LinkCardFeed: LinkCardSource {
         foregroundTask?.cancel()
     }
 
+    /// The group a resolved invite card names, as its lookup fetched it, or nil before the lookup
+    /// has answered or for any other kind of card.
+    func groupConversation(for card: LinkCard) -> Conversation? {
+        guard case .group(let facts)? = fetched[card.resolutionKey] else { return nil }
+        return facts.conversation
+    }
+
     // MARK: - LinkCardSource -
 
     func known(_ card: LinkCard) -> LinkCard.State? {
