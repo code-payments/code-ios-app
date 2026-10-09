@@ -137,6 +137,16 @@ final class LinkCardMemo {
 }
 
 /// Where web answers persist. `Database` is the real one.
+nonisolated extension LinkCardMemo: WebHomeAnswers {
+    func answer(forHome home: URL) async -> LinkCard.Web.State? {
+        await MainActor.run { web(LinkCard.webKey(home)) }
+    }
+
+    func record(_ state: LinkCard.Web.State, forHome home: URL) async {
+        await MainActor.run { recordWeb(state, for: LinkCard.webKey(home)) }
+    }
+}
+
 nonisolated protocol LinkPreviewStoring: Sendable {
     func linkPreviews(since: Date) throws -> [LinkPreviewRow]
     func upsertLinkPreview(key: String, json: Data, updatedAt: Date) throws

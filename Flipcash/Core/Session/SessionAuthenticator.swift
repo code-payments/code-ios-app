@@ -618,13 +618,14 @@ final class SessionContainer {
         let coinbaseApiKey = (try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()) ?? ""
         let owner = session.ownerKeyPair
 
-        self.linkCardMemo = LinkCardMemo(store: database, images: .shared)
+        let linkCardMemo = LinkCardMemo(store: database, images: .shared)
+        self.linkCardMemo = linkCardMemo
         self.linkCardResolver = LinkCardResolver(
             cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
             mintLookup: LinkCardResolver.mintLookup(reader: client),
             groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
             userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID),
-            webLookup: { [linkMetadataSource] in try await linkMetadataSource.metadata(for: $0) }
+            webLookup: { [linkMetadataSource, linkCardMemo] in try await linkMetadataSource.metadata(for: $0, homes: linkCardMemo) }
         )
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {

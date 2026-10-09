@@ -204,9 +204,12 @@ nonisolated extension LinkCard {
             case .username(let username): "user:handle:\(username.value)"
             }
         // The same key Android persists, so a page reads the same on both.
-        case .web(let web): "web:\(WebLinks.cacheKey(web.url) ?? web.url.absoluteString)"
+        case .web(let web): Self.webKey(web.url)
         }
     }
+
+    /// The key a web page's answer is remembered under, for a card or a fallback's home page.
+    static func webKey(_ url: URL) -> String { "web:\(WebLinks.cacheKey(url) ?? url.absoluteString)" }
 
     /// The same key from an entropy alone. A settled claim names the entropy and nothing else, so
     /// the one place that has to build a key without a card builds it here rather than by hand.
