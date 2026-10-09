@@ -299,6 +299,7 @@ final class LinkCardView: UIView {
             tokenView.isHidden = true
             setSized(.web)
             webView.loadImage = { [weak self] url in await self?.imageSource?.webImage(for: url) }
+            webView.cachedImage = { [weak self] url in self?.imageSource?.cachedWebImage(for: url) }
             let placeholder = webShowsPlaceholder && loading ? Self.displayHost(of: web) : nil
             return webView.configure(with: Self.webContent(
                 state, chip: chipHost(web), placeholder: placeholder.map { ($0, web.url) }

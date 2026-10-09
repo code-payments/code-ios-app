@@ -392,10 +392,12 @@ extension LinkCardFeedTests {
             claims: CashLinkClaimLog(),
             groups: UnusedGroups(),
             users: UnusedUsers(),
-            webImages: { $0 == url ? bytes : nil }
+            webImages: { $0 == url ? bytes : nil },
+            cachedWebImages: { $0 == url ? bytes : nil }
         )
         let source: any LinkCardSource = feed
         #expect(await source.webImage(for: url) == bytes)
+        #expect(source.cachedWebImage(for: url) == bytes)
     }
 
     private final class Clock: @unchecked Sendable {

@@ -42,6 +42,11 @@ public protocol LinkCardSource: AnyObject {
 
     /// The bytes of a web card's preview image, or nil when it cannot be fetched.
     func webImage(for url: URL) async -> Data?
+
+    /// The bytes of a web card's preview image if already held in memory, without suspending.
+    ///
+    /// Lets a card draw an image it has shown before on its first frame instead of the loading slot.
+    func cachedWebImage(for url: URL) -> Data?
 }
 
 extension LinkCardSource {
@@ -50,6 +55,9 @@ extension LinkCardSource {
     ///
     /// Nil by default, so a source with no web lookup draws every web card without its image.
     public func webImage(for url: URL) async -> Data? { nil }
+
+    /// Nil by default: nothing is held, so every image goes through ``webImage(for:)``.
+    public func cachedWebImage(for url: URL) -> Data? { nil }
 }
 
 /// Whether a web card in this transcript looks its page up on its own or waits to be asked.

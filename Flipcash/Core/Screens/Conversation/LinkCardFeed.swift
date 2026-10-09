@@ -34,6 +34,7 @@ final class LinkCardFeed: LinkCardSource {
     private let groups: any GroupLinkPresenting
     private let users: any UserLinkPresenting
     private let webImages: @Sendable (URL) async -> Data?
+    private let cachedWebImages: @Sendable (URL) -> Data?
 
     /// What a group or person link's lookup fetched.
     private enum Fetched {
@@ -76,7 +77,8 @@ final class LinkCardFeed: LinkCardSource {
         claims: CashLinkClaimLog,
         groups: any GroupLinkPresenting,
         users: any UserLinkPresenting,
-        webImages: @escaping @Sendable (URL) async -> Data? = { await WebImageSource.shared.data(for: $0) }
+        webImages: @escaping @Sendable (URL) async -> Data? = { await WebImageSource.shared.data(for: $0) },
+        cachedWebImages: @escaping @Sendable (URL) -> Data? = { WebImageSource.shared.cached(for: $0) }
     ) {
         self.resolver = resolver
         self.memo = memo
@@ -84,6 +86,7 @@ final class LinkCardFeed: LinkCardSource {
         self.groups = groups
         self.users = users
         self.webImages = webImages
+        self.cachedWebImages = cachedWebImages
         observeSettledClaims()
         startClaimableRefresh()
     }
@@ -108,6 +111,10 @@ final class LinkCardFeed: LinkCardSource {
 
     func webImage(for url: URL) async -> Data? {
         await webImages(url)
+    }
+
+    func cachedWebImage(for url: URL) -> Data? {
+        cachedWebImages(url)
     }
 
     func states(for card: LinkCard) -> AsyncStream<LinkCard.State> {

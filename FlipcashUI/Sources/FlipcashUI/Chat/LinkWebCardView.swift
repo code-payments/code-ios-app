@@ -33,6 +33,8 @@ final class LinkWebCardView: UIView {
     var onTap: (() -> Void)?
     /// Fetches the preview image's bytes; nil draws the preview without its image.
     var loadImage: ((URL) async -> Data?)?
+    /// The preview image's bytes if already in memory; a hit draws on this frame, with no loading slot.
+    var cachedImage: ((URL) -> Data?)?
 
     private(set) var content: Content = .nothing
 
@@ -310,7 +312,9 @@ final class LinkWebCardView: UIView {
         } else if imageURL != previousImageURL || wasPlaceholder {
             imageTask?.cancel()
             imageTask = nil
-            if let imageURL, let loadImage {
+            if let imageURL, let data = cachedImage?(imageURL), let image = UIImage(data: data) {
+                setImageSlot(.loaded(image))
+            } else if let imageURL, let loadImage {
                 setImageSlot(.loading)
                 load(imageURL, with: loadImage)
             } else {

@@ -314,6 +314,25 @@ struct LinkCardViewTests {
         #expect(changes == 1)
     }
 
+    @Test("An image already in memory fills the slot on the first frame (P22a)")
+    func webImage_cached_drawsOnFirstFrame() {
+        let (view, _) = imageCard()
+        view.cachedImage = { $0 == Self.pageWithImage.imageURL ? Self.pixel : nil }
+        view.configure(with: .preview(Self.pageWithImage))
+        guard case .loaded = view.imageSlot else {
+            Issue.record("expected the cached image on the first frame, got \(view.imageSlot)")
+            return
+        }
+    }
+
+    @Test("An image not in memory still holds the slot while it loads")
+    func webImage_cacheMiss_holdsTheSlot() {
+        let (view, _) = imageCard()
+        view.cachedImage = { _ in nil }
+        view.configure(with: .preview(Self.pageWithImage))
+        #expect(view.imageSlot == .loading)
+    }
+
     @Test("A preview with no image takes no slot")
     func webImage_absent_takesNoSlot() {
         let (view, _) = imageCard()

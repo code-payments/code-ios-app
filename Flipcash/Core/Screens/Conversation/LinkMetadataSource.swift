@@ -71,6 +71,11 @@ nonisolated final class WebImageSource: @unchecked Sendable {
         self.limiter = limiter
     }
 
+    /// The image bytes at `url` if a previous fetch is still held in memory.
+    func cached(for url: URL) -> Data? {
+        cache.object(forKey: url as NSURL) as Data?
+    }
+
     /// The image bytes at `url`, or nil when it cannot be fetched under the rules.
     func data(for url: URL) async -> Data? {
         if let hit = cache.object(forKey: url as NSURL) { return hit as Data }
