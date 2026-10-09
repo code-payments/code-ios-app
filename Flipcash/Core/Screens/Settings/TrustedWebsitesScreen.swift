@@ -20,7 +20,7 @@ struct TrustedWebsitesScreen: View {
             if trustedWebsites.entries.isEmpty {
                 VStack(spacing: 8) {
                     Text("No Trusted Websites")
-                        .font(.appTextMedium)
+                        .font(.appTextLarge)
                         .foregroundStyle(.textMain)
                     Text("Skip the “You're Leaving Flipcash” warning for a website by checking “Don't ask again” when you open its link")
                         .font(.appTextSmall)
