@@ -80,6 +80,11 @@ struct SettingsScreen: View {
             SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
                 router.push(.blockedUsers)
             }
+
+            SettingsRow(systemImage: "globe", title: "Trusted Websites", insets: insets) {
+                router.push(.trustedWebsites)
+            }
+            .accessibilityIdentifier("settings-trusted-websites-row")
         }
     }
 

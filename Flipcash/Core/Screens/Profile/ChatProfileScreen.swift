@@ -371,7 +371,7 @@ struct ChatProfileScreen: View {
         switch origin {
         case .chat:
             router.popTopmost()
-        case .featuredGroup:
+        case .featuredGroup, .link:
             router.push(.tipConversation(conversationID))
         }
     }
@@ -485,4 +485,6 @@ nonisolated enum ChatProfileOrigin: Hashable {
     case chat
     /// A favorite group on the You tab or someone's profile, with no chat underneath.
     case featuredGroup
+    /// A group invite card in another chat's transcript, so the chat underneath is not this one.
+    case link
 }

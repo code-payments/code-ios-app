@@ -89,6 +89,7 @@ extension AppRouter {
         case settingsAccountSelection
         case settingsApplicationLogs
         case blockedUsers
+        case trustedWebsites
         case accessKey
         case withdraw
 
@@ -152,7 +153,7 @@ extension AppRouter {
                  .changeDisplayName, .changeProfilePicture, .username,
                  .setMinimumTip,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
-                 .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw:
+                 .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw:
                 return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
                  .tipConversation, .tipConversationWithKeyboard, .userProfile, .chatProfile,
@@ -199,6 +200,7 @@ extension AppRouter {
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
             case .blockedUsers:                 "blockedUsers"
+            case .trustedWebsites:              "trustedWebsites"
             case .accessKey:                    "accessKey"
             case .withdraw:                     "withdraw"
             case .profileName:                  "profileName"
@@ -258,7 +260,7 @@ extension AppRouter {
                  .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
-                 .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
+                 .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
                  .archivedChats:
                 return nil

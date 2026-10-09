@@ -1233,7 +1233,9 @@ struct ConversationScreen: View {
     private func openLink(_ url: URL) {
         ChatLinkOpener(
             openDeepLink: { container.deepLinkController.open($0) },
-            openExternally: { ExternalLinkOpener(session: session).open($0) }
+            openExternally: {
+                ExternalLinkOpener(session: session, trustedWebsites: container.trustedWebsites).open($0)
+            }
         ).open(url)
     }
 
@@ -1292,8 +1294,8 @@ struct ConversationScreen: View {
     /// path's job and the card has no part in it — unless the viewer can't chat here. A
     /// group card and a token card push onto this chat's own stack instead, so back returns to the
     /// conversation that held the link: the deep-link handler's `.chat` and `.token` routes both
-    /// replace the stack. The pushed group screen gates itself, offering the join or the buy, so the
-    /// card never joins from here.
+    /// replace the stack. A group card opens the group's profile, whose Open Chat leads to the chat;
+    /// the chat gates itself, offering the join or the buy, so the card never joins from here.
     private func openLinkCard(_ card: LinkCard, messageStableID: String) {
         switch card {
         case .cash(let cash):
@@ -1316,7 +1318,15 @@ struct ConversationScreen: View {
             // A link to the chat already on screen has nowhere to go.
             guard group.chatID != conversationID else { return }
             Analytics.groupInviteFollowed(source: .chatCard)
-            router.push(.tipConversation(group.chatID))
+            // The group's profile, seeded from the card's own lookup as a featured group seeds it;
+            // its Open Chat leads on to the chat. Before the lookup answers there is nothing to
+            // seed it with, so the tap opens the chat, which fetches the group by its id.
+            if let conversation = sessionContainer.linkCardFeed.groupConversation(for: card) {
+                conversationController.hold(conversation)
+                router.push(.chatProfile(group.chatID, origin: .link))
+            } else {
+                router.push(.tipConversation(group.chatID))
+            }
         case .token(let token):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
             router.push(.currencyInfo(token.mint))

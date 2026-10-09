@@ -18,6 +18,7 @@ class Container {
     let accountManager: AccountManager
     let betaFlags: BetaFlags
     let preferences: Preferences
+    let trustedWebsites: TrustedWebsites
     let notificationController: NotificationController
     let databaseStore: DatabaseStore
     let toasts: ToastController
@@ -40,6 +41,7 @@ class Container {
         self.accountManager         = AccountManager()
         self.betaFlags              = BetaFlags.shared
         self.preferences            = Preferences()
+        self.trustedWebsites        = TrustedWebsites()
         self.notificationController = NotificationController()
         self.databaseStore          = DatabaseStore()
         self.toasts                 = ToastController()
@@ -56,6 +58,7 @@ class Container {
             .environment(sessionAuthenticator)
             .environment(betaFlags)
             .environment(preferences)
+            .environment(trustedWebsites)
             .environment(notificationController)
             .environment(toasts)
             .environment(networkPath)

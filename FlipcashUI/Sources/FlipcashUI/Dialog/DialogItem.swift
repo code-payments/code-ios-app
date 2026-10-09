@@ -15,6 +15,9 @@ public struct DialogItem: Identifiable {
     /// dialog was fronting regardless of how the user dismissed it.
     public let onDismiss: (() -> Void)?
 
+    /// A checkbox drawn between the subtitle and the actions, or `nil` for none.
+    public let checkbox: DialogCheckbox?
+
     init(
         style: Dialog.Style,
         title: String?,
@@ -22,6 +25,7 @@ public struct DialogItem: Identifiable {
         dismissable: Bool,
         tracked: Bool,
         onDismiss: (() -> Void)? = nil,
+        checkbox: DialogCheckbox? = nil,
         @ActionBuilder actions: () -> [DialogAction]
     ) {
         self.id          = UUID()
@@ -31,6 +35,7 @@ public struct DialogItem: Identifiable {
         self.dismissable = dismissable
         self.tracked     = tracked
         self.onDismiss   = onDismiss
+        self.checkbox    = checkbox
         self.actions     = actions()
     }
 
@@ -45,7 +50,34 @@ public struct DialogItem: Identifiable {
             dismissable: dismissable,
             tracked: tracked,
             onDismiss: { existing?(); handler() },
+            checkbox: checkbox,
             actions: { actions }
         )
+    }
+
+    /// Returns a copy with an unchecked checkbox labelled `label`; each action is told whether it
+    /// was ticked when tapped.
+    public func checkbox(_ label: String) -> DialogItem {
+        DialogItem(
+            style: style,
+            title: title,
+            subtitle: subtitle,
+            dismissable: dismissable,
+            tracked: tracked,
+            onDismiss: onDismiss,
+            checkbox: DialogCheckbox(label: label),
+            actions: { actions }
+        )
+    }
+}
+
+/// A checkbox row inside a dialog. It starts unchecked each time the dialog is shown.
+public struct DialogCheckbox: Equatable {
+
+    /// The text beside the box.
+    public let label: String
+
+    public init(label: String) {
+        self.label = label
     }
 }

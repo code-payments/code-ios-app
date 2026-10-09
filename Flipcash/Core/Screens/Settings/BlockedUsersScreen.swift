@@ -25,7 +25,7 @@ struct BlockedUsersScreen: View {
                 if blocklistController.blockedUsers.isEmpty && hasLoaded {
                     VStack(spacing: 8) {
                         Text("No One Blocked")
-                            .font(.appTextMedium)
+                            .font(.appTextLarge)
                             .foregroundStyle(.textMain)
                         Text("Block people from sending you messages by tapping their profile and selecting block")
                             .font(.appTextSmall)
