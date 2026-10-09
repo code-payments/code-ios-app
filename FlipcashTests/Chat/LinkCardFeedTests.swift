@@ -8,6 +8,7 @@
 import Foundation
 import Testing
 import FlipcashCore
+import FlipcashUI
 @testable import Flipcash
 
 /// What a card on screen is told, and when. The regression behind all of it: the transcript used to
@@ -372,6 +373,29 @@ extension LinkCardFeedTests {
         #expect(await states.next() == .web(.none))
         #expect(memo.web(card.resolutionKey) == nil)
         #expect(feed.known(card) == nil)
+    }
+
+    /// The protocol's default answers nil, so a feed that does not answer itself draws every web
+    /// card without its image.
+    @Test func aWebImageComesFromTheFeedsFetcher() async {
+        let url = URL(string: "https://example.com/a.png")!
+        let bytes = Data([1, 2, 3])
+        let feed = LinkCardFeed(
+            resolver: LinkCardResolver(
+                cashLookup: { _ in throw CancellationError() },
+                mintLookup: { _ in throw CancellationError() },
+                groupLookup: { _ in throw CancellationError() },
+                userLookup: { _ in throw CancellationError() },
+                webLookup: { _ in throw CancellationError() }
+            ),
+            memo: LinkCardMemo(),
+            claims: CashLinkClaimLog(),
+            groups: UnusedGroups(),
+            users: UnusedUsers(),
+            webImages: { $0 == url ? bytes : nil }
+        )
+        let source: any LinkCardSource = feed
+        #expect(await source.webImage(for: url) == bytes)
     }
 
     private final class Clock: @unchecked Sendable {
