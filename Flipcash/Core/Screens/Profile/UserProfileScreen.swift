@@ -178,7 +178,7 @@ private struct UserProfileContent: View {
                 .frame(minHeight: max(scrollFit.visibleHeight - 24, 0), alignment: .top)
                 .padding(.bottom, 24)
             }
-            .profilePinnedBackdropClearance(isActive: !hidesPinnedBar || scrollFit.overflows)
+            .profilePinnedBackdropClearance(isActive: !hidesPinnedBar)
             .profileScrollFit($scrollFit)
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)

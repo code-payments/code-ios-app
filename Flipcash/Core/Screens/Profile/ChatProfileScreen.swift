@@ -148,17 +148,17 @@ struct ChatProfileScreen: View {
                             .padding(.top, 24)
                     }
 
-                    if origin == .chat, isMember {
+                    if endsWithLeaveButton {
                         // Holds Leave Chat at the bottom of the screen when the content is short.
                         Spacer(minLength: 24)
                         leaveButton
                             .padding(.horizontal, ProfileHeaderMetrics.inset)
                     }
                 }
-                .frame(minHeight: max(scrollFit.visibleHeight - 24, 0), alignment: .top)
-                .padding(.bottom, 24)
+                .frame(minHeight: max(scrollFit.visibleHeight - contentBottomPadding, 0), alignment: .top)
+                .padding(.bottom, contentBottomPadding)
             }
-            .profilePinnedBackdropClearance(isActive: origin != .chat || scrollFit.overflows)
+            .profilePinnedBackdropClearance(isActive: origin != .chat)
             .profileScrollFit($scrollFit)
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
@@ -331,6 +331,18 @@ struct ChatProfileScreen: View {
             stated = held.converting(to: rate)
         }
         return holding(stated, mint: mint)
+    }
+
+    /// Whether Leave Chat ends the scroll content rather than sitting in the pinned bar.
+    private var endsWithLeaveButton: Bool {
+        origin == .chat && isMember
+    }
+
+    /// Space under the scroll content. Leave Chat ending it sits where the pinned bar puts it: a
+    /// text-only button is a full button tall, so its frame already leaves room under the title and
+    /// can overlap the home indicator's inset.
+    private var contentBottomPadding: CGFloat {
+        endsWithLeaveButton ? -12 : 24
     }
 
     // MARK: - Pinned -
