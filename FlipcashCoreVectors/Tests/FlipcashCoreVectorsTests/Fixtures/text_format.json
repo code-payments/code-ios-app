@@ -1,0 +1,1831 @@
+{
+  "algorithm": "text-format",
+  "note": "Chat text formatting carried as markup in TextContent.text. Input: `text` and the `ranges` (links and mentions) detection found in it (UTF-16, half-open, raw offsets); markers inside a range are literal. Output: `display` (consumed markers removed), `spans` over display, and `displayRanges` (the input ranges at display offsets). Spans are normalized: per style, touching or overlapping runs are merged; ordered by start, then longest first, then style. Behavior parity, not a computation with an external reference.",
+  "styles": [
+    "bold",
+    "italic",
+    "strike",
+    "code",
+    "codeBlock",
+    "quote",
+    "bullet",
+    "numbered"
+  ],
+  "vectors": [
+    {
+      "name": "plain",
+      "text": "hello world",
+      "ranges": [],
+      "display": "hello world",
+      "spans": [],
+      "displayRanges": [],
+      "note": "No markup: display is the raw text."
+    },
+    {
+      "name": "bold",
+      "text": "*hi*",
+      "ranges": [],
+      "display": "hi",
+      "spans": [
+        {
+          "start": 0,
+          "end": 2,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "italic",
+      "text": "_hi_",
+      "ranges": [],
+      "display": "hi",
+      "spans": [
+        {
+          "start": 0,
+          "end": 2,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "strike",
+      "text": "~hi~",
+      "ranges": [],
+      "display": "hi",
+      "spans": [
+        {
+          "start": 0,
+          "end": 2,
+          "style": "strike"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "code",
+      "text": "`hi`",
+      "ranges": [],
+      "display": "hi",
+      "spans": [
+        {
+          "start": 0,
+          "end": 2,
+          "style": "code"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "bold-mid-sentence",
+      "text": "say *hello there* now",
+      "ranges": [],
+      "display": "say hello there now",
+      "spans": [
+        {
+          "start": 4,
+          "end": 15,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "punctuation-edges",
+      "text": "(*wow*)!",
+      "ranges": [],
+      "display": "(wow)!",
+      "spans": [
+        {
+          "start": 1,
+          "end": 4,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": "Punctuation is not a word character, so it does not block a marker."
+    },
+    {
+      "name": "curly-quotes",
+      "text": "“*really*”",
+      "ranges": [],
+      "display": "“really”",
+      "spans": [
+        {
+          "start": 1,
+          "end": 7,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "comma-after-close",
+      "text": "*wow*, really",
+      "ranges": [],
+      "display": "wow, really",
+      "spans": [
+        {
+          "start": 0,
+          "end": 3,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "apostrophe-inside",
+      "text": "it's *Bob's* car",
+      "ranges": [],
+      "display": "it's Bob's car",
+      "spans": [
+        {
+          "start": 5,
+          "end": 10,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "snake-case",
+      "text": "snake_case_name",
+      "ranges": [],
+      "display": "snake_case_name",
+      "spans": [],
+      "displayRanges": [],
+      "note": "Every underscore has a letter on both sides."
+    },
+    {
+      "name": "arithmetic",
+      "text": "2*3*4",
+      "ranges": [],
+      "display": "2*3*4",
+      "spans": [],
+      "displayRanges": [],
+      "note": "Digits are word characters."
+    },
+    {
+      "name": "closer-glued-to-word",
+      "text": "*foo*bar",
+      "ranges": [],
+      "display": "*foo*bar",
+      "spans": [],
+      "displayRanges": [],
+      "note": "The only candidate closer has a letter after it."
+    },
+    {
+      "name": "space-after-opener",
+      "text": "a * not bold*",
+      "ranges": [],
+      "display": "a * not bold*",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "space-before-closer",
+      "text": "*not bold *",
+      "ranges": [],
+      "display": "*not bold *",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "spaced-asterisks",
+      "text": "a * b * c",
+      "ranges": [],
+      "display": "a * b * c",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "approximately",
+      "text": "~5 minutes, ~10 tops",
+      "ranges": [],
+      "display": "~5 minutes, ~10 tops",
+      "spans": [],
+      "displayRanges": [],
+      "note": "Tilde as 'about': the second tilde follows a space, so it cannot close."
+    },
+    {
+      "name": "italic-with-snake-inside",
+      "text": "_my snake_case var_",
+      "ranges": [],
+      "display": "my snake_case var",
+      "spans": [
+        {
+          "start": 0,
+          "end": 17,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": "The inner underscore is intraword and skipped as a closer."
+    },
+    {
+      "name": "digit-content",
+      "text": "*2*",
+      "ranges": [],
+      "display": "2",
+      "spans": [
+        {
+          "start": 0,
+          "end": 1,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "digit-before-opener",
+      "text": "v*2*",
+      "ranges": [],
+      "display": "v*2*",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "accented-letter-before",
+      "text": "é*x*",
+      "ranges": [],
+      "display": "é*x*",
+      "spans": [],
+      "displayRanges": [],
+      "note": "A non-ASCII letter is a word character."
+    },
+    {
+      "name": "combining-mark-before",
+      "text": "café*x*",
+      "ranges": [],
+      "display": "café*x*",
+      "spans": [],
+      "displayRanges": [],
+      "note": "U+0301 is category Mn. Counting marks as word characters keeps a decomposed é behaving like a precomposed one."
+    },
+    {
+      "name": "cjk-glued",
+      "text": "日本*語*",
+      "ranges": [],
+      "display": "日本*語*",
+      "spans": [],
+      "displayRanges": [],
+      "note": "Han characters are letters, so markup inside unspaced CJK text stays literal. Known limit; see the spec."
+    },
+    {
+      "name": "cjk-spaced",
+      "text": "日本 *語*",
+      "ranges": [],
+      "display": "日本 語",
+      "spans": [
+        {
+          "start": 3,
+          "end": 4,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "emoji-before-opener",
+      "text": "👍*nice*",
+      "ranges": [],
+      "display": "👍nice",
+      "spans": [
+        {
+          "start": 2,
+          "end": 6,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": "An emoji is not a word character. Offsets are UTF-16: the emoji is two units."
+    },
+    {
+      "name": "emoji-inside",
+      "text": "*🔥 hot*",
+      "ranges": [],
+      "display": "🔥 hot",
+      "spans": [
+        {
+          "start": 0,
+          "end": 6,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "astral-letter-before",
+      "text": "𝐀*x*",
+      "ranges": [],
+      "display": "𝐀*x*",
+      "spans": [],
+      "displayRanges": [],
+      "note": "U+1D400 is a letter (Lu) outside the BMP. A parser that looks at the UTF-16 unit before the marker sees a low surrogate (Cs), wrongly opens, and passes every other vector. Read code points."
+    },
+    {
+      "name": "emoji-vs16-before-opener",
+      "text": "❤️*love*",
+      "ranges": [],
+      "display": "❤️love",
+      "spans": [
+        {
+          "start": 2,
+          "end": 6,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": "U+FE0F is a mark, but it is skipped back to the heart (So), which is not a word character. Without the skip, every emoji with a variation selector would glue."
+    },
+    {
+      "name": "emoji-vs16-before-underscore",
+      "text": "❤️_love_",
+      "ranges": [],
+      "display": "❤️love",
+      "spans": [
+        {
+          "start": 2,
+          "end": 6,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": "The same skip applies to `_`. Plain CommonMark sees U+FE0F as alphanumeric and would leave this literal: the one place this spec departs from its flanking rules."
+    },
+    {
+      "name": "nbsp-before-opener",
+      "text": "a *b*",
+      "ranges": [],
+      "display": "a b",
+      "spans": [
+        {
+          "start": 2,
+          "end": 3,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": "NBSP is category Zs."
+    },
+    {
+      "name": "cm-357",
+      "text": "_foo bar_",
+      "ranges": [],
+      "display": "foo bar",
+      "spans": [
+        {
+          "start": 0,
+          "end": 7,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": "CommonMark example 357."
+    },
+    {
+      "name": "cm-358",
+      "text": "_ foo bar_",
+      "ranges": [],
+      "display": "_ foo bar_",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 358."
+    },
+    {
+      "name": "cm-359",
+      "text": "a_\"foo\"_",
+      "ranges": [],
+      "display": "a_\"foo\"_",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 359."
+    },
+    {
+      "name": "cm-360",
+      "text": "foo_bar_",
+      "ranges": [],
+      "display": "foo_bar_",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 360."
+    },
+    {
+      "name": "cm-361",
+      "text": "5_6_78",
+      "ranges": [],
+      "display": "5_6_78",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 361."
+    },
+    {
+      "name": "cm-362",
+      "text": "пристаням_стремятся_",
+      "ranges": [],
+      "display": "пристаням_стремятся_",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 362."
+    },
+    {
+      "name": "cm-363",
+      "text": "aa_\"bb\"_cc",
+      "ranges": [],
+      "display": "aa_\"bb\"_cc",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 363."
+    },
+    {
+      "name": "cm-364",
+      "text": "foo-_(bar)_",
+      "ranges": [],
+      "display": "foo-(bar)",
+      "spans": [
+        {
+          "start": 4,
+          "end": 9,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": "CommonMark example 364."
+    },
+    {
+      "name": "cm-371",
+      "text": "_foo bar _",
+      "ranges": [],
+      "display": "_foo bar _",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 371."
+    },
+    {
+      "name": "cm-372",
+      "text": "_(_foo)",
+      "ranges": [],
+      "display": "_(_foo)",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 372."
+    },
+    {
+      "name": "cm-374",
+      "text": "_foo_bar",
+      "ranges": [],
+      "display": "_foo_bar",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 374."
+    },
+    {
+      "name": "cm-375",
+      "text": "_пристаням_стремятся",
+      "ranges": [],
+      "display": "_пристаням_стремятся",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 375."
+    },
+    {
+      "name": "cm-376",
+      "text": "_foo_bar_baz_",
+      "ranges": [],
+      "display": "foo_bar_baz",
+      "spans": [
+        {
+          "start": 0,
+          "end": 11,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": "CommonMark example 376."
+    },
+    {
+      "name": "cm-377",
+      "text": "_(bar)_.",
+      "ranges": [],
+      "display": "(bar).",
+      "spans": [
+        {
+          "start": 0,
+          "end": 5,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": "CommonMark example 377."
+    },
+    {
+      "name": "markdown-double",
+      "text": "**markdown**",
+      "ranges": [],
+      "display": "**markdown**",
+      "spans": [],
+      "displayRanges": [],
+      "note": "A marker next to the same marker is never a delimiter, so Markdown-style doubling shows as typed instead of half-formatting."
+    },
+    {
+      "name": "triple",
+      "text": "***x***",
+      "ranges": [],
+      "display": "***x***",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "empty-pair",
+      "text": "**",
+      "ranges": [],
+      "display": "**",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "lone-marker",
+      "text": "*",
+      "ranges": [],
+      "display": "*",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "unclosed",
+      "text": "*unclosed",
+      "ranges": [],
+      "display": "*unclosed",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "nested",
+      "text": "*bold _and italic_*",
+      "ranges": [],
+      "display": "bold and italic",
+      "spans": [
+        {
+          "start": 0,
+          "end": 15,
+          "style": "bold"
+        },
+        {
+          "start": 5,
+          "end": 15,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "leftmost-nearest",
+      "text": "*a *b* c*",
+      "ranges": [],
+      "display": "a *b c*",
+      "spans": [
+        {
+          "start": 0,
+          "end": 4,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": "The `*` after `a ` cannot close (space before it) and the one before `b` finds no closer inside the bold, so both stay literal."
+    },
+    {
+      "name": "crossing",
+      "text": "*a _b* c_",
+      "ranges": [],
+      "display": "a _b c_",
+      "spans": [
+        {
+          "start": 0,
+          "end": 4,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": "Styles do not cross. The bold closes first; the italic has no closer inside it."
+    },
+    {
+      "name": "adjacent-same-style",
+      "text": "*a*_*b*_",
+      "ranges": [],
+      "display": "ab",
+      "spans": [
+        {
+          "start": 0,
+          "end": 2,
+          "style": "bold"
+        },
+        {
+          "start": 1,
+          "end": 2,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": "Two touching bold runs are normalized into one span."
+    },
+    {
+      "name": "code-protects",
+      "text": "`*not bold*`",
+      "ranges": [],
+      "display": "*not bold*",
+      "spans": [
+        {
+          "start": 0,
+          "end": 10,
+          "style": "code"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "code-inside-bold",
+      "text": "*run `ls` now*",
+      "ranges": [],
+      "display": "run ls now",
+      "spans": [
+        {
+          "start": 0,
+          "end": 10,
+          "style": "bold"
+        },
+        {
+          "start": 4,
+          "end": 6,
+          "style": "code"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "code-beats-crossing-bold",
+      "text": "*a `b* c`",
+      "ranges": [],
+      "display": "*a b* c",
+      "spans": [
+        {
+          "start": 3,
+          "end": 7,
+          "style": "code"
+        }
+      ],
+      "displayRanges": [],
+      "note": "Code is matched before the other styles, so the bold's only closer is inside code and the bold stays literal."
+    },
+    {
+      "name": "unclosed-backtick",
+      "text": "`*x*",
+      "ranges": [],
+      "display": "`x",
+      "spans": [
+        {
+          "start": 1,
+          "end": 2,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "mixed",
+      "text": "*a* `*b*` _c_",
+      "ranges": [],
+      "display": "a *b* c",
+      "spans": [
+        {
+          "start": 0,
+          "end": 1,
+          "style": "bold"
+        },
+        {
+          "start": 2,
+          "end": 5,
+          "style": "code"
+        },
+        {
+          "start": 6,
+          "end": 7,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "escape-pair",
+      "text": "\\*not bold\\*",
+      "ranges": [],
+      "display": "*not bold*",
+      "spans": [],
+      "displayRanges": [],
+      "note": "The backslashes are removed."
+    },
+    {
+      "name": "escape-opener",
+      "text": "\\*not emphasized*",
+      "ranges": [],
+      "display": "*not emphasized*",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 14, first line. The closer has no opener left."
+    },
+    {
+      "name": "escape-backslash",
+      "text": "\\\\*emphasis*",
+      "ranges": [],
+      "display": "\\emphasis",
+      "spans": [
+        {
+          "start": 1,
+          "end": 9,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": "CommonMark example 15. `\\\\` is one literal backslash, which is not a word character."
+    },
+    {
+      "name": "escape-backtick",
+      "text": "\\`not code`",
+      "ranges": [],
+      "display": "`not code`",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 14."
+    },
+    {
+      "name": "escape-run",
+      "text": "\\**x*",
+      "ranges": [],
+      "display": "*x",
+      "spans": [
+        {
+          "start": 1,
+          "end": 2,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": "An escaped marker is not part of a run, so the second `*` can open."
+    },
+    {
+      "name": "escape-not-escapable",
+      "text": "C:\\Users\\me",
+      "ranges": [],
+      "display": "C:\\Users\\me",
+      "spans": [],
+      "displayRanges": [],
+      "note": "Only `\\ * _ ~ ` > - .` can be escaped. A backslash before anything else stays."
+    },
+    {
+      "name": "escape-trailing",
+      "text": "a\\",
+      "ranges": [],
+      "display": "a\\",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "escape-in-code",
+      "text": "`\\*x\\*`",
+      "ranges": [],
+      "display": "\\*x\\*",
+      "spans": [
+        {
+          "start": 0,
+          "end": 5,
+          "style": "code"
+        }
+      ],
+      "displayRanges": [],
+      "note": "A backslash inside code is literal."
+    },
+    {
+      "name": "escape-closing-backtick",
+      "text": "`a\\`",
+      "ranges": [],
+      "display": "a\\",
+      "spans": [
+        {
+          "start": 0,
+          "end": 2,
+          "style": "code"
+        }
+      ],
+      "displayRanges": [],
+      "note": "Not an escape: inside code the backslash is literal, so the backtick closes."
+    },
+    {
+      "name": "escape-in-link",
+      "text": "example.com/a\\_b_",
+      "ranges": [
+        {
+          "start": 0,
+          "end": 17,
+          "kind": "link"
+        }
+      ],
+      "display": "example.com/a\\_b_",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 17,
+          "kind": "link"
+        }
+      ],
+      "note": "A backslash inside a link is part of the URL."
+    },
+    {
+      "name": "escape-quote",
+      "text": "\\> not a quote",
+      "ranges": [],
+      "display": "> not a quote",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "escape-bullet",
+      "text": "\\- not a list",
+      "ranges": [],
+      "display": "- not a list",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "escape-bullet-star",
+      "text": "\\* not a list",
+      "ranges": [],
+      "display": "* not a list",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 14."
+    },
+    {
+      "name": "escape-numbered",
+      "text": "1\\. not a list",
+      "ranges": [],
+      "display": "1. not a list",
+      "spans": [],
+      "displayRanges": [],
+      "note": "CommonMark example 14."
+    },
+    {
+      "name": "escape-fence",
+      "text": "```\nx\\```\n```",
+      "ranges": [],
+      "display": "x\\```",
+      "spans": [
+        {
+          "start": 0,
+          "end": 5,
+          "style": "codeBlock"
+        }
+      ],
+      "displayRanges": [],
+      "note": "A fence after a backslash does not close. Inside the block the backslash is literal."
+    },
+    {
+      "name": "shrug",
+      "text": "¯\\_(ツ)_/¯",
+      "ranges": [],
+      "display": "¯_(ツ)_/¯",
+      "spans": [],
+      "displayRanges": [],
+      "note": "The escape keeps both arms but eats the backslash. Without escapes this would be an italic `(ツ)` with both underscores gone. Typing `\\\\_` keeps all of it. Known limit."
+    },
+    {
+      "name": "no-multiline-inline",
+      "text": "*line one\nline two*",
+      "ranges": [],
+      "display": "*line one\nline two*",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "per-line",
+      "text": "*one*\n*two*",
+      "ranges": [],
+      "display": "one\ntwo",
+      "spans": [
+        {
+          "start": 0,
+          "end": 3,
+          "style": "bold"
+        },
+        {
+          "start": 4,
+          "end": 7,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "bold-link",
+      "text": "*see example.com*",
+      "ranges": [
+        {
+          "start": 5,
+          "end": 16,
+          "kind": "link"
+        }
+      ],
+      "display": "see example.com",
+      "spans": [
+        {
+          "start": 0,
+          "end": 15,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [
+        {
+          "start": 4,
+          "end": 15,
+          "kind": "link"
+        }
+      ],
+      "note": "A whole link inside a style keeps both."
+    },
+    {
+      "name": "marker-inside-link",
+      "text": "go to example.com/*x*",
+      "ranges": [
+        {
+          "start": 6,
+          "end": 21,
+          "kind": "link"
+        }
+      ],
+      "display": "go to example.com/*x*",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 6,
+          "end": 21,
+          "kind": "link"
+        }
+      ],
+      "note": "Markers inside a link are part of the URL."
+    },
+    {
+      "name": "link-swallows-closer",
+      "text": "*example.com/foo*",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "kind": "link"
+        }
+      ],
+      "display": "*example.com/foo*",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 1,
+          "end": 17,
+          "kind": "link"
+        }
+      ],
+      "note": "If link detection keeps the trailing `*`, the bold has no closer. Detectors trim it (spec decision 1, link_detection.json `bold-wrapped-link`); this pins the parser for a detector that does not."
+    },
+    {
+      "name": "link-trimmed-closer",
+      "text": "*example.com/foo*",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 16,
+          "kind": "link"
+        }
+      ],
+      "display": "example.com/foo",
+      "spans": [
+        {
+          "start": 0,
+          "end": 15,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 15,
+          "kind": "link"
+        }
+      ],
+      "note": "With the trailing `*` trimmed by the detector, the bold wraps the whole link."
+    },
+    {
+      "name": "link-in-code",
+      "text": "`example.com`",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 12,
+          "kind": "link"
+        }
+      ],
+      "display": "example.com",
+      "spans": [
+        {
+          "start": 0,
+          "end": 11,
+          "style": "code"
+        }
+      ],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 11,
+          "kind": "link"
+        }
+      ],
+      "note": "A link inside code stays tappable."
+    },
+    {
+      "name": "mention-protects",
+      "text": "@_jeff_ hi",
+      "ranges": [
+        {
+          "start": 0,
+          "end": 7,
+          "kind": "mention"
+        }
+      ],
+      "display": "@_jeff_ hi",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 7,
+          "kind": "mention"
+        }
+      ],
+      "note": "Handles may contain `_`. Without protection this is an italic `jeff` and a broken mention."
+    },
+    {
+      "name": "bold-mention",
+      "text": "*@jeff*",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 6,
+          "kind": "mention"
+        }
+      ],
+      "display": "@jeff",
+      "spans": [
+        {
+          "start": 0,
+          "end": 5,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 5,
+          "kind": "mention"
+        }
+      ],
+      "note": "Mention detection accepts `*` before the `@`, so a bold mention works."
+    },
+    {
+      "name": "italic-mention",
+      "text": "_@jeff_",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 6,
+          "kind": "mention"
+        }
+      ],
+      "display": "@jeff",
+      "spans": [
+        {
+          "start": 0,
+          "end": 5,
+          "style": "italic"
+        }
+      ],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 5,
+          "kind": "mention"
+        }
+      ],
+      "note": "Needs the mention-detection change in the spec: `_` may come before the `@`, and then a trailing `_` closes rather than ending the handle."
+    },
+    {
+      "name": "italic-ending-in-mention",
+      "text": "_hey @jeff_",
+      "ranges": [
+        {
+          "start": 5,
+          "end": 11,
+          "kind": "mention"
+        }
+      ],
+      "display": "_hey @jeff_",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 5,
+          "end": 11,
+          "kind": "mention"
+        }
+      ],
+      "note": "Handles may end in `_`, and here no `_` comes before the `@`, so detection takes `jeff_` and the italic has no closer. Known limit; see the spec."
+    },
+    {
+      "name": "masked-link",
+      "text": "[docs](https://example.com)",
+      "ranges": [
+        {
+          "start": 7,
+          "end": 26,
+          "kind": "link"
+        }
+      ],
+      "display": "docs",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 4,
+          "kind": "link",
+          "target": "https://example.com"
+        }
+      ],
+      "note": "The brackets, parentheses and URL leave the display text. The link range covers the text and carries the URL as `target`."
+    },
+    {
+      "name": "masked-link-in-sentence",
+      "text": "read [the docs](example.com/a) now",
+      "ranges": [
+        {
+          "start": 16,
+          "end": 29,
+          "kind": "link"
+        }
+      ],
+      "display": "read the docs now",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 5,
+          "end": 13,
+          "kind": "link",
+          "target": "example.com/a"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "name": "masked-link-styled-text",
+      "text": "[*docs*](https://example.com)",
+      "ranges": [
+        {
+          "start": 9,
+          "end": 28,
+          "kind": "link"
+        }
+      ],
+      "display": "docs",
+      "spans": [
+        {
+          "start": 0,
+          "end": 4,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 4,
+          "kind": "link",
+          "target": "https://example.com"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "name": "bold-masked-link",
+      "text": "*[docs](https://example.com)*",
+      "ranges": [
+        {
+          "start": 8,
+          "end": 27,
+          "kind": "link"
+        }
+      ],
+      "display": "docs",
+      "spans": [
+        {
+          "start": 0,
+          "end": 4,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 4,
+          "kind": "link",
+          "target": "https://example.com"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "name": "masked-link-url-with-parens",
+      "text": "[film](https://en.wikipedia.org/wiki/Foo_(film))",
+      "ranges": [
+        {
+          "start": 7,
+          "end": 47,
+          "kind": "link"
+        }
+      ],
+      "display": "film",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 4,
+          "kind": "link",
+          "target": "https://en.wikipedia.org/wiki/Foo_(film)"
+        }
+      ],
+      "note": "Link detection keeps brackets the URL opened, so the `)` after it closes the mask."
+    },
+    {
+      "name": "masked-link-text-is-a-link",
+      "text": "[example.com](https://evil.example)",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 12,
+          "kind": "link"
+        },
+        {
+          "start": 14,
+          "end": 34,
+          "kind": "link"
+        }
+      ],
+      "display": "[example.com](https://evil.example)",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 1,
+          "end": 12,
+          "kind": "link"
+        },
+        {
+          "start": 14,
+          "end": 34,
+          "kind": "link"
+        }
+      ],
+      "note": "Link text that is itself a link would hide where the link goes, so the mask is literal and both links show."
+    },
+    {
+      "name": "masked-link-text-has-mention",
+      "text": "[@jeff](https://example.com)",
+      "ranges": [
+        {
+          "start": 8,
+          "end": 27,
+          "kind": "link"
+        },
+        {
+          "start": 1,
+          "end": 6,
+          "kind": "mention"
+        }
+      ],
+      "display": "[@jeff](https://example.com)",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 1,
+          "end": 6,
+          "kind": "mention"
+        },
+        {
+          "start": 8,
+          "end": 27,
+          "kind": "link"
+        }
+      ],
+      "note": "A mention cannot sit inside a link."
+    },
+    {
+      "name": "masked-link-empty-text",
+      "text": "[](https://example.com)",
+      "ranges": [
+        {
+          "start": 3,
+          "end": 22,
+          "kind": "link"
+        }
+      ],
+      "display": "[](https://example.com)",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 3,
+          "end": 22,
+          "kind": "link"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "name": "masked-link-not-a-url",
+      "text": "[docs](not a url)",
+      "ranges": [],
+      "display": "[docs](not a url)",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "masked-link-detector-took-paren",
+      "text": "[docs](https://example.com)",
+      "ranges": [
+        {
+          "start": 7,
+          "end": 27,
+          "kind": "link"
+        }
+      ],
+      "display": "[docs](https://example.com)",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 7,
+          "end": 27,
+          "kind": "link"
+        }
+      ],
+      "note": "If link detection keeps the `)`, nothing closes the mask. Detection already drops a `)` the URL did not open, so this should not happen."
+    },
+    {
+      "name": "masked-link-space-before-paren",
+      "text": "[docs] (https://example.com)",
+      "ranges": [
+        {
+          "start": 8,
+          "end": 27,
+          "kind": "link"
+        }
+      ],
+      "display": "[docs] (https://example.com)",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 8,
+          "end": 27,
+          "kind": "link"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "name": "masked-link-nested-brackets",
+      "text": "[a [b] c](https://example.com)",
+      "ranges": [
+        {
+          "start": 10,
+          "end": 29,
+          "kind": "link"
+        }
+      ],
+      "display": "[a [b] c](https://example.com)",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 10,
+          "end": 29,
+          "kind": "link"
+        }
+      ],
+      "note": "The first `]` after a `[` decides. Escape a bracket to put one in link text."
+    },
+    {
+      "name": "masked-link-escaped-bracket",
+      "text": "[a \\] b](https://example.com)",
+      "ranges": [
+        {
+          "start": 9,
+          "end": 28,
+          "kind": "link"
+        }
+      ],
+      "display": "a ] b",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 0,
+          "end": 5,
+          "kind": "link",
+          "target": "https://example.com"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "name": "masked-link-escaped",
+      "text": "\\[docs](https://example.com)",
+      "ranges": [
+        {
+          "start": 8,
+          "end": 27,
+          "kind": "link"
+        }
+      ],
+      "display": "[docs](https://example.com)",
+      "spans": [],
+      "displayRanges": [
+        {
+          "start": 7,
+          "end": 26,
+          "kind": "link"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "name": "masked-link-in-code",
+      "text": "`[docs](https://example.com)`",
+      "ranges": [
+        {
+          "start": 8,
+          "end": 27,
+          "kind": "link"
+        }
+      ],
+      "display": "[docs](https://example.com)",
+      "spans": [
+        {
+          "start": 0,
+          "end": 27,
+          "style": "code"
+        }
+      ],
+      "displayRanges": [
+        {
+          "start": 7,
+          "end": 26,
+          "kind": "link"
+        }
+      ],
+      "note": "Code wins. The URL inside stays tappable, as in `link-in-code`."
+    },
+    {
+      "name": "code-block",
+      "text": "```\nlet x = 1\n```",
+      "ranges": [],
+      "display": "let x = 1",
+      "spans": [
+        {
+          "start": 0,
+          "end": 9,
+          "style": "codeBlock"
+        }
+      ],
+      "displayRanges": [],
+      "note": "The newline after the opening fence and before the closing fence are removed."
+    },
+    {
+      "name": "code-block-one-line",
+      "text": "```x```",
+      "ranges": [],
+      "display": "x",
+      "spans": [
+        {
+          "start": 0,
+          "end": 1,
+          "style": "codeBlock"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "code-block-literal",
+      "text": "```\n*a* _b_\n> c\n```",
+      "ranges": [],
+      "display": "*a* _b_\n> c",
+      "spans": [
+        {
+          "start": 0,
+          "end": 11,
+          "style": "codeBlock"
+        }
+      ],
+      "displayRanges": [],
+      "note": "Nothing is parsed inside a code block, block prefixes included."
+    },
+    {
+      "name": "code-block-surrounded",
+      "text": "before\n```\ncode\n```\nafter",
+      "ranges": [],
+      "display": "before\ncode\nafter",
+      "spans": [
+        {
+          "start": 7,
+          "end": 11,
+          "style": "codeBlock"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "code-block-unclosed",
+      "text": "```\ncode",
+      "ranges": [],
+      "display": "```\ncode",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "code-block-empty",
+      "text": "```\n```",
+      "ranges": [],
+      "display": "```\n```",
+      "spans": [],
+      "displayRanges": [],
+      "note": "A block with no content is literal."
+    },
+    {
+      "name": "code-block-language-is-content",
+      "text": "```swift\nlet x = 1\n```",
+      "ranges": [],
+      "display": "swift\nlet x = 1",
+      "spans": [
+        {
+          "start": 0,
+          "end": 15,
+          "style": "codeBlock"
+        }
+      ],
+      "displayRanges": [],
+      "note": "No language tags: text after the opening fence is content, as `code-block-one-line` needs."
+    },
+    {
+      "name": "code-block-not-line-start",
+      "text": "x ```code```",
+      "ranges": [],
+      "display": "x ```code```",
+      "spans": [],
+      "displayRanges": [],
+      "note": "A fence must start a line, and a triple backtick is a run, so inline code does not take it either."
+    },
+    {
+      "name": "quote",
+      "text": "> hello",
+      "ranges": [],
+      "display": "hello",
+      "spans": [
+        {
+          "start": 0,
+          "end": 5,
+          "style": "quote"
+        }
+      ],
+      "displayRanges": [],
+      "note": "The `> ` prefix is removed."
+    },
+    {
+      "name": "quote-lines",
+      "text": "> one\n> two",
+      "ranges": [],
+      "display": "one\ntwo",
+      "spans": [
+        {
+          "start": 0,
+          "end": 3,
+          "style": "quote"
+        },
+        {
+          "start": 4,
+          "end": 7,
+          "style": "quote"
+        }
+      ],
+      "displayRanges": [],
+      "note": "One span per line. Renderers join consecutive quote lines into one bar."
+    },
+    {
+      "name": "quote-needs-space",
+      "text": ">hello",
+      "ranges": [],
+      "display": ">hello",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "quote-empty",
+      "text": "> ",
+      "ranges": [],
+      "display": "> ",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "quote-with-bold",
+      "text": "> *hi*",
+      "ranges": [],
+      "display": "hi",
+      "spans": [
+        {
+          "start": 0,
+          "end": 2,
+          "style": "bold"
+        },
+        {
+          "start": 0,
+          "end": 2,
+          "style": "quote"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "bullet-dash",
+      "text": "- milk",
+      "ranges": [],
+      "display": "- milk",
+      "spans": [
+        {
+          "start": 0,
+          "end": 6,
+          "style": "bullet"
+        }
+      ],
+      "displayRanges": [],
+      "note": "List markers stay in the display text. The renderer may draw a bullet glyph over `- ` and indents wrapped lines."
+    },
+    {
+      "name": "bullet-star",
+      "text": "* milk",
+      "ranges": [],
+      "display": "* milk",
+      "spans": [
+        {
+          "start": 0,
+          "end": 6,
+          "style": "bullet"
+        }
+      ],
+      "displayRanges": [],
+      "note": "`* ` is a bullet, never a bold opener, because a space follows it."
+    },
+    {
+      "name": "bullet-with-bold",
+      "text": "- *milk*",
+      "ranges": [],
+      "display": "- milk",
+      "spans": [
+        {
+          "start": 0,
+          "end": 6,
+          "style": "bullet"
+        },
+        {
+          "start": 2,
+          "end": 6,
+          "style": "bold"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "bullet-not-at-start",
+      "text": "a - b",
+      "ranges": [],
+      "display": "a - b",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "numbered",
+      "text": "1. first\n2. second",
+      "ranges": [],
+      "display": "1. first\n2. second",
+      "spans": [
+        {
+          "start": 0,
+          "end": 8,
+          "style": "numbered"
+        },
+        {
+          "start": 9,
+          "end": 18,
+          "style": "numbered"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "numbered-three-digits",
+      "text": "100. x",
+      "ranges": [],
+      "display": "100. x",
+      "spans": [
+        {
+          "start": 0,
+          "end": 6,
+          "style": "numbered"
+        }
+      ],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "numbered-four-digits",
+      "text": "1000. x",
+      "ranges": [],
+      "display": "1000. x",
+      "spans": [],
+      "displayRanges": [],
+      "note": "At most three digits."
+    },
+    {
+      "name": "numbered-needs-space",
+      "text": "1.5 kg",
+      "ranges": [],
+      "display": "1.5 kg",
+      "spans": [],
+      "displayRanges": [],
+      "note": ""
+    },
+    {
+      "name": "quoted-list",
+      "text": "> - a",
+      "ranges": [],
+      "display": "- a",
+      "spans": [
+        {
+          "start": 0,
+          "end": 3,
+          "style": "bullet"
+        },
+        {
+          "start": 0,
+          "end": 3,
+          "style": "quote"
+        }
+      ],
+      "displayRanges": [],
+      "note": "Quote first, then a list inside it."
+    }
+  ]
+}
