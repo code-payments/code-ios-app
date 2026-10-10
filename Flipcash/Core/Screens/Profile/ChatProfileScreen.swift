@@ -160,6 +160,7 @@ struct ChatProfileScreen: View {
             }
             .profilePinnedBackdropClearance(isActive: origin != .chat)
             .profileScrollFit($scrollFit)
+            .scrollIndicators(.hidden)
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
             // The blur only belongs once the banner has scrolled up under the bar.
