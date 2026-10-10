@@ -88,7 +88,7 @@ final class ConversationController {
     /// The Chats tab's source rows before archive is applied: tip DMs and joined groups. Already
     /// without hidden conversations, so everything downstream inherits that exclusion.
     private var chatListSource: [Conversation] {
-        conversations(of: .tipDm) + joinedGroups
+        ChatListSelection.source(from: conversations, isMember: { store.isMember(of: $0) })
     }
 
     /// The one place `Conversation` becomes the list rules' input. The list, the chips, the Archived

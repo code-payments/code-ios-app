@@ -10,12 +10,14 @@ import Foundation
 /// Which chats the share extension offers, and which one a share was aimed at.
 public enum ShareChatSelection {
 
-    /// The chats a share can go into, most recent first. Hidden chats are the ones the user removed
-    /// from the list, so they stay out of the picker too.
-    public static func candidates(from conversations: [Conversation]) -> [Conversation] {
-        conversations
-            .filter { !$0.isHidden }
-            .sorted { $0.lastActivity > $1.lastActivity }
+    /// The chats a share can go into: exactly the Chats tab's main list, so the picker matches what
+    /// the user sees in the app. Hidden and archived chats, contact DMs and unjoined groups stay out.
+    public static func candidates(
+        from conversations: [Conversation],
+        joinedGroupIDs: Set<ConversationID>,
+        archivedIDs: Set<ConversationID>
+    ) -> [Conversation] {
+        ChatListSelection.mainList(from: conversations, joinedGroupIDs: joinedGroupIDs, archivedIDs: archivedIDs)
     }
 
     /// The chat named by an `INSendMessageIntent.conversationIdentifier`, when it is one of
