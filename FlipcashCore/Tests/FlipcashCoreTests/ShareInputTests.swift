@@ -107,24 +107,32 @@ struct ShareInputTests {
 @Suite("Share chat selection")
 struct ShareChatSelectionTests {
 
-    private static func conversation(_ byte: UInt8, size: Int = 32, activity: TimeInterval, hidden: Bool = false) -> Conversation {
+    private static func conversation(_ byte: UInt8, size: Int = 32, activity: TimeInterval, type: ConversationType = .tipDm, hidden: Bool = false) -> Conversation {
         Conversation(
             id: ConversationID(data: Data(repeating: byte, count: size)),
             members: [],
             lastMessage: nil,
             lastActivity: Date(timeIntervalSinceReferenceDate: activity),
+            type: type,
             isHidden: hidden
         )
     }
 
-    @Test("Candidates are most recent first and leave out hidden chats")
+    @Test("Candidates are the Chats tab's main list: newest first, no hidden, archived, contact or unjoined chats")
     func candidates() {
         let old = Self.conversation(1, activity: 10)
         let new = Self.conversation(2, activity: 30)
         let hidden = Self.conversation(3, activity: 40, hidden: true)
-        let middle = Self.conversation(4, activity: 20)
+        let middle = Self.conversation(4, activity: 20, type: .group)
+        let archived = Self.conversation(5, activity: 50)
+        let contact = Self.conversation(6, activity: 60, type: .contactDm)
+        let unjoined = Self.conversation(7, activity: 70, type: .group)
 
-        let result = ShareChatSelection.candidates(from: [old, hidden, new, middle])
+        let result = ShareChatSelection.candidates(
+            from: [old, hidden, new, middle, archived, contact, unjoined],
+            joinedGroupIDs: [middle.id],
+            archivedIDs: [archived.id]
+        )
 
         #expect(result.map(\.id) == [new.id, middle.id, old.id])
     }

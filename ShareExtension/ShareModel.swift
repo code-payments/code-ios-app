@@ -110,15 +110,18 @@ final class ShareModel {
         self.account = account
 
         var conversations: [Conversation]?
+        var joinedGroupIDs: Set<ConversationID> = []
         let outcome = ExtensionStore.perform(owner: account.keyAccount.ownerPublicKey) { database in
             conversations = try database.getConversations()
+            joinedGroupIDs = try database.getGroupMemberships()
         }
         guard outcome == .wrote, let conversations else {
             ExtensionReporting.breadcrumb("chat list unavailable: \(outcome)")
             phase = .chatsUnavailable
             return
         }
-        chats = ShareChatSelection.candidates(from: conversations)
+        let archivedIDs = ChatArchiveReader.load(owner: account.keyAccount.ownerPublicKey)?.archivedIDs ?? []
+        chats = ShareChatSelection.candidates(from: conversations, joinedGroupIDs: joinedGroupIDs, archivedIDs: archivedIDs)
         preselectedID = ShareChatSelection.preselected(conversationIdentifier: intentConversationIdentifier, in: chats)
 
         input = await ShareInput.parse(providers)
