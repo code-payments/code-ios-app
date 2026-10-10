@@ -137,6 +137,23 @@ final class ShareModel {
         phase = .ready
     }
 
+    /// What a row's avatar draws, from the same picture the Chats tab uses: the chat's own for a
+    /// group, the counterpart's for a DM. Bytes come from the App Group cache the app fills, so a
+    /// picture the app has not fetched yet falls back to its blurhash.
+    func avatar(for chat: Conversation) -> ShareAvatar {
+        let picture = chat.type == .group
+            ? chat.picture
+            : chat.counterpart(excluding: account?.userID)?.profilePicture
+        let id = chat.type == .group
+            ? chat.id.description
+            : (chat.counterpart(excluding: account?.userID)?.userID?.uuidString ?? chat.id.description)
+        return ShareAvatar(
+            id: id,
+            imageData: picture.flatMap { BlobCache.profilePictures.data(for: $0.thumbnailBlobID) },
+            blurhash: picture?.thumbnailBlurhash
+        )
+    }
+
     func displayName(for chat: Conversation) -> String {
         // The extension has no contacts access, so the feed's name stands in for the address-book name.
         chat.displayName(selfUserID: account?.userID, contactName: { _ in nil })
@@ -268,4 +285,11 @@ final class ShareModel {
             "Couldn't send. Check your connection and try again."
         }
     }
+}
+
+/// The inputs of a `ContactAvatarView` for one picker row.
+struct ShareAvatar {
+    let id: String
+    let imageData: Data?
+    let blurhash: String?
 }

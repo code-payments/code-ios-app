@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashUI
 
 struct ShareRootView: View {
 
@@ -49,7 +50,7 @@ struct ShareRootView: View {
         case .ready:
             List(model.chats) { chat in
                 Button { selected = chat } label: {
-                    ShareChatRow(name: model.displayName(for: chat))
+                    ShareChatRow(name: model.displayName(for: chat), avatar: model.avatar(for: chat))
                 }
                 .buttonStyle(.plain)
             }
@@ -63,24 +64,17 @@ extension Conversation: @retroactive Identifiable {}
 private struct ShareChatRow: View {
 
     let name: String
+    let avatar: ShareAvatar
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(initials)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 40, height: 40)
-                .background(.quaternary, in: Circle())
+            ContactAvatarView(id: avatar.id, displayName: name, imageData: avatar.imageData, blurhash: avatar.blurhash, size: 40)
                 .accessibilityHidden(true)
             Text(name)
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
         .contentShape(Rectangle())
-    }
-
-    private var initials: String {
-        String(name.split(separator: " ").prefix(2).compactMap(\.first)).uppercased()
     }
 }
 
