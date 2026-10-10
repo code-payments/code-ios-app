@@ -591,7 +591,7 @@ struct ConversationBottomBar: View {
     /// What the mention list shows, or `nil` while it is closed. Tied to the live query as well as
     /// the model, so a send or a pick closes it in the same update rather than after the search.
     private var mentionCandidates: [ConversationMember]? {
-        guard mentions != nil, composer.mentionQuery != nil, !listedCandidates.isEmpty else { return nil }
+        guard mentions != nil, !listedCandidates.isEmpty, composer.mentionQuery != nil else { return nil }
         return listedCandidates
     }
 
