@@ -37,8 +37,10 @@ final class ShareModel {
 
     enum SendState: Equatable {
         case idle
-        case sending(step: Int, of: Int)
-        case failed(message: String, canRetry: Bool)
+        /// Sending to the chat at `chat` of `total`, one message at a time.
+        case sending(chat: Int, of: Int)
+        /// At least one chat didn't get the share; `progress` says which.
+        case failed
     }
 
     private(set) var phase: Phase = .loading
@@ -49,6 +51,15 @@ final class ShareModel {
 
     /// The chat the share was aimed at by an intent, or nil.
     private(set) var preselectedID: ConversationID?
+
+    /// The chats the share will go to, in pick order.
+    private(set) var recipients = ShareRecipientSelection()
+
+    /// The search field's text.
+    var query = ""
+
+    /// Where each chosen chat stands once a send has started; nil before the first send.
+    private(set) var progress: ShareSendProgress?
 
     /// The message text, prefilled from the shared text or link.
     var text = ""
@@ -67,11 +78,24 @@ final class ShareModel {
     private var loadTask: Task<Void, Never>?
     private var sendTask: Task<Void, Never>?
 
-    // Per-send progress that survives a retry: what already went out is never sent twice.
-    private var clientMessageIDs: [Int: UUID] = [:]
-    private var uploaded: [Int: UploadedPhoto] = [:]
-    private var completedSteps: Set<Int> = []
-    private var session: Session?
+    // Per-chat progress that survives a retry: what already went out is never sent twice.
+    private var clientMessageIDs: [StepKey: UUID] = [:]
+    private var completedSteps: Set<StepKey> = []
+    private var sessions: [ConversationID: Session] = [:]
+    private var flipClient: FlipClient?
+    /// Uploads by image. A photo sealed for one chat is that chat's alone, so `chat` is nil only for
+    /// plaintext uploads, which every chat can reference.
+    private var uploaded: [UploadKey: UploadedPhoto] = [:]
+
+    private struct StepKey: Hashable {
+        let chat: ConversationID
+        let step: Int
+    }
+
+    private struct UploadKey: Hashable {
+        let chat: ConversationID?
+        let index: Int
+    }
 
     private struct Session {
         let flipClient: FlipClient
@@ -123,6 +147,7 @@ final class ShareModel {
         let archivedIDs = ChatArchiveReader.load(owner: account.keyAccount.ownerPublicKey)?.archivedIDs ?? []
         chats = ShareChatSelection.candidates(from: conversations, joinedGroupIDs: joinedGroupIDs, archivedIDs: archivedIDs)
         preselectedID = ShareChatSelection.preselected(conversationIdentifier: intentConversationIdentifier, in: chats)
+        if let preselectedID { recipients.select(preselectedID) }
 
         input = await ShareInput.parse(providers)
         text = input.text ?? ""
@@ -159,12 +184,45 @@ final class ShareModel {
         chat.displayName(selfUserID: account?.userID, contactName: { _ in nil })
     }
 
+    // MARK: - Selection -
+
+    var sections: ShareChatList.Sections {
+        ShareChatList.sections(chats, query: query, suggested: preselectedID, name: displayName(for:))
+    }
+
+    func chat(_ id: ConversationID) -> Conversation? {
+        chats.first { $0.id == id }
+    }
+
+    /// The chosen chats' names, comma-joined, in pick order.
+    var recipientSummary: String {
+        recipients.ids.compactMap { chat($0) }.map(displayName(for:)).joined(separator: ", ")
+    }
+
+    @discardableResult
+    func toggle(_ id: ConversationID) -> ShareRecipientSelection.ToggleResult {
+        guard !isSending else { return .deselected }
+        let result = recipients.toggle(id)
+        if result != .limitReached, case .failed = sendState {
+            // The set changed under a failed send; start the next send from the new set.
+            progress = nil
+            sendState = .idle
+        }
+        return result
+    }
+
+    var canSend: Bool {
+        if isSending || recipients.isEmpty { return false }
+        if let progress, progress.isStuck { return false }
+        return !thumbnails.isEmpty || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     // MARK: - Sending -
 
-    func send(to chat: Conversation) {
-        guard sendTask == nil, !isSending else { return }
+    func send() {
+        guard sendTask == nil, !isSending, canSend else { return }
         sendTask = Task {
-            await performSend(to: chat)
+            await performSend()
             sendTask = nil
         }
     }
@@ -175,47 +233,69 @@ final class ShareModel {
         cancelRequest()
     }
 
-    private func performSend(to chat: Conversation) async {
+    /// Sends to every chat that hasn't received the share yet, one at a time, and finishes the request
+    /// once all have. A chat that fails doesn't stop the others.
+    private func performSend() async {
         guard let account else { return }
-        let owner = account.keyAccount.owner
         let steps = ShareSendPlan.steps(imageCount: input.imageURLs.count, text: text)
         guard !steps.isEmpty else { return }
 
-        do {
-            let session = try await resolveSession(for: chat, account: account)
-            for (position, step) in steps.enumerated() where !completedSteps.contains(position) {
-                try Task.checkCancellation()
-                sendState = .sending(step: position + 1, of: steps.count)
-                let clientMessageID = clientMessageIDs[position] ?? UUID()
-                clientMessageIDs[position] = clientMessageID
-
-                let message: ConversationMessage
-                switch step {
-                case .text(let body):
-                    message = try await session.flipClient.sendMessage(owner: owner, conversationID: chat.id, text: body, repliedTo: nil, seal: session.seal, clientMessageID: clientMessageID)
-                case .photo(let index, let caption):
-                    let photo = try await uploadedPhoto(at: index, session: session)
-                    message = try await session.flipClient.sendMediaMessage(owner: owner, conversationID: chat.id, photo: photo, caption: caption, repliedTo: nil, seal: session.seal, clientMessageID: clientMessageID)
-                }
-                completedSteps.insert(position)
-                persist(message, in: chat.id, account: account)
+        var progress = self.progress ?? ShareSendProgress(recipients: recipients.ids)
+        let targets = progress.remaining
+        for (position, id) in targets.enumerated() {
+            guard let chat = chat(id) else { continue }
+            sendState = .sending(chat: position + 1, of: targets.count)
+            do {
+                try await send(steps, to: chat, account: account)
+                progress.markSent(id)
+            } catch is CancellationError {
+                self.progress = progress
+                sendState = .idle
+                return
+            } catch {
+                ExtensionReporting.capture(error, reason: "Share send failed")
+                progress.markFailed(id, message: Self.message(for: error), canRetry: Self.canRetry(error))
             }
+            self.progress = progress
+        }
+
+        if progress.isComplete {
             input.removeFiles()
             finish()
-        } catch is CancellationError {
-            sendState = .idle
-        } catch {
-            ExtensionReporting.capture(error, reason: "Share send failed")
-            sendState = .failed(message: Self.message(for: error), canRetry: Self.canRetry(error))
+        } else {
+            sendState = .failed
         }
     }
 
-    /// The client, the chat's seal and the uploader, built once per send and kept across retries so a
+    private func send(_ steps: [ShareSendPlan.Step], to chat: Conversation, account: UserAccount) async throws {
+        let owner = account.keyAccount.owner
+        let session = try await resolveSession(for: chat, account: account)
+        for (position, step) in steps.enumerated() where !completedSteps.contains(StepKey(chat: chat.id, step: position)) {
+            try Task.checkCancellation()
+            let key = StepKey(chat: chat.id, step: position)
+            let clientMessageID = clientMessageIDs[key] ?? UUID()
+            clientMessageIDs[key] = clientMessageID
+
+            let message: ConversationMessage
+            switch step {
+            case .text(let body):
+                message = try await session.flipClient.sendMessage(owner: owner, conversationID: chat.id, text: body, repliedTo: nil, seal: session.seal, clientMessageID: clientMessageID)
+            case .photo(let index, let caption):
+                let photo = try await uploadedPhoto(at: index, chat: chat.id, session: session)
+                message = try await session.flipClient.sendMediaMessage(owner: owner, conversationID: chat.id, photo: photo, caption: caption, repliedTo: nil, seal: session.seal, clientMessageID: clientMessageID)
+            }
+            completedSteps.insert(key)
+            persist(message, in: chat.id, account: account)
+        }
+    }
+
+    /// The client, the chat's seal and the uploader, built once per chat and kept across retries so a
     /// retry doesn't repeat the chat fetch. Only a fully built session is kept.
     private func resolveSession(for chat: Conversation, account: UserAccount) async throws -> Session {
-        if let session { return session }
+        if let session = sessions[chat.id] { return session }
         let owner = account.keyAccount.owner
-        let flipClient = try FlipClient(network: .mainNet)
+        let flipClient = try self.flipClient ?? FlipClient(network: .mainNet)
+        self.flipClient = flipClient
         let keyring = ChatKeyring(owner: owner, selfUserID: account.userID) { userID in
             try await flipClient.resolveUserID(userID, owner: owner)
         }
@@ -226,19 +306,22 @@ final class ShareModel {
             seal: { seal }
         )
         let session = Session(flipClient: flipClient, seal: seal, uploader: uploader)
-        self.session = session
+        sessions[chat.id] = session
         return session
     }
 
     /// Decodes, uploads and releases one image. The decoded bitmap lives only inside this call, and a
     /// retry after a failed send reuses the stored upload instead of decoding again.
-    private func uploadedPhoto(at index: Int, session: Session) async throws -> UploadedPhoto {
-        if let photo = uploaded[index] { return photo }
+    private func uploadedPhoto(at index: Int, chat: ConversationID, session: Session) async throws -> UploadedPhoto {
+        let sealedKey = UploadKey(chat: chat, index: index)
+        let plainKey = UploadKey(chat: nil, index: index)
+        if let photo = uploaded[sealedKey] ?? uploaded[plainKey] { return photo }
+        let key = session.seal == nil ? plainKey : sealedKey
         guard let image = await ChatPhotoDecoder.decode(contentsOf: input.imageURLs[index], maxPixelSize: Self.maxUploadEdge) else {
             throw ShareError.unreadableImage
         }
-        let photo = try await session.uploader.upload(image, orientation: .up, onStored: { uploaded[index] = $0 }, onPrepared: { _, _ in })
-        uploaded[index] = photo
+        let photo = try await session.uploader.upload(image, orientation: .up, onStored: { uploaded[key] = $0 }, onPrepared: { _, _ in })
+        uploaded[key] = photo
         return photo
     }
 
