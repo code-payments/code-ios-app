@@ -2022,7 +2022,15 @@ final class ConversationController {
         if let draft {
             failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
         }
-        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        if delivered { donateShareSuggestion(for: conversationID) }
+        return delivered
+    }
+
+    /// Tells the system the user just wrote into this chat, so it is offered in the Share sheet.
+    private func donateShareSuggestion(for conversationID: ConversationID) {
+        guard let conversation = conversation(withID: conversationID) else { return }
+        ChatShareDonor.donate(conversation, displayName: displayName(for: conversation), selfUserID: selfUserID)
     }
 
     /// Posts `text` the way ``send(_:to:repliedTo:restoringOnFailure:)`` does, except that a
@@ -2193,6 +2201,7 @@ final class ConversationController {
             )
             deliveredAll = deliveredAll && delivered
         }
+        if deliveredAll { donateShareSuggestion(for: conversationID) }
         return deliveredAll
     }
 
