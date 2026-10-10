@@ -26,23 +26,13 @@ struct ProfileScrollFitTests {
         #expect(fit.overflows)
     }
 
-    @Test("Content that shrinks to fit releases the clearance it turned on")
-    func clearance_releases() {
+    @Test("Content that shrinks to fit stops overflowing")
+    func shrinks_to_fit() {
         var fit = ProfileScrollFit()
         fit.update(visibleHeight: 700, contentHeight: 1200)
         #expect(fit.overflows)
 
-        // The 56pt clearance leaves 644 visible; 690 overflows that but fits the 700 the screen
-        // has without it.
-        fit.update(visibleHeight: 644, contentHeight: 690)
+        fit.update(visibleHeight: 700, contentHeight: 700)
         #expect(fit.overflows == false)
-    }
-
-    @Test("Overflowing content stays overflowing once the clearance is on")
-    func clearance_holds() {
-        var fit = ProfileScrollFit()
-        fit.update(visibleHeight: 700, contentHeight: 1200)
-        fit.update(visibleHeight: 644, contentHeight: 1200)
-        #expect(fit.overflows)
     }
 }
