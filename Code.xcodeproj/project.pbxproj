@@ -40,6 +40,7 @@
 		A3BE11B009F4E2EF7ED93F05 /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = EFFC929EC8849F357BE7F997 /* FlipcashUI */; };
 		B4D66444ACFD12F6C0FE8FA2 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D542CC6E03E2DF4F10D1BFE7 /* UserNotifications.framework */; };
 		FACE000000000000000000A2 /* NotificationTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE000000000000000000A1 /* NotificationTranscriptView.swift */; };
+		5A0E1F2B3C4D4E5F8A9B0C1D /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = EFFC929EC8849F357BE7F997 /* FlipcashUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -191,6 +192,7 @@
 				8D1766162CE94018B6DE106B /* FlipcashCore in Frameworks */,
 				46809829231644E8A501AA4F /* FlipcashStore in Frameworks */,
 				E20CC3E1194146BCA8F87888 /* Bugsnag in Frameworks */,
+				5A0E1F2B3C4D4E5F8A9B0C1D /* FlipcashUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -384,6 +386,7 @@
 				358ED8813F044795BC79ADAE /* FlipcashCore */,
 				31E89F3BEC50418CAE99662C /* FlipcashStore */,
 				13ACBA3BA12440C8B3036028 /* Bugsnag */,
+				EFFC929EC8849F357BE7F997 /* FlipcashUI */,
 			);
 			productName = ShareExtension;
 			productReference = 923C43E939D4451BA943F715 /* ShareExtension.appex */;
