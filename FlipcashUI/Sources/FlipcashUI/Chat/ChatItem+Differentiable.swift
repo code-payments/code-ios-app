@@ -36,7 +36,7 @@ extension ChatItem {
         case .message(let message):
             switch message.content {
             case .text:
-                message.linkPreview != nil ? ChatLinkMessageCell.reuseIdentifier : ChatMessageCell.reuseIdentifier
+                message.linkPreview != nil || message.format?.needsTextView == true ? ChatLinkMessageCell.reuseIdentifier : ChatMessageCell.reuseIdentifier
             case .deleted, .unavailable:
                 // Deliberately the same cell class as plain text: a message becoming a tombstone
                 // then diffs as an in-place reconfigure rather than a delete-and-insert.

@@ -1389,7 +1389,7 @@ extension ChatViewController {
         guard !message.actions.isEmpty else { return nil }
 
         // A split row copies the whole message, not the piece of it the row happens to draw.
-        let body: String? = if case .text(let text) = message.content { message.part?.messageText ?? text } else { nil }
+        let body: String? = if case .text(let text) = message.content { message.part?.messageText ?? message.format?.raw ?? text } else { nil }
         let rowID = message.messageID
         let handler = onMessageAction
 

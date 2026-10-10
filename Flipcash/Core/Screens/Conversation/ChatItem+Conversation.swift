@@ -52,7 +52,34 @@ nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) ->
         linkPreviewCache.setObject(DetectedLinkBox(links, mentions), forKey: key)
     }
     guard !links.isEmpty || !mentions.isEmpty else { return nil }
-    return LinkPreview(links: links, card: card(links), mentions: mentions)
+    // The address inside `[text](address)` is a masked link's target, never a card: the words
+    // around it are the sender's label, and the card cut would split the markup.
+    let body = text as NSString
+    let cardable = links.filter { !ChatTextFormatter.isMaskTarget($0.range, in: body) }
+    return LinkPreview(links: links, card: card(cardable), mentions: mentions)
+}
+
+nonisolated(unsafe) private let formattedTextCache: NSCache<NSString, FormattedTextBox> = {
+    let cache = NSCache<NSString, FormattedTextBox>()
+    cache.countLimit = 512
+    return cache
+}()
+
+private final class FormattedTextBox {
+    nonisolated let value: FormattedChatText
+    nonisolated init(_ value: FormattedChatText) { self.value = value }
+}
+
+/// The parser's result for a whole message, memoized by text beside the link cache: a typing tick
+/// remaps the transcript, and each message should cross the bridge once. A row cut out of a split
+/// message is not cached, since its preview is a slice of its message's.
+nonisolated private func formattedText(_ raw: String, preview: LinkPreview?, cacheable: Bool) -> FormattedChatText {
+    guard cacheable else { return ChatTextFormatter.format(raw, preview: preview) }
+    let key = raw as NSString
+    if let cached = formattedTextCache.object(forKey: key) { return cached.value }
+    let result = ChatTextFormatter.format(raw, preview: preview)
+    formattedTextCache.setObject(FormattedTextBox(result), forKey: key)
+    return result
 }
 
 extension ChatItem {
@@ -347,10 +374,16 @@ extension ChatItem {
                 let part = row.part.map {
                     ChatMessagePart(messageID: message.stableID, kind: $0, messageText: row.messageText ?? "")
                 }
+                // The words go through the shared parser: the row draws the display text and its
+                // styles, and Copy keeps the raw text. A card row's text is its link, not markup.
+                let formatted: FormattedChatText? = {
+                    guard row.part != .card, case .text(let whole) = message.content else { return nil }
+                    return formattedText(row.text ?? whole, preview: row.preview, cacheable: row.text == nil)
+                }()
                 items.append(.message(ChatMessage(
                     id: part?.rowID ?? message.stableID,
                     serverID: serverID,
-                    content: row.text.map(ChatMessage.Content.text) ?? content,
+                    content: formatted.map { .text($0.display) } ?? row.text.map(ChatMessage.Content.text) ?? content,
                     sender: isFromSelf ? .me : .other,
                     isContinuationFromPrevious: isFirst ? groupedAbove : true,
                     isContinuedByNext: isLast ? groupedBelow : true,
@@ -359,7 +392,8 @@ extension ChatItem {
                     joinsBubbleBelow: isLast ? joinsBubbleBelow : true,
                     isEmojiOnly: part == nil && isEmojiOnlyBody(message),
                     receipt: isLast ? receipt : nil,
-                    linkPreview: row.preview,
+                    linkPreview: formatted?.preview ?? row.preview,
+                    format: formatted?.format,
                     isEdited: isLast && message.lastEditedTs != nil && !message.isDeleted,
                     actions: orderedActions(capabilities(message)),
                     quote: isFirst ? quote : nil,
@@ -415,7 +449,7 @@ extension ChatItem {
             return ChatQuote(
                 stableID: original.stableID,
                 authorName: authorName,
-                snippet: ChatQuote.snippet(forText: text),
+                snippet: ChatQuote.snippet(forText: ChatTextFormatter.displayText(of: text)),
                 kind: .text,
                 authorID: original.senderID
             )

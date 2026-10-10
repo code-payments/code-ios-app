@@ -1036,7 +1036,7 @@ struct ConversationScreen: View {
     ) -> (snippet: String, kind: ChatQuote.Kind) {
         switch message.content {
         case .text(let text):
-            (ChatQuote.snippet(forText: text), .text)
+            (ChatQuote.snippet(forText: ChatTextFormatter.displayText(of: text)), .text)
         case .cash(let fiat):
             (
                 fiat.nativeAmount.formatted(),

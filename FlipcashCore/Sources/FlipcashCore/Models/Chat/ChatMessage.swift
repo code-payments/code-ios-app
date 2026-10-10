@@ -107,6 +107,10 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// The web link this text row contains, or nil when it carries none — marks the row to render as
     /// tappable text. Derived from the text at map time (not stored/sent) — cash rows never carry one.
     public let linkPreview: LinkPreview?
+    /// The styles over a text row, and the markup as typed, when the text held any. `content` and
+    /// `linkPreview` are then in terms of the display text, with the markers taken out; Copy and
+    /// Edit read the raw text from here. Nil for a plain message.
+    public let format: ChatTextFormat?
     /// Whether to draw the muted "Edited" marker after the body.
     public let isEdited: Bool
     /// What the context menu offers for this row, already ordered. Empty means no menu.
@@ -219,6 +223,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         isEmojiOnly: Bool = false,
         receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil,
+        format: ChatTextFormat? = nil,
         isEdited: Bool = false,
         actions: [MessageCapability] = [],
         quote: ChatQuote? = nil,
@@ -241,6 +246,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.isEmojiOnly = isEmojiOnly
         self.receipt = receipt
         self.linkPreview = linkPreview
+        self.format = format
         self.isEdited = isEdited
         self.actions = actions
         self.quote = quote
@@ -266,6 +272,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         isEmojiOnly: Bool = false,
         receipt: ChatReceipt? = nil,
         linkPreview: LinkPreview? = nil,
+        format: ChatTextFormat? = nil,
         isEdited: Bool = false,
         actions: [MessageCapability] = [],
         quote: ChatQuote? = nil,
@@ -289,6 +296,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             isEmojiOnly: isEmojiOnly,
             receipt: receipt,
             linkPreview: linkPreview,
+            format: format,
             isEdited: isEdited,
             actions: actions,
             quote: quote,

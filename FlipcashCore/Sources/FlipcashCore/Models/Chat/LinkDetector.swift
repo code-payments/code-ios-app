@@ -15,13 +15,17 @@ public struct DetectedLink: Hashable, Sendable, Codable {
     public let location: Int
     public let length: Int
     public let url: URL
+    /// The text a masked link `[text](url)` shows in place of its address, or nil when the link's
+    /// text is its address. The leaving-Flipcash warning quotes it beside the host.
+    public let maskedLabel: String?
 
     public var range: NSRange { NSRange(location: location, length: length) }
 
-    public init(range: NSRange, url: URL) {
+    public init(range: NSRange, url: URL, maskedLabel: String? = nil) {
         self.location = range.location
         self.length = range.length
         self.url = url
+        self.maskedLabel = maskedLabel
     }
 }
 

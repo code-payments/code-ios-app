@@ -88,4 +88,25 @@ struct MentionDetectorTests {
         #expect(handles("no handles here") == [])
         #expect(handles("just an @ sign") == [])
     }
+
+    // MARK: - Underscore before the @ (spec rule 6)
+
+    @Test("An underscore before the @ is allowed, and a trailing one it opened is trimmed",
+          arguments: [
+            ("_@jeff_", ["jeff"]),
+            ("_@jeff__", ["jeff_"]),
+            ("_@jeff_x", ["jeff_x"]),
+            ("jeff_@gmail.com", []),
+            ("__@jeff__", []),
+            ("_hey @jeff_", ["jeff_"]),
+          ])
+    func underscoreBeforeAt(text: String, expected: [String]) {
+        #expect(handles(text) == expected)
+    }
+
+    @Test("The trimmed mention's range stops before the closing underscore")
+    func trimmedRange() {
+        let mentions = MentionDetector.mentions(in: "_@jeff_", excluding: [])
+        #expect(mentions.first?.range == NSRange(location: 1, length: 5))
+    }
 }

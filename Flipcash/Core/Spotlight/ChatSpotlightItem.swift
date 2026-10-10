@@ -57,7 +57,7 @@ nonisolated struct ChatSpotlightItem {
     /// Mirrors the recipient picker's last-message subtitle.
     private static func preview(of message: ConversationMessage?) -> String? {
         switch message?.content {
-        case .text(let text):    text
+        case .text(let text):    ChatTextFormatter.displayText(of: text)
         case .cash(let amount):  "Cash · \(amount.nativeAmount.formatted())"
         case .widget(.shareProfile): "Shared a profile"
         case .media(_, let caption): ChatMediaStrings.listPreview(caption: caption)

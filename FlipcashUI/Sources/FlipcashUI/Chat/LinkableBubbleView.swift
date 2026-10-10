@@ -581,11 +581,14 @@ enum MentionPill {
 /// ChatLayout's own `MessageTextView` recipe.
 final class LinkTextView: UITextView {
     private let pills = CAShapeLayer()
+    private let quoteBars = CAShapeLayer()
 
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
         pills.fillColor = MentionPill.fill.cgColor
         layer.insertSublayer(pills, at: 0)
+        quoteBars.fillColor = UIColor.white.withAlphaComponent(0.5).cgColor
+        layer.insertSublayer(quoteBars, at: 0)
     }
 
     @available(*, unavailable)
@@ -598,6 +601,38 @@ final class LinkTextView: UITextView {
     override func layoutSubviews() {
         super.layoutSubviews()
         drawPills()
+        drawQuoteBars()
+    }
+
+    /// One bar down the left of each run of quoted lines, in the gutter the paragraph style leaves.
+    private func drawQuoteBars() {
+        let path = UIBezierPath()
+        for rect in quoteBarRects {
+            path.append(UIBezierPath(roundedRect: rect, cornerRadius: ChatTextStyling.quoteBarWidth / 2))
+        }
+        quoteBars.path = path.cgPath
+        quoteBars.frame = bounds
+    }
+
+    /// The bar for each run of quoted lines, in the text view's coordinates. Lines of one quote
+    /// are separate spans with their line breaks between them, so a line that starts where the last
+    /// one ended continues the bar.
+    var quoteBarRects: [CGRect] {
+        guard let text = attributedText, text.length > 0 else { return [] }
+        var lines: [CGRect] = []
+        text.enumerateAttribute(ChatTextStyling.quoteBar, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+            guard value != nil, let rects = lineRects(for: range), !rects.isEmpty else { return }
+            lines.append(rects.reduce(CGRect.null) { $0.union($1) })
+        }
+        var bars: [CGRect] = []
+        for line in lines {
+            if let last = bars.last, line.minY - last.maxY < 4 {
+                bars[bars.count - 1] = CGRect(x: 0, y: last.minY, width: ChatTextStyling.quoteBarWidth, height: line.maxY - last.minY)
+            } else {
+                bars.append(CGRect(x: 0, y: line.minY, width: ChatTextStyling.quoteBarWidth, height: line.height))
+            }
+        }
+        return bars
     }
 
     /// One pill per line a mention covers, behind the text, so a wrapped handle gets one on each line.

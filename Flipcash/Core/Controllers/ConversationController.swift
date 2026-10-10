@@ -1613,7 +1613,9 @@ final class ConversationController {
         let senderName = groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf, knownAuthors: knownAuthors)
 
         switch message.content {
-        case .text(let text):
+        case .text(let raw):
+            // The words without their markers: a preview line draws no styles.
+            let text = ChatTextFormatter.displayText(of: raw)
             // A bare prefix says less than no line at all, so an empty body previews as nothing.
             guard !text.isEmpty else { return nil }
             if isFromSelf { return "You: \(text)" }

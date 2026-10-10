@@ -283,6 +283,9 @@ public final class ChatBubbleView: UIView {
             string: body,
             attributes: [.font: bodyFont, .foregroundColor: bodyColor]
         )
+        if let spans = message.format?.spans, !isPlaceholder, !message.rendersAsLargeEmoji {
+            ChatTextStyling.apply(spans, to: result, size: 16, weight: .medium)
+        }
 
         if Self.showsEditedMarker(for: message), !message.rendersAsLargeEmoji {
             result.append(EditedMarker.reservation)

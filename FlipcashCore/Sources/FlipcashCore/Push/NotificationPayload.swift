@@ -93,7 +93,7 @@ public enum NotificationPayload {
         }
         switch message.content {
         case .text(let text):
-            return text
+            return ChatTextFormatter.displayText(of: text)
         case .cash, .deleted, .encrypted, .widget, .media:
             return nil
         }

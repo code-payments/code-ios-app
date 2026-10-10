@@ -64,9 +64,12 @@ extension ChatItem {
             let sender: ChatMessage.Sender = message.senderID == selfUserID ? .me : .other
 
             let content: ChatMessage.Content
+            var textFormat: ChatTextFormat?
             switch message.content {
             case .text(let text):
-                content = .text(text)
+                let formatted = ChatTextFormatter.format(detecting: text)
+                content = .text(formatted.display)
+                textFormat = formatted.format
             case .cash(let fiat):
                 // The flag loads from the FlipcashUI bundle, so it resolves inside an extension. The
                 // token name + coin icon come from `mintBranding`; an unresolved mint shows no token
@@ -122,7 +125,8 @@ extension ChatItem {
                 sender: sender,
                 isContinuationFromPrevious: false,
                 isContinuedByNext: false,
-                isEmojiOnly: isEmojiOnly
+                isEmojiOnly: isEmojiOnly,
+                format: textFormat
             )))
             previous = message
         }

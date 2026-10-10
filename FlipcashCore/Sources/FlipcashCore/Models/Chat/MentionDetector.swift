@@ -31,17 +31,27 @@ public enum MentionDetector {
     /// Every `@handle` in `text` that does not overlap one of `links`, in the order they appear.
     ///
     /// The character before the `@` must not be a handle character, `.` or `@`, so an email
-    /// address or `@@name` is not a mention. The handle ends at the first character a handle
+    /// address or `@@name` is not a mention. One `_` may sit between that character and the `@`, so
+    /// `_@jeff_` is an italic mention; see the trim below. The handle ends at the first character a handle
     /// cannot hold, and a handle running straight into more handle characters or another `@`
     /// is dropped rather than cut short.
     public static func mentions(in text: String, excluding links: [DetectedLink]) -> [DetectedMention] {
         guard text.contains("@") else { return [] }
 
         return text.matches(of: pattern).compactMap { match -> DetectedMention? in
-            let (_, mention, handle) = match.output
-            guard let username = Username(String(handle).lowercased()) else { return nil }
+            let (_, opener, mention, handle) = match.output
+            var name = String(handle)
+            var end = mention.endIndex
+            // `_@jeff_`: the `_` before the `@` opened an italic, so the handle's last `_` closes it
+            // and is not the handle's. Only while two handle characters remain, and only when an
+            // opening `_` was there: `_hey @jeff_` keeps the handle it wrote.
+            if !opener.isEmpty, name.hasSuffix("_"), name.count > 2 {
+                name.removeLast()
+                end = text.index(before: end)
+            }
+            guard let username = Username(name.lowercased()) else { return nil }
 
-            let range = NSRange(mention.startIndex..<mention.endIndex, in: text)
+            let range = NSRange(mention.startIndex..<end, in: text)
             guard !links.contains(where: { NSIntersectionRange($0.range, range).length > 0 }) else {
                 return nil
             }
@@ -51,5 +61,5 @@ public enum MentionDetector {
 
     // Swift Regex has no lookbehind, so the preceding character is matched (and excluded from
     // the mention's range) instead. Case folds after the match; `Username` stores lowercase.
-    private nonisolated(unsafe) static let pattern = /(?:^|[^A-Za-z0-9_.@])(@([A-Za-z0-9_]{2,15}))(?![A-Za-z0-9_@])/
+    private nonisolated(unsafe) static let pattern = /(?:^|[^A-Za-z0-9_.@])(_?)(@([A-Za-z0-9_]{2,15}))(?![A-Za-z0-9_@])/
 }
