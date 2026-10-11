@@ -280,6 +280,14 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onMessagesSeen = newValue }
     }
 
+    /// Room reserved under the navigation bar for a surface floating over the transcript's top edge.
+    public var transcriptTopInset: CGFloat = 0 {
+        didSet {
+            guard transcriptTopInset != oldValue else { return }
+            transcript.setTopInset(transcriptTopInset)
+        }
+    }
+
     /// Whether rows on screen count as read — see ``ChatViewController/reportsReads``.
     public var reportsReads: Bool {
         get { transcript.reportsReads }

@@ -191,4 +191,13 @@ struct PrivateGroupCopyTests {
         #expect(PrivateGroupCopy.wantToJoinYourGroups(count: 4) == "4 people want to join your groups")
         #expect(PrivateGroupCopy.noRequests(groupName: "Moony") == "When someone asks to join Moony, they'll show up here")
     }
+
+    @Test("The in-chat anchor names one requester, or counts several and lists their names")
+    func anchorCopy() {
+        #expect(PrivateGroupCopy.anchorTitle(names: ["Jasper"]) == "Jasper wants to join")
+        #expect(PrivateGroupCopy.anchorTitle(names: ["Jasper", "Vincent", "Tam"]) == "3 people want to join")
+        #expect(PrivateGroupCopy.anchorNames(["Jasper"]) == "Jasper")
+        #expect(PrivateGroupCopy.anchorNames(["Jasper", "Tam"]) == "Jasper and Tam")
+        #expect(PrivateGroupCopy.anchorNames(["Jasper", "Vincentjeezus24", "Tam"]) == "Jasper, Vincentjeezus24 and Tam")
+    }
 }

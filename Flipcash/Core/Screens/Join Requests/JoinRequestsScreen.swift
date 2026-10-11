@@ -214,7 +214,7 @@ private struct JoinRequestRow: View {
 }
 
 /// The small capsule buttons on the Join Requests screen: white Approve, grey Deny and Share Group.
-private struct JoinRequestCapsuleStyle: ButtonStyle {
+struct JoinRequestCapsuleStyle: ButtonStyle {
 
     enum Kind { case primary, secondary }
 

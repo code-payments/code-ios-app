@@ -67,6 +67,17 @@ enum PrivateGroupCopy {
         count == 1 ? "1 person wants to join your groups" : "\(count) people want to join your groups"
     }
 
+    /// The in-chat anchor's title: "Jasper wants to join" for one request, "3 people want to join" for several.
+    static func anchorTitle(names: [String]) -> String {
+        names.count == 1 ? "\(names[0]) wants to join" : "\(names.count) people want to join"
+    }
+
+    /// The in-chat anchor's names line: "Jasper and Tam", or "Jasper, Vincent and Tam" for three or more.
+    static func anchorNames(_ names: [String]) -> String {
+        guard let last = names.last, names.count > 1 else { return names.first ?? "" }
+        return names.dropLast().joined(separator: ", ") + " and " + last
+    }
+
     /// The Join Requests empty state's body.
     static func noRequests(groupName: String) -> String {
         "When someone asks to join \(groupName), they'll show up here"

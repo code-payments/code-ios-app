@@ -91,6 +91,23 @@ struct ConversationScreen: View {
     /// The catalog's first category, in catalog order, that fills the strip after the recents.
     @State private var stripCatalog: [String] = []
 
+    /// The join-requests anchor's measured height, reserved at the transcript's top; 0 while hidden.
+    @State private var anchorHeight: CGFloat = 0
+
+    /// This conversation's id when the viewer hosts it as a private group; the anchor is host-only.
+    private var hostedConversationID: ConversationID? {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID),
+              conversation.isPrivate,
+              conversation.creator == conversationController.selfUserID else { return nil }
+        return conversationID
+    }
+
+    /// Pending join requests the anchor shows, newest first; empty for anyone but the host.
+    private var hostRequests: [LobbyMember] {
+        hostedConversationID.map { sessionContainer.hostedLobbies.requests(for: $0) } ?? []
+    }
+
     /// Where the title starts: clear of the back button.
     private static let titleLeadingInset: CGFloat = 72
     /// Where the title ends: the bar's trailing margin, since nothing sits on that side.
@@ -411,7 +428,8 @@ struct ConversationScreen: View {
             onPhotosAdded: stageAddedPhotos,
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
-            onMediaTap: openMediaViewer
+            onMediaTap: openMediaViewer,
+            transcriptTopInset: anchorHeight > 0 ? anchorHeight + 8 : 0
         )
     }
 
@@ -510,14 +528,40 @@ struct ConversationScreen: View {
     private func chrome(_ content: some View) -> some View {
         content
         .overlay(alignment: .top) {
-            if let reactionToastText {
-                ToastLabel(reactionToastText)
-                    .padding(.top, 8)
-                    .allowsHitTesting(false)
+            VStack(spacing: 8) {
+                if !hostRequests.isEmpty, let conversationID {
+                    JoinRequestsAnchor(
+                        requests: hostRequests,
+                        avatarData: { sessionContainer.profileAvatars.data(for: $0) },
+                        onReview: { router.push(.joinRequests(conversationID)) }
+                    )
+                    .padding(.horizontal, BarMetrics.edgeInset)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { anchorHeight = $0 }
+                    .onDisappear { anchorHeight = 0 }
                     .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                if let reactionToastText {
+                    ToastLabel(reactionToastText)
+                        .allowsHitTesting(false)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
+            .padding(.top, 8)
         }
         .animation(.default, value: reactionToastText)
+        .animation(.default, value: hostRequests.map(\.userID))
+        .task(id: hostedConversationID) {
+            guard let hostedConversationID else { return }
+            await sessionContainer.hostedLobbies.refresh(hostedConversationID)
+            for member in hostRequests.prefix(3) {
+                await sessionContainer.profileAvatars.load(userID: member.userID, picture: member.profile?.profilePicture)
+            }
+        }
+        .onAppear {
+            // Coming back from Join Requests: the visit's task doesn't rerun on a pop.
+            guard let hostedConversationID else { return }
+            Task { await sessionContainer.hostedLobbies.refresh(hostedConversationID) }
+        }
         .onChange(of: conversationController.reactions.error) { _, _ in
             scheduleReactionErrorDismissal()
         }
