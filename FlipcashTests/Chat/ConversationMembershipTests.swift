@@ -356,4 +356,50 @@ struct ConversationMembershipTests {
         try await waitUntil { controller.conversation(withID: .test(1))?.rosterSummary.version == 2 }
         #expect(controller.joinedGroups.map(\.id) == [.test(1)])
     }
+
+    // MARK: - Private group requests
+
+    @Test("A requested group that lists the viewer is seated as joined")
+    func refreshSeatsAdmission() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let me = UUID()
+        let mock = MockConversations()
+        var admitted = group(1, members: [ConversationMember(userID: me, displayName: "me")], memberCount: 2)
+        admitted.isPrivate = true
+        mock.feed = [admitted]
+        let controller = makeController(mock, selfUserID: me, database: database)
+
+        let fresh = await controller.refreshRequestedGroup(.test(1))
+
+        #expect(fresh?.id == .test(1))
+        #expect(controller.joinedGroups.map(\.id) == [.test(1)])
+    }
+
+    @Test("A requested group still waiting is held without joining")
+    func refreshHoldsPending() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        var pending = group(1)
+        pending.isPrivate = true
+        pending.inLobby = true
+        mock.feed = [pending]
+        let controller = makeController(mock, database: database)
+
+        let fresh = await controller.refreshRequestedGroup(.test(1))
+
+        #expect(fresh?.inLobby == true)
+        #expect(controller.conversation(withID: .test(1)) != nil)
+        #expect(controller.joinedGroups.isEmpty)
+    }
+
+    @Test("A failed refresh returns nil")
+    func refreshFailure() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let controller = makeController(MockConversations(), database: database)
+
+        #expect(await controller.refreshRequestedGroup(.test(9)) == nil)
+    }
 }

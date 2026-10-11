@@ -224,7 +224,14 @@ struct DeepLinkAction {
     private static func routeChat(_ conversationID: ConversationID, origin: DeepLinkOrigin, in container: SessionContainer) async {
         let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
 
-        guard let destination = chatDestination(for: conversation?.type, conversationID: conversationID) else {
+        let isPrivateOutsider = conversation.map {
+            $0.isPrivate && !container.conversationController.isMember(of: $0)
+        } ?? false
+        guard let destination = chatDestination(
+            for: conversation?.type,
+            isPrivateOutsider: isPrivateOutsider,
+            conversationID: conversationID
+        ) else {
             logger.info("Ignoring non-tip chat deeplink", metadata: [
                 "conversationID": "\(conversationID)",
             ])
@@ -243,9 +250,17 @@ struct DeepLinkAction {
     /// The screen a chat id opens, or nil when it isn't one the app surfaces.
     ///
     /// A group routes to the same transcript a tip DM does whether or not the viewer is a member:
-    /// the screen gates itself, so an invite link and a push tap land on one destination.
-    static func chatDestination(for type: ConversationType?, conversationID: ConversationID) -> AppRouter.Destination? {
+    /// the screen gates itself, so an invite link and a push tap land on one destination. The
+    /// exception is a private group the viewer isn't in, which has no chat they can read; it opens
+    /// the profile, where they ask to join.
+    static func chatDestination(
+        for type: ConversationType?,
+        isPrivateOutsider: Bool = false,
+        conversationID: ConversationID
+    ) -> AppRouter.Destination? {
         switch type {
+        case .group where isPrivateOutsider:
+            return .chatProfile(conversationID, origin: .featuredGroup)
         case .tipDm, .group:
             return .tipConversation(conversationID)
         case .contactDm, nil:

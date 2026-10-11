@@ -1197,6 +1197,32 @@ final class ConversationController {
         refreshFeedPreview(for: conversation.id)
     }
 
+    /// Refetches a private group the user asked to join and returns the server's copy, or nil when
+    /// the fetch fails.
+    ///
+    /// There is no push for an admission, so this is how one made while the app was closed is
+    /// learned: `GetChat` lists only the viewer in `members`, and only once they belong, at which
+    /// point the group is seated the way ``join(conversationID:)`` seats it.
+    func refreshRequestedGroup(_ conversationID: ConversationID) async -> Conversation? {
+        let conversation: Conversation
+        do {
+            conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
+        } catch {
+            logger.warning("Failed to refresh a requested group", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            return nil
+        }
+        let isAdmitted = conversation.members.contains { $0.userID == selfUserID }
+        if isAdmitted, self.conversation(withID: conversationID).map(isMember(of:)) != true {
+            seatCreatedGroup(conversation)
+        } else {
+            hold(conversation)
+        }
+        return conversation
+    }
+
     /// Seats the metadata `EditChat` returns for a chat the signed-in user just edited, so its
     /// profile and the Chats list show the new title, description, picture or cover without waiting
     /// for anything else.

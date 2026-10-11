@@ -580,6 +580,9 @@ final class SessionContainer {
     /// The signed-in user's private-group chat keys, in memory and reopened from the server.
     let groupKeys: GroupKeyEnvelopes
 
+    /// The private groups the signed-in user has asked to join.
+    let lobbyRequests: LobbyRequests
+
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
 
@@ -675,6 +678,16 @@ final class SessionContainer {
             },
             getEnvelope: { [flipClient, owner = session.ownerKeyPair] conversationID in
                 try await flipClient.getKeyEnvelope(owner: owner, conversationID: conversationID)
+            }
+        )
+
+        self.lobbyRequests = LobbyRequests(
+            owner: owner.publicKey,
+            enterLobby: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.enterLobby(owner: owner, conversationID: conversationID)
+            },
+            leaveLobby: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.leaveLobby(owner: owner, conversationID: conversationID)
             }
         )
 

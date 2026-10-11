@@ -131,6 +131,15 @@ struct TipConversationsScreen: View {
             sessionContainer.knownAuthors.hydrateIfReady()
             conversationController.hydrateIfReady()
         }
+        // No push says a join request was decided, so the list asks after each one it opens on;
+        // an admission seats the group and puts it in the list.
+        .task {
+            for conversationID in sessionContainer.lobbyRequests.conversationIDs {
+                if let fresh = await conversationController.refreshRequestedGroup(conversationID) {
+                    sessionContainer.lobbyRequests.reconcile(with: fresh)
+                }
+            }
+        }
         // Every counterpart, not just the rows on screen. A row's own `.task` fires when the row is
         // built, which in a `List` is when it scrolls into view — so without this the avatar below
         // the fold starts downloading at the moment the user is looking at its blurhash.

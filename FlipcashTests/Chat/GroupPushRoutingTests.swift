@@ -109,6 +109,11 @@ struct GroupPushRoutingTests {
             DeepLinkAction.chatDestination(for: .group, conversationID: conversationID)
                 == .tipConversation(conversationID)
         )
+        // A private group the viewer isn't in has no readable chat, so its link opens the profile.
+        #expect(
+            DeepLinkAction.chatDestination(for: .group, isPrivateOutsider: true, conversationID: conversationID)
+                == .chatProfile(conversationID, origin: .featuredGroup)
+        )
         #expect(DeepLinkAction.chatDestination(for: .contactDm, conversationID: conversationID) == nil)
         #expect(DeepLinkAction.chatDestination(for: nil, conversationID: conversationID) == nil)
     }

@@ -108,6 +108,7 @@ nonisolated extension Database {
                 viewerState: conversationViewerState(from: row),
                 creator: row[c.creator],
                 useE2Ee: row[c.useE2Ee],
+                isPrivate: row[c.isPrivate],
                 coverPicture: conversationCoverPicture(from: row)
             )
         }
@@ -470,6 +471,14 @@ nonisolated extension Database {
                     onConflictOf: c.id
                 )
             )
+
+            // Kept out of the upsert above for the same reason as the cover: a copy that doesn't
+            // carry the flag must not clear it on a group that is private for good.
+            if conversation.isPrivate {
+                try writer.run(
+                    c.table.filter(c.id == conversation.id.data).update(c.isPrivate <- true)
+                )
+            }
 
             // COALESCE(new, existing): the cover columns stay out of the upsert above, which would
             // overwrite them with nil, and are written only when this copy carries a cover.
