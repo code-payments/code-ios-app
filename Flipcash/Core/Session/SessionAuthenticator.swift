@@ -582,6 +582,7 @@ final class SessionContainer {
 
     /// The private groups the signed-in user has asked to join.
     let lobbyRequests: LobbyRequests
+    let hostedLobbies: HostedLobbies
 
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
@@ -771,6 +772,23 @@ final class SessionContainer {
             cache: { try database.upsertUserProfile($0, userID: $1) }
         )
         conversationController.mentionSearch = mentionSearch
+
+        let hostedLobbies = HostedLobbies(
+            getMembers: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getLobbyMembers(owner: owner, conversationID: conversationID)
+            },
+            wrapKey: { [groupKeys = self.groupKeys] recipient, conversationID in
+                try await groupKeys.wrap(for: recipient, in: conversationID)
+            },
+            admitMember: { [flipClient, owner = session.ownerKeyPair] conversationID, userID, envelope in
+                try await flipClient.admitLobbyMember(owner: owner, conversationID: conversationID, userID: userID, keyEnvelope: envelope)
+            },
+            denyMember: { [flipClient, owner = session.ownerKeyPair] conversationID, userID in
+                try await flipClient.denyLobbyMember(owner: owner, conversationID: conversationID, userID: userID)
+            }
+        )
+        conversationController.hostedLobbies = hostedLobbies
+        self.hostedLobbies = hostedLobbies
         self.rosterSearch = mentionSearch
 
         // The blocklist drives which conversations the feed hides: it supplies the

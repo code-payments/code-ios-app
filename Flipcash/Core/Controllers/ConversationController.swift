@@ -40,6 +40,13 @@ final class ConversationController {
 
     /// DM conversations, most-recent activity first.
     var conversations: [Conversation] { store.conversations }
+
+    /// The private groups the signed-in user created, archived and muted ones included.
+    var hostedPrivateGroupIDs: [ConversationID] {
+        store.conversations
+            .filter { $0.isPrivate && $0.creator == selfUserID }
+            .map(\.id)
+    }
     private(set) var isLoadingFeed = false
 
     /// Whether the feed's contents are known: seeded from a non-empty cache, or answered by the
@@ -391,6 +398,8 @@ final class ConversationController {
     /// Moves new senders to the front of the mention picker's held suggestions. Set by the session
     /// after init.
     @ObservationIgnored var mentionSearch: ServerMentionSearch?
+    /// Keeps the join requests on the user's own private groups live. Set by the session after init.
+    @ObservationIgnored var hostedLobbies: HostedLobbies?
     /// Keeps a photo send running for the time iOS allows after the app leaves the screen.
     private let backgroundTasks: any BackgroundTaskAsserting
 
@@ -547,6 +556,7 @@ final class ConversationController {
                 self.applyTyping(event)
                 self.applyReactions(event)
                 self.mentionSearch?.apply(event)
+                self.hostedLobbies?.apply(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }
@@ -589,6 +599,8 @@ final class ConversationController {
             await catchUp(conversationID: visibleConversationID)
         }
         await feed
+        // Lobby updates sit outside the event log, so a reconnect can only reread them.
+        await hostedLobbies?.refresh(hosted: hostedPrivateGroupIDs)
     }
 
     // MARK: - Event-log catch-up

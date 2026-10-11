@@ -154,6 +154,11 @@ struct ChatProfileScreen: View {
                             .padding(.top, 16)
                     }
 
+                    if joinRequestCount > 0 {
+                        joinRequestsCard
+                            .padding(.top, 24)
+                    }
+
                     if GroupChattingGrid.isVisible(isPrivate: isPrivate, chatters: chatters) {
                         GroupChattingGrid(chatters: chatters) { userID in
                             router.push(.userProfile(userID, origin: .groupMember))
@@ -231,6 +236,10 @@ struct ChatProfileScreen: View {
             ).displayName
         }
         // Waits for the conversation to land before asking: a private group's sample is denied.
+        .task(id: conversation.map { $0.isPrivate && $0.creator == conversationController.selfUserID }) {
+            guard let conversation, conversation.isPrivate, conversation.creator == conversationController.selfUserID else { return }
+            await sessionContainer.hostedLobbies.refresh(conversationID)
+        }
         .task(id: conversation.map { $0.isPrivate } ) {
             guard let conversation, !conversation.isPrivate else { return }
             await loadChatters()
@@ -268,6 +277,48 @@ struct ChatProfileScreen: View {
         } catch {
             chatters = []
         }
+    }
+
+    // MARK: - Join Requests -
+
+    /// Pending requests to join, shown only to this private group's host.
+    private var joinRequestCount: Int {
+        guard isPrivate, conversation?.creator == conversationController.selfUserID else { return 0 }
+        return sessionContainer.hostedLobbies.requests(for: conversationID).count
+    }
+
+    private var joinRequestsCard: some View {
+        Button {
+            router.push(.joinRequests(conversationID))
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Join Requests")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                    Text(PrivateGroupCopy.waiting(count: joinRequestCount))
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                Spacer()
+                Text("\(joinRequestCount)")
+                    .font(.appTextHeading)
+                    .foregroundStyle(Color.textMain)
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 22, minHeight: 22)
+                    .background(Color.textSecondary.opacity(0.3), in: .capsule)
+                Image(systemName: "chevron.right")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 64)
+            .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, ProfileHeaderMetrics.inset)
+        .accessibilityIdentifier("group-profile-join-requests")
     }
 
     // MARK: - Balance Requirements -

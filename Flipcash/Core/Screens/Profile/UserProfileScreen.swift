@@ -415,6 +415,8 @@ nonisolated enum UserProfileOrigin: Hashable {
     case usernameLookup
     /// A transaction's details, with no DM yet.
     case transaction
+    /// A request to join a private group the user hosts.
+    case joinRequest
 
     /// Whether Open Chat returns to the DM the profile was opened from rather than pushing a
     /// second copy of it.
@@ -422,7 +424,7 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .directMessage:
             return true
-        case .groupMember, .mention, .deeplink, .scan, .usernameLookup, .transaction:
+        case .groupMember, .mention, .deeplink, .scan, .usernameLookup, .transaction, .joinRequest:
             return false
         }
     }
@@ -434,7 +436,7 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .deeplink, .scan, .usernameLookup:
             return true
-        case .directMessage, .groupMember, .mention, .transaction:
+        case .directMessage, .groupMember, .mention, .transaction, .joinRequest:
             return false
         }
     }
@@ -446,7 +448,7 @@ nonisolated enum UserProfileOrigin: Hashable {
     /// reset lands on the chat list either way.
     var blockReturnsToOpener: Bool {
         switch self {
-        case .deeplink, .transaction:
+        case .deeplink, .transaction, .joinRequest:
             return true
         case .directMessage, .groupMember, .mention, .scan, .usernameLookup:
             return false

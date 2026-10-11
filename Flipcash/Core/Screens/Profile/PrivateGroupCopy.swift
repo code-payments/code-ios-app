@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// The words a private group's profile shows someone who isn't in it.
+/// The words private-group screens show the requester and the host.
 enum PrivateGroupCopy {
 
     /// "Private group · 48 members", or "Private group" before the count is known.
@@ -38,6 +38,38 @@ enum PrivateGroupCopy {
         } else {
             "You'll be able to open the chat once the host approves"
         }
+    }
+
+    /// A join request's age on the host's list: "requested just now", then "requested 10m ago",
+    /// "requested 2h ago" or "requested 3d ago".
+    static func requestAge(requestedAt: Date, now: Date) -> String {
+        let minutes = Int(now.timeIntervalSince(requestedAt) / 60)
+        switch minutes {
+        case ..<1:           return "requested just now"
+        case ..<60:          return "requested \(minutes)m ago"
+        case ..<(60 * 24):   return "requested \(minutes / 60)h ago"
+        default:             return "requested \(minutes / (60 * 24))d ago"
+        }
+    }
+
+    /// The host's profile card subtitle: "1 person is waiting" or "3 people are waiting".
+    static func waiting(count: Int) -> String {
+        count == 1 ? "1 person is waiting" : "\(count) people are waiting"
+    }
+
+    /// The Chats tab's Join Requests row: "1 person wants to join Moony" or "3 people want to join Moony".
+    static func wantToJoin(count: Int, groupName: String) -> String {
+        count == 1 ? "1 person wants to join \(groupName)" : "\(count) people want to join \(groupName)"
+    }
+
+    /// The Chats tab's Join Requests row when several hosted groups have requests.
+    static func wantToJoinYourGroups(count: Int) -> String {
+        count == 1 ? "1 person wants to join your groups" : "\(count) people want to join your groups"
+    }
+
+    /// The Join Requests empty state's body.
+    static func noRequests(groupName: String) -> String {
+        "When someone asks to join \(groupName), they'll show up here"
     }
 
     /// The sheet title when a request can't be made.

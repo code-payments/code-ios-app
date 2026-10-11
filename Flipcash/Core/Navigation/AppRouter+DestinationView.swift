@@ -219,6 +219,10 @@ struct DestinationView: View {
         case .archivedChats:
             ArchivedChatsScreen()
 
+        case .joinRequests(let conversationID):
+            JoinRequestsScreen(conversationID: conversationID)
+                .id(conversationID)
+
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID))

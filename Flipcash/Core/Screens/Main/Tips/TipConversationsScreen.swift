@@ -39,13 +39,37 @@ struct TipConversationsScreen: View {
         return filter.ids(in: projection).compactMap { byID[$0] }
     }
 
+    @State private var isPickingRequestGroup = false
+
+    private func groupName(_ conversationID: ConversationID) -> String {
+        conversationController.conversation(withID: conversationID)
+            .map { conversationController.displayName(for: $0) } ?? ""
+    }
+
+    /// One hosted group names it; several sum their requests and open a picker.
+    private func joinRequestsRow(_ groups: [ConversationID]) -> some View {
+        let lobbies = sessionContainer.hostedLobbies
+        let count = groups.reduce(0) { $0 + lobbies.requests(for: $1).count }
+        let title = groups.count == 1
+            ? PrivateGroupCopy.wantToJoin(count: count, groupName: groupName(groups[0]))
+            : PrivateGroupCopy.wantToJoinYourGroups(count: count)
+        return JoinRequestsRow(title: title, count: count) {
+            if groups.count == 1 {
+                router.push(.joinRequests(groups[0]))
+            } else {
+                isPickingRequestGroup = true
+            }
+        }
+    }
+
     /// A selected filter keeps the chips in view: they explain the list.
     private var showsChips: Bool { chipsRevealed || filter != .all }
 
     var body: some View {
         let projection = self.projection
         let conversations = rows(projection)
-        let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible
+        let requestGroups = sessionContainer.hostedLobbies.groupsWithRequests
+        let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible && requestGroups.isEmpty
 
         Background(color: .backgroundMain) {
             if nothingAtAll {
@@ -77,6 +101,12 @@ struct TipConversationsScreen: View {
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
+                        // Only under All, like Archived below it.
+                        if !requestGroups.isEmpty, filter == .all {
+                            joinRequestsRow(requestGroups)
+                                .listRowSeparator(.hidden, edges: .top)
+                                .listRowBackground(Color.clear)
+                        }
                         // Only under All: the other filters narrow the list, and archived chats aren't in it.
                         if projection.archivedRowVisible, filter == .all {
                             ArchivedRow(count: projection.archivedRowCount) {
@@ -130,6 +160,20 @@ struct TipConversationsScreen: View {
             // render once without them.
             sessionContainer.knownAuthors.hydrateIfReady()
             conversationController.hydrateIfReady()
+        }
+        // Lobby updates sit outside the event log, so the list rereads every hosted lobby on load.
+        .task {
+            await sessionContainer.hostedLobbies.refresh(hosted: conversationController.hostedPrivateGroupIDs)
+        }
+        .confirmationDialog("Join Requests", isPresented: $isPickingRequestGroup, titleVisibility: .visible) {
+            ForEach(sessionContainer.hostedLobbies.groupsWithRequests, id: \.self) { conversationID in
+                Button(PrivateGroupCopy.wantToJoin(
+                    count: sessionContainer.hostedLobbies.requests(for: conversationID).count,
+                    groupName: groupName(conversationID)
+                )) {
+                    router.push(.joinRequests(conversationID))
+                }
+            }
         }
         // No push says a join request was decided, so the list asks after each one it opens on;
         // an admission seats the group and puts it in the list.

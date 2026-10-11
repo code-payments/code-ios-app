@@ -172,4 +172,23 @@ struct PrivateGroupCopyTests {
         #expect(PrivateGroupCopy.summary(memberCount: 1) == "Private group · 1 member")
         #expect(PrivateGroupCopy.summary(memberCount: 48) == "Private group · 48 members")
     }
+
+    @Test("A request's age on the host's list")
+    func requestAge() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        #expect(PrivateGroupCopy.requestAge(requestedAt: now.addingTimeInterval(-30), now: now) == "requested just now")
+        #expect(PrivateGroupCopy.requestAge(requestedAt: now.addingTimeInterval(-600), now: now) == "requested 10m ago")
+        #expect(PrivateGroupCopy.requestAge(requestedAt: now.addingTimeInterval(-7_200), now: now) == "requested 2h ago")
+        #expect(PrivateGroupCopy.requestAge(requestedAt: now.addingTimeInterval(-259_200), now: now) == "requested 3d ago")
+    }
+
+    @Test("Host counts read singular and plural, and dialog-free copy has no trailing period")
+    func hostCounts() {
+        #expect(PrivateGroupCopy.waiting(count: 1) == "1 person is waiting")
+        #expect(PrivateGroupCopy.waiting(count: 3) == "3 people are waiting")
+        #expect(PrivateGroupCopy.wantToJoin(count: 1, groupName: "Moony") == "1 person wants to join Moony")
+        #expect(PrivateGroupCopy.wantToJoin(count: 3, groupName: "Moony") == "3 people want to join Moony")
+        #expect(PrivateGroupCopy.wantToJoinYourGroups(count: 4) == "4 people want to join your groups")
+        #expect(PrivateGroupCopy.noRequests(groupName: "Moony") == "When someone asks to join Moony, they'll show up here")
+    }
 }

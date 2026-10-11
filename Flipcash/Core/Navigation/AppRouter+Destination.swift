@@ -134,6 +134,9 @@ extension AppRouter {
         case editGroupDescription(ConversationID)
         /// The list of archived chats, pushed from the Archived row on the Chats tab.
         case archivedChats
+        /// The pending requests to join a private group the user hosts, pushed from its profile card,
+        /// the Chats tab's Join Requests row, or the chat's request anchor.
+        case joinRequests(ConversationID)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -159,7 +162,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats:
+                 .editGroupDescription, .archivedChats, .joinRequests:
                 return .tips
             }
         }
@@ -220,6 +223,7 @@ extension AppRouter {
             case .editGroupCover:               "editGroupCover"
             case .editGroupDescription:         "editGroupDescription"
             case .archivedChats:                "archivedChats"
+            case .joinRequests:                 "joinRequests"
             }
         }
 
@@ -247,7 +251,8 @@ extension AppRouter {
                  .editGroupName(let conversationID),
                  .editGroupPicture(let conversationID),
                  .editGroupCover(let conversationID),
-                 .editGroupDescription(let conversationID):
+                 .editGroupDescription(let conversationID),
+                 .joinRequests(let conversationID):
                 return conversationID.description
             case .userProfile(let userID, _):
                 return userID.uuidString
