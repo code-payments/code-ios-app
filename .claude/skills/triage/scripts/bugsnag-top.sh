@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# bugsnag-top.sh — fetch the top open production issue from Bugsnag (last 7 days).
+# bugsnag-top.sh — fetch the top production issue from Bugsnag (last 7 days).
 # Emits one JSON object to stdout on success.
 #
 # Modes:
-#   (default)         top open production issue with events in the last 7d
+#   (default)         top production issue with non-info events in the last 7d,
+#                     any status. `status` is in the output; a non-open status
+#                     means it is still firing despite being closed out.
 #   --skip <N>        walk down the ranked list
 #   --id <id|url>     target one issue directly (bypasses the default filters).
 #                     A bare id or Bugsnag error URL with no flag means the same.
@@ -165,8 +167,12 @@ elif [ -n "$FORCED_ID" ]; then
 else
   # Bugsnag requires URL-encoded bracket characters in filter params
   QUERY="sort=events&direction=desc&per_page=1&offset=$SKIP"
-  QUERY="$QUERY&filters%5Berror.status%5D%5B%5D%5Btype%5D=eq"
-  QUERY="$QUERY&filters%5Berror.status%5D%5B%5D%5Bvalue%5D=open"
+  # No error.status filter: an issue marked fixed/ignored/snoozed that still
+  # has events in the window must stay visible; its status is emitted below.
+  # Severity "ne info" drops expected outcomes the app already classifies as
+  # non-reporting (they arrive at severity=info).
+  QUERY="$QUERY&filters%5Bevent.severity%5D%5B%5D%5Btype%5D=ne"
+  QUERY="$QUERY&filters%5Bevent.severity%5D%5B%5D%5Bvalue%5D=info"
   QUERY="$QUERY&filters%5Brelease_stage%5D%5B%5D%5Btype%5D=eq"
   QUERY="$QUERY&filters%5Brelease_stage%5D%5B%5D%5Bvalue%5D=production"
   QUERY="$QUERY&filters%5Bevent.since%5D%5B%5D%5Btype%5D=eq"
@@ -261,9 +267,9 @@ fi
 COUNT=$(echo "$BODY" | jq 'length')
 if [ "$COUNT" -eq 0 ]; then
   if [ "$SKIP" -gt 0 ]; then
-    echo "Only $SKIP open production issues this week, --skip $SKIP skipped past all of them." >&2
+    echo "Only $SKIP production issues this week, --skip $SKIP skipped past all of them." >&2
   else
-    echo "No open production issues with events in the last 7 days. Nothing to triage today." >&2
+    echo "No production issues with non-info events in the last 7 days. Nothing to triage today." >&2
   fi
   exit 5
 fi
@@ -308,6 +314,7 @@ echo "$ERRORS_BODY" | jq \
   --arg latest_event_id "$LATEST_EVENT_ID" \
   '.[0] | {
     id,
+    status,
     short_id: (.id[0:7]),
     error_class,
     message,
