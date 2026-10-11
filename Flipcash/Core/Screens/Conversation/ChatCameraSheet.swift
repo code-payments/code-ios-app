@@ -102,7 +102,7 @@ struct ChatCameraSheet: View {
     }
 
     private var viewfinder: some View {
-        ChatCameraPreview(session: camera.session)
+        ChatCameraPreview(camera: camera)
             // Already running when the panel warmed it; this only catches a camera granted just now.
             // The warm-up stops it once the card is gone.
             .task {
@@ -258,37 +258,57 @@ private struct ChatCameraControlLabel: View {
 
 // MARK: - ChatCameraPreview -
 
-/// The live feed of a capture session, filling its frame.
+/// The live feed of the camera's session, filling its frame.
 ///
 /// Its own layer rather than FlipcashUI's `CameraViewport`: that view hands out one shared
 /// `_CameraPreviewView`, and mounting it here would pull the scanner's preview out of its tab.
-private struct ChatCameraPreview: UIViewRepresentable {
+/// Hosts the camera's one preview layer rather than building its own, because attaching a new layer
+/// to a running session reconfigures it on the main thread.
+struct ChatCameraPreview: UIViewRepresentable {
 
-    let session: AVCaptureSession
+    let camera: ChatPhotoCamera
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
         view.backgroundColor = UIColor(Color.backgroundMain)
-        view.previewLayer.videoGravity = .resizeAspectFill
-        view.previewLayer.session = session
+        view.host(camera.previewLayer)
         return view
     }
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
-        if uiView.previewLayer.session !== session {
-            uiView.previewLayer.session = session
-        }
+        uiView.host(camera.previewLayer)
+    }
+
+    static func dismantleUIView(_ uiView: PreviewView, coordinator: ()) {
+        uiView.release()
     }
 
     final class PreviewView: UIView {
 
-        override class var layerClass: AnyClass {
-            AVCaptureVideoPreviewLayer.self
+        private weak var previewLayer: AVCaptureVideoPreviewLayer?
+
+        /// Takes `layer` as this view's sublayer, from whichever view showed it last.
+        func host(_ layer: AVCaptureVideoPreviewLayer) {
+            previewLayer = layer
+            guard layer.superlayer !== self.layer else { return }
+            layer.videoGravity = .resizeAspectFill
+            self.layer.addSublayer(layer)
+            setNeedsLayout()
         }
 
-        var previewLayer: AVCaptureVideoPreviewLayer {
-            // `layerClass` guarantees the type.
-            layer as! AVCaptureVideoPreviewLayer
+        /// Gives the layer up, unless a newer mount already took it.
+        func release() {
+            guard let previewLayer, previewLayer.superlayer === layer else { return }
+            previewLayer.removeFromSuperlayer()
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard let previewLayer, previewLayer.superlayer === layer else { return }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            previewLayer.frame = bounds
+            CATransaction.commit()
         }
     }
 }

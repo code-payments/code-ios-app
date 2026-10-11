@@ -44,7 +44,11 @@ final class ChatPhotoCamera {
     /// Whether the session is delivering frames: from its start until ``stop()``.
     private(set) var isRunning = false
 
-    @ObservationIgnored let session = AVCaptureSession()
+    @ObservationIgnored let session: AVCaptureSession
+
+    /// The session's one preview layer, attached while the session is still empty so no viewfinder
+    /// mount has to reconfigure it on the main thread.
+    @ObservationIgnored let previewLayer: AVCaptureVideoPreviewLayer
 
     @ObservationIgnored private let output = AVCapturePhotoOutput()
     @ObservationIgnored private let sessionQueue = DispatchQueue(label: "com.flipcash.chat-camera.session")
@@ -57,6 +61,12 @@ final class ChatPhotoCamera {
     /// Whether the session should be running. A ``stop()`` while ``prepare()`` is still configuring
     /// keeps the session from starting once it finishes.
     @ObservationIgnored private var wantsRunning = false
+
+    init() {
+        let session = AVCaptureSession()
+        self.session = session
+        previewLayer = AVCaptureVideoPreviewLayer(session: session)
+    }
 
     // Same Swift 6.3 EarlyPerfInliner workaround `CameraSession` carries for @MainActor deinits.
     nonisolated deinit {}
