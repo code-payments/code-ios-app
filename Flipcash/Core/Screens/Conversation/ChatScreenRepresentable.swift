@@ -120,6 +120,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var onPhotosAdded: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> ComposerChip.ID? = { _, _ in nil }
     /// Receives images dropped on the bar.
     var onImagesDropped: ([NSItemProvider]) -> Void = { _ in }
+    /// Receives images pasted into the composer's field.
+    var onImagesPasted: ([NSItemProvider]) -> Void = { _ in }
     /// Mints a signed download URL for a photo in this chat. The transcript's resolver caches what it
     /// returns and never asks for a photo drawn only from its BlurHash.
     var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
@@ -155,6 +157,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.linkCardSource = linkCardSource
         screen.webPreviewMode = webPreviewMode
         screen.onMediaTap = onMediaTap
+        screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
+        screen.onImagesPasted = onImagesPasted
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
         screen.mediaURLResolver = context.coordinator.mediaURLResolver
@@ -209,6 +213,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.linkCardSource = linkCardSource
         screen.webPreviewMode = webPreviewMode
         screen.onMediaTap = onMediaTap
+        screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
+        screen.onImagesPasted = onImagesPasted
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
         screen.onEncryptionMarkerTap = onEncryptionMarkerTap

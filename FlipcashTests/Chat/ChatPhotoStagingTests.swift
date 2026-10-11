@@ -157,7 +157,7 @@ struct ChatPhotoStagingTests {
             NSItemProvider(object: picked[1]),
         ]
 
-        let staged = await ChatPhotoStaging.stageDropped(providers, into: composer, uploader: uploader)
+        let staged = await ChatPhotoStaging.stageProvided(providers, into: composer, uploader: uploader)
 
         #expect(staged.count == 2)
         #expect(composer.chips.map(\.image.size) == picked.map(\.size))
@@ -167,7 +167,7 @@ struct ChatPhotoStagingTests {
     func droppedTextStagesNothing() async {
         let composer = ComposerModel()
 
-        await ChatPhotoStaging.stageDropped([NSItemProvider(object: "text" as NSString)], into: composer, uploader: uploader)
+        await ChatPhotoStaging.stageProvided([NSItemProvider(object: "text" as NSString)], into: composer, uploader: uploader)
 
         #expect(composer.chips.isEmpty)
     }
@@ -177,7 +177,7 @@ struct ChatPhotoStagingTests {
         let composer = ComposerModel()
         let providers = images(ComposerModel.maxAttachments + 2).map { NSItemProvider(object: $0) }
 
-        await ChatPhotoStaging.stageDropped(providers, into: composer, uploader: uploader)
+        await ChatPhotoStaging.stageProvided(providers, into: composer, uploader: uploader)
 
         #expect(composer.chips.count == ComposerModel.maxAttachments)
     }
