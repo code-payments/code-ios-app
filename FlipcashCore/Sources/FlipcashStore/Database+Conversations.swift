@@ -541,8 +541,10 @@ nonisolated extension Database {
                     }
                     return
                 }
-                // A copy that decrypts a row stored while waiting on the peer's key is not a re-delivery.
-                let opensStoredRow = existing[m.kind] == 3 && existing[m.decryptFailure] == nil && !message.isAwaitingDecryption
+                // A copy that settles a row stored as ciphertext (waiting on a key, or unsupported by the
+                // build that stored it) is not a re-delivery. An unknown stored failure counts as final.
+                let storedFailure = existing[m.decryptFailure].map { ConversationMessage.DecryptFailure(rawValue: $0) ?? .authentication }
+                let opensStoredRow = existing[m.kind] == 3 && message.settles(unopenedWith: storedFailure)
                 if existingSequence == message.eventSequence && !opensStoredRow {
                     // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
                     // copy landing after a stream echo, or vice versa) so identity stays stable.

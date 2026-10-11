@@ -451,6 +451,28 @@ struct DatabaseConversationsTests {
         #expect(loaded.last?.isDeleted == true)
     }
 
+    @Test("An equal-version copy that opens replaces a row stored as unsupported; an authentication failure stays",
+          arguments: [(ConversationMessage.DecryptFailure.unsupported, true), (.authentication, false)])
+    func equalSequenceReopensStoredFailure(stored failure: ConversationMessage.DecryptFailure, reopens: Bool) throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let sealed = ConversationMessage(
+            id: MessageID(value: 5), senderID: otherID,
+            content: .encrypted(scheme: 2, nonce: Data([1]), ciphertext: Data([2])),
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 5, eventSequence: 3
+        )
+        try database.upsertConversationMessages([sealed.opened(.failure(failure))], conversationID: id)
+
+        try database.upsertConversationMessages([sealed.opened(.failure(.unsupported))], conversationID: id)
+        #expect(try database.getConversationMessages(conversationID: id).first?.decryptFailure == failure)
+
+        try database.upsertConversationMessages([sealed.opened(.success((content: .text("hi"), repliedTo: nil)))], conversationID: id)
+        let row = try database.getConversationMessages(conversationID: id).first
+        #expect(row?.content == (reopens ? .text("hi") : sealed.content))
+        #expect(row?.decryptFailure == (reopens ? nil : failure))
+    }
+
     @Test("An encrypted message round-trips scheme, nonce, and ciphertext byte for byte")
     func encryptedMessageRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

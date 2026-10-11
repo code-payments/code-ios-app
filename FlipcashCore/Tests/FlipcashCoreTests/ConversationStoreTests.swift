@@ -147,6 +147,24 @@ struct ConversationStoreTests {
         #expect(store.conversations == [row])
     }
 
+    @Test("setFeedPreview replaces an equal-version unsupported preview only with a copy that opened")
+    func unsupportedPreviewReopens() {
+        let sealed = ConversationMessage(
+            id: MessageID(value: 5), senderID: nil,
+            content: .encrypted(scheme: 2, nonce: Data([1]), ciphertext: Data([2])),
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 0, eventSequence: 5
+        )
+        var store = ConversationStore()
+        var row = conversation(1, lastActivity: 100)
+        row.lastMessage = sealed.opened(.failure(.unsupported))
+        store.setFeed([row])
+
+        store.setFeedPreview(sealed.opened(.failure(.unsupported)), in: conversationID(1))
+        #expect(store.conversations.first?.lastMessage?.decryptFailure == .unsupported)
+        store.setFeedPreview(sealed.opened(.success((content: .text("hi"), repliedTo: nil))), in: conversationID(1))
+        #expect(store.conversations.first?.lastMessage?.content == .text("hi"))
+    }
+
     @Test("advanceLastActivity moves the conversation to the front")
     func advanceActivityResorts() {
         var store = ConversationStore()

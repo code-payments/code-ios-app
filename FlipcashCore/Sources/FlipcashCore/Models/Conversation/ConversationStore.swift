@@ -324,7 +324,8 @@ public struct ConversationStore: Sendable {
         if !force,
            let current = conversations[index].lastMessage,
            (current.id, current.eventSequence) >= (newest.id, newest.eventSequence),
-           !(current.isAwaitingDecryption && (current.id, current.eventSequence) == (newest.id, newest.eventSequence)) { return }
+           !(current.isUnopened && newest.settles(unopenedWith: current.decryptFailure)
+             && (current.id, current.eventSequence) == (newest.id, newest.eventSequence)) { return }
         conversations[index].lastMessage = newest
     }
 
