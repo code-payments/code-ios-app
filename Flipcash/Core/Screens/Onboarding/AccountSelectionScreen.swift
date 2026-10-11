@@ -254,7 +254,7 @@ private struct AccountRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(alignment: .center, spacing: 15) {
-                CheckView(active: isSelected)
+                RadioButton(isSelected: isSelected)
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .bottom, spacing: 10) {
