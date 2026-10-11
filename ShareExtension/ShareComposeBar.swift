@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashUI
 
 /// The bar that slides up once a chat is picked: the shared images, the message field, who it goes
 /// to, and Send.
@@ -78,15 +79,15 @@ struct ShareComposeBar: View {
         } label: {
             Group {
                 if model.isSending {
-                    ProgressView().tint(.white)
+                    ProgressView().tint(Color.textAction)
                 } else {
                     Text(isRetry ? "Retry" : "Send").font(.body.weight(.semibold))
                 }
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.textAction)
             .frame(minWidth: 64, minHeight: 36)
             .padding(.horizontal, 6)
-            .background(Color.green.opacity(model.canSend || model.isSending ? 1 : 0.4), in: Capsule())
+            .background(Color.textMain.opacity(model.canSend || model.isSending ? 1 : 0.4), in: Capsule())
         }
         .disabled(!model.canSend)
     }
