@@ -25,6 +25,7 @@ struct ShareComposeBar: View {
                     thumbnails
                 }
                 TextField("Add a message…", text: $model.text, axis: .vertical)
+                    .font(.appTextMessage)
                     .lineLimit(1...5)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
@@ -34,7 +35,7 @@ struct ShareComposeBar: View {
 
             HStack(spacing: 12) {
                 Text(model.recipientSummary)
-                    .font(.subheadline)
+                    .font(.appTextSmall)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -61,7 +62,7 @@ struct ShareComposeBar: View {
             }
             if model.thumbnails.count > 1 {
                 Text("\(model.thumbnails.count)")
-                    .font(.caption2.bold())
+                    .font(.appTextHeading)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 5)
                     .background(.black.opacity(0.6), in: Capsule())
@@ -81,7 +82,7 @@ struct ShareComposeBar: View {
                 if model.isSending {
                     ProgressView().tint(Color.textAction)
                 } else {
-                    Text(isRetry ? "Retry" : "Send").font(.body.weight(.semibold))
+                    Text(isRetry ? "Retry" : "Send").font(.default(size: 17, weight: .medium))
                 }
             }
             .foregroundStyle(Color.textAction)
@@ -100,12 +101,12 @@ struct ShareComposeBar: View {
     private var failures: some View {
         if model.input.droppedImageCount > 0 {
             Text("Only the first \(ShareInput.maxImages) images are sent.")
-                .font(.footnote)
+                .font(.appTextCaption)
                 .foregroundStyle(.secondary)
         }
         if case .sending(let chat, let total) = model.sendState, total > 1 {
             Text("Sending \(chat) of \(total)")
-                .font(.footnote)
+                .font(.appTextCaption)
                 .foregroundStyle(.secondary)
         }
         if let progress = model.progress, case .failed = model.sendState {
@@ -113,7 +114,7 @@ struct ShareComposeBar: View {
                 ForEach(progress.failed, id: \.self) { id in
                     if let chat = model.chat(id), case .failed(let message, _) = progress.statuses[id] {
                         Text("\(model.displayName(for: chat)): \(message)")
-                            .font(.footnote)
+                            .font(.appTextCaption)
                             .foregroundStyle(.red)
                     }
                 }
