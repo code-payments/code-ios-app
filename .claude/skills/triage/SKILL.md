@@ -1,6 +1,6 @@
 ---
 name: triage
-description: Daily Bugsnag triage ritual — surface the top open production issue, investigate with evidence, propose a fix direction, route through experts, write a lean review brief.
+description: Daily Bugsnag triage ritual — surface the top production issue, investigate with evidence, propose a fix direction, route through experts, write a lean review brief.
 argument-hint: "[--skip <count> | --id <bugsnag_id_or_url> | <bugsnag_url>]"
 model: opus
 effort: high
@@ -43,15 +43,19 @@ Run the data fetch script with whatever arguments the user passed (`--skip <N>`,
 
 The script emits one JSON object on success. On any non-zero exit, the script already wrote a clear stderr message — relay that to the user verbatim and stop. Do not proceed.
 
-When `--id` or a bare id/URL is used, the script bypasses the default filters (status=open, release_stage=production, last 7d) so the user can target any issue — including closed, fixed, ignored, or stale ones — directly. If the URL carries `?event_id=`, `latest_event_id` is that event rather than the issue's newest one.
+The default ranked list covers issues of any status with non-info events in production over the last 7d (release_stage=production, severity != info, event.since=7d). Info-severity issues are expected outcomes the app already classifies as non-reporting, so they are excluded. Closed-out issues stay in the ranking because a `fixed` issue still firing means the fix has not shipped, or it regressed.
+
+When `--id` or a bare id/URL is used, the script bypasses the default filters (release_stage=production, severity != info, last 7d) so the user can target any issue — including closed, fixed, ignored, or stale ones — directly. If the URL carries `?event_id=`, `latest_event_id` is that event rather than the issue's newest one.
 
 Parse the JSON. You'll use:
 
-- `id`, `short_id`, `error_class`, `message`
+- `id`, `short_id`, `status`, `error_class`, `message`
 - `events`, `users`, `first_seen`, `last_seen`, `release_stages`
 - `introduced_in_release`, `grouping_hint`
 - `html_url` (browser link to put in the brief header)
 - `latest_event_id` (for the `--event` fetch in step 4)
+
+If `status` is not `open` (fixed, ignored, snoozed), the brief header must say so, e.g. "marked fixed in Bugsnag but still firing on `<event.app.version>`", and the root-cause section should state whether the fix is merged but unreleased or has regressed.
 
 ### 2. Existing-plan check
 
