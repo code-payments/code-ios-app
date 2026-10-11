@@ -504,7 +504,7 @@ private struct InviteChatRow: View {
 
                     Spacer(minLength: 12)
 
-                    CheckView(active: isSelected)
+                    RadioButton(isSelected: isSelected)
                 }
                 .padding(.vertical, 16)
                 .overlay(alignment: .bottom) {

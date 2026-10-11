@@ -223,9 +223,7 @@ private struct ReportReasonRow: View {
     var body: some View {
         Button(action: onSelect) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                    .font(.system(size: 20))
-                    .foregroundStyle(isSelected ? Color.textMain : Color.textSecondary)
+                RadioButton(isSelected: isSelected)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(reason.title)

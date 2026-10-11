@@ -149,7 +149,7 @@ private struct ShareChatRow: View {
             Text(name)
                 .lineLimit(1)
             Spacer(minLength: 0)
-            CheckView(active: isSelected)
+            RadioButton(isSelected: isSelected)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

@@ -122,7 +122,7 @@ private struct CurrencyRowContent: View {
                         .layoutPriority(10)
                 }
                 Spacer()
-                CheckView(active: viewModel.isCurrencyActive(description.currency))
+                RadioButton(isSelected: viewModel.isCurrencyActive(description.currency))
             }
             .padding(.vertical, 12)
             .background(Color.backgroundMain)
