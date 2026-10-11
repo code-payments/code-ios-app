@@ -423,7 +423,8 @@ struct ConversationScreen: View {
             acceptsMedia: acceptsMedia,
             onCameraCapture: stageCapturedPhoto,
             onPhotosAdded: stageAddedPhotos,
-            onImagesDropped: stageDroppedImages,
+            onImagesDropped: stageProvidedImages,
+            onImagesPasted: stageProvidedImages,
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer
@@ -463,15 +464,15 @@ struct ConversationScreen: View {
         ).handOff
     }
 
-    /// Stages images dropped on the composer, in drop order, as if picked from the library. The
-    /// bar refuses the drop up front when the chat takes no photos; the gate here covers a chat
-    /// that stopped taking them between the drop and this call.
-    private func stageDroppedImages(_ providers: [NSItemProvider]) {
+    /// Stages images dropped on or pasted into the composer, in order, as if picked from the
+    /// library. The bar refuses them up front when the chat takes no photos; the gate here covers a
+    /// chat that stopped taking them between the drop or paste and this call.
+    private func stageProvidedImages(_ providers: [NSItemProvider]) {
         guard acceptsMedia else { return }
         let composer = composer
         let uploader = mediaUploader
         Task {
-            await ChatPhotoStaging.stageDropped(providers, into: composer, uploader: uploader)
+            await ChatPhotoStaging.stageProvided(providers, into: composer, uploader: uploader)
         }
     }
 

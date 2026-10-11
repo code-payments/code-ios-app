@@ -66,29 +66,29 @@ enum ChatPhotoStaging {
     }
 
     /// Returns the image `provider` carries, or `nil` when it carries none, cannot be loaded or
-    /// cannot be decoded. Dropped images take the same decode as picked ones, so a full-size
+    /// cannot be decoded. Dropped and pasted images take the same decode as picked ones, so a full-size
     /// screenshot or photo does not sit in memory as an undecoded bitmap.
     static func loadImage(_ provider: NSItemProvider) async -> UIImage? {
         guard provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else { return nil }
         let data: Data? = await withCheckedContinuation { continuation in
             _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
                 if let error {
-                    logger.warning("Dropped image failed to load", metadata: ["error": "\(error)"])
+                    logger.warning("Provided image failed to load", metadata: ["error": "\(error)"])
                 }
                 continuation.resume(returning: data)
             }
         }
         guard let data else { return nil }
         guard let image = await decode(data) else {
-            logger.warning("Dropped image failed to decode", metadata: ["bytes": "\(data.count)"])
+            logger.warning("Provided image failed to decode", metadata: ["bytes": "\(data.count)"])
             return nil
         }
         return image
     }
 
-    /// Stages the images `providers` carry, in drop order, stopping at a full composer.
+    /// Stages the images dropped or pasted `providers` carry, in order, stopping at a full composer.
     @discardableResult
-    static func stageDropped(
+    static func stageProvided(
         _ providers: [NSItemProvider],
         into composer: ComposerModel,
         uploader: ChatMediaUploader
