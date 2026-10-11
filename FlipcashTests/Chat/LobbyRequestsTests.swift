@@ -200,4 +200,20 @@ struct PrivateGroupCopyTests {
         #expect(PrivateGroupCopy.anchorNames(["Jasper", "Tam"]) == "Jasper and Tam")
         #expect(PrivateGroupCopy.anchorNames(["Jasper", "Vincentjeezus24", "Tam"]) == "Jasper, Vincentjeezus24 and Tam")
     }
+
+    @Test("A member's join age on the member list")
+    func joinedAge() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        #expect(PrivateGroupCopy.joinedAge(joinedAt: now.addingTimeInterval(-30), now: now) == "Joined just now")
+        #expect(PrivateGroupCopy.joinedAge(joinedAt: now.addingTimeInterval(-600), now: now) == "Joined 10m ago")
+        #expect(PrivateGroupCopy.joinedAge(joinedAt: now.addingTimeInterval(-7_200), now: now) == "Joined 2h ago")
+        #expect(PrivateGroupCopy.joinedAge(joinedAt: now.addingTimeInterval(-259_200), now: now) == "Joined 3d ago")
+    }
+
+    @Test("Leaving a private group warns that rejoining needs the host, without a trailing period")
+    func leaveSubtitle() {
+        let copy = PrivateGroupCopy.leaveSubtitle(isPrivate: true)
+        #expect(copy.hasSuffix("wait for the host to approve"))
+        #expect(PrivateGroupCopy.leaveSubtitle(isPrivate: false).contains("invite link"))
+    }
 }

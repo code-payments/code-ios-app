@@ -223,6 +223,10 @@ struct DestinationView: View {
             JoinRequestsScreen(conversationID: conversationID)
                 .id(conversationID)
 
+        case .groupMembers(let conversationID):
+            GroupMembersScreen(conversationID: conversationID)
+                .id(conversationID)
+
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID))

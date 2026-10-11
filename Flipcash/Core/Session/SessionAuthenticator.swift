@@ -584,6 +584,9 @@ final class SessionContainer {
     let lobbyRequests: LobbyRequests
     let hostedLobbies: HostedLobbies
 
+    /// The members of the private groups the signed-in user has opened, kept live from the stream.
+    let groupRosters: GroupRosters
+
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
 
@@ -789,6 +792,14 @@ final class SessionContainer {
         )
         conversationController.hostedLobbies = hostedLobbies
         self.hostedLobbies = hostedLobbies
+
+        let groupRosters = GroupRosters(
+            getRoster: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getRoster(owner: owner, conversationID: conversationID).members
+            }
+        )
+        conversationController.groupRosters = groupRosters
+        self.groupRosters = groupRosters
         self.rosterSearch = mentionSearch
 
         // The blocklist drives which conversations the feed hides: it supplies the

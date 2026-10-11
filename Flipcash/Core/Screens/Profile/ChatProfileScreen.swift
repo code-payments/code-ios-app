@@ -70,6 +70,13 @@ struct ChatProfileScreen: View {
         conversation?.isPrivate ?? false
     }
 
+    /// A private group's roster as portraits, the host first; empty until the roster is read.
+    private var memberPortraits: [GroupPortrait] {
+        let creator = conversation?.creator
+        return sessionContainer.groupRosters.members(for: conversationID, creator: creator)
+            .compactMap { GroupPortrait($0, creator: creator) }
+    }
+
     /// Whether the viewer sees the requester's layout: a private group they don't belong to, whose
     /// chat they can't open without the key the host hands over on approval.
     private var isRequester: Bool {
@@ -159,6 +166,18 @@ struct ChatProfileScreen: View {
                             .padding(.top, 24)
                     }
 
+                    if isPrivate, isMember, !memberPortraits.isEmpty {
+                        GroupChattingGrid(
+                            title: "Members",
+                            portraits: Array(memberPortraits.prefix(GroupChattingGrid.memberLimit)),
+                            count: conversation?.rosterSummary.memberCount,
+                            onCount: { router.push(.groupMembers(conversationID)) }
+                        ) { userID in
+                            router.push(.userProfile(userID, origin: .groupMember))
+                        }
+                        .padding(.top, 24)
+                    }
+
                     if GroupChattingGrid.isVisible(isPrivate: isPrivate, chatters: chatters) {
                         GroupChattingGrid(chatters: chatters) { userID in
                             router.push(.userProfile(userID, origin: .groupMember))
@@ -207,7 +226,7 @@ struct ChatProfileScreen: View {
             MuteChatSheet(conversationID: conversationID, isPresented: $isPickingMuteDuration)
         }
         .sheet(isPresented: $isShowingE2ee) {
-            E2eeLearnMoreSheet(kind: .group, isPresented: $isShowingE2ee)
+            E2eeLearnMoreSheet(kind: isPrivate ? .privateGroup : .group, isPresented: $isShowingE2ee)
         }
         .fullScreenCover(isPresented: $isReporting) {
             NavigationStack {
@@ -239,6 +258,11 @@ struct ChatProfileScreen: View {
         .task(id: conversation.map { $0.isPrivate && $0.creator == conversationController.selfUserID }) {
             guard let conversation, conversation.isPrivate, conversation.creator == conversationController.selfUserID else { return }
             await sessionContainer.hostedLobbies.refresh(conversationID)
+        }
+        // A private group's members read its roster in place of the denied sample.
+        .task(id: isPrivate && isMember) {
+            guard isPrivate, isMember else { return }
+            await sessionContainer.groupRosters.refresh(conversationID)
         }
         .task(id: conversation.map { $0.isPrivate } ) {
             guard let conversation, !conversation.isPrivate else { return }
@@ -588,7 +612,7 @@ struct ChatProfileScreen: View {
             Button {
                 isShowingE2ee = true
             } label: {
-                Label("Encryption", systemImage: "lock.open")
+                Label("Encryption", systemImage: isPrivate ? "lock.fill" : "lock.open")
             }
             // Mute is a member's: someone reading a gated preview has no viewer state to mute.
             if isMember {
@@ -632,7 +656,7 @@ struct ChatProfileScreen: View {
     private func leaveDialog() -> DialogItem {
         .info(
             title: "Leave \(title)?",
-            subtitle: "You won't receive messages from this group any more. You can join again with an invite link"
+            subtitle: PrivateGroupCopy.leaveSubtitle(isPrivate: isPrivate)
         ) {
             DialogAction.standard("Leave Chat") {
                 Task { await leave() }

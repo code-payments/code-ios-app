@@ -400,6 +400,8 @@ final class ConversationController {
     @ObservationIgnored var mentionSearch: ServerMentionSearch?
     /// Keeps the join requests on the user's own private groups live. Set by the session after init.
     @ObservationIgnored var hostedLobbies: HostedLobbies?
+    /// Keeps the private-group rosters the user has opened live. Set by the session after init.
+    @ObservationIgnored var groupRosters: GroupRosters?
     /// Keeps a photo send running for the time iOS allows after the app leaves the screen.
     private let backgroundTasks: any BackgroundTaskAsserting
 
@@ -557,6 +559,7 @@ final class ConversationController {
                 self.applyReactions(event)
                 self.mentionSearch?.apply(event)
                 self.hostedLobbies?.apply(event)
+                self.groupRosters?.apply(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }

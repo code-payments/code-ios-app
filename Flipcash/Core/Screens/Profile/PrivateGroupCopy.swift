@@ -10,6 +10,13 @@ import Foundation
 /// The words private-group screens show the requester and the host.
 enum PrivateGroupCopy {
 
+    /// The leave dialog's body: a private group can only be rejoined through the host's approval.
+    static func leaveSubtitle(isPrivate: Bool) -> String {
+        isPrivate
+            ? "You\u{2019}ll lose access to the conversation. To rejoin, you\u{2019}ll need to request again and wait for the host to approve"
+            : "You won't receive messages from this group any more. You can join again with an invite link"
+    }
+
     /// "Private group · 48 members", or "Private group" before the count is known.
     static func summary(memberCount: UInt64) -> String {
         switch memberCount {
@@ -49,6 +56,18 @@ enum PrivateGroupCopy {
         case ..<60:          return "requested \(minutes)m ago"
         case ..<(60 * 24):   return "requested \(minutes / 60)h ago"
         default:             return "requested \(minutes / (60 * 24))d ago"
+        }
+    }
+
+    /// A member's row on a private group's member list: "Joined just now", then "Joined 10m ago",
+    /// "Joined 2h ago" or "Joined 3d ago".
+    static func joinedAge(joinedAt: Date, now: Date) -> String {
+        let minutes = Int(now.timeIntervalSince(joinedAt) / 60)
+        switch minutes {
+        case ..<1:           return "Joined just now"
+        case ..<60:          return "Joined \(minutes)m ago"
+        case ..<(60 * 24):   return "Joined \(minutes / 60)h ago"
+        default:             return "Joined \(minutes / (60 * 24))d ago"
         }
     }
 
