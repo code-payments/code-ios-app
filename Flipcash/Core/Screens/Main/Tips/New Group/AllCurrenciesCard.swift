@@ -37,7 +37,7 @@ struct AllCurrenciesCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                CheckView(active: isSelected)
+                RadioButton(isSelected: isSelected)
                     .accessibilityHidden(true)
             }
             .padding(.horizontal, 12)

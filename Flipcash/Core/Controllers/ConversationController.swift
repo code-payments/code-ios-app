@@ -88,7 +88,7 @@ final class ConversationController {
     /// The Chats tab's source rows before archive is applied: tip DMs and joined groups. Already
     /// without hidden conversations, so everything downstream inherits that exclusion.
     private var chatListSource: [Conversation] {
-        conversations(of: .tipDm) + joinedGroups
+        ChatListSelection.source(from: conversations, isMember: { store.isMember(of: $0) })
     }
 
     /// The one place `Conversation` becomes the list rules' input. The list, the chips, the Archived
@@ -2022,7 +2022,15 @@ final class ConversationController {
         if let draft {
             failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
         }
-        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        if delivered { donateShareSuggestion(for: conversationID) }
+        return delivered
+    }
+
+    /// Tells the system the user just wrote into this chat, so it is offered in the Share sheet.
+    private func donateShareSuggestion(for conversationID: ConversationID) {
+        guard let conversation = conversation(withID: conversationID) else { return }
+        ChatShareDonor.donate(conversation, displayName: displayName(for: conversation), selfUserID: selfUserID)
     }
 
     /// Posts `text` the way ``send(_:to:repliedTo:restoringOnFailure:)`` does, except that a
@@ -2193,6 +2201,7 @@ final class ConversationController {
             )
             deliveredAll = deliveredAll && delivered
         }
+        if deliveredAll { donateShareSuggestion(for: conversationID) }
         return deliveredAll
     }
 
