@@ -26,7 +26,7 @@ struct ShareRootView: View {
 
     private var header: some View {
         ZStack {
-            Text("Send to").font(.headline)
+            Text("Send to").font(.appBarButton)
             HStack {
                 CloseButton(style: .glass) { model.cancel() }
                 Spacer()
@@ -63,7 +63,7 @@ struct ShareRootView: View {
                 }
                 if sections.isSearching && sections.recent.isEmpty {
                     Text("No chats match \u{201C}\(model.query)\u{201D}")
-                        .font(.subheadline)
+                        .font(.appTextMessage)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 24)
@@ -90,6 +90,7 @@ struct ShareRootView: View {
         return HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
             TextField("Search", text: $model.query)
+                .font(.appTextMessage)
                 .autocorrectionDisabled()
                 .submitLabel(.search)
             if !model.query.isEmpty {
@@ -107,7 +108,7 @@ struct ShareRootView: View {
     private func section(_ title: String, ids: [ConversationID]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.appTextSmall)
                 .foregroundStyle(.secondary)
                 .padding(.leading, 4)
             VStack(spacing: 0) {
@@ -147,6 +148,7 @@ private struct ShareChatRow: View {
             ContactAvatarView(id: avatar.id, displayName: name, imageData: avatar.imageData, blurhash: avatar.blurhash, size: 40)
                 .accessibilityHidden(true)
             Text(name)
+                .font(.default(size: 17, weight: .bold))
                 .lineLimit(1)
             Spacer(minLength: 0)
             RadioButton(isSelected: isSelected)
@@ -165,9 +167,9 @@ struct ShareMessageView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Text(title).font(.headline)
+            Text(title).font(.appTextMedium)
             Text(detail)
-                .font(.subheadline)
+                .font(.appTextMessage)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }

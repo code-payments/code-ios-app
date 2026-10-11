@@ -20,9 +20,9 @@ public enum FontBook {
         registerFont(named: "RobotoMono-Regular", extension: "ttf")
     }
 
-    /// Registers only the faces a notification extension renders (Avenir Medium + Demi). The full
-    /// set adds unused fonts the extension's tight memory budget can't spare.
-    public static func registerNotificationFonts() {
+    /// Registers only the faces the app extensions render (Avenir Medium + Demi). The full set adds
+    /// unused fonts an extension's tight memory budget can't spare.
+    public static func registerExtensionFonts() {
         registerFont(named: "AvenirNextLTPro-Medium", extension: "otf")
         registerFont(named: "AvenirNextLTPro-Demi", extension: "otf")
     }
