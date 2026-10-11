@@ -28,14 +28,7 @@ struct ShareRootView: View {
         ZStack {
             Text("Send to").font(.headline)
             HStack {
-                Button { model.cancel() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 32, height: 32)
-                        .background(Color(.secondarySystemFill), in: Circle())
-                }
-                .accessibilityLabel("Cancel")
+                CloseButton(style: .glass) { model.cancel() }
                 Spacer()
             }
         }
