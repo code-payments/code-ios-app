@@ -149,9 +149,7 @@ private struct ShareChatRow: View {
             Text(name)
                 .lineLimit(1)
             Spacer(minLength: 0)
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 24))
-                .foregroundStyle(isSelected ? Color.success : Color(.tertiaryLabel))
+            CheckView(active: isSelected)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
