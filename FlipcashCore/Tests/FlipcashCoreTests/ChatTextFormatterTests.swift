@@ -62,3 +62,20 @@ struct ChatTextFormatterTests {
         #expect(!ChatTextFormatter.isMaskTarget(NSRange(location: 0, length: 3), in: text))
     }
 }
+
+@Suite("ChatTextFormatter link targets")
+struct ChatTextFormatterLinkTargetTests {
+    @Test("Every tappable link carries an http(s) URL with a host", arguments: [
+        "flipcash.com",
+        "https://flipcash.com",
+        "[site](https://flipcash.com)",
+        "[site](flipcash.com)",
+        "*[site](flipcash.com)*",
+    ])
+    func linksAreOpenable(raw: String) throws {
+        let result = ChatTextFormatter.format(detecting: raw)
+        let link = try #require(result.preview?.links.first, "no link for \(raw)")
+        #expect(["http", "https"].contains(link.url.scheme), "\(raw) -> \(link.url.absoluteString)")
+        #expect(link.url.host != nil)
+    }
+}

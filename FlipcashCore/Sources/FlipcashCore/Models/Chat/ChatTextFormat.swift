@@ -112,7 +112,7 @@ public enum ChatTextFormatter {
         // A masked link whose address would not parse has no target: its text must not be opened
         // as an address, so it is drawn as plain text.
         movedLinks += maskedRanges.compactMap { shown in
-            shown.target.map {
+            shown.target.flatMap(openable).map {
                 DetectedLink(range: shown.range, url: $0, maskedLabel: display.substring(with: shown.range))
             }
         }
@@ -135,6 +135,15 @@ public enum ChatTextFormatter {
             format: ChatTextFormat(raw: raw, spans: spans),
             preview: moved
         )
+    }
+
+    /// `target` as a link that opens: a bare domain such as `flipcash.com` has no scheme, so it
+    /// parses as a relative URL that nothing can open. It resolves to `https`, as link detection
+    /// does for a bare domain. Nil when no web host results.
+    private static func openable(_ target: URL) -> URL? {
+        let resolved = target.scheme == nil ? URL(string: "https://" + target.absoluteString) : target
+        guard let resolved, ["http", "https"].contains(resolved.scheme?.lowercased()), resolved.host() != nil else { return nil }
+        return resolved
     }
 
     /// `raw` with its markers taken out and nothing else: the words for a reply quote, a chat list
