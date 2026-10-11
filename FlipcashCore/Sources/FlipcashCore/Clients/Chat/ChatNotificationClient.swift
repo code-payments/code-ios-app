@@ -67,13 +67,43 @@ public final class ChatNotificationClient: Sendable {
         }
     }
 
-    /// A ``ChatKeyring`` for `owner` that fetches peers' keys over this client's connection.
+    /// A ``ChatKeyring`` for `owner` that fetches peers' keys and private groups' chat keys over this
+    /// client's connection.
     public func keyring(owner: KeyPair, selfUserID: UserID) -> ChatKeyring {
-        ChatKeyring(owner: owner, selfUserID: selfUserID) { [resolverService] userID in
+        let resolveKey: ChatKeyring.ResolveKey = { [resolverService] userID in
             try await withCheckedThrowingContinuation { continuation in
                 resolverService.resolveUserID(userID, owner: owner) { continuation.resume(with: $0) }
             }
         }
+        let groupKeys = GroupKeyEnvelopes(
+            sealer: SharedCoreGroupKeySealer(),
+            owner: owner,
+            selfUserID: selfUserID,
+            setEnvelope: { [chatService] conversationID, envelope in
+                try await withCheckedThrowingContinuation { continuation in
+                    chatService.setKeyEnvelope(owner: owner, conversationID: conversationID, keyEnvelope: envelope) {
+                        continuation.resume(with: $0)
+                    }
+                }
+            },
+            getEnvelope: { [chatService] conversationID in
+                let result = try await withCheckedThrowingContinuation { continuation in
+                    chatService.getKeyEnvelope(owner: owner, conversationID: conversationID) {
+                        continuation.resume(with: $0)
+                    }
+                }
+                return (result.envelope, result.wrappedBy)
+            },
+            resolveKey: resolveKey
+        )
+        return ChatKeyring(
+            owner: owner,
+            selfUserID: selfUserID,
+            resolveKey: resolveKey,
+            groupKey: { conversationID, creator in
+                try await groupKeys.groupKey(for: conversationID, creator: creator)
+            }
+        )
     }
 
     // MARK: - Encryption -

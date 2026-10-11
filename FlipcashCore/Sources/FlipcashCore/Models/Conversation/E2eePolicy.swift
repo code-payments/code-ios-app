@@ -15,12 +15,14 @@ import SharedCore
 /// is shared-core's `ChatEncryptionPolicy`, so both apps agree on which chats encrypt.
 public enum E2eePolicy {
 
-    /// Whether messages in `conversation` are sent encrypted: a DM with the flag on that is not the
-    /// @flipcash chat. Groups never encrypt.
+    /// Whether messages in `conversation` are sent encrypted: a private group always, a DM with the
+    /// flag on that is not the @flipcash chat. Public groups never encrypt.
     public static func shouldEncrypt(_ conversation: Conversation) -> Bool {
         let isDirectMessage: Bool
         switch conversation.type {
         case .group:
+            // The server accepts only group-key ciphertext in a private group.
+            if conversation.isPrivate { return true }
             isDirectMessage = false
         case .contactDm, .tipDm:
             isDirectMessage = true

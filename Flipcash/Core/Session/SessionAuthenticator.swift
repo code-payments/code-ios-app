@@ -673,7 +673,7 @@ final class SessionContainer {
         )
         self.chatArchive = chatArchive
 
-        self.groupKeys = GroupKeyEnvelopes(
+        let groupKeys = GroupKeyEnvelopes(
             sealer: SharedCoreGroupKeySealer(),
             owner: session.ownerKeyPair,
             selfUserID: session.userID,
@@ -682,8 +682,12 @@ final class SessionContainer {
             },
             getEnvelope: { [flipClient, owner = session.ownerKeyPair] conversationID in
                 try await flipClient.getKeyEnvelope(owner: owner, conversationID: conversationID)
+            },
+            resolveKey: { [flipClient, owner = session.ownerKeyPair] userID in
+                try await flipClient.resolveUserID(userID, owner: owner)
             }
         )
+        self.groupKeys = groupKeys
 
         self.lobbyRequests = LobbyRequests(
             owner: owner.publicKey,
@@ -702,6 +706,9 @@ final class SessionContainer {
                 selfUserID: session.userID,
                 resolveKey: { [flipClient, owner = session.ownerKeyPair] userID in
                     try await flipClient.resolveUserID(userID, owner: owner)
+                },
+                groupKey: { [groupKeys] conversationID, creator in
+                    try await groupKeys.groupKey(for: conversationID, creator: creator)
                 }
             )
         )

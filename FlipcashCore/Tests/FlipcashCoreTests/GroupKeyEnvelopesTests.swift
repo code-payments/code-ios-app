@@ -19,7 +19,10 @@ struct GroupKeyEnvelopesTests {
         final class Keys: @unchecked Sendable {
             private let lock = NSLock()
             private var _generated: [Data] = []
+            private var _unwrappedBy: [PublicKey] = []
             var generated: [Data] { lock.withLock { _generated } }
+            var unwrappedBy: [PublicKey] { lock.withLock { _unwrappedBy } }
+            func recordUnwrap(by wrapper: PublicKey) { lock.withLock { _unwrappedBy.append(wrapper) } }
             func next() -> Data {
                 lock.withLock {
                     let key = Data(repeating: UInt8(_generated.count + 1), count: 32)
@@ -36,7 +39,8 @@ struct GroupKeyEnvelopesTests {
         }
 
         func unwrap(_ envelope: ConversationKeyEnvelope, owner: KeyPair, wrapper: PublicKey, conversationID: ConversationID) throws -> Data {
-            envelope.ciphertext
+            keys.recordUnwrap(by: wrapper)
+            return envelope.ciphertext
         }
     }
 
@@ -47,6 +51,8 @@ struct GroupKeyEnvelopesTests {
         private var _gets = 0
         var wrappedBy: UserID?
         var setError: Error?
+        /// Lets a set replace a stored envelope, as the server does for a member's self-wrap.
+        var replaces = false
 
         var stored: ConversationKeyEnvelope? { lock.withLock { _stored } }
         var sets: Int { lock.withLock { _sets } }
@@ -61,8 +67,9 @@ struct GroupKeyEnvelopesTests {
             try lock.withLock {
                 _sets += 1
                 if let setError { throw setError }
-                if _stored != nil { throw ErrorSetKeyEnvelope.alreadySet }
+                if _stored != nil && !replaces { throw ErrorSetKeyEnvelope.alreadySet }
                 _stored = envelope
+                wrappedBy = nil
             }
         }
 
@@ -79,6 +86,8 @@ struct GroupKeyEnvelopesTests {
     private let selfUserID = UUID()
     private let chat = ConversationID(data: Data(repeating: 3, count: 32))
     private let keys = FakeSealer.Keys()
+    private let creatorID = UUID()
+    private let creatorKey = KeyPair.generate()!.publicKey
 
     private func envelopes(_ server: Server) -> GroupKeyEnvelopes {
         GroupKeyEnvelopes(
@@ -86,7 +95,11 @@ struct GroupKeyEnvelopesTests {
             owner: owner,
             selfUserID: selfUserID,
             setEnvelope: { _, envelope in try server.set(envelope) },
-            getEnvelope: { _ in try server.get() }
+            getEnvelope: { _ in try server.get() },
+            resolveKey: { [creatorID, creatorKey] userID in
+                guard userID == creatorID else { throw ErrorGetKeyEnvelope.notFound }
+                return creatorKey
+            }
         )
     }
 
@@ -99,7 +112,7 @@ struct GroupKeyEnvelopesTests {
 
         #expect(server.stored?.nonce == owner.publicKey.data)
         #expect(server.stored?.ciphertext == keys.generated.first)
-        #expect(try await sut.groupKey(for: chat) == keys.generated.first)
+        #expect(try await sut.groupKey(for: chat, creator: selfUserID) == keys.generated.first)
         #expect(server.gets == 0)
     }
 
@@ -111,7 +124,7 @@ struct GroupKeyEnvelopesTests {
 
         try await sut.storeNewKey(for: chat)
 
-        #expect(try await sut.groupKey(for: chat) == first)
+        #expect(try await sut.groupKey(for: chat, creator: selfUserID) == first)
     }
 
     @Test("A failed store throws so the caller can retry only this step")
@@ -136,8 +149,8 @@ struct GroupKeyEnvelopesTests {
         let server = Server(stored: ConversationKeyEnvelope(scheme: 1, nonce: Data(), ciphertext: key), wrappedBy: selfUserID)
         let sut = envelopes(server)
 
-        #expect(try await sut.groupKey(for: chat) == key)
-        #expect(try await sut.groupKey(for: chat) == key)
+        #expect(try await sut.groupKey(for: chat, creator: selfUserID) == key)
+        #expect(try await sut.groupKey(for: chat, creator: selfUserID) == key)
         #expect(server.gets == 1)
     }
 
@@ -147,7 +160,7 @@ struct GroupKeyEnvelopesTests {
         let sut = envelopes(server)
 
         await #expect(throws: GroupKeyNotSelfWrapped.self) {
-            try await sut.groupKey(for: chat)
+            try await sut.groupKey(for: chat, creator: selfUserID)
         }
     }
 
@@ -162,5 +175,41 @@ struct GroupKeyEnvelopesTests {
         #expect(envelope.nonce == recipient.data)
         #expect(envelope.ciphertext == keys.generated.first)
         #expect(server.stored?.ciphertext == keys.generated.first)
+    }
+
+    @Test("An admitted member opens the creator's envelope with the creator's key, then stores a self-wrapped copy")
+    func memberOpensCreatorWrap() async throws {
+        let key = Data(repeating: 5, count: 32)
+        let server = Server(stored: ConversationKeyEnvelope(scheme: 1, nonce: Data(), ciphertext: key), wrappedBy: creatorID)
+        server.replaces = true
+        let sut = envelopes(server)
+
+        #expect(try await sut.groupKey(for: chat, creator: creatorID) == key)
+        #expect(keys.unwrappedBy == [creatorKey])
+        #expect(server.stored?.nonce == owner.publicKey.data)
+        #expect(server.stored?.ciphertext == key)
+    }
+
+    @Test("A failed self-wrap still returns the key the creator's envelope opened")
+    func memberSelfWrapFailureIsBestEffort() async throws {
+        let key = Data(repeating: 5, count: 32)
+        let server = Server(stored: ConversationKeyEnvelope(scheme: 1, nonce: Data(), ciphertext: key), wrappedBy: creatorID)
+        server.setError = ErrorSetKeyEnvelope.transportFailure
+        let sut = envelopes(server)
+
+        #expect(try await sut.groupKey(for: chat, creator: creatorID) == key)
+        #expect(server.sets == 1)
+    }
+
+    @Test("A member with no envelope yet doesn't generate a key; only the creator does")
+    func memberNoEnvelopeThrows() async throws {
+        let server = Server()
+        let sut = envelopes(server)
+
+        await #expect(throws: ErrorGetKeyEnvelope.noEnvelope) {
+            try await sut.groupKey(for: chat, creator: creatorID)
+        }
+        #expect(server.sets == 0)
+        #expect(keys.generated.isEmpty)
     }
 }

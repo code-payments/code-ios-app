@@ -97,8 +97,10 @@ extension EncryptedChatClient: ConversationFetching {
     }
 
     func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] {
-        let feed = try await client.getGroupChatFeed(owner: owner)
-        feed.forEach(remember)
+        var feed: [Conversation] = []
+        for conversation in try await client.getGroupChatFeed(owner: owner) {
+            feed.append(await opened(conversation))
+        }
         return feed
     }
 

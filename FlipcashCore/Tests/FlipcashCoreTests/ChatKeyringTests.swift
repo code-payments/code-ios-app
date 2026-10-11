@@ -137,6 +137,71 @@ struct ChatKeyringTests {
         #expect(opened.decryptFailure == .unsupported)
     }
 
+    private let groupKey = Data(repeating: 0x42, count: 32)
+
+    private func privateGroup() -> Conversation {
+        var group = dm(type: .group)
+        group.isPrivate = true
+        return group
+    }
+
+    private func groupRing(_ groupKey: @escaping ChatKeyring.GroupKey) -> ChatKeyring {
+        ChatKeyring(cipher: DefaultChatCipher.shared, owner: alice, selfUserID: aliceID, store: MemoryKeyStore(), resolveKey: { _ in throw Offline() }, groupKey: groupKey)
+    }
+
+    @Test("A private group seals with its chat key under the group scheme")
+    func privateGroupSeal() async throws {
+        let key = groupKey
+        let seal = try #require(try await groupRing { _, _ in key }.sealForSending(in: privateGroup()))
+
+        #expect(try seal.seal(text: "hi", repliedTo: nil).encrypted.scheme == .chatKeyXchacha20Poly1305)
+    }
+
+    @Test("A private group's messages open with its chat key")
+    func privateGroupOpen() async throws {
+        let group = privateGroup()
+        let sender = ChatSeal(cipher: DefaultChatCipher.shared, groupKey: groupKey, conversationID: group.id, selfUserID: bobID)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = MessageID(value: 1).proto
+            $0.senderID = bobID.proto
+            $0.content = [try! sender.seal(text: "hello", repliedTo: nil)]
+        }
+        let message = try #require(ConversationMessage(proto))
+        let key = groupKey
+
+        #expect(await groupRing { _, _ in key }.open(message, in: group).content == .text("hello"))
+    }
+
+    @Test("A chat key that can't be fetched yet leaves messages waiting, and sending fails")
+    func privateGroupOffline() async throws {
+        let group = privateGroup()
+        let sender = ChatSeal(cipher: DefaultChatCipher.shared, groupKey: groupKey, conversationID: group.id, selfUserID: bobID)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = MessageID(value: 1).proto
+            $0.senderID = bobID.proto
+            $0.content = [try! sender.seal(text: "hello", repliedTo: nil)]
+        }
+        let message = try #require(ConversationMessage(proto))
+        let ring = groupRing { _, _ in throw Offline() }
+
+        #expect(await ring.open(message, in: group).isAwaitingDecryption)
+        await #expect(throws: GroupKeyUnavailable.self) { try await ring.sealForSending(in: group) }
+    }
+
+    @Test("An envelope from an untrusted wrapper marks messages unsupported")
+    func privateGroupUntrusted() async throws {
+        let group = privateGroup()
+        let sender = ChatSeal(cipher: DefaultChatCipher.shared, groupKey: groupKey, conversationID: group.id, selfUserID: bobID)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = MessageID(value: 1).proto
+            $0.senderID = bobID.proto
+            $0.content = [try! sender.seal(text: "hello", repliedTo: nil)]
+        }
+        let message = try #require(ConversationMessage(proto))
+
+        #expect(await groupRing { _, _ in throw GroupKeyNotSelfWrapped() }.open(message, in: group).decryptFailure == .unsupported)
+    }
+
     @Test("Plaintext messages pass through untouched")
     func plaintext() async {
         let resolver = Resolver(.failure(Offline()))
