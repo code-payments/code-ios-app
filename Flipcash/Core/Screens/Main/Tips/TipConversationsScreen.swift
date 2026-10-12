@@ -150,6 +150,8 @@ struct TipConversationsScreen: View {
                                     router.push(.chatProfile(entry.conversation.id, origin: .featuredGroup))
                                 }
                                 .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
+                                // The row's own clear background sits inside its TimelineView, where the List doesn't read it.
+                                .listRowBackground(Color.clear)
                             }
                         }
                     }
