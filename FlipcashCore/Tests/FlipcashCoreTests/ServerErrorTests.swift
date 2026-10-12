@@ -44,3 +44,44 @@ struct ServerErrorTests {
     }
 
 }
+
+@Suite("ReportingOutcome.resolve(error:)")
+struct ReportingOutcomeTests {
+
+    private struct Classified: ServerError {
+        let reportingLevel: ErrorReportingLevel
+    }
+
+    private struct Unclassified: Error {}
+
+    @Test("Suppressed ServerError is dropped")
+    func suppressedDropped() {
+        #expect(ReportingOutcome.resolve(error: Classified(reportingLevel: .suppressed)) == .drop)
+    }
+
+    @Test("Info ServerError stays info")
+    func infoStaysInfo() {
+        #expect(ReportingOutcome.resolve(error: Classified(reportingLevel: .info)) == .info)
+    }
+
+    @Test("Error-level ServerError reports as error")
+    func errorLevelReports() {
+        #expect(ReportingOutcome.resolve(error: Classified(reportingLevel: .error)) == .error)
+    }
+
+    @Test("Unclassified error reports as error")
+    func unclassifiedIsError() {
+        #expect(ReportingOutcome.resolve(error: Unclassified()) == .error)
+    }
+
+    @Test("CancellationError is dropped")
+    func cancellationDropped() {
+        #expect(ReportingOutcome.resolve(error: CancellationError()) == .drop)
+    }
+
+    @Test("userFacing lifts only suppressed to info")
+    func userFacingLift() {
+        #expect(ReportingOutcome.resolve(error: Classified(reportingLevel: .suppressed), userFacing: true) == .info)
+        #expect(ReportingOutcome.resolve(error: Classified(reportingLevel: .error), userFacing: true) == .error)
+    }
+}
