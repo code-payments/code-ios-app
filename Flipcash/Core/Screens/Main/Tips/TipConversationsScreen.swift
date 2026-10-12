@@ -120,6 +120,8 @@ struct TipConversationsScreen: View {
                         // Only under All, like Archived below it.
                         if !requestGroups.isEmpty, filter == .all {
                             joinRequestsRow(requestGroups)
+                                // The chat rows' insets, so its circle and chevron line up with theirs.
+                                .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
                                 .listRowSeparator(.hidden, edges: .top)
                                 .listRowBackground(Color.clear)
                         }
@@ -150,7 +152,8 @@ struct TipConversationsScreen: View {
                                     router.push(.chatProfile(entry.conversation.id, origin: .featuredGroup))
                                 }
                                 .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
-                                // The row's own clear background sits inside its TimelineView, where the List doesn't read it.
+                                // The row's own insets and background sit inside its TimelineView, where the List doesn't read them.
+                                .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
                                 .listRowBackground(Color.clear)
                             }
                         }
