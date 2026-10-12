@@ -179,7 +179,7 @@ private struct JoinRequestRow: View {
                             .foregroundStyle(Color.textMain)
                         TimelineView(.everyMinute) { context in
                             Text(PrivateGroupCopy.requestAge(requestedAt: member.enteredAt ?? context.date, now: context.date))
-                                .font(.appTextSmall)
+                                .font(.appTextCaption)
                                 .foregroundStyle(Color.textSecondary)
                         }
                     }
@@ -224,10 +224,10 @@ struct JoinRequestCapsuleStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.appTextMedium)
+            .font(.appTextSmall)
             .foregroundStyle(foreground.opacity(isEnabled ? 1 : 0.3))
             .padding(.horizontal, 14)
-            .frame(height: 32)
+            .frame(height: 30)
             .background(background.opacity(isEnabled ? 1 : 0.5), in: .capsule)
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
