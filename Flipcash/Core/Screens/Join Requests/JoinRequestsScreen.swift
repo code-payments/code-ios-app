@@ -56,6 +56,13 @@ struct JoinRequestsScreen: View {
 
     private var list: some View {
         List {
+            // Above the rows, so it's read before Approve and scrolls away with the list.
+            Text("Approving shares the group key with them from this device.")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+                .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 12, trailing: 20))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             Section {
                 ForEach(requests, id: \.userID) { member in
                     JoinRequestRow(
@@ -73,13 +80,6 @@ struct JoinRequestsScreen: View {
                         )
                     }
                 }
-            } footer: {
-                Text("Approving shares the group key with them from this device.")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 40)
             }
             .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
             .listRowBackground(Color.clear)
