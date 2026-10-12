@@ -11,21 +11,34 @@ import FlipcashUI
 /// The pinned row above Archived while a private group the user hosts has people waiting to join.
 struct JoinRequestsRow: View {
 
-    let title: String
+    /// "3 people want to join Moony", shown under the row's title.
+    let subtitle: String
     let count: Int
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                Image(systemName: "person.badge.plus")
-                    .frame(minWidth: 45)
-                    .foregroundStyle(Color.textSecondary)
-                Text(title)
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
-                Spacer()
+                // Sized and filled like a chat row's avatar, so the row lines up with the list (node 11214:67).
+                Circle()
+                    .fill(Color.avatarPlaceholderTop)
+                    .frame(width: 44, height: 44)
+                    .overlay {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color.textMain)
+                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Join Requests")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 12)
                 // Secondary, like Archived's count: requests are not unread messages.
                 Text("\(count)")
                     .font(.appTextSmall)
@@ -36,7 +49,6 @@ struct JoinRequestsRow: View {
                     .frame(width: 9, height: 12)
                     .foregroundStyle(Color.textSecondary)
             }
-            .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

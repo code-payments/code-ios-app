@@ -53,7 +53,7 @@ struct TipConversationsScreen: View {
         let title = groups.count == 1
             ? PrivateGroupCopy.wantToJoin(count: count, groupName: groupName(groups[0]))
             : PrivateGroupCopy.wantToJoinYourGroups(count: count)
-        return JoinRequestsRow(title: title, count: count) {
+        return JoinRequestsRow(subtitle: title, count: count) {
             if groups.count == 1 {
                 router.push(.joinRequests(groups[0]))
             } else {
