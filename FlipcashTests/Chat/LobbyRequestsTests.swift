@@ -186,9 +186,6 @@ struct PrivateGroupCopyTests {
     func hostCounts() {
         #expect(PrivateGroupCopy.waiting(count: 1) == "1 person is waiting")
         #expect(PrivateGroupCopy.waiting(count: 3) == "3 people are waiting")
-        #expect(PrivateGroupCopy.wantToJoin(count: 1, groupName: "Moony") == "1 person wants to join Moony")
-        #expect(PrivateGroupCopy.wantToJoin(count: 3, groupName: "Moony") == "3 people want to join Moony")
-        #expect(PrivateGroupCopy.wantToJoinYourGroups(count: 4) == "4 people want to join your groups")
         #expect(PrivateGroupCopy.noRequests(groupName: "Moony") == "When someone asks to join Moony, they'll show up here")
     }
 

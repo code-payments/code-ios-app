@@ -134,8 +134,10 @@ extension AppRouter {
         case editGroupDescription(ConversationID)
         /// The list of archived chats, pushed from the Archived row on the Chats tab.
         case archivedChats
+        /// Join requests in both directions, pushed from the Chats tab's leading bar item.
+        case requests
         /// The pending requests to join a private group the user hosts, pushed from its profile card,
-        /// the Chats tab's Join Requests row, or the chat's request anchor.
+        /// the Requests screen, or the chat's request anchor.
         case joinRequests(ConversationID)
         /// Every member of a private group, pushed from the count on its profile's Members grid.
         case groupMembers(ConversationID)
@@ -164,7 +166,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats, .joinRequests, .groupMembers:
+                 .editGroupDescription, .archivedChats, .requests, .joinRequests, .groupMembers:
                 return .tips
             }
         }
@@ -225,6 +227,7 @@ extension AppRouter {
             case .editGroupCover:               "editGroupCover"
             case .editGroupDescription:         "editGroupDescription"
             case .archivedChats:                "archivedChats"
+            case .requests:                     "requests"
             case .joinRequests:                 "joinRequests"
             case .groupMembers:                 "groupMembers"
             }
@@ -272,7 +275,7 @@ extension AppRouter {
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
-                 .archivedChats:
+                 .archivedChats, .requests:
                 return nil
             }
         }

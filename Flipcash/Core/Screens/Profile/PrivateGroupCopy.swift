@@ -76,16 +76,6 @@ enum PrivateGroupCopy {
         count == 1 ? "1 person is waiting" : "\(count) people are waiting"
     }
 
-    /// The Chats tab's Join Requests row: "1 person wants to join Moony" or "3 people want to join Moony".
-    static func wantToJoin(count: Int, groupName: String) -> String {
-        count == 1 ? "1 person wants to join \(groupName)" : "\(count) people want to join \(groupName)"
-    }
-
-    /// The Chats tab's Join Requests row when several hosted groups have requests.
-    static func wantToJoinYourGroups(count: Int) -> String {
-        count == 1 ? "1 person wants to join your groups" : "\(count) people want to join your groups"
-    }
-
     /// The in-chat anchor's title: "Jasper wants to join" for one request, "3 people want to join" for several.
     static func anchorTitle(names: [String]) -> String {
         names.count == 1 ? "\(names[0]) wants to join" : "\(names.count) people want to join"

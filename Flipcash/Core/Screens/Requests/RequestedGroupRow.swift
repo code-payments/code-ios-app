@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// A private group the user has asked to join, under the Chats tab's Requested chip.
+/// A private group the user has asked to join, in the Requests screen's Sent section.
 struct RequestedGroupRow: View {
 
     let conversation: Conversation

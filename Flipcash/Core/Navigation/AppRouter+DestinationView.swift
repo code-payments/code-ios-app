@@ -219,6 +219,9 @@ struct DestinationView: View {
         case .archivedChats:
             ArchivedChatsScreen()
 
+        case .requests:
+            RequestsScreen()
+
         case .joinRequests(let conversationID):
             JoinRequestsScreen(conversationID: conversationID)
                 .id(conversationID)
