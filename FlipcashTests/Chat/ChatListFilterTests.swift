@@ -36,6 +36,19 @@ struct ChatListFilterTests {
         #expect(ChatListFilter.groups.badge(in: p) == 1)
     }
 
+    @Test("Requested lists no chats and shows no count")
+    func requested() {
+        let p = projection()
+        #expect(ChatListFilter.requested.ids(in: p).isEmpty)
+        #expect(ChatListFilter.requested.badge(in: p) == nil)
+    }
+
+    @Test("Requested is offered only while a request is waiting, after the others")
+    func offered() {
+        #expect(ChatListFilter.offered(hasRequests: false) == [.all, .unread, .groups])
+        #expect(ChatListFilter.offered(hasRequests: true) == [.all, .unread, .groups, .requested])
+    }
+
     @Test("A zero count is no badge")
     func zeroIsNil() {
         let p = ChatListProjection<Int>.project([])

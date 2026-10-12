@@ -39,6 +39,20 @@ struct TipConversationsScreen: View {
         return filter.ids(in: projection).compactMap { byID[$0] }
     }
 
+    /// The groups the user has asked to join, newest request first. A group whose metadata isn't
+    /// held yet is left out until the refresh below fetches it.
+    private var requestedGroups: [(conversation: Conversation, requestedAt: Date)] {
+        let requests = sessionContainer.lobbyRequests
+        return requests.conversationIDs
+            .compactMap { id in
+                guard let requestedAt = requests.requestedAt(id),
+                      let conversation = conversationController.conversation(withID: id)
+                else { return nil }
+                return (conversation, requestedAt)
+            }
+            .sorted { $0.requestedAt > $1.requestedAt }
+    }
+
     @State private var isPickingRequestGroup = false
 
     private func groupName(_ conversationID: ConversationID) -> String {
@@ -69,7 +83,9 @@ struct TipConversationsScreen: View {
         let projection = self.projection
         let conversations = rows(projection)
         let requestGroups = sessionContainer.hostedLobbies.groupsWithRequests
+        let requestedGroups = self.requestedGroups
         let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible && requestGroups.isEmpty
+            && requestedGroups.isEmpty
 
         Background(color: .backgroundMain) {
             if nothingAtAll {
@@ -85,7 +101,7 @@ struct TipConversationsScreen: View {
                         // finger. The chips use a custom button style, which keeps each chip's tap
                         // its own inside the row.
                         FadingChips(fade: chipFade, isShown: showsChips) {
-                            ChatListChips(selection: $filter, projection: projection)
+                            ChatListChips(selection: $filter, projection: projection, hasRequests: !requestedGroups.isEmpty)
                         }
                             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                                 chipsHeight = $0
@@ -128,13 +144,21 @@ struct TipConversationsScreen: View {
                                 archiveAction(for: conversation)
                             }
                         }
+                        if filter == .requested {
+                            ForEach(Array(requestedGroups.enumerated()), id: \.element.conversation.id) { index, entry in
+                                RequestedGroupRow(conversation: entry.conversation, requestedAt: entry.requestedAt) {
+                                    router.push(.chatProfile(entry.conversation.id, origin: .featuredGroup))
+                                }
+                                .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
+                            }
+                        }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .overlay {
                         // Over the List rather than a row in it, so it centres in the whole
                         // screen and the List keeps the pull that reveals the chips.
-                        if conversations.isEmpty {
+                        if conversations.isEmpty, filter != .requested || requestedGroups.isEmpty {
                             Text(filter.emptyMessage)
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
@@ -145,6 +169,10 @@ struct TipConversationsScreen: View {
         }
         .sheet(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
+        }
+        // The chip goes when the last request is decided or cancelled, so its selection can't stay.
+        .onChange(of: requestedGroups.isEmpty) { _, isEmpty in
+            if isEmpty, filter == .requested { filter = .all }
         }
         .navigationTitle("Chat")
         .toolbarTitleDisplayMode(.inline)
