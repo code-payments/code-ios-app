@@ -27,7 +27,7 @@ struct BetaFlagToggleRow: View {
                 }
                 .padding(.trailing, 20)
             }
-            .tint(.textSuccess)
+            .tint(.success)
         }
         .padding(20)
         .vSeparator(color: .rowSeparator, position: .bottom)

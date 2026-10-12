@@ -25,7 +25,7 @@ struct SettingsAppSettingsScreen: View {
                             .multilineTextAlignment(.leading)
                             .truncationMode(.tail)
                             .padding(.trailing, 2)
-                            .tint(.textSuccess)
+                            .tint(.success)
                     }
                 }
                 .font(.appDisplayXS)
