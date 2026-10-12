@@ -527,27 +527,6 @@ struct ConversationScreen: View {
     /// Framing, background, and the navigation bar's own contents.
     private func chrome(_ content: some View) -> some View {
         content
-        .overlay(alignment: .top) {
-            VStack(spacing: 8) {
-                if !hostRequests.isEmpty, let conversationID {
-                    JoinRequestsAnchor(
-                        requests: hostRequests,
-                        avatarData: { sessionContainer.profileAvatars.data(for: $0) },
-                        onReview: { router.push(.joinRequests(conversationID)) }
-                    )
-                    .padding(.horizontal, BarMetrics.edgeInset)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { anchorHeight = $0 }
-                    .onDisappear { anchorHeight = 0 }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-                if let reactionToastText {
-                    ToastLabel(reactionToastText)
-                        .allowsHitTesting(false)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-            }
-            .padding(.top, 8)
-        }
         .animation(.default, value: reactionToastText)
         .animation(.default, value: hostRequests.map(\.userID))
         .task(id: hostedConversationID) {
@@ -605,6 +584,29 @@ struct ConversationScreen: View {
         // reaches the display's bottom edge. The screen still holds the bar clear of the home
         // indicator itself — see `KeyboardFloor`.
         .ignoresSafeArea(.container, edges: [.top, .bottom])
+        // After the safe-area escape, not before: an overlay inside it would start at the top of the
+        // display, under the status bar, rather than below the navigation bar.
+        .overlay(alignment: .top) {
+            VStack(spacing: 8) {
+                if !hostRequests.isEmpty, let conversationID {
+                    JoinRequestsAnchor(
+                        requests: hostRequests,
+                        avatarData: { sessionContainer.profileAvatars.data(for: $0) },
+                        onReview: { router.push(.joinRequests(conversationID)) }
+                    )
+                    .padding(.horizontal, BarMetrics.edgeInset)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { anchorHeight = $0 }
+                    .onDisappear { anchorHeight = 0 }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                if let reactionToastText {
+                    ToastLabel(reactionToastText)
+                        .allowsHitTesting(false)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(.top, 8)
+        }
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
