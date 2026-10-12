@@ -40,6 +40,10 @@ struct RequestedGroupRow: View {
                     .foregroundStyle(Color.textSecondary)
             }
         }
+        // The scaffold sets these itself, but the TimelineView keeps its list-row modifiers from reaching the List.
+        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
+        .listRowBackground(Color.clear)
+        .listRowSeparatorTint(.rowSeparator)
         .accessibilityIdentifier("chat-requested-group-row")
         .task(id: conversation.id) {
             await sessionContainer.profileAvatars.load(.chat(conversation.id), picture: conversation.picture)
