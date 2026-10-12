@@ -60,6 +60,8 @@ struct JoinRequestsScreen: View {
             Text("Approving shares the group key with them from this device.")
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
                 .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 12, trailing: 20))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
