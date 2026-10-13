@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import Observation
 import FlipcashCore
 
@@ -130,6 +131,29 @@ nonisolated enum AttachOverlayLayout {
             y: min(1, max(0, (plusFrame.midY - frame.minY) / size.height))
         )
     }
+
+    /// The card's corner radius before iOS 26, or on a screen without rounded corners.
+    static let minimumCardCornerRadius: CGFloat = 24
+
+    /// The card's corner radius: the screen's corner radius less ``cardInset``, so the card's corners
+    /// run parallel to the screen's, and never under ``minimumCardCornerRadius``.
+    @MainActor static var cardCornerRadius: CGFloat {
+        if let resolvedCardCornerRadius { return resolvedCardCornerRadius }
+        guard #available(iOS 26, *), let window = UIApplication.shared.currentKeyWindow else {
+            return minimumCardCornerRadius
+        }
+        // UIKit resolves a concentric radius only for a view in a window, against the window's corners.
+        let probe = UIView(frame: cardFrame(in: window.bounds, height: window.bounds.height / 2))
+        probe.isHidden = true
+        probe.cornerConfiguration = .uniformCorners(radius: .containerConcentric(minimum: minimumCardCornerRadius))
+        window.addSubview(probe)
+        let radius = probe.effectiveRadius(corner: .bottomLeft)
+        probe.removeFromSuperview()
+        resolvedCardCornerRadius = radius
+        return radius
+    }
+
+    @MainActor private static var resolvedCardCornerRadius: CGFloat?
 
     /// The card's frame in a window `bounds` big: `height` tall, standing on the screen's bottom
     /// over the keyboard.

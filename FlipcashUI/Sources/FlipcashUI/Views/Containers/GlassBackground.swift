@@ -87,12 +87,12 @@ extension View {
     }
 
     /// The chat composer's glass in `shape`, as a layer of its own: Liquid Glass with a light white
-    /// tint, joined by `id` to the other composer glass in an enclosing container. A tinted material
-    /// before iOS 26.
+    /// tint, joined by `id` to the other composer glass in an enclosing container, and responding to
+    /// touches only while `isInteractive`. A tinted material before iOS 26.
     @ViewBuilder
-    public func composerGlass(in shape: some Shape, id: String, namespace: Namespace.ID) -> some View {
+    public func composerGlass(in shape: some Shape, id: String, namespace: Namespace.ID, isInteractive: Bool = true) -> some View {
         if #available(iOS 26, *) {
-            glassEffect(.regular.tint(Color.white.opacity(0.03)).interactive(), in: shape)
+            glassEffect(.regular.tint(Color.white.opacity(0.03)).interactive(isInteractive), in: shape)
                 .glassEffectID(id, in: namespace)
                 .glassEffectTransition(.matchedGeometry)
         } else {
