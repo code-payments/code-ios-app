@@ -35,8 +35,10 @@ extension View {
                 .padding(.top, -ProfilePinnedBackdrop.fadeHeight)
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)
+                .transition(.opacity)
             }
         }
+        .animation(.easeOut(duration: 0.2), value: isActive)
     }
 
     /// Fades content into the bottom of a profile that pins no bar, the way the chat's transcript
@@ -53,8 +55,10 @@ extension View {
                 )
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)
+                .transition(.opacity)
             }
         }
+        .animation(.easeOut(duration: 0.2), value: isActive)
     }
 
     /// Ends a profile's scroll content above the fade ``profilePinnedBackdrop()`` draws over the
@@ -74,13 +78,15 @@ extension View {
             ScrollHeights(
                 visible: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom,
                 content: geometry.contentSize.height,
-                bottomInset: geometry.contentInsets.bottom
+                bottomInset: geometry.contentInsets.bottom,
+                isAtEnd: geometry.visibleRect.maxY >= geometry.contentSize.height - 1
             )
         } action: { _, heights in
             fit.wrappedValue.update(
                 visibleHeight: heights.visible,
                 contentHeight: heights.content,
-                bottomInset: heights.bottomInset
+                bottomInset: heights.bottomInset,
+                isAtEnd: heights.isAtEnd
             )
         }
     }
@@ -99,10 +105,20 @@ struct ProfileScrollFit: Equatable {
     /// The inset under the visible height, which content may draw into without scrolling.
     private(set) var bottomInset: CGFloat = 0
 
-    /// Records the scroll view's visible height, its content's height, and its bottom inset.
-    mutating func update(visibleHeight: CGFloat, contentHeight: CGFloat, bottomInset: CGFloat = 0) {
+    /// Whether the content is scrolled to its end, where nothing is left to fade out under the
+    /// home indicator.
+    private(set) var isAtEnd = true
+
+    /// Whether the content runs past the screen and more of it lies below, which is when a barless
+    /// profile's bottom fade belongs.
+    var fadesBottom: Bool { overflows && !isAtEnd }
+
+    /// Records the scroll view's visible height, its content's height, its bottom inset, and
+    /// whether it's scrolled to the end.
+    mutating func update(visibleHeight: CGFloat, contentHeight: CGFloat, bottomInset: CGFloat = 0, isAtEnd: Bool = true) {
         self.visibleHeight = visibleHeight
         self.bottomInset = bottomInset
+        self.isAtEnd = isAtEnd
         overflows = contentHeight > visibleHeight + 0.5
     }
 }
@@ -111,6 +127,7 @@ private struct ScrollHeights: Equatable {
     let visible: CGFloat
     let content: CGFloat
     let bottomInset: CGFloat
+    let isAtEnd: Bool
 }
 
 private enum ProfilePinnedBackdrop {

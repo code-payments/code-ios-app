@@ -27,6 +27,17 @@ extension View {
         modifier(HidesTopScrollEdge(offset: offset))
     }
 
+    /// Hides the bottom scroll edge effect while `isHidden`, for a screen whose last row sits under
+    /// an empty bar and must stay clear once scrolled to the end. No-op below iOS 26.
+    @ViewBuilder
+    public func hidesBottomScrollEdge(_ isHidden: Bool) -> some View {
+        if #available(iOS 26.0, *) {
+            scrollEdgeEffectHidden(isHidden, for: .bottom)
+        } else {
+            self
+        }
+    }
+
     /// Pins `bar` to `edge` so the scroll content below it runs underneath. On iOS 26+ the bar joins
     /// the scroll edge effect; before that it's a plain safe-area inset.
     @ViewBuilder
