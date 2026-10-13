@@ -35,4 +35,17 @@ struct ProfileScrollFitTests {
         fit.update(visibleHeight: 700, contentHeight: 700)
         #expect(fit.overflows == false)
     }
+
+    @Test("The bottom fade shows only while overflowing content has more below")
+    func fade_lifts_at_end() {
+        var fit = ProfileScrollFit()
+        fit.update(visibleHeight: 700, contentHeight: 1200, isAtEnd: false)
+        #expect(fit.fadesBottom)
+
+        fit.update(visibleHeight: 700, contentHeight: 1200, isAtEnd: true)
+        #expect(fit.fadesBottom == false)
+
+        fit.update(visibleHeight: 700, contentHeight: 700, isAtEnd: false)
+        #expect(fit.fadesBottom == false)
+    }
 }

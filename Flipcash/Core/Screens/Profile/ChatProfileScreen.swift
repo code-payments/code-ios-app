@@ -220,6 +220,8 @@ struct ChatProfileScreen: View {
             .ignoresSafeArea(edges: .top)
             // The blur only belongs once the banner has scrolled up under the bar.
             .hidesTopScrollEdge(untilOffset: ProfileCoverBanner<EmptyView>.height / 2)
+            // Leave Chat ends the scroll under the empty bar, so the edge blur lifts at the end.
+            .hidesBottomScrollEdge(origin == .chat && !scrollFit.fadesBottom)
         }
         .scrollEdgeBar(.bottom) {
             pinnedActions
@@ -468,11 +470,11 @@ struct ChatProfileScreen: View {
         origin == .chat && isMember
     }
 
-    /// Space under the scroll content. Leave Chat ending it sits where the pinned bar puts it: it
-    /// draws down into the scroll view's bottom inset, and since a text-only button is a full button
-    /// tall, its frame already leaves room under the title and can overlap the home indicator.
+    /// Space under the scroll content. Leave Chat ending it draws down into the scroll view's bottom
+    /// inset: a text-only button is a full button tall, so its frame already leaves room under the
+    /// title. The bottom fade lifts at the end of the scroll, so it never covers the button.
     private var contentBottomPadding: CGFloat {
-        endsWithLeaveButton ? -12 - scrollFit.bottomInset : 24
+        endsWithLeaveButton ? -scrollFit.bottomInset : 24
     }
 
     // MARK: - Pinned -
@@ -484,7 +486,7 @@ struct ChatProfileScreen: View {
         if origin == .chat {
             Color.clear
                 .frame(height: 0)
-                .profileBarlessFade(isActive: scrollFit.overflows)
+                .profileBarlessFade(isActive: scrollFit.fadesBottom)
         } else if conversation != nil, isRequester {
             requestActions
                 .padding(.horizontal, ProfileHeaderMetrics.inset)
