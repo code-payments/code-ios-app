@@ -169,7 +169,7 @@ struct ChatsOverflowMenu: View {
                     if needsDecision {
                         // Sits just above and right of the third dot, like a badge on its corner.
                         NotificationDot()
-                            .offset(x: 9, y: -7)
+                            .offset(x: 7, y: -7)
                     }
                 }
         }
@@ -188,7 +188,7 @@ struct ChatsOverflowMenu: View {
         let size = CGSize(width: symbol.size.width + dot / 2, height: symbol.size.height + dot / 2)
         let image = UIGraphicsImageRenderer(size: size).image { _ in
             symbol.draw(at: CGPoint(x: 0, y: dot / 2))
-            UIColor(Color.success).setFill()
+            UIColor(Color.unreadIndicator).setFill()
             UIBezierPath(ovalIn: CGRect(x: size.width - dot, y: 0, width: dot, height: dot)).fill()
         }
         return image.withRenderingMode(.alwaysOriginal)
