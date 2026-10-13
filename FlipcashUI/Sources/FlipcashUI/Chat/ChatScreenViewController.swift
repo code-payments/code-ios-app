@@ -731,8 +731,10 @@ public final class ChatScreenViewController: UIViewController {
 
     @objc private func textDidBeginEditing(_ notification: Notification) {
         guard let textView = notification.object as? UITextView,
-              textView === bar.firstTextInputResponder,
-              textView.pasteDelegate !== imagePaste else { return }
+              textView === bar.firstTextInputResponder else { return }
+        // The multiline field's text view draws scrolled text past its frame, into the bar's padding.
+        textView.clipsToBounds = true
+        guard textView.pasteDelegate !== imagePaste else { return }
         imagePaste.install(on: textView)
     }
 

@@ -73,7 +73,8 @@ enum AttachSurfaceLayout {
     static let plusFill = Color.white.opacity(0.10)
     /// How far past `+`'s size the surface has fully turned from `+`'s fill into the panel's glass.
     static let plusBlendDistance: CGFloat = 40
-    static let cardCornerRadius: CGFloat = 24
+    /// Concentric with the screen's corners, which the card stands ``AttachOverlayLayout/cardInset`` in from.
+    static var cardCornerRadius: CGFloat { AttachOverlayLayout.cardCornerRadius }
     /// A staged chip's radius, which a landing ends on.
     static let chipCornerRadius: CGFloat = 10
     /// The menu's width: room for an icon and a short label, well short of the send button.

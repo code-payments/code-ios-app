@@ -125,6 +125,21 @@ enum BarOverflow: Equatable {
     }
 }
 
+/// The bar's hit area: its own frame, and the panel's or card's where they draw above it, in the
+/// bar's coordinates. Only those: a touch anywhere else above the bar falls through to the panel's
+/// dismiss area behind it.
+nonisolated struct BarHitShape: Shape {
+    let surfaces: [CGRect]
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path(rect)
+        for surface in surfaces {
+            path.addRect(surface)
+        }
+        return path
+    }
+}
+
 /// Hands the bar's ``BarOverflow`` to the screen hosting it whenever it changes.
 struct BarOverflowReporting: ViewModifier {
     let model: ConversationBarModel
@@ -265,6 +280,10 @@ struct ConversationBottomBar: View {
     /// Whether the round `$` shows: while the draft is empty. Set in a transaction after the text
     /// update, so the split animates without carrying the field's text change with it.
     @State private var cashIsShown = true
+    /// Where the bar-drawn panel and card stand, in window coordinates, for the bar's hit area.
+    @State private var surfaceFrames: [AttachOverlayRegion: CGRect] = [:]
+    /// The bar's origin in window coordinates, to bring `surfaceFrames` into the bar's own.
+    @State private var barOrigin: CGPoint = .zero
 
     /// How far left of the field the row starts, for the attach menu to open out to. `$` stands to
     /// the field's right, so nothing does.
@@ -367,7 +386,7 @@ struct ConversationBottomBar: View {
             }
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .composerGlass(in: field, id: "field", namespace: composerGlassNamespace)
+                .composerGlass(in: field, id: "field", namespace: composerGlassNamespace, isInteractive: rowTakesTouches)
             if leadingControl == .cash {
                 // Kept mounted and tucked into the field's trailing end while hidden. Removed, it
                 // stood past the join distance and dissolved in place under the widening field.
@@ -379,7 +398,7 @@ struct ConversationBottomBar: View {
                     .overlay(alignment: .trailing) {
                         Color.clear
                             .frame(width: cashIsShown ? side : tucked, height: cashIsShown ? side : tucked)
-                            .composerGlass(in: Circle(), id: "cash", namespace: composerGlassNamespace)
+                            .composerGlass(in: Circle(), id: "cash", namespace: composerGlassNamespace, isInteractive: rowTakesTouches)
                             // Centred in the field's rounded end, clear of its edge.
                             .padding(.trailing, cashIsShown ? 0 : (side - tucked) / 2)
                     }
@@ -452,7 +471,7 @@ struct ConversationBottomBar: View {
             // field is there to take focus the moment the card closes. Left visible, not faded: the
             // card grows over it and shrinks back onto it, so it is never seen missing. An open panel lets a touch on the row —
             // send included — fall through to the dismiss area behind the bar, so it only closes the panel.
-            .allowsHitTesting(!showsCard && !model.attachPanel.isOpen)
+            .allowsHitTesting(rowTakesTouches)
             .accessibilityHidden(showsCard)
             // After the row's own opacity, so the surface does not fade with it.
             .overlay(alignment: .topLeading) {
@@ -471,8 +490,10 @@ struct ConversationBottomBar: View {
         .padding(.top, BarMetrics.contentPadding)
         .padding(.bottom, BarMetrics.contentPadding)
         // The whole bar, margins included, takes a dropped image. Images only: the field's own
-        // text drop keeps plain text, and declines an image session, so it falls to this.
-        .contentShape(Rectangle())
+        // text drop keeps plain text, and declines an image session, so it falls to this. Not a
+        // plain `Rectangle()`: that would cut the attach panel and card off where they draw above.
+        .onGeometryChange(for: CGPoint.self, of: { $0.frame(in: .global).origin }) { barOrigin = $0 }
+        .contentShape(BarHitShape(surfaces: barSurfaceHitRects))
         .onDrop(of: [.image], delegate: ComposerImageDropDelegate(
             acceptsDrop: acceptsMedia && !composer.isEditing,
             onDrop: onImagesDropped
@@ -613,10 +634,18 @@ struct ConversationBottomBar: View {
         model.attachCard.isOpen
     }
 
-    /// The attach surface in the bar: the menu standing on `+`, and the card standing on the composer
-    /// row's bottom edge, a fixed share of the screen tall and as wide as the bar's controls are with
-    /// the keyboard up. An overlay, so the bar's measured height — and with it the transcript's inset
-    /// — stays the composer's.
+    /// The card's frame in the row's coordinates: where it stands with the keyboard up, inset from the
+    /// screen's bottom and sides, and on the row's bottom edge if the bar has no window to measure.
+    private func barCardRect(row: CGSize, toRow: (CGRect) -> CGRect) -> CGRect {
+        guard let window = UIApplication.shared.currentKeyWindow else {
+            return AttachSurfaceLayout.barCardRect(row: row, outset: compactExtraInset, height: model.attachCard.height)
+        }
+        return toRow(AttachOverlayLayout.cardFrame(in: window.bounds, height: model.attachCard.height))
+    }
+
+    /// The attach surface in the bar: the menu standing on `+`, and the card standing where it does
+    /// with the keyboard up, a fixed share of the screen tall and inset from the screen's edges. An
+    /// overlay, so the bar's measured height — and with it the transcript's inset — stays the composer's.
     private func attachSurface(items: [AttachMenuItem]) -> some View {
         GeometryReader { proxy in
             let origin = proxy.frame(in: .global).origin
@@ -625,7 +654,7 @@ struct ConversationBottomBar: View {
                 model: model,
                 items: items,
                 plus: toRow(model.overKeyboard.plusFrame),
-                card: AttachSurfaceLayout.barCardRect(row: proxy.size, outset: compactExtraInset, height: model.attachCard.height),
+                card: barCardRect(row: proxy.size, toRow: toRow),
                 landing: model.attachCard.landingChipFrame.map(toRow),
                 menuPlacement: .standsOnPlus,
                 selectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
@@ -643,12 +672,25 @@ struct ConversationBottomBar: View {
                 if region == .card, let rect {
                     model.cardTop = rect.minY + origin.y
                 }
+                surfaceFrames[region] = rect?.offsetBy(dx: origin.x, dy: origin.y)
             }
             .onAppear {
                 // A turn later, so the card has read it first.
                 DispatchQueue.main.async { model.overKeyboard.opensLibraryInBar = false }
             }
         }
+    }
+
+    /// Whether the composer row takes touches: not while the attach panel or card covers it. Its
+    /// glass follows too, since an interactive glass takes touches in UIKit, past `allowsHitTesting`.
+    private var rowTakesTouches: Bool {
+        !showsCard && !model.attachPanel.isOpen
+    }
+
+    /// The panel's and card's frames in the bar's coordinates, while the bar draws them above itself.
+    private var barSurfaceHitRects: [CGRect] {
+        guard model.overflow.overflows else { return [] }
+        return surfaceFrames.values.map { $0.offsetBy(dx: -barOrigin.x, dy: -barOrigin.y) }
     }
 
     /// Whether the camera should be warm: while the open panel offers it, or its card shows it.
@@ -1139,9 +1181,8 @@ struct ConversationComposer: View {
             .focused($isFocused)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(minHeight: BarMetrics.fieldMinHeight)
-            // The multiline field's text view draws past its frame, so scrolled text would show
-            // through the row's padding. Clipping here makes the frame the scroll viewport.
-            .clipped()
+            // Not `.clipped()`: SwiftUI's clip here tears down the attach menu over the keyboard.
+            // `ChatScreenViewController` clips the field's text view in UIKit instead.
             // Queried by the UI tests. The placeholder is not usable as a handle: it is gone the
             // moment there is a draft, so a test that types and then reads the field back finds
             // nothing. A multiline `TextField(axis:)` also surfaces as a text view wearing a
