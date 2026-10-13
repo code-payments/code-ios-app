@@ -158,6 +158,7 @@ struct E2eeLearnMoreSheet: View {
                 "The group\u{2019}s name, photo, description and cover",
                 "Who is in the group, and how many",
                 "Payments, which are recorded on the Solana blockchain",
+                "Reactions, and who sent them",
             ]
         }
     }
