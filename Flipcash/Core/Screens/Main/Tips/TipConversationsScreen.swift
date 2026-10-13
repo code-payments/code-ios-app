@@ -45,9 +45,7 @@ struct TipConversationsScreen: View {
     var body: some View {
         let projection = self.projection
         let conversations = rows(projection)
-        let waitingCount = sessionContainer.hostedLobbies.groupsWithRequests
-            .reduce(0) { $0 + sessionContainer.hostedLobbies.requests(for: $1).count }
-        let hasRequests = waitingCount > 0 || !sessionContainer.lobbyRequests.conversationIDs.isEmpty
+        let needsDecision = !sessionContainer.hostedLobbies.groupsWithRequests.isEmpty
         let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible
 
         Background(color: .backgroundMain) {
@@ -122,10 +120,8 @@ struct TipConversationsScreen: View {
         .navigationTitle("Chat")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            if hasRequests {
-                ToolbarItem(placement: .topBarLeading) {
-                    ChatsOverflowMenu(waitingCount: waitingCount)
-                }
+            ToolbarItem(placement: .topBarLeading) {
+                ChatsOverflowMenu(needsDecision: needsDecision)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()

@@ -127,11 +127,11 @@ private struct HostedRequestsRow: View {
 
 // MARK: - ChatsOverflowMenu -
 
-/// The Chats tab's leading overflow menu. Shown while any request is pending either way; the dot
-/// marks requests the user, as host, has to decide.
+/// The Chats tab's leading overflow menu. The dot, on the menu and on its Requests item, marks
+/// requests the user, as host, has to decide.
 struct ChatsOverflowMenu: View {
 
-    let waitingCount: Int
+    let needsDecision: Bool
 
     @Environment(AppRouter.self) private var router
 
@@ -140,21 +140,45 @@ struct ChatsOverflowMenu: View {
             Button {
                 router.push(.requests)
             } label: {
-                Label("Requests", systemImage: "person.badge.plus")
-                if waitingCount > 0 {
-                    Text(waitingCount == 1 ? "1 person waiting" : "\(waitingCount) people waiting")
+                Label {
+                    Text("Requests")
+                } icon: {
+                    // A menu row draws only an image, so the dot is baked into the icon.
+                    Image(uiImage: Self.requestsIcon(dotted: needsDecision))
                 }
             }
+            .accessibilityLabel(needsDecision ? "Requests, people waiting to join" : "Requests")
         } label: {
             Image.system(.ellipsis)
                 .renderingMode(.template)
                 .foregroundStyle(Color.textMain)
-                // The ellipsis is short and wide; a square frame keeps the dot off the third dot.
-                .frame(width: 24, height: 24)
-                .notificationDot(waitingCount > 0)
+                .overlay(alignment: .trailing) {
+                    if needsDecision {
+                        // Sits just above and right of the third dot, like a badge on its corner.
+                        NotificationDot()
+                            .offset(x: 9, y: -7)
+                    }
+                }
         }
-        .accessibilityLabel(waitingCount > 0 ? "More, people waiting to join" : "More")
+        .accessibilityLabel(needsDecision ? "More, people waiting to join" : "More")
         .accessibilityIdentifier("chat-overflow-menu")
+    }
+
+    private static func requestsIcon(dotted: Bool) -> UIImage {
+        let symbol = UIImage(
+            systemName: "person.badge.plus",
+            withConfiguration: UIImage.SymbolConfiguration(pointSize: 17)
+        )!.withTintColor(UIColor(Color.textMain), renderingMode: .alwaysOriginal)
+        guard dotted else { return symbol.withRenderingMode(.alwaysTemplate) }
+
+        let dot: CGFloat = 8
+        let size = CGSize(width: symbol.size.width + dot / 2, height: symbol.size.height + dot / 2)
+        let image = UIGraphicsImageRenderer(size: size).image { _ in
+            symbol.draw(at: CGPoint(x: 0, y: dot / 2))
+            UIColor(Color.success).setFill()
+            UIBezierPath(ovalIn: CGRect(x: size.width - dot, y: 0, width: dot, height: dot)).fill()
+        }
+        return image.withRenderingMode(.alwaysOriginal)
     }
 }
 
