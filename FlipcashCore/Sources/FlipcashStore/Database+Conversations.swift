@@ -251,6 +251,20 @@ nonisolated extension Database {
         )
     }
 
+    /// Everyone who has a stored message in the conversation, newest poster first.
+    public func senderIDs(conversationID: ConversationID) throws -> [UUID] {
+        let m = ConversationMessageTable()
+        let newest = m.id.max
+        let rows = try reader.prepare(
+            m.table
+                .select(m.senderId, newest)
+                .filter(m.conversationId == conversationID.data && m.senderId != nil)
+                .group(m.senderId)
+                .order(newest.desc)
+        )
+        return rows.compactMap { $0[m.senderId] }
+    }
+
     /// The oldest stored message id after `after` that someone other than `selfUserID` sent, deleted
     /// or not, or nil when there is none — where the unread divider goes. A row with no sender counts
     /// as someone else's.

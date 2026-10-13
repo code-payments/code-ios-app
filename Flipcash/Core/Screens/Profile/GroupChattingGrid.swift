@@ -30,9 +30,30 @@ nonisolated struct GroupPortrait: Sendable, Hashable {
         )
     }
 
+    /// A private group's members as far as this device knows them while the roster can't be read:
+    /// the host, the viewer, then everyone with a stored message, each once. Anyone the directory
+    /// can't name yet is left out rather than drawn nameless.
+    static func known(
+        creator: UserID?,
+        selfID: UserID,
+        senders: [UserID],
+        members: [UserID: ConversationMember]
+    ) -> [GroupPortrait] {
+        var seen: Set<UserID> = []
+        let ordered = [creator, selfID].compactMap { $0 } + senders
+        return ordered.compactMap { userID in
+            guard seen.insert(userID).inserted, let member = members[userID] else { return nil }
+            return GroupPortrait(member, userID: userID, creator: creator)
+        }
+    }
+
     /// A roster member's portrait, or `nil` for a member the server sent without a user id.
     init?(_ member: ConversationMember, creator: UserID?) {
         guard let userID = member.userID else { return nil }
+        self.init(member, userID: userID, creator: creator)
+    }
+
+    private init(_ member: ConversationMember, userID: UserID, creator: UserID?) {
         let name = member.displayName.isEmpty
             ? (member.username?.handle ?? ConversationController.fallbackCounterpartName)
             : member.displayName

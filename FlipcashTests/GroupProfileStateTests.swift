@@ -238,4 +238,27 @@ struct GroupProfileStateTests {
     func gridShown() {
         #expect(GroupChattingGrid.isVisible(isPrivate: false, chatters: [chatter()]))
     }
+
+    // MARK: - Known members
+
+    @Test("Known members list the host, then the viewer, then posters, each once")
+    func knownOrder() {
+        let host = UUID(), me = UUID(), poster = UUID()
+        let members = [
+            host: ConversationMember(userID: host, displayName: "Host"),
+            me: ConversationMember(userID: me, displayName: "Me"),
+            poster: ConversationMember(userID: poster, displayName: "Poster"),
+        ]
+        let portraits = GroupPortrait.known(creator: host, selfID: me, senders: [poster, host, me], members: members)
+        #expect(portraits.map(\.userID) == [host, me, poster])
+        #expect(portraits.map(\.isHost) == [true, false, false])
+    }
+
+    @Test("A poster the directory can't name yet is left out")
+    func knownUnnamed() {
+        let me = UUID()
+        let members = [me: ConversationMember(userID: me, displayName: "Me")]
+        let portraits = GroupPortrait.known(creator: nil, selfID: me, senders: [UUID()], members: members)
+        #expect(portraits.map(\.userID) == [me])
+    }
 }

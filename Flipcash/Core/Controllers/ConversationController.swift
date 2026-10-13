@@ -1910,6 +1910,11 @@ final class ConversationController {
         return (try? database.message(id: messageID, conversationID: conversationID)) ?? nil
     }
 
+    /// Everyone with a stored message in `conversationID`, newest poster first; empty when the read fails.
+    func senderIDs(in conversationID: ConversationID) -> [UserID] {
+        (try? database.senderIDs(conversationID: conversationID)) ?? []
+    }
+
     /// Where the viewer's unread messages begin, from their stored READ pointer and the messages
     /// stored after it. Read once per visit, before ``advanceReadPointer(to:in:)`` moves the
     /// pointer — see ``UnreadBoundary``.

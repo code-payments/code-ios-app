@@ -1805,6 +1805,23 @@ struct ConversationControllerTests {
         #expect(controller.lastMessagePreview(for: conversation) { _ in "Jeffy" } == "$1.00 of Jeffy")
     }
 
+    // MARK: - Senders -
+
+    @Test("senderIDs lists each stored sender once, newest poster first, skipping sender-less rows")
+    func senderIDsNewestFirst() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let alice = UUID(), bob = UUID()
+        let rows: [(UInt64, UUID?)] = [(1, alice), (2, bob), (3, nil), (4, alice)]
+        let messages = rows.map { id, sender in
+            ConversationMessage(id: MessageID(value: id), senderID: sender, content: .text("m\(id)"), date: Date(timeIntervalSince1970: TimeInterval(id)), unreadSeq: id)
+        }
+        try database.upsertConversationMessages(messages, conversationID: ConversationID.test(1))
+
+        let controller = makeController(MockConversations(), database: database)
+        #expect(controller.senderIDs(in: ConversationID.test(1)) == [alice, bob])
+    }
+
     // MARK: - DB-backed transcript (no in-memory hold) -
 
     @Test("streamed messages persist to the DB and are read as a bounded window, not held in memory")

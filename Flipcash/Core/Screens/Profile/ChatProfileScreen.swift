@@ -39,6 +39,7 @@ struct ChatProfileScreen: View {
     @State private var hostName: String?
     @State private var dialogItem: DialogItem?
     @State private var chatters: [SampledChatter] = []
+    @State private var senders: [UserID] = []
     @State private var mintMetadata: [PublicKey: StoredMintMetadata] = [:]
     @State private var mintNamesTimedOut = false
     @State private var scrollFit = ProfileScrollFit()
@@ -71,10 +72,22 @@ struct ChatProfileScreen: View {
     }
 
     /// A private group's roster as portraits, the host first; empty until the roster is read.
-    private var memberPortraits: [GroupPortrait] {
+    private var rosterPortraits: [GroupPortrait] {
         let creator = conversation?.creator
         return sessionContainer.groupRosters.members(for: conversationID, creator: creator)
             .compactMap { GroupPortrait($0, creator: creator) }
+    }
+
+    /// The roster when it can be read, else the members this device knows of from the chat.
+    private var memberPortraits: [GroupPortrait] {
+        let roster = rosterPortraits
+        guard roster.isEmpty else { return roster }
+        return GroupPortrait.known(
+            creator: conversation?.creator,
+            selfID: conversationController.selfUserID,
+            senders: senders,
+            members: sessionContainer.knownAuthors.snapshot.membersByUserID
+        )
     }
 
     /// Whether the viewer sees the requester's layout: a private group they don't belong to, whose
@@ -171,7 +184,7 @@ struct ChatProfileScreen: View {
                             title: "Members",
                             portraits: Array(memberPortraits.prefix(GroupChattingGrid.memberLimit)),
                             count: conversation?.rosterSummary.memberCount,
-                            onCount: { router.push(.groupMembers(conversationID)) }
+                            onCount: rosterPortraits.isEmpty ? nil : { router.push(.groupMembers(conversationID)) }
                         ) { userID in
                             router.push(.userProfile(userID, origin: .groupMember))
                         }
@@ -263,6 +276,14 @@ struct ChatProfileScreen: View {
         .task(id: isPrivate && isMember) {
             guard isPrivate, isMember else { return }
             await sessionContainer.groupRosters.refresh(conversationID)
+        }
+        // GetRoster is off server-side and SampleChatters refuses private groups, so the grid falls
+        // back to the people this device has seen post.
+        .task(id: isPrivate && isMember) {
+            guard isPrivate, isMember else { return }
+            senders = conversationController.senderIDs(in: conversationID)
+            let creator = conversation?.creator.map { [$0] } ?? []
+            await sessionContainer.knownAuthors.resolve(creator + [conversationController.selfUserID] + senders)
         }
         .task(id: conversation.map { $0.isPrivate } ) {
             guard let conversation, !conversation.isPrivate else { return }
