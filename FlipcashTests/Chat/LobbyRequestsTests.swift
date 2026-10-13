@@ -191,8 +191,8 @@ struct PrivateGroupCopyTests {
 
     @Test("The in-chat anchor names one requester, or counts several and lists their names")
     func anchorCopy() {
-        #expect(PrivateGroupCopy.anchorTitle(names: ["Jasper"]) == "Jasper wants to join")
-        #expect(PrivateGroupCopy.anchorTitle(names: ["Jasper", "Vincent", "Tam"]) == "3 people want to join")
+        #expect(PrivateGroupCopy.anchorTitle(names: ["Jasper"]) == "Jasper Wants To Join")
+        #expect(PrivateGroupCopy.anchorTitle(names: ["Jasper", "Vincent", "Tam"]) == "3 People Want To Join")
         #expect(PrivateGroupCopy.anchorNames(["Jasper"]) == "Jasper")
         #expect(PrivateGroupCopy.anchorNames(["Jasper", "Tam"]) == "Jasper and Tam")
         #expect(PrivateGroupCopy.anchorNames(["Jasper", "Vincentjeezus24", "Tam"]) == "Jasper, Vincentjeezus24 and Tam")
