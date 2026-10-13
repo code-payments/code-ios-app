@@ -138,7 +138,12 @@ struct ChatsOverflowMenu: View {
     var body: some View {
         Menu {
             Button {
-                router.push(.requests)
+                // The menu morphs back into the bar button as it closes; pushing at once runs that
+                // morph over the push, so the push waits for it.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(350))
+                    router.push(.requests)
+                }
             } label: {
                 Label {
                     Text("Requests")
