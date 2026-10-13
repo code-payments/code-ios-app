@@ -16,7 +16,7 @@ public struct Bubble: View {
     public let count: Int
     public let color: Color
 
-    public init(size: Size, count: Int, color: Color = .textSuccess) {
+    public init(size: Size, count: Int, color: Color = .success) {
         self.size = size
         self.count = count
         self.color = color

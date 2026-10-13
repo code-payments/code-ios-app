@@ -19,7 +19,7 @@ extension ShapeStyle where Self == Color {
     public static var textAction: Color                  { Color.black }
     public static var textActionDisabled: Color          { Color(r: 78,  g: 78,  b: 78) }
     public static var textError: Color                   { Color(r: 255, g: 131, b: 131) }
-    public static var textSuccess: Color                 { Color(r: 73 , g: 213, b: 23) }
+    public static var textSuccess: Color                 { Color(r: 115, g: 234, b: 164) }
     public static var textWarning: Color                 { Color(r: 255, g: 243, b: 131) }
     public static var warning: Color                     { Color(r: 255, g: 169, b: 57)  }
     /// The ground `warning` sits on when it labels a state rather than raising an alarm — amber at
@@ -46,8 +46,8 @@ extension ShapeStyle where Self == Color {
 
     public static var checkmarkBackground: Color         { Color.white }
 
-    /// `#34C759` — Apple's system green. Backed by the `success` asset (already
-    /// in the catalog, unused as a named token until the username progress card).
+    /// `#1AC86A` — the shared success fill (switch tracks, bubbles, filled icons), the same
+    /// green Android uses. Success text uses `textSuccess` (`#73EAA4`). Backed by the `success` asset.
     public static var success: Color                     { Color("success") }
 }
 

@@ -96,7 +96,7 @@ struct E2eeLearnMoreSheet: View {
         Group {
             if isEncrypted {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.backgroundMain, Color(r: 47, g: 194, b: 107))
+                    .foregroundStyle(Color.backgroundMain, Color.success)
             } else {
                 Image(systemName: "minus.circle.fill")
                     .foregroundStyle(Color.white.opacity(0.7), Color.white.opacity(0.12))

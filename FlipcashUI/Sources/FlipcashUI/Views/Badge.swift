@@ -125,7 +125,7 @@ struct Badge_Previews: PreviewProvider {
     static var previews: some View {
         Background(color: .backgroundMain) {
             VStack {
-                Badge(decoration: .bubble(.textSuccess), text: "Invited")
+                Badge(decoration: .bubble(.success), text: "Invited")
                 Badge(decoration: .checkmark,         text: "On Code")
             }
         }
