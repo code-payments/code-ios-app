@@ -69,7 +69,12 @@ extension View {
     /// view.
     func profileScrollFit(_ fit: Binding<ProfileScrollFit>) -> some View {
         onScrollGeometryChange(for: ScrollHeights.self) { geometry in
-            ScrollHeights(visible: geometry.containerSize.height, content: geometry.contentSize.height)
+            // The insets (home indicator, pinned bar) are space content can't settle in, so short
+            // content stretched past them would scroll.
+            ScrollHeights(
+                visible: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom,
+                content: geometry.contentSize.height
+            )
         } action: { _, heights in
             fit.wrappedValue.update(visibleHeight: heights.visible, contentHeight: heights.content)
         }
