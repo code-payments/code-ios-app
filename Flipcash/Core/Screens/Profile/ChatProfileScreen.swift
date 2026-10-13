@@ -468,11 +468,11 @@ struct ChatProfileScreen: View {
         origin == .chat && isMember
     }
 
-    /// Space under the scroll content. Leave Chat ending it sits where the pinned bar puts it: a
-    /// text-only button is a full button tall, so its frame already leaves room under the title and
-    /// can overlap the home indicator's inset.
+    /// Space under the scroll content. Leave Chat ending it sits where the pinned bar puts it: it
+    /// draws down into the scroll view's bottom inset, and since a text-only button is a full button
+    /// tall, its frame already leaves room under the title and can overlap the home indicator.
     private var contentBottomPadding: CGFloat {
-        endsWithLeaveButton ? -12 : 24
+        endsWithLeaveButton ? -12 - scrollFit.bottomInset : 24
     }
 
     // MARK: - Pinned -
