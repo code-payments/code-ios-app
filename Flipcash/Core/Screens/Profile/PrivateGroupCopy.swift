@@ -76,9 +76,9 @@ enum PrivateGroupCopy {
         count == 1 ? "1 person is waiting" : "\(count) people are waiting"
     }
 
-    /// The in-chat anchor's title: "Jasper wants to join" for one request, "3 people want to join" for several.
+    /// The in-chat anchor's title: "Jasper Wants To Join" for one request, "3 People Want To Join" for several.
     static func anchorTitle(names: [String]) -> String {
-        names.count == 1 ? "\(names[0]) wants to join" : "\(names.count) people want to join"
+        names.count == 1 ? "\(names[0]) Wants To Join" : "\(names.count) People Want To Join"
     }
 
     /// The in-chat anchor's names line: "Jasper and Tam", or "Jasper, Vincent and Tam" for three or more.

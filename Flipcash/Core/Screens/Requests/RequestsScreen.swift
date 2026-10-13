@@ -133,68 +133,6 @@ private struct HostedRequestsRow: View {
     }
 }
 
-// MARK: - ChatsOverflowMenu -
-
-/// The Chats tab's leading overflow menu. The dot, on the menu and on its Requests item, marks
-/// requests the user, as host, has to decide.
-struct ChatsOverflowMenu: View {
-
-    let needsDecision: Bool
-
-    @Environment(AppRouter.self) private var router
-
-    var body: some View {
-        Menu {
-            Button {
-                // The menu morphs back into the bar button as it closes; pushing at once runs that
-                // morph over the push, so the push waits for it.
-                Task {
-                    try? await Task.sleep(for: .milliseconds(350))
-                    router.push(.requests)
-                }
-            } label: {
-                Label {
-                    Text("Requests")
-                } icon: {
-                    // A menu row draws only an image, so the dot is baked into the icon.
-                    Image(uiImage: Self.requestsIcon(dotted: needsDecision))
-                }
-            }
-            .accessibilityLabel(needsDecision ? "Requests, people waiting to join" : "Requests")
-        } label: {
-            Image.system(.ellipsis)
-                .renderingMode(.template)
-                .foregroundStyle(Color.textMain)
-                .overlay(alignment: .trailing) {
-                    if needsDecision {
-                        // Sits just above and right of the third dot, like a badge on its corner.
-                        NotificationDot()
-                            .offset(x: 7, y: -7)
-                    }
-                }
-        }
-        .accessibilityLabel(needsDecision ? "More, people waiting to join" : "More")
-        .accessibilityIdentifier("chat-overflow-menu")
-    }
-
-    private static func requestsIcon(dotted: Bool) -> UIImage {
-        let symbol = UIImage(
-            systemName: "person.badge.plus",
-            withConfiguration: UIImage.SymbolConfiguration(pointSize: 17)
-        )!.withTintColor(UIColor(Color.textMain), renderingMode: .alwaysOriginal)
-        guard dotted else { return symbol.withRenderingMode(.alwaysTemplate) }
-
-        let dot: CGFloat = 8
-        let size = CGSize(width: symbol.size.width + dot / 2, height: symbol.size.height + dot / 2)
-        let image = UIGraphicsImageRenderer(size: size).image { _ in
-            symbol.draw(at: CGPoint(x: 0, y: dot / 2))
-            UIColor(Color.unreadIndicator).setFill()
-            UIBezierPath(ovalIn: CGRect(x: size.width - dot, y: 0, width: dot, height: dot)).fill()
-        }
-        return image.withRenderingMode(.alwaysOriginal)
-    }
-}
-
 // MARK: - Requested groups -
 
 extension ConversationController {
