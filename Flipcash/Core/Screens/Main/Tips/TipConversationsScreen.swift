@@ -45,8 +45,9 @@ struct TipConversationsScreen: View {
     var body: some View {
         let projection = self.projection
         let conversations = rows(projection)
-        let needsDecision = !sessionContainer.hostedLobbies.groupsWithRequests.isEmpty
-        let hasRequests = needsDecision || !sessionContainer.lobbyRequests.conversationIDs.isEmpty
+        let waitingCount = sessionContainer.hostedLobbies.groupsWithRequests
+            .reduce(0) { $0 + sessionContainer.hostedLobbies.requests(for: $1).count }
+        let hasRequests = waitingCount > 0 || !sessionContainer.lobbyRequests.conversationIDs.isEmpty
         let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible
 
         Background(color: .backgroundMain) {
@@ -123,7 +124,7 @@ struct TipConversationsScreen: View {
         .toolbar {
             if hasRequests {
                 ToolbarItem(placement: .topBarLeading) {
-                    RequestsButton(needsDecision: needsDecision)
+                    ChatsOverflowMenu(waitingCount: waitingCount)
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {

@@ -125,27 +125,36 @@ private struct HostedRequestsRow: View {
     }
 }
 
-// MARK: - RequestsButton -
+// MARK: - ChatsOverflowMenu -
 
-/// The Chats tab's leading bar item. Shown while any request is pending either way; the dot marks
-/// requests the user, as host, has to decide.
-struct RequestsButton: View {
+/// The Chats tab's leading overflow menu. Shown while any request is pending either way; the dot
+/// marks requests the user, as host, has to decide.
+struct ChatsOverflowMenu: View {
 
-    let needsDecision: Bool
+    let waitingCount: Int
 
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        Button {
-            router.push(.requests)
+        Menu {
+            Button {
+                router.push(.requests)
+            } label: {
+                Label("Requests", systemImage: "person.badge.plus")
+                if waitingCount > 0 {
+                    Text(waitingCount == 1 ? "1 person waiting" : "\(waitingCount) people waiting")
+                }
+            }
         } label: {
-            Image(systemName: "person.badge.plus")
-                .font(.appTextLarge)
+            Image.system(.ellipsis)
+                .renderingMode(.template)
                 .foregroundStyle(Color.textMain)
-                .notificationDot(needsDecision)
+                // The ellipsis is short and wide; a square frame keeps the dot off the third dot.
+                .frame(width: 24, height: 24)
+                .notificationDot(waitingCount > 0)
         }
-        .accessibilityLabel(needsDecision ? "Requests, people waiting to join" : "Requests")
-        .accessibilityIdentifier("chat-requests-button")
+        .accessibilityLabel(waitingCount > 0 ? "More, people waiting to join" : "More")
+        .accessibilityIdentifier("chat-overflow-menu")
     }
 }
 
