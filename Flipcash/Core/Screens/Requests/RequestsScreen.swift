@@ -24,10 +24,18 @@ struct RequestsScreen: View {
 
         Background(color: .backgroundMain) {
             if hosted.isEmpty, sent.isEmpty {
-                Text("No pending requests")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textSecondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Join Requests' empty state, without its Share Group button: no one group to share.
+                VStack(spacing: 8) {
+                    Text("No requests right now")
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.textMain)
+                    Text("Requests to join your private groups, and the ones you send, show up here")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 40)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
                     if !hosted.isEmpty {
