@@ -105,6 +105,8 @@ extension AppRouter {
         case newChat
         /// The "New Public Group" form, opened from the New Chat screen.
         case newPublicGroup
+        /// The "New Private Group" form, opened from the New Chat screen.
+        case newPrivateGroup
         /// A tip DM conversation, pushed onto the `.tips` stack — from the
         /// Tips list or a tip-DM push notification.
         case tipConversation(ConversationID)
@@ -133,6 +135,13 @@ extension AppRouter {
         case editGroupDescription(ConversationID)
         /// The list of archived chats, pushed from the Archived row on the Chats tab.
         case archivedChats
+        /// Join requests in both directions, pushed from the Chats tab's leading bar item.
+        case requests
+        /// The pending requests to join a private group the user hosts, pushed from its profile card,
+        /// the Requests screen, or the chat's request anchor.
+        case joinRequests(ConversationID)
+        /// Every member of a private group, pushed from the count on its profile's Members grid.
+        case groupMembers(ConversationID)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -155,10 +164,10 @@ extension AppRouter {
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw:
                 return .you
-            case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
+            case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats:
+                 .editGroupDescription, .archivedChats, .requests, .joinRequests, .groupMembers:
                 return .tips
             }
         }
@@ -209,6 +218,7 @@ extension AppRouter {
             case .usernameLookup:               "usernameLookup"
             case .newChat:                      "newChat"
             case .newPublicGroup:               "newPublicGroup"
+            case .newPrivateGroup:              "newPrivateGroup"
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
             case .userProfile:                  "userProfile"
@@ -219,6 +229,9 @@ extension AppRouter {
             case .editGroupCover:               "editGroupCover"
             case .editGroupDescription:         "editGroupDescription"
             case .archivedChats:                "archivedChats"
+            case .requests:                     "requests"
+            case .joinRequests:                 "joinRequests"
+            case .groupMembers:                 "groupMembers"
             }
         }
 
@@ -246,7 +259,9 @@ extension AppRouter {
                  .editGroupName(let conversationID),
                  .editGroupPicture(let conversationID),
                  .editGroupCover(let conversationID),
-                 .editGroupDescription(let conversationID):
+                 .editGroupDescription(let conversationID),
+                 .joinRequests(let conversationID),
+                 .groupMembers(let conversationID):
                 return conversationID.description
             case .userProfile(let userID, _):
                 return userID.uuidString
@@ -261,8 +276,8 @@ extension AppRouter {
                  .changeDisplayName, .changeProfilePicture,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
-                 .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup,
-                 .archivedChats:
+                 .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
+                 .archivedChats, .requests:
                 return nil
             }
         }

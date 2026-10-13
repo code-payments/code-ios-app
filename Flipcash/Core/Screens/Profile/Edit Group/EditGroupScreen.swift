@@ -30,8 +30,10 @@ struct EditGroupScreen: View {
         conversationController.conversation(withID: conversationID)
     }
 
+    /// Nil for a private group, which has no rules and can't gain them.
     private var requirements: GroupBalanceRequirements? {
-        GroupBalanceRequirements(conversation?.rules)
+        guard conversation?.isPrivate != true else { return nil }
+        return GroupBalanceRequirements(conversation?.rules)
     }
 
     var body: some View {

@@ -129,6 +129,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? = { nil }
     /// Fired when the user taps a photo the viewer may see. The owner opens the full-screen viewer.
     var onMediaTap: (ChatMediaViewerRequest) -> Void = { _ in }
+    /// Room the transcript reserves under the navigation bar for the join-requests anchor.
+    var transcriptTopInset: CGFloat = 0
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -146,6 +148,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.showsGatePlaceholder = showsGatePlaceholder
         screen.barRestingDrop = BarMetrics.compactDrop
         screen.authorAvatars = authorAvatars
+        screen.transcriptTopInset = transcriptTopInset
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
@@ -201,6 +204,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
         screen.barRestingDrop = BarMetrics.compactDrop
+        screen.transcriptTopInset = transcriptTopInset
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry

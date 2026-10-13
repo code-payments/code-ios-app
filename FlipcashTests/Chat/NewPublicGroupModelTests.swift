@@ -63,6 +63,53 @@ struct NewPublicGroupModelTests {
                 rules: rules
             )
         }
+
+        private(set) var startPrivateChatCalls: [(title: String, blobID: BlobID?, key: UUID)] = []
+        private(set) var storeGroupKeyCalls: [ConversationID] = []
+
+        /// Thrown by the next `startPrivateChat`, then cleared.
+        var nextStartPrivateChatError: Error?
+        /// Thrown by `storeGroupKey` this many times before it succeeds.
+        var storeGroupKeyFailures = 0
+
+        func startPrivateChat(
+            title: String,
+            pictureBlobID: BlobID?,
+            idempotencyKey: UUID
+        ) async throws -> Conversation {
+            startPrivateChatCalls.append((title, pictureBlobID, idempotencyKey))
+            if let error = nextStartPrivateChatError {
+                nextStartPrivateChatError = nil
+                throw error
+            }
+            return Conversation(
+                id: .test(9),
+                members: [],
+                lastMessage: nil,
+                lastActivity: Date(),
+                type: .group,
+                title: title,
+                rules: nil
+            )
+        }
+
+        func storeGroupKey(for conversationID: ConversationID) async throws {
+            storeGroupKeyCalls.append(conversationID)
+            if storeGroupKeyFailures > 0 {
+                storeGroupKeyFailures -= 1
+                throw KeyFailure()
+            }
+        }
+    }
+
+    private struct KeyFailure: Error {}
+
+    /// A private form with a name, which is all Create needs.
+    private func privateModel() -> NewPublicGroupModel {
+        let model = NewPublicGroupModel(privacy: .private)
+        model.title = "Inner Circle"
+        model.keyRetryDelay = .zero
+        return model
     }
 
     /// Stands in for `Session`: a USDF holding worth `usd`, plus `otherUSD` held in other mints and
@@ -417,6 +464,73 @@ struct NewPublicGroupModelTests {
         // picture the server already holds.
         #expect(creator.storeBlobCallCount == 1)
         #expect(creator.startChatCalls[0].blobID == creator.startChatCalls[1].blobID)
+    }
+
+    // MARK: - Private groups -
+
+    @Test("A private group can be created with only a name")
+    func privateNeedsOnlyName() {
+        let model = NewPublicGroupModel(privacy: .private)
+        #expect(!model.canCreate(session: StubHoldings(usd: 0), rates: noRates))
+
+        model.title = "Inner Circle"
+        #expect(model.canCreate(session: StubHoldings(usd: 0), rates: noRates))
+    }
+
+    @Test("Create starts a private chat, then stores the host's key")
+    func privateCreatesThenStoresKey() async throws {
+        let model = privateModel()
+        let creator = SpyCreator()
+
+        let conversation = try await model.create(using: creator)
+
+        #expect(creator.startChatCalls.isEmpty)
+        #expect(creator.startPrivateChatCalls.map(\.title) == ["Inner Circle"])
+        #expect(creator.storeGroupKeyCalls == [conversation.id])
+        #expect(model.pendingKeyConversation == nil)
+    }
+
+    @Test("A key step that fails once is retried within the same Create")
+    func privateKeyRetriesWithinCreate() async throws {
+        let model = privateModel()
+        let creator = SpyCreator()
+        creator.storeGroupKeyFailures = 1
+
+        _ = try await model.create(using: creator)
+
+        #expect(creator.startPrivateChatCalls.count == 1)
+        #expect(creator.storeGroupKeyCalls.count == 2)
+    }
+
+    @Test("A key step that keeps failing is retried alone on the next Create")
+    func privateKeyRetryDoesNotRecreate() async throws {
+        let model = privateModel()
+        let creator = SpyCreator()
+        creator.storeGroupKeyFailures = NewPublicGroupModel.keyAttempts
+
+        await #expect(throws: KeyFailure.self) { try await model.create(using: creator) }
+        #expect(model.pendingKeyConversation?.id == .test(9))
+        #expect(!model.isCreating)
+
+        let conversation = try await model.create(using: creator)
+
+        #expect(creator.startPrivateChatCalls.count == 1)
+        #expect(creator.storeGroupKeyCalls.count == NewPublicGroupModel.keyAttempts + 1)
+        #expect(conversation.id == .test(9))
+    }
+
+    @Test("A failed private StartChat keeps its idempotency key for the retry")
+    func privateStartChatRetryReusesKey() async throws {
+        let model = privateModel()
+        let creator = SpyCreator()
+        creator.nextStartPrivateChatError = ErrorStartChat.transportFailure
+
+        await #expect(throws: ErrorStartChat.self) { try await model.create(using: creator) }
+        _ = try await model.create(using: creator)
+
+        #expect(creator.startPrivateChatCalls.count == 2)
+        #expect(creator.startPrivateChatCalls[0].key == creator.startPrivateChatCalls[1].key)
+        #expect(creator.storeGroupKeyCalls.count == 1)
     }
 }
 

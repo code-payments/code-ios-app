@@ -9,11 +9,12 @@ import SwiftUI
 import UIKit
 import FlipcashUI
 
-/// Which chat an encryption notice speaks for: a DM, which is end-to-end encrypted, or a group,
-/// which is not.
+/// Which chat an encryption notice speaks for: a DM or a private group, which are end-to-end
+/// encrypted, or a public group, which is not.
 enum E2eeNoticeKind {
     case dm
     case group
+    case privateGroup
 }
 
 /// What end-to-end encryption does and doesn't cover in a chat, opened from the profile footer's
@@ -108,15 +109,15 @@ struct E2eeLearnMoreSheet: View {
 
     private var lockSymbol: String {
         switch kind {
-        case .dm:    "lock.fill"
-        case .group: "lock.open.fill"
+        case .dm, .privateGroup: "lock.fill"
+        case .group:             "lock.open.fill"
         }
     }
 
     private var title: String {
         switch kind {
-        case .dm:    "Your Messages Are Private"
-        case .group: "Public Groups Are Not Encrypted"
+        case .dm, .privateGroup: "Your Messages Are Private"
+        case .group:             "Public Groups Are Not Encrypted"
         }
     }
 
@@ -126,13 +127,15 @@ struct E2eeLearnMoreSheet: View {
             "Messages and media in this chat are end-to-end encrypted. Only you and the person you\u{2019}re chatting with can read them."
         case .group:
             "End-to-end encryption covers chats between two people. Messages in public groups are stored on Flipcash servers in plain text."
+        case .privateGroup:
+            "Messages and media in this group are end-to-end encrypted. Only its members can read them, and the host approves everyone who joins."
         }
     }
 
     private var encrypted: [String] {
         switch kind {
-        case .dm:    ["All message text", "All media"]
-        case .group: ["Messages and media in 1:1 chats"]
+        case .dm, .privateGroup: ["All message text", "All media"]
+        case .group:             ["Messages and media in 1:1 chats"]
         }
     }
 
@@ -149,6 +152,13 @@ struct E2eeLearnMoreSheet: View {
             [
                 "Public group chats, including this one",
                 "Payments, which are recorded on the Solana blockchain",
+            ]
+        case .privateGroup:
+            [
+                "The group\u{2019}s name, photo, description and cover",
+                "Who is in the group, and how many",
+                "Payments, which are recorded on the Solana blockchain",
+                "Reactions, and who sent them",
             ]
         }
     }
@@ -175,10 +185,10 @@ struct E2eeFooter: View {
         } label: {
             VStack(spacing: 4) {
                 HStack(spacing: 5) {
-                    Image(systemName: kind == .dm ? "lock.fill" : "lock.open.fill")
+                    Image(systemName: kind == .group ? "lock.open.fill" : "lock.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.5))
-                    Text(kind == .dm ? "Messages are end-to-end encrypted" : "Public groups are not end-to-end encrypted")
+                    Text(kind == .group ? "Public groups are not end-to-end encrypted" : "Messages are end-to-end encrypted")
                         .font(.default(size: 13, weight: .medium))
                         .foregroundStyle(Color(r: 143, g: 143, b: 148))
                 }

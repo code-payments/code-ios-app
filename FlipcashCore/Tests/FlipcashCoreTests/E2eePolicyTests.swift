@@ -35,9 +35,16 @@ struct E2eePolicyTests {
         #expect(!E2eePolicy.shouldEncrypt(conversation(type: type, useE2Ee: false)))
     }
 
-    @Test("A group never encrypts, even with the flag on")
+    @Test("A public group never encrypts, even with the flag on")
     func groupFlagOn() {
         #expect(!E2eePolicy.shouldEncrypt(conversation(type: .group, useE2Ee: true)))
+    }
+
+    @Test("A private group always encrypts, whatever the DM flag says", arguments: [true, false])
+    func privateGroup(useE2Ee: Bool) {
+        var group = conversation(type: .group, useE2Ee: useE2Ee)
+        group.isPrivate = true
+        #expect(E2eePolicy.shouldEncrypt(group))
     }
 
     @Test("The @flipcash chat never encrypts, even with the flag on")

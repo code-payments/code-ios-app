@@ -53,12 +53,15 @@ public actor ChatKeyring {
 
     /// Fetches a user's Ed25519 public key from the server.
     public typealias ResolveKey = @Sendable (UserID) async throws -> PublicKey
+    /// Fetches a private group's 32-byte chat key, given the group's creator.
+    public typealias GroupKey = @Sendable (ConversationID, UserID?) async throws -> Data
 
     private let cipher: any ChatCipher
     private let owner: KeyPair
     private let selfUserID: UserID
     private let store: any PeerKeyStore
     private let resolveKey: ResolveKey
+    private let groupKey: GroupKey?
 
     private var peerKeys: [UserID: PublicKey] = [:]
     private var seals: [ConversationID: ChatSeal] = [:]
@@ -68,13 +71,15 @@ public actor ChatKeyring {
         owner: KeyPair,
         selfUserID: UserID,
         store: any PeerKeyStore = AppGroupPeerKeyStore(),
-        resolveKey: @escaping ResolveKey
+        resolveKey: @escaping ResolveKey,
+        groupKey: GroupKey? = nil
     ) {
         self.cipher = cipher
         self.owner = owner
         self.selfUserID = selfUserID
         self.store = store
         self.resolveKey = resolveKey
+        self.groupKey = groupKey
     }
 
     /// The seal to send into `conversation` with, or nil when it is sent in plaintext.
@@ -91,6 +96,8 @@ public actor ChatKeyring {
         do {
             return .seal(try await seal(for: conversation))
         } catch is PeerKeyUnavailable {
+            return .awaitingKey
+        } catch is GroupKeyUnavailable {
             return .awaitingKey
         } catch {
             // No peer to decrypt with (a group), or a key shared-core rejects: nothing will open these.
@@ -113,7 +120,7 @@ public actor ChatKeyring {
         if let seal = seals[conversation.id] { return seal }
         switch conversation.type {
         case .group:
-            throw NoPeer()
+            return try await groupSeal(for: conversation)
         case .contactDm, .tipDm:
             break
         }
@@ -143,8 +150,28 @@ public actor ChatKeyring {
         return key
     }
 
+    /// A private group's seal. Public groups have no key; an envelope from an untrusted wrapper
+    /// will never open, while any other failure (network, not yet admitted) may on a later try.
+    private func groupSeal(for conversation: Conversation) async throws -> ChatSeal {
+        guard conversation.isPrivate, let groupKey else { throw NoPeer() }
+        let key: Data
+        do {
+            key = try await groupKey(conversation.id, conversation.creator)
+        } catch let error as GroupKeyNotSelfWrapped {
+            throw error
+        } catch {
+            throw GroupKeyUnavailable()
+        }
+        let seal = ChatSeal(cipher: cipher, groupKey: key, conversationID: conversation.id, selfUserID: selfUserID)
+        seals[conversation.id] = seal
+        return seal
+    }
+
     private struct NoPeer: Error {}
 }
+
+/// Thrown when a private group's chat key can't be fetched yet; its messages stay awaiting a key.
+public struct GroupKeyUnavailable: Error {}
 
 /// Decrypts one chat's messages synchronously, once ``ChatKeyring/opener(for:)`` has fetched what it needs.
 public enum ChatOpener: Sendable {

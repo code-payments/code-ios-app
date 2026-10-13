@@ -216,8 +216,22 @@ struct DestinationView: View {
         case .newPublicGroup:
             NewPublicGroupScreen()
 
+        case .newPrivateGroup:
+            NewPublicGroupScreen(privacy: .private)
+
         case .archivedChats:
             ArchivedChatsScreen()
+
+        case .requests:
+            RequestsScreen()
+
+        case .joinRequests(let conversationID):
+            JoinRequestsScreen(conversationID: conversationID)
+                .id(conversationID)
+
+        case .groupMembers(let conversationID):
+            GroupMembersScreen(conversationID: conversationID)
+                .id(conversationID)
 
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.

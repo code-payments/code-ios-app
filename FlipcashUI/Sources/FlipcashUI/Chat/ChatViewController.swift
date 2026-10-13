@@ -337,6 +337,8 @@ public final class ChatViewController: UICollectionViewController {
         // Let the system add the safe area + keyboard to both the content inset and the indicator
         // inset; we only ever add the bar's own height on top, so the two stay in lockstep.
         collectionView.automaticallyAdjustsScrollIndicatorInsets = true
+        collectionView.contentInset.top = topInset
+        collectionView.verticalScrollIndicatorInsets.top = topInset
         // Self-sizing cells need prefetching off and self-sizing invalidation on.
         collectionView.isPrefetchingEnabled = false
         collectionView.selfSizingInvalidation = .enabled
@@ -1128,6 +1130,23 @@ public final class ChatViewController: UICollectionViewController {
         isAdjustingBottomInset = false
         if let snapshot {
             chatLayout.restoreContentOffset(with: snapshot)
+        }
+    }
+
+    private var topInset: CGFloat = 0
+
+    /// Reserves room under the navigation bar for a surface floating over the transcript's top edge,
+    /// so the oldest message clears it at scroll-top.
+    public func setTopInset(_ inset: CGFloat) {
+        topInset = inset
+        guard isViewLoaded, abs(collectionView.contentInset.top - inset) > 0.5 else { return }
+        // A transcript resting at its top follows the inset, so the oldest row stays in view
+        // rather than sliding under the surface; anywhere else the bottom anchor holds it still.
+        let wasAtTop = collectionView.contentOffset.y <= -collectionView.adjustedContentInset.top + 1
+        collectionView.contentInset.top = inset
+        collectionView.verticalScrollIndicatorInsets.top = inset
+        if wasAtTop {
+            collectionView.contentOffset.y = -collectionView.adjustedContentInset.top
         }
     }
 

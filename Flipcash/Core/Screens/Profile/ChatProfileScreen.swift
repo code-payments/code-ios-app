@@ -35,8 +35,11 @@ struct ChatProfileScreen: View {
     @State private var isReporting = false
     @State private var isShowingE2ee = false
     @State private var isLeaving = false
+    @State private var isRequesting = false
+    @State private var hostName: String?
     @State private var dialogItem: DialogItem?
     @State private var chatters: [SampledChatter] = []
+    @State private var senders: [UserID] = []
     @State private var mintMetadata: [PublicKey: StoredMintMetadata] = [:]
     @State private var mintNamesTimedOut = false
     @State private var scrollFit = ProfileScrollFit()
@@ -66,6 +69,36 @@ struct ChatProfileScreen: View {
 
     private var isPrivate: Bool {
         conversation?.isPrivate ?? false
+    }
+
+    /// A private group's roster as portraits, the host first; empty until the roster is read.
+    private var rosterPortraits: [GroupPortrait] {
+        let creator = conversation?.creator
+        return sessionContainer.groupRosters.members(for: conversationID, creator: creator)
+            .compactMap { GroupPortrait($0, creator: creator) }
+    }
+
+    /// The roster when it can be read, else the members this device knows of from the chat.
+    private var memberPortraits: [GroupPortrait] {
+        let roster = rosterPortraits
+        guard roster.isEmpty else { return roster }
+        return GroupPortrait.known(
+            creator: conversation?.creator,
+            selfID: conversationController.selfUserID,
+            senders: senders,
+            members: sessionContainer.knownAuthors.snapshot.membersByUserID
+        )
+    }
+
+    /// Whether the viewer sees the requester's layout: a private group they don't belong to, whose
+    /// chat they can't open without the key the host hands over on approval.
+    private var isRequester: Bool {
+        isPrivate && !isMember
+    }
+
+    /// When the viewer asked to join, while that request is outstanding.
+    private var requestedAt: Date? {
+        sessionContainer.lobbyRequests.requestedAt(conversationID)
     }
 
     private var requirements: GroupBalanceRequirements? {
@@ -136,6 +169,28 @@ struct ChatProfileScreen: View {
                         underSubtitle: { EmptyView() }
                     )
 
+                    if isPrivate {
+                        privateSummary
+                            .padding(.top, 16)
+                    }
+
+                    if joinRequestCount > 0 {
+                        joinRequestsCard
+                            .padding(.top, 24)
+                    }
+
+                    if isPrivate, isMember, !memberPortraits.isEmpty {
+                        GroupChattingGrid(
+                            title: "Members",
+                            portraits: Array(memberPortraits.prefix(GroupChattingGrid.memberLimit)),
+                            count: conversation?.rosterSummary.memberCount,
+                            onCount: rosterPortraits.isEmpty ? nil : { router.push(.groupMembers(conversationID)) }
+                        ) { userID in
+                            router.push(.userProfile(userID, origin: .groupMember))
+                        }
+                        .padding(.top, 24)
+                    }
+
                     if GroupChattingGrid.isVisible(isPrivate: isPrivate, chatters: chatters) {
                         GroupChattingGrid(chatters: chatters) { userID in
                             router.push(.userProfile(userID, origin: .groupMember))
@@ -185,7 +240,7 @@ struct ChatProfileScreen: View {
             MuteChatSheet(conversationID: conversationID, isPresented: $isPickingMuteDuration)
         }
         .sheet(isPresented: $isShowingE2ee) {
-            E2eeLearnMoreSheet(kind: .group, isPresented: $isShowingE2ee)
+            E2eeLearnMoreSheet(kind: isPrivate ? .privateGroup : .group, isPresented: $isShowingE2ee)
         }
         .fullScreenCover(isPresented: $isReporting) {
             NavigationStack {
@@ -198,7 +253,39 @@ struct ChatProfileScreen: View {
             await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
             await conversationController.fillCoverPicture(for: conversationID)
         }
+        // No push says a request was decided, so every visit asks. Keyed on membership so an
+        // admission that lands while the profile is open stops the asking.
+        .task(id: isRequester) {
+            guard isRequester else { return }
+            if let fresh = await conversationController.refreshRequestedGroup(conversationID) {
+                sessionContainer.lobbyRequests.reconcile(with: fresh)
+            }
+        }
+        .task(id: requestedAt != nil ? conversation?.creator : nil) {
+            guard requestedAt != nil, let creator = conversation?.creator else { return }
+            hostName = try? await sessionContainer.flipClient.fetchProfile(
+                userID: creator,
+                owner: session.ownerKeyPair
+            ).displayName
+        }
         // Waits for the conversation to land before asking: a private group's sample is denied.
+        .task(id: conversation.map { $0.isPrivate && $0.creator == conversationController.selfUserID }) {
+            guard let conversation, conversation.isPrivate, conversation.creator == conversationController.selfUserID else { return }
+            await sessionContainer.hostedLobbies.refresh(conversationID)
+        }
+        // A private group's members read its roster in place of the denied sample.
+        .task(id: isPrivate && isMember) {
+            guard isPrivate, isMember else { return }
+            await sessionContainer.groupRosters.refresh(conversationID)
+        }
+        // GetRoster is off server-side and SampleChatters refuses private groups, so the grid falls
+        // back to the people this device has seen post.
+        .task(id: isPrivate && isMember) {
+            guard isPrivate, isMember else { return }
+            senders = conversationController.senderIDs(in: conversationID)
+            let creator = conversation?.creator.map { [$0] } ?? []
+            await sessionContainer.knownAuthors.resolve(creator + [conversationController.selfUserID] + senders)
+        }
         .task(id: conversation.map { $0.isPrivate } ) {
             guard let conversation, !conversation.isPrivate else { return }
             await loadChatters()
@@ -236,6 +323,48 @@ struct ChatProfileScreen: View {
         } catch {
             chatters = []
         }
+    }
+
+    // MARK: - Join Requests -
+
+    /// Pending requests to join, shown only to this private group's host.
+    private var joinRequestCount: Int {
+        guard isPrivate, conversation?.creator == conversationController.selfUserID else { return 0 }
+        return sessionContainer.hostedLobbies.requests(for: conversationID).count
+    }
+
+    private var joinRequestsCard: some View {
+        Button {
+            router.push(.joinRequests(conversationID))
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Join Requests")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                    Text(PrivateGroupCopy.waiting(count: joinRequestCount))
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                Spacer()
+                Text("\(joinRequestCount)")
+                    .font(.appTextHeading)
+                    .foregroundStyle(Color.textMain)
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 22, minHeight: 22)
+                    .background(Color.textSecondary.opacity(0.3), in: .capsule)
+                Image(systemName: "chevron.right")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 64)
+            .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, ProfileHeaderMetrics.inset)
+        .accessibilityIdentifier("group-profile-join-requests")
     }
 
     // MARK: - Balance Requirements -
@@ -339,11 +468,11 @@ struct ChatProfileScreen: View {
         origin == .chat && isMember
     }
 
-    /// Space under the scroll content. Leave Chat ending it sits where the pinned bar puts it: a
-    /// text-only button is a full button tall, so its frame already leaves room under the title and
-    /// can overlap the home indicator's inset.
+    /// Space under the scroll content. Leave Chat ending it sits where the pinned bar puts it: it
+    /// draws down into the scroll view's bottom inset, and since a text-only button is a full button
+    /// tall, its frame already leaves room under the title and can overlap the home indicator.
     private var contentBottomPadding: CGFloat {
-        endsWithLeaveButton ? -12 : 24
+        endsWithLeaveButton ? -12 - scrollFit.bottomInset : 24
     }
 
     // MARK: - Pinned -
@@ -356,6 +485,11 @@ struct ChatProfileScreen: View {
             Color.clear
                 .frame(height: 0)
                 .profileBarlessFade(isActive: scrollFit.overflows)
+        } else if conversation != nil, isRequester {
+            requestActions
+                .padding(.horizontal, ProfileHeaderMetrics.inset)
+                .padding(.top, 12)
+                .padding(.bottom, requestedAt == nil ? 8 : 0)
         } else if conversation != nil {
             VStack(spacing: 8) {
                 openChatButton
@@ -389,6 +523,104 @@ struct ChatProfileScreen: View {
         }
     }
 
+    // MARK: - Private -
+
+    private var privateSummary: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label {
+                Text(PrivateGroupCopy.summary(memberCount: conversation?.rosterSummary.memberCount ?? 0))
+            } icon: {
+                Image(systemName: "lock.fill")
+            }
+            .labelStyle(.titleAndIcon)
+            Text("The host approves who joins")
+        }
+        .font(.appTextSmall)
+        .foregroundStyle(Color.textSecondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, ProfileHeaderMetrics.inset)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("chat-profile-private-summary")
+    }
+
+    @ViewBuilder
+    private var requestActions: some View {
+        if let requestedAt {
+            VStack(spacing: 8) {
+                Text(PrivateGroupCopy.awaitingApproval(hostName: hostName))
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 8)
+                TimelineView(.everyMinute) { context in
+                    Button(PrivateGroupCopy.pendingTitle(requestedAt: requestedAt, now: context.date)) {}
+                        .buttonStyle(.filled)
+                        .disabled(true)
+                        .accessibilityIdentifier("group-profile-request-pending")
+                }
+                Button {
+                    Task { await cancelRequest() }
+                } label: {
+                    ButtonStateLabel("Cancel Request", state: isRequesting ? .loading : .normal)
+                }
+                .buttonStyle(.subtle)
+                .disabled(isRequesting)
+                .accessibilityIdentifier("group-profile-cancel-request")
+                // Same as Leave Chat: a text-only button already leaves room under its title.
+                .padding(.bottom, -12)
+            }
+        } else {
+            Button {
+                Task { await requestToJoin() }
+            } label: {
+                ButtonStateLabel("Request to Join", state: isRequesting ? .loading : .normal)
+            }
+            .buttonStyle(.filled)
+            .disabled(isRequesting)
+            .accessibilityIdentifier("group-profile-request")
+        }
+    }
+
+    private func requestToJoin() async {
+        isRequesting = true
+        defer { isRequesting = false }
+        do {
+            switch try await sessionContainer.lobbyRequests.request(conversationID) {
+            case .requested:
+                break
+            case .alreadyMember:
+                _ = await conversationController.refreshRequestedGroup(conversationID)
+            }
+        } catch let error as LobbyRequests.RequestError {
+            dialogItem = .info(
+                title: PrivateGroupCopy.unavailableTitle(groupName: title),
+                subtitle: error.explanation
+            ) {
+                DialogAction.okay(kind: .standard)
+            }
+        } catch {
+            session.dialogItem = .error(
+                title: "Something Went Wrong",
+                subtitle: "We were unable to send your request. Please try again"
+            )
+            ErrorReporting.captureError(error, reason: "Failed to request to join a private group")
+        }
+    }
+
+    private func cancelRequest() async {
+        isRequesting = true
+        defer { isRequesting = false }
+        do {
+            try await sessionContainer.lobbyRequests.cancel(conversationID)
+        } catch {
+            session.dialogItem = .error(
+                title: "Something Went Wrong",
+                subtitle: "We were unable to cancel your request. Please try again"
+            )
+            ErrorReporting.captureError(error, reason: "Failed to cancel a private group request")
+        }
+    }
+
     // MARK: - Share -
 
     private var shareButton: some View {
@@ -414,7 +646,7 @@ struct ChatProfileScreen: View {
             Button {
                 isShowingE2ee = true
             } label: {
-                Label("Encryption", systemImage: "lock.open")
+                Label("Encryption", systemImage: isPrivate ? "lock.fill" : "lock.open")
             }
             // Mute is a member's: someone reading a gated preview has no viewer state to mute.
             if isMember {
@@ -458,7 +690,7 @@ struct ChatProfileScreen: View {
     private func leaveDialog() -> DialogItem {
         .info(
             title: "Leave \(title)?",
-            subtitle: "You won't receive messages from this group any more. You can join again with an invite link"
+            subtitle: PrivateGroupCopy.leaveSubtitle(isPrivate: isPrivate)
         ) {
             DialogAction.standard("Leave Chat") {
                 Task { await leave() }
@@ -496,7 +728,8 @@ struct ChatProfileScreen: View {
 nonisolated enum ChatProfileOrigin: Hashable {
     /// The group chat's own navigation title, so the chat sits underneath.
     case chat
-    /// A favorite group on the You tab or someone's profile, with no chat underneath.
+    /// Anywhere with no chat underneath: a favorite group on the You tab or someone's profile, or
+    /// a private group just created.
     case featuredGroup
     /// A group invite card in another chat's transcript, so the chat underneath is not this one.
     case link

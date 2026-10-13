@@ -11,7 +11,9 @@ import FlipcashCore
 struct NewPublicGroupIncomplete: Error {}
 
 /// Everything the "New Public Group" form holds while it is being filled in, and the one call that
-/// submits it (node 10127:118014).
+/// submits it (node 10127:118014). With ``GroupPrivacy/private`` it backs the "New Private Group"
+/// form instead (node 11203:65): the same name and picture, no balance requirement, and a second
+/// step that stores the host's chat key.
 ///
 /// The balance requirement is denominated in USD. The presets the design offers are dollar amounts
 /// and `StoredBalance.usdf` — the holding's USD worth, resolved at store time — is what the gate
@@ -19,6 +21,9 @@ struct NewPublicGroupIncomplete: Error {}
 @MainActor
 @Observable
 final class NewPublicGroupModel {
+
+    /// Which kind of group the form creates. Fixed at creation, server side as well as here.
+    let privacy: GroupPrivacy
 
     /// The title as typed. Submitted through ``GroupTitleValidator``, never raw.
     var title: String = ""
@@ -55,6 +60,10 @@ final class NewPublicGroupModel {
     /// of a picture the server already has.
     private(set) var reservedBlobID: BlobID?
 
+    /// The private group `StartChat` already created, held while its key envelope has yet to land
+    /// so a retry runs only `SetKeyEnvelope`.
+    private(set) var pendingKeyConversation: Conversation?
+
     /// The dollar amounts the form offers as one tap each, before the custom entry (node
     /// 10127:118014).
     static let presets: [FiatAmount] = [.usd(10), .usd(50), .usd(100)]
@@ -64,7 +73,9 @@ final class NewPublicGroupModel {
 
     private let validator = GroupTitleValidator()
 
-    init() {}
+    init(privacy: GroupPrivacy = .public) {
+        self.privacy = privacy
+    }
 
     // MARK: - Form state -
 
@@ -144,11 +155,18 @@ final class NewPublicGroupModel {
         conversationGate(session: session, rules: rules, rates: rates).listener.isSatisfied
     }
 
-    /// Whether Create is enabled: a title the server will take, a requirement the form has finished
-    /// collecting, the creator clearing it, and nothing already in flight.
+    /// Whether Create is enabled: a title the server will take, and nothing already in flight. A
+    /// public group also needs a requirement the form has finished collecting, which the creator
+    /// clears.
     func canCreate(session: some ConversationGateReading, rates: [CurrencyCode: Rate]) -> Bool {
-        guard !isCreating, validatedTitle != nil, rules != nil else { return false }
-        return satisfiesOwnRules(session: session, rates: rates)
+        guard !isCreating, validatedTitle != nil else { return false }
+        switch privacy {
+        case .public:
+            guard rules != nil else { return false }
+            return satisfiesOwnRules(session: session, rates: rates)
+        case .private:
+            return true
+        }
     }
 
     // MARK: - Create -
@@ -159,6 +177,13 @@ final class NewPublicGroupModel {
     /// the picture is refused, and ``NewPublicGroupIncomplete`` when called against a form Create
     /// should have been disabled for.
     func create(using creator: some GroupChatCreating) async throws -> Conversation {
+        switch privacy {
+        case .public:  try await createPublic(using: creator)
+        case .private: try await createPrivate(using: creator)
+        }
+    }
+
+    private func createPublic(using creator: some GroupChatCreating) async throws -> Conversation {
         guard let title = validatedTitle, let rules else {
             throw NewPublicGroupIncomplete()
         }
@@ -186,6 +211,67 @@ final class NewPublicGroupModel {
         }
     }
 
+    /// Creates the group, then stores the host's chat key. A key step that failed is retried on
+    /// the next call without creating the group again.
+    private func createPrivate(using creator: some GroupChatCreating) async throws -> Conversation {
+        isCreating = true
+        defer { isCreating = false }
+
+        let conversation: Conversation
+        if let pendingKeyConversation {
+            conversation = pendingKeyConversation
+        } else {
+            guard let title = validatedTitle else {
+                throw NewPublicGroupIncomplete()
+            }
+
+            let key = attemptKey ?? UUID()
+            attemptKey = key
+
+            let blobID = try await uploadPictureIfNeeded(using: creator)
+
+            do {
+                conversation = try await creator.startPrivateChat(
+                    title: title,
+                    pictureBlobID: blobID,
+                    idempotencyKey: key
+                )
+                Analytics.groupCreated(error: nil, rules: nil, hasPicture: blobID != nil)
+            } catch {
+                Analytics.groupCreated(error: error, rules: nil, hasPicture: blobID != nil)
+                throw error
+            }
+            pendingKeyConversation = conversation
+        }
+
+        try await storeGroupKey(for: conversation.id, using: creator)
+        pendingKeyConversation = nil
+        return conversation
+    }
+
+    /// Stores the host's key envelope, trying a few times before handing the failure to the
+    /// screen: the group exists already, and until this lands nobody can request to join it.
+    private func storeGroupKey(for conversationID: ConversationID, using creator: some GroupChatCreating) async throws {
+        var attempt = 1
+        while true {
+            do {
+                try await creator.storeGroupKey(for: conversationID)
+                return
+            } catch {
+                guard attempt < Self.keyAttempts else { throw error }
+                attempt += 1
+                try await Task.sleep(for: keyRetryDelay * attempt)
+            }
+        }
+    }
+
+    /// How many times one Create tries the key step before showing an error.
+    static let keyAttempts = 3
+
+    /// The pause before each further key attempt, scaled by the attempt number. Tests set it to
+    /// zero.
+    var keyRetryDelay: Duration = .milliseconds(500)
+
     /// Stores and finalizes the picture, returning the blob `StartChat` should carry, or nil when
     /// the group has no picture. A rejected blob clears the reservation so a different picture
     /// starts clean.
@@ -208,6 +294,12 @@ final class NewPublicGroupModel {
 
         return blobID
     }
+}
+
+/// Whether a new group admits anyone who clears its rules, or only the people its host approves.
+enum GroupPrivacy {
+    case `public`
+    case `private`
 }
 
 extension NewPublicGroupModel {

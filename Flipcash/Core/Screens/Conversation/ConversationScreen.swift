@@ -94,6 +94,23 @@ struct ConversationScreen: View {
     /// The catalog's first category, in catalog order, that fills the strip after the recents.
     @State private var stripCatalog: [String] = []
 
+    /// The join-requests anchor's measured height, reserved at the transcript's top; 0 while hidden.
+    @State private var anchorHeight: CGFloat = 0
+
+    /// This conversation's id when the viewer hosts it as a private group; the anchor is host-only.
+    private var hostedConversationID: ConversationID? {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID),
+              conversation.isPrivate,
+              conversation.creator == conversationController.selfUserID else { return nil }
+        return conversationID
+    }
+
+    /// Pending join requests the anchor shows, newest first; empty for anyone but the host.
+    private var hostRequests: [LobbyMember] {
+        hostedConversationID.map { sessionContainer.hostedLobbies.requests(for: $0) } ?? []
+    }
+
     /// Where the title starts: clear of the back button.
     private static let titleLeadingInset: CGFloat = 72
     /// Where the title ends: the bar's trailing margin, since nothing sits on that side.
@@ -427,7 +444,8 @@ struct ConversationScreen: View {
             onImagesPasted: stageProvidedImages,
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
-            onMediaTap: openMediaViewer
+            onMediaTap: openMediaViewer,
+            transcriptTopInset: anchorHeight > 0 ? anchorHeight + 8 : 0
         )
     }
 
@@ -537,15 +555,20 @@ struct ConversationScreen: View {
     /// Framing, background, and the navigation bar's own contents.
     private func chrome(_ content: some View) -> some View {
         content
-        .overlay(alignment: .top) {
-            if let reactionToastText {
-                ToastLabel(reactionToastText)
-                    .padding(.top, 8)
-                    .allowsHitTesting(false)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+        .animation(.default, value: reactionToastText)
+        .animation(.default, value: hostRequests.map(\.userID))
+        .task(id: hostedConversationID) {
+            guard let hostedConversationID else { return }
+            await sessionContainer.hostedLobbies.refresh(hostedConversationID)
+            for member in hostRequests.prefix(3) {
+                await sessionContainer.profileAvatars.load(userID: member.userID, picture: member.profile?.profilePicture)
             }
         }
-        .animation(.default, value: reactionToastText)
+        .onAppear {
+            // Coming back from Join Requests: the visit's task doesn't rerun on a pop.
+            guard let hostedConversationID else { return }
+            Task { await sessionContainer.hostedLobbies.refresh(hostedConversationID) }
+        }
         .onChange(of: conversationController.reactions.error) { _, _ in
             scheduleReactionErrorDismissal()
         }
@@ -589,6 +612,29 @@ struct ConversationScreen: View {
         // reaches the display's bottom edge. The screen still holds the bar clear of the home
         // indicator itself — see `KeyboardFloor`.
         .ignoresSafeArea(.container, edges: [.top, .bottom])
+        // After the safe-area escape, not before: an overlay inside it would start at the top of the
+        // display, under the status bar, rather than below the navigation bar.
+        .overlay(alignment: .top) {
+            VStack(spacing: 8) {
+                if !hostRequests.isEmpty, let conversationID {
+                    JoinRequestsAnchor(
+                        requests: hostRequests,
+                        avatarData: { sessionContainer.profileAvatars.data(for: $0) },
+                        onReview: { router.push(.joinRequests(conversationID)) }
+                    )
+                    .padding(.horizontal, BarMetrics.edgeInset)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { anchorHeight = $0 }
+                    .onDisappear { anchorHeight = 0 }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                if let reactionToastText {
+                    ToastLabel(reactionToastText)
+                        .allowsHitTesting(false)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(.top, 8)
+        }
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)

@@ -274,7 +274,8 @@ extension ChatItem {
                 content = .unavailable(.decryptFailure(
                     message.decryptFailure,
                     isFromSelf: isFromSelf,
-                    senderName: counterpartName
+                    // A group has no single counterpart, so name the message's own author.
+                    senderName: author(message).map { $0.name.isEmpty ? counterpartName : $0.name } ?? counterpartName
                 ))
             case .media(let attachments, let caption):
                 // A redacted photo stays a photo row, drawn from its BlurHash, rather than a tombstone.

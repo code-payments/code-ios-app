@@ -45,6 +45,7 @@ struct TipConversationsScreen: View {
     var body: some View {
         let projection = self.projection
         let conversations = rows(projection)
+        let needsDecision = !sessionContainer.hostedLobbies.groupsWithRequests.isEmpty
         let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible
 
         Background(color: .backgroundMain) {
@@ -119,6 +120,9 @@ struct TipConversationsScreen: View {
         .navigationTitle("Chat")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                ChatsOverflowMenu(needsDecision: needsDecision)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
             }
@@ -130,6 +134,19 @@ struct TipConversationsScreen: View {
             // render once without them.
             sessionContainer.knownAuthors.hydrateIfReady()
             conversationController.hydrateIfReady()
+        }
+        // Lobby updates sit outside the event log, so the list rereads every hosted lobby on load.
+        .task {
+            await sessionContainer.hostedLobbies.refresh(hosted: conversationController.hostedPrivateGroupIDs)
+        }
+        // No push says a join request was decided, so the list asks after each one it opens on;
+        // an admission seats the group and puts it in the list.
+        .task {
+            for conversationID in sessionContainer.lobbyRequests.conversationIDs {
+                if let fresh = await conversationController.refreshRequestedGroup(conversationID) {
+                    sessionContainer.lobbyRequests.reconcile(with: fresh)
+                }
+            }
         }
         // Every counterpart, not just the rows on screen. A row's own `.task` fires when the row is
         // built, which in a `List` is when it scrolls into view — so without this the avatar below

@@ -33,6 +33,17 @@ protocol GroupChatCreating {
         rules: ConversationRules?,
         idempotencyKey: UUID
     ) async throws -> Conversation
+
+    /// Creates a private group, which has no rules, under the same idempotency contract as
+    /// ``startChat(title:pictureBlobID:rules:idempotencyKey:)``.
+    func startPrivateChat(
+        title: String,
+        pictureBlobID: BlobID?,
+        idempotencyKey: UUID
+    ) async throws -> Conversation
+
+    /// Generates a private group's chat key and stores the host's own envelope for it.
+    func storeGroupKey(for conversationID: ConversationID) async throws
 }
 
 /// Creates on behalf of the signed-in owner.
@@ -40,6 +51,7 @@ struct SessionGroupChatCreator: GroupChatCreating {
 
     let session: Session
     let flipClient: FlipClient
+    let groupKeys: GroupKeyEnvelopes
 
     func storeBlob(_ data: Data, mimeType: String) async throws -> BlobID {
         try await flipClient.storeBlob(data, mimeType: mimeType, owner: session.ownerKeyPair)
@@ -62,5 +74,22 @@ struct SessionGroupChatCreator: GroupChatCreating {
             rules: rules,
             idempotencyKey: idempotencyKey
         )
+    }
+
+    func startPrivateChat(
+        title: String,
+        pictureBlobID: BlobID?,
+        idempotencyKey: UUID
+    ) async throws -> Conversation {
+        try await flipClient.startPrivateChat(
+            owner: session.ownerKeyPair,
+            title: title,
+            pictureBlobID: pictureBlobID,
+            idempotencyKey: idempotencyKey
+        )
+    }
+
+    func storeGroupKey(for conversationID: ConversationID) async throws {
+        try await groupKeys.storeNewKey(for: conversationID)
     }
 }

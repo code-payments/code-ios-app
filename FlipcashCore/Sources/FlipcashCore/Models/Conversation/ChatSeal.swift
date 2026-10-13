@@ -9,26 +9,44 @@ import Foundation
 import FlipcashAPI
 import SharedCore
 
-/// One DM's end-to-end encryption: the chat key both members derive, bound to the chat and both
-/// public keys. Encrypts outgoing text and photos, and decrypts incoming `EncryptedContent` and the
-/// photo blobs it references.
+/// One chat's end-to-end encryption: a DM's chat key, derived by both members and bound to the
+/// chat and both public keys, or a private group's chat key, which every member holds. Encrypts
+/// outgoing text and photos, and decrypts incoming `EncryptedContent` and the photo blobs it
+/// references.
 ///
-/// The cipher is shared-core's `ChatCipher` (scheme `X25519_XCHACHA20POLY1305`), so both apps agree
-/// byte for byte. Stateless after construction.
+/// The cipher is shared-core's `ChatCipher` (scheme `X25519_XCHACHA20POLY1305` for DMs,
+/// `CHAT_KEY_XCHACHA20POLY1305` for private groups), so both apps agree byte for byte. Stateless
+/// after construction.
 public struct ChatSeal: @unchecked Sendable {
 
-    /// The wire `EncryptedContent.Scheme` this client reads and writes.
+    /// The wire `EncryptedContent.Scheme` this client reads and writes in a DM.
     public static let scheme = Flipcash_Messaging_V1_EncryptedContent.Scheme.x25519Xchacha20Poly1305
 
+    /// The wire `EncryptedContent.Scheme` this client reads and writes in a private group.
+    public static let groupScheme = Flipcash_Messaging_V1_EncryptedContent.Scheme.chatKeyXchacha20Poly1305
+
+    private enum Mode {
+        /// A DM: the derived pair key, with both public keys bound into every aad.
+        case pair(chatKey: KotlinByteArray, ownPublicKey: KotlinByteArray, peerPublicKey: KotlinByteArray)
+        /// A private group: the group key, with the sender's user ID bound into every aad.
+        case group(groupKey: KotlinByteArray)
+    }
+
     private let cipher: any ChatCipher
-    private let chatKey: KotlinByteArray
-    private let ownPublicKey: KotlinByteArray
-    private let peerPublicKey: KotlinByteArray
+    private let mode: Mode
     private let chatID: KotlinByteArray
     private let selfUserID: UserID
 
     /// The chat this seal encrypts for.
     public let conversationID: ConversationID
+
+    /// The wire scheme this seal writes and the only one it opens.
+    public var scheme: Flipcash_Messaging_V1_EncryptedContent.Scheme {
+        switch mode {
+        case .pair: Self.scheme
+        case .group: Self.groupScheme
+        }
+    }
 
     /// Derives the chat key for `owner` and `peerPublicKey` in `conversationID`.
     ///
@@ -46,10 +64,22 @@ public struct ChatSeal: @unchecked Sendable {
         let chatID = bytes.byteArray(data: conversationID.data)
         let peer = bytes.byteArray(data: peerPublicKey.data)
         self.cipher = cipher
-        self.chatKey = try cipher.chatKey(ownKeyPair: ownKeyPair, peerPublicKey: peer, chatId: chatID)
-        self.ownPublicKey = ownPublicKey
-        self.peerPublicKey = peer
+        self.mode = .pair(
+            chatKey: try cipher.chatKey(ownKeyPair: ownKeyPair, peerPublicKey: peer, chatId: chatID),
+            ownPublicKey: ownPublicKey,
+            peerPublicKey: peer
+        )
         self.chatID = chatID
+        self.selfUserID = selfUserID
+        self.conversationID = conversationID
+    }
+
+    /// Seals and opens private group `conversationID` with its 32-byte `groupKey`.
+    public init(cipher: any ChatCipher, groupKey: Data, conversationID: ConversationID, selfUserID: UserID) {
+        let bytes = SharedBytes.shared
+        self.cipher = cipher
+        self.mode = .group(groupKey: bytes.byteArray(data: groupKey))
+        self.chatID = bytes.byteArray(data: conversationID.data)
         self.selfUserID = selfUserID
         self.conversationID = conversationID
     }
@@ -67,18 +97,21 @@ public struct ChatSeal: @unchecked Sendable {
     }
 
     private func seal(_ plaintext: Flipcash_Messaging_V1_Content) throws -> Flipcash_Messaging_V1_Content {
-        let payload = try cipher.encrypt(
-            content: SharedBytes.shared.byteArray(data: try plaintext.serializedData()),
-            chatKey: chatKey,
-            senderPk: ownPublicKey,
-            recipientPk: peerPublicKey,
-            chatId: chatID
-        )
+        let bytes = SharedBytes.shared
+        let content = bytes.byteArray(data: try plaintext.serializedData())
+        let payload: EncryptedPayload
+        switch mode {
+        case .pair(let chatKey, let own, let peer):
+            payload = try cipher.encrypt(content: content, chatKey: chatKey, senderPk: own, recipientPk: peer, chatId: chatID)
+        case .group(let groupKey):
+            payload = try cipher.encryptGroup(content: content, groupKey: groupKey, chatId: chatID, senderId: userID(selfUserID))
+        }
+        let scheme = self.scheme
         return .with {
             $0.encrypted = .with {
-                $0.scheme = Self.scheme
-                $0.nonce = SharedBytes.shared.data(bytes: payload.nonce)
-                $0.ciphertext = SharedBytes.shared.data(bytes: payload.ciphertext)
+                $0.scheme = scheme
+                $0.nonce = bytes.data(bytes: payload.nonce)
+                $0.ciphertext = bytes.data(bytes: payload.ciphertext)
             }
         }
     }
@@ -87,15 +120,16 @@ public struct ChatSeal: @unchecked Sendable {
     /// a fresh 24-byte nonce followed by the ciphertext and its tag.
     public func encryptBlob(_ image: Data, blobID: BlobID) throws -> Data {
         let bytes = SharedBytes.shared
-        let blob = try cipher.encryptBlob(
-            image: bytes.byteArray(data: image),
-            chatKey: chatKey,
-            senderPk: ownPublicKey,
-            recipientPk: peerPublicKey,
-            chatId: chatID,
-            blobId: bytes.byteArray(data: blobID.data)
-        )
-        return bytes.data(bytes: blob)
+        let plaintext = bytes.byteArray(data: image)
+        let blob = bytes.byteArray(data: blobID.data)
+        let sealed: KotlinByteArray
+        switch mode {
+        case .pair(let chatKey, let own, let peer):
+            sealed = try cipher.encryptBlob(image: plaintext, chatKey: chatKey, senderPk: own, recipientPk: peer, chatId: chatID, blobId: blob)
+        case .group(let groupKey):
+            sealed = try cipher.encryptGroupBlob(image: plaintext, groupKey: groupKey, chatId: chatID, blobId: blob, senderId: userID(selfUserID))
+        }
+        return bytes.data(bytes: sealed)
     }
 
     /// The plaintext image in `blob`, the downloaded bytes of `blobID` that `sealed` describes.
@@ -104,17 +138,30 @@ public struct ChatSeal: @unchecked Sendable {
     /// length the sender declared.
     public func decryptBlob(_ blob: Data, blobID: BlobID, sealed: SealedBlob) throws -> Data {
         let bytes = SharedBytes.shared
-        let isFromSelf = sealed.senderID == selfUserID
+        let ciphertext = bytes.byteArray(data: blob)
+        let blobIDBytes = bytes.byteArray(data: blobID.data)
         let image: KotlinByteArray
         do {
-            image = try cipher.decryptBlob(
-                blob: bytes.byteArray(data: blob),
-                chatKey: chatKey,
-                senderPk: isFromSelf ? ownPublicKey : peerPublicKey,
-                recipientPk: isFromSelf ? peerPublicKey : ownPublicKey,
-                chatId: chatID,
-                blobId: bytes.byteArray(data: blobID.data)
-            )
+            switch mode {
+            case .pair(let chatKey, let own, let peer):
+                let isFromSelf = sealed.senderID == selfUserID
+                image = try cipher.decryptBlob(
+                    blob: ciphertext,
+                    chatKey: chatKey,
+                    senderPk: isFromSelf ? own : peer,
+                    recipientPk: isFromSelf ? peer : own,
+                    chatId: chatID,
+                    blobId: blobIDBytes
+                )
+            case .group(let groupKey):
+                image = try cipher.decryptGroupBlob(
+                    blob: ciphertext,
+                    groupKey: groupKey,
+                    chatId: chatID,
+                    blobId: blobIDBytes,
+                    senderId: userID(sealed.senderID)
+                )
+            }
         } catch {
             throw BlobOpenFailure.authentication
         }
@@ -127,19 +174,27 @@ public struct ChatSeal: @unchecked Sendable {
     /// `.encrypted` comes back unchanged.
     public func open(_ message: ConversationMessage) -> ConversationMessage {
         guard case .encrypted(let scheme, let nonce, let ciphertext) = message.content else { return message }
-        guard scheme == Self.scheme.rawValue else { return message.opened(.failure(.unsupported)) }
+        guard scheme == self.scheme.rawValue, let senderID = message.senderID else {
+            return message.opened(.failure(.unsupported))
+        }
 
-        let isFromSelf = message.senderID == selfUserID
         let bytes = SharedBytes.shared
+        let payload = EncryptedPayload(nonce: bytes.byteArray(data: nonce), ciphertext: bytes.byteArray(data: ciphertext))
         let plaintext: KotlinByteArray
         do {
-            plaintext = try cipher.decrypt(
-                payload: EncryptedPayload(nonce: bytes.byteArray(data: nonce), ciphertext: bytes.byteArray(data: ciphertext)),
-                chatKey: chatKey,
-                senderPk: isFromSelf ? ownPublicKey : peerPublicKey,
-                recipientPk: isFromSelf ? peerPublicKey : ownPublicKey,
-                chatId: chatID
-            )
+            switch mode {
+            case .pair(let chatKey, let own, let peer):
+                let isFromSelf = senderID == selfUserID
+                plaintext = try cipher.decrypt(
+                    payload: payload,
+                    chatKey: chatKey,
+                    senderPk: isFromSelf ? own : peer,
+                    recipientPk: isFromSelf ? peer : own,
+                    chatId: chatID
+                )
+            case .group(let groupKey):
+                plaintext = try cipher.decryptGroup(payload: payload, groupKey: groupKey, chatId: chatID, senderId: userID(senderID))
+            }
         } catch {
             return message.opened(.failure(.authentication))
         }
@@ -147,11 +202,15 @@ public struct ChatSeal: @unchecked Sendable {
         // Authenticated, so anything this client can't read, or a photo whose metadata breaks the
         // contract, is a newer or misbehaving client's content.
         guard let content = try? Flipcash_Messaging_V1_Content(serializedBytes: bytes.data(bytes: plaintext)),
-              let senderID = message.senderID,
               let readable = content.readable(senderID: senderID) else {
             return message.opened(.failure(.unsupported))
         }
         return message.opened(.success(readable))
+    }
+
+    /// The raw `UserId.value` bytes the group aads bind.
+    private func userID(_ id: UserID) -> KotlinByteArray {
+        SharedBytes.shared.byteArray(data: id.data)
     }
 }
 

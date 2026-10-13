@@ -81,6 +81,15 @@ extension FlipClient {
         }
     }
 
+    /// Starts a private group, end-to-end encrypted and admitted by its creator. The creator must
+    /// store its own key envelope next (see `GroupKeyEnvelopes.storeNewKey`); until then the
+    /// server refuses lobby entry and messages. `idempotencyKey` follows `startChat`'s rules.
+    public func startPrivateChat(owner: KeyPair, title: String, description: String? = nil, pictureBlobID: BlobID?, idempotencyKey: UUID) async throws -> Conversation {
+        try await withCheckedThrowingContinuation { c in
+            chatService.startPrivateChat(owner: owner, title: title, description: description, pictureBlobID: pictureBlobID, idempotencyKey: idempotencyKey) { c.resume(with: $0) }
+        }
+    }
+
     /// Joins an existing group chat. Fails with `.rulesNotSatisfied` when the caller doesn't meet the
     /// chat's `ConversationRules`.
     public func joinChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {

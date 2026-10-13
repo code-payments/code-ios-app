@@ -296,6 +296,9 @@ nonisolated public struct ConversationTable: Sendable {
     // Whether the chat is end-to-end encrypted. Defaults false: every conversation before this
     // field existed, and every DM/group the server hasn't opted in, reads as not-E2EE.
     public let useE2Ee           = Expression <Bool>   ("useE2Ee")
+    // Whether the chat is a private group. Fixed at creation, so it is only ever set to true and
+    // a copy that doesn't carry it never clears it.
+    public let isPrivate         = Expression <Bool>   ("isPrivate")
     // The signed-in viewer's per-chat state (currently mute) as JSON, same
     // reason as `rules`. The whole struct is stored, version included, so a
     // cold-start reload can't beat a fresher stream update; the mute is stored
@@ -612,6 +615,7 @@ nonisolated extension Database {
                     t.column(conversationTable.viewerState)
                     t.column(conversationTable.creator)
                     t.column(conversationTable.useE2Ee, defaultValue: false)
+                    t.column(conversationTable.isPrivate, defaultValue: false)
                 })
             }
 

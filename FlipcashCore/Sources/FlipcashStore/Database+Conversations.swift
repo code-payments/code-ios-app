@@ -108,6 +108,7 @@ nonisolated extension Database {
                 viewerState: conversationViewerState(from: row),
                 creator: row[c.creator],
                 useE2Ee: row[c.useE2Ee],
+                isPrivate: row[c.isPrivate],
                 coverPicture: conversationCoverPicture(from: row)
             )
         }
@@ -248,6 +249,20 @@ nonisolated extension Database {
                     && (m.senderId == nil || m.senderId != selfUserID)
             ).count
         )
+    }
+
+    /// Everyone who has a stored message in the conversation, newest poster first.
+    public func senderIDs(conversationID: ConversationID) throws -> [UUID] {
+        let m = ConversationMessageTable()
+        let newest = m.id.max
+        let rows = try reader.prepare(
+            m.table
+                .select(m.senderId, newest)
+                .filter(m.conversationId == conversationID.data && m.senderId != nil)
+                .group(m.senderId)
+                .order(newest.desc)
+        )
+        return rows.compactMap { $0[m.senderId] }
     }
 
     /// The oldest stored message id after `after` that someone other than `selfUserID` sent, deleted
@@ -471,6 +486,14 @@ nonisolated extension Database {
                 )
             )
 
+            // Kept out of the upsert above for the same reason as the cover: a copy that doesn't
+            // carry the flag must not clear it on a group that is private for good.
+            if conversation.isPrivate {
+                try writer.run(
+                    c.table.filter(c.id == conversation.id.data).update(c.isPrivate <- true)
+                )
+            }
+
             // COALESCE(new, existing): the cover columns stay out of the upsert above, which would
             // overwrite them with nil, and are written only when this copy carries a cover.
             if let cover = conversation.coverPicture {
@@ -532,8 +555,10 @@ nonisolated extension Database {
                     }
                     return
                 }
-                // A copy that decrypts a row stored while waiting on the peer's key is not a re-delivery.
-                let opensStoredRow = existing[m.kind] == 3 && existing[m.decryptFailure] == nil && !message.isAwaitingDecryption
+                // A copy that settles a row stored as ciphertext (waiting on a key, or unsupported by the
+                // build that stored it) is not a re-delivery. An unknown stored failure counts as final.
+                let storedFailure = existing[m.decryptFailure].map { ConversationMessage.DecryptFailure(rawValue: $0) ?? .authentication }
+                let opensStoredRow = existing[m.kind] == 3 && message.settles(unopenedWith: storedFailure)
                 if existingSequence == message.eventSequence && !opensStoredRow {
                     // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
                     // copy landing after a stream echo, or vice versa) so identity stays stable.

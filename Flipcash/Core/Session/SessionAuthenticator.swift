@@ -579,6 +579,16 @@ final class SessionContainer {
     /// NotificationService extension reads it to decide whether a push may interrupt.
     let chatArchive: ChatArchiveStore
 
+    /// The signed-in user's private-group chat keys, in memory and reopened from the server.
+    let groupKeys: GroupKeyEnvelopes
+
+    /// The private groups the signed-in user has asked to join.
+    let lobbyRequests: LobbyRequests
+    let hostedLobbies: HostedLobbies
+
+    /// The members of the private groups the signed-in user has opened, kept live from the stream.
+    let groupRosters: GroupRosters
+
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
 
@@ -668,6 +678,32 @@ final class SessionContainer {
         )
         self.chatArchive = chatArchive
 
+        let groupKeys = GroupKeyEnvelopes(
+            sealer: SharedCoreGroupKeySealer(),
+            owner: session.ownerKeyPair,
+            selfUserID: session.userID,
+            setEnvelope: { [flipClient, owner = session.ownerKeyPair] conversationID, envelope in
+                try await flipClient.setKeyEnvelope(owner: owner, conversationID: conversationID, keyEnvelope: envelope)
+            },
+            getEnvelope: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getKeyEnvelope(owner: owner, conversationID: conversationID)
+            },
+            resolveKey: { [flipClient, owner = session.ownerKeyPair] userID in
+                try await flipClient.resolveUserID(userID, owner: owner)
+            }
+        )
+        self.groupKeys = groupKeys
+
+        self.lobbyRequests = LobbyRequests(
+            owner: owner.publicKey,
+            enterLobby: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.enterLobby(owner: owner, conversationID: conversationID)
+            },
+            leaveLobby: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.leaveLobby(owner: owner, conversationID: conversationID)
+            }
+        )
+
         let chatClient = EncryptedChatClient(
             client: flipClient,
             keyring: ChatKeyring(
@@ -675,6 +711,9 @@ final class SessionContainer {
                 selfUserID: session.userID,
                 resolveKey: { [flipClient, owner = session.ownerKeyPair] userID in
                     try await flipClient.resolveUserID(userID, owner: owner)
+                },
+                groupKey: { [groupKeys] conversationID, creator in
+                    try await groupKeys.groupKey(for: conversationID, creator: creator)
                 }
             )
         )
@@ -748,6 +787,31 @@ final class SessionContainer {
             cache: { try database.upsertUserProfile($0, userID: $1) }
         )
         conversationController.mentionSearch = mentionSearch
+
+        let hostedLobbies = HostedLobbies(
+            getMembers: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getLobbyMembers(owner: owner, conversationID: conversationID)
+            },
+            wrapKey: { [groupKeys = self.groupKeys] recipient, conversationID in
+                try await groupKeys.wrap(for: recipient, in: conversationID)
+            },
+            admitMember: { [flipClient, owner = session.ownerKeyPair] conversationID, userID, envelope in
+                try await flipClient.admitLobbyMember(owner: owner, conversationID: conversationID, userID: userID, keyEnvelope: envelope)
+            },
+            denyMember: { [flipClient, owner = session.ownerKeyPair] conversationID, userID in
+                try await flipClient.denyLobbyMember(owner: owner, conversationID: conversationID, userID: userID)
+            }
+        )
+        conversationController.hostedLobbies = hostedLobbies
+        self.hostedLobbies = hostedLobbies
+
+        let groupRosters = GroupRosters(
+            getRoster: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getRoster(owner: owner, conversationID: conversationID).members
+            }
+        )
+        conversationController.groupRosters = groupRosters
+        self.groupRosters = groupRosters
         self.rosterSearch = mentionSearch
 
         // The blocklist drives which conversations the feed hides: it supplies the

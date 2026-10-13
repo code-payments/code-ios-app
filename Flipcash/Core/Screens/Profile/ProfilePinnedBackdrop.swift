@@ -69,9 +69,19 @@ extension View {
     /// view.
     func profileScrollFit(_ fit: Binding<ProfileScrollFit>) -> some View {
         onScrollGeometryChange(for: ScrollHeights.self) { geometry in
-            ScrollHeights(visible: geometry.containerSize.height, content: geometry.contentSize.height)
+            // The insets (home indicator, pinned bar) are space content can't settle in, so short
+            // content stretched past them would scroll.
+            ScrollHeights(
+                visible: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom,
+                content: geometry.contentSize.height,
+                bottomInset: geometry.contentInsets.bottom
+            )
         } action: { _, heights in
-            fit.wrappedValue.update(visibleHeight: heights.visible, contentHeight: heights.content)
+            fit.wrappedValue.update(
+                visibleHeight: heights.visible,
+                contentHeight: heights.content,
+                bottomInset: heights.bottomInset
+            )
         }
     }
 }
@@ -86,9 +96,13 @@ struct ProfileScrollFit: Equatable {
     /// belongs.
     private(set) var overflows = false
 
-    /// Records the scroll view's visible height and its content's height.
-    mutating func update(visibleHeight: CGFloat, contentHeight: CGFloat) {
+    /// The inset under the visible height, which content may draw into without scrolling.
+    private(set) var bottomInset: CGFloat = 0
+
+    /// Records the scroll view's visible height, its content's height, and its bottom inset.
+    mutating func update(visibleHeight: CGFloat, contentHeight: CGFloat, bottomInset: CGFloat = 0) {
         self.visibleHeight = visibleHeight
+        self.bottomInset = bottomInset
         overflows = contentHeight > visibleHeight + 0.5
     }
 }
@@ -96,6 +110,7 @@ struct ProfileScrollFit: Equatable {
 private struct ScrollHeights: Equatable {
     let visible: CGFloat
     let content: CGFloat
+    let bottomInset: CGFloat
 }
 
 private enum ProfilePinnedBackdrop {

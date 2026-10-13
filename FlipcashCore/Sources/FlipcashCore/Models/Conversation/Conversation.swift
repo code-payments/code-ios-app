@@ -69,12 +69,12 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     public var useE2Ee: Bool
 
     /// Whether the chat is a private group, whose members are admitted from a lobby and whose
-    /// messages are end-to-end encrypted. Not persisted: a conversation restored from the local
-    /// database reports `false` until the server's copy refreshes it.
+    /// messages are end-to-end encrypted. Fixed at creation.
     public var isPrivate: Bool
 
     /// Whether the signed-in user is waiting in this chat's lobby rather than a member of it. Not
-    /// persisted, like ``isPrivate``.
+    /// persisted: a conversation restored from the local database reports `false` until the
+    /// server's copy refreshes it.
     public var inLobby: Bool
 
     public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false, description: String? = nil, coverPicture: ProfilePicture? = nil) {

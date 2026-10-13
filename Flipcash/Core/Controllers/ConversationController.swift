@@ -40,6 +40,13 @@ final class ConversationController {
 
     /// DM conversations, most-recent activity first.
     var conversations: [Conversation] { store.conversations }
+
+    /// The private groups the signed-in user created, archived and muted ones included.
+    var hostedPrivateGroupIDs: [ConversationID] {
+        store.conversations
+            .filter { $0.isPrivate && $0.creator == selfUserID }
+            .map(\.id)
+    }
     private(set) var isLoadingFeed = false
 
     /// Whether the feed's contents are known: seeded from a non-empty cache, or answered by the
@@ -391,6 +398,10 @@ final class ConversationController {
     /// Moves new senders to the front of the mention picker's held suggestions. Set by the session
     /// after init.
     @ObservationIgnored var mentionSearch: ServerMentionSearch?
+    /// Keeps the join requests on the user's own private groups live. Set by the session after init.
+    @ObservationIgnored var hostedLobbies: HostedLobbies?
+    /// Keeps the private-group rosters the user has opened live. Set by the session after init.
+    @ObservationIgnored var groupRosters: GroupRosters?
     /// Keeps a photo send running for the time iOS allows after the app leaves the screen.
     private let backgroundTasks: any BackgroundTaskAsserting
 
@@ -547,6 +558,8 @@ final class ConversationController {
                 self.applyTyping(event)
                 self.applyReactions(event)
                 self.mentionSearch?.apply(event)
+                self.hostedLobbies?.apply(event)
+                self.groupRosters?.apply(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }
@@ -589,6 +602,8 @@ final class ConversationController {
             await catchUp(conversationID: visibleConversationID)
         }
         await feed
+        // Lobby updates sit outside the event log, so a reconnect can only reread them.
+        await hostedLobbies?.refresh(hosted: hostedPrivateGroupIDs)
     }
 
     // MARK: - Event-log catch-up
@@ -1195,6 +1210,32 @@ final class ConversationController {
         persistConversation(conversation)
         persistMembership(true, in: conversation.id)
         refreshFeedPreview(for: conversation.id)
+    }
+
+    /// Refetches a private group the user asked to join and returns the server's copy, or nil when
+    /// the fetch fails.
+    ///
+    /// There is no push for an admission, so this is how one made while the app was closed is
+    /// learned: `GetChat` lists only the viewer in `members`, and only once they belong, at which
+    /// point the group is seated the way ``join(conversationID:)`` seats it.
+    func refreshRequestedGroup(_ conversationID: ConversationID) async -> Conversation? {
+        let conversation: Conversation
+        do {
+            conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
+        } catch {
+            logger.warning("Failed to refresh a requested group", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            return nil
+        }
+        let isAdmitted = conversation.members.contains { $0.userID == selfUserID }
+        if isAdmitted, self.conversation(withID: conversationID).map(isMember(of:)) != true {
+            seatCreatedGroup(conversation)
+        } else {
+            hold(conversation)
+        }
+        return conversation
     }
 
     /// Seats the metadata `EditChat` returns for a chat the signed-in user just edited, so its
@@ -1854,6 +1895,11 @@ final class ConversationController {
     func persistedMessage(_ messageID: MessageID, in conversationID: ConversationID) -> ConversationMessage? {
         _ = messageRevision   // observe: re-read when a confirmed DB write lands
         return (try? database.message(id: messageID, conversationID: conversationID)) ?? nil
+    }
+
+    /// Everyone with a stored message in `conversationID`, newest poster first; empty when the read fails.
+    func senderIDs(in conversationID: ConversationID) -> [UserID] {
+        (try? database.senderIDs(conversationID: conversationID)) ?? []
     }
 
     /// Where the viewer's unread messages begin, from their stored READ pointer and the messages

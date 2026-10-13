@@ -217,7 +217,23 @@ extension ConversationMessage {
     /// Whether this message is encrypted and still waiting on the peer's key to decrypt. Such a
     /// message is stored but not shown.
     public var isAwaitingDecryption: Bool {
-        if case .encrypted = content { decryptFailure == nil } else { false }
+        isUnopened && decryptFailure == nil
+    }
+
+    /// Whether this message's content is still ciphertext, waiting on a key or failed to open.
+    public var isUnopened: Bool {
+        if case .encrypted = content { true } else { false }
+    }
+
+    /// Whether this copy should replace an equal-version copy still holding ciphertext with `failure`.
+    /// One waiting on a key is settled by any outcome; an unsupported one only by opening, since a
+    /// newer client can read it; an authentication failure is final.
+    public func settles(unopenedWith failure: DecryptFailure?) -> Bool {
+        switch failure {
+        case nil:             !isAwaitingDecryption
+        case .unsupported:    !isUnopened
+        case .authentication: false
+        }
     }
 
     /// A copy carrying the outcome of decrypting it: the decrypted content and the message it

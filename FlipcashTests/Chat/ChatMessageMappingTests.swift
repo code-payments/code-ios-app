@@ -113,6 +113,16 @@ struct ChatMessageMappingTests {
         #expect(hint(me, .authentication) == [.unavailable(.resend)])
     }
 
+    @Test("a group's resend hint names the message's author, not the empty DM counterpart")
+    func decryptFailureHintNamesGroupAuthor() {
+        let items = ChatItem.from(
+            [encrypted(1, them, failure: .authentication)],
+            selfUserID: me,
+            author: { _ in ChatAuthor(id: UserID(), name: "Grace Hopper") }
+        )
+        #expect(messageRows(items).map(\.content) == [.unavailable(.askToResend(firstName: "Grace"))])
+    }
+
     @Test("a message waiting on the peer's key is left out, not drawn as unavailable")
     func awaitingDecryptionIsHidden() {
         let items = ChatItem.from([text(1, them, "hi", after: 0), encrypted(2, them, after: 30)], selfUserID: me)
