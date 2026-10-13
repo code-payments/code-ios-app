@@ -5,6 +5,7 @@
 
 import Foundation
 import Bugsnag
+import FlipcashCore
 
 /// Crash and error reporting for the notification service extension process.
 ///
@@ -46,11 +47,18 @@ enum ExtensionReporting {
         _isStarted = true
     }
 
-    /// Reports a non-fatal from the extension. No-op before `startIfNeeded`.
+    /// Reports a non-fatal from the extension, classified like the app's reporter:
+    /// suppressed and cancelled errors are dropped. No-op before `startIfNeeded`.
     static func capture(_ error: Swift.Error, reason: String, metadata: [String: String] = [:]) {
         guard isStarted else { return }
+        let severity: BSGSeverity
+        switch ReportingOutcome.resolve(error: error) {
+        case .drop:  return
+        case .info:  severity = .info
+        case .error: severity = .error
+        }
         Bugsnag.notifyError(error as NSError) { event in
-            event.severity = .error
+            event.severity = severity
             if !event.errors.isEmpty {
                 event.errors[0].errorClass = reason
                 event.errors[0].errorMessage = "\(error)"

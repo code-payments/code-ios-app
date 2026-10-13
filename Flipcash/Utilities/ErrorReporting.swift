@@ -11,26 +11,11 @@ import FlipcashCore
 
 enum ErrorReporting {
 
-    /// The reporting outcome for a classified error: dropped, or sent at a severity.
-    nonisolated enum Outcome: Equatable {
-        case drop
-        case info
-        case error
-    }
+    typealias Outcome = ReportingOutcome
 
-    /// Resolves how a classified error should be reported.
-    ///
-    /// `.suppressed` (transient transport / network weather) is normally dropped, but
-    /// when it reached the user as a hard failure dialog (`userFacing`) it is lifted to
-    /// `.info` — a breadcrumb, never `.error`, so it never pages Slack. Only `.suppressed`
-    /// is ever lifted: user-caused refusals classify `.info`/`.error`, so a user-caused
-    /// failure can never be surfaced by `userFacing`.
+    /// Resolves how a classified error should be reported; see `ReportingOutcome.resolve`.
     nonisolated static func outcome(for level: ErrorReportingLevel, userFacing: Bool) -> Outcome {
-        switch level {
-        case .suppressed: userFacing ? .info : .drop
-        case .info:       .info
-        case .error:      .error
-        }
+        ReportingOutcome.resolve(level: level, userFacing: userFacing)
     }
 
     /// Which logs belong to an event that reached `OnSendError` without `app_logs`.
