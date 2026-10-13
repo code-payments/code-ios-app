@@ -40,8 +40,9 @@ extension View {
     }
 
     /// Fades content into the bottom of a profile that pins no bar, the way the chat's transcript
-    /// dissolves under its composer: a ramp from the clearance's top edge to the screen's bottom edge.
-    /// `isActive` false draws nothing, for a screen whose content doesn't scroll.
+    /// dissolves under its composer: a ramp across the home indicator's inset only, so the row that
+    /// ends the scroll stays clear of it. `isActive` false draws nothing, for a screen whose content
+    /// doesn't scroll.
     func profileBarlessFade(isActive: Bool) -> some View {
         background {
             if isActive {
@@ -50,7 +51,6 @@ extension View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .padding(.top, -ProfilePinnedBackdrop.fadeHeight)
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)
             }
@@ -82,17 +82,14 @@ struct ProfileScrollFit: Equatable {
     /// The height the scroll view shows content in, which short content stretches to.
     private(set) var visibleHeight: CGFloat = 0
 
-    /// Whether the content runs past the screen, which is when the bottom fade and its clearance
-    /// belong.
+    /// Whether the content runs past the screen, which is when a barless profile's bottom fade
+    /// belongs.
     private(set) var overflows = false
 
     /// Records the scroll view's visible height and its content's height.
     mutating func update(visibleHeight: CGFloat, contentHeight: CGFloat) {
         self.visibleHeight = visibleHeight
-        // The clearance shrinks the visible height while it is on; compare against the height
-        // without it, or turning it on would keep it on.
-        let clearance = overflows ? ProfilePinnedBackdrop.fadeHeight : 0
-        overflows = contentHeight > visibleHeight + clearance + 0.5
+        overflows = contentHeight > visibleHeight + 0.5
     }
 }
 

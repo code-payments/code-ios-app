@@ -286,6 +286,9 @@ struct ConversationBottomBar: View {
     /// Receives the photos added from the photo card, in the order they were selected, with the
     /// loader already reading them.
     var onPhotosAdd: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> Void = { _, _ in }
+    /// Receives images dropped on the bar, such as the system screenshot thumbnail or an image
+    /// from another app in split view. Only fired while the bar takes photos.
+    var onImagesDropped: ([NSItemProvider]) -> Void = { _ in }
     /// Fired by the photo card's back chevron and escape gesture.
     var onPhotosBack: () -> Void = {}
     /// Where the reply strip's quoted photo loads its thumbnail from.
@@ -467,6 +470,13 @@ struct ConversationBottomBar: View {
         .animation(Self.widthSpring, value: isCompact)
         .padding(.top, BarMetrics.contentPadding)
         .padding(.bottom, BarMetrics.contentPadding)
+        // The whole bar, margins included, takes a dropped image. Images only: the field's own
+        // text drop keeps plain text, and declines an image session, so it falls to this.
+        .contentShape(Rectangle())
+        .onDrop(of: [.image], delegate: ComposerImageDropDelegate(
+            acceptsDrop: acceptsMedia && !composer.isEditing,
+            onDrop: onImagesDropped
+        ))
         .animation(barMorphSpring, value: composer.isEditing)
         // The strip arriving with its first chip and leaving with its last, on the chip spring unless
         // a capture's animation is already carrying it.
@@ -591,7 +601,7 @@ struct ConversationBottomBar: View {
     /// What the mention list shows, or `nil` while it is closed. Tied to the live query as well as
     /// the model, so a send or a pick closes it in the same update rather than after the search.
     private var mentionCandidates: [ConversationMember]? {
-        guard mentions != nil, composer.mentionQuery != nil, !listedCandidates.isEmpty else { return nil }
+        guard mentions != nil, !listedCandidates.isEmpty, composer.mentionQuery != nil else { return nil }
         return listedCandidates
     }
 
@@ -1394,5 +1404,29 @@ private struct CancelEditButton: View {
         .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
         .accessibilityLabel("Cancel editing")
         .accessibilityIdentifier("cancel-edit-button")
+    }
+}
+
+
+/// Takes images dropped on the composer. A chat that does not take photos refuses the drop with a
+/// forbidden proposal, so the system shows it as refused instead of letting it land silently.
+struct ComposerImageDropDelegate: DropDelegate {
+    let acceptsDrop: Bool
+    let onDrop: ([NSItemProvider]) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [.image])
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: acceptsDrop ? .copy : .forbidden)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard acceptsDrop else { return false }
+        let providers = info.itemProviders(for: [.image])
+        guard !providers.isEmpty else { return false }
+        onDrop(providers)
+        return true
     }
 }

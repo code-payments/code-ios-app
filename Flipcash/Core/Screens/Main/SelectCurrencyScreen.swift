@@ -274,7 +274,7 @@ private struct AccessoryView: View {
             Image.system(.chevronRight)
                 .foregroundStyle(Color.textSecondary)
         case .check(let isSelected):
-            CheckView(active: isSelected)
+            RadioButton(isSelected: isSelected)
         case .loader:
             ProgressView()
                 .progressViewStyle(.circular)

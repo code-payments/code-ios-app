@@ -8,11 +8,12 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import FlipcashCore
 
 private let logger = Logger(label: "flipcash.chat-photo-staging")
 
-/// Turns photos picked from the library into composer chips.
+/// Turns photos picked from the library, or dropped on the composer, into composer chips.
 enum ChatPhotoStaging {
 
     /// Loads `items` one at a time in pick order and stages each photo that loads, stopping at the
@@ -64,6 +65,37 @@ enum ChatPhotoStaging {
         return (handOff, remainder)
     }
 
+    /// Returns the image `provider` carries, or `nil` when it carries none, cannot be loaded or
+    /// cannot be decoded. Dropped and pasted images take the same decode as picked ones, so a full-size
+    /// screenshot or photo does not sit in memory as an undecoded bitmap.
+    static func loadImage(_ provider: NSItemProvider) async -> UIImage? {
+        guard provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else { return nil }
+        let data: Data? = await withCheckedContinuation { continuation in
+            _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
+                if let error {
+                    logger.warning("Provided image failed to load", metadata: ["error": "\(error)"])
+                }
+                continuation.resume(returning: data)
+            }
+        }
+        guard let data else { return nil }
+        guard let image = await decode(data) else {
+            logger.warning("Provided image failed to decode", metadata: ["bytes": "\(data.count)"])
+            return nil
+        }
+        return image
+    }
+
+    /// Stages the images dropped or pasted `providers` carry, in order, stopping at a full composer.
+    @discardableResult
+    static func stageProvided(
+        _ providers: [NSItemProvider],
+        into composer: ComposerModel,
+        uploader: ChatMediaUploader
+    ) async -> [ComposerChip] {
+        await stage(providers, into: composer, uploader: uploader, load: loadImage(_:))
+    }
+
     /// Returns the photo `item` holds, or `nil` when it cannot be loaded or decoded.
     static func loadImage(_ item: PhotosPickerItem) async -> UIImage? {
         let data: Data
@@ -93,17 +125,7 @@ enum ChatPhotoStaging {
     /// layer's contents, and that rotation animates with the cell when a sent photo's bubble lands.
     @concurrent
     nonisolated static func decode(_ data: Data) async -> UIImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-              let width = properties[kCGImagePropertyPixelWidth] as? Int,
-              let height = properties[kCGImagePropertyPixelHeight] as? Int,
-              let upright = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                  kCGImageSourceCreateThumbnailFromImageAlways: true,
-                  kCGImageSourceCreateThumbnailWithTransform: true,
-                  kCGImageSourceThumbnailMaxPixelSize: max(width, height),
-              ] as CFDictionary) else {
-            return nil
-        }
+        guard let upright = await ChatPhotoDecoder.decode(data) else { return nil }
         return UIImage(cgImage: upright)
     }
 }

@@ -110,7 +110,7 @@ struct EditFeaturedGroupsScreen: View {
             model.toggle(group.id)
         } label: {
             FeaturedGroupRow(group: group) {
-                CheckView(active: model.isSelected(group.id))
+                RadioButton(isSelected: model.isSelected(group.id))
             }
             .contentShape(Rectangle())
         }

@@ -67,11 +67,18 @@ final class LinkUserCardView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    @objc private func tapped() {
+        guard case .resolved? = shown?.state else { return }
+        onTap?()
+    }
+
     private func setUp() {
         backgroundColor = .clear
 
         content.translatesAutoresizingMaskIntoConstraints = false
         addSubview(content)
+        // A UIKit tap rather than a SwiftUI button, so it can wait out the transcript's double tap.
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
 
         shimmer.translatesAutoresizingMaskIntoConstraints = false
         shimmer.roundCorners(to: cornerRadii)
@@ -244,12 +251,12 @@ struct LinkUserCardContent: View {
         static let notFound = "No Such Account"
     }
 
+    /// Not a `Button`: the host's UIKit tap opens the card, so a double tap can react instead.
     var body: some View {
-        Button(action: onTap) { card }
-            .buttonStyle(.plain)
-            // Nothing to open with no account behind the link.
-            .disabled(!isTappable)
+        card
             .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(isTappable ? .isButton : [])
+            .accessibilityAction { if isTappable { onTap() } }
     }
 
     private var isTappable: Bool {

@@ -218,6 +218,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.linkCardSource = newValue }
     }
 
+    /// ``ChatViewController/webPreviewMode``.
+    public var webPreviewMode: WebLinkPreviewMode {
+        get { transcript.webPreviewMode }
+        set { transcript.webPreviewMode = newValue }
+    }
+
     /// Where a photo row gets its download URL — see ``ChatViewController/mediaURLResolver``.
     public var mediaURLResolver: ChatMediaURLResolver? {
         get { transcript.mediaURLResolver }
@@ -331,9 +337,32 @@ public final class ChatScreenViewController: UIViewController {
     /// The layer over the transcript that takes its touches, if one is up.
     private var transcriptShield: TranscriptShield?
 
+    private let imagePaste = ComposerImagePasteHandler()
+
+    /// Whether images pasted into the composer are handed to `onImagesPasted`. When false a pasted
+    /// image is dropped rather than put in the text.
+    public var acceptsPastedImages: Bool {
+        get { imagePaste.acceptsImages }
+        set { imagePaste.acceptsImages = newValue }
+    }
+
+    /// Receives the images one paste into the composer carried, in paste order.
+    public var onImagesPasted: (([NSItemProvider]) -> Void)? {
+        get { imagePaste.onImages }
+        set { imagePaste.onImages = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)
+        // SwiftUI can rebuild the composer's field, so the paste handler goes on whichever one
+        // starts editing.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(textDidBeginEditing(_:)),
+            name: UITextView.textDidBeginEditingNotification,
+            object: nil
+        )
 
         addChild(transcript)
         transcript.view.translatesAutoresizingMaskIntoConstraints = false
@@ -690,6 +719,21 @@ public final class ChatScreenViewController: UIViewController {
     public var canReplaceComposerInputView: Bool {
         guard let responder = bar.firstTextInputResponder, responder.isFirstResponder else { return false }
         return responder is UITextView || responder is UITextField
+    }
+
+    /// Takes Format out of the composer's edit menu. The field edits attributed text only so the
+    /// keyboard offers pasted images, and the chat sends plain text.
+    public override func buildMenu(with builder: any UIMenuBuilder) {
+        super.buildMenu(with: builder)
+        guard builder.system == .context else { return }
+        builder.remove(menu: .format)
+    }
+
+    @objc private func textDidBeginEditing(_ notification: Notification) {
+        guard let textView = notification.object as? UITextView,
+              textView === bar.firstTextInputResponder,
+              textView.pasteDelegate !== imagePaste else { return }
+        imagePaste.install(on: textView)
     }
 
     /// Shows `inputView` in the keyboard's place under the composer's field, or the system keyboard

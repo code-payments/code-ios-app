@@ -41,9 +41,12 @@ nonisolated enum MentionTrigger {
         }
     }
 
-    /// The mention being typed before `cursor`, or `nil` when there is none.
+    /// The mention being typed before `cursor`, or `nil` when there is none or `cursor` is not a
+    /// `Character` boundary of `text`.
     static func query(in text: String, cursor: String.Index) -> MentionQuery? {
-        guard cursor >= text.startIndex, cursor <= text.endIndex else { return nil }
+        // The TextField binding can pair a cursor with text it doesn't belong to for one layout
+        // pass, and `index(before:)` traps on an index inside the first Character.
+        guard cursor == text.endIndex || text.indices.contains(cursor) else { return nil }
         var start = cursor
         while start > text.startIndex {
             let previous = text.index(before: start)

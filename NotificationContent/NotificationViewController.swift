@@ -57,7 +57,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         // takes its height from preferredContentSize — leave it unset and the panel collapses
         // and dismisses, so pin it here and never resize it to the transcript.
         preferredContentSize = CGSize(width: view.bounds.width, height: Self.fixedPanelHeight)
-        FontBook.registerNotificationFonts()
+        FontBook.registerExtensionFonts()
 
         addChild(transcript)
         // The panel sits above the reply keyboard, so don't let the keyboard's safe area inset the

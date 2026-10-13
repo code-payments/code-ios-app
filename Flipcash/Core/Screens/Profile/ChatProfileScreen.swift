@@ -203,18 +203,19 @@ struct ChatProfileScreen: View {
                             .padding(.top, 24)
                     }
 
-                    if origin == .chat, isMember {
+                    if endsWithLeaveButton {
                         // Holds Leave Chat at the bottom of the screen when the content is short.
                         Spacer(minLength: 24)
                         leaveButton
                             .padding(.horizontal, ProfileHeaderMetrics.inset)
                     }
                 }
-                .frame(minHeight: max(scrollFit.visibleHeight - 24, 0), alignment: .top)
-                .padding(.bottom, 24)
+                .frame(minHeight: max(scrollFit.visibleHeight - contentBottomPadding, 0), alignment: .top)
+                .padding(.bottom, contentBottomPadding)
             }
-            .profilePinnedBackdropClearance(isActive: origin != .chat || scrollFit.overflows)
+            .profilePinnedBackdropClearance(isActive: origin != .chat)
             .profileScrollFit($scrollFit)
+            .scrollIndicators(.hidden)
             // The banner runs under the status bar.
             .ignoresSafeArea(edges: .top)
             // The blur only belongs once the banner has scrolled up under the bar.
@@ -462,6 +463,18 @@ struct ChatProfileScreen: View {
         return holding(stated, mint: mint)
     }
 
+    /// Whether Leave Chat ends the scroll content rather than sitting in the pinned bar.
+    private var endsWithLeaveButton: Bool {
+        origin == .chat && isMember
+    }
+
+    /// Space under the scroll content. Leave Chat ending it sits where the pinned bar puts it: a
+    /// text-only button is a full button tall, so its frame already leaves room under the title and
+    /// can overlap the home indicator's inset.
+    private var contentBottomPadding: CGFloat {
+        endsWithLeaveButton ? -12 : 24
+    }
+
     // MARK: - Pinned -
 
     @ViewBuilder
@@ -505,7 +518,7 @@ struct ChatProfileScreen: View {
         switch origin {
         case .chat:
             router.popTopmost()
-        case .featuredGroup:
+        case .featuredGroup, .link:
             router.push(.tipConversation(conversationID))
         }
     }
@@ -718,4 +731,6 @@ nonisolated enum ChatProfileOrigin: Hashable {
     /// Anywhere with no chat underneath: a favorite group on the You tab or someone's profile, or
     /// a private group just created.
     case featuredGroup
+    /// A group invite card in another chat's transcript, so the chat underneath is not this one.
+    case link
 }

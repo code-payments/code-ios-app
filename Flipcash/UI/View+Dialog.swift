@@ -30,6 +30,7 @@ private struct DialogItemModifier: ViewModifier {
                         style: presented.style,
                         title: presented.title,
                         subtitle: presented.subtitle,
+                        checkbox: presented.checkbox,
                         dismiss: dismiss,
                         actions: presented.actions
                     )

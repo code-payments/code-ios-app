@@ -52,7 +52,8 @@ public struct ChatMediaViewerRequest {
 }
 
 /// A full-screen photo, zoomed in from the tapped transcript row: pinch or double-tap to zoom, swipe
-/// down or close to put it back, and share once the photo itself has loaded.
+/// down or close to put it back, tap to hide or show the buttons, and share once the photo itself
+/// has loaded.
 public final class ChatMediaViewerController: UIViewController, UIScrollViewDelegate {
 
     private static let maximumZoomScale: CGFloat = 4
@@ -64,7 +65,10 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     let scrollView = UIScrollView()
     let imageView = UIImageView()
     let shareButton = UIButton(configuration: .plain())
-    private let closeButton = UIButton(configuration: .plain())
+    let closeButton = UIButton(configuration: .plain())
+
+    /// Whether a single tap has put the close and share buttons away.
+    private(set) var areControlsHidden = false
 
     /// The photo itself, once drawn — never the placeholder, so share never hands out a BlurHash.
     private var loadedImage: UIImage? {
@@ -112,6 +116,10 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
         doubleTap.numberOfTapsRequired = 2
         scrollView.addGestureRecognizer(doubleTap)
+
+        let singleTap = UITapGestureRecognizer(target: self, action: #selector(singleTapped))
+        singleTap.require(toFail: doubleTap)
+        scrollView.addGestureRecognizer(singleTap)
 
         configure(closeButton, symbol: "xmark", label: "Close", action: #selector(closeTapped))
         configure(shareButton, symbol: "square.and.arrow.up", label: "Share", action: #selector(shareTapped))
@@ -197,6 +205,31 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         let point = recognizer.location(in: imageView)
         let size = CGSize(width: scrollView.bounds.width / target, height: scrollView.bounds.height / target)
         scrollView.zoom(to: CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2, width: size.width, height: size.height), animated: true)
+    }
+
+    // MARK: - Controls
+
+    @objc private func singleTapped() {
+        setControlsHidden(!areControlsHidden, animated: true)
+    }
+
+    /// Fades the close and share buttons out or back in; hidden buttons take no touches and drop out
+    /// of VoiceOver.
+    func setControlsHidden(_ hidden: Bool, animated: Bool) {
+        areControlsHidden = hidden
+        for button in [closeButton, shareButton] {
+            button.isUserInteractionEnabled = !hidden
+            button.accessibilityElementsHidden = hidden
+        }
+        let fade = { [closeButton, shareButton] in
+            closeButton.alpha = hidden ? 0 : 1
+            shareButton.alpha = hidden ? 0 : 1
+        }
+        if animated {
+            UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction], animations: fade)
+        } else {
+            fade()
+        }
     }
 
     // MARK: - Actions

@@ -44,7 +44,11 @@ final class ChatPhotoCamera {
     /// Whether the session is delivering frames: from its start until ``stop()``.
     private(set) var isRunning = false
 
-    @ObservationIgnored let session = AVCaptureSession()
+    @ObservationIgnored let session: AVCaptureSession
+
+    /// The session's one preview layer, attached while the session is still empty so no viewfinder
+    /// mount has to reconfigure it on the main thread.
+    @ObservationIgnored let previewLayer: AVCaptureVideoPreviewLayer
 
     @ObservationIgnored private let output = AVCapturePhotoOutput()
     @ObservationIgnored private let sessionQueue = DispatchQueue(label: "com.flipcash.chat-camera.session")
@@ -57,6 +61,14 @@ final class ChatPhotoCamera {
     /// Whether the session should be running. A ``stop()`` while ``prepare()`` is still configuring
     /// keeps the session from starting once it finishes.
     @ObservationIgnored private var wantsRunning = false
+    /// Whether a lens swap is still committing on the session queue.
+    @ObservationIgnored private var isFlipping = false
+
+    init() {
+        let session = AVCaptureSession()
+        self.session = session
+        previewLayer = AVCaptureVideoPreviewLayer(session: session)
+    }
 
     // Same Swift 6.3 EarlyPerfInliner workaround `CameraSession` carries for @MainActor deinits.
     nonisolated deinit {}
@@ -207,30 +219,46 @@ final class ChatPhotoCamera {
         }
     }
 
-    /// Swaps to the other lens, keeping the current one if the other is missing.
+    /// Swaps to the other lens off the main thread, keeping the current one if the other is missing.
+    /// A flip still in flight ignores another.
     func flip() {
-        guard input != nil else { return }
+        guard let previous = input, !isFlipping else { return }
+        isFlipping = true
         let target = Self.flipped(position)
-
-        session.beginConfiguration()
-        defer { session.commitConfiguration() }
-
-        let previous = input
-        if let previous {
-            session.removeInput(previous)
-        }
-        do {
-            try attachInput(for: target)
-        } catch {
-            if let previous, session.canAddInput(previous) {
-                session.addInput(previous)
-                input = previous
+        let session = session
+        let output = output
+        sessionQueue.async { [weak self] in
+            let configured = Self.swap(previous, for: target, in: session, output: output)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isFlipping = false
+                if let configured {
+                    self.adopt(configured, at: target)
+                }
             }
         }
     }
 
-    private func attachInput(for position: AVCaptureDevice.Position) throws {
-        adopt(try Self.attach(position, to: session, output: output), at: position)
+    /// Replaces `previous` with the `position` lens, restoring `previous` and returning `nil` if
+    /// that lens can't attach. Blocking; runs on the session queue.
+    private nonisolated static func swap(
+        _ previous: AVCaptureDeviceInput,
+        for position: AVCaptureDevice.Position,
+        in session: AVCaptureSession,
+        output: AVCapturePhotoOutput
+    ) -> ConfiguredInput? {
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+
+        session.removeInput(previous)
+        do {
+            return try attach(position, to: session, output: output)
+        } catch {
+            if session.canAddInput(previous) {
+                session.addInput(previous)
+            }
+            return nil
+        }
     }
 
     // MARK: - Capture -

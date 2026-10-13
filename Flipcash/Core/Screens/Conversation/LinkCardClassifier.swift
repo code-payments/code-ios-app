@@ -33,14 +33,49 @@ import FlipcashCore
 /// tap target in front of either is a phishing aid.
 nonisolated struct LinkCardClassifier {
 
+    /// Whether an outside link may become a web card. False while `webLinkPreviews` is off, so the
+    /// feature draws nothing at all: no card, no chip, no prefetch.
+    var webLinks: Bool = true
+
     /// The first card-eligible link wins; at most one card per message.
     ///
     /// Takes the detected links rather than their URLs because the card carries the span it was
     /// built from, and the bubble draws the card in place of that span. A jump-wrapped link's text
     /// is the wrapper while its `url` is the target, so a later search for the URL would find
     /// nothing to remove.
+    ///
+    /// A Flipcash card anywhere in the message beats an outside page earlier in it. Only when there is
+    /// none does the first outside `https` link become a web card.
     func firstCard(in links: [DetectedLink]) -> LinkCard? {
-        links.lazy.compactMap { classify($0) }.first
+        if let card = links.lazy.compactMap({ classify($0) }).first { return card }
+        guard webLinks else { return nil }
+        return links.lazy.compactMap { web($0) }.first
+    }
+
+    /// An outside `https` link, or a marketing page on the apex or `www`. Any other Flipcash host
+    /// never falls through to here, whatever its path, and that includes a jump wrapper around an
+    /// outside target.
+    private func web(_ link: DetectedLink) -> LinkCard? {
+        guard WebLinks.isFetchable(link.url),
+              let host = WebLinks.host(of: link.url) else { return nil }
+        if Route.flipcashHosts.contains(host) {
+            guard Self.marketingHosts.contains(host), Self.isMarketingPage(link.url) else { return nil }
+        }
+        return .web(LinkCard.Web(url: link.url, range: link.range))
+    }
+
+    /// Flipcash hosts whose unclassified pages are fetched like any outside site.
+    static let marketingHosts: Set<String> = ["flipcash.com", "www.flipcash.com"]
+
+    /// First path segments that are never fetched: the path or query can carry the account seed or
+    /// a verification code.
+    private static let secretPaths: Set<String> = ["login", "verify", "c", "cash"]
+
+    /// A fragment can carry a cash link or seed, so a link with one is never fetched.
+    private static func isMarketingPage(_ url: URL) -> Bool {
+        guard url.fragment(percentEncoded: true) == nil else { return false }
+        let first = url.pathComponents.first { $0 != "/" }?.lowercased()
+        return first.map { !secretPaths.contains($0) } ?? true
     }
 
     /// Single-segment paths the website serves itself, which `Route` would otherwise read as

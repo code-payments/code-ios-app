@@ -69,18 +69,96 @@ import FlipcashUI
             #expect(isASCII, "\(host)")
         }
     }
+
+    // MARK: - Trusted hosts
+
+    private func check(_ string: String, trusting hosts: Set<String>) throws -> ExternalLinkCheck {
+        ExternalLinkCheck(url: try #require(URL(string: string)), trustedHosts: hosts)
+    }
+
+    @Test func trustedHostOpens() throws {
+        #expect(try check("https://x.com/flipcash", trusting: ["x.com"]) == .open)
+    }
+
+    @Test func trustedHostOpensInAnyCase() throws {
+        #expect(try check("https://X.com/flipcash", trusting: ["x.com"]) == .open)
+    }
+
+    @Test func trustedHostDoesNotCoverSubdomain() throws {
+        #expect(try check("https://mail.x.com/inbox", trusting: ["x.com"]) == .warn(host: "mail.x.com"))
+    }
+
+    @Test func trustedSubdomainDoesNotCoverParent() throws {
+        #expect(try check("https://x.com/", trusting: ["mail.x.com"]) == .warn(host: "x.com"))
+    }
+
+    @Test func trustedHostDoesNotCoverLookalikeSuffix() throws {
+        #expect(try check("https://x.com.evil.tld/", trusting: ["x.com"]) == .warn(host: "x.com.evil.tld"))
+    }
+
+    @Test func homographDoesNotMatchTrustedASCIIHost() throws {
+        guard case .warn(let shown) = try check("https://flipcаsh.io/", trusting: ["flipcash.io"]) else {
+            Issue.record("homograph did not warn")
+            return
+        }
+        #expect(shown.hasPrefix("xn--"))
+        #expect(try check("https://flipcаsh.io/", trusting: [shown]) == .open)
+    }
 }
 
 @MainActor
 @Suite struct LeavingFlipcashDialogTests {
 
+    private let defaults = UserDefaults(suiteName: "trusted-websites-\(UUID())")!
+
+    private func dialog(host: String = "x.com", opened: @escaping () -> Void = {}) -> (DialogItem, TrustedWebsites) {
+        let store = TrustedWebsites(defaults: defaults)
+        return (DialogItem.leavingFlipcash(host: host, trustedWebsites: store, open: opened), store)
+    }
+
     @Test func warningNamesTheHost() {
-        let item = DialogItem.leavingFlipcash(host: "x.com") {}
+        let (item, _) = dialog()
         #expect(item.style == .standard)
         #expect(item.title == "You're Leaving Flipcash")
         #expect(item.subtitle == "This will open x.com. Never share your Access Key with a website")
         #expect(item.actions.map(\.title) == ["Open Website", "Cancel"])
         #expect(item.actions.map(\.kind) == [.standard, .subtle])
+        #expect(item.checkbox == DialogCheckbox(label: "Don't ask again for x.com"))
+    }
+
+    @Test func punycodeHostIsTheLabel() {
+        let (item, _) = dialog(host: "xn--flipcsh-2fg.io")
+        #expect(item.checkbox?.label == "Don't ask again for xn--flipcsh-2fg.io")
+    }
+
+    @Test func openWebsiteCheckedTrustsTheHost() {
+        var opened = false
+        let (item, store) = dialog { opened = true }
+        item.actions[0].perform(isChecked: true)
+        #expect(opened)
+        #expect(store.hosts == ["x.com"])
+    }
+
+    @Test func openWebsiteUncheckedSavesNothing() {
+        var opened = false
+        let (item, store) = dialog { opened = true }
+        item.actions[0].perform(isChecked: false)
+        #expect(opened)
+        #expect(store.entries.isEmpty)
+    }
+
+    @Test func cancelCheckedSavesNothing() {
+        var opened = false
+        let (item, store) = dialog { opened = true }
+        item.actions[1].perform(isChecked: true)
+        #expect(!opened)
+        #expect(store.entries.isEmpty)
+    }
+
+    @Test func dismissSavesNothing() {
+        let (item, store) = dialog()
+        item.onDismiss?()
+        #expect(store.entries.isEmpty)
     }
 }
 

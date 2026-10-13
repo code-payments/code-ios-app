@@ -95,7 +95,7 @@ final class ConversationController {
     /// The Chats tab's source rows before archive is applied: tip DMs and joined groups. Already
     /// without hidden conversations, so everything downstream inherits that exclusion.
     private var chatListSource: [Conversation] {
-        conversations(of: .tipDm) + joinedGroups
+        ChatListSelection.source(from: conversations, isMember: { store.isMember(of: $0) })
     }
 
     /// The one place `Conversation` becomes the list rules' input. The list, the chips, the Archived
@@ -1612,7 +1612,7 @@ final class ConversationController {
 
     /// Counterpart name shown when neither the synced contacts, the feed, nor a
     /// shared phone number provides one.
-    nonisolated static let fallbackCounterpartName = "Flipcash User"
+    nonisolated static let fallbackCounterpartName = Conversation.fallbackCounterpartName
 
     /// The counterpart's name for a conversation: the synced contact's
     /// address-book name, else the server-provided member name from the feed,
@@ -1620,20 +1620,7 @@ final class ConversationController {
     /// Tip DMs skip the contact lookup — their derived ids can never match a
     /// contact's, so the directory scan is a guaranteed miss.
     func displayName(for conversation: Conversation) -> String {
-        // Group chats are named by their server-set title, not a counterpart.
-        if let title = conversation.title, !title.isEmpty {
-            return title
-        }
-        if conversation.type != .tipDm, let contactName = contactName(for: conversation.id) {
-            return contactName
-        }
-        guard let counterpart = conversation.counterpart(excluding: selfUserID) else {
-            return Self.fallbackCounterpartName
-        }
-        if !counterpart.displayName.isEmpty {
-            return counterpart.displayName
-        }
-        return counterpart.formattedPhoneNumber ?? Self.fallbackCounterpartName
+        conversation.displayName(selfUserID: selfUserID, contactName: contactName(for:))
     }
 
     /// The feed row's last-message line: the typing indicator while the
@@ -2081,7 +2068,15 @@ final class ConversationController {
         if let draft {
             failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
         }
-        return await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        if delivered { donateShareSuggestion(for: conversationID) }
+        return delivered
+    }
+
+    /// Tells the system the user just wrote into this chat, so it is offered in the Share sheet.
+    private func donateShareSuggestion(for conversationID: ConversationID) {
+        guard let conversation = conversation(withID: conversationID) else { return }
+        ChatShareDonor.donate(conversation, displayName: displayName(for: conversation), selfUserID: selfUserID)
     }
 
     /// Posts `text` the way ``send(_:to:repliedTo:restoringOnFailure:)`` does, except that a
@@ -2252,6 +2247,7 @@ final class ConversationController {
             )
             deliveredAll = deliveredAll && delivered
         }
+        if deliveredAll { donateShareSuggestion(for: conversationID) }
         return deliveredAll
     }
 

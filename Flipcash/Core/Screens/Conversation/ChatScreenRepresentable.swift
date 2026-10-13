@@ -42,6 +42,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Where a link card looks its link up — see ``LinkCardFeed``. Container-scoped, so it outlives
     /// both this view and the rows that subscribe to it.
     let linkCardSource: any LinkCardSource
+    /// Whether web cards ask for their pages as they draw (DMs, members) or wait for the chip.
+    let webPreviewMode: WebLinkPreviewMode
     /// Fired when the user taps the "Encrypted" marker above a DM's first encrypted message.
     let onEncryptionMarkerTap: () -> Void
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
@@ -116,6 +118,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// selected, with the loader already reading them. Returns the chip the first was staged as,
     /// which the card shrinks into, when it could be staged at once.
     var onPhotosAdded: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> ComposerChip.ID? = { _, _ in nil }
+    /// Receives images dropped on the bar.
+    var onImagesDropped: ([NSItemProvider]) -> Void = { _ in }
+    /// Receives images pasted into the composer's field.
+    var onImagesPasted: ([NSItemProvider]) -> Void = { _ in }
     /// Mints a signed download URL for a photo in this chat. The transcript's resolver caches what it
     /// returns and never asks for a photo drawn only from its BlurHash.
     var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
@@ -152,7 +158,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
+        screen.webPreviewMode = webPreviewMode
         screen.onMediaTap = onMediaTap
+        screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
+        screen.onImagesPasted = onImagesPasted
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
         screen.mediaURLResolver = context.coordinator.mediaURLResolver
@@ -206,7 +215,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
+        screen.webPreviewMode = webPreviewMode
         screen.onMediaTap = onMediaTap
+        screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
+        screen.onImagesPasted = onImagesPasted
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
         screen.onEncryptionMarkerTap = onEncryptionMarkerTap
@@ -331,6 +343,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onPhotosAdd: { [weak coordinator] items, preloader in
                     coordinator?.closeCard { onPhotosAdded(items, preloader) }
                 },
+                onImagesDropped: onImagesDropped,
                 onPhotosBack: { [model = barModel] in
                     // Back into the panel, with the keyboard left down.
                     model.returnToMenu()

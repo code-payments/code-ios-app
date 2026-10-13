@@ -71,8 +71,25 @@ public struct LinkDetector {
                 return nil
             }
 
-            return DetectedLink(range: match.range, url: Self.normalized(url, matchText: matchText))
+            guard let (range, trimmedURL) = Self.unwrapped(match.range, url: url, in: nsText) else { return nil }
+            return DetectedLink(range: range, url: Self.normalized(trimmedURL, matchText: matchText))
         }
+    }
+
+    /// A trailing `*`, `_` or `~` dropped once, and only when the same marker sits directly before the
+    /// link, so `*example.com/foo*` is bold around a whole link (text-format spec, decision 1). A marker
+    /// inside the path, or one with no matching opener, stays part of the link.
+    private static func unwrapped(_ range: NSRange, url: URL, in text: NSString) -> (NSRange, URL)? {
+        let end = range.location + range.length
+        guard range.location > 0, range.length > 1 else { return (range, url) }
+        let last = text.character(at: end - 1)
+        guard [0x2A, 0x5F, 0x7E].contains(last), text.character(at: range.location - 1) == last else {
+            return (range, url)
+        }
+        let absolute = url.absoluteString
+        let marker = String(UnicodeScalar(UInt8(last)))
+        guard absolute.hasSuffix(marker), let trimmed = URL(string: String(absolute.dropLast())) else { return nil }
+        return (NSRange(location: range.location, length: range.length - 1), trimmed)
     }
 
     /// The trailing web link in `text`, for callers that want one link rather than the spans.

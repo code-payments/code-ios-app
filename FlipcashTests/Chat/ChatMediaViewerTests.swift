@@ -130,6 +130,28 @@ struct ChatMediaViewerTests {
         #expect(shared == nil)
     }
 
+    @Test("A tap hides the close and share buttons, and a second tap brings them back")
+    func tapTogglesControls() throws {
+        let viewer = ChatMediaViewerController(request: try #require(request(message(media()), localImage: Self.localImage))) { _ in }
+        viewer.loadViewIfNeeded()
+
+        viewer.setControlsHidden(true, animated: false)
+        #expect(viewer.areControlsHidden)
+        for button in [viewer.closeButton, viewer.shareButton] {
+            #expect(button.alpha == 0)
+            #expect(!button.isUserInteractionEnabled)
+            #expect(button.accessibilityElementsHidden)
+        }
+
+        viewer.setControlsHidden(false, animated: false)
+        #expect(!viewer.areControlsHidden)
+        for button in [viewer.closeButton, viewer.shareButton] {
+            #expect(button.alpha == 1)
+            #expect(button.isUserInteractionEnabled)
+            #expect(!button.accessibilityElementsHidden)
+        }
+    }
+
     // MARK: - Transcript wiring
 
     private func transcript(_ message: ChatMessage, localImage: UIImage? = nil) -> (ChatViewController, ChatMediaCell) {

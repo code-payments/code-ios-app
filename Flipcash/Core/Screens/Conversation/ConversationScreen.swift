@@ -53,6 +53,9 @@ struct ConversationScreen: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var didInitialRead = false
+    /// Set once the saved link previews have loaded or 300 ms have passed, so a chat opened right
+    /// after launch draws its cards from them instead of flashing placeholders (P22d).
+    @State private var waitedForLinkPreviews = false
     /// The chat whose stored draft has been put back, which is also what permits saving: an empty
     /// composer must not delete a stored draft in the frame before the restore runs.
     @State private var restoredDraftID: ConversationID?
@@ -210,6 +213,16 @@ struct ConversationScreen: View {
     ///
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
+    /// DMs and members fetch web previews as they draw; anyone else, or a chat whose record has not
+    /// loaded yet, waits for the chip.
+    private var webPreviewMode: WebLinkPreviewMode {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID),
+              conversationController.isMember(of: conversation)
+        else { return .tapToLoad }
+        return .automatic
+    }
+
     private var gate: ConversationGatePresentation {
         guard let conversationID,
               let conversation = conversationController.conversation(withID: conversationID)
@@ -374,7 +387,7 @@ struct ConversationScreen: View {
         pagesHistory: Bool
     ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
-            items: (coordinator?.items ?? []),
+            items: (waitedForLinkPreviews || sessionContainer.linkCardMemo.isLoaded) ? (coordinator?.items ?? []) : [],
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
@@ -386,6 +399,7 @@ struct ConversationScreen: View {
             ownProfile: ownProfile,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
+            webPreviewMode: webPreviewMode,
             onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
@@ -426,6 +440,8 @@ struct ConversationScreen: View {
             acceptsMedia: acceptsMedia,
             onCameraCapture: stageCapturedPhoto,
             onPhotosAdded: stageAddedPhotos,
+            onImagesDropped: stageProvidedImages,
+            onImagesPasted: stageProvidedImages,
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
@@ -464,6 +480,18 @@ struct ConversationScreen: View {
             loaded: preloader.loadedImage(for:),
             load: preloader.image(for:)
         ).handOff
+    }
+
+    /// Stages images dropped on or pasted into the composer, in order, as if picked from the
+    /// library. The bar refuses them up front when the chat takes no photos; the gate here covers a
+    /// chat that stopped taking them between the drop or paste and this call.
+    private func stageProvidedImages(_ providers: [NSItemProvider]) {
+        guard acceptsMedia else { return }
+        let composer = composer
+        let uploader = mediaUploader
+        Task {
+            await ChatPhotoStaging.stageProvided(providers, into: composer, uploader: uploader)
+        }
     }
 
     /// Stages a photo taken with the inline camera, returning the chip it became.
@@ -656,6 +684,10 @@ struct ConversationScreen: View {
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
     private func loads(_ content: some View) -> some View {
         content
+        .task {
+            await sessionContainer.linkCardMemo.awaitLoaded()
+            waitedForLinkPreviews = true
+        }
         .task {
             // The probe runs once per OS build; after that this is a cached read.
             guard let contents = try? await EmojiCatalog.shared.load() else { return }
@@ -1261,7 +1293,9 @@ struct ConversationScreen: View {
     private func openLink(_ url: URL) {
         ChatLinkOpener(
             openDeepLink: { container.deepLinkController.open($0) },
-            openExternally: { ExternalLinkOpener(session: session).open($0) }
+            openExternally: {
+                ExternalLinkOpener(session: session, trustedWebsites: container.trustedWebsites).open($0)
+            }
         ).open(url)
     }
 
@@ -1320,8 +1354,8 @@ struct ConversationScreen: View {
     /// path's job and the card has no part in it — unless the viewer can't chat here. A
     /// group card and a token card push onto this chat's own stack instead, so back returns to the
     /// conversation that held the link: the deep-link handler's `.chat` and `.token` routes both
-    /// replace the stack. The pushed group screen gates itself, offering the join or the buy, so the
-    /// card never joins from here.
+    /// replace the stack. A group card opens the group's profile, whose Open Chat leads to the chat;
+    /// the chat gates itself, offering the join or the buy, so the card never joins from here.
     private func openLinkCard(_ card: LinkCard, messageStableID: String) {
         switch card {
         case .cash(let cash):
@@ -1337,11 +1371,22 @@ struct ConversationScreen: View {
             }
             noteCashLinkTap(entropy: cash.entropy, messageStableID: messageStableID)
             openLink(card.url)
+        case .web:
+            // Through the same "You're Leaving Flipcash" path as a tap on the link text.
+            openLink(card.url)
         case .group(let group):
             // A link to the chat already on screen has nowhere to go.
             guard group.chatID != conversationID else { return }
             Analytics.groupInviteFollowed(source: .chatCard)
-            router.push(.tipConversation(group.chatID))
+            // The group's profile, seeded from the card's own lookup as a featured group seeds it;
+            // its Open Chat leads on to the chat. Before the lookup answers there is nothing to
+            // seed it with, so the tap opens the chat, which fetches the group by its id.
+            if let conversation = sessionContainer.linkCardFeed.groupConversation(for: card) {
+                conversationController.hold(conversation)
+                router.push(.chatProfile(group.chatID, origin: .link))
+            } else {
+                router.push(.tipConversation(group.chatID))
+            }
         case .token(let token):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
             router.push(.currencyInfo(token.mint))
@@ -1381,7 +1426,8 @@ struct ConversationScreen: View {
                 conversationID: id,
                 controller: conversationController,
                 session: session,
-                knownAuthors: sessionContainer.knownAuthors
+                knownAuthors: sessionContainer.knownAuthors,
+                prefetchWebCards: { [linkCardFeed = sessionContainer.linkCardFeed] in linkCardFeed.prefetch($0) }
             )
         }
     }

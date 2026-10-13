@@ -48,12 +48,20 @@ struct ChatLinkCardSplitTests {
         }
     }
 
-    private func rows(_ messages: [ConversationMessage]) -> [ChatMessage] {
+    /// The cash card when there is one, else the first link as a web card, as the classifier picks.
+    private func cashOrWebCard(_ links: [DetectedLink]) -> LinkCard? {
+        cashCard(links) ?? links.first.map { .web(LinkCard.Web(url: $0.url, range: $0.range)) }
+    }
+
+    private func rows(
+        _ messages: [ConversationMessage],
+        linkCard: @escaping ([DetectedLink]) -> LinkCard? = { _ in nil }
+    ) -> [ChatMessage] {
         ChatItem.from(
             messages,
             selfUserID: me,
             quotedMessage: { id in messages.first { $0.id == id } },
-            linkCard: cashCard
+            linkCard: { [self] links in linkCard(links) ?? cashCard(links) }
         )
         .compactMap { if case .message(let message) = $0 { message } else { nil } }
     }
@@ -85,6 +93,26 @@ struct ChatLinkCardSplitTests {
         let rows = rows([text(1, me, Self.cashLink)])
         #expect(rows.map(\.part?.kind) == [.card])
         #expect(rows[0].rendersAsBareLinkCard)
+    }
+
+    @Test("A web link stays in one text bubble that keeps the link and the card")
+    func webLinkIsOneTextRow() throws {
+        let body = "read this https://example.com/post today"
+        let rows = rows([text(1, me, body)], linkCard: cashOrWebCard)
+        #expect(rows.count == 1)
+        #expect(rows[0].part == nil)
+        #expect(self.body(rows[0]) == body)
+        #expect(!rows[0].rendersAsBareLinkCard)
+        let card = try #require(rows[0].linkPreview?.card)
+        guard case .web = card else { Issue.record("expected a web card, got \(card)"); return }
+    }
+
+    @Test("A link-only web message is a text bubble too, not a bare card")
+    func webLinkOnlyIsNotBare() {
+        let rows = rows([text(1, me, "https://example.com/post")], linkCard: cashOrWebCard)
+        #expect(rows.count == 1)
+        #expect(rows[0].part == nil)
+        #expect(!rows[0].rendersAsBareLinkCard)
     }
 
     @Test("A whitespace-only segment is dropped, not drawn as an empty bubble")

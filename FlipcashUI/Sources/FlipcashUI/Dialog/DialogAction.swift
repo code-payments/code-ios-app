@@ -15,12 +15,39 @@ public struct DialogAction {
     public let title: String
     public let options: Dialog.Options
     public let action: DialogActionHandler
+
+    /// Set for actions built with ``standard(_:checked:)``; takes the place of `action`.
+    private let checkedAction: ((Bool) -> Void)?
     
     init(kind: Kind, title: String, options: Dialog.Options = [], action: @escaping DialogActionHandler) {
         self.kind    = kind
         self.title   = title
         self.action  = action
         self.options = options
+        self.checkedAction = nil
+    }
+
+    private init(kind: Kind, title: String, checkedAction: @escaping (Bool) -> Void) {
+        self.kind    = kind
+        self.title   = title
+        self.action  = { checkedAction(false) }
+        self.options = []
+        self.checkedAction = checkedAction
+    }
+
+    /// Runs the action, passing `isChecked` (the dialog's checkbox state) to one built with
+    /// ``standard(_:checked:)``. Other actions ignore it.
+    public func perform(isChecked: Bool) {
+        if let checkedAction {
+            checkedAction(isChecked)
+        } else {
+            action()
+        }
+    }
+
+    /// A primary action that learns whether the dialog's checkbox was ticked when it was tapped.
+    public static func standard(_ title: String, checked action: @escaping (_ isChecked: Bool) -> Void) -> Self {
+        self.init(kind: .standard, title: title, checkedAction: action)
     }
     
     public static func standard(_ title: String, action: @escaping DialogActionHandler) -> Self {
