@@ -1084,6 +1084,24 @@ public final class ChatViewController: UICollectionViewController {
         if hasPositioned { onUserScrollBegan?() }
     }
 
+    // A scroll that no drag drives (status-bar tap, deceleration's end, a programmatic animation) never
+    // passes the drag check in `scrollViewDidScroll`, so each path that ends one re-reads the offset.
+    public override func scrollViewDidScrollToTop(_ scrollView: UIScrollView) {
+        wasAtBottom = isNearBottomByGeometry
+    }
+
+    public override func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        wasAtBottom = isNearBottomByGeometry
+    }
+
+    public override func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate { wasAtBottom = isNearBottomByGeometry }
+    }
+
+    public override func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        wasAtBottom = isNearBottomByGeometry
+    }
+
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
         onScroll?()
         scheduleReadReport()
