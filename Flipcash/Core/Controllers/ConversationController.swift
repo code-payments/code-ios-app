@@ -2189,6 +2189,9 @@ final class ConversationController {
                 scheduleGapCatchUp(conversationID)
             }
             store.advanceLastActivity(to: message.date, in: conversationID)
+            // The server confirmed the send, so everything up to it is seen; matches Android's
+            // `MessagingDelegate` advancing its own pointer to the sent id.
+            advanceReadPointer(to: message.id, in: conversationID)
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             // Outside the `ok` branch: the message reached the server either way, so a draft put
@@ -2518,6 +2521,7 @@ final class ConversationController {
                 scheduleGapCatchUp(conversationID)
             }
             store.advanceLastActivity(to: message.date, in: conversationID)
+            advanceReadPointer(to: message.id, in: conversationID)
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             Analytics.sentMessage(chatType: chatType)
