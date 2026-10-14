@@ -60,6 +60,10 @@ public final class ToastController {
     /// through ``View/toastClearance(_:)``.
     public var bottomClearance: CGFloat = 0
 
+    /// The toast's inset from each screen edge in place of the floating tab bar's, for a screen whose
+    /// pinned bar is narrower than the tab bar. Set through ``View/toastClearance(_:horizontalInset:)``.
+    public var horizontalInset: CGFloat?
+
     /// A controller with no toast showing.
     public init() {}
 
@@ -114,14 +118,16 @@ extension View {
 
 extension View {
     /// Raises `controller`'s toast above this view, measured, for as long as it is on screen. Put it on
-    /// a bar a screen pins to the bottom edge, so a toast doesn't draw over it.
-    public func toastClearance(_ controller: ToastController) -> some View {
-        modifier(ToastClearance(controller: controller))
+    /// a bar a screen pins to the bottom edge, so a toast doesn't draw over it. A `horizontalInset` sets
+    /// the toast's inset from each screen edge, to match the bar's width, for the same span.
+    public func toastClearance(_ controller: ToastController, horizontalInset: CGFloat? = nil) -> some View {
+        modifier(ToastClearance(controller: controller, horizontalInset: horizontalInset))
     }
 }
 
 private struct ToastClearance: ViewModifier {
     let controller: ToastController
+    let horizontalInset: CGFloat?
     @State private var height: CGFloat = 0
     @State private var isVisible = false
 
@@ -134,10 +140,12 @@ private struct ToastClearance: ViewModifier {
             .onAppear {
                 isVisible = true
                 controller.bottomClearance = height
+                controller.horizontalInset = horizontalInset
             }
             .onDisappear {
                 isVisible = false
                 controller.bottomClearance = 0
+                controller.horizontalInset = nil
             }
     }
 }
@@ -162,6 +170,9 @@ private struct ToastHost: View {
                     width: toast.width,
                     onDismiss: toast.action == nil ? nil : { controller.dismiss(toast.id) }
                 )
+                .transformEnvironment(\.floatingTabBar) { tabBar in
+                    if let inset = controller.horizontalInset { tabBar = FloatingTabBar(horizontalInset: inset) }
+                }
                 .allowsHitTesting(toast.action != nil)
                 .padding(.bottom, bottomPadding + controller.bottomClearance)
                 .floatingToastTransition()

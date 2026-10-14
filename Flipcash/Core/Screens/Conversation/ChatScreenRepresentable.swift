@@ -44,6 +44,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let linkCardSource: any LinkCardSource
     /// Whether web cards ask for their pages as they draw (DMs, members) or wait for the chip.
     let webPreviewMode: WebLinkPreviewMode
+    /// The "Update Flipcash" capsule an `.updateApp` bubble draws, or nil while no newer version is known.
+    let updateAction: ChatBubbleAction?
+    /// The app's toast, raised over the bar and narrowed to its width while the chat is open. Passed in:
+    /// the bar's hosting controller doesn't inherit the environment.
+    let toasts: ToastController
     /// Fired when the user taps the "Encrypted" marker above a DM's first encrypted message.
     let onEncryptionMarkerTap: () -> Void
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
@@ -165,6 +170,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
         screen.webPreviewMode = webPreviewMode
+        screen.updateAction = updateAction
         screen.onMediaTap = onMediaTap
         screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
         screen.onImagesPasted = onImagesPasted
@@ -224,6 +230,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
         screen.webPreviewMode = webPreviewMode
+        screen.updateAction = updateAction
         screen.onMediaTap = onMediaTap
         screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
         screen.onImagesPasted = onImagesPasted
@@ -347,6 +354,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 }
             )
             .environment(conversationController)
+            .toastClearance(toasts, horizontalInset: BarMetrics.compactInset)
             .modifier(
                 MeasuredBarHeight { height, accessories in
                     // After the update that measured it, not inside it. Resized inside an animated

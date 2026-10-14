@@ -231,6 +231,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.webPreviewMode = newValue }
     }
 
+    /// ``ChatViewController/updateAction``.
+    public var updateAction: ChatBubbleAction? {
+        get { transcript.updateAction }
+        set { transcript.updateAction = newValue }
+    }
+
     /// Where a photo row gets its download URL — see ``ChatViewController/mediaURLResolver``.
     public var mediaURLResolver: ChatMediaURLResolver? {
         get { transcript.mediaURLResolver }
