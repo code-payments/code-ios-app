@@ -773,7 +773,8 @@ public final class ChatScreenViewController: UIViewController {
         shield.onTap = onTap
         shield.frame = transcript.view.frame
         shield.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        view.insertSubview(shield, aboveSubview: transcript.view)
+        // Above the jump button, so a tap while the attach keyboard is up dismisses it rather than jumping.
+        view.insertSubview(shield, aboveSubview: jumpButton)
         transcriptShield = shield
     }
 
@@ -934,12 +935,13 @@ public final class ChatScreenViewController: UIViewController {
     private static let jumpHiddenScale: CGFloat = 0.8
 
     /// Floats the jump button over the transcript, above the composer's clip rather than inside it
-    /// (the clip toggles `clipsToBounds`), with its haze behind.
+    /// (the clip toggles `clipsToBounds`), with its haze behind. Under the blur over a withheld
+    /// transcript, so the button doesn't float sharp over text the reader can't read.
     private func installJumpButton() {
         jumpHaze.translatesAutoresizingMaskIntoConstraints = false
         jumpButton.translatesAutoresizingMaskIntoConstraints = false
-        view.insertSubview(jumpHaze, belowSubview: barClip)
-        view.insertSubview(jumpButton, belowSubview: barClip)
+        view.insertSubview(jumpHaze, belowSubview: transcriptBlur.view)
+        view.insertSubview(jumpButton, belowSubview: transcriptBlur.view)
         NSLayoutConstraint.activate([
             jumpHaze.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             jumpHaze.trailingAnchor.constraint(equalTo: view.trailingAnchor),
