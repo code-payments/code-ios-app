@@ -68,7 +68,7 @@ struct ConversationMediaSendTests {
         controller.messages(for: conversationID).filter {
             switch $0.content {
             case .media:                                    $0.clientMessageID != nil && $0.id == .unassigned
-            case .text, .cash, .deleted, .encrypted, .widget: false
+            case .text, .cash, .deleted, .encrypted, .widget, .system: false
             }
         }
     }
@@ -76,7 +76,7 @@ struct ConversationMediaSendTests {
     private func attachment(of message: ConversationMessage) -> MediaAttachment? {
         switch message.content {
         case .media(let attachments, _):                attachments.first
-        case .text, .cash, .deleted, .encrypted, .widget: nil
+        case .text, .cash, .deleted, .encrypted, .widget, .system: nil
         }
     }
 
@@ -373,7 +373,7 @@ private extension ConversationMessage.Content {
     var mediaCaption: String? {
         switch self {
         case .media(_, let caption):                    caption
-        case .text, .cash, .deleted, .encrypted, .widget: nil
+        case .text, .cash, .deleted, .encrypted, .widget, .system: nil
         }
     }
 }

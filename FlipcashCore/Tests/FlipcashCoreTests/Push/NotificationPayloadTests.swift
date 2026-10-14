@@ -238,7 +238,7 @@ struct NotificationPayloadTests {
     func chatMessageNilForUnrepresentableContent() throws {
         let embedded = Flipcash_Messaging_V1_Message.with {
             $0.messageID = .with { $0.value = 42 }
-            $0.content = [.with { $0.system = .with { _ in } }]
+            $0.content = []
         }
         #expect(NotificationPayload.chatMessage(try Self.chatPush(message: embedded)) == nil)
     }

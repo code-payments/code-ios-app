@@ -1677,6 +1677,10 @@ final class ConversationController {
         case .deleted:
             return nil
 
+        case .system(let text):
+            // Server-authored, so no sender prefix; a blank one previews as nothing, like an empty body.
+            return text.isEmpty ? nil : text
+
         case .widget(.shareProfile):
             // The server sends it; no user is the sender to name.
             return "Shared a profile"
@@ -2124,7 +2128,7 @@ final class ConversationController {
             _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
         case .media(_, let caption):
             await retryMedia(clientMessageID: clientMessageID, caption: caption, repliedTo: pending.repliedTo, in: conversationID)
-        case .encrypted, .cash, .deleted, .widget:
+        case .encrypted, .cash, .deleted, .widget, .system:
             if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
                 logger.error("Cannot retry a send this client has no path to re-send", metadata: [
                     "conversationID": "\(conversationID)",
@@ -2400,7 +2404,7 @@ final class ConversationController {
             switch message.content {
             case .media(let attachments, _):
                 return attachments.contains { $0.blobID == blobID }
-            case .text, .cash, .deleted, .encrypted, .widget:
+            case .text, .cash, .deleted, .encrypted, .widget, .system:
                 return false
             }
         }
