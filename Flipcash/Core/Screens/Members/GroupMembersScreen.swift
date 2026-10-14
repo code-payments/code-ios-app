@@ -18,8 +18,12 @@ struct GroupMembersScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
+    private var conversation: Conversation? {
+        conversationController.conversation(withID: conversationID)
+    }
+
     private var creator: UserID? {
-        conversationController.conversation(withID: conversationID)?.creator
+        conversation?.creator
     }
 
     private var members: [(portrait: GroupPortrait, joinedAt: Date?)] {
@@ -31,6 +35,12 @@ struct GroupMembersScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             List {
+                Text(PrivateGroupCopy.memberCount(conversation?.rosterSummary.memberCount ?? UInt64(members.count)))
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textSecondary)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 4, trailing: 20))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 ForEach(members, id: \.portrait.userID) { entry in
                     row(entry.portrait, joinedAt: entry.joinedAt)
                         .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
@@ -66,8 +76,11 @@ struct GroupMembersScreen: View {
                         .foregroundStyle(Color.textMain)
                     if portrait.isHost {
                         Text("Host")
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
+                            .font(.appTextCaption)
+                            .foregroundStyle(Color.textMain)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
                     } else if let joinedAt {
                         TimelineView(.everyMinute) { context in
                             Text(PrivateGroupCopy.joinedAge(joinedAt: joinedAt, now: context.date))
