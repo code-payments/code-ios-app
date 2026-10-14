@@ -1,0 +1,202 @@
+//
+//  MessageLinkLookup.swift
+//  Flipcash
+//
+
+import Foundation
+import FlipcashCore
+
+/// The one message read a message card needs, under a view mode. Decrypts a sealed message, so a
+/// member of a private group or a DM sees the same text the transcript does.
+nonisolated protocol MessageLinkReading: Sendable {
+    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, viewMode: ConversationViewMode) async throws -> ConversationMessage?
+}
+
+extension EncryptedChatClient: MessageLinkReading {}
+
+/// What a message card needs to know about the viewer's own standing, read on the main actor from
+/// the conversation feed.
+nonisolated struct MessageLinkViewer: Sendable {
+    /// The chat as the feed holds it, or nil when the viewer's feed does not.
+    let conversation: @Sendable (ConversationID) async -> Conversation?
+    /// Whether the viewer has joined `conversation`.
+    let isMember: @Sendable (Conversation) async -> Bool
+    /// How the viewer's own transcript names `conversation`.
+    let title: @Sendable (Conversation) async -> String
+    /// The viewer, so their own messages are authored "You".
+    let userID: UserID
+
+    /// The app's viewer, answered by the conversation feed.
+    @MainActor
+    init(controller: ConversationController, userID: UserID) {
+        self.conversation = { [weak controller] in await controller?.conversation(withID: $0) }
+        self.isMember = { [weak controller] in await controller?.isMember(of: $0) ?? false }
+        self.title = { [weak controller] in await controller?.displayName(for: $0) ?? "Group Chat" }
+        self.userID = userID
+    }
+
+    init(
+        conversation: @escaping @Sendable (ConversationID) async -> Conversation?,
+        isMember: @escaping @Sendable (Conversation) async -> Bool,
+        title: @escaping @Sendable (Conversation) async -> String,
+        userID: UserID
+    ) {
+        self.conversation = conversation
+        self.isMember = isMember
+        self.title = title
+        self.userID = userID
+    }
+}
+
+extension LinkCardResolver {
+
+    /// What a message card shows this viewer. Public groups read the message under
+    /// `.fullOrRedacted`, so the server applies the group's listener rules; a private group or a DM
+    /// is only readable by a member, and a non-member gets the chat's public preview or its kind.
+    ///
+    /// Redacted text never enters the model: a redacted message keeps only the chat's title and
+    /// requirement, and the view draws a fixed filler under the blur. A card never joins, requests
+    /// or buys; its buttons only hand the tap to the app.
+    static func messageLookup(
+        chats: any GroupChatReading,
+        messages: any MessageLinkReading,
+        mints: any MintMetadataReading,
+        owner: KeyPair,
+        viewer context: MessageLinkViewer
+    ) -> @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State {
+        { card in
+            let chatID = card.chatID
+
+            let conversation: Conversation
+            if let held = await context.conversation(chatID) {
+                conversation = held
+            } else {
+                do {
+                    conversation = try await chats.getChat(owner: owner, conversationID: chatID, viewMode: .redacted)
+                } catch ErrorGetChat.notFound {
+                    return .unavailable
+                } catch ErrorGetChat.denied {
+                    // The chat exists and is not the viewer's: all a stranger learns is its kind.
+                    return .lockedDirect
+                }
+            }
+
+            func read(_ mode: ConversationViewMode) async throws -> ConversationMessage? {
+                try await messages.getMessage(owner: owner, conversationID: chatID, messageID: card.messageID, viewMode: mode)
+            }
+
+            switch conversation.type {
+            case .contactDm, .tipDm:
+                let message: ConversationMessage?
+                do { message = try await read(.full) } catch ErrorGetMessage.denied { return .lockedDirect }
+                guard let message else { return .unavailable }
+                return await memberState(message, in: conversation, context: context) { .resolved($0) }
+
+            case .group where conversation.isPrivate:
+                guard await context.isMember(conversation) else { return await lockedGroup(conversation) }
+                let message: ConversationMessage?
+                do { message = try await read(.full) } catch ErrorGetMessage.denied { return await lockedGroup(conversation) }
+                guard let message else { return .unavailable }
+                return await memberState(message, in: conversation, context: context) { .resolved($0) }
+
+            case .group:
+                let isMember = await context.isMember(conversation)
+                let message: ConversationMessage?
+                do { message = try await read(.fullOrRedacted) } catch ErrorGetMessage.denied { return .unavailable }
+                guard let message else { return .unavailable }
+
+                if isMember, !message.redacted {
+                    return await memberState(message, in: conversation, context: context) { .resolved($0) }
+                }
+                // Cash is never redacted, so a non-member reads it whatever their balance.
+                if case .cash = message.content {
+                    return await memberState(message, in: conversation, context: context) { .resolved($0) }
+                }
+                if message.redacted {
+                    let mint = await headlineMint(of: conversation)
+                    var mintName: String?
+                    if let mint { mintName = try? await mints.fetchMint(mint: mint).name }
+                    return await redactedState(conversation, mintName: mintName)
+                }
+                return await memberState(message, in: conversation, context: context) { .gatedReadable($0) }
+            }
+        }
+    }
+
+    @MainActor
+    private static func headlineMint(of conversation: Conversation) -> PublicKey? {
+        guard let mint = headline(for: conversation.rules?.listener ?? [])?.mint, mint != .usdf else { return nil }
+        return mint
+    }
+
+    @MainActor
+    private static func redactedState(_ conversation: Conversation, mintName: String?) -> LinkCard.Message.State {
+        .gatedRedacted(.init(
+            chatTitle: conversation.groupLinkTitle,
+            requirement: groupRequirementLine(headline(for: conversation.rules?.listener ?? []), mintName: mintName)
+        ))
+    }
+
+    @MainActor
+    private static func lockedGroup(_ conversation: Conversation) -> LinkCard.Message.State {
+        let host = conversation.creator.flatMap { creator in
+            conversation.members.first { $0.userID == creator }?.displayName
+        }
+        return .lockedGroup(.init(
+            title: conversation.groupLinkTitle,
+            memberCount: conversation.rosterSummary.peopleCount,
+            hostName: (host?.isEmpty ?? true) ? nil : host,
+            avatarID: conversation.id.description,
+            imageData: nil,
+            blurHash: conversation.picture?.thumbnailBlurhash
+        ))
+    }
+
+    /// The card for a message the viewer may read in full: cash as an amount, text and photo
+    /// captions as an excerpt, and anything else (a tombstone, a widget, ciphertext that would not
+    /// open) as unavailable.
+    private static func memberState(
+        _ message: ConversationMessage,
+        in conversation: Conversation,
+        context: MessageLinkViewer,
+        wrapping: (LinkCard.Message.Resolved) -> LinkCard.Message.State
+    ) async -> LinkCard.Message.State {
+        let title = await context.title(conversation)
+        let author: String = {
+            if let sender = message.senderID, sender == context.userID { return "You" }
+            let name = conversation.members.first { $0.userID == message.senderID }?.displayName
+            return (name?.isEmpty ?? true) ? "Someone" : name!
+        }()
+
+        switch message.content {
+        case .cash(let amount):
+            let verb: LinkCard.Message.Cash.Verb = message.cashAction == .tipped ? .tipped : .sent
+            return .cash(.init(chatTitle: title, authorName: author, amount: amount.nativeAmount.formatted(), verb: verb))
+
+        case .text(let text):
+            return wrapping(resolved(message, title: title, author: author, excerpt: text))
+
+        case .media(_, let caption):
+            let excerpt = (caption?.isEmpty ?? true) ? "Photo" : caption!
+            return wrapping(resolved(message, title: title, author: author, excerpt: excerpt))
+
+        case .deleted, .encrypted, .widget:
+            return .unavailable
+        }
+    }
+
+    private static func resolved(_ message: ConversationMessage, title: String, author: String, excerpt: String) -> LinkCard.Message.Resolved {
+        let reactions = message.reactionState?.confirmed.values.reduce(0) { $0 + Int($1.count) } ?? 0
+        let time = Calendar.current.isDateInToday(message.date)
+            ? message.date.formatted(date: .omitted, time: .shortened)
+            : message.date.formatted(date: .abbreviated, time: .omitted)
+        return .init(
+            chatTitle: title,
+            authorName: author,
+            time: time,
+            excerpt: excerpt,
+            reactionCount: reactions,
+            avatarID: message.senderID?.uuidString ?? title
+        )
+    }
+}

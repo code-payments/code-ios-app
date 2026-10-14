@@ -37,11 +37,12 @@ final class LinkCardView: UIView {
     private let cashView = LinkCashCardView()
     private let tokenView = LinkTokenCardView()
     private let groupView = LinkGroupCardView()
+    private let messageView = LinkMessageCardView()
     private let userView = LinkUserCardView()
     let webView = LinkWebCardView()
 
     /// A card whose content sets the slot's height.
-    private enum Sized { case group, user, web }
+    private enum Sized { case group, message, user, web }
 
     /// Height at exactly the proportions, for a cash or token card.
     private var fixedHeight: NSLayoutConstraint!
@@ -51,6 +52,8 @@ final class LinkCardView: UIView {
     /// hidden view still takes part in layout, and the group content's own height would otherwise
     /// hold every other kind of card open past its proportions.
     private var groupBottom: NSLayoutConstraint!
+    /// The same, for the message card.
+    private var messageBottom: NSLayoutConstraint!
     /// The same, for the person card.
     private var userBottom: NSLayoutConstraint!
     /// The same, for the web card, which takes no height while it draws nothing.
@@ -92,6 +95,7 @@ final class LinkCardView: UIView {
     func hasButton(at point: CGPoint) -> Bool {
         if !cashView.isHidden, cashView.hasButton(at: convert(point, to: cashView)) { return true }
         if !groupView.isHidden, groupView.hasButton(at: convert(point, to: groupView)) { return true }
+        if !messageView.isHidden, messageView.hasButton(at: convert(point, to: messageView)) { return true }
         if !webView.isHidden, webView.hasButton(at: convert(point, to: webView)) { return true }
         return false
     }
@@ -104,6 +108,7 @@ final class LinkCardView: UIView {
             cashView.cornerRadii = cornerRadii
             tokenView.cornerRadii = cornerRadii
             groupView.cornerRadii = cornerRadii
+            messageView.cornerRadii = cornerRadii
             userView.cornerRadii = cornerRadii
             webView.cornerRadii = cornerRadii
         }
@@ -143,11 +148,13 @@ final class LinkCardView: UIView {
 
         groupView.onStart = { [weak self] in self?.onCardButton?() }
         groupView.onHeightChange = { [weak self] in self?.onHeightChange?() }
+        messageView.onAction = { [weak self] in self?.onCardButton?() }
+        messageView.onHeightChange = { [weak self] in self?.onHeightChange?() }
         userView.onTap = { [weak self] in self?.onCardButton?() }
         userView.onHeightChange = { [weak self] in self?.onHeightChange?() }
         webView.onTap = { [weak self] in self?.onCardButton?() }
         webView.onImageChange = { [weak self] in self?.onHeightChange?() }
-        for card in [groupView, userView, webView] as [UIView] {
+        for card in [groupView, messageView, userView, webView] as [UIView] {
             card.translatesAutoresizingMaskIntoConstraints = false
             card.isHidden = true
             addSubview(card)
@@ -158,6 +165,7 @@ final class LinkCardView: UIView {
             ])
         }
         groupBottom = groupView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        messageBottom = messageView.bottomAnchor.constraint(equalTo: bottomAnchor)
         userBottom = userView.bottomAnchor.constraint(equalTo: bottomAnchor)
         webBottom = webView.bottomAnchor.constraint(equalTo: bottomAnchor)
 
@@ -173,10 +181,12 @@ final class LinkCardView: UIView {
     /// height over a minimum of a group card, and the content-set height of a person card.
     private func setSized(_ sized: Sized?) {
         groupView.isHidden = sized != .group
+        messageView.isHidden = sized != .message
         userView.isHidden = sized != .user
         webView.isHidden = sized != .web
         // Deactivated before activated, so the slot never holds two heights at once.
         if sized != .group { groupBottom.isActive = false }
+        if sized != .message { messageBottom.isActive = false }
         if sized != .user { userBottom.isActive = false }
         if sized != .web { webBottom.isActive = false }
         switch sized {
@@ -186,11 +196,12 @@ final class LinkCardView: UIView {
         case .group:
             fixedHeight.isActive = false
             minimumHeight.isActive = true
-        case .user, .web:
+        case .message, .user, .web:
             fixedHeight.isActive = false
             minimumHeight.isActive = false
         }
         if sized == .group { groupBottom.isActive = true }
+        if sized == .message { messageBottom.isActive = true }
         if sized == .user { userBottom.isActive = true }
         if sized == .web { webBottom.isActive = true }
     }
@@ -201,6 +212,7 @@ final class LinkCardView: UIView {
         cashView.prepareForReuse()
         tokenView.prepareForReuse()
         groupView.prepareForReuse()
+        messageView.prepareForReuse()
         userView.prepareForReuse()
         webView.prepareForReuse()
         setSized(nil)
@@ -288,6 +300,12 @@ final class LinkCardView: UIView {
             setSized(.group)
             return groupView.configure(with: Self.groupState(state), loading: loading)
 
+        case .message:
+            cashView.isHidden = true
+            tokenView.isHidden = true
+            setSized(.message)
+            return messageView.configure(with: Self.messageState(state), loading: loading)
+
         case .user(let user):
             cashView.isHidden = true
             tokenView.isHidden = true
@@ -331,7 +349,7 @@ final class LinkCardView: UIView {
             return .preview(page)
         case .web(.none):
             return .nothing
-        case .cash, .token, .group, .user, nil:
+        case .cash, .token, .group, .message, .user, nil:
             if let host { return .chip(host: host) }
             if let placeholder { return .placeholder(host: placeholder.host, url: placeholder.url) }
             return .nothing
@@ -341,14 +359,14 @@ final class LinkCardView: UIView {
     private static func cashState(_ state: LinkCard.State?) -> LinkCard.Cash.State {
         switch state {
         case .cash(let cash):       cash
-        case .token, .group, .user, .web, nil: .unresolved
+        case .token, .group, .message, .user, .web, nil: .unresolved
         }
     }
 
     private static func tokenState(_ state: LinkCard.State?) -> LinkCard.Token.State {
         switch state {
         case .token(let token):     token
-        case .cash, .group, .user, .web, nil: .unresolved
+        case .cash, .group, .message, .user, .web, nil: .unresolved
         }
     }
 
@@ -356,7 +374,15 @@ final class LinkCardView: UIView {
     private static func groupState(_ state: LinkCard.State?) -> LinkCard.Group.State? {
         switch state {
         case .group(let group):     group
-        case .cash, .token, .user, .web, nil: nil
+        case .cash, .token, .message, .user, .web, nil: nil
+        }
+    }
+
+    /// Nil while nothing is known, which the message card draws as its skeleton.
+    private static func messageState(_ state: LinkCard.State?) -> LinkCard.Message.State? {
+        switch state {
+        case .message(let message):  message
+        case .cash, .token, .group, .user, .web, nil: nil
         }
     }
 
@@ -364,7 +390,7 @@ final class LinkCardView: UIView {
     private static func userState(_ state: LinkCard.State?) -> LinkCard.User.State? {
         switch state {
         case .user(let user):               user
-        case .cash, .token, .group, .web, nil: nil
+        case .cash, .token, .group, .message, .web, nil: nil
         }
     }
 }

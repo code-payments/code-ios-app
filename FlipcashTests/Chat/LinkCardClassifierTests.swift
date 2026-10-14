@@ -97,6 +97,32 @@ import FlipcashCore
         #expect(group.range == link.range)
     }
 
+    @Test func aMessageLinkBecomesAMessageCard() throws {
+        let text = "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162/m/42"
+        let url = try #require(URL(string: text))
+        let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
+
+        let card = try #require(LinkCardClassifier().firstCard(in: [link]))
+        guard case .message(let message) = card else {
+            Issue.record("expected a message card, got \(card.kindName)")
+            return
+        }
+        #expect(message.chatID == ConversationID(uuidString: "6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162"))
+        #expect(message.messageID == MessageID(value: 42))
+        #expect(message.url == url)
+        #expect(message.range == link.range)
+    }
+
+    @Test func aMessageCardSurvivesACodableRoundTrip() throws {
+        let text = "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162/m/42"
+        let url = try #require(URL(string: text))
+        let link = DetectedLink(range: NSRange(location: 3, length: (text as NSString).length), url: url)
+        let card = try #require(LinkCardClassifier().firstCard(in: [link]))
+
+        let decoded = try JSONDecoder().decode(LinkCard.self, from: JSONEncoder().encode(card))
+        #expect(decoded == card)
+    }
+
     /// The Send Cash sheet over a chat opens a payment, not a group, so it stays a plain link.
     @Test func aChatSendCashLinkStaysALink() throws {
         let text = "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162/send"
@@ -245,6 +271,7 @@ private extension LinkCard {
         case .cash: "cash"
         case .token: "token"
         case .group: "group"
+        case .message: "message"
         case .user: "user"
         case .web: "web"
         }

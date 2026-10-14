@@ -52,6 +52,10 @@ final class LinkCardFeed: LinkCardSource {
     /// many rows show it.
     private var observedPictures: Set<String> = []
 
+    /// What each message link last answered, in memory only. Never the memo: that persists to the
+    /// database, and a card can hold a decrypted excerpt of an end-to-end encrypted chat.
+    private var messageStates: [String: LinkCard.State] = [:]
+
     /// Who is listening to each key. A link quoted by two rows has two continuations and one query.
     private var listeners: [String: [UUID: AsyncStream<LinkCard.State>.Continuation]] = [:]
 
@@ -113,6 +117,8 @@ final class LinkCardFeed: LinkCardSource {
             fetched[card.resolutionKey].map(present)
         case .web:
             memo.web(card.resolutionKey).map(LinkCard.State.web)
+        case .message:
+            messageStates[card.resolutionKey]
         }
     }
 
@@ -171,6 +177,13 @@ final class LinkCardFeed: LinkCardSource {
             Task { [resolver] in
                 let facts = await resolver.user(user.identity)
                 deliverFetched(facts.map(Fetched.user), missing: .user(.notFound), for: key)
+            }
+        case .message(let message):
+            Task { [resolver] in
+                let state = LinkCard.State.message(await resolver.message(message))
+                // A lookup that came back with nothing is forgotten, so the next appearance asks again.
+                if state.isResolved { messageStates[key] = state }
+                listeners[key]?.values.forEach { $0.yield(state) }
             }
         case .web(let web):
             Task { [resolver, memo] in

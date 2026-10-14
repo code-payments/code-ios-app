@@ -630,13 +630,6 @@ final class SessionContainer {
 
         let linkCardMemo = LinkCardMemo(store: database, images: .shared)
         self.linkCardMemo = linkCardMemo
-        self.linkCardResolver = LinkCardResolver(
-            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
-            mintLookup: LinkCardResolver.mintLookup(reader: client),
-            groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
-            userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID),
-            webLookup: { [linkMetadataSource, linkCardMemo] in try await linkMetadataSource.metadata(for: $0, homes: linkCardMemo) }
-        )
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {
                 throw MissingCoinbaseApiKey()
@@ -772,6 +765,21 @@ final class SessionContainer {
         conversationController.reactions.recents = recentReactions
         conversationController.start()
         self.conversationController = conversationController
+
+        self.linkCardResolver = LinkCardResolver(
+            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
+            mintLookup: LinkCardResolver.mintLookup(reader: client),
+            groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
+            userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID),
+            webLookup: { [linkMetadataSource, linkCardMemo] in try await linkMetadataSource.metadata(for: $0, homes: linkCardMemo) },
+            messageLookup: LinkCardResolver.messageLookup(
+                chats: flipClient,
+                messages: chatClient,
+                mints: client,
+                owner: owner,
+                viewer: MessageLinkViewer(controller: conversationController, userID: session.userID)
+            )
+        )
 
         let blocklistController = BlocklistController(
             fetching: FlipBlocklisting(flipClient: flipClient, owner: owner),

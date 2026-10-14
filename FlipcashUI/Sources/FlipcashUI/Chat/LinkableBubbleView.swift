@@ -266,7 +266,7 @@ public final class LinkableBubbleView: UIView {
         switch card {
         // The same path as a tap on the link in the text, warning included.
         case .web(let web): onOpenURL?(web.url)
-        case .cash, .token, .group, .user: card.map { onLinkCardTap?($0) }
+        case .cash, .token, .group, .message, .user: card.map { onLinkCardTap?($0) }
         case nil: break
         }
     }
@@ -363,7 +363,7 @@ public final class LinkableBubbleView: UIView {
             // The web card takes its own taps: the preview opens the page.
             cardTap.isEnabled = switch card {
             case .group, .user, .web: false
-            case .cash, .token: true
+            case .cash, .token, .message: true
             }
             if case .web = card {} else { cardView.configure(with: card, source: linkCardSource) }
             NSLayoutConstraint.deactivate(cardCollapse)

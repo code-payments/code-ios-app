@@ -384,7 +384,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     }
     private var _messagesDelay: Duration = .zero
 
-    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
+    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, viewMode: ConversationViewMode) async throws -> ConversationMessage? {
         lock.withLock { _singleMessageQueries.append(messageID) }
         if singleMessageDelay > .zero { try? await Task.sleep(for: singleMessageDelay) }
         if let error = singleMessageError { throw error }
