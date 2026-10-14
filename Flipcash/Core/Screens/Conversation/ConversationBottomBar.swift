@@ -250,6 +250,11 @@ enum BarMetrics {
     static func trailingControlCentreInset(isCompact: Bool) -> CGFloat {
         controlInset(isCompact: isCompact) + contentHeight / 2
     }
+
+    /// How far a toast comes back down into the compact bar's measured height, so it rests 8pt above
+    /// the controls: the bar's top margin, its drop into the safe area, and the 4pt the toast host's
+    /// 12pt padding exceeds that gap.
+    static let toastOverlap: CGFloat = contentPadding + compactDrop + 4
 }
 
 /// What stands outside the message field, beside it.

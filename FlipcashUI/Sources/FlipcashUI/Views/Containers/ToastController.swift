@@ -119,23 +119,30 @@ extension View {
 extension View {
     /// Raises `controller`'s toast above this view, measured, for as long as it is on screen. Put it on
     /// a bar a screen pins to the bottom edge, so a toast doesn't draw over it. A `horizontalInset` sets
-    /// the toast's inset from each screen edge, to match the bar's width, for the same span.
-    public func toastClearance(_ controller: ToastController, horizontalInset: CGFloat? = nil) -> some View {
-        modifier(ToastClearance(controller: controller, horizontalInset: horizontalInset))
+    /// the toast's inset from each screen edge, to match the bar's width, for the same span. An `overlap`
+    /// lowers the toast that far back into the bar's measured height, for a bar with clear margin above
+    /// its controls.
+    public func toastClearance(
+        _ controller: ToastController,
+        horizontalInset: CGFloat? = nil,
+        overlap: CGFloat = 0
+    ) -> some View {
+        modifier(ToastClearance(controller: controller, horizontalInset: horizontalInset, overlap: overlap))
     }
 }
 
 private struct ToastClearance: ViewModifier {
     let controller: ToastController
     let horizontalInset: CGFloat?
+    let overlap: CGFloat
     @State private var height: CGFloat = 0
     @State private var isVisible = false
 
     func body(content: Content) -> some View {
         content
             .onGeometryChange(for: CGFloat.self, of: \.size.height) { newValue in
-                height = newValue
-                if isVisible { controller.bottomClearance = newValue }
+                height = max(0, newValue - overlap)
+                if isVisible { controller.bottomClearance = height }
             }
             .onAppear {
                 isVisible = true

@@ -354,7 +354,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 }
             )
             .environment(conversationController)
-            .toastClearance(toasts, horizontalInset: BarMetrics.compactInset)
+            .toastClearance(toasts, horizontalInset: BarMetrics.compactInset, overlap: BarMetrics.toastOverlap)
             .modifier(
                 MeasuredBarHeight { height, accessories in
                     // After the update that measured it, not inside it. Resized inside an animated
