@@ -100,6 +100,10 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public let content: Content
     /// How a `.cash` message was delivered (sent vs. tipped); `nil` for non-cash content.
     public let cashAction: CashAction?
+    /// The member a group-chat `.cash` payment was sent to; `nil` for DM cash (the counterpart is
+    /// implicit) and for non-cash content. Set only on messages built from the wire proto; it is
+    /// not persisted, so a message read back from the local store has `nil`.
+    public let cashReceiverID: UserID?
     public let date: Date
     public let unreadSeq: UInt64
     /// The event-log version at which this message reached its current state,
@@ -143,6 +147,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         senderID: UserID?,
         content: Content,
         cashAction: CashAction? = nil,
+        cashReceiverID: UserID? = nil,
         date: Date,
         unreadSeq: UInt64,
         eventSequence: UInt64 = 0,
@@ -159,6 +164,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.senderID = senderID
         self.content = content
         self.cashAction = cashAction
+        self.cashReceiverID = cashReceiverID
         self.date = date
         self.unreadSeq = unreadSeq
         self.eventSequence = eventSequence
@@ -200,6 +206,7 @@ extension ConversationMessage {
             senderID: senderID,
             content: content,
             cashAction: cashAction,
+            cashReceiverID: cashReceiverID,
             date: date,
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
@@ -260,6 +267,7 @@ extension ConversationMessage {
             senderID: senderID,
             content: content,
             cashAction: cashAction,
+            cashReceiverID: cashReceiverID,
             date: date,
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
@@ -308,6 +316,7 @@ extension ConversationMessage {
     /// and can't leave the pre-delete content on screen.
     public init?(_ proto: Flipcash_Messaging_V1_Message) {
         let repliedTo: MessageID?
+        var cashReceiverID: UserID?
         switch proto.content.first?.type {
         case .text(let textContent):
             self.content = .text(textContent.text)
@@ -320,6 +329,7 @@ extension ConversationMessage {
             self.content = .cash(amount)
             // Unrecognized verbs fall back to `.sent`, per the proto contract.
             self.cashAction = cashContent.verb == .tipped ? .tipped : .sent
+            cashReceiverID = cashContent.hasReceiver ? try? UUID(data: cashContent.receiver.value) : nil
             repliedTo = nil
         case .deleted(let deletedContent):
             self.content = .deleted(
@@ -363,7 +373,8 @@ extension ConversationMessage {
             repliedTo = nil
         case .widget(let widgetContent):
             // Kept even when the variant is unknown: a widget has no fallback text, so the contract
-            // is that a client which can't draw one shows the message as unsupported.
+            // is that a client which can't draw one shows the message as unsupported. A poll widget
+            // is such a variant until the app can draw one.
             self.content = .widget(widgetContent.shareProfile.map(Widget.shareProfile) ?? .unrecognized)
             self.cashAction = nil
             repliedTo = nil
@@ -376,6 +387,7 @@ extension ConversationMessage {
         }
 
         self.id = MessageID(proto.messageID)
+        self.cashReceiverID = cashReceiverID
         self.senderID = try? UUID(data: proto.senderID.value)
         self.date = proto.hasTs ? proto.ts.date : .now
         self.unreadSeq = proto.unreadSeq
@@ -440,7 +452,8 @@ extension ConversationMessage.Content {
     }
 
     /// The `.system` content `proto` describes. Blank text becomes `""` and is kept, not dropped, so the
-    /// message still anchors the read pointer and the unread divider.
+    /// message still anchors the read pointer and the unread divider. Only `fallback_text` is read, so
+    /// every `type` variant (`UserJoined` today) and an unset one render as their fallback text.
     init(_ proto: Flipcash_Messaging_V1_SystemContent) {
         let text = proto.fallbackText
         self = .system(fallbackText: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : text)
