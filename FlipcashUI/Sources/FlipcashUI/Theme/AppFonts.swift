@@ -63,7 +63,7 @@ extension UIFont {
     public static let appTextMessage:   UIFont = .default(size: 16, weight: .medium)
     public static let appTextBody:      UIFont = .default(size: 16, weight: .regular)
     public static let appTextHeading:   UIFont = .default(size: 12, weight: .bold)
-    public static let appTextCaption:   UIFont = .default(size: 12, weight: .bold)
+    public static let appTextCaption:   UIFont = .default(size: 12, weight: .medium)
     
     public static let appTextAccessKey: UIFont = .default(size: 9, weight: .bold)
 }
