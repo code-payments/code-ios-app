@@ -59,6 +59,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         /// redacted copy keeps its dimensions and blurhash and stays `.media`, with
         /// ``ConversationMessage/redacted`` saying its bytes may not be fetched.
         case media([MediaAttachment], caption: String?)
+        /// A server-authored notice (for example "Alex joined the group"), drawn as a transcript row
+        /// rather than a bubble. Blank text is stored as `""` and draws nothing.
+        case system(fallbackText: String)
     }
 
     /// The widget a `.widget` message carries. Sent in the clear only: the E2EE allow-list is text,
@@ -273,9 +276,27 @@ extension ConversationMessage {
 }
 
 extension ConversationMessage {
+    /// `true` for a system message with no text, which draws nothing and has nothing to preview.
+    public var isBlankSystem: Bool {
+        if case .system("") = content { true } else { false }
+    }
+}
+
+extension ConversationMessage {
     /// `true` when this message was sent by the given user.
     public func isFromSelf(_ selfUserID: UserID) -> Bool {
         senderID == selfUserID
+    }
+
+    /// Whether arriving live in the open chat earns the receive haptic: someone else's message that is
+    /// not a server notice.
+    public func buzzesOnReceive(selfUserID: UserID) -> Bool {
+        switch content {
+        case .system:
+            false
+        case .text, .cash, .deleted, .encrypted, .widget, .media:
+            !isFromSelf(selfUserID)
+        }
     }
 }
 
@@ -346,8 +367,11 @@ extension ConversationMessage {
             self.content = .widget(widgetContent.shareProfile.map(Widget.shareProfile) ?? .unrecognized)
             self.cashAction = nil
             repliedTo = nil
-        // `.system` is dropped by design: the message is not stored and not shown.
-        case .system, .none:
+        case .system(let systemContent):
+            self.content = Content(systemContent)
+            self.cashAction = nil
+            repliedTo = nil
+        case .none:
             return nil
         }
 
@@ -410,9 +434,16 @@ extension ConversationMessage.Content {
                     }
                 })
             }
-        case .cash, .deleted, .widget:
+        case .cash, .deleted, .widget, .system:
             throw ConversationMessageContentEncodingError.unsupported(self)
         }
+    }
+
+    /// The `.system` content `proto` describes. Blank text becomes `""` and is kept, not dropped, so the
+    /// message still anchors the read pointer and the unread divider.
+    init(_ proto: Flipcash_Messaging_V1_SystemContent) {
+        let text = proto.fallbackText
+        self = .system(fallbackText: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : text)
     }
 
     /// The `.media` content `proto` describes, or `nil` when its first item has no ORIGINAL rendition.

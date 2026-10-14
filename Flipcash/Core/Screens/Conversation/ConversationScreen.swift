@@ -378,7 +378,8 @@ struct ConversationScreen: View {
         }
     }
 
-    /// The newest server-confirmed message — what the receive buzz and mark-read track. Optimistic
+    /// The newest server-confirmed message — what the receive buzz and mark-read track. A system
+    /// message is included; ``ConversationMessage/buzzesOnReceive(selfUserID:)`` withholds only the buzz. Optimistic
     /// pending sends render after the confirmed run, so they must not drive these signals (an unresolved
     /// send would otherwise sit at the transcript's tail and mask incoming messages).
     private var latestConfirmedMessage: ConversationMessage? {
@@ -861,11 +862,12 @@ struct ConversationScreen: View {
         }
         // Buzz on a live message from the other side while this conversation is on screen. `old != nil`
         // and `didInitialRead` skip the opening history load; the sender and visibility checks skip the
-        // user's own sends and arrivals in a chat they've navigated away from.
+        // user's own sends and arrivals in a chat they've navigated away from. A server notice doesn't
+        // buzz, though `latestConfirmedMessage` still includes it so mark-read sees it.
         .sensoryFeedback(.impact(weight: .light), trigger: latestConfirmedMessage?.stableID) { old, _ in
             guard old != nil, didInitialRead,
                   let last = latestConfirmedMessage,
-                  !last.isFromSelf(conversationController.selfUserID),
+                  last.buzzesOnReceive(selfUserID: conversationController.selfUserID),
                   conversationController.visibleConversationID == conversationID
             else { return false }
             return true
@@ -1143,7 +1145,7 @@ struct ConversationScreen: View {
             (ChatQuote.deletedSnippet, .unavailable)
         case .widget(.shareProfile):
             (ChatQuote.sharedProfileSnippet, .text)
-        case .encrypted, .widget(.unrecognized):
+        case .encrypted, .widget(.unrecognized), .system:
             (ChatQuote.unavailableSnippet, .unavailable)
         }
     }
@@ -1230,7 +1232,7 @@ struct ConversationScreen: View {
         case .cash(let fiat):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: fiat.mint)
             router.push(.currencyInfo(fiat.mint))
-        case .text, .deleted, .encrypted, .widget, .media:
+        case .text, .deleted, .encrypted, .widget, .media, .system:
             break
         }
     }

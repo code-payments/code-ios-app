@@ -25,9 +25,8 @@ import FlipcashUI
     let photosPick = AttachPhotosPick()
     /// Whether the panel and cards are drawn over the keyboard instead of in the bar.
     let overKeyboard = AttachOverKeyboard()
-
-    /// The card's top edge in window coordinates, as last laid out.
-    var cardTop: CGFloat = 0
+    /// Where the attach surface was last opened, for the log line when it closes.
+    @ObservationIgnored private(set) var attachHost: AttachHost = .bar
 
     /// What the attach surface is showing.
     var attachSurfacePhase: AttachSurfacePhase {
@@ -58,7 +57,7 @@ import FlipcashUI
         if overKeyboard.isActive { return .none }
         if attachPanel.isOpen { return .everywhere }
         // A leaving card takes no touches: the band closes to the bar's own frame.
-        return .band(top: attachCard.isOpen ? cardTop : .greatestFiniteMagnitude)
+        return .band(top: attachCard.isOpen ? attachCard.frame.minY : .greatestFiniteMagnitude)
     }
 
     /// Takes the camera or photo card back into the attach panel, discarding any pick: one
@@ -72,6 +71,17 @@ import FlipcashUI
         } completion: { [weak self] in
             self?.attachCard.exitDidFinish()
         }
+    }
+
+    /// Logs the attach surface opening in `host`, with `details` about how the host was chosen.
+    func attachDidOpen(in host: AttachHost, details: Logger.Metadata) {
+        attachHost = host
+        attachLogger.info("Attach opened", metadata: details.merging(["host": "\(host)"]) { $1 })
+    }
+
+    /// Logs the attach surface closing in the host it was opened in.
+    func attachDidClose() {
+        attachLogger.info("Attach closed", metadata: ["host": "\(attachHost)"])
     }
 
     /// Takes the panel and the card down at once, with nothing to animate out: the keyboard they were
@@ -236,6 +246,12 @@ struct ConversationBarBottomRow: Equatable {
         self.init(plusItems: AttachMenuItem.items(showsCash: false, acceptsMedia: acceptsMedia, attachedCount: attachedCount))
     }
 
+    /// Returns the row for `composer` as it stands, in a chat where `acceptsMedia` says whether
+    /// photos may be sent. The bar and the overlay over the keyboard both read their rows here.
+    init(composer: ComposerModel, acceptsMedia: Bool) {
+        self.init(isEditing: composer.isEditing, acceptsMedia: acceptsMedia, attachedCount: composer.chips.count)
+    }
+
     private init(plusItems: [AttachMenuItem]) {
         self.plusItems = plusItems
     }
@@ -293,23 +309,12 @@ struct ConversationBottomBar: View {
     var acceptsMedia: Bool = false
     /// Fired as `+` opens the attach panel with the given rows: the panel goes up over the keyboard,
     /// or the keyboard goes down under it.
-    var onAttachOpen: ([AttachMenuItem]) -> Void = { _ in }
-    /// Opens the camera from the attach menu.
-    var onCamera: () -> Void = {}
-    /// Receives a photo the inline camera took.
-    var onCameraCapture: (ChatCameraCapture) -> Void = { _ in }
-    /// Fired by the camera card's back chevron.
-    var onCameraCancel: () -> Void = {}
-    /// Opens the photo card from the attach menu.
-    var onPhotos: () -> Void = {}
-    /// Receives the photos added from the photo card, in the order they were selected, with the
-    /// loader already reading them.
-    var onPhotosAdd: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> Void = { _, _ in }
+    var onAttachOpen: () -> Void = {}
+    /// What the attach menu and its cards hand back, the same value the overlay over the keyboard draws with.
+    var attachActions = AttachActions()
     /// Receives images dropped on the bar, such as the system screenshot thumbnail or an image
     /// from another app in split view. Only fired while the bar takes photos.
     var onImagesDropped: ([NSItemProvider]) -> Void = { _ in }
-    /// Fired by the photo card's back chevron and escape gesture.
-    var onPhotosBack: () -> Void = {}
     /// Where the reply strip's quoted photo loads its thumbnail from.
     var quoteThumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
 
@@ -513,6 +518,7 @@ struct ConversationBottomBar: View {
         .onChange(of: model.attachSurfaceIsMounted) { _, isMounted in
             if !isMounted {
                 model.photosPick.reset()
+                model.attachDidClose()
             }
         }
         .onDisappear {
@@ -520,24 +526,17 @@ struct ConversationBottomBar: View {
         }
         // Typing takes the attach panel down, as a tap outside it does.
         .onChange(of: composer.draft) {
-            guard model.attachPanel.isOpen else { return }
-            model.attachPanel.animate { $0.dismiss() }
+            model.handle(.draftChanged, in: .bar)
         }
         // An edit takes `+`'s slot, and the panel or card with it, so Back has no panel to return to.
         .onChange(of: composer.isEditing) { _, isEditing in
             guard isEditing else { return }
-            if model.attachCard.isOpen {
-                model.attachCard.close()
-                model.attachCard.exitDidFinish()
-            }
-            if model.attachPanel.isOpen {
-                model.attachPanel.animate { $0.dismiss() }
-            }
+            model.handle(.editBegan, in: .bar)
         }
         // So does focusing the field, whose send-button end the panel leaves uncovered.
         .onChange(of: model.isComposing) { _, isComposing in
-            guard isComposing, model.attachPanel.isOpen else { return }
-            model.attachPanel.animate { $0.dismiss() }
+            guard isComposing else { return }
+            model.handle(.fieldFocused, in: .bar)
         }
 
         // No shared GlassEffectContainer: the composer's glass is a background
@@ -634,15 +633,6 @@ struct ConversationBottomBar: View {
         model.attachCard.isOpen
     }
 
-    /// The card's frame in the row's coordinates: where it stands with the keyboard up, inset from the
-    /// screen's bottom and sides, and on the row's bottom edge if the bar has no window to measure.
-    private func barCardRect(row: CGSize, toRow: (CGRect) -> CGRect) -> CGRect {
-        guard let window = UIApplication.shared.currentKeyWindow else {
-            return AttachSurfaceLayout.barCardRect(row: row, outset: compactExtraInset, height: model.attachCard.height)
-        }
-        return toRow(AttachOverlayLayout.cardFrame(in: window.bounds, height: model.attachCard.height))
-    }
-
     /// The attach surface in the bar: the menu standing on `+`, and the card standing where it does
     /// with the keyboard up, a fixed share of the screen tall and inset from the screen's edges. An
     /// overlay, so the bar's measured height — and with it the transcript's inset — stays the composer's.
@@ -654,24 +644,13 @@ struct ConversationBottomBar: View {
                 model: model,
                 items: items,
                 plus: toRow(model.overKeyboard.plusFrame),
-                card: barCardRect(row: proxy.size, toRow: toRow),
+                card: toRow(model.attachCard.frame),
                 landing: model.attachCard.landingChipFrame.map(toRow),
                 menuPlacement: .standsOnPlus,
                 selectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
-                actions: AttachOverlayActions(
-                    onCash: onSendCash,
-                    onCamera: onCamera,
-                    onPhotos: onPhotos,
-                    onCameraCapture: onCameraCapture,
-                    onCameraCancel: onCameraCancel,
-                    onPhotosAdd: onPhotosAdd,
-                    onPhotosBack: onPhotosBack
-                ),
+                actions: attachActions,
                 opensLibraryOnAppear: model.overKeyboard.opensLibraryInBar
             ) { region, rect in
-                if region == .card, let rect {
-                    model.cardTop = rect.minY + origin.y
-                }
                 surfaceFrames[region] = rect?.offsetBy(dx: origin.x, dy: origin.y)
             }
             .onAppear {
@@ -707,11 +686,7 @@ struct ConversationBottomBar: View {
     }
 
     private var bottomRow: ConversationBarBottomRow {
-        ConversationBarBottomRow(
-            isEditing: composer.isEditing,
-            acceptsMedia: acceptsMedia,
-            attachedCount: composer.chips.count
-        )
+        ConversationBarBottomRow(composer: composer, acceptsMedia: acceptsMedia)
     }
 }
 
@@ -1081,7 +1056,7 @@ struct ConversationComposer: View {
     /// Whether the attach surface is drawn in `+`'s place, which hides `+`.
     var plusIsStoodInFor = false
     /// Fired as `+` opens the attach panel with the given rows.
-    var onAttachOpen: ([AttachMenuItem]) -> Void = { _ in }
+    var onAttachOpen: () -> Void = {}
     /// Whether `$` stands beside the field and merges into it as the draft starts, so the send
     /// arrow waits for it to land instead of appearing over it.
     var sendWaitsForCashJoin = false

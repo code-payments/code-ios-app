@@ -34,6 +34,7 @@ struct ConversationStoreMutationTests {
             case .encrypted:       "<encrypted>"
             case .widget:          "<widget>"
             case .media:           "<media>"
+            case .system:          "<system>"
             }
         }
     }

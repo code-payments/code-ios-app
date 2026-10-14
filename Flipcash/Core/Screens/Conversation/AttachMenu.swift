@@ -48,14 +48,14 @@ struct AttachMenu: View {
     var isStoodInFor = false
     /// Fired as the panel opens, before it is drawn: the keyboard goes down and the panel rides the bar
     /// down with it, or the panel goes up over the keyboard.
-    let onOpen: ([AttachMenuItem]) -> Void
+    let onOpen: () -> Void
     /// Receives `+`'s frame in window coordinates as it is laid out.
     var onPlusFrame: (CGRect) -> Void = { _ in }
 
     var body: some View {
         Button {
             if !panel.isOpen {
-                onOpen(items)
+                onOpen()
             }
             panel.animate { $0.toggle() }
         } label: {

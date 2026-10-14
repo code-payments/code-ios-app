@@ -622,13 +622,15 @@ public struct ConversationStore: Sendable {
     /// `conversation` with a feed preview the row can actually draw: the newest message that still
     /// has content. Server metadata reports the newest message whatever its state, so a delete
     /// arrives here as a tombstone — which renders as a blank row with an unread splat beside it.
-    /// It falls back to the visible preview the row already carries, and to nothing when there is
+    /// A blank system message has nothing to preview either. It falls back to the visible preview the row already carries, and to nothing when there is
     /// none; ``setFeedPreview(_:in:force:)`` then fills it from the database.
     ///
     /// The fallback is skipped when the tombstone replaces the very message the row was previewing,
     /// which would leave deleted content on screen.
     private func seated(_ conversation: Conversation) -> Conversation {
-        guard let tombstone = conversation.lastMessage, tombstone.isDeleted else { return conversation }
+        guard let tombstone = conversation.lastMessage, tombstone.isDeleted || tombstone.isBlankSystem else {
+            return conversation
+        }
         var conversation = conversation
         let current = conversations.first { $0.id == conversation.id }?.lastMessage
         conversation.lastMessage = current.flatMap { current in

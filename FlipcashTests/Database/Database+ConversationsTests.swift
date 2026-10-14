@@ -103,7 +103,7 @@ struct DatabaseConversationsTests {
         switch loadedMessage.content {
         case .cash(let loadedExchanged):
             #expect(loadedExchanged.nativeAmount.value == amount)
-        case .text, .deleted, .encrypted, .widget, .media:
+        case .text, .deleted, .encrypted, .widget, .media, .system:
             Issue.record("Expected cash message content")
         }
     }

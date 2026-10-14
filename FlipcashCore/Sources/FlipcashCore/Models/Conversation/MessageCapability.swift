@@ -96,7 +96,7 @@ extension MessageCapability {
         // Media carries no text, so it offers neither copy nor edit — matching Android's resolver.
         let hasText: Bool
         switch message.content {
-        case .deleted, .encrypted:
+        case .deleted, .encrypted, .system:
             // Nothing is left to act on: a tombstone must not be re-deleted, and this client has no
             // plaintext to copy, quote, or edit for an encrypted message it cannot decrypt.
             return []

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 import FlipcashUI
 
 /// What the attach surface is showing.
@@ -108,12 +109,6 @@ enum AttachSurfaceLayout {
         }
     }
 
-    /// The card's frame in the bar, in the composer row's coordinates: standing on the row's bottom
-    /// edge, `height` tall, and `outset` wider than the row on each side.
-    static func barCardRect(row: CGSize, outset: CGFloat, height: CGFloat) -> CGRect {
-        CGRect(x: -outset, y: row.height - height, width: row.width + outset * 2, height: height)
-    }
-
     /// Returns the radius of the surface collapsed onto `plus`, which is a circle: half its height.
     static func collapsedCornerRadius(plus: CGRect) -> CGFloat {
         plus.height / 2
@@ -147,6 +142,20 @@ enum AttachSurfaceLayout {
     }
 }
 
+/// What the attach menu and its cards hand back to the screen, built once and drawn by both the bar
+/// and the overlay over the keyboard.
+struct AttachActions {
+    var onCash: () -> Void = {}
+    var onCamera: () -> Void = {}
+    var onPhotos: () -> Void = {}
+    var onCameraCapture: (ChatCameraCapture) -> Void = { _ in }
+    var onCameraCancel: () -> Void = {}
+    var onPhotosAdd: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> Void = { _, _ in }
+    var onPhotosBack: () -> Void = {}
+    /// Replaces All Photos presenting the full picker from the card; nil presents it in place.
+    var onAllPhotos: (() -> Void)? = nil
+}
+
 /// The attach flow's one surface: a single glass shape that grows out of `+` into the menu, springs
 /// between the menu and the camera or photo card, and shrinks onto the chip a photo is staged as.
 ///
@@ -164,7 +173,7 @@ struct AttachSurface: View {
     let landing: CGRect?
     let menuPlacement: AttachMenuPlacement
     let selectionLimit: Int
-    let actions: AttachOverlayActions
+    let actions: AttachActions
     /// Whether the photo card opens the full picker as it mounts, for one All Photos was handed to.
     var opensLibraryOnAppear = false
     /// Receives the regions that take touches as they change, and none once the surface is gone.

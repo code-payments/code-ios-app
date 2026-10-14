@@ -173,6 +173,12 @@ struct PrivateGroupCopyTests {
         #expect(PrivateGroupCopy.summary(memberCount: 48) == "Private group · 48 members")
     }
 
+    @Test("Member list header counts members")
+    func memberCount() {
+        #expect(PrivateGroupCopy.memberCount(1) == "1 member")
+        #expect(PrivateGroupCopy.memberCount(48) == "48 members")
+    }
+
     @Test("A request's age on the host's list")
     func requestAge() {
         let now = Date(timeIntervalSince1970: 1_000_000)
