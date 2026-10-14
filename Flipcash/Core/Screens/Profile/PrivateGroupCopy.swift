@@ -26,6 +26,11 @@ enum PrivateGroupCopy {
         }
     }
 
+    /// The member list's header: "1 member" or "48 members".
+    static func memberCount(_ count: UInt64) -> String {
+        count == 1 ? "1 member" : "\(count) members"
+    }
+
     /// The disabled button's title while a request waits: "Request Sent" for its first minute,
     /// then its age, "Requested 10m ago", "Requested 2h ago" or "Requested 3d ago".
     static func pendingTitle(requestedAt: Date, now: Date) -> String {

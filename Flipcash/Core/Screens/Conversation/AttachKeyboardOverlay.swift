@@ -7,23 +7,8 @@
 
 import SwiftUI
 import UIKit
-import PhotosUI
 import FlipcashCore
 import FlipcashUI
-
-private let logger = Logger(label: "flipcash.attach-overlay")
-
-/// What the panel and cards drawn over the keyboard hand back to the screen.
-struct AttachOverlayActions {
-    var onCash: () -> Void
-    var onCamera: () -> Void
-    var onPhotos: () -> Void
-    var onCameraCapture: (ChatCameraCapture) -> Void
-    var onCameraCancel: () -> Void
-    var onPhotosAdd: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> Void
-    var onPhotosBack: () -> Void
-    var onAllPhotos: (() -> Void)? = nil
-}
 
 /// Draws the attach panel and its cards over the keyboard while the composer keeps focus, as
 /// ChatGPT does: in the keyboard's own window when ``KeyboardOverlayHost`` finds it, else over a
@@ -52,14 +37,14 @@ final class AttachKeyboardOverlay {
         self.locator = locator
     }
 
-    /// Plans how `+` opens the panel and, when it goes over the keyboard, puts the overlay up with
-    /// `items` as its rows. Returns the mode chosen; ``AttachOverlayMode/dismissKeyboard`` leaves the
+    /// Plans how `+` opens the panel and, when it goes over the keyboard, puts the overlay up.
+    /// `acceptsMedia` is whether the chat takes photos, as the bar's rows read it. Returns the mode chosen; ``AttachOverlayMode/dismissKeyboard`` leaves the
     /// caller to take the keyboard down.
     func begin(
         screen: ChatScreenViewController,
-        items: [AttachMenuItem],
+        acceptsMedia: Bool,
         composer: ComposerModel,
-        actions: AttachOverlayActions
+        actions: @escaping () -> AttachActions
     ) -> AttachOverlayMode {
         if let mode { return mode }
         let plan = AttachOverlayPlan(
@@ -67,40 +52,44 @@ final class AttachKeyboardOverlay {
             keyboardHeight: screen.keyboardOverlap,
             canReplaceInputView: screen.canReplaceComposerInputView
         )
-        logger.info("Attach panel opening", metadata: [
+        // No field name contains "key": the log redactor blanks those.
+        let details: Logger.Metadata = [
             "mode": "\(plan.mode.rawValue)",
-            "keyboardHeight": "\(screen.keyboardOverlap)",
-            "keyboardWindowFound": "\(plan.keyboardWindow != nil)",
+            "overlapHeight": "\(screen.keyboardOverlap)",
+            "inputWindowFound": "\(plan.keyboardWindow != nil)",
             "canReplaceInputView": "\(screen.canReplaceComposerInputView)",
-        ])
-        guard plan.mode.drawsOverKeyboard, let appWindow = screen.view.window else { return .dismissKeyboard }
+        ]
+        guard plan.mode.drawsOverKeyboard, let appWindow = screen.view.window else {
+            model.attachDidOpen(in: .bar, details: details)
+            return .dismissKeyboard
+        }
 
         self.screen = screen
         // Before the switch: swapping the input view in announces the keyboard showing again, which
         // must not read as the keyboard taking a card's place.
         model.attachCard.closesOnKeyboardShow = false
-        let container = makeContainer(appWindow: appWindow, composer: composer, actions: actions)
+        let container = makeContainer(appWindow: appWindow, acceptsMedia: acceptsMedia, composer: composer, actions: actions)
         switch plan.mode {
         case .keyboardWindow:
-            guard let window = plan.keyboardWindow else { return refuse() }
+            guard let window = plan.keyboardWindow else { return refuse(details) }
             install(container, in: window)
+            model.attachDidOpen(in: .keyboardWindow, details: details)
         case .inputView:
             let backdrop = AttachInputBackdrop(height: screen.keyboardOverlap)
             backdrop.onWindow = { [weak self] window in
                 guard let self, let container = self.container else { return }
                 self.install(container, in: window)
             }
-            guard screen.setComposerInputView(backdrop) else {
-                logger.info("Attach panel input view refused", metadata: [:])
-                return refuse()
-            }
+            guard screen.setComposerInputView(backdrop) else { return refuse(details) }
             self.backdrop = backdrop
+            model.attachDidOpen(in: .inputView, details: details)
         case .dismissKeyboard:
+            model.attachDidOpen(in: .bar, details: details)
             return .dismissKeyboard
         }
 
         mode = plan.mode
-        model.overKeyboard.activate(items: items)
+        model.overKeyboard.activate()
         // A tap on the transcript reaches the app's window, not the overlay, and would lower the
         // keyboard; while the menu is up it only closes the menu.
         screen.setTranscriptShield(
@@ -112,7 +101,8 @@ final class AttachKeyboardOverlay {
     }
 
     /// Undoes a begin that can't draw over the keyboard after all, leaving the bar to draw the panel.
-    private func refuse() -> AttachOverlayMode {
+    private func refuse(_ details: Logger.Metadata) -> AttachOverlayMode {
+        model.attachDidOpen(in: .bar, details: details.merging(["refused": "true"]) { $1 })
         model.attachCard.closesOnKeyboardShow = true
         container = nil
         host = nil
@@ -139,17 +129,21 @@ final class AttachKeyboardOverlay {
         model.overKeyboard.deactivate()
     }
 
-    /// Takes the panel and card down at once: the keyboard went, or the app left the foreground.
-    func abort() {
-        guard mode != nil else { return }
-        logger.info("Attach overlay aborted", metadata: [:])
-        model.resetAttach()
+    /// Passes `event` to the model, and comes down at once if it takes the panel and card with it.
+    private func receive(_ event: AttachEvent) {
+        let host: AttachHost
+        switch mode {
+        case .keyboardWindow:                   host = .keyboardWindow
+        case .inputView:                        host = .inputView
+        case .dismissKeyboard, nil:             return
+        }
+        guard model.handle(event, in: host) == .reset else { return }
         end()
     }
 
     /// Hands the photo card to the bar, with the keyboard down and the full picker opening: a sheet
     /// can't be presented from the keyboard's window.
-    func handOffToBar() {
+    private func handOffToBar() {
         guard mode != nil else { return }
         model.overKeyboard.opensLibraryInBar = true
         end()
@@ -158,8 +152,9 @@ final class AttachKeyboardOverlay {
 
     private func makeContainer(
         appWindow: UIWindow,
+        acceptsMedia: Bool,
         composer: ComposerModel,
-        actions: AttachOverlayActions
+        actions: @escaping () -> AttachActions
     ) -> AttachOverlayContainer {
         let container = AttachOverlayContainer()
         container.appWindow = appWindow
@@ -177,10 +172,16 @@ final class AttachKeyboardOverlay {
         let root = AttachOverlayRoot(
             model: model,
             composer: composer,
-            actions: actions,
+            acceptsMedia: acceptsMedia,
+            // A card here can't present a sheet, so All Photos hands the card to the bar instead.
+            actions: { [weak self] in
+                var actions = actions()
+                actions.onAllPhotos = { self?.handOffToBar() }
+                return actions
+            },
             report: { [weak container] region, rect in container?.hitRects[region] = rect },
             onFinished: { [weak self] in self?.end() },
-            onAbort: { [weak self] in self?.abort() }
+            onEvent: { [weak self] in self?.receive($0) }
         )
         let host = UIHostingController(rootView: AnyView(root))
         host.view.backgroundColor = .clear
@@ -219,7 +220,7 @@ final class AttachKeyboardOverlay {
             case .dismissKeyboard:  nil
             }
             guard let window else {
-                self.abort()
+                self.receive(.keyboardWindowLost)
                 return
             }
             self.install(container, in: window)
@@ -235,15 +236,10 @@ final class AttachKeyboardOverlay {
             })
         }
         observers.append(center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.abort() }
+            MainActor.assumeIsolated { self?.receive(.appBackgrounded) }
         })
-        // The input view swap announces the keyboard going and coming, so only the keyboard's own
-        // window takes a hide as the keyboard leaving. Focus loss covers the swap.
         observers.append(center.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard self?.mode == .keyboardWindow else { return }
-                self?.abort()
-            }
+            MainActor.assumeIsolated { self?.receive(.keyboardWillHide) }
         })
     }
 }
@@ -321,33 +317,38 @@ private struct AttachOverlayRoot: View {
 
     let model: ConversationBarModel
     let composer: ComposerModel
-    let actions: AttachOverlayActions
+    let acceptsMedia: Bool
+    /// Returns the screen's actions as of its latest render.
+    let actions: () -> AttachActions
     let report: (AttachOverlayRegion, CGRect?) -> Void
     let onFinished: () -> Void
-    let onAbort: () -> Void
+    let onEvent: (AttachEvent) -> Void
 
-    @State private var bounds: CGSize = .zero
+    // Read live, as the bar reads its own, so a photo staged while the menu is up updates both.
+    private var rows: ConversationBarBottomRow {
+        ConversationBarBottomRow(composer: composer, acceptsMedia: acceptsMedia)
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.clear
-            if model.attachSurfaceIsMounted {
+            if model.attachSurfaceIsMounted, !rows.plusItems.isEmpty {
                 AttachSurface(
                     model: model,
-                    items: model.overKeyboard.items,
+                    items: rows.plusItems,
                     plus: model.overKeyboard.plusFrame,
-                    card: AttachOverlayLayout.cardFrame(in: CGRect(origin: .zero, size: bounds), height: model.attachCard.height),
+                    // The container lies over the app's window, so its coordinates are the window's.
+                    card: model.attachCard.frame,
                     landing: model.attachCard.landingChipFrame,
                     menuPlacement: .straddlesPlus,
                     selectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
-                    actions: actions,
+                    actions: actions(),
                     report: report
                 )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .ignoresSafeArea()
-        .onGeometryChange(for: CGSize.self, of: { $0.size }) { bounds = $0 }
         // Everything has gone: the overlay comes down and the bar takes over again.
         .onChange(of: model.attachSurfaceIsMounted) { _, isMounted in
             if !isMounted {
@@ -357,7 +358,7 @@ private struct AttachOverlayRoot: View {
         // The field losing focus takes the keyboard, and with it what was drawn over it.
         .onChange(of: model.isComposing) { _, isComposing in
             if !isComposing {
-                onAbort()
+                onEvent(.fieldBlurred)
             }
         }
     }
