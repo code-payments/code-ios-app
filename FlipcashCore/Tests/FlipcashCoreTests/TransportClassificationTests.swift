@@ -92,6 +92,10 @@ struct TransportClassificationTests {
     @Test func errorSetKeyEnvelope() { assertClassifies(ErrorSetKeyEnvelope.self) }
     @Test func errorGetKeyEnvelope() { assertClassifies(ErrorGetKeyEnvelope.self) }
     @Test func errorStartChat() { assertClassifies(ErrorStartChat.self) }
+    @Test func errorCreatePoll() { assertClassifies(ErrorCreatePoll.self) }
+    @Test func errorGetPoll() { assertClassifies(ErrorGetPoll.self) }
+    @Test func errorGetPolls() { assertClassifies(ErrorGetPolls.self) }
+    @Test func errorVote() { assertClassifies(ErrorVote.self) }
     @Test func errorJoinChat() { assertClassifies(ErrorJoinChat.self) }
     @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }
     @Test func errorMuteChat() { assertClassifies(ErrorMuteChat.self) }
