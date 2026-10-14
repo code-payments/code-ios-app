@@ -62,6 +62,15 @@ struct MessageLoaderRevealTests {
         #expect(loader.messages.contains { $0.id == target })
     }
 
+    @Test("A revealed message keeps older messages above it, so it isn't the cut-off top row")
+    func revealOlderMessage_leavesLeadIn() throws {
+        let (loader, url) = try makeLoader(messageCount: 200)
+        defer { Database.removeTemp(at: url) }
+
+        #expect(loader.reveal(MessageID(value: 100)))
+        #expect(loader.messages.first?.id == MessageID(value: 88))
+    }
+
     @Test("A message the database has never seen cannot be revealed")
     func revealUnknownMessage_fails() throws {
         let (loader, url) = try makeLoader(messageCount: 10)

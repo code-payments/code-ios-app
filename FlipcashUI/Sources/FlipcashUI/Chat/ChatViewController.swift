@@ -791,6 +791,7 @@ public final class ChatViewController: UICollectionViewController {
 
     public override func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         (cell as? ChatTypingIndicatorCell)?.stopAnimating()
+        markAttention(cell, isTarget: false)
     }
 
     // MARK: - Keyboard
@@ -972,7 +973,19 @@ public final class ChatViewController: UICollectionViewController {
         attention = (id: stableID, startedAt: now)
         collectionView.layoutIfNeeded()
         for cell in bubbleCells(forStableID: stableID) { cell.flashAttention(startedAt: now) }
+        for indexPath in collectionView.indexPathsForVisibleItems {
+            guard let cell = collectionView.cellForItem(at: indexPath) else { continue }
+            markAttention(cell, isTarget: items.indices.contains(indexPath.item) && items[indexPath.item].messageID == stableID)
+        }
     }
+
+    /// Names the jump's target cell for UI tests, which can't observe the flash's animation.
+    private func markAttention(_ cell: UICollectionViewCell, isTarget: Bool) {
+        cell.accessibilityIdentifier = isTarget ? Self.attentionTargetIdentifier : nil
+    }
+
+    /// The accessibility identifier the row a jump landed on carries; `FlipcashUITests` matches it.
+    private static let attentionTargetIdentifier = "chat-attention-target"
 
     /// Lights a cell that has just been displayed if it carries the row a jump is pointing at.
     ///
@@ -983,7 +996,11 @@ public final class ChatViewController: UICollectionViewController {
     private func reattachAttention(to cell: UICollectionViewCell, at indexPath: IndexPath) {
         guard let attention,
               items.indices.contains(indexPath.item),
-              items[indexPath.item].messageID == attention.id else { return }
+              items[indexPath.item].messageID == attention.id else {
+            markAttention(cell, isTarget: false)
+            return
+        }
+        markAttention(cell, isTarget: true)
         guard CACurrentMediaTime() - attention.startedAt < ChatMotion.attentionDuration else {
             self.attention = nil
             return

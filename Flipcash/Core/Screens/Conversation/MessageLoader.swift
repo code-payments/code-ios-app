@@ -47,13 +47,15 @@ final class MessageLoader {
     /// Brings `messageID` into the rendered window, returning whether it is now there.
     ///
     /// One anchor move, not a paging loop: an anchored window reads every message from `startID`
-    /// forward, so pointing the anchor at the target is enough. Nothing is fetched — a message the
+    /// forward, so anchoring at or just before the target is enough. The anchor sits `leadIn`
+    /// messages early where history allows, so the transcript can center the target instead of
+    /// pinning it as the cut-off top row. Nothing is fetched — a message the
     /// local database has never seen returns `false` and the caller leaves the transcript alone.
     @discardableResult
     func reveal(_ messageID: MessageID) -> Bool {
         if messages.contains(where: { $0.id == messageID }) { return true }
         guard controller.persistedMessage(messageID, in: conversationID) != nil else { return false }
-        startID = messageID.value
+        startID = controller.olderAnchor(for: conversationID, before: messageID.value, step: Self.leadIn) ?? messageID.value
         return true
     }
 
@@ -75,6 +77,12 @@ final class MessageLoader {
             }
             await controller.loadOlderMessages(for: conversationID)
             pages += 1
+        }
+        // A page that ends on the target leaves nothing above it to center against; one more page fixes that.
+        if pages > 0, pages < pageLimit, startID == messageID.value, controller.hasMoreOlderMessages(for: conversationID),
+           !controller.isLoadingOlderMessages(for: conversationID) {
+            await controller.loadOlderMessages(for: conversationID)
+            startID = controller.olderAnchor(for: conversationID, before: messageID.value, step: Self.leadIn) ?? messageID.value
         }
         return true
     }
@@ -115,4 +123,6 @@ final class MessageLoader {
     /// How many of the newest messages a fresh open renders.
     static let initialWindow = 60
     private static let step = 40
+    /// How many messages a revealed target keeps above it.
+    private static let leadIn = 12
 }
