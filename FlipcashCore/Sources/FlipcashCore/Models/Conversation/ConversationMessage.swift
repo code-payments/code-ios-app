@@ -68,8 +68,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// media and reply, so a widget decrypted out of `EncryptedContent` is still unsupported.
     public enum Widget: Hashable, Sendable {
         case shareProfile(ShareProfileWidget)
-        /// A variant this client doesn't recognize, or one missing what it needs (a malformed
-        /// username). Drawn as an unsupported message.
+        /// A variant this client doesn't recognize, one missing what it needs (a malformed
+        /// username), or a message content type this client doesn't know. Drawn as an unsupported
+        /// message.
         case unrecognized
     }
 
@@ -310,7 +311,9 @@ extension ConversationMessage {
 
 extension ConversationMessage {
     /// Builds a message from its proto, returning nil for content the client
-    /// can't represent (unknown type, or a cash amount that fails to parse). A
+    /// can't represent (no content, a system message, or a cash amount that
+    /// fails to parse). A content type this build doesn't know is kept as an
+    /// unrecognized widget so it draws as unsupported. A
     /// deleted message materializes as a `.deleted` tombstone — never nil — so
     /// it converges the same way across the stream, `GetMessages`, and `GetDelta`
     /// and can't leave the pre-delete content on screen.
@@ -383,7 +386,13 @@ extension ConversationMessage {
             self.cashAction = nil
             repliedTo = nil
         case .none:
-            return nil
+            // A present entry with no known type is a variant added after this build. It reuses the
+            // unrecognized widget, whose stored shape (kind 4, no text) already reads back as
+            // unsupported, so keeping it needs no schema change.
+            guard !proto.content.isEmpty else { return nil }
+            self.content = .widget(.unrecognized)
+            self.cashAction = nil
+            repliedTo = nil
         }
 
         self.id = MessageID(proto.messageID)
