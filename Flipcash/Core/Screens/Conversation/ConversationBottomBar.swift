@@ -294,22 +294,11 @@ struct ConversationBottomBar: View {
     /// Fired as `+` opens the attach panel with the given rows: the panel goes up over the keyboard,
     /// or the keyboard goes down under it.
     var onAttachOpen: ([AttachMenuItem]) -> Void = { _ in }
-    /// Opens the camera from the attach menu.
-    var onCamera: () -> Void = {}
-    /// Receives a photo the inline camera took.
-    var onCameraCapture: (ChatCameraCapture) -> Void = { _ in }
-    /// Fired by the camera card's back chevron.
-    var onCameraCancel: () -> Void = {}
-    /// Opens the photo card from the attach menu.
-    var onPhotos: () -> Void = {}
-    /// Receives the photos added from the photo card, in the order they were selected, with the
-    /// loader already reading them.
-    var onPhotosAdd: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> Void = { _, _ in }
+    /// What the attach menu and its cards hand back, the same value the overlay over the keyboard draws with.
+    var attachActions = AttachActions()
     /// Receives images dropped on the bar, such as the system screenshot thumbnail or an image
     /// from another app in split view. Only fired while the bar takes photos.
     var onImagesDropped: ([NSItemProvider]) -> Void = { _ in }
-    /// Fired by the photo card's back chevron and escape gesture.
-    var onPhotosBack: () -> Void = {}
     /// Where the reply strip's quoted photo loads its thumbnail from.
     var quoteThumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
 
@@ -658,15 +647,7 @@ struct ConversationBottomBar: View {
                 landing: model.attachCard.landingChipFrame.map(toRow),
                 menuPlacement: .standsOnPlus,
                 selectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
-                actions: AttachOverlayActions(
-                    onCash: onSendCash,
-                    onCamera: onCamera,
-                    onPhotos: onPhotos,
-                    onCameraCapture: onCameraCapture,
-                    onCameraCancel: onCameraCancel,
-                    onPhotosAdd: onPhotosAdd,
-                    onPhotosBack: onPhotosBack
-                ),
+                actions: attachActions,
                 opensLibraryOnAppear: model.overKeyboard.opensLibraryInBar
             ) { region, rect in
                 if region == .card, let rect {

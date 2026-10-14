@@ -298,16 +298,17 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     }
 
     private func bar(coordinator: Coordinator) -> AnyView {
-        coordinator.overlayActions = AttachOverlayActions(
+        let attachActions = AttachActions(
             onCash: onSendCash,
             onCamera: { [weak coordinator] in coordinator?.openCard(.camera) },
             onPhotos: { [weak coordinator] in coordinator?.openCard(.photos) },
             onCameraCapture: { [weak coordinator] capture in coordinator?.closeCard { onCameraCapture(capture) } },
+            // Back into the menu, with the keyboard left where it was.
             onCameraCancel: { [model = barModel] in model.returnToMenu() },
             onPhotosAdd: { [weak coordinator] items, preloader in coordinator?.closeCard { onPhotosAdded(items, preloader) } },
-            onPhotosBack: { [model = barModel] in model.returnToMenu() },
-            onAllPhotos: { [weak coordinator] in coordinator?.overlay.handOffToBar() }
+            onPhotosBack: { [model = barModel] in model.returnToMenu() }
         )
+        coordinator.attachActions = attachActions
         return AnyView(
             ConversationBottomBar(
                 showsSendCash: showsSendCash,
@@ -327,27 +328,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onAttachOpen: { [weak coordinator] items in
                     coordinator?.openAttach(items: items)
                 },
-                onCamera: { [weak coordinator] in
-                    coordinator?.openCard(.camera)
-                },
-                onCameraCapture: { [weak coordinator] capture in
-                    coordinator?.closeCard { onCameraCapture(capture) }
-                },
-                onCameraCancel: { [model = barModel] in
-                    // Back into the panel, with the keyboard left down.
-                    model.returnToMenu()
-                },
-                onPhotos: { [weak coordinator] in
-                    coordinator?.openCard(.photos)
-                },
-                onPhotosAdd: { [weak coordinator] items, preloader in
-                    coordinator?.closeCard { onPhotosAdded(items, preloader) }
-                },
+                attachActions: attachActions,
                 onImagesDropped: onImagesDropped,
-                onPhotosBack: { [model = barModel] in
-                    // Back into the panel, with the keyboard left down.
-                    model.returnToMenu()
-                },
                 // Only a member can aim a reply, so the viewer may see what it quotes.
                 quoteThumbnailLocation: { [resolver = coordinator.mediaURLResolver] kind in
                     await resolver.thumbnailLocation(for: kind, canReact: true)
@@ -384,8 +366,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         let composer: ComposerModel
         /// Draws the attach panel and cards over the keyboard while the composer keeps focus.
         let overlay: AttachKeyboardOverlay
-        /// What the panel and cards drawn over the keyboard hand back, as of the latest render.
-        var overlayActions: AttachOverlayActions?
+        /// What the attach menu and its cards hand back, as of the latest render.
+        var attachActions = AttachActions()
 
         init(model: ConversationBarModel, composer: ComposerModel) {
             self.model = model
@@ -396,10 +378,15 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         /// `+` is opening the panel with `items` as its rows: over the keyboard while it is up and its
         /// window or the field's input view can carry the panel, else with the keyboard taken down.
         func openAttach(items: [AttachMenuItem]) {
-            guard let screen, let overlayActions else { return }
+            guard let screen else { return }
             // Sized now, so the card's content is laid out at its final size while the menu is up.
             model.attachCard.measure(screenHeight: screen.view.bounds.height)
-            let mode = overlay.begin(screen: screen, items: items, composer: composer, actions: overlayActions)
+            let mode = overlay.begin(
+                screen: screen,
+                items: items,
+                composer: composer,
+                actions: { [weak self] in self?.attachActions ?? AttachActions() }
+            )
             switch mode {
             case .keyboardWindow, .inputView:
                 break
