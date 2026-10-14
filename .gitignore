@@ -1,4 +1,6 @@
 ## Private assets
+# Generated into the app bundle by Scripts/gengoogle; a copy here is stale.
+Flipcash/Supporting Files/GoogleService-Info.plist
 Configurations/secrets.local.xcconfig
 ci_scripts/ci_post_xcodebuild.sh
 .env
