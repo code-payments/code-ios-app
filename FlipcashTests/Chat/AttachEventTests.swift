@@ -73,4 +73,14 @@ struct AttachEventTests {
         #expect(response == .reset)
         #expect(!model.attachCard.isOpen)
     }
+
+    @Test("The close line reports the host the surface was opened in")
+    func closeReportsOpenedHost() {
+        let model = ConversationBarModel()
+        #expect(model.attachHost == .bar)
+        model.attachDidOpen(in: .keyboardWindow, details: [:])
+        #expect(model.attachHost == .keyboardWindow)
+        model.attachDidOpen(in: .bar, details: [:])
+        #expect(model.attachHost == .bar)
+    }
 }

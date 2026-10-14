@@ -10,8 +10,6 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-private let logger = Logger(label: "flipcash.attach-overlay")
-
 /// Draws the attach panel and its cards over the keyboard while the composer keeps focus, as
 /// ChatGPT does: in the keyboard's own window when ``KeyboardOverlayHost`` finds it, else over a
 /// keyboard-coloured input view swapped in under the field.
@@ -54,13 +52,17 @@ final class AttachKeyboardOverlay {
             keyboardHeight: screen.keyboardOverlap,
             canReplaceInputView: screen.canReplaceComposerInputView
         )
-        logger.info("Attach panel opening", metadata: [
+        // No field name contains "key": the log redactor blanks those.
+        let details: Logger.Metadata = [
             "mode": "\(plan.mode.rawValue)",
-            "keyboardHeight": "\(screen.keyboardOverlap)",
-            "keyboardWindowFound": "\(plan.keyboardWindow != nil)",
+            "overlapHeight": "\(screen.keyboardOverlap)",
+            "inputWindowFound": "\(plan.keyboardWindow != nil)",
             "canReplaceInputView": "\(screen.canReplaceComposerInputView)",
-        ])
-        guard plan.mode.drawsOverKeyboard, let appWindow = screen.view.window else { return .dismissKeyboard }
+        ]
+        guard plan.mode.drawsOverKeyboard, let appWindow = screen.view.window else {
+            model.attachDidOpen(in: .bar, details: details)
+            return .dismissKeyboard
+        }
 
         self.screen = screen
         // Before the switch: swapping the input view in announces the keyboard showing again, which
@@ -69,20 +71,20 @@ final class AttachKeyboardOverlay {
         let container = makeContainer(appWindow: appWindow, acceptsMedia: acceptsMedia, composer: composer, actions: actions)
         switch plan.mode {
         case .keyboardWindow:
-            guard let window = plan.keyboardWindow else { return refuse() }
+            guard let window = plan.keyboardWindow else { return refuse(details) }
             install(container, in: window)
+            model.attachDidOpen(in: .keyboardWindow, details: details)
         case .inputView:
             let backdrop = AttachInputBackdrop(height: screen.keyboardOverlap)
             backdrop.onWindow = { [weak self] window in
                 guard let self, let container = self.container else { return }
                 self.install(container, in: window)
             }
-            guard screen.setComposerInputView(backdrop) else {
-                logger.info("Attach panel input view refused", metadata: [:])
-                return refuse()
-            }
+            guard screen.setComposerInputView(backdrop) else { return refuse(details) }
             self.backdrop = backdrop
+            model.attachDidOpen(in: .inputView, details: details)
         case .dismissKeyboard:
+            model.attachDidOpen(in: .bar, details: details)
             return .dismissKeyboard
         }
 
@@ -99,7 +101,8 @@ final class AttachKeyboardOverlay {
     }
 
     /// Undoes a begin that can't draw over the keyboard after all, leaving the bar to draw the panel.
-    private func refuse() -> AttachOverlayMode {
+    private func refuse(_ details: Logger.Metadata) -> AttachOverlayMode {
+        model.attachDidOpen(in: .bar, details: details.merging(["refused": "true"]) { $1 })
         model.attachCard.closesOnKeyboardShow = true
         container = nil
         host = nil
@@ -135,7 +138,6 @@ final class AttachKeyboardOverlay {
         case .dismissKeyboard, nil:             return
         }
         guard model.handle(event, in: host) == .reset else { return }
-        logger.info("Attach overlay aborted", metadata: ["event": "\(event)"])
         end()
     }
 

@@ -4,6 +4,10 @@
 //
 
 import SwiftUI
+import FlipcashCore
+
+/// The one log label for the attach surface, whichever host draws it.
+let attachLogger = Logger(label: "flipcash.attach")
 
 /// Where the attach panel and its cards are drawn while an event arrives.
 enum AttachHost: Equatable {
@@ -84,6 +88,13 @@ extension ConversationBarModel {
     @discardableResult
     func handle(_ event: AttachEvent, in host: AttachHost) -> AttachEventResponse {
         let response = event.response(in: host)
+        if response != .none, attachPanel.isOpen || attachCard.isOpen {
+            attachLogger.info("Attach event", metadata: [
+                "event": "\(event)",
+                "host": "\(host)",
+                "response": "\(response)",
+            ])
+        }
         switch response {
         case .none:
             break
