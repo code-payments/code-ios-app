@@ -10,33 +10,6 @@ import SwiftUI
 import UIKit
 import FlipcashCore
 
-/// The gradient behind the jump button: the chat background rising from nothing to nearly opaque
-/// toward the composer, so the button reads over any bubble beneath it.
-@MainActor
-final class JumpHazeView: UIView {
-
-    private let ramp = GradientView()
-
-    init() {
-        super.init(frame: .zero)
-        isUserInteractionEnabled = false
-        addSubview(ramp)
-        let base = UIColor(Color.backgroundMain)
-        ramp.set(
-            colors: [0, 0.75, 0.95].map { base.withAlphaComponent($0) },
-            locations: [0, 0.5, 1]
-        )
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        ramp.frame = bounds
-    }
-}
-
 /// A 44pt glass circle with a chevron and an unread badge that scrolls the transcript to its newest
 /// message. White 12% over the chat's frosting, a hairline in the row-separator white, and a soft
 /// shadow.

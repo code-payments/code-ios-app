@@ -65,7 +65,7 @@ final class ComposerFadeView: UIView {
 }
 
 /// A view backed by a top-to-bottom gradient layer.
-final class GradientView: UIView {
+private final class GradientView: UIView {
 
     override class var layerClass: AnyClass { CAGradientLayer.self }
 

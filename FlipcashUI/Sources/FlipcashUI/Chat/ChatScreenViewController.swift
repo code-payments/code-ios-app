@@ -110,7 +110,6 @@ public final class ChatScreenViewController: UIViewController {
     /// The blur over a transcript the user is not allowed to read. See `TranscriptBlur`.
     private let transcriptBlur = TranscriptBlur()
     private let jumpButton = JumpToBottomButton()
-    private let jumpHaze = JumpHazeView()
     /// The decorative shapes the blur softens when there is no transcript to soften. See
     /// `GatePreviewPlaceholder`.
     private let gatePlaceholder = GatePreviewPlaceholder()
@@ -936,23 +935,16 @@ public final class ChatScreenViewController: UIViewController {
     /// Gap between the jump button and the composer's top edge.
     private static let jumpButtonGap: CGFloat = 20
     private static let jumpButtonInset: CGFloat = 16
-    private static let jumpHazeHeight: CGFloat = 120
     /// Scale the button sits at while hidden.
     private static let jumpHiddenScale: CGFloat = 0.8
 
     /// Floats the jump button over the transcript, above the composer's clip rather than inside it
-    /// (the clip toggles `clipsToBounds`), with its haze behind. Under the blur over a withheld
+    /// (the clip toggles `clipsToBounds`), under the blur over a withheld
     /// transcript, so the button doesn't float sharp over text the reader can't read.
     private func installJumpButton() {
-        jumpHaze.translatesAutoresizingMaskIntoConstraints = false
         jumpButton.translatesAutoresizingMaskIntoConstraints = false
-        view.insertSubview(jumpHaze, belowSubview: transcriptBlur.view)
         view.insertSubview(jumpButton, belowSubview: transcriptBlur.view)
         NSLayoutConstraint.activate([
-            jumpHaze.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            jumpHaze.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            jumpHaze.bottomAnchor.constraint(equalTo: barClip.topAnchor),
-            jumpHaze.heightAnchor.constraint(equalToConstant: Self.jumpHazeHeight),
             jumpButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Self.jumpButtonInset),
             jumpButton.bottomAnchor.constraint(equalTo: barClip.topAnchor, constant: -Self.jumpButtonGap),
         ])
@@ -963,13 +955,12 @@ public final class ChatScreenViewController: UIViewController {
         }
     }
 
-    /// Fades and scales the button and haze in or out. Hidden, the button also stops taking
+    /// Fades and scales the button in or out. Hidden, the button also stops taking
     /// touches; alpha 0 alone would still be tappable.
     private func setJumpButton(visible: Bool, animated: Bool) {
         let scale = visible ? 1 : Self.jumpHiddenScale
         let apply = {
             self.jumpButton.alpha = visible ? 1 : 0
-            self.jumpHaze.alpha = visible ? 1 : 0
             self.jumpButton.transform = CGAffineTransform(scaleX: scale, y: scale)
         }
         jumpButton.isUserInteractionEnabled = visible
