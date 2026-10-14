@@ -109,7 +109,11 @@ public final class ChatScreenViewController: UIViewController {
     private let backdrop = MessageBackdrop()
     /// The blur over a transcript the user is not allowed to read. See `TranscriptBlur`.
     private let transcriptBlur = TranscriptBlur()
-    private let jumpButton = JumpToBottomButton()
+    /// What the jump-to-bottom button shows. The button itself is the column the owner installs with
+    /// ``installJumpColumn(_:)``.
+    public let jump = JumpToBottomModel()
+    /// The owner's hosted jump column, once placed.
+    private var jumpColumn: UIViewController?
     /// The decorative shapes the blur softens when there is no transcript to soften. See
     /// `GatePreviewPlaceholder`.
     private let gatePlaceholder = GatePreviewPlaceholder()
@@ -389,7 +393,7 @@ public final class ChatScreenViewController: UIViewController {
         // Under the blur, so the shapes are only ever seen through it.
         gatePlaceholder.install(in: view, below: transcriptBlur.view)
 
-        installJumpButton()
+        placeJumpColumn()
         barClipHeightConstraint = constraints.clipHeight
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom, keyboardEdgeConstraint: constraints.keyboardEdge)
         keyboardFloor.restingDrop = barRestingDrop
@@ -779,7 +783,7 @@ public final class ChatScreenViewController: UIViewController {
         shield.frame = transcript.view.frame
         shield.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         // Above the jump button, so a tap while the attach keyboard is up dismisses it rather than jumping.
-        view.insertSubview(shield, aboveSubview: jumpButton)
+        view.insertSubview(shield, aboveSubview: jumpColumn?.view ?? transcript.view)
         transcriptShield = shield
     }
 
@@ -929,81 +933,44 @@ public final class ChatScreenViewController: UIViewController {
     /// Inbound messages the viewer hasn't seen, shown on the jump-to-bottom button's badge. Zero
     /// hides the badge; the button itself shows whenever the reader is off the bottom.
     public var unreadBelowCount: Int = 0 {
-        didSet { jumpButton.setUnreadCount(unreadBelowCount) }
+        didSet { jump.unreadCount = unreadBelowCount }
     }
 
     /// Gap between the jump button and the composer's top edge.
     private static let jumpButtonGap: CGFloat = 20
-    /// Where the jump button's centre sits from the screen's trailing edge when the owner has not
-    /// said where the bar's trailing control is.
-    private static let jumpButtonDefaultCentreInset: CGFloat = 16 + JumpToBottomButton.diameter / 2
-    /// Distances from the screen's trailing edge to the centre of the bar's trailing control, while
-    /// the user is composing and while the bar rests compact. The jump button centres on that column
-    /// so the two stack. The bar is a hosted SwiftUI view, so the screen cannot constrain to the
-    /// control's view and takes the numbers from the bar's own layout constants instead.
-    public var barTrailingControlCentreInsets: (composing: CGFloat, compact: CGFloat)? {
-        didSet { refreshJumpButtonColumn() }
-    }
 
-    /// Whether the bar rests compact: the state the bar's own layout switches on, which is the
-    /// composer's focus rather than the keyboard's visibility. The jump button follows it, on the
-    /// bar's own curve, so it stays over the `$` button.
-    public var isBarCompact = true {
-        didSet {
-            guard isBarCompact != oldValue else { return }
-            refreshJumpButtonColumn()
-            guard view.window != nil else { return }
-            ChatMotion.barInset.animate(options: [.beginFromCurrentState, .allowUserInteraction]) {
-                self.view.layoutIfNeeded()
-            }
+    /// Hands the screen the jump-to-bottom column to float over the transcript: the owner's hosted
+    /// SwiftUI view, drawn from ``jump`` and sized to its content. It stands above the bar's clip
+    /// rather than inside it (the clip cuts everything above the bar), under the blur over a
+    /// withheld transcript, so the button doesn't float sharp over text the reader can't read.
+    /// The column is bottom-trailing in its own frame; taps in the rest of it reach the transcript.
+    public func installJumpColumn(_ controller: UIViewController) {
+        if let jumpColumn {
+            jumpColumn.willMove(toParent: nil)
+            jumpColumn.view.removeFromSuperview()
+            jumpColumn.removeFromParent()
         }
-    }
-    private var jumpButtonCentre: NSLayoutConstraint?
-
-    /// Distance from the trailing edge to the jump button's centre, as last set.
-    var jumpButtonCentreInset: CGFloat? { jumpButtonCentre.map { -$0.constant } }
-
-    private func refreshJumpButtonColumn() {
-        guard let jumpButtonCentre else { return }
-        let inset = barTrailingControlCentreInsets.map { isBarCompact ? $0.compact : $0.composing }
-            ?? Self.jumpButtonDefaultCentreInset
-        jumpButtonCentre.constant = -inset
+        jumpColumn = controller
+        if isViewLoaded { placeJumpColumn() }
     }
 
-    /// Scale the button sits at while hidden.
-    private static let jumpHiddenScale: CGFloat = 0.8
-
-    /// Floats the jump button over the transcript, above the composer's clip rather than inside it
-    /// (the clip toggles `clipsToBounds`), under the blur over a withheld
-    /// transcript, so the button doesn't float sharp over text the reader can't read.
-    private func installJumpButton() {
-        jumpButton.translatesAutoresizingMaskIntoConstraints = false
-        view.insertSubview(jumpButton, belowSubview: transcriptBlur.view)
-        let centre = jumpButton.centerXAnchor.constraint(equalTo: view.trailingAnchor, constant: -Self.jumpButtonDefaultCentreInset)
-        jumpButtonCentre = centre
-        NSLayoutConstraint.activate([
-            centre,
-            jumpButton.bottomAnchor.constraint(equalTo: barClip.topAnchor, constant: -Self.jumpButtonGap),
-        ])
-        jumpButton.addAction(UIAction { [weak self] _ in self?.transcript.scrollToBottomFromJumpButton() }, for: .touchUpInside)
-        setJumpButton(visible: false, animated: false)
+    private func placeJumpColumn() {
+        jump.onTap = { [weak self] in self?.transcript.scrollToBottomFromJumpButton() }
         transcript.onJumpButtonVisibilityChange = { [weak self] visible in
-            self?.setJumpButton(visible: visible, animated: true)
+            self?.jump.isVisible = visible
         }
+        guard let jumpColumn else { return }
+        addChild(jumpColumn)
+        let column = jumpColumn.view!
+        column.translatesAutoresizingMaskIntoConstraints = false
+        view.insertSubview(column, belowSubview: transcriptBlur.view)
+        NSLayoutConstraint.activate([
+            column.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            column.bottomAnchor.constraint(equalTo: barClip.topAnchor, constant: -Self.jumpButtonGap),
+        ])
+        jumpColumn.didMove(toParent: self)
     }
 
-    /// Fades and scales the button in or out. Hidden, the button also stops taking
-    /// touches; alpha 0 alone would still be tappable.
-    private func setJumpButton(visible: Bool, animated: Bool) {
-        let scale = visible ? 1 : Self.jumpHiddenScale
-        let apply = {
-            self.jumpButton.alpha = visible ? 1 : 0
-            self.jumpButton.transform = CGAffineTransform(scaleX: scale, y: scale)
-        }
-        jumpButton.isUserInteractionEnabled = visible
-        guard animated else { apply(); return }
-        ChatMotion.reflow.animate(apply)
-    }
     public func scrollToBottom(animated: Bool = true) { transcript.scrollToBottom(animated: animated) }
 
     /// Whether the transcript sits at its newest message — see ``ChatViewController/isAtBottom``.
@@ -1021,7 +988,6 @@ public final class ChatScreenViewController: UIViewController {
         // pass later — and a bar moved after the pass leaves the transcript's inset below reading
         // the bar's old frame, with nothing to lay it out again.
         keyboardFloor.refresh()
-        refreshJumpButtonColumn()
     }
 
     public override func viewDidLayoutSubviews() {

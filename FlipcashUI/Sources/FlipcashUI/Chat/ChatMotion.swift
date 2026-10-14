@@ -138,7 +138,7 @@ public nonisolated enum ChatMotion {
     /// The bottom bar swapping between its action and composer states.
     public static let swap = ChatSpring(duration: 0.27, bounce: 0.31)
     /// The bar narrowing and widening as the composer gains and loses focus. The jump-to-bottom
-    /// button moves on the same curve, so it keeps its place over the `$` button.
+    /// column moves on the same curve, so it keeps its place over the `$` button.
     public static let barInset = ChatSpring(duration: 0.22, bounce: 0.14)
     /// The send arrow scaling in and out of the composer.
     public static let sendButton = ChatSpring(duration: 0.17, bounce: 0.34)

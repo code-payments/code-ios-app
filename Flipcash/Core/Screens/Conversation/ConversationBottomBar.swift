@@ -165,16 +165,36 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
-/// Tells the screen when the bar switches between its compact and composing layouts, so the
-/// jump-to-bottom button moves with the `$` button.
-struct BarCompactReporting: ViewModifier {
-    let model: ConversationBarModel
-    let screen: () -> ChatScreenViewController?
+/// The jump-to-bottom button's column, hosted beside the bar rather than in it: the bar's clip cuts
+/// everything drawn above the bar's top edge, and the transcript's inset follows that edge.
+///
+/// The column reads the same `isComposing` the bar's `$` does and moves on the same spring, so the
+/// two stay stacked while the composer gains and loses focus.
+struct JumpToBottomColumn: View {
+    let jump: JumpToBottomModel
+    let bar: ConversationBarModel
 
-    func body(content: Content) -> some View {
-        content.onChange(of: model.isComposing, initial: true) { _, isComposing in
-            screen()?.isBarCompact = !isComposing
-        }
+    /// Room for the badge overhanging the button's corner and for the button's travel between the
+    /// compact and composing columns. Taps in it, outside the button, reach the transcript.
+    static let size = CGSize(width: 88, height: 52)
+
+    var body: some View {
+        let isShown = jump.isVisible
+        let isCompact = !bar.isComposing
+        // Centred on the trailing control's column, which is narrower than the button.
+        let inset = BarMetrics.trailingControlCentreInset(isCompact: isCompact)
+            - JumpToBottomButtonView.diameter / 2
+        JumpToBottomButtonView(unreadCount: jump.unreadCount, action: jump.onTap)
+            .frame(width: JumpToBottomButtonView.diameter, height: JumpToBottomButtonView.diameter)
+            .opacity(isShown ? 1 : 0)
+            .scaleEffect(isShown ? 1 : 0.8)
+            // Hidden, the button also stops taking touches; opacity 0 alone would still be tappable.
+            .allowsHitTesting(isShown)
+            .accessibilityHidden(!isShown)
+            .animation(ChatMotion.reflow.animation, value: isShown)
+            .padding(.trailing, inset)
+            .animation(ChatMotion.barInset.animation, value: isCompact)
+            .frame(width: Self.size.width, height: Self.size.height, alignment: .bottomTrailing)
     }
 }
 
@@ -213,12 +233,18 @@ enum BarMetrics {
     static let compactDrop: CGFloat = 8
     /// The margin between the compact bar's controls and the screen's sides.
     static let compactInset: CGFloat = 32
-    /// Distances from the screen's side to the centre of the bar's trailing control (Send Cash), while
-    /// composing and while compact. The jump-to-bottom button centres on this column.
-    static let trailingControlCentreInsets = (
-        composing: edgeInset + contentHeight / 2,
-        compact: compactInset + contentHeight / 2
-    )
+
+    /// The margin between the bar's controls and the screen's sides: ``compactInset`` while the bar
+    /// rests compact, ``edgeInset`` while composing.
+    static func controlInset(isCompact: Bool) -> CGFloat {
+        isCompact ? compactInset : edgeInset
+    }
+
+    /// Distance from the screen's side to the centre of the bar's trailing control (Send Cash). The
+    /// jump-to-bottom button centres on this column.
+    static func trailingControlCentreInset(isCompact: Bool) -> CGFloat {
+        controlInset(isCompact: isCompact) + contentHeight / 2
+    }
 }
 
 /// What stands outside the message field, beside it.
@@ -360,7 +386,7 @@ struct ConversationBottomBar: View {
     private var isCompact: Bool { !model.isComposing }
 
     /// How much further in than ``BarMetrics/edgeInset`` the controls and the reply quote sit.
-    private var compactExtraInset: CGFloat { isCompact ? BarMetrics.compactInset - BarMetrics.edgeInset : 0 }
+    private var compactExtraInset: CGFloat { BarMetrics.controlInset(isCompact: isCompact) - BarMetrics.edgeInset }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 

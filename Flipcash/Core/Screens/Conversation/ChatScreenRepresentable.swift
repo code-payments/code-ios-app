@@ -151,7 +151,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
         screen.barRestingDrop = BarMetrics.compactDrop
-        screen.barTrailingControlCentreInsets = BarMetrics.trailingControlCentreInsets
         screen.authorAvatars = authorAvatars
         screen.transcriptTopInset = transcriptTopInset
         screen.onReachTop = onReachTop
@@ -198,6 +197,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         screen.update(items: items)
+        let jumpHost = UIHostingController(rootView: JumpToBottomColumn(jump: screen.jump, bar: barModel))
+        jumpHost.view.backgroundColor = .clear
+        jumpHost.safeAreaRegions = []
+        jumpHost.sizingOptions = [.intrinsicContentSize]
+        screen.installJumpColumn(jumpHost)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
         context.coordinator.lastMessageID = lastMessageID(of: items)
@@ -211,7 +215,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
         screen.barRestingDrop = BarMetrics.compactDrop
-        screen.barTrailingControlCentreInsets = BarMetrics.trailingControlCentreInsets
         screen.transcriptTopInset = transcriptTopInset
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
@@ -364,7 +367,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 }
             }
             .modifier(BarOverflowReporting(model: barModel) { [weak coordinator] in coordinator?.screen })
-            .modifier(BarCompactReporting(model: barModel) { [weak coordinator] in coordinator?.screen })
         )
     }
 
