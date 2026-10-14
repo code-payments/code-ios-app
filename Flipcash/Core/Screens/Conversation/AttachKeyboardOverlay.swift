@@ -7,23 +7,10 @@
 
 import SwiftUI
 import UIKit
-import PhotosUI
 import FlipcashCore
 import FlipcashUI
 
 private let logger = Logger(label: "flipcash.attach-overlay")
-
-/// What the panel and cards drawn over the keyboard hand back to the screen.
-struct AttachOverlayActions {
-    var onCash: () -> Void
-    var onCamera: () -> Void
-    var onPhotos: () -> Void
-    var onCameraCapture: (ChatCameraCapture) -> Void
-    var onCameraCancel: () -> Void
-    var onPhotosAdd: ([PhotosPickerItem], ChatPhotoPreloader<PhotosPickerItem>) -> Void
-    var onPhotosBack: () -> Void
-    var onAllPhotos: (() -> Void)? = nil
-}
 
 /// Draws the attach panel and its cards over the keyboard while the composer keeps focus, as
 /// ChatGPT does: in the keyboard's own window when ``KeyboardOverlayHost`` finds it, else over a
@@ -59,7 +46,7 @@ final class AttachKeyboardOverlay {
         screen: ChatScreenViewController,
         items: [AttachMenuItem],
         composer: ComposerModel,
-        actions: AttachOverlayActions
+        actions: @escaping () -> AttachActions
     ) -> AttachOverlayMode {
         if let mode { return mode }
         let plan = AttachOverlayPlan(
@@ -149,7 +136,7 @@ final class AttachKeyboardOverlay {
 
     /// Hands the photo card to the bar, with the keyboard down and the full picker opening: a sheet
     /// can't be presented from the keyboard's window.
-    func handOffToBar() {
+    private func handOffToBar() {
         guard mode != nil else { return }
         model.overKeyboard.opensLibraryInBar = true
         end()
@@ -159,7 +146,7 @@ final class AttachKeyboardOverlay {
     private func makeContainer(
         appWindow: UIWindow,
         composer: ComposerModel,
-        actions: AttachOverlayActions
+        actions: @escaping () -> AttachActions
     ) -> AttachOverlayContainer {
         let container = AttachOverlayContainer()
         container.appWindow = appWindow
@@ -177,7 +164,12 @@ final class AttachKeyboardOverlay {
         let root = AttachOverlayRoot(
             model: model,
             composer: composer,
-            actions: actions,
+            // A card here can't present a sheet, so All Photos hands the card to the bar instead.
+            actions: { [weak self] in
+                var actions = actions()
+                actions.onAllPhotos = { self?.handOffToBar() }
+                return actions
+            },
             report: { [weak container] region, rect in container?.hitRects[region] = rect },
             onFinished: { [weak self] in self?.end() },
             onAbort: { [weak self] in self?.abort() }
@@ -321,7 +313,8 @@ private struct AttachOverlayRoot: View {
 
     let model: ConversationBarModel
     let composer: ComposerModel
-    let actions: AttachOverlayActions
+    /// Returns the screen's actions as of its latest render.
+    let actions: () -> AttachActions
     let report: (AttachOverlayRegion, CGRect?) -> Void
     let onFinished: () -> Void
     let onAbort: () -> Void
@@ -340,7 +333,7 @@ private struct AttachOverlayRoot: View {
                     landing: model.attachCard.landingChipFrame,
                     menuPlacement: .straddlesPlus,
                     selectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
-                    actions: actions,
+                    actions: actions(),
                     report: report
                 )
             }
