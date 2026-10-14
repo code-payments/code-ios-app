@@ -126,11 +126,16 @@ final class AttachKeyboardOverlay {
         model.overKeyboard.deactivate()
     }
 
-    /// Takes the panel and card down at once: the keyboard went, or the app left the foreground.
-    func abort() {
-        guard mode != nil else { return }
-        logger.info("Attach overlay aborted", metadata: [:])
-        model.resetAttach()
+    /// Passes `event` to the model, and comes down at once if it takes the panel and card with it.
+    private func receive(_ event: AttachEvent) {
+        let host: AttachHost
+        switch mode {
+        case .keyboardWindow:                   host = .keyboardWindow
+        case .inputView:                        host = .inputView
+        case .dismissKeyboard, nil:             return
+        }
+        guard model.handle(event, in: host) == .reset else { return }
+        logger.info("Attach overlay aborted", metadata: ["event": "\(event)"])
         end()
     }
 
@@ -174,7 +179,7 @@ final class AttachKeyboardOverlay {
             },
             report: { [weak container] region, rect in container?.hitRects[region] = rect },
             onFinished: { [weak self] in self?.end() },
-            onAbort: { [weak self] in self?.abort() }
+            onEvent: { [weak self] in self?.receive($0) }
         )
         let host = UIHostingController(rootView: AnyView(root))
         host.view.backgroundColor = .clear
@@ -213,7 +218,7 @@ final class AttachKeyboardOverlay {
             case .dismissKeyboard:  nil
             }
             guard let window else {
-                self.abort()
+                self.receive(.keyboardWindowLost)
                 return
             }
             self.install(container, in: window)
@@ -229,15 +234,10 @@ final class AttachKeyboardOverlay {
             })
         }
         observers.append(center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.abort() }
+            MainActor.assumeIsolated { self?.receive(.appBackgrounded) }
         })
-        // The input view swap announces the keyboard going and coming, so only the keyboard's own
-        // window takes a hide as the keyboard leaving. Focus loss covers the swap.
         observers.append(center.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard self?.mode == .keyboardWindow else { return }
-                self?.abort()
-            }
+            MainActor.assumeIsolated { self?.receive(.keyboardWillHide) }
         })
     }
 }
@@ -320,7 +320,7 @@ private struct AttachOverlayRoot: View {
     let actions: () -> AttachActions
     let report: (AttachOverlayRegion, CGRect?) -> Void
     let onFinished: () -> Void
-    let onAbort: () -> Void
+    let onEvent: (AttachEvent) -> Void
 
     // Read live, as the bar reads its own, so a photo staged while the menu is up updates both.
     private var rows: ConversationBarBottomRow {
@@ -356,7 +356,7 @@ private struct AttachOverlayRoot: View {
         // The field losing focus takes the keyboard, and with it what was drawn over it.
         .onChange(of: model.isComposing) { _, isComposing in
             if !isComposing {
-                onAbort()
+                onEvent(.fieldBlurred)
             }
         }
     }
