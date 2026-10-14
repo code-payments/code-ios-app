@@ -25,6 +25,8 @@ import FlipcashUI
     let photosPick = AttachPhotosPick()
     /// Whether the panel and cards are drawn over the keyboard instead of in the bar.
     let overKeyboard = AttachOverKeyboard()
+    /// Where the attach surface was last opened, for the log line when it closes.
+    @ObservationIgnored private(set) var attachHost: AttachHost = .bar
 
     /// What the attach surface is showing.
     var attachSurfacePhase: AttachSurfacePhase {
@@ -69,6 +71,17 @@ import FlipcashUI
         } completion: { [weak self] in
             self?.attachCard.exitDidFinish()
         }
+    }
+
+    /// Logs the attach surface opening in `host`, with `details` about how the host was chosen.
+    func attachDidOpen(in host: AttachHost, details: Logger.Metadata) {
+        attachHost = host
+        attachLogger.info("Attach opened", metadata: details.merging(["host": "\(host)"]) { $1 })
+    }
+
+    /// Logs the attach surface closing in the host it was opened in.
+    func attachDidClose() {
+        attachLogger.info("Attach closed", metadata: ["host": "\(attachHost)"])
     }
 
     /// Takes the panel and the card down at once, with nothing to animate out: the keyboard they were
@@ -505,6 +518,7 @@ struct ConversationBottomBar: View {
         .onChange(of: model.attachSurfaceIsMounted) { _, isMounted in
             if !isMounted {
                 model.photosPick.reset()
+                model.attachDidClose()
             }
         }
         .onDisappear {
