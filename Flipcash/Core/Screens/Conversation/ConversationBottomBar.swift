@@ -165,6 +165,19 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
+/// Tells the screen when the bar switches between its compact and composing layouts, so the
+/// jump-to-bottom button moves with the `$` button.
+struct BarCompactReporting: ViewModifier {
+    let model: ConversationBarModel
+    let screen: () -> ChatScreenViewController?
+
+    func body(content: Content) -> some View {
+        content.onChange(of: model.isComposing, initial: true) { _, isComposing in
+            screen()?.isBarCompact = !isComposing
+        }
+    }
+}
+
 /// Single spring driving the bar's morphs: the focus-driven resize and the send-arrow pop.
 private let barMorphSpring = ChatMotion.swap.animation
 
@@ -200,11 +213,11 @@ enum BarMetrics {
     static let compactDrop: CGFloat = 8
     /// The margin between the compact bar's controls and the screen's sides.
     static let compactInset: CGFloat = 32
-    /// Distances from the screen's side to the centre of the bar's trailing control (Send Cash), with
-    /// the keyboard up and down. The jump-to-bottom button centres on this column.
+    /// Distances from the screen's side to the centre of the bar's trailing control (Send Cash), while
+    /// composing and while compact. The jump-to-bottom button centres on this column.
     static let trailingControlCentreInsets = (
-        keyboardUp: edgeInset + contentHeight / 2,
-        resting: compactInset + contentHeight / 2
+        composing: edgeInset + contentHeight / 2,
+        compact: compactInset + contentHeight / 2
     )
 }
 
@@ -325,7 +338,7 @@ struct ConversationBottomBar: View {
     var quoteThumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
-    private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
+    private static let widthSpring = ChatMotion.barInset.animation
     /// `$` splitting from the field's glass and joining back into it. Low bounce, so the overshoot
     /// does not carry the drop back into the field it just left.
     private static let cashSpring = Animation.spring(duration: 0.42, bounce: 0.12)

@@ -364,6 +364,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 }
             }
             .modifier(BarOverflowReporting(model: barModel) { [weak coordinator] in coordinator?.screen })
+            .modifier(BarCompactReporting(model: barModel) { [weak coordinator] in coordinator?.screen })
         )
     }
 

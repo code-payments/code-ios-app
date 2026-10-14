@@ -114,6 +114,27 @@ struct ChatScreenKeyboardFloorTests {
         #expect(slack() == settled)
     }
 
+    @Test("The jump button's column follows the bar's compact state, not the keyboard")
+    func jumpButtonColumn_followsBarState() {
+        let (screen, _, window) = makeScreen()
+        screen.barTrailingControlCentreInsets = (composing: 37, compact: 57)
+        window.layoutIfNeeded()
+
+        // Keyboard up while the bar is still compact: the bar has not moved its `$`, so neither
+        // does the jump button.
+        postKeyboard(endFrame: raisedKeyboard, isLocal: true)
+        window.layoutIfNeeded()
+        #expect(screen.jumpButtonCentreInset == 57)
+
+        UIView.performWithoutAnimation { screen.isBarCompact = false }
+        #expect(screen.jumpButtonCentreInset == 37)
+
+        // Keyboard down while the bar is still composing: the column stays with the bar.
+        postKeyboard(endFrame: raisedKeyboard.offsetBy(dx: 0, dy: keyboardHeight), isLocal: true)
+        window.layoutIfNeeded()
+        #expect(screen.jumpButtonCentreInset == 37)
+    }
+
     private func firstCollectionView(in view: UIView) -> UICollectionView? {
         if let collectionView = view as? UICollectionView { return collectionView }
         return view.subviews.lazy.compactMap { firstCollectionView(in: $0) }.first

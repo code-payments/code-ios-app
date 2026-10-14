@@ -937,18 +937,35 @@ public final class ChatScreenViewController: UIViewController {
     /// Where the jump button's centre sits from the screen's trailing edge when the owner has not
     /// said where the bar's trailing control is.
     private static let jumpButtonDefaultCentreInset: CGFloat = 16 + JumpToBottomButton.diameter / 2
-    /// Distances from the screen's trailing edge to the centre of the bar's trailing control, with
-    /// the keyboard up and with it down. The jump button centres on that column so the two stack.
-    /// The bar is a hosted SwiftUI view, so the screen cannot constrain to the control's view and takes the
-    /// numbers from the bar's own layout constants instead.
-    public var barTrailingControlCentreInsets: (keyboardUp: CGFloat, resting: CGFloat)? {
+    /// Distances from the screen's trailing edge to the centre of the bar's trailing control, while
+    /// the user is composing and while the bar rests compact. The jump button centres on that column
+    /// so the two stack. The bar is a hosted SwiftUI view, so the screen cannot constrain to the
+    /// control's view and takes the numbers from the bar's own layout constants instead.
+    public var barTrailingControlCentreInsets: (composing: CGFloat, compact: CGFloat)? {
         didSet { refreshJumpButtonColumn() }
+    }
+
+    /// Whether the bar rests compact: the state the bar's own layout switches on, which is the
+    /// composer's focus rather than the keyboard's visibility. The jump button follows it, on the
+    /// bar's own curve, so it stays over the `$` button.
+    public var isBarCompact = true {
+        didSet {
+            guard isBarCompact != oldValue else { return }
+            refreshJumpButtonColumn()
+            guard view.window != nil else { return }
+            ChatMotion.barInset.animate(options: [.beginFromCurrentState, .allowUserInteraction]) {
+                self.view.layoutIfNeeded()
+            }
+        }
     }
     private var jumpButtonCentre: NSLayoutConstraint?
 
+    /// Distance from the trailing edge to the jump button's centre, as last set.
+    var jumpButtonCentreInset: CGFloat? { jumpButtonCentre.map { -$0.constant } }
+
     private func refreshJumpButtonColumn() {
-        guard let jumpButtonCentre, let keyboardFloor else { return }
-        let inset = barTrailingControlCentreInsets.map { keyboardFloor.isKeyboardUp ? $0.keyboardUp : $0.resting }
+        guard let jumpButtonCentre else { return }
+        let inset = barTrailingControlCentreInsets.map { isBarCompact ? $0.compact : $0.composing }
             ?? Self.jumpButtonDefaultCentreInset
         jumpButtonCentre.constant = -inset
     }
