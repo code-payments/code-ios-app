@@ -934,7 +934,25 @@ public final class ChatScreenViewController: UIViewController {
 
     /// Gap between the jump button and the composer's top edge.
     private static let jumpButtonGap: CGFloat = 20
-    private static let jumpButtonInset: CGFloat = 16
+    /// Where the jump button's centre sits from the screen's trailing edge when the owner has not
+    /// said where the bar's trailing control is.
+    private static let jumpButtonDefaultCentreInset: CGFloat = 16 + JumpToBottomButton.diameter / 2
+    /// Distances from the screen's trailing edge to the centre of the bar's trailing control, with
+    /// the keyboard up and with it down. The jump button centres on that column so the two stack.
+    /// The bar is a hosted SwiftUI view, so the screen cannot constrain to the control's view and takes the
+    /// numbers from the bar's own layout constants instead.
+    public var barTrailingControlCentreInsets: (keyboardUp: CGFloat, resting: CGFloat)? {
+        didSet { refreshJumpButtonColumn() }
+    }
+    private var jumpButtonCentre: NSLayoutConstraint?
+
+    private func refreshJumpButtonColumn() {
+        guard let jumpButtonCentre, let keyboardFloor else { return }
+        let inset = barTrailingControlCentreInsets.map { keyboardFloor.isKeyboardUp ? $0.keyboardUp : $0.resting }
+            ?? Self.jumpButtonDefaultCentreInset
+        jumpButtonCentre.constant = -inset
+    }
+
     /// Scale the button sits at while hidden.
     private static let jumpHiddenScale: CGFloat = 0.8
 
@@ -944,8 +962,10 @@ public final class ChatScreenViewController: UIViewController {
     private func installJumpButton() {
         jumpButton.translatesAutoresizingMaskIntoConstraints = false
         view.insertSubview(jumpButton, belowSubview: transcriptBlur.view)
+        let centre = jumpButton.centerXAnchor.constraint(equalTo: view.trailingAnchor, constant: -Self.jumpButtonDefaultCentreInset)
+        jumpButtonCentre = centre
         NSLayoutConstraint.activate([
-            jumpButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Self.jumpButtonInset),
+            centre,
             jumpButton.bottomAnchor.constraint(equalTo: barClip.topAnchor, constant: -Self.jumpButtonGap),
         ])
         jumpButton.addAction(UIAction { [weak self] _ in self?.transcript.scrollToBottomFromJumpButton() }, for: .touchUpInside)
@@ -984,6 +1004,7 @@ public final class ChatScreenViewController: UIViewController {
         // pass later — and a bar moved after the pass leaves the transcript's inset below reading
         // the bar's old frame, with nothing to lay it out again.
         keyboardFloor.refresh()
+        refreshJumpButtonColumn()
     }
 
     public override func viewDidLayoutSubviews() {

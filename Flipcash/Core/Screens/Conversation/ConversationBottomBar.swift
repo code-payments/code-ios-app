@@ -200,6 +200,12 @@ enum BarMetrics {
     static let compactDrop: CGFloat = 8
     /// The margin between the compact bar's controls and the screen's sides.
     static let compactInset: CGFloat = 32
+    /// Distances from the screen's side to the centre of the bar's trailing control (Send Cash), with
+    /// the keyboard up and down. The jump-to-bottom button centres on this column.
+    static let trailingControlCentreInsets = (
+        keyboardUp: edgeInset + contentHeight / 2,
+        resting: compactInset + contentHeight / 2
+    )
 }
 
 /// What stands outside the message field, beside it.

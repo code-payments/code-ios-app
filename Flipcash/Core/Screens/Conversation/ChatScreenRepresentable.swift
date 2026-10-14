@@ -151,6 +151,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
         screen.barRestingDrop = BarMetrics.compactDrop
+        screen.barTrailingControlCentreInsets = BarMetrics.trailingControlCentreInsets
         screen.authorAvatars = authorAvatars
         screen.transcriptTopInset = transcriptTopInset
         screen.onReachTop = onReachTop
@@ -210,6 +211,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
         screen.barRestingDrop = BarMetrics.compactDrop
+        screen.barTrailingControlCentreInsets = BarMetrics.trailingControlCentreInsets
         screen.transcriptTopInset = transcriptTopInset
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
