@@ -1605,7 +1605,7 @@ final class ConversationController {
     /// Persist operations that write confirmed messages — the ones that must bump `messageRevision`.
     private static let messageWriteOperations: Set<String> = [
         "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
-        "send-message", "reset-resync", "edit-message", "delete-message",
+        "send-message", "send-media-message", "reset-resync", "edit-message", "delete-message",
     ]
 
     // MARK: - Names
