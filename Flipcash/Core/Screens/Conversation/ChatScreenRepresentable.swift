@@ -380,7 +380,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         func openAttach(acceptsMedia: Bool) {
             guard let screen else { return }
             // Sized now, so the card's content is laid out at its final size while the menu is up.
-            model.attachCard.measure(screenHeight: screen.view.bounds.height)
+            model.attachCard.measure(screen: screen.view.window?.bounds ?? screen.view.bounds)
             let mode = overlay.begin(
                 screen: screen,
                 acceptsMedia: acceptsMedia,
@@ -400,7 +400,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             if overlay.mode == nil {
                 screen?.dismissKeyboard()
             }
-            model.attachCard.open(content, screenHeight: screen?.view.bounds.height ?? 0)
+            model.attachCard.open(content, screen: screen.map { $0.view.window?.bounds ?? $0.view.bounds } ?? .zero)
         }
 
         /// Takes the card down into the chip `stage` returns, and puts focus back in the field so the

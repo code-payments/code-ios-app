@@ -322,8 +322,6 @@ private struct AttachOverlayRoot: View {
     let onFinished: () -> Void
     let onAbort: () -> Void
 
-    @State private var bounds: CGSize = .zero
-
     // Read live, as the bar reads its own, so a photo staged while the menu is up updates both.
     private var rows: ConversationBarBottomRow {
         ConversationBarBottomRow(composer: composer, acceptsMedia: acceptsMedia)
@@ -337,7 +335,8 @@ private struct AttachOverlayRoot: View {
                     model: model,
                     items: rows.plusItems,
                     plus: model.overKeyboard.plusFrame,
-                    card: AttachOverlayLayout.cardFrame(in: CGRect(origin: .zero, size: bounds), height: model.attachCard.height),
+                    // The container lies over the app's window, so its coordinates are the window's.
+                    card: model.attachCard.frame,
                     landing: model.attachCard.landingChipFrame,
                     menuPlacement: .straddlesPlus,
                     selectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
@@ -348,7 +347,6 @@ private struct AttachOverlayRoot: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .ignoresSafeArea()
-        .onGeometryChange(for: CGSize.self, of: { $0.size }) { bounds = $0 }
         // Everything has gone: the overlay comes down and the bar takes over again.
         .onChange(of: model.attachSurfaceIsMounted) { _, isMounted in
             if !isMounted {

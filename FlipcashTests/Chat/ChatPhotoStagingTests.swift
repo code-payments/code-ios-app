@@ -380,7 +380,7 @@ struct AttachCardTests {
     ])
     func takesShareOfScreen(screenHeight: CGFloat, expected: CGFloat) {
         let card = AttachCard()
-        card.open(.camera, screenHeight: screenHeight)
+        card.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: screenHeight))
         #expect(card.height == expected)
     }
 
@@ -395,7 +395,7 @@ struct AttachCardTests {
     ])
     func keyboardClosesCard(content: AttachCard.Content) {
         let card = AttachCard()
-        card.open(content, screenHeight: 874)
+        card.open(content, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         #expect(card.content == content)
         #expect(card.holdsOverflow)
 
@@ -408,7 +408,7 @@ struct AttachCardTests {
     func keyboardLeavesLandingAlone() {
         let card = AttachCard()
         let chipID = UUID()
-        card.open(.photos, screenHeight: 874)
+        card.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         card.beginLanding(on: chipID)
 
         card.keyboardWillShow()
@@ -420,7 +420,7 @@ struct AttachCardTests {
     func keyboardGateHoldsOverKeyboard() {
         let card = AttachCard()
         card.closesOnKeyboardShow = false
-        card.open(.camera, screenHeight: 874)
+        card.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         card.keyboardWillShow()
         #expect(card.content == .camera)
     }
@@ -428,21 +428,21 @@ struct AttachCardTests {
     @Test("The card holds the camera or the photo card, not both")
     func holdsOneContent() {
         let card = AttachCard()
-        card.open(.photos, screenHeight: 874)
-        card.open(.camera, screenHeight: 874)
+        card.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
+        card.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         #expect(card.content == .photos)
 
         card.close()
-        card.open(.camera, screenHeight: 874)
+        card.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         #expect(card.content == .camera)
     }
 
     @Test("A card back up before the last exit finished keeps its room above the bar")
     func reopenKeepsOverflow() {
         let card = AttachCard()
-        card.open(.camera, screenHeight: 874)
+        card.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         card.close()
-        card.open(.photos, screenHeight: 874)
+        card.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         card.exitDidFinish()
         #expect(card.holdsOverflow)
     }
@@ -456,7 +456,7 @@ struct ChatCameraCaptureHandOffTests {
     func captureLandsOnChip() {
         let card = AttachCard()
         let chipID = UUID()
-        card.open(.camera, screenHeight: 874)
+        card.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
 
         card.beginLanding(on: chipID)
         #expect(card.isOpen, "The card holds until the chip is laid out")
@@ -476,7 +476,7 @@ struct ChatCameraCaptureHandOffTests {
     @Test("A chip laid out after the card has gone has nothing to land")
     func lateChipLandsNothing() {
         let card = AttachCard()
-        card.open(.camera, screenHeight: 874)
+        card.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         card.beginLanding(on: UUID())
         card.close()
         #expect(!card.landingChipDidLayout(CGRect(x: 0, y: 0, width: 64, height: 64)))

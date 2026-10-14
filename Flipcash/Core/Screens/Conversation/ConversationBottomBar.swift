@@ -26,9 +26,6 @@ import FlipcashUI
     /// Whether the panel and cards are drawn over the keyboard instead of in the bar.
     let overKeyboard = AttachOverKeyboard()
 
-    /// The card's top edge in window coordinates, as last laid out.
-    var cardTop: CGFloat = 0
-
     /// What the attach surface is showing.
     var attachSurfacePhase: AttachSurfacePhase {
         AttachSurfacePhase(
@@ -58,7 +55,7 @@ import FlipcashUI
         if overKeyboard.isActive { return .none }
         if attachPanel.isOpen { return .everywhere }
         // A leaving card takes no touches: the band closes to the bar's own frame.
-        return .band(top: attachCard.isOpen ? cardTop : .greatestFiniteMagnitude)
+        return .band(top: attachCard.isOpen ? attachCard.frame.minY : .greatestFiniteMagnitude)
     }
 
     /// Takes the camera or photo card back into the attach panel, discarding any pick: one
@@ -629,15 +626,6 @@ struct ConversationBottomBar: View {
         model.attachCard.isOpen
     }
 
-    /// The card's frame in the row's coordinates: where it stands with the keyboard up, inset from the
-    /// screen's bottom and sides, and on the row's bottom edge if the bar has no window to measure.
-    private func barCardRect(row: CGSize, toRow: (CGRect) -> CGRect) -> CGRect {
-        guard let window = UIApplication.shared.currentKeyWindow else {
-            return AttachSurfaceLayout.barCardRect(row: row, outset: compactExtraInset, height: model.attachCard.height)
-        }
-        return toRow(AttachOverlayLayout.cardFrame(in: window.bounds, height: model.attachCard.height))
-    }
-
     /// The attach surface in the bar: the menu standing on `+`, and the card standing where it does
     /// with the keyboard up, a fixed share of the screen tall and inset from the screen's edges. An
     /// overlay, so the bar's measured height — and with it the transcript's inset — stays the composer's.
@@ -649,16 +637,13 @@ struct ConversationBottomBar: View {
                 model: model,
                 items: items,
                 plus: toRow(model.overKeyboard.plusFrame),
-                card: barCardRect(row: proxy.size, toRow: toRow),
+                card: toRow(model.attachCard.frame),
                 landing: model.attachCard.landingChipFrame.map(toRow),
                 menuPlacement: .standsOnPlus,
                 selectionLimit: AttachMenuItem.photosSelectionLimit(attachedCount: composer.chips.count),
                 actions: attachActions,
                 opensLibraryOnAppear: model.overKeyboard.opensLibraryInBar
             ) { region, rect in
-                if region == .card, let rect {
-                    model.cardTop = rect.minY + origin.y
-                }
                 surfaceFrames[region] = rect?.offsetBy(dx: origin.x, dy: origin.y)
             }
             .onAppear {

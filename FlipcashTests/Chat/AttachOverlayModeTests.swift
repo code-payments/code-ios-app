@@ -115,7 +115,7 @@ struct AttachOverlayModeTests {
     @Test("A card drawn over the keyboard stays up as the keyboard announces itself")
     func cardIgnoresKeyboardShowOverKeyboard() {
         let card = AttachCard()
-        card.open(.photos, screenHeight: 800)
+        card.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 800))
         card.closesOnKeyboardShow = false
         card.keyboardWillShow()
         #expect(card.isOpen)
@@ -128,7 +128,7 @@ struct AttachOverlayModeTests {
     @Test("A card over the keyboard asks the bar for no room, since it takes its own touches")
     func overflowStaysOffForCardOverKeyboard() {
         let model = ConversationBarModel()
-        model.attachCard.open(.photos, screenHeight: 800)
+        model.attachCard.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 800))
         #expect(model.overflow != .none)
 
         model.overKeyboard.activate()
