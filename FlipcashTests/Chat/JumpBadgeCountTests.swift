@@ -235,4 +235,69 @@ struct JumpBadgeCountTests {
         #expect(badge.isFrozen)
         #expect(controller.confirmedOwnSendCounts[id] == nil)
     }
+
+    @Test("a failed opening load seats no cutoff; the next successful newest-page load does")
+    func failedOpeningLoad_thenLaterLoad_isNotArrivals() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        mock.messagesError = URLError(.notConnectedToInternet)
+        let controller = try await UnreadFixtures.hydratedController(
+            messages: (1...4).map { message($0, fromSelf: false) },
+            pointer: 1, database: database, mock: mock
+        )
+        let badge = badge(for: controller)
+
+        #expect(await controller.loadMessages(for: id) == false)
+        #expect(badge.count == 3)
+
+        // A later load by another path (a backfill, say) stores 20 more inbound; it is history.
+        mock.messagesError = nil
+        mock.messages = (1...24).map { message($0, fromSelf: false) }
+        #expect(await controller.loadMessages(for: id))
+        #expect(badge.count == 3)
+
+        controller.persist(operation: "upsert-messages") {
+            try database.upsertConversationMessages([message(25, fromSelf: false)], conversationID: id)
+        }
+        #expect(badge.count == 4)
+    }
+
+    @Test("a confirmed own send reports the crossed inbound messages, as Android's advance does")
+    func ownSend_reportsCrossedMessages() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let spy = ReceiptSpy()
+        let mock = MockConversations()
+        mock.sendResult = message(7, fromSelf: true)
+        let controller = try await UnreadFixtures.hydratedController(
+            messages: (1...4).map { message($0, fromSelf: false) },
+            pointer: 1, database: database, mock: mock,
+            receipts: spy.makeReporter(selfUserID: UnreadFixtures.me)
+        )
+
+        #expect(await controller.send("hi", to: id))
+
+        #expect(spy.messages.count == 3)
+        try await waitUntil { mock.markedRead.last == MessageID(value: 7) }
+    }
+
+    @Test("a confirmed own send that doesn't move the pointer reports nothing")
+    func ownSend_pointerNotMoved_reportsNothing() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let spy = ReceiptSpy()
+        let mock = MockConversations()
+        mock.sendResult = message(7, fromSelf: true)
+        let controller = try await UnreadFixtures.hydratedController(
+            messages: (1...4).map { message($0, fromSelf: false) },
+            pointer: 9, database: database, mock: mock,
+            receipts: spy.makeReporter(selfUserID: UnreadFixtures.me)
+        )
+
+        #expect(await controller.send("hi", to: id))
+
+        #expect(spy.messages.isEmpty)
+        #expect(spy.tips.isEmpty)
+    }
 }

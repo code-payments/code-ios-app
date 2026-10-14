@@ -383,6 +383,12 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         set { lock.withLock { _messagesDelay = newValue } }
     }
     private var _messagesDelay: Duration = .zero
+    /// When set, the newest-page `getMessages` throws this instead of returning `messages`.
+    var messagesError: Error? {
+        get { lock.withLock { _messagesError } }
+        set { lock.withLock { _messagesError = newValue } }
+    }
+    private var _messagesError: Error?
 
     func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
         lock.withLock { _singleMessageQueries.append(messageID) }
@@ -395,6 +401,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         guard let before else {
             lock.withLock { _latestPageQueries.append(conversationID) }
             if messagesDelay > .zero { try? await Task.sleep(for: messagesDelay) }
+            if let error = messagesError { throw error }
             return messages
         }
         lock.withLock { _olderQueries.append(before) }

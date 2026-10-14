@@ -1253,11 +1253,15 @@ struct ConversationScreen: View {
         // The newest page IS the fresh state and seats the event-log cursor to head, so opening a
         // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
         // foreground / reconnect / live-gap triggers instead.
-        await conversationController.loadMessages(for: conversationID)
-        // The coordinator may not exist yet; `syncCoordinator` applies this when it builds one.
-        loadedConversationID = conversationID
-        if let coordinator, coordinator.conversationID == conversationID {
-            coordinator.jumpBadge.openingLoadLanded()
+        let landed = await conversationController.loadMessages(for: conversationID)
+        // Only a load that landed seats the badge's arrival cutoff; after a failed one, the next
+        // successful newest-page load does, whichever path runs it.
+        if landed {
+            // The coordinator may not exist yet; `syncCoordinator` applies this when it builds one.
+            loadedConversationID = conversationID
+            if let coordinator, coordinator.conversationID == conversationID {
+                coordinator.jumpBadge.openingLoadLanded()
+            }
         }
         await conversationController.refreshReactions(for: conversationID)
         // Reading the thread clears its own delivered pushes; other chats keep theirs.

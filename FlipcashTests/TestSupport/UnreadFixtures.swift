@@ -42,7 +42,8 @@ enum UnreadFixtures {
         database: Database,
         hasConversationRow: Bool = true,
         type: ConversationType = .contactDm,
-        mock: MockConversations = MockConversations()
+        mock: MockConversations = MockConversations(),
+        receipts: ConversationReceiptReporter? = nil
     ) async throws -> ConversationController {
         var members = [ConversationMember(userID: them, displayName: "Them")]
         if let pointer {
@@ -58,7 +59,8 @@ enum UnreadFixtures {
             fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
             contactNaming: MockDMContactNaming(),
             database: database,
-            owner: .generate()!, selfUserID: me
+            owner: .generate()!, selfUserID: me,
+            receipts: receipts
         )
         await controller.hydrateFromDatabase()
         return controller

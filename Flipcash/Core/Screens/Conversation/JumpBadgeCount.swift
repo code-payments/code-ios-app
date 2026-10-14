@@ -29,6 +29,8 @@ final class JumpBadgeCount {
     @ObservationIgnored private let sendsAtOpen: Int
     /// Inbound messages past this id arrived on this visit. Nil until the opening load has landed.
     @ObservationIgnored private var arrivalCutoff: MessageID?
+    /// Newest-page loads this chat had landed when the badge was built; a rise is a landing on this visit.
+    @ObservationIgnored private let landingsAtOpen: Int
     private var didScroll = false
 
     /// Pass the boundary resolved at open, before the opening read report moves the pointer.
@@ -39,6 +41,7 @@ final class JumpBadgeCount {
         self.openingCount = boundary.count ?? 0
         self.pointerAtOpen = controller.readThrough(for: conversationID)
         self.sendsAtOpen = controller.confirmedOwnSendCounts[conversationID] ?? 0
+        self.landingsAtOpen = controller.newestPageLandings[conversationID] ?? 0
         if openingLoadLanded { self.openingLoadLanded() }
     }
 
@@ -53,6 +56,7 @@ final class JumpBadgeCount {
     var count: Int {
         guard isFrozen else { return controller.unreadBelowCount(in: conversationID) }
         _ = controller.messageRevision   // observe: re-count when an inbound message lands
+        seatCutoffFromLanding()
         guard let arrivalCutoff else { return openingCount }
         return openingCount + controller.inboundMessageCount(after: arrivalCutoff, in: conversationID)
     }
@@ -62,6 +66,16 @@ final class JumpBadgeCount {
     func openingLoadLanded() {
         guard arrivalCutoff == nil else { return }
         let newest = controller.newestInboundMessageID(in: conversationID)
+        arrivalCutoff = [pointerAtOpen, newest].compactMap { $0 }.max() ?? MessageID(value: 0)
+    }
+
+    /// Seats the cutoff when a newest-page load landed on this visit by a path that didn't call
+    /// ``openingLoadLanded()`` (a backfill, or a retry after the opening load failed). Until one
+    /// has, nothing counts as an arrival.
+    private func seatCutoffFromLanding() {
+        guard arrivalCutoff == nil,
+              (controller.newestPageLandings[conversationID] ?? 0) > landingsAtOpen else { return }
+        let newest = controller.newestInboundAtLanding[conversationID]
         arrivalCutoff = [pointerAtOpen, newest].compactMap { $0 }.max() ?? MessageID(value: 0)
     }
 

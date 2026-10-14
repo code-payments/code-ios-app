@@ -1992,12 +1992,15 @@ final class ConversationController {
         return store.hasPendingMessages(for: conversationID) || (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 } != nil
     }
 
-    func loadMessages(for conversationID: ConversationID) async {
+    /// Loads the newest page. Returns whether it was fetched and persisted; a skipped, failed or
+    /// unpersisted load returns false and records no landing.
+    @discardableResult
+    func loadMessages(for conversationID: ConversationID) async -> Bool {
         guard canRead(conversationID) else {
             logger.info("Skipping message load for a conversation the user may not read", metadata: [
                 "conversationID": "\(conversationID)",
             ])
-            return
+            return false
         }
         messageLoadsInFlight.insert(conversationID)
         // This load is the backfill: a queued one would fetch the same page again.
@@ -2024,15 +2027,30 @@ final class ConversationController {
             if ok {
                 commitReconciled(pairs, in: conversationID)
                 if head > 0 { store.setAppliedCursor(head, for: conversationID) }
+                recordNewestPageLanding(in: conversationID)
             }
             refreshFeedPreview(for: conversationID)
+            return ok
         } catch {
             logger.error("Failed to load conversation messages", metadata: [
                 "conversationID": "\(conversationID)",
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation messages")
+            return false
         }
+    }
+
+    /// Successful newest-page loads per chat, from any path: the opening load, a retry, a backfill,
+    /// the gate lifting, a join.
+    @ObservationIgnored private(set) var newestPageLandings: [ConversationID: Int] = [:]
+    /// The newest inbound id stored when the latest landing finished, so the history that page
+    /// brought in can be told apart from what arrives after it.
+    @ObservationIgnored private(set) var newestInboundAtLanding: [ConversationID: MessageID] = [:]
+
+    private func recordNewestPageLanding(in conversationID: ConversationID) {
+        newestPageLandings[conversationID, default: 0] += 1
+        newestInboundAtLanding[conversationID] = newestInboundMessageID(in: conversationID)
     }
 
     // MARK: - Pagination
