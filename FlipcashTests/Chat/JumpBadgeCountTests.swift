@@ -191,4 +191,48 @@ struct JumpBadgeCountTests {
 
         #expect(badge.count == 0)
     }
+
+    @Test("a badge built after the opening load landed still excludes the loaded history")
+    func builtAfterLoad_excludesHistory() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let controller = try await UnreadFixtures.hydratedController(
+            messages: (1...50).map { message($0, fromSelf: false) },
+            pointer: 50, database: database
+        )
+        let badge = JumpBadgeCount(
+            controller: controller, conversationID: id,
+            boundary: controller.unreadBoundary(for: id), openingLoadLanded: true
+        )
+
+        controller.persist(operation: "upsert-messages") {
+            try database.upsertConversationMessages([message(51, fromSelf: false)], conversationID: id)
+        }
+
+        #expect(badge.count == 1)
+    }
+
+    @Test("an own send the viewer can't advance the pointer for leaves the badge held")
+    func ownSend_withoutPointerAdvance_keepsHold() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        mock.sendResult = message(9, fromSelf: true)
+        // A group the viewer hasn't joined: the pointer can't move.
+        let controller = try await UnreadFixtures.hydratedController(
+            messages: (1...3).map { message($0, fromSelf: false) },
+            pointer: nil, database: database, type: .group, mock: mock
+        )
+        let badge = badge(for: controller)
+        badge.openingLoadLanded()
+        controller.persist(operation: "upsert-messages") {
+            try database.upsertConversationMessages([message(4, fromSelf: false)], conversationID: id)
+        }
+        #expect(badge.count == 1, "before send: \(badge.count)")
+
+        #expect(await controller.send("hi", to: id))
+
+        #expect(badge.isFrozen)
+        #expect(controller.confirmedOwnSendCounts[id] == nil)
+    }
 }

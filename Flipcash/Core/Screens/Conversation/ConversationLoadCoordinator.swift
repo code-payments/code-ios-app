@@ -86,7 +86,8 @@ final class ConversationLoadCoordinator {
         session: Session,
         knownAuthors: KnownAuthorDirectory,
         prefetchWebCards: @escaping @MainActor ([LinkCard]) -> Void = { _ in },
-        isAppActive: @escaping @MainActor () -> Bool = { UIApplication.shared.applicationState == .active }
+        isAppActive: @escaping @MainActor () -> Bool = { UIApplication.shared.applicationState == .active },
+        openingLoadLanded: Bool = false
     ) {
         self.conversationID = conversationID
         self.controller = controller
@@ -97,7 +98,7 @@ final class ConversationLoadCoordinator {
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
         let boundary = controller.unreadBoundary(for: conversationID)
         self.openingUnreadBoundary = boundary
-        self.jumpBadge = JumpBadgeCount(controller: controller, conversationID: conversationID, boundary: boundary)
+        self.jumpBadge = JumpBadgeCount(controller: controller, conversationID: conversationID, boundary: boundary, openingLoadLanded: openingLoadLanded)
         self.newestAtOpen = controller.lastConfirmedMessage(for: conversationID)?.id
         self.claimReplies = CashLinkClaimReplies(claims: session.cashLinkClaims) { [controller] messageID in
             guard CashLinkClaimReplies.isEnabled else { return }

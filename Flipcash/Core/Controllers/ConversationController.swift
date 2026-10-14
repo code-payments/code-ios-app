@@ -2200,8 +2200,10 @@ final class ConversationController {
             store.advanceLastActivity(to: message.date, in: conversationID)
             // The server confirmed the send, so everything up to it is seen; matches Android's
             // `MessagingDelegate` advancing its own pointer to the sent id.
-            advanceReadPointer(to: message.id, in: conversationID)
-            confirmedOwnSendCounts[conversationID, default: 0] += 1
+            // The jump badge's hold releases only onto a pointer that moved.
+            if advanceReadPointer(to: message.id, in: conversationID) {
+                confirmedOwnSendCounts[conversationID, default: 0] += 1
+            }
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             // Outside the `ok` branch: the message reached the server either way, so a draft put
@@ -2531,8 +2533,10 @@ final class ConversationController {
                 scheduleGapCatchUp(conversationID)
             }
             store.advanceLastActivity(to: message.date, in: conversationID)
-            advanceReadPointer(to: message.id, in: conversationID)
-            confirmedOwnSendCounts[conversationID, default: 0] += 1
+            // The jump badge's hold releases only onto a pointer that moved.
+            if advanceReadPointer(to: message.id, in: conversationID) {
+                confirmedOwnSendCounts[conversationID, default: 0] += 1
+            }
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             Analytics.sentMessage(chatType: chatType)
@@ -2557,13 +2561,16 @@ final class ConversationController {
     /// inbound messages it crossed report their receipts. `AdvancePointer` goes out after. When it
     /// fails, the local pointer stays ahead and the next feed load sends it again. Android's
     /// `MessagingDelegate.advanceReadPointer` works in the same order.
-    func advanceReadPointer(to messageID: MessageID, in conversationID: ConversationID) {
+    ///
+    /// Returns whether the pointer now sits at or past `messageID`; false when the viewer can't move it.
+    @discardableResult
+    func advanceReadPointer(to messageID: MessageID, in conversationID: ConversationID) -> Bool {
         // A pointer advance is denied to a non-member even when the fetch isn't, and a chat the user
         // cannot read has nothing to mark.
-        guard canAdvancePointer(conversationID) else { return }
+        guard canAdvancePointer(conversationID) else { return false }
         // A chat not in the feed yet has no member row to hold the pointer, only the unsynced entry.
         let previous = readThrough(for: conversationID)
-        if let previous, messageID <= previous { return }
+        if let previous, messageID <= previous { return true }
         store.advanceSelfReadPointer(to: messageID, in: conversationID, selfUserID: selfUserID)
         // The pointer only moves forward, so the window it just crossed holds exactly the messages the
         // reader is seeing for the first time. The reporter keeps only the inbound ones.
@@ -2571,6 +2578,7 @@ final class ConversationController {
         receipts.reportRead(crossed, chatType: conversation(withID: conversationID)?.type)
         persistConversation(conversationID)
         syncReadPointer(in: conversationID)
+        return true
     }
 
     /// Sends the viewer's unsynced READ pointer for `conversationID`, if it has one. Called as the

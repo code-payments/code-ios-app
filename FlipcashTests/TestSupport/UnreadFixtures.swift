@@ -41,6 +41,7 @@ enum UnreadFixtures {
         pointer: UInt64?,
         database: Database,
         hasConversationRow: Bool = true,
+        type: ConversationType = .contactDm,
         mock: MockConversations = MockConversations()
     ) async throws -> ConversationController {
         var members = [ConversationMember(userID: them, displayName: "Them")]
@@ -49,7 +50,7 @@ enum UnreadFixtures {
         }
         if hasConversationRow {
             try database.upsertConversation(
-                Conversation(id: .test(1), members: members, lastMessage: nil, lastActivity: base)
+                Conversation(id: .test(1), members: members, lastMessage: nil, lastActivity: base, type: type)
             )
         }
         try database.upsertConversationMessages(messages, conversationID: .test(1))

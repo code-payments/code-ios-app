@@ -32,12 +32,14 @@ final class JumpBadgeCount {
     private var didScroll = false
 
     /// Pass the boundary resolved at open, before the opening read report moves the pointer.
-    init(controller: ConversationController, conversationID: ConversationID, boundary: UnreadBoundary) {
+    /// `openingLoadLanded` is true when the opening load finished before this was built.
+    init(controller: ConversationController, conversationID: ConversationID, boundary: UnreadBoundary, openingLoadLanded: Bool = false) {
         self.controller = controller
         self.conversationID = conversationID
         self.openingCount = boundary.count ?? 0
         self.pointerAtOpen = controller.readThrough(for: conversationID)
         self.sendsAtOpen = controller.confirmedOwnSendCounts[conversationID] ?? 0
+        if openingLoadLanded { self.openingLoadLanded() }
     }
 
     /// True until the reader's first drag or fling after the open, or the viewer's own send is
