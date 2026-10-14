@@ -6,6 +6,7 @@
 //
 
 #if canImport(UIKit)
+import SwiftUI
 import UIKit
 
 /// A server-authored notice, drawn as a leading-aligned line: a ringed info glyph in the member-avatar
@@ -15,10 +16,10 @@ public final class ChatSystemMessageCell: UICollectionViewCell {
     public static let reuseIdentifier = "ChatSystemMessageCell"
 
     private static let slotSize = ChatAuthorAvatarView.size
-    private static let lineHeight: CGFloat = 16
+    private static let lineHeight: CGFloat = 18
     private static let verticalPadding: CGFloat = 6
-    private static let textColor = UIColor.white.withAlphaComponent(0.5)
-    private static let font = UIFont.default(size: 13, weight: .regular)
+    private static let textColor = UIColor(Color.textSecondary)
+    private static let font = UIFont.appTextCaption
 
     private let label = UILabel()
     private let textWidth: NSLayoutConstraint
@@ -30,7 +31,7 @@ public final class ChatSystemMessageCell: UICollectionViewCell {
         let slot = UIView()
         slot.layer.cornerRadius = Self.slotSize / 2
         slot.layer.borderWidth = 1 / UITraitCollection.current.displayScale
-        slot.layer.borderColor = UIColor.white.withAlphaComponent(0.1).cgColor
+        slot.layer.borderColor = UIColor(Color.rowSeparator).cgColor
         slot.translatesAutoresizingMaskIntoConstraints = false
 
         let glyph = UIImageView(image: UIImage(systemName: "info.circle", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14)))
@@ -62,7 +63,7 @@ public final class ChatSystemMessageCell: UICollectionViewCell {
             glyph.centerXAnchor.constraint(equalTo: slot.centerXAnchor),
             glyph.centerYAnchor.constraint(equalTo: slot.centerYAnchor),
 
-            // The first line centres on the slot: its 16pt box starts (24 - 16) / 2 below the slot top.
+            // The first line centres on the slot: its 18pt box starts (24 - 18) / 2 below the slot top.
             label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: textLeading),
             label.topAnchor.constraint(equalTo: slot.topAnchor, constant: (Self.slotSize - Self.lineHeight) / 2),
             label.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -ChatColumnCell.rowInset),
@@ -84,7 +85,7 @@ public final class ChatSystemMessageCell: UICollectionViewCell {
             .font: Self.font,
             .foregroundColor: Self.textColor,
             .paragraphStyle: style,
-            // Fixed line boxes sit the glyphs on the bottom; this centres them in the 16pt box.
+            // Fixed line boxes sit the glyphs on the bottom; this centres them in the 18pt box.
             .baselineOffset: (Self.lineHeight - Self.font.lineHeight) / 2,
         ])
         textWidth.constant = maxWidth
