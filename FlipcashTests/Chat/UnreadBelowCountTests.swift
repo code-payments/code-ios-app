@@ -125,6 +125,30 @@ struct UnreadBelowCountTests {
         #expect(controller.unreadBelowCount(in: id) == 0)
     }
 
+    @Test("a system message neither adds to the badge count nor becomes the newest inbound id")
+    func systemMessage_doesNotChangeCountOrNewestInbound() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let controller = try await UnreadFixtures.hydratedController(
+            messages: [message(1, fromSelf: false), message(2, fromSelf: false), message(3, fromSelf: false)],
+            pointer: 1, database: database
+        )
+        #expect(controller.unreadBelowCount(in: id) == 2)
+
+        let notice = ConversationMessage(
+            id: MessageID(value: 4),
+            senderID: nil,
+            content: .system(fallbackText: "Alex joined"),
+            date: UnreadFixtures.base.addingTimeInterval(240),
+            unreadSeq: 4
+        )
+        try database.upsertConversationMessages([notice], conversationID: id)
+
+        #expect(controller.unreadBelowCount(in: id) == 2)
+        #expect(controller.unreadBelowCount(in: id) == controller.unreadBoundary(for: id).count)
+        #expect(controller.newestInboundMessageID(in: id) == MessageID(value: 3))
+    }
+
     @Test("an unknown read pointer counts nothing, as the divider does")
     func unknownPointer_countsNothing() async throws {
         let (database, url) = try Database.makeTemp()

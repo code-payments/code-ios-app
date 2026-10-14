@@ -273,12 +273,14 @@ nonisolated extension Database {
     }
 
     /// The newest stored message id someone other than `selfUserID` sent, deleted or not, or nil when
-    /// there is none. A row with no sender counts as someone else's.
+    /// there is none. A row with no sender counts as someone else's, except a system message, which never
+    /// moves the arrival cutoff.
     public func newestInboundMessageID(conversationID: ConversationID, excludingSender selfUserID: UUID) throws -> MessageID? {
         let m = ConversationMessageTable()
         return try reader.pluck(
             m.table.filter(
                 m.conversationId == conversationID.data
+                    && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
             ).order(m.id.desc)
         ).map { MessageID(value: $0[m.id]) }

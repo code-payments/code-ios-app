@@ -127,7 +127,7 @@ struct UnreadDividerTests {
             id: MessageID(value: 2),
             senderID: nil,
             content: .system(fallbackText: "Alex joined"),
-            date: base.addingTimeInterval(120),
+            date: UnreadFixtures.base.addingTimeInterval(120),
             unreadSeq: 2
         )
         let messages = [message(1, fromSelf: false), notice, message(3, fromSelf: false)]
