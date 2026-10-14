@@ -58,6 +58,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onMessagesSeen: (MessageID) -> Void
     /// Whether rows on screen count as read right now.
     let reportsReads: Bool
+    /// Inbound messages after the viewer's read pointer, for the jump-to-bottom badge.
+    let unreadBelowCount: Int
     /// Fired when a reaction pill is tapped: the row's stable id and the toggled emoji.
     let onReactionTap: (String, String) -> Void
     /// Fired when a reaction pill is long-pressed: the row's stable id and emoji, to open the
@@ -189,6 +191,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
+        screen.unreadBelowCount = unreadBelowCount
         screen.reportsReads = reportsReads
         screen.update(items: items)
         context.coordinator.barHost = barHost
@@ -239,6 +242,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
+        screen.unreadBelowCount = unreadBelowCount
         screen.reportsReads = reportsReads
         // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
         // has to claim the menu's blur before the dismissal fades it; it comes down here, whichever

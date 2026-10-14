@@ -407,6 +407,7 @@ struct ConversationScreen: View {
             onQuoteTap: jumpToQuote,
             onMessagesSeen: markSeen,
             reportsReads: reportsReads(gate: gate),
+            unreadBelowCount: conversationID.map { conversationController.unreadBelowCount(in: $0) } ?? 0,
             onReactionTap: toggleReaction,
             onReactionLongPress: openReactors,
             onReactionAdd: openReactionPicker,

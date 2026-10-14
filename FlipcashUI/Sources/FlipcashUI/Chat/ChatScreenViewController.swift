@@ -109,6 +109,8 @@ public final class ChatScreenViewController: UIViewController {
     private let backdrop = MessageBackdrop()
     /// The blur over a transcript the user is not allowed to read. See `TranscriptBlur`.
     private let transcriptBlur = TranscriptBlur()
+    private let jumpButton = JumpToBottomButton()
+    private let jumpHaze = JumpHazeView()
     /// The decorative shapes the blur softens when there is no transcript to soften. See
     /// `GatePreviewPlaceholder`.
     private let gatePlaceholder = GatePreviewPlaceholder()
@@ -382,6 +384,7 @@ public final class ChatScreenViewController: UIViewController {
         // Under the blur, so the shapes are only ever seen through it.
         gatePlaceholder.install(in: view, below: transcriptBlur.view)
 
+        installJumpButton()
         barClipHeightConstraint = constraints.clipHeight
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom, keyboardEdgeConstraint: constraints.keyboardEdge)
         keyboardFloor.restingDrop = barRestingDrop
@@ -916,6 +919,55 @@ public final class ChatScreenViewController: UIViewController {
     }
 
     public func update(items: [ChatItem]) { transcript.update(items: items) }
+
+    /// Inbound messages the viewer hasn't seen, shown on the jump-to-bottom button's badge. Zero
+    /// hides the badge; the button itself shows whenever the reader is off the bottom.
+    public var unreadBelowCount: Int = 0 {
+        didSet { jumpButton.setUnreadCount(unreadBelowCount) }
+    }
+
+    /// Gap between the jump button and the composer's top edge.
+    private static let jumpButtonGap: CGFloat = 20
+    private static let jumpButtonInset: CGFloat = 16
+    private static let jumpHazeHeight: CGFloat = 120
+    /// Scale the button sits at while hidden.
+    private static let jumpHiddenScale: CGFloat = 0.8
+
+    /// Floats the jump button over the transcript, above the composer's clip rather than inside it
+    /// (the clip toggles `clipsToBounds`), with its haze behind.
+    private func installJumpButton() {
+        jumpHaze.translatesAutoresizingMaskIntoConstraints = false
+        jumpButton.translatesAutoresizingMaskIntoConstraints = false
+        view.insertSubview(jumpHaze, belowSubview: barClip)
+        view.insertSubview(jumpButton, belowSubview: barClip)
+        NSLayoutConstraint.activate([
+            jumpHaze.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            jumpHaze.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            jumpHaze.bottomAnchor.constraint(equalTo: barClip.topAnchor),
+            jumpHaze.heightAnchor.constraint(equalToConstant: Self.jumpHazeHeight),
+            jumpButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Self.jumpButtonInset),
+            jumpButton.bottomAnchor.constraint(equalTo: barClip.topAnchor, constant: -Self.jumpButtonGap),
+        ])
+        jumpButton.addAction(UIAction { [weak self] _ in self?.transcript.scrollToBottomFromJumpButton() }, for: .touchUpInside)
+        setJumpButton(visible: false, animated: false)
+        transcript.onJumpButtonVisibilityChange = { [weak self] visible in
+            self?.setJumpButton(visible: visible, animated: true)
+        }
+    }
+
+    /// Fades and scales the button and haze in or out. Hidden, the button also stops taking
+    /// touches; alpha 0 alone would still be tappable.
+    private func setJumpButton(visible: Bool, animated: Bool) {
+        let scale = visible ? 1 : Self.jumpHiddenScale
+        let apply = {
+            self.jumpButton.alpha = visible ? 1 : 0
+            self.jumpHaze.alpha = visible ? 1 : 0
+            self.jumpButton.transform = CGAffineTransform(scaleX: scale, y: scale)
+        }
+        jumpButton.isUserInteractionEnabled = visible
+        guard animated else { apply(); return }
+        ChatMotion.reflow.animate(apply)
+    }
     public func scrollToBottom(animated: Bool = true) { transcript.scrollToBottom(animated: animated) }
 
     /// Whether the transcript sits at its newest message — see ``ChatViewController/isAtBottom``.

@@ -1911,18 +1911,42 @@ final class ConversationController {
     /// pointer — see ``UnreadBoundary``.
     func unreadBoundary(for conversationID: ConversationID) -> UnreadBoundary {
         UnreadBoundary.resolve(
-            readPointer: store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
+            readPointer: readThrough(for: conversationID),
             firstInbound: { readPointer in
                 ((try? database.firstInboundMessageID(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? nil)
                     .map(MessageID.init(value:))
             },
             unreadCount: { readPointer in
-                (try? database.inboundMessageCount(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? 0
+                inboundMessageCount(after: readPointer, in: conversationID)
             },
             hasStored: { readThrough in
                 newestPersistedMessageID(through: readThrough, in: conversationID) != nil
             }
         )
+    }
+
+    /// The newest inbound id the viewer has seen: the stored READ pointer or the unsynced one ahead of
+    /// it. The one value the unread divider, the jump-to-bottom badge, and
+    /// ``advanceReadPointer(to:in:)`` all read, so they can't disagree.
+    private func readThrough(for conversationID: ConversationID) -> MessageID? {
+        [
+            store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
+            store.unsyncedSelfReadPointers[conversationID],
+        ].compactMap { $0 }.max()
+    }
+
+    /// How many stored, non-deleted messages someone else sent after `messageID`.
+    func inboundMessageCount(after messageID: MessageID, in conversationID: ConversationID) -> Int {
+        (try? database.inboundMessageCount(conversationID: conversationID, after: messageID, excludingSender: selfUserID)) ?? 0
+    }
+
+    /// Inbound messages the viewer hasn't seen: those after ``readThrough(for:)``, or 0 when the
+    /// pointer is unknown (as ``unreadBoundary(for:)`` treats it). Observes the read pointer and
+    /// `messageRevision`, so it re-evaluates when either the pointer moves or a message lands.
+    func unreadBelowCount(in conversationID: ConversationID) -> Int {
+        _ = messageRevision   // observe: re-count when a confirmed DB write lands
+        guard let readThrough = readThrough(for: conversationID) else { return 0 }
+        return inboundMessageCount(after: readThrough, in: conversationID)
     }
 
     /// The newest stored message id at or below `messageID`, or nil when none is stored.
@@ -2523,10 +2547,7 @@ final class ConversationController {
         // cannot read has nothing to mark.
         guard canAdvancePointer(conversationID) else { return }
         // A chat not in the feed yet has no member row to hold the pointer, only the unsynced entry.
-        let previous = [
-            store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
-            store.unsyncedSelfReadPointers[conversationID],
-        ].compactMap { $0 }.max()
+        let previous = readThrough(for: conversationID)
         if let previous, messageID <= previous { return }
         store.advanceSelfReadPointer(to: messageID, in: conversationID, selfUserID: selfUserID)
         // The pointer only moves forward, so the window it just crossed holds exactly the messages the

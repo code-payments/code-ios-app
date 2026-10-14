@@ -16,8 +16,8 @@ import FlipcashUI
 @Suite("Unread divider")
 struct UnreadDividerTests {
 
-    private static let me = UUID()
-    private static let them = UUID()
+    private static let me = UnreadFixtures.me
+    private static let them = UnreadFixtures.them
 
     /// One row of the shared-cases table in the design spec. Android encodes the same table.
     struct SharedCase: CustomTestStringConvertible, Sendable {
@@ -75,44 +75,12 @@ struct UnreadDividerTests {
         ),
     ]
 
-    private let base = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 1_000_000))
-        .addingTimeInterval(9 * 60 * 60)
-
     private func message(_ id: UInt64, fromSelf: Bool, deleted: Bool = false, after offset: TimeInterval? = nil) -> ConversationMessage {
-        let date = base.addingTimeInterval(offset ?? TimeInterval(id) * 60)
-        return ConversationMessage(
-            id: MessageID(value: id),
-            senderID: fromSelf ? Self.me : Self.them,
-            content: deleted ? .deleted(.init(deletedBy: Self.them, deletedAt: date)) : .text("m\(id)"),
-            date: date,
-            unreadSeq: id
-        )
+        UnreadFixtures.message(id, fromSelf: fromSelf, deleted: deleted, after: offset)
     }
 
-    /// A controller hydrated from a database holding `messages` and, when `pointer` is non-nil, the
-    /// viewer's own member row reading through it.
-    private func hydratedController(
-        messages: [ConversationMessage],
-        pointer: UInt64?,
-        database: Database
-    ) async throws -> ConversationController {
-        var members = [ConversationMember(userID: Self.them, displayName: "Them")]
-        if let pointer {
-            members.append(ConversationMember(userID: Self.me, displayName: "", readPointer: MessageID(value: pointer)))
-        }
-        try database.upsertConversation(
-            Conversation(id: .test(1), members: members, lastMessage: nil, lastActivity: base)
-        )
-        try database.upsertConversationMessages(messages, conversationID: .test(1))
-        let mock = MockConversations()
-        let controller = ConversationController(
-            fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
-            contactNaming: MockDMContactNaming(),
-            database: database,
-            owner: .generate()!, selfUserID: Self.me
-        )
-        await controller.hydrateFromDatabase()
-        return controller
+    private func hydratedController(messages: [ConversationMessage], pointer: UInt64?, database: Database) async throws -> ConversationController {
+        try await UnreadFixtures.hydratedController(messages: messages, pointer: pointer, database: database)
     }
 
     /// The id of the message row directly under the divider, or nil when there is no divider.
