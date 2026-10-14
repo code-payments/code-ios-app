@@ -149,6 +149,36 @@ struct UnreadDividerTests {
         #expect(dividerCount(items) == (shared.dividerAbove == nil ? 0 : 1))
     }
 
+    // MARK: - System messages -
+
+    @Test("a system message in the unread run is neither counted nor headed by the divider")
+    func systemMessage_isSkippedByDividerCountAndPlacement() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let notice = ConversationMessage(
+            id: MessageID(value: 2),
+            senderID: nil,
+            content: .system(fallbackText: "Alex joined"),
+            date: base.addingTimeInterval(120),
+            unreadSeq: 2
+        )
+        let messages = [message(1, fromSelf: false), notice, message(3, fromSelf: false)]
+        let controller = try await hydratedController(messages: messages, pointer: 1, database: database)
+
+        let boundary = controller.unreadBoundary(for: .test(1))
+        #expect(boundary.count == 1)
+
+        let items = ChatItem.from(
+            messages,
+            selfUserID: Self.me,
+            deletedPresentation: .placeholder,
+            unreadBoundary: boundary
+        )
+        #expect(messageUnderDivider(items) == "3")
+        #expect(dividerCount(items) == 1)
+        #expect(items.contains { if case .systemMessage(let id, _) = $0 { id == "sys-2" } else { false } })
+    }
+
     // MARK: - Resolution -
 
     @Test("a missing pointer resolves to none without asking for a count")

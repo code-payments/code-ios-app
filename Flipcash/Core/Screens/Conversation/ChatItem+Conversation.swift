@@ -155,8 +155,24 @@ extension ChatItem {
 
         // The unread divider heads `message` when the read-through falls between it and `earlier`.
         // Like a separator it ends the run above it: a bubble must not join one across the divider.
+        //
+        // System rows are skipped when placing it: the divider heads the first real message after the
+        // read-through, comparing against the nearest real message above, never a system row.
+        func isSystem(_ message: ConversationMessage) -> Bool {
+            if case .system = message.content { true } else { false }
+        }
+        let dividerHeadID: String? = {
+            var older: ConversationMessage?
+            for message in messages where !isSystem(message) {
+                if let older, unreadBoundary.dividerBetween(newer: message, older: older, selfUserID: selfUserID) {
+                    return message.stableID
+                }
+                older = message
+            }
+            return nil
+        }()
         func divides(_ message: ConversationMessage, from earlier: ConversationMessage) -> Bool {
-            unreadBoundary.dividerBetween(newer: message, older: earlier, selfUserID: selfUserID)
+            message.stableID == dividerHeadID
         }
 
         // What breaks the bubble run: a text body of one to three emoji, on a row that is not a
@@ -169,10 +185,7 @@ extension ChatItem {
             }
         }
         // A system row has no sender, like a widget, so the author comparison below would otherwise
-        // join a bubble to it.
-        func isSystem(_ message: ConversationMessage) -> Bool {
-            if case .system = message.content { true } else { false }
-        }
+        // join a bubble to it (see `isSystem`).
         func rendersBare(_ message: ConversationMessage) -> Bool {
             message.repliedTo == nil && isEmojiOnlyBody(message)
         }
