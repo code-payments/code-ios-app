@@ -57,6 +57,31 @@ final class MessageLoader {
         return true
     }
 
+    /// Brings `messageID` into the rendered window, paging older history from the server until the
+    /// local database holds it. Returns whether it is now there.
+    ///
+    /// Pages contiguously back from the oldest stored message rather than fetching around the target,
+    /// because the anchored window reads every message from `startID` forward and a detached page
+    /// would leave a hole. Gives up after `pageLimit` pages, or once the server has no older history.
+    func revealPaging(_ messageID: MessageID, pageLimit: Int = MessageLoader.revealPageLimit) async -> Bool {
+        var pages = 0
+        while !reveal(messageID) {
+            guard pages < pageLimit, controller.hasMoreOlderMessages(for: conversationID) else { return false }
+            if controller.isLoadingOlderMessages(for: conversationID) {
+                // The transcript's own top-of-scroll paging is mid-page; wait for it rather than skip it.
+                try? await Task.sleep(for: .milliseconds(100))
+                if Task.isCancelled { return false }
+                continue
+            }
+            await controller.loadOlderMessages(for: conversationID)
+            pages += 1
+        }
+        return true
+    }
+
+    /// The most server pages `revealPaging` fetches on the way to a linked message.
+    static let revealPageLimit = 20
+
     /// Reveals an older step: moves the anchor back over already-persisted history, or pages the next
     /// older batch from the server (which persists it) once the local history is exhausted.
     func loadOlder() {
