@@ -8,6 +8,21 @@ struct ChatPaymentMetadataTests {
 
     private let chatID = ConversationID(data: Data(repeating: 0xAB, count: 32))
 
+    @Test("Group payments carry the chat id and always send, never tip")
+    func groupPaymentSerialization() throws {
+        let metadata = ChatPaymentMetadata.groupPayment(chatID: chatID)
+
+        let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.serializedAppMetadata())
+
+        guard case .groupPayment(let payment) = decoded.chat.type else {
+            Issue.record("Expected groupPayment, got \(String(describing: decoded.chat.type))")
+            return
+        }
+        #expect(decoded.chat.chatID.value == chatID.data)
+        #expect(payment.action == .send)
+        #expect(!metadata.isTip)
+    }
+
     @Test("Contact DM payments carry the chat id and both phones")
     func contactDmSerialization() throws {
         let metadata = ChatPaymentMetadata.contactDm(
