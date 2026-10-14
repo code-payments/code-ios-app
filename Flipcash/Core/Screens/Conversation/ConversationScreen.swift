@@ -1252,6 +1252,9 @@ struct ConversationScreen: View {
         // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
         // foreground / reconnect / live-gap triggers instead.
         await conversationController.loadMessages(for: conversationID)
+        if let coordinator, coordinator.conversationID == conversationID {
+            coordinator.jumpBadge.openingLoadLanded()
+        }
         await conversationController.refreshReactions(for: conversationID)
         // Reading the thread clears its own delivered pushes; other chats keep theirs.
         await pushController.clearDeliveredNotifications(for: conversationID)

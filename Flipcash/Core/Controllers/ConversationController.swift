@@ -1797,6 +1797,10 @@ final class ConversationController {
     /// re-fire through the store directly.
     private(set) var messageRevision = 0
 
+    /// Own sends the server has confirmed this session, per chat. Observed by the jump badge, which
+    /// reads a rise as the viewer having caught up with the transcript.
+    private(set) var confirmedOwnSendCounts: [ConversationID: Int] = [:]
+
     /// Forces the transcript to re-read its window. `persist(operation:)` does this for database
     /// writes; an overlay change writes nothing, so it has to say so explicitly.
     func bumpMessageRevision() {
@@ -1928,7 +1932,7 @@ final class ConversationController {
     /// The newest inbound id the viewer has seen: the stored READ pointer or the unsynced one ahead of
     /// it. The one value the unread divider, the jump-to-bottom badge, and
     /// ``advanceReadPointer(to:in:)`` all read, so they can't disagree.
-    private func readThrough(for conversationID: ConversationID) -> MessageID? {
+    func readThrough(for conversationID: ConversationID) -> MessageID? {
         [
             store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
             store.unsyncedSelfReadPointers[conversationID],
@@ -2197,6 +2201,7 @@ final class ConversationController {
             // The server confirmed the send, so everything up to it is seen; matches Android's
             // `MessagingDelegate` advancing its own pointer to the sent id.
             advanceReadPointer(to: message.id, in: conversationID)
+            confirmedOwnSendCounts[conversationID, default: 0] += 1
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             // Outside the `ok` branch: the message reached the server either way, so a draft put
@@ -2527,6 +2532,7 @@ final class ConversationController {
             }
             store.advanceLastActivity(to: message.date, in: conversationID)
             advanceReadPointer(to: message.id, in: conversationID)
+            confirmedOwnSendCounts[conversationID, default: 0] += 1
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             Analytics.sentMessage(chatType: chatType)
