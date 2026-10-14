@@ -55,12 +55,14 @@ struct SettingsScreen: View {
         .safeAreaInset(edge: .bottom) {
             if cardState.isPinned {
                 versionCard
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 16)
             }
         }
         .navigationTitle("Settings")
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialogItem)
+        // The update toast would sit on the pinned card, so it comes down while Settings is open.
+        .onAppear { updateAvailability.dismissToast(on: toasts) }
     }
 
     // MARK: - Sections -

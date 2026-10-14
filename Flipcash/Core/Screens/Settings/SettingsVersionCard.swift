@@ -58,15 +58,15 @@ struct SettingsVersionCard: View {
     let onUpdate: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text("Flipcash \(AppMeta.version)")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.appTextSmall)
                         .foregroundStyle(Color.textMain)
                     if state == .debug {
                         Text("Debug")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.appTextCaption)
                             .foregroundStyle(Color.textSecondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -76,13 +76,15 @@ struct SettingsVersionCard: View {
                 subtitle
             }
             .lineLimit(1)
+            .padding(.top, 15)
 
             Spacer(minLength: 0)
 
             trailing
+                .frame(maxHeight: .infinity)
         }
         .padding(.horizontal, 16)
-        .frame(height: 64)
+        .frame(height: 70)
         .background {
             if state.isPinned {
                 pinnedBackground
@@ -100,15 +102,15 @@ struct SettingsVersionCard: View {
         .accessibilityIdentifier("you-version-footer")
     }
 
-    /// Liquid Glass on iOS 26; a material on iOS 18, which has no glass.
-    @ViewBuilder
+    /// Dark glass: the row tone at 62% over a 24pt-blur material, with a 10% white edge and a soft
+    /// shadow. The same recipe on every OS, so iOS 18 and 26 match.
     private var pinnedBackground: some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous)
-        if #available(iOS 26.0, *) {
-            shape.fill(Color.clear).glassEffect(.regular, in: shape)
-        } else {
-            shape.fill(.ultraThinMaterial)
-        }
+        return shape
+            .fill(.ultraThinMaterial)
+            .overlay(shape.fill(Color(red: 28 / 255, green: 28 / 255, blue: 29 / 255).opacity(0.62)))
+            .overlay(shape.strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
+            .shadow(color: .black.opacity(0.25), radius: 16, y: 4)
     }
 
     @ViewBuilder
@@ -116,12 +118,12 @@ struct SettingsVersionCard: View {
         switch state {
         case .updateAvailable(let version):
             Text("\(version.description) available")
-                .font(.system(size: 12))
+                .font(.appTextCaption)
                 .foregroundStyle(Color.textSuccess)
                 .accessibilityIdentifier("settings-version-subtitle")
         case .upToDate, .debug:
             Text("Build \(AppMeta.build)")
-                .font(.system(size: 12))
+                .font(.appTextCaption)
                 .foregroundStyle(Color.textSecondary)
                 .accessibilityIdentifier("settings-version-subtitle")
         }
@@ -135,7 +137,7 @@ struct SettingsVersionCard: View {
                 .accessibilityIdentifier("settings-version-update")
         case .upToDate:
             Text("Up to date \u{2713}")
-                .font(.system(size: 12))
+                .font(.appTextCaption)
                 .foregroundStyle(Color.textSecondary)
         case .debug:
             EmptyView()
