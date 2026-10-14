@@ -10,6 +10,8 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
+private let logger = Logger(label: "flipcash.conversation-bar")
+
 /// Shared state for the unified bottom bar: the focus-driven `isComposing` flag that drives the
 /// Send Cash morph and the screen's interactive-dismiss gate. The draft itself lives in
 /// `ComposerModel`, which also knows whether it is a new message or an edit.
@@ -671,6 +673,12 @@ struct ConversationBottomBar: View {
             ) { region, rect in
                 if region == .card, let rect {
                     model.cardTop = rect.minY + origin.y
+                    // Diagnostic for touches lost on the card: the band's top against the window it was measured in.
+                    logger.info("Attach card laid out in bar", metadata: [
+                        "cardTop": "\(model.cardTop)",
+                        "focusedWindowBounds": "\(UIApplication.shared.currentKeyWindow?.bounds ?? .zero)",
+                        "inOverlay": "\(model.overKeyboard.isActive)",
+                    ])
                 }
                 surfaceFrames[region] = rect?.offsetBy(dx: origin.x, dy: origin.y)
             }

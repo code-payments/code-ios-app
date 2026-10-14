@@ -69,8 +69,8 @@ final class AttachKeyboardOverlay {
         )
         logger.info("Attach panel opening", metadata: [
             "mode": "\(plan.mode.rawValue)",
-            "keyboardHeight": "\(screen.keyboardOverlap)",
-            "keyboardWindowFound": "\(plan.keyboardWindow != nil)",
+            "overlapHeight": "\(screen.keyboardOverlap)",
+            "inputWindowFound": "\(plan.keyboardWindow != nil)",
             "canReplaceInputView": "\(screen.canReplaceComposerInputView)",
         ])
         guard plan.mode.drawsOverKeyboard, let appWindow = screen.view.window else { return .dismissKeyboard }
@@ -270,12 +270,34 @@ final class AttachOverlayContainer: UIView {
     /// Fired by a touch outside the panel and card while `dismissesOnOutsideTouch` holds.
     var onOutsideTouch: () -> Void = {}
 
+    /// The last touch event logged, so each touch is logged once though UIKit hit-tests it twice.
+    private var lastLoggedTouch: TimeInterval?
+
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard hitRects.values.contains(where: { $0.contains(point) }) else {
+            logTouch(at: point, event: event, hit: nil)
             // The touch is swallowed, not typed: it only closes the menu, as with the keyboard down.
             return dismissesOnOutsideTouch() ? self : nil
         }
-        return super.hitTest(point, with: event)
+        let hit = super.hitTest(point, with: event)
+        logTouch(at: point, event: event, hit: hit)
+        return hit
+    }
+
+    // Diagnostic for touches lost on the card over the keyboard: where the touch landed against the
+    // regions, and which view took it. The system hands touches on the photo grid straight to the
+    // picker, so only the card's own controls show up here.
+    private func logTouch(at point: CGPoint, event: UIEvent?, hit: UIView?) {
+        guard let event, event.type == .touches, event.timestamp != lastLoggedTouch else { return }
+        lastLoggedTouch = event.timestamp
+        logger.info("Attach overlay touch", metadata: [
+            "x": "\(point.x)",
+            "y": "\(point.y)",
+            "panel": "\(hitRects[.panel].map { "\($0)" } ?? "none")",
+            "card": "\(hitRects[.card].map { "\($0)" } ?? "none")",
+            "hit": "\(hit.map { String(describing: type(of: $0)) } ?? "none")",
+            "window": "\(window.map { String(describing: type(of: $0)) } ?? "none")",
+        ])
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {

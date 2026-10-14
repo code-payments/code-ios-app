@@ -10,6 +10,8 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.chat-screen")
+
 /// The full chat screen, entirely in UIKit: the transcript fills the view and one injected bar
 /// floats over its bottom (so content flows under it). `KeyboardFloor` holds the bar at the bottom
 /// safe area when the keyboard is down and on the keyboard's top edge when it is up — one bar
@@ -70,13 +72,29 @@ public final class ChatScreenViewController: UIViewController {
             // it draw and take touches above the clip is all the overflow needs.
             barClip.clipsToBounds = !barOverflowsTop
             barClip.overflowTarget = barOverflowsTop ? bar : nil
+            logBarOverflow()
         }
     }
     /// Where, in window coordinates, the bar starts taking touches while it overflows, or `nil` for
     /// everywhere it reaches. A card standing over the transcript takes touches on itself and lets the
     /// rest through; a panel that dismisses on any outside touch takes them all.
     public var barOverflowTouchTop: CGFloat? {
-        didSet { barClip.overflowTouchTop = barOverflowTouchTop }
+        didSet {
+            barClip.overflowTouchTop = barOverflowTouchTop
+            if barOverflowTouchTop != oldValue { logBarOverflow() }
+        }
+    }
+
+    // Diagnostic for touches lost above the bar: the overflow state, and whether the bar's window is
+    // the key window the app measures the attach card against.
+    private func logBarOverflow() {
+        logger.info("Bar overflow changed", metadata: [
+            "overflowsTop": "\(barOverflowsTop)",
+            "touchTop": "\(barOverflowTouchTop.map { "\($0)" } ?? "all")",
+            "barFrame": "\(bar.frame)",
+            "windowBounds": "\(view.window?.bounds ?? .zero)",
+            "isFocusedWindow": "\(view.window?.isKeyWindow ?? false)",
+        ])
     }
 
     /// Keeps the bar above the keyboard. Not `view.keyboardLayoutGuide`: see `KeyboardFloor`.
@@ -1124,6 +1142,26 @@ private final class BarClipView: UIView {
             if region.contains(point) { return true }
         }
         return super.point(inside: point, with: event)
+    }
+
+    /// The last touch event logged, so each touch is logged once though UIKit hit-tests it twice.
+    private var lastLoggedTouch: TimeInterval?
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        // Diagnostic for touches lost above the bar: which view takes a touch on the attach panel or card.
+        if let overflowTarget, let event, event.type == .touches, !bounds.contains(point), event.timestamp != lastLoggedTouch {
+            lastLoggedTouch = event.timestamp
+            let windowPoint = convert(point, to: nil)
+            logger.info("Bar overflow touch", metadata: [
+                "x": "\(windowPoint.x)",
+                "y": "\(windowPoint.y)",
+                "touchTop": "\(overflowTouchTop.map { "\($0)" } ?? "all")",
+                "barFrame": "\(overflowTarget.frame)",
+                "hit": "\(hit.map { String(describing: type(of: $0)) } ?? "none")",
+            ])
+        }
+        return hit
     }
 }
 
