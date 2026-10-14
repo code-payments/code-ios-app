@@ -127,8 +127,13 @@ final class JumpToBottomButton: UIControl {
         accessibilityValue = text
     }
 
-    /// The pill: blue fill, white semibold 11, and a 2pt ring in the chat background that separates
-    /// it from the circle.
+    /// The badge overhangs the circle's corner; a tap on the overhang is a tap on the button.
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        super.point(inside: point, with: event) || (!badge.isHidden && badge.frame.contains(point))
+    }
+
+    /// The pill: blue fill (18pt tall inside the ring), white semibold 11, and a 2pt ring in the chat
+    /// background that separates it from the circle.
     private final class BadgeView: UIView {
         private let label = UILabel()
 
@@ -152,7 +157,7 @@ final class JumpToBottomButton: UIControl {
                 label.centerXAnchor.constraint(equalTo: centerXAnchor),
                 label.centerYAnchor.constraint(equalTo: centerYAnchor),
                 widthAnchor.constraint(greaterThanOrEqualTo: heightAnchor),
-                heightAnchor.constraint(equalToConstant: 20),
+                heightAnchor.constraint(equalToConstant: 22),
                 label.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 5),
                 label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -5),
             ])
