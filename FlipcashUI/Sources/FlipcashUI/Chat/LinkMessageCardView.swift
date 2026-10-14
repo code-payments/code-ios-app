@@ -163,6 +163,15 @@ struct LinkMessageCardContent: View {
         static let publicGroup = "Public group"
         static let privateGroup = "Private group"
         static let directMessage = "Direct message"
+        static let deleted = "This message was deleted."
+        static let settled = "Settled on Solana"
+        static func kind(_ kind: LinkCard.Message.Kind) -> String {
+            switch kind {
+            case .publicGroup: publicGroup
+            case .privateGroup: privateGroup
+            case .directMessage: directMessage
+            }
+        }
         static let open = "Open"
         static let join = "Join"
         static let buy = "Buy"
@@ -191,19 +200,20 @@ struct LinkMessageCardContent: View {
     @ViewBuilder private var faces: some View {
         switch state {
         case .resolved(let message):
-            header(avatarID: message.avatarID, name: message.chatTitle, kind: nil)
+            header(avatarID: message.avatarID, name: message.chatTitle, kind: Copy.kind(message.kind))
             byline("\(message.authorName) · \(message.time)")
             excerpt(message.excerpt, blurred: false)
             footer(message.reactionCount > 0 ? Copy.reactions(message.reactionCount) : nil, showsOpen: true)
 
         case .gatedReadable(let message):
-            header(avatarID: message.avatarID, name: message.chatTitle, kind: Copy.publicGroup)
+            header(avatarID: message.avatarID, name: message.chatTitle, kind: Copy.kind(message.kind))
             byline("\(message.authorName) · \(message.time)")
             excerpt(message.excerpt, blurred: false)
             button(Copy.join)
 
         case .gatedRedacted(let redacted):
             header(avatarID: redacted.chatTitle, name: redacted.chatTitle, kind: Copy.publicGroup)
+            byline("\(redacted.authorName) · \(redacted.time)")
             excerpt(Copy.redactedFiller, blurred: true)
             footer(redacted.requirement, showsOpen: false)
             button(Copy.buy)
@@ -219,13 +229,17 @@ struct LinkMessageCardContent: View {
             dimBody(Copy.directLocked)
 
         case .cash(let cash):
-            header(avatarID: cash.chatTitle, name: cash.chatTitle, kind: nil)
-            byline("\(cash.authorName) \(cash.verb == .tipped ? "tipped" : "sent")")
+            header(avatarID: cash.chatTitle, name: cash.chatTitle, kind: Copy.kind(cash.kind))
+            byline("\(cash.authorName) \(cash.verb == .tipped ? "tipped" : "sent") · \(cash.time)")
             Text(cash.amount)
                 .font(.default(size: 24, weight: .semibold))
                 .foregroundStyle(Color.textMain)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            footer(nil, showsOpen: true)
+            footer(Copy.settled, showsOpen: true)
+
+        case .deleted(let deleted):
+            header(avatarID: deleted.avatarID, name: deleted.chatTitle, kind: Copy.kind(deleted.kind))
+            dimBody(Copy.deleted)
 
         case .unavailable, nil:
             header(avatarID: Copy.flipcash, name: Copy.flipcash, kind: Copy.message)

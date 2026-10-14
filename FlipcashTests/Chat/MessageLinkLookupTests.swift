@@ -142,10 +142,26 @@ import FlipcashCore
         guard case .resolved = state else { Issue.record("got \(state)"); return }
     }
 
-    @Test func aMissingChatOrMessageIsUnavailable() async throws {
+    @Test func aMissingChatIsUnavailable() async throws {
         let noChat = try await Self.state(held: nil, member: false, chat: .failure(ErrorGetChat.notFound), message: .failure(Offline()))
         #expect(noChat == .unavailable)
-        let noMessage = try await Self.state(held: Self.conversation(type: .group), member: true, message: .success(nil))
-        #expect(noMessage == .unavailable)
+    }
+
+    @Test func aGoneMessageInAKnownChatKeepsTheChatHeader() async throws {
+        let nilMessage = try await Self.state(held: Self.conversation(type: .group), member: true, message: .success(nil))
+        #expect(nilMessage == .deleted(.init(chatTitle: "Moony", kind: .publicGroup, avatarID: Self.chatID.description)))
+
+        let tombstone = try await Self.state(
+            held: Self.conversation(type: .contactDm), member: true,
+            message: .success(Self.message(.deleted(.init(deletedBy: nil, deletedAt: Date(timeIntervalSince1970: 0)))))
+        )
+        guard case .deleted(let value) = tombstone else { Issue.record("got \(tombstone)"); return }
+        #expect(value.kind == .directMessage)
+    }
+
+    @Test func theKindFollowsTheChat() async throws {
+        let state = try await Self.state(held: Self.conversation(type: .group, isPrivate: true), member: true, message: .success(Self.message(.text("hi"))))
+        guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.kind == .privateGroup)
     }
 }

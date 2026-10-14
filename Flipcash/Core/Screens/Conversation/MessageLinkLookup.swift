@@ -89,21 +89,21 @@ extension LinkCardResolver {
             case .contactDm, .tipDm:
                 let message: ConversationMessage?
                 do { message = try await read(.full) } catch ErrorGetMessage.denied { return .lockedDirect }
-                guard let message else { return .unavailable }
+                guard let message else { return await deleted(conversation, context: context) }
                 return await memberState(message, in: conversation, context: context) { .resolved($0) }
 
             case .group where conversation.isPrivate:
                 guard await context.isMember(conversation) else { return await lockedGroup(conversation) }
                 let message: ConversationMessage?
                 do { message = try await read(.full) } catch ErrorGetMessage.denied { return await lockedGroup(conversation) }
-                guard let message else { return .unavailable }
+                guard let message else { return await deleted(conversation, context: context) }
                 return await memberState(message, in: conversation, context: context) { .resolved($0) }
 
             case .group:
                 let isMember = await context.isMember(conversation)
                 let message: ConversationMessage?
                 do { message = try await read(.fullOrRedacted) } catch ErrorGetMessage.denied { return .unavailable }
-                guard let message else { return .unavailable }
+                guard let message else { return await deleted(conversation, context: context) }
 
                 if isMember, !message.redacted {
                     return await memberState(message, in: conversation, context: context) { .resolved($0) }
@@ -116,7 +116,7 @@ extension LinkCardResolver {
                     let mint = await headlineMint(of: conversation)
                     var mintName: String?
                     if let mint { mintName = try? await mints.fetchMint(mint: mint).name }
-                    return await redactedState(conversation, mintName: mintName)
+                    return await redactedState(message, conversation, mintName: mintName, context: context)
                 }
                 return await memberState(message, in: conversation, context: context) { .gatedReadable($0) }
             }
@@ -130,9 +130,11 @@ extension LinkCardResolver {
     }
 
     @MainActor
-    private static func redactedState(_ conversation: Conversation, mintName: String?) -> LinkCard.Message.State {
+    private static func redactedState(_ message: ConversationMessage, _ conversation: Conversation, mintName: String?, context: MessageLinkViewer) -> LinkCard.Message.State {
         .gatedRedacted(.init(
             chatTitle: conversation.groupLinkTitle,
+            authorName: author(of: message, in: conversation, context: context),
+            time: time(of: message),
             requirement: groupRequirementLine(headline(for: conversation.rules?.listener ?? []), mintName: mintName)
         ))
     }
@@ -152,6 +154,30 @@ extension LinkCardResolver {
         ))
     }
 
+    private static func kind(of conversation: Conversation) -> LinkCard.Message.Kind {
+        switch conversation.type {
+        case .contactDm, .tipDm: .directMessage
+        case .group: conversation.isPrivate ? .privateGroup : .publicGroup
+        }
+    }
+
+    /// The chat header over a message that is gone: a tombstone, or a chat that no longer has it.
+    private static func deleted(_ conversation: Conversation, context: MessageLinkViewer) async -> LinkCard.Message.State {
+        .deleted(.init(chatTitle: await context.title(conversation), kind: kind(of: conversation), avatarID: conversation.id.description))
+    }
+
+    private static func author(of message: ConversationMessage, in conversation: Conversation, context: MessageLinkViewer) -> String {
+        if let sender = message.senderID, sender == context.userID { return "You" }
+        let name = conversation.members.first { $0.userID == message.senderID }?.displayName
+        return (name?.isEmpty ?? true) ? "Someone" : name!
+    }
+
+    private static func time(of message: ConversationMessage) -> String {
+        Calendar.current.isDateInToday(message.date)
+            ? message.date.formatted(date: .omitted, time: .shortened)
+            : message.date.formatted(date: .abbreviated, time: .omitted)
+    }
+
     /// The card for a message the viewer may read in full: cash as an amount, text and photo
     /// captions as an excerpt, and anything else (a tombstone, a widget, ciphertext that would not
     /// open) as unavailable.
@@ -162,38 +188,35 @@ extension LinkCardResolver {
         wrapping: (LinkCard.Message.Resolved) -> LinkCard.Message.State
     ) async -> LinkCard.Message.State {
         let title = await context.title(conversation)
-        let author: String = {
-            if let sender = message.senderID, sender == context.userID { return "You" }
-            let name = conversation.members.first { $0.userID == message.senderID }?.displayName
-            return (name?.isEmpty ?? true) ? "Someone" : name!
-        }()
+        let author = author(of: message, in: conversation, context: context)
 
         switch message.content {
         case .cash(let amount):
             let verb: LinkCard.Message.Cash.Verb = message.cashAction == .tipped ? .tipped : .sent
-            return .cash(.init(chatTitle: title, authorName: author, amount: amount.nativeAmount.formatted(), verb: verb))
+            return .cash(.init(chatTitle: title, kind: kind(of: conversation), authorName: author, time: time(of: message), amount: amount.nativeAmount.formatted(), verb: verb))
 
         case .text(let text):
-            return wrapping(resolved(message, title: title, author: author, excerpt: text))
+            return wrapping(resolved(message, kind: kind(of: conversation), title: title, author: author, excerpt: text))
 
         case .media(_, let caption):
             let excerpt = (caption?.isEmpty ?? true) ? "Photo" : caption!
-            return wrapping(resolved(message, title: title, author: author, excerpt: excerpt))
+            return wrapping(resolved(message, kind: kind(of: conversation), title: title, author: author, excerpt: excerpt))
 
-        case .deleted, .encrypted, .widget:
+        case .deleted:
+            return await deleted(conversation, context: context)
+
+        case .encrypted, .widget:
             return .unavailable
         }
     }
 
-    private static func resolved(_ message: ConversationMessage, title: String, author: String, excerpt: String) -> LinkCard.Message.Resolved {
+    private static func resolved(_ message: ConversationMessage, kind: LinkCard.Message.Kind, title: String, author: String, excerpt: String) -> LinkCard.Message.Resolved {
         let reactions = message.reactionState?.confirmed.values.reduce(0) { $0 + Int($1.count) } ?? 0
-        let time = Calendar.current.isDateInToday(message.date)
-            ? message.date.formatted(date: .omitted, time: .shortened)
-            : message.date.formatted(date: .abbreviated, time: .omitted)
         return .init(
             chatTitle: title,
+            kind: kind,
             authorName: author,
-            time: time,
+            time: time(of: message),
             excerpt: excerpt,
             reactionCount: reactions,
             avatarID: message.senderID?.uuidString ?? title

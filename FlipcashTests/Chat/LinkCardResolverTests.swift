@@ -253,7 +253,7 @@ import FlipcashCore
     }
 
     @Test func aMessageAnswerIsPassedThrough() async {
-        let state = LinkCard.Message.State.gatedRedacted(.init(chatTitle: "Moony", requirement: "Balance Requirement:\n$10 of MOONY"))
+        let state = LinkCard.Message.State.gatedRedacted(.init(chatTitle: "Moony", authorName: "Ana", time: "2h", requirement: "Balance Requirement:\n$10 of MOONY"))
         let resolver = Self.resolver(message: { _ in state })
         #expect(await resolver.message(Self.messageCard) == state)
     }
@@ -267,13 +267,14 @@ import FlipcashCore
     }
 
     @Test func onlyUnavailableIsUnresolved() {
-        let resolved = LinkCard.Message.Resolved(chatTitle: "t", authorName: "a", time: "1:00 PM", excerpt: "x", reactionCount: 0, avatarID: "a")
+        let resolved = LinkCard.Message.Resolved(chatTitle: "t", kind: .publicGroup, authorName: "a", time: "1:00 PM", excerpt: "x", reactionCount: 0, avatarID: "a")
         let states: [LinkCard.Message.State] = [
             .resolved(resolved), .gatedReadable(resolved),
-            .gatedRedacted(.init(chatTitle: "t", requirement: nil)),
+            .gatedRedacted(.init(chatTitle: "t", authorName: "a", time: "1:00 PM", requirement: nil)),
             .lockedGroup(.init(title: "t", memberCount: "2 people", hostName: nil, avatarID: "a", imageData: nil, blurHash: nil)),
             .lockedDirect,
-            .cash(.init(chatTitle: "t", authorName: "a", amount: "$1.00", verb: .sent)),
+            .cash(.init(chatTitle: "t", kind: .publicGroup, authorName: "a", time: "1:00 PM", amount: "$1.00", verb: .sent)),
+            .deleted(.init(chatTitle: "t", kind: .publicGroup, avatarID: "a")),
         ]
         #expect(states.allSatisfy { $0.isResolved })
         #expect(!LinkCard.Message.State.unavailable.isResolved)

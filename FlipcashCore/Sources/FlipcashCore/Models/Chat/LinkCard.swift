@@ -317,19 +317,40 @@ extension LinkCard {
             case lockedDirect
             /// The source is cash: the amount and the verb.
             case cash(Cash)
+            /// The chat is known and the message is gone: the chat header over a dim notice.
+            case deleted(Deleted)
 
             /// Whether the lookup came back with something worth remembering.
             public var isResolved: Bool {
                 switch self {
                 case .unavailable: false
-                case .resolved, .gatedReadable, .gatedRedacted, .lockedGroup, .lockedDirect, .cash: true
+                case .resolved, .gatedReadable, .gatedRedacted, .lockedGroup, .lockedDirect, .cash, .deleted: true
                 }
+            }
+        }
+
+        /// What sort of chat the message lives in, drawn beside the chat title.
+        public enum Kind: String, Hashable, Sendable, Codable {
+            case publicGroup, privateGroup, directMessage
+        }
+
+        /// The chat header over a message that no longer exists.
+        public struct Deleted: Hashable, Sendable, Codable {
+            public let chatTitle: String
+            public let kind: Kind
+            public let avatarID: String
+
+            public init(chatTitle: String, kind: Kind, avatarID: String) {
+                self.chatTitle = chatTitle
+                self.kind = kind
+                self.avatarID = avatarID
             }
         }
 
         /// A message the viewer may read, already worded for display.
         public struct Resolved: Hashable, Sendable, Codable {
             public let chatTitle: String
+            public let kind: Kind
             public let authorName: String
             /// Pre-formatted time, e.g. "2:41 PM".
             public let time: String
@@ -339,8 +360,9 @@ extension LinkCard {
             /// Stable identity for the author's avatar.
             public let avatarID: String
 
-            public init(chatTitle: String, authorName: String, time: String, excerpt: String, reactionCount: Int, avatarID: String) {
+            public init(chatTitle: String, kind: Kind, authorName: String, time: String, excerpt: String, reactionCount: Int, avatarID: String) {
                 self.chatTitle = chatTitle
+                self.kind = kind
                 self.authorName = authorName
                 self.time = time
                 self.excerpt = excerpt
@@ -353,11 +375,15 @@ extension LinkCard {
         /// view draws a fixed filler under the blur, and nothing here can be copied or quoted.
         public struct Redacted: Hashable, Sendable, Codable {
             public let chatTitle: String
+            public let authorName: String
+            public let time: String
             /// The group card's requirement wording, e.g. "Balance Requirement: $10 of MOONY".
             public let requirement: String?
 
-            public init(chatTitle: String, requirement: String?) {
+            public init(chatTitle: String, authorName: String, time: String, requirement: String?) {
                 self.chatTitle = chatTitle
+                self.authorName = authorName
+                self.time = time
                 self.requirement = requirement
             }
         }
@@ -388,14 +414,18 @@ extension LinkCard {
             }
 
             public let chatTitle: String
+            public let kind: Kind
             public let authorName: String
+            public let time: String
             /// Pre-formatted, e.g. "$15.00".
             public let amount: String
             public let verb: Verb
 
-            public init(chatTitle: String, authorName: String, amount: String, verb: Verb) {
+            public init(chatTitle: String, kind: Kind, authorName: String, time: String, amount: String, verb: Verb) {
                 self.chatTitle = chatTitle
+                self.kind = kind
                 self.authorName = authorName
+                self.time = time
                 self.amount = amount
                 self.verb = verb
             }
