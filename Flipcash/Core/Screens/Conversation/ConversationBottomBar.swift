@@ -512,24 +512,17 @@ struct ConversationBottomBar: View {
         }
         // Typing takes the attach panel down, as a tap outside it does.
         .onChange(of: composer.draft) {
-            guard model.attachPanel.isOpen else { return }
-            model.attachPanel.animate { $0.dismiss() }
+            model.handle(.draftChanged, in: .bar)
         }
         // An edit takes `+`'s slot, and the panel or card with it, so Back has no panel to return to.
         .onChange(of: composer.isEditing) { _, isEditing in
             guard isEditing else { return }
-            if model.attachCard.isOpen {
-                model.attachCard.close()
-                model.attachCard.exitDidFinish()
-            }
-            if model.attachPanel.isOpen {
-                model.attachPanel.animate { $0.dismiss() }
-            }
+            model.handle(.editBegan, in: .bar)
         }
         // So does focusing the field, whose send-button end the panel leaves uncovered.
         .onChange(of: model.isComposing) { _, isComposing in
-            guard isComposing, model.attachPanel.isOpen else { return }
-            model.attachPanel.animate { $0.dismiss() }
+            guard isComposing else { return }
+            model.handle(.fieldFocused, in: .bar)
         }
 
         // No shared GlassEffectContainer: the composer's glass is a background
