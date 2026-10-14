@@ -1940,6 +1940,11 @@ final class ConversationController {
         (try? database.inboundMessageCount(conversationID: conversationID, after: messageID, excludingSender: selfUserID)) ?? 0
     }
 
+    /// The newest message someone else sent, or nil when there is none.
+    func newestInboundMessageID(in conversationID: ConversationID) -> MessageID? {
+        ((try? database.newestInboundMessageID(conversationID: conversationID, excludingSender: selfUserID)) ?? nil)
+    }
+
     /// Inbound messages the viewer hasn't seen: those after ``readThrough(for:)``, or 0 when the
     /// pointer is unknown (as ``unreadBoundary(for:)`` treats it). Observes the read pointer and
     /// `messageRevision`, so it re-evaluates when either the pointer moves or a message lands.

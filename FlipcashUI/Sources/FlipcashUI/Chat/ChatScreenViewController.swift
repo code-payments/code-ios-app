@@ -296,6 +296,12 @@ public final class ChatScreenViewController: UIViewController {
         }
     }
 
+    /// Fires on the reader's first drag after the opening scroll — see
+    /// ``ChatViewController/onUserScrollBegan``.
+    public var onUserScrollBegan: (() -> Void)? {
+        get { transcript.onUserScrollBegan }
+        set { transcript.onUserScrollBegan = newValue }
+    }
     /// Whether rows on screen count as read — see ``ChatViewController/reportsReads``.
     public var reportsReads: Bool {
         get { transcript.reportsReads }

@@ -217,6 +217,9 @@ public final class ChatViewController: UICollectionViewController {
     /// Fires when the jump-to-bottom button should appear or go: the opening scroll has landed and the
     /// reader is outside ``bottomThreshold`` of the newest message.
     var onJumpButtonVisibilityChange: ((Bool) -> Void)?
+    /// Fires when the reader starts a drag after the opening scroll has landed — the signal that
+    /// ends the jump badge's frozen count. Programmatic scrolls never fire it.
+    public var onUserScrollBegan: (() -> Void)?
     private var isJumpButtonVisible = false
     /// What this visit has reported read so far.
     private var readProgress = ReadProgress()
@@ -1075,6 +1078,10 @@ public final class ChatViewController: UICollectionViewController {
             .map(\.indexPath.item)
             .max() ?? 0
         scrollToBottom(animated: items.count - 1 - lastVisible <= Self.jumpAnimationRowLimit)
+    }
+
+    public override func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        if hasPositioned { onUserScrollBegan?() }
     }
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {

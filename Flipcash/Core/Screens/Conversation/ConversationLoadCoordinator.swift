@@ -50,6 +50,8 @@ final class ConversationLoadCoordinator {
     /// `init`, which the screen runs as it appears and so before its opening task marks the chat
     /// read; never re-read for the life of this coordinator.
     private let openingUnreadBoundary: UnreadBoundary
+    /// The jump-to-bottom badge's count, frozen at the divider's until the reader first scrolls.
+    let jumpBadge: JumpBadgeCount
     /// The newest stored message at open. A message of the viewer's past it is a send made on this
     /// visit, which ends the divider under ``UnreadDividerLifetime/untilSend``.
     private let newestAtOpen: MessageID?
@@ -95,6 +97,7 @@ final class ConversationLoadCoordinator {
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
         let boundary = controller.unreadBoundary(for: conversationID)
         self.openingUnreadBoundary = boundary
+        self.jumpBadge = JumpBadgeCount(controller: controller, conversationID: conversationID, boundary: boundary)
         self.newestAtOpen = controller.lastConfirmedMessage(for: conversationID)?.id
         self.claimReplies = CashLinkClaimReplies(claims: session.cashLinkClaims) { [controller] messageID in
             guard CashLinkClaimReplies.isEnabled else { return }
