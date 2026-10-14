@@ -6,6 +6,8 @@
 //
 
 import Testing
+import UIKit
+import FlipcashCore
 @testable import Flipcash
 
 @MainActor
@@ -74,5 +76,19 @@ struct ConversationBarBottomRowTests {
     @Test("An edit hides the bottom row")
     func hiddenWhileEditing() {
         #expect(row(isEditing: true).isEmpty)
+    }
+
+    @Test("Read from the composer, the rows follow photos staged after the menu opened")
+    func followsTheComposer() throws {
+        let composer = ComposerModel()
+        let uploader = ChatMediaUploader(blob: MockChatMediaBlobStore())
+        #expect(ConversationBarBottomRow(composer: composer, acceptsMedia: true).plusItems == [.camera, .photos])
+
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 3)).image { _ in }
+        for _ in 0..<ComposerModel.maxAttachments {
+            try #require(composer.stageChip(image: image, uploader: uploader) != nil)
+        }
+
+        #expect(ConversationBarBottomRow(composer: composer, acceptsMedia: true).isEmpty)
     }
 }

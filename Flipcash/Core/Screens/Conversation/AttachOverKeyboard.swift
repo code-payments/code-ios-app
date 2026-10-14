@@ -75,9 +75,6 @@ final class AttachOverKeyboard {
     /// Whether the panel and cards are drawn over the keyboard rather than in the bar.
     private(set) var isActive = false
 
-    /// The menu rows the panel showed as it opened.
-    private(set) var items: [AttachMenuItem] = []
-
     /// `+`'s frame in window coordinates, as last laid out.
     var plusFrame: CGRect = .zero
 
@@ -89,9 +86,8 @@ final class AttachOverKeyboard {
     /// Photos hands the card over to the keyboard-down flow, whose sheet the keyboard would cover.
     var opensLibraryInBar = false
 
-    /// Starts drawing over the keyboard, with `items` as the panel's rows.
-    func activate(items: [AttachMenuItem]) {
-        self.items = items
+    /// Starts drawing over the keyboard.
+    func activate() {
         isActive = true
     }
 

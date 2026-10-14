@@ -236,6 +236,12 @@ struct ConversationBarBottomRow: Equatable {
         self.init(plusItems: AttachMenuItem.items(showsCash: false, acceptsMedia: acceptsMedia, attachedCount: attachedCount))
     }
 
+    /// Returns the row for `composer` as it stands, in a chat where `acceptsMedia` says whether
+    /// photos may be sent. The bar and the overlay over the keyboard both read their rows here.
+    init(composer: ComposerModel, acceptsMedia: Bool) {
+        self.init(isEditing: composer.isEditing, acceptsMedia: acceptsMedia, attachedCount: composer.chips.count)
+    }
+
     private init(plusItems: [AttachMenuItem]) {
         self.plusItems = plusItems
     }
@@ -293,7 +299,7 @@ struct ConversationBottomBar: View {
     var acceptsMedia: Bool = false
     /// Fired as `+` opens the attach panel with the given rows: the panel goes up over the keyboard,
     /// or the keyboard goes down under it.
-    var onAttachOpen: ([AttachMenuItem]) -> Void = { _ in }
+    var onAttachOpen: () -> Void = {}
     /// What the attach menu and its cards hand back, the same value the overlay over the keyboard draws with.
     var attachActions = AttachActions()
     /// Receives images dropped on the bar, such as the system screenshot thumbnail or an image
@@ -688,11 +694,7 @@ struct ConversationBottomBar: View {
     }
 
     private var bottomRow: ConversationBarBottomRow {
-        ConversationBarBottomRow(
-            isEditing: composer.isEditing,
-            acceptsMedia: acceptsMedia,
-            attachedCount: composer.chips.count
-        )
+        ConversationBarBottomRow(composer: composer, acceptsMedia: acceptsMedia)
     }
 }
 
@@ -1062,7 +1064,7 @@ struct ConversationComposer: View {
     /// Whether the attach surface is drawn in `+`'s place, which hides `+`.
     var plusIsStoodInFor = false
     /// Fired as `+` opens the attach panel with the given rows.
-    var onAttachOpen: ([AttachMenuItem]) -> Void = { _ in }
+    var onAttachOpen: () -> Void = {}
     /// Whether `$` stands beside the field and merges into it as the draft starts, so the send
     /// arrow waits for it to land instead of appearing over it.
     var sendWaitsForCashJoin = false
