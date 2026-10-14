@@ -9,78 +9,76 @@
 import SwiftUI
 import UIKit
 
-/// A server-authored notice, drawn as a leading-aligned line: a ringed info glyph in the member-avatar
-/// gutter, then the text at the member bubble column. No bubble, no fill, no sender, no gestures.
+/// A server-authored notice, centred in the transcript (node 11721:879, option D): an info glyph,
+/// then the text. No bubble, no fill, no sender, no gestures. The glyph is what tells it apart from
+/// the date separator, which is also centred caption text.
 public final class ChatSystemMessageCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatSystemMessageCell"
 
-    private static let slotSize = ChatAuthorAvatarView.size
     private static let lineHeight: CGFloat = 18
     private static let verticalPadding: CGFloat = 6
+    private static let glyphGap: CGFloat = 6
+    private static let textMaxWidth: CGFloat = 250
     private static let textColor = UIColor(Color.textSecondary)
     private static let font = UIFont.appTextCaption
 
     private let label = UILabel()
-    private let textWidth: NSLayoutConstraint
 
     public override init(frame: CGRect) {
-        textWidth = label.widthAnchor.constraint(equalToConstant: 0)
         super.init(frame: frame)
-
-        let slot = UIView()
-        slot.layer.cornerRadius = Self.slotSize / 2
-        slot.layer.borderWidth = 1 / UITraitCollection.current.displayScale
-        slot.layer.borderColor = UIColor(Color.rowSeparator).cgColor
-        slot.translatesAutoresizingMaskIntoConstraints = false
 
         let glyph = UIImageView(image: UIImage(systemName: "info.circle", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14)))
         glyph.tintColor = Self.textColor
         glyph.contentMode = .center
         glyph.isAccessibilityElement = false
+        glyph.setContentHuggingPriority(.required, for: .horizontal)
+        glyph.setContentCompressionResistancePriority(.required, for: .horizontal)
         glyph.translatesAutoresizingMaskIntoConstraints = false
-        slot.addSubview(glyph)
 
         label.numberOfLines = 0
-        label.textAlignment = .left
+        label.textAlignment = .center
+        label.preferredMaxLayoutWidth = Self.textMaxWidth
         label.translatesAutoresizingMaskIntoConstraints = false
 
-        contentView.addSubview(slot)
-        contentView.addSubview(label)
+        // Glyph and text are centred as one group, so a short notice sits in the middle of the row.
+        let group = UIView()
+        group.translatesAutoresizingMaskIntoConstraints = false
+        group.addSubview(glyph)
+        group.addSubview(label)
+        contentView.addSubview(group)
 
-        // Below the width pin so a row narrower than the column squeezes the text, not the layout.
-        textWidth.priority = .defaultHigh
         isAccessibilityElement = true
         accessibilityTraits = .staticText
 
-        let textLeading = ChatColumnCell.rowInset + ChatColumnCell.authorGutterWidth
         NSLayoutConstraint.activate([
-            slot.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: ChatColumnCell.rowInset),
-            slot.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Self.verticalPadding),
-            slot.widthAnchor.constraint(equalToConstant: Self.slotSize),
-            slot.heightAnchor.constraint(equalToConstant: Self.slotSize),
-            slot.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -Self.verticalPadding),
-            glyph.centerXAnchor.constraint(equalTo: slot.centerXAnchor),
-            glyph.centerYAnchor.constraint(equalTo: slot.centerYAnchor),
+            group.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            group.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: ChatColumnCell.rowInset),
+            group.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Self.verticalPadding),
+            group.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Self.verticalPadding),
 
-            // The first line centres on the slot: its 18pt box starts (24 - 18) / 2 below the slot top.
-            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: textLeading),
-            label.topAnchor.constraint(equalTo: slot.topAnchor, constant: (Self.slotSize - Self.lineHeight) / 2),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -ChatColumnCell.rowInset),
-            label.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -Self.verticalPadding),
-            textWidth,
+            // One line tall, so the glyph centres on the first line however many the text wraps to.
+            glyph.leadingAnchor.constraint(equalTo: group.leadingAnchor),
+            glyph.topAnchor.constraint(equalTo: group.topAnchor),
+            glyph.heightAnchor.constraint(equalToConstant: Self.lineHeight),
+
+            label.leadingAnchor.constraint(equalTo: glyph.trailingAnchor, constant: Self.glyphGap),
+            label.trailingAnchor.constraint(equalTo: group.trailingAnchor),
+            label.topAnchor.constraint(equalTo: group.topAnchor),
+            label.bottomAnchor.constraint(equalTo: group.bottomAnchor),
+            label.widthAnchor.constraint(lessThanOrEqualToConstant: Self.textMaxWidth),
         ])
     }
 
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    /// Shows `text` unmodified, wrapped to `maxWidth` points.
-    public func configure(text: String, maxWidth: CGFloat) {
+    /// Shows `text` unmodified, centred and wrapped at 250 points.
+    public func configure(text: String) {
         let style = NSMutableParagraphStyle()
         style.minimumLineHeight = Self.lineHeight
         style.maximumLineHeight = Self.lineHeight
-        style.alignment = .left
+        style.alignment = .center
         label.attributedText = NSAttributedString(string: text, attributes: [
             .font: Self.font,
             .foregroundColor: Self.textColor,
@@ -88,7 +86,6 @@ public final class ChatSystemMessageCell: UICollectionViewCell {
             // Fixed line boxes sit the glyphs on the bottom; this centres them in the 18pt box.
             .baselineOffset: (Self.lineHeight - Self.font.lineHeight) / 2,
         ])
-        textWidth.constant = maxWidth
         accessibilityLabel = text
     }
 }

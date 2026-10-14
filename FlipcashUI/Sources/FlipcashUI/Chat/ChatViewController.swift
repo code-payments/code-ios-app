@@ -623,7 +623,7 @@ public final class ChatViewController: UICollectionViewController {
             let tap: (() -> Void)? = onEncryptionMarkerTap == nil ? nil : { [weak self] in self?.onEncryptionMarkerTap?() }
             (cell as! ChatEncryptionMarkerCell).configure(onTap: tap)
         case .systemMessage(_, let text):
-            (cell as! ChatSystemMessageCell).configure(text: text, maxWidth: memberBubbleMaxWidth())
+            (cell as! ChatSystemMessageCell).configure(text: text)
         case .message(let message):
             configure(cell, with: message)
         }
