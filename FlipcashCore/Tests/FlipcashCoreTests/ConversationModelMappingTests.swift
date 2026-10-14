@@ -32,6 +32,72 @@ struct ConversationModelMappingTests {
         #expect(message.unreadSeq == 3)
     }
 
+    @Test("System content maps to .system with its fallback text and no sender")
+    func systemMessageParses() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.content = [.with { $0.system = .with { $0.fallbackText = "Alex joined the group" } }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.content == .system(fallbackText: "Alex joined the group"))
+        #expect(message.senderID == nil)
+        #expect(message.isBlankSystem == false)
+    }
+
+    @Test("Blank system text maps to an empty .system rather than dropping the message", arguments: ["", "   ", "\n\t", "\u{85}", "\u{A0}"])
+    func blankSystemMessageIsKeptEmpty(text: String) throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.content = [.with { $0.system = .with { $0.fallbackText = text } }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.content == .system(fallbackText: ""))
+        #expect(message.isBlankSystem)
+    }
+
+    @Test("A control character is not whitespace, so that system text is kept as-is")
+    func controlCharacterSystemTextIsKept() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.content = [.with { $0.system = .with { $0.fallbackText = "\u{1F}" } }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.content == .system(fallbackText: "\u{1F}"))
+    }
+
+    @Test("Non-blank system text is not trimmed")
+    func systemTextIsNotTrimmed() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.content = [.with { $0.system = .with { $0.fallbackText = "  Alex joined \n" } }]
+        }
+
+        #expect(try #require(ConversationMessage(proto)).content == .system(fallbackText: "  Alex joined \n"))
+    }
+
+    @Test("A system message never buzzes; someone else's text does, your own does not")
+    func receiveBuzz() {
+        let me = UserID()
+        let them = UUID()
+        func message(_ content: ConversationMessage.Content, from sender: UUID?) -> ConversationMessage {
+            ConversationMessage(id: MessageID(value: 1), senderID: sender, content: content, date: .now, unreadSeq: 1)
+        }
+        #expect(message(.system(fallbackText: "Alex joined the group"), from: nil).buzzesOnReceive(selfUserID: me) == false)
+        #expect(message(.system(fallbackText: "Alex joined the group"), from: them).buzzesOnReceive(selfUserID: me) == false)
+        #expect(message(.text("hi"), from: them).buzzesOnReceive(selfUserID: me))
+        #expect(message(.text("hi"), from: me).buzzesOnReceive(selfUserID: me) == false)
+    }
+
+    @Test("System content cannot be re-encoded for sending")
+    func systemContentHasNoProto() {
+        #expect(throws: ConversationMessageContentEncodingError.self) {
+            try ConversationMessage.Content.system(fallbackText: "x").asProto()
+        }
+    }
+
     @Test("Cash message maps the payment amount")
     func cashMessageParses() throws {
         let mintBytes = Data(repeating: 0x02, count: 32)

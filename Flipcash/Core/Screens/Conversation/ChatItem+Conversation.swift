@@ -110,10 +110,11 @@ extension ChatItem {
         // Tombstoned (deleted) messages are retained in the store for gapless ordering. Under
         // `.hidden` they are dropped up front so they never skew a date separator, group an adjacent
         // bubble to an invisible row, or steal the "Delivered"/"Read" receipt anchor below.
-        // A message still waiting on the peer's key is left out until it decrypts.
+        // A message still waiting on the peer's key is left out until it decrypts, and a blank
+        // system message draws nothing, so it must not head a separator either.
         let messages: [ConversationMessage] = switch deletedPresentation {
-        case .hidden:      messages.filter { !$0.isDeleted && !$0.isAwaitingDecryption }
-        case .placeholder: messages.filter { !$0.isAwaitingDecryption }
+        case .hidden:      messages.filter { !$0.isDeleted && !$0.isAwaitingDecryption && !$0.isBlankSystem }
+        case .placeholder: messages.filter { !$0.isAwaitingDecryption && !$0.isBlankSystem }
         }
 
         // The marker goes where the ciphertext starts: above the first encrypted message with
@@ -164,8 +165,13 @@ extension ChatItem {
         func isEmojiOnlyBody(_ message: ConversationMessage) -> Bool {
             switch message.content {
             case .text(let text): EmojiOnlyDetector.isEmojiOnly(text)
-            case .cash, .deleted, .encrypted, .widget, .media: false
+            case .cash, .deleted, .encrypted, .widget, .media, .system: false
             }
+        }
+        // A system row has no sender, like a widget, so the author comparison below would otherwise
+        // join a bubble to it.
+        func isSystem(_ message: ConversationMessage) -> Bool {
+            if case .system = message.content { true } else { false }
         }
         func rendersBare(_ message: ConversationMessage) -> Bool {
             message.repliedTo == nil && isEmojiOnlyBody(message)
@@ -177,7 +183,7 @@ extension ChatItem {
         let layouts = messages.map { message in
             switch message.content {
             case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard))
-            case .cash, .deleted, .encrypted, .widget, .media: [RowLayout(part: nil, text: nil, preview: nil)]
+            case .cash, .deleted, .encrypted, .widget, .media, .system: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
         // A status line under a message sits between it and the next bubble, so it ends the bubble
@@ -227,10 +233,10 @@ extension ChatItem {
             // separator is already the heading of what follows it, so a second, shorter threshold
             // would flatten runs the transcript still draws as continuous.
             let groupedAbove = previous.map {
-                $0.senderID == message.senderID && !showsSeparator && !showsDivider && !showsMarker
+                $0.senderID == message.senderID && !isSystem($0) && !showsSeparator && !showsDivider && !showsMarker
             } ?? false
             let groupedBelow = next.map {
-                $0.senderID == message.senderID && !separates($0, from: message) && !divides($0, from: message)
+                $0.senderID == message.senderID && !isSystem($0) && !separates($0, from: message) && !divides($0, from: message)
                     && index + 1 != markerIndex
             } ?? false
 
@@ -247,6 +253,9 @@ extension ChatItem {
 
             let content: ChatMessage.Content
             switch message.content {
+            case .system(let text):
+                items.append(.systemMessage(id: "sys-\(message.stableID)", text: text))
+                continue
             case .text(let text):
                 content = .text(text)
             case .cash(let fiat):
@@ -464,9 +473,9 @@ extension ChatItem {
                 kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.blobID, sealed: attachments.first?.sealed),
                 authorID: original.senderID
             )
-        case .encrypted:
+        case .encrypted, .system:
             // No plaintext to preview -- same unavailable treatment as a quote whose original the
-            // local database never saw.
+            // local database never saw. A notice offers no Reply, so a quote of one is unreachable.
             return ChatQuote(
                 stableID: nil,
                 authorName: authorName,

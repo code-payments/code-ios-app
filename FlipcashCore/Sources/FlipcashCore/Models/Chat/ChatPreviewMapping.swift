@@ -48,7 +48,12 @@ extension ChatItem {
         // preview) and leave an orphaned leading separator.
         let sorted = messages
             // Nor messages still waiting on the peer's key, which the transcript doesn't show either.
-            .filter { if case .deleted = $0.content { false } else { !$0.isAwaitingDecryption } }
+            .filter {
+                switch $0.content {
+                case .deleted, .system: false // a notice has no preview row, so it must not open a separator
+                case .text, .cash, .encrypted, .widget, .media: !$0.isAwaitingDecryption
+                }
+            }
             .sorted { $0.id < $1.id }
         let slice = sorted.suffix(limit)
 
@@ -105,6 +110,8 @@ extension ChatItem {
                 ))
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
+            case .system:
+                continue // filtered out above; unreachable, kept for switch exhaustiveness
             }
 
             // The same body test the transcript runs, so a notification preview draws a bare emoji
@@ -113,7 +120,7 @@ extension ChatItem {
             let isEmojiOnly: Bool
             switch message.content {
             case .text(let text):            isEmojiOnly = EmojiOnlyDetector.isEmojiOnly(text)
-            case .cash, .deleted, .encrypted, .widget, .media: isEmojiOnly = false
+            case .cash, .deleted, .encrypted, .widget, .media, .system: isEmojiOnly = false
             }
 
             items.append(.message(ChatMessage(

@@ -161,7 +161,7 @@ public final class ChatViewController: UICollectionViewController {
                     configure(cell, with: message)
                 case .typingIndicator(let typists):
                     (cell as? ChatTypingIndicatorCell)?.configure(typists: typists, imageData: authorAvatars)
-                case .dateSeparator, .unreadDivider, .encryptionMarker:
+                case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage:
                     continue
                 }
             }
@@ -351,6 +351,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
         collectionView.register(ChatEncryptionMarkerCell.self, forCellWithReuseIdentifier: ChatEncryptionMarkerCell.reuseIdentifier)
+        collectionView.register(ChatSystemMessageCell.self, forCellWithReuseIdentifier: ChatSystemMessageCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
 
         swipeToReply.isBlocked = { [weak self] in
@@ -537,7 +538,7 @@ public final class ChatViewController: UICollectionViewController {
         let arrivals = (start..<new.count).compactMap { row -> (row: Int, message: ChatMessage)? in
             switch new[row] {
             case .message(let message): (row, message)
-            case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker: nil
+            case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage: nil
             }
         }
         guard let taker = TypingDotsHandoff.takerIndex(
@@ -564,7 +565,7 @@ public final class ChatViewController: UICollectionViewController {
         switch item {
         case .typingIndicator(let typists):
             typists.isEmpty ? [.counterpart] : Set(typists.map { .member($0.id) })
-        case .message, .dateSeparator, .unreadDivider, .encryptionMarker:
+        case .message, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage:
             nil
         }
     }
@@ -580,7 +581,7 @@ public final class ChatViewController: UICollectionViewController {
         guard items.indices.contains(index) else { return nil }
         switch items[index] {
         case .message(let message): return message
-        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker: return nil
+        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage: return nil
         }
     }
 
@@ -621,10 +622,19 @@ public final class ChatViewController: UICollectionViewController {
         case .encryptionMarker:
             let tap: (() -> Void)? = onEncryptionMarkerTap == nil ? nil : { [weak self] in self?.onEncryptionMarkerTap?() }
             (cell as! ChatEncryptionMarkerCell).configure(onTap: tap)
+        case .systemMessage(_, let text):
+            (cell as! ChatSystemMessageCell).configure(text: text, maxWidth: memberBubbleMaxWidth())
         case .message(let message):
             configure(cell, with: message)
         }
         return cell
+    }
+
+    /// The widest an attributed member's bubble gets: the same fraction of the row less the avatar
+    /// gutter that ``configure(_:with:)`` applies. A system row's text column matches it.
+    private func memberBubbleMaxWidth() -> CGFloat {
+        let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
+        return (width - ChatColumnCell.authorGutterWidth) * Self.maxBubbleWidthFraction
     }
 
     /// Fills a message cell. Split out of `cellForItemAt` because an avatar landing re-runs it for
@@ -1326,7 +1336,7 @@ extension ChatViewController: ChatLayoutDelegate {
         guard items.indices.contains(indexPath.item) else { return false }
         switch items[indexPath.item] {
         case .dateSeparator, .unreadDivider, .encryptionMarker: return true
-        case .message, .typingIndicator: return false
+        case .message, .typingIndicator, .systemMessage: return false
         }
     }
 
@@ -1343,7 +1353,7 @@ extension ChatViewController: ChatLayoutDelegate {
         switch items[indexPath.item] {
         case .message(let message): return message.sender
         case .typingIndicator: return .other
-        case .dateSeparator, .unreadDivider, .encryptionMarker: return nil
+        case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage: return nil
         }
     }
 }

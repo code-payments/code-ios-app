@@ -25,6 +25,9 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     /// The "Encrypted" line above the first end-to-end-encrypted message in the transcript, or at
     /// its head when every message is encrypted. At most one per transcript.
     case encryptionMarker
+    /// A server-authored notice drawn as a leading-aligned line, not a bubble. `text` is the server's
+    /// fallback text, shown unmodified.
+    case systemMessage(id: String, text: String)
 
     public var id: String {
         switch self {
@@ -34,6 +37,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
         // Independent of `typists`, so a typist joining or leaving updates the row in place.
         case .typingIndicator: "typing-indicator"
         case .encryptionMarker: "encryption-marker"
+        case .systemMessage(let id, _): id
         }
     }
 
@@ -45,7 +49,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     public var messageID: String? {
         switch self {
         case .message(let message): message.messageID
-        case .dateSeparator, .unreadDivider, .typingIndicator, .encryptionMarker: nil
+        case .dateSeparator, .unreadDivider, .typingIndicator, .encryptionMarker, .systemMessage: nil
         }
     }
 

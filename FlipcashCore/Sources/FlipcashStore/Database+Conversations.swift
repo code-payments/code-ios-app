@@ -124,8 +124,14 @@ nonisolated extension Database {
     private func latestMessage(conversationId: Data) throws -> ConversationMessage? {
         let m = ConversationMessageTable()
         guard let row = try reader.pluck(
-            // Neither a tombstone nor an encrypted row still waiting on the peer's key.
-            m.table.filter(m.conversationId == conversationId && m.kind != 2 && (m.kind != 3 || m.decryptFailure != nil)).order(m.id.desc)
+            // Neither a tombstone, an encrypted row still waiting on the peer's key, nor a blank system
+            // message, which has nothing to preview.
+            m.table.filter(
+                m.conversationId == conversationId
+                    && m.kind != 2
+                    && (m.kind != 3 || m.decryptFailure != nil)
+                    && (m.kind != 6 || m.text != "")
+            ).order(m.id.desc)
         ) else {
             return nil
         }
@@ -238,7 +244,7 @@ nonisolated extension Database {
 
     /// The number of stored messages after `after` that someone other than `selfUserID` sent and
     /// that are not deleted — the count the unread divider shows. A row with no sender counts as
-    /// someone else's. Index-backed by the composite `(conversationId, id)` primary key.
+    /// someone else's, except a system message, which is never unread. Index-backed by the composite `(conversationId, id)` primary key.
     public func inboundMessageCount(conversationID: ConversationID, after: MessageID, excludingSender selfUserID: UUID) throws -> Int {
         let m = ConversationMessageTable()
         return try reader.scalar(
@@ -246,6 +252,7 @@ nonisolated extension Database {
                 m.conversationId == conversationID.data
                     && m.id > after.value
                     && m.kind != 2
+                    && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
             ).count
         )
@@ -267,13 +274,14 @@ nonisolated extension Database {
 
     /// The oldest stored message id after `after` that someone other than `selfUserID` sent, deleted
     /// or not, or nil when there is none — where the unread divider goes. A row with no sender counts
-    /// as someone else's.
+    /// as someone else's, except a system message, so the divider never lands above one.
     public func firstInboundMessageID(conversationID: ConversationID, after: MessageID, excludingSender selfUserID: UUID) throws -> UInt64? {
         let m = ConversationMessageTable()
         return try reader.pluck(
             m.table.filter(
                 m.conversationId == conversationID.data
                     && m.id > after.value
+                    && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
             ).order(m.id.asc)
         ).map { $0[m.id] }
@@ -621,6 +629,9 @@ nonisolated extension Database {
                 case .shareProfile(let share): text = share.username.value
                 case .unrecognized:            text = nil
                 }
+            case .system(let fallbackText):
+                kind = 6
+                text = fallbackText
             case .media(let attachments, let caption):
                 kind = 5
                 mediaJson = try JSONEncoder().encode(
@@ -876,6 +887,9 @@ nonisolated extension Database {
             }
             content = .media(media.attachments, caption: media.caption)
             redacted = media.redacted
+        case 6:
+            guard let text = row[m.text] else { return nil }
+            content = .system(fallbackText: text)
         default:
             return nil
         }
