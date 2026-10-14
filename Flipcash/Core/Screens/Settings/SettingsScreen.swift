@@ -8,8 +8,8 @@ import FlipcashUI
 import FlipcashCore
 
 /// The Settings list, pushed from the gear on the You tab: the profile editors,
-/// the account-level actions, and the version footer that doubles as the
-/// beta-access easter egg.
+/// the account-level actions, and the version card that doubles as the
+/// beta-access easter egg while it sits inline.
 ///
 /// The row icons track Android's through the nearest SF Symbol. Profile Picture
 /// is the exception: `familiar_face_and_zone` has no SF equivalent, so it ships
@@ -22,9 +22,10 @@ struct SettingsScreen: View {
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(ToastController.self) private var toasts
+    @Environment(UpdateAvailability.self) private var updateAvailability
 
     @State private var dialogItem: DialogItem?
-    /// The version footer's beta-access easter egg — the tap count and the line
+    /// The version card's beta-access easter egg — the tap count and the line
     /// it shows for the last few taps.
     @State private var versionUnlock = VersionTapUnlock()
 
@@ -40,12 +41,21 @@ struct SettingsScreen: View {
                     privacySection
                     advancedSection
                     accountSection
-                    versionFooter
-                        .padding(.top, 32)
+                    if !cardState.isPinned {
+                        versionCard
+                            .padding(.top, 32)
+                    }
                 }
                 .font(.appDisplayXS)
                 .foregroundStyle(.textMain)
                 .padding(.bottom, 24)
+            }
+        }
+        // Pinned over the list on glass; the inset keeps Log Out and Delete Account clear of it.
+        .safeAreaInset(edge: .bottom) {
+            if cardState.isPinned {
+                versionCard
+                    .padding(.bottom, 8)
             }
         }
         .navigationTitle("Settings")
@@ -146,30 +156,31 @@ struct SettingsScreen: View {
         }
     }
 
-    private var versionFooter: some View {
-        Button {
-            let message = versionUnlock.registerTap(isUnlocked: betaFlags.accessGranted) {
-                betaFlags.setAccessGranted(!betaFlags.accessGranted)
-            }
-            if let message {
-                // Two seconds and swapped in place, so consecutive taps read as one countdown. Without an action the toast
-                // lets taps through, so it never blocks the version string at the bottom of the list.
-                toasts.show(
-                    .init(message, messageIdentifier: "you-version-toast", width: .fit, duration: .seconds(2)),
-                    inPlace: true
-                )
-            }
-        } label: {
-            Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
-                .lineLimit(1)
-                .font(.appTextHeading)
-                .foregroundStyle(Color.textSecondary)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
+    private var cardState: SettingsVersionCardState {
+        SettingsVersionCardState(
+            newerVersion: updateAvailability.newerVersion,
+            isDebugBuild: SettingsVersionCardState.isDebugBuild
+        )
+    }
+
+    private var versionCard: some View {
+        SettingsVersionCard(state: cardState, onTapVersion: registerVersionTap) {
+            updateAvailability.openStore()
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("you-version-footer")
+    }
+
+    private func registerVersionTap() {
+        let message = versionUnlock.registerTap(isUnlocked: betaFlags.accessGranted) {
+            betaFlags.setAccessGranted(!betaFlags.accessGranted)
+        }
+        if let message {
+            // Two seconds and swapped in place, so consecutive taps read as one countdown. Without an action the toast
+            // lets taps through, so it never blocks the version card.
+            toasts.show(
+                .init(message, messageIdentifier: "you-version-toast", width: .fit, duration: .seconds(2)),
+                inPlace: true
+            )
+        }
     }
 
     // MARK: - Actions -
