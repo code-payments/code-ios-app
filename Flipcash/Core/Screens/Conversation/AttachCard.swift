@@ -46,6 +46,15 @@ final class AttachCard {
     /// The card's height, fixed when it opens.
     private(set) var height: CGFloat = fallbackHeight
 
+    /// The bounds of the window the card stands in, as last measured.
+    private(set) var screen: CGRect = .zero
+
+    /// The card's frame in window coordinates: inset from the screen's bottom and sides, as it stands
+    /// with the keyboard up. The bar and the overlay over the keyboard both draw it here.
+    var frame: CGRect {
+        AttachOverlayLayout.cardFrame(in: screen, height: height)
+    }
+
     /// Whether the bar needs room above itself: from opening until the exit has finished.
     private(set) var holdsOverflow = false
 
@@ -84,17 +93,19 @@ final class AttachCard {
         }
     }
 
-    /// Sizes the card for a screen `screenHeight` points tall ahead of opening it, so its content can
-    /// be laid out at its final size while the panel is still up.
-    func measure(screenHeight: CGFloat) {
+    /// Sizes the card for a window with `screen` bounds ahead of opening it, so its content can be
+    /// laid out at its final size while the panel is still up.
+    func measure(screen: CGRect) {
         guard content == nil else { return }
-        height = Self.height(forScreenHeight: screenHeight)
+        self.screen = screen
+        height = Self.height(forScreenHeight: screen.height)
     }
 
-    /// Puts `content` up on a screen `screenHeight` points tall, unless a card is already up.
-    func open(_ content: Content, screenHeight: CGFloat) {
+    /// Puts `content` up in a window with `screen` bounds, unless a card is already up.
+    func open(_ content: Content, screen: CGRect) {
         guard self.content == nil else { return }
-        height = Self.height(forScreenHeight: screenHeight)
+        self.screen = screen
+        height = Self.height(forScreenHeight: screen.height)
         self.content = content
         holdsOverflow = true
     }

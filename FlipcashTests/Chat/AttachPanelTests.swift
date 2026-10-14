@@ -68,7 +68,7 @@ struct AttachPanelTests {
     @Test("Back from a card takes it down and puts the panel back up, in one change")
     func barReturnsToMenu() {
         let model = ConversationBarModel()
-        model.attachCard.open(.photos, screenHeight: 874)
+        model.attachCard.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
 
         model.returnToMenu()
         #expect(!model.attachCard.isOpen)
@@ -87,7 +87,7 @@ struct AttachPanelTests {
     @Test("Back from the photo card discards the pick")
     func backResetsPick() {
         let model = ConversationBarModel()
-        model.attachCard.open(.photos, screenHeight: 874)
+        model.attachCard.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         model.photosPick.showsLibrary = true
 
         model.returnToMenu()
@@ -117,9 +117,8 @@ struct AttachPanelTests {
 
         model.attachPanel.dismiss()
         model.attachPanel.exitDidFinish()
-        model.attachCard.open(.camera, screenHeight: 874)
-        model.cardTop = 300
-        #expect(model.overflow == .band(top: 300))
+        model.attachCard.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
+        #expect(model.overflow == .band(top: model.attachCard.frame.minY))
 
         // Leaving, the card takes no touches; once it has gone, the bar stops overflowing.
         model.attachCard.close()
@@ -132,7 +131,7 @@ struct AttachPanelTests {
     @Test("Over the keyboard the bar claims no room, even with the panel up: the overlay takes its touches")
     func overKeyboardClaimsNoRoom() {
         let model = ConversationBarModel()
-        model.overKeyboard.activate(items: [.camera, .photos])
+        model.overKeyboard.activate()
         model.attachPanel.open()
         #expect(model.overflow == .none)
     }
@@ -154,7 +153,7 @@ struct AttachSurfaceTests {
 
         // One transaction in the app: the panel closes as the card opens, and the card wins.
         model.attachPanel.dismiss()
-        model.attachCard.open(.camera, screenHeight: 874)
+        model.attachCard.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         #expect(model.attachSurfacePhase == .card(.camera))
 
         let chip = UUID()
@@ -174,7 +173,7 @@ struct AttachSurfaceTests {
     @Test("A landing holds the staged photo from the hand-off until it has landed")
     func landingHoldsImage() {
         let model = ConversationBarModel()
-        model.attachCard.open(.camera, screenHeight: 874)
+        model.attachCard.open(.camera, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 3)).image { _ in }
 
         model.attachCard.beginLanding(on: UUID(), image: image)
@@ -240,10 +239,12 @@ struct AttachSurfaceTests {
         #expect(reaching.minY == aligned.minY && reaching.height == aligned.height)
     }
 
-    @Test("The bar's card stands on the row's bottom edge, out to the keyboard-up margin")
-    func barCard() {
-        let rect = AttachSurfaceLayout.barCardRect(row: CGSize(width: 340, height: 44), outset: 12, height: 500)
-        #expect(rect == CGRect(x: -12, y: -456, width: 364, height: 500))
+    @Test("The card stands inset from the bottom and sides of the window it opened in")
+    func cardFrameFromWindow() {
+        let card = AttachCard()
+        card.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
+        #expect(card.frame == AttachOverlayLayout.cardFrame(in: CGRect(x: 0, y: 0, width: 402, height: 874), height: card.height))
+        #expect(card.frame.maxY == 874 - AttachOverlayLayout.cardInset)
     }
 
     @Test("Only the menu takes touches while it shows, and only the card while it is up")
@@ -259,7 +260,7 @@ struct AttachSurfaceTests {
     @Test("A landing waits for the chip's frame, then shrinks the card onto it")
     func landingWaitsForChip() {
         let model = ConversationBarModel()
-        model.attachCard.open(.photos, screenHeight: 874)
+        model.attachCard.open(.photos, screen: CGRect(x: 0, y: 0, width: 402, height: 874))
         let chip = UUID()
         model.attachCard.beginLanding(on: chip)
 
