@@ -1110,8 +1110,6 @@ public final class ChatViewController: UICollectionViewController {
         DispatchQueue.main.async { [weak self] in
             DispatchQueue.main.async { [weak self] in
                 guard let self, !hasPositioned else { return }
-                // An open placed at the unread divider is off the bottom, and no drag has said so.
-                wasAtBottom = isNearBottomByGeometry
                 hasPositioned = true
                 scheduleReadReport()
             }
