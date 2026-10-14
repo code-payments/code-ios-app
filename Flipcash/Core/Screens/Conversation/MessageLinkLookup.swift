@@ -205,7 +205,7 @@ extension LinkCardResolver {
         case .deleted:
             return await deleted(conversation, context: context)
 
-        case .encrypted, .widget:
+        case .encrypted, .widget, .system:
             return .unavailable
         }
     }
