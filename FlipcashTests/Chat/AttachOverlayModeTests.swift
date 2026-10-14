@@ -131,7 +131,7 @@ struct AttachOverlayModeTests {
         model.attachCard.open(.photos, screenHeight: 800)
         #expect(model.overflow != .none)
 
-        model.overKeyboard.activate(items: [.camera, .photos])
+        model.overKeyboard.activate()
         #expect(model.overflow == .none)
     }
 

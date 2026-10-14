@@ -132,7 +132,7 @@ struct AttachPanelTests {
     @Test("Over the keyboard the bar claims no room, even with the panel up: the overlay takes its touches")
     func overKeyboardClaimsNoRoom() {
         let model = ConversationBarModel()
-        model.overKeyboard.activate(items: [.camera, .photos])
+        model.overKeyboard.activate()
         model.attachPanel.open()
         #expect(model.overflow == .none)
     }

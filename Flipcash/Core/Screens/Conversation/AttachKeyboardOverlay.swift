@@ -39,12 +39,12 @@ final class AttachKeyboardOverlay {
         self.locator = locator
     }
 
-    /// Plans how `+` opens the panel and, when it goes over the keyboard, puts the overlay up with
-    /// `items` as its rows. Returns the mode chosen; ``AttachOverlayMode/dismissKeyboard`` leaves the
+    /// Plans how `+` opens the panel and, when it goes over the keyboard, puts the overlay up.
+    /// `acceptsMedia` is whether the chat takes photos, as the bar's rows read it. Returns the mode chosen; ``AttachOverlayMode/dismissKeyboard`` leaves the
     /// caller to take the keyboard down.
     func begin(
         screen: ChatScreenViewController,
-        items: [AttachMenuItem],
+        acceptsMedia: Bool,
         composer: ComposerModel,
         actions: @escaping () -> AttachActions
     ) -> AttachOverlayMode {
@@ -66,7 +66,7 @@ final class AttachKeyboardOverlay {
         // Before the switch: swapping the input view in announces the keyboard showing again, which
         // must not read as the keyboard taking a card's place.
         model.attachCard.closesOnKeyboardShow = false
-        let container = makeContainer(appWindow: appWindow, composer: composer, actions: actions)
+        let container = makeContainer(appWindow: appWindow, acceptsMedia: acceptsMedia, composer: composer, actions: actions)
         switch plan.mode {
         case .keyboardWindow:
             guard let window = plan.keyboardWindow else { return refuse() }
@@ -87,7 +87,7 @@ final class AttachKeyboardOverlay {
         }
 
         mode = plan.mode
-        model.overKeyboard.activate(items: items)
+        model.overKeyboard.activate()
         // A tap on the transcript reaches the app's window, not the overlay, and would lower the
         // keyboard; while the menu is up it only closes the menu.
         screen.setTranscriptShield(
@@ -145,6 +145,7 @@ final class AttachKeyboardOverlay {
 
     private func makeContainer(
         appWindow: UIWindow,
+        acceptsMedia: Bool,
         composer: ComposerModel,
         actions: @escaping () -> AttachActions
     ) -> AttachOverlayContainer {
@@ -164,6 +165,7 @@ final class AttachKeyboardOverlay {
         let root = AttachOverlayRoot(
             model: model,
             composer: composer,
+            acceptsMedia: acceptsMedia,
             // A card here can't present a sheet, so All Photos hands the card to the bar instead.
             actions: { [weak self] in
                 var actions = actions()
@@ -313,6 +315,7 @@ private struct AttachOverlayRoot: View {
 
     let model: ConversationBarModel
     let composer: ComposerModel
+    let acceptsMedia: Bool
     /// Returns the screen's actions as of its latest render.
     let actions: () -> AttachActions
     let report: (AttachOverlayRegion, CGRect?) -> Void
@@ -321,13 +324,18 @@ private struct AttachOverlayRoot: View {
 
     @State private var bounds: CGSize = .zero
 
+    // Read live, as the bar reads its own, so a photo staged while the menu is up updates both.
+    private var rows: ConversationBarBottomRow {
+        ConversationBarBottomRow(composer: composer, acceptsMedia: acceptsMedia)
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.clear
-            if model.attachSurfaceIsMounted {
+            if model.attachSurfaceIsMounted, !rows.plusItems.isEmpty {
                 AttachSurface(
                     model: model,
-                    items: model.overKeyboard.items,
+                    items: rows.plusItems,
                     plus: model.overKeyboard.plusFrame,
                     card: AttachOverlayLayout.cardFrame(in: CGRect(origin: .zero, size: bounds), height: model.attachCard.height),
                     landing: model.attachCard.landingChipFrame,

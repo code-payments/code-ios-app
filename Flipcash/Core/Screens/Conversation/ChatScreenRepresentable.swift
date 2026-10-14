@@ -325,8 +325,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 isJoiningChat: isJoiningChat,
                 mentions: mentions,
                 acceptsMedia: acceptsMedia,
-                onAttachOpen: { [weak coordinator] items in
-                    coordinator?.openAttach(items: items)
+                onAttachOpen: { [weak coordinator, acceptsMedia] in
+                    coordinator?.openAttach(acceptsMedia: acceptsMedia)
                 },
                 attachActions: attachActions,
                 onImagesDropped: onImagesDropped,
@@ -375,15 +375,15 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             self.overlay = AttachKeyboardOverlay(model: model)
         }
 
-        /// `+` is opening the panel with `items` as its rows: over the keyboard while it is up and its
-        /// window or the field's input view can carry the panel, else with the keyboard taken down.
-        func openAttach(items: [AttachMenuItem]) {
+        /// `+` is opening the panel: over the keyboard while it is up and its window or the field's
+        /// input view can carry the panel, else with the keyboard taken down.
+        func openAttach(acceptsMedia: Bool) {
             guard let screen else { return }
             // Sized now, so the card's content is laid out at its final size while the menu is up.
             model.attachCard.measure(screenHeight: screen.view.bounds.height)
             let mode = overlay.begin(
                 screen: screen,
-                items: items,
+                acceptsMedia: acceptsMedia,
                 composer: composer,
                 actions: { [weak self] in self?.attachActions ?? AttachActions() }
             )
