@@ -197,13 +197,13 @@ struct AttachPanelPlacementTests {
         let barHeight = host.barHeight
 
         // Photos, not the camera, which would put up the system's permission prompt in the test host.
-        host.model.attachCard.open(.photos, screenHeight: host.window.bounds.height)
+        host.model.attachCard.open(.photos, screen: host.window.bounds)
         await host.settle()
 
         // The card is an overlay: the bar, and so the transcript's inset, keeps the composer's height.
         #expect(host.barHeight == barHeight, "The card resized the bar")
 
-        let cardTop = host.model.cardTop
+        let cardTop = host.model.attachCard.frame.minY
         let cardBottom = cardTop + host.model.attachCard.height
         let barTop = host.window.bounds.height - barHeight
         #expect(cardBottom > barTop + 20 && cardBottom <= host.window.bounds.height, "The card does not stand on the composer row")
@@ -222,7 +222,7 @@ struct AttachPanelPlacementTests {
         let host = try AttachPanelHost()
         defer { host.tearDown() }
         await host.settle()
-        host.model.attachCard.open(.photos, screenHeight: host.window.bounds.height)
+        host.model.attachCard.open(.photos, screen: host.window.bounds)
         await host.settle()
 
         let red = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 40)).image { ctx in

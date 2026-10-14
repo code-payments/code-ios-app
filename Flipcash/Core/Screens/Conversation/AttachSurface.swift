@@ -109,12 +109,6 @@ enum AttachSurfaceLayout {
         }
     }
 
-    /// The card's frame in the bar, in the composer row's coordinates: standing on the row's bottom
-    /// edge, `height` tall, and `outset` wider than the row on each side.
-    static func barCardRect(row: CGSize, outset: CGFloat, height: CGFloat) -> CGRect {
-        CGRect(x: -outset, y: row.height - height, width: row.width + outset * 2, height: height)
-    }
-
     /// Returns the radius of the surface collapsed onto `plus`, which is a circle: half its height.
     static func collapsedCornerRadius(plus: CGRect) -> CGFloat {
         plus.height / 2
