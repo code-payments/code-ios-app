@@ -15,6 +15,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let conversationID: ConversationID
         let text: String
         let repliedTo: MessageID?
+        var linkPreview: MessageLinkPreview? = nil
     }
     /// One `sendMediaMessage` call.
     struct SentMedia: Sendable, Equatable {
@@ -42,6 +43,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let messageID: MessageID
         let text: String
         let repliedTo: MessageID?
+        var linkPreview: MessageLinkPreview? = nil
         let expectedEventSequence: UInt64
     }
 
@@ -408,15 +410,15 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         return olderMessages
     }
 
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, clientMessageID: UUID) async throws -> ConversationMessage {
         lock.withLock {
-            _sent.append(Sent(conversationID: conversationID, text: text, repliedTo: repliedTo))
+            _sent.append(Sent(conversationID: conversationID, text: text, repliedTo: repliedTo, linkPreview: linkPreview))
             _sentClientIDs.append(clientMessageID)
         }
         if let error = sendError { throw error }
         return sendResult ?? ConversationMessage(
             id: MessageID(value: 1), senderID: nil, content: .text(text),
-            date: Date(timeIntervalSince1970: 0), unreadSeq: 0, repliedTo: repliedTo
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 0, repliedTo: repliedTo, linkPreview: linkPreview
         )
     }
 
@@ -447,9 +449,9 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         )
     }
 
-    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, expectedEventSequence: UInt64) async throws -> MessageMutation {
+    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, expectedEventSequence: UInt64) async throws -> MessageMutation {
         lock.withLock {
-            _edited.append(Edited(conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, expectedEventSequence: expectedEventSequence))
+            _edited.append(Edited(conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, linkPreview: linkPreview, expectedEventSequence: expectedEventSequence))
         }
         if let editError { throw editError }
         guard let editResult else { throw ErrorEditMessage.unknown }

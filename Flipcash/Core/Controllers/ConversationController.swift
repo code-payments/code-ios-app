@@ -2114,16 +2114,17 @@ final class ConversationController {
         _ text: String,
         to conversationID: ConversationID,
         repliedTo: MessageID? = nil,
+        linkPreview: MessageLinkPreview? = nil,
         restoringOnFailure draft: ChatDraft? = nil
     ) async -> Bool {
-        let clientMessageID = insertPending(text, repliedTo: repliedTo, into: conversationID)
+        let clientMessageID = insertPending(text, repliedTo: repliedTo, linkPreview: linkPreview, into: conversationID)
         // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
         // untrimmed text and the reply strip's author and snippet, and it has already cleared both
         // by the time a failure comes back.
         if let draft {
             failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
         }
-        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, linkPreview: linkPreview, to: conversationID)
         if delivered { donateShareSuggestion(for: conversationID) }
         return delivered
     }
@@ -2137,15 +2138,15 @@ final class ConversationController {
     /// Posts `text` the way ``send(_:to:repliedTo:restoringOnFailure:)`` does, except that a
     /// refused message leaves the transcript rather than staying there to be retried.
     func postOnce(_ text: String, to conversationID: ConversationID) async -> Bool {
-        let clientMessageID = insertPending(text, repliedTo: nil, into: conversationID)
-        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: nil, to: conversationID)
+        let clientMessageID = insertPending(text, repliedTo: nil, linkPreview: nil, into: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: nil, linkPreview: nil, to: conversationID)
         if !delivered {
             store.discardPending(clientMessageID: clientMessageID, in: conversationID)
         }
         return delivered
     }
 
-    private func insertPending(_ text: String, repliedTo: MessageID?, into conversationID: ConversationID) -> UUID {
+    private func insertPending(_ text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, into conversationID: ConversationID) -> UUID {
         let clientMessageID = UUID()
         let pending = ConversationMessage(
             id: .unassigned,
@@ -2154,6 +2155,7 @@ final class ConversationController {
             date: .now,
             unreadSeq: 0,
             repliedTo: repliedTo,
+            linkPreview: linkPreview,
             status: .sending,
             clientMessageID: clientMessageID
         )
@@ -2176,7 +2178,7 @@ final class ConversationController {
         switch pending.content {
         case .text(let text):
             store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
-            _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
+            _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, linkPreview: pending.linkPreview, to: conversationID)
         case .media(_, let caption):
             await retryMedia(clientMessageID: clientMessageID, caption: caption, repliedTo: pending.repliedTo, in: conversationID)
         case .encrypted, .cash, .deleted, .widget, .system:
@@ -2191,7 +2193,7 @@ final class ConversationController {
         }
     }
 
-    private func deliver(clientMessageID: UUID, text: String, repliedTo: MessageID?, to conversationID: ConversationID) async -> Bool {
+    private func deliver(clientMessageID: UUID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, to conversationID: ConversationID) async -> Bool {
         // Captured before the send so success and failure report the same
         // conversation kind; an unresolved conversation reports as Unknown.
         let chatType = conversation(withID: conversationID)?.type
@@ -2201,6 +2203,7 @@ final class ConversationController {
                 conversationID: conversationID,
                 text: text,
                 repliedTo: repliedTo,
+                linkPreview: linkPreview,
                 clientMessageID: clientMessageID
             )
             // Persist the row carrying its client id (the server echoes none) so the DB keeps the send's

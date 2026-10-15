@@ -138,10 +138,10 @@ extension EncryptedChatClient: ConversationMessaging {
         }
     }
 
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, clientMessageID: UUID) async throws -> ConversationMessage {
         try await refetchingOnRefusal(conversationID) {
             let seal = try await sealForSending(conversationID, owner: owner)
-            return try await client.sendMessage(owner: owner, conversationID: conversationID, text: text, repliedTo: repliedTo, seal: seal, clientMessageID: clientMessageID)
+            return try await client.sendMessage(owner: owner, conversationID: conversationID, text: text, repliedTo: repliedTo, linkPreview: linkPreview, seal: seal, clientMessageID: clientMessageID)
         }
     }
 
@@ -165,10 +165,10 @@ extension EncryptedChatClient: ConversationMessaging {
         }
     }
 
-    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, expectedEventSequence: UInt64) async throws -> MessageMutation {
+    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, expectedEventSequence: UInt64) async throws -> MessageMutation {
         try await refetchingOnRefusal(conversationID) {
             let seal = try await sealForSending(conversationID, owner: owner)
-            return try await client.editMessage(owner: owner, conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, seal: seal, expectedEventSequence: expectedEventSequence)
+            return try await client.editMessage(owner: owner, conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, linkPreview: linkPreview, seal: seal, expectedEventSequence: expectedEventSequence)
         }
     }
 

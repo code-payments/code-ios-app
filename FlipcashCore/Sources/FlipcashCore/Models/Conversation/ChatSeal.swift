@@ -84,9 +84,10 @@ public struct ChatSeal: @unchecked Sendable {
         self.conversationID = conversationID
     }
 
-    /// Encrypts `text`, as a reply to `repliedTo` when set, into the content to send in its place.
-    public func seal(text: String, repliedTo: MessageID?) throws -> Flipcash_Messaging_V1_Content {
-        try seal(.plaintext(text: text, repliedTo: repliedTo))
+    /// Encrypts `text` carrying `linkPreview`, as a reply to `repliedTo` when set, into the content
+    /// to send in its place.
+    public func seal(text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview? = nil) throws -> Flipcash_Messaging_V1_Content {
+        try seal(.plaintext(text: text, repliedTo: repliedTo, linkPreview: linkPreview, sealed: true))
     }
 
     /// Encrypts a message carrying `photo`, with `caption` under it and as a reply to `repliedTo`
@@ -205,7 +206,7 @@ public struct ChatSeal: @unchecked Sendable {
               let readable = content.readable(senderID: senderID) else {
             return message.opened(.failure(.unsupported))
         }
-        return message.opened(.success(readable))
+        return message.opened(.success((readable.content, readable.repliedTo)), linkPreview: readable.linkPreview)
     }
 
     /// The raw `UserId.value` bytes the group aads bind.
@@ -271,9 +272,18 @@ public struct SealedPhoto: Hashable, Sendable, Codable {
 
 extension Flipcash_Messaging_V1_Content {
 
-    /// The plaintext content for `text`, wrapped as a reply to `repliedTo` when set.
-    static func plaintext(text: String, repliedTo: MessageID?) -> Self {
-        let body = Self.with { $0.text = .with { $0.text = text } }
+    /// The plaintext content for `text` carrying `linkPreview`, wrapped as a reply to `repliedTo`
+    /// when set. `sealed` says the content is about to be encrypted, which decides the image the
+    /// preview may reference.
+    static func plaintext(text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview? = nil, sealed: Bool = false) -> Self {
+        let body = Self.with {
+            $0.text = .with {
+                $0.text = text
+                if let linkPreview {
+                    $0.linkPreviews = [linkPreview.proto(sealed: sealed)]
+                }
+            }
+        }
         guard let repliedTo else { return body }
         return .with {
             $0.reply = .with {
@@ -303,22 +313,23 @@ extension Flipcash_Messaging_V1_Content {
         }
     }
 
-    /// The content and replied-to message of decrypted Text, Media, or a Reply of either sent by
-    /// `senderID`; nil for any other type, or for media whose metadata breaks the contract.
-    fileprivate func readable(senderID: UserID) -> (content: ConversationMessage.Content, repliedTo: MessageID?)? {
+    /// The content, replied-to message and link preview of decrypted Text, Media, or a Reply of
+    /// either sent by `senderID`; nil for any other type, or for media whose metadata breaks the
+    /// contract.
+    fileprivate func readable(senderID: UserID) -> (content: ConversationMessage.Content, repliedTo: MessageID?, linkPreview: MessageLinkPreview?)? {
         switch type {
         case .text(let text):
-            return (.text(text.text), nil)
+            return (.text(text.text), nil, .first(of: text, sealedBy: senderID))
         case .media(let media):
-            return ConversationMessage.Content(sealed: media, senderID: senderID).map { ($0, nil) }
+            return ConversationMessage.Content(sealed: media, senderID: senderID).map { ($0, nil, nil) }
         case .reply(let reply):
             guard reply.content.count == 1 else { return nil }
             let repliedTo = MessageID(reply.repliedMessageID)
             switch reply.content[0].type {
             case .text(let text):
-                return (.text(text.text), repliedTo)
+                return (.text(text.text), repliedTo, .first(of: text, sealedBy: senderID))
             case .media(let media):
-                return ConversationMessage.Content(sealed: media, senderID: senderID).map { ($0, repliedTo) }
+                return ConversationMessage.Content(sealed: media, senderID: senderID).map { ($0, repliedTo, nil) }
             case .cash, .system, .widget, .deleted, .encrypted, .reply, nil:
                 return nil
             }
@@ -331,29 +342,36 @@ extension Flipcash_Messaging_V1_Content {
 extension ConversationMessage.Content {
 
     /// The `.media` content of a decrypted `MediaContent` sent by `senderID`, or nil when it breaks
-    /// the encrypted-media contract: exactly one item with exactly one ORIGINAL rendition, a blob id,
-    /// and valid `BlobMetadata` describing an image.
+    /// the encrypted-media contract: exactly one item that passes `MediaAttachment(sealed:senderID:)`.
     ///
     /// The dimensions are the sender's claim; the decoded image's own are authoritative once it loads.
     init?(sealed proto: Flipcash_Messaging_V1_MediaContent, senderID: UserID) {
         guard proto.items.count == 1,
-              proto.items[0].renditions.count == 1 else { return nil }
-        let rendition = proto.items[0].renditions[0]
+              let attachment = MediaAttachment(sealed: proto.items[0], senderID: senderID) else { return nil }
+        let caption = proto.caption.text
+        self = .media([attachment], caption: caption.isEmpty ? nil : caption)
+    }
+}
+
+extension MediaAttachment {
+
+    /// The attachment a decrypted `Media` sent by `senderID` describes, or nil when it breaks the
+    /// encrypted-media contract: exactly one ORIGINAL rendition, a blob id, and valid `BlobMetadata`
+    /// describing an image.
+    init?(sealed media: Flipcash_Blob_V1_Media, senderID: UserID) {
+        guard media.renditions.count == 1 else { return nil }
+        let rendition = media.renditions[0]
         guard rendition.role == .original,
               rendition.hasBlobID,
               rendition.blobID.value.count == 16,
               rendition.hasBlob,
               let image = Self.validImage(rendition.blob) else { return nil }
-        let caption = proto.caption.text
-        self = .media(
-            [MediaAttachment(
-                blobID: BlobID(data: rendition.blobID.value),
-                width: Int(image.width),
-                height: Int(image.height),
-                blurhash: image.blurhash.isEmpty ? nil : image.blurhash,
-                sealed: SealedBlob(senderID: senderID, plaintextSize: Int(rendition.blob.sizeBytes))
-            )],
-            caption: caption.isEmpty ? nil : caption
+        self.init(
+            blobID: BlobID(data: rendition.blobID.value),
+            width: Int(image.width),
+            height: Int(image.height),
+            blurhash: image.blurhash.isEmpty ? nil : image.blurhash,
+            sealed: SealedBlob(senderID: senderID, plaintextSize: Int(rendition.blob.sizeBytes))
         )
     }
 

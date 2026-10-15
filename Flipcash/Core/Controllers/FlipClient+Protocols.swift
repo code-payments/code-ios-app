@@ -111,7 +111,8 @@ protocol ConversationMessaging: AnyObject, Sendable {
         afterSequence: UInt64,
         onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
     ) async throws -> UInt64
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage
+    /// Sends `text` carrying `linkPreview`, as a reply to `repliedTo` when set.
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, clientMessageID: UUID) async throws -> ConversationMessage
     /// Sends the finalized `photo` as one media message, with `caption` under it; a sealed photo
     /// goes out inside `EncryptedContent`.
     func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: UploadedPhoto, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage
@@ -121,10 +122,10 @@ protocol ConversationMessaging: AnyObject, Sendable {
     /// The seal `conversationID`'s messages open with, nil when it can't be built yet or the chat
     /// doesn't encrypt.
     func openingSeal(owner: KeyPair, conversationID: ConversationID) async -> ChatSeal?
-    /// Replaces a message's text, keeping it a reply to `repliedTo` when set. `expectedEventSequence` is the optimistic-concurrency guard: the
+    /// Replaces a message's text and its `linkPreview`, keeping it a reply to `repliedTo` when set. `expectedEventSequence` is the optimistic-concurrency guard: the
     /// server applies the edit only if the message still carries that sequence, and reports a
     /// conflict with the winning state otherwise.
-    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, expectedEventSequence: UInt64) async throws -> MessageMutation
+    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Tombstones a message, guarded by `expectedEventSequence` the same way as `editMessage`.
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Adds the owner's reaction with `emoji`, returning the emoji's new aggregate.
