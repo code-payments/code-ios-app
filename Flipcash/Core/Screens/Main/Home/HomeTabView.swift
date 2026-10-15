@@ -38,18 +38,19 @@ struct HomeTabView: View {
         _selection = State(initialValue: initialTab)
         _hasOpenedChat = State(initialValue: initialTab == .chat)
 
-        // Color the tab glyphs per state: selected white, the rest secondary.
-        // The iOS 26 tab bar ignores UITabBar.unselectedItemTintColor, so drive
-        // it through a full item appearance instead. A transparent background
+        // Color the tab glyphs white in both states, as iOS 27 already does; the
+        // outline-vs-filled glyph carries the selection. The iOS 26 tab bar
+        // ignores UITabBar.unselectedItemTintColor, so drive it through a full
+        // item appearance instead. A transparent background
         // keeps the system's Liquid Glass. No-op on the legacy pill path, which
         // draws its own buttons rather than a `UITabBar`.
         if #available(iOS 26, *) {
             let items = UITabBarItemAppearance()
-            items.normal.iconColor = UIColor(Color.textSecondary)
+            items.normal.iconColor = UIColor(Color.textMain)
             items.selected.iconColor = UIColor(Color.textMain)
             // Labels per node 10642:1325: 10pt Avenir Demi, colored like the glyph above.
             let titleFont = UIFont.default(size: 10, weight: .semibold)
-            items.normal.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textSecondary)]
+            items.normal.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textMain)]
             items.selected.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textMain)]
 
             let appearance = UITabBarAppearance()
