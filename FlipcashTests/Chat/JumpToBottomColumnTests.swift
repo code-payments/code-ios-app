@@ -54,4 +54,15 @@ struct JumpToBottomColumnTests {
         model.isSuppressed = true
         #expect(!model.hitsButton(at: centre))
     }
+
+    @Test("The jump button's motion and the badge's inset are Android's values")
+    func motionTokens_matchAndroid() {
+        #expect(ChatMotion.jumpEnter == ChatSpring(duration: 0.3, bounce: 0.25))
+        #expect(ChatMotion.jumpBadgeEnter == ChatSpring(duration: 0.25, bounce: 0.4))
+        #expect(ChatMotion.jumpBadgeBump == ChatSpring(duration: 0.25, bounce: 0.4))
+        #expect(ChatMotion.jumpBadgeDelay == 0.06)
+        #expect(ChatMotion.jumpBadgeBumpPeak == 1.15)
+        let radius = JumpToBottomButtonView.diameter / 2
+        #expect(abs(JumpToBottomButtonView.badgeInset - radius * (1 - 1 / 2.0.squareRoot())) < 0.001)
+    }
 }

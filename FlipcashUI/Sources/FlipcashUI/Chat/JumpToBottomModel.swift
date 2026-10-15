@@ -40,7 +40,9 @@ public final class JumpToBottomModel {
         let centre = CGPoint(x: buttonFrame.midX, y: buttonFrame.midY)
         if hypot(point.x - centre.x, point.y - centre.y) <= radius { return true }
         guard unreadCount > 0 else { return false }
-        let badge = CGRect(x: buttonFrame.maxX - 22, y: buttonFrame.minY - 6, width: 28, height: 28)
+        let inset = JumpToBottomButtonView.badgeInset
+        let badgeCentre = CGPoint(x: buttonFrame.maxX - inset, y: buttonFrame.minY + inset)
+        let badge = CGRect(x: badgeCentre.x - 15, y: badgeCentre.y - 11, width: 30, height: 22)
         return badge.contains(point)
     }
 }
@@ -55,11 +57,18 @@ public struct JumpToBottomButtonView: View {
     public static let reach = CGSize(width: 88, height: 20 + diameter + 12)
     private static let badgeHeight: CGFloat = 22
 
+    /// How far the badge's centre stands inside the circle's bounding square, from the top and the
+    /// trailing edge: where a 45 degree radius meets the arc, r(1 - 1/sqrt 2). Android's value.
+    public static let badgeInset: CGFloat = diameter / 2 * (1 - 1 / 2.0.squareRoot())
+
     public let unreadCount: Int
     public let action: () -> Void
 
     /// The button's own, so its glass never joins the `$` button's.
     @Namespace private var glassNamespace
+
+    /// Advances when another message lands under a badge that is already up, to play the bump.
+    @State private var bumpTick = 0
 
     public init(unreadCount: Int, action: @escaping () -> Void) {
         self.unreadCount = unreadCount
@@ -79,10 +88,23 @@ public struct JumpToBottomButtonView: View {
                 .overlay(alignment: .topTrailing) {
                     if let badgeText {
                         badge(badgeText)
+                            .keyframeAnimator(initialValue: CGFloat(1), trigger: bumpTick) { content, scale in
+                                content.scaleEffect(scale)
+                            } keyframes: { _ in
+                                SpringKeyframe(ChatMotion.jumpBadgeBumpPeak, duration: 0.08, spring: Spring(duration: ChatMotion.jumpBadgeBump.duration, bounce: ChatMotion.jumpBadgeBump.bounce))
+                                SpringKeyframe(1, duration: 0.3, spring: Spring(duration: ChatMotion.jumpBadgeBump.duration, bounce: ChatMotion.jumpBadgeBump.bounce))
+                            }
+                            .transition(.scale.combined(with: .opacity))
+                            // The overlay centres the pill's corner on the circle's: nudge it out to the arc.
+                            .offset(x: Self.badgeHeight / 2 - Self.badgeInset, y: Self.badgeInset - Self.badgeHeight / 2)
                     }
                 }
+                .animation(ChatMotion.jumpBadgeEnter.animation.delay(ChatMotion.jumpBadgeDelay), value: badgeText == nil)
         }
         .buttonStyle(.plain)
+        .onChange(of: unreadCount) { old, new in
+            if old > 0, new > old { bumpTick += 1 }
+        }
         .accessibilityLabel("Jump to latest message")
         .accessibilityValue(badgeText ?? "")
     }
@@ -97,8 +119,7 @@ public struct JumpToBottomButtonView: View {
             .frame(minWidth: Self.badgeHeight, minHeight: Self.badgeHeight)
             .background(Color.badgeFocus, in: Capsule())
             .overlay(Capsule().strokeBorder(Color.backgroundMain, lineWidth: 2))
-            .alignmentGuide(.trailing) { $0.width / 2 + 4 }
-            .alignmentGuide(.top) { _ in Self.badgeHeight / 2 - 4 }
+
     }
 }
 #endif

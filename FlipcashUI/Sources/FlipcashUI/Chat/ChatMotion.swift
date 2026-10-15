@@ -140,6 +140,18 @@ public nonisolated enum ChatMotion {
     /// The bar narrowing and widening as the composer gains and loses focus. The jump-to-bottom
     /// column moves on the same curve, so it keeps its place over the `$` button.
     public static let barInset = ChatSpring(duration: 0.22, bounce: 0.14)
+    /// The jump-to-bottom button arriving. Android's `jumpEnter`, so the two platforms match.
+    public static let jumpEnter = ChatSpring(duration: 0.3, bounce: 0.25)
+    /// The jump-to-bottom button leaving: a short ease-in, with no bounce to read as the button coming back.
+    public static let jumpExit = Animation.easeIn(duration: 0.15)
+    /// The unread badge arriving on the button, and the bump it plays when another message lands.
+    public static let jumpBadgeEnter = ChatSpring(duration: 0.25, bounce: 0.4)
+    public static let jumpBadgeBump = ChatSpring(duration: 0.25, bounce: 0.4)
+    /// The badge waits for the button to be mostly in before it pops.
+    public static let jumpBadgeDelay: TimeInterval = 0.06
+    /// How far the badge scales up at the top of its bump.
+    public static let jumpBadgeBumpPeak: CGFloat = 1.15
+
     /// The send arrow scaling in and out of the composer.
     public static let sendButton = ChatSpring(duration: 0.17, bounce: 0.34)
     /// A bubble's corners flattening as a bubble run forms. Deliberately the slowest of the

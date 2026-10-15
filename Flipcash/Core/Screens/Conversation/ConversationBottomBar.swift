@@ -189,7 +189,7 @@ struct JumpToBottomOverlay: View {
             // Hidden, the button also stops taking touches; opacity 0 alone would still be tappable.
             .allowsHitTesting(isShown && takesTouches)
             .accessibilityHidden(!isShown)
-            .animation(ChatMotion.reflow.animation, value: isShown)
+            .animation(isShown ? ChatMotion.jumpEnter.animation : ChatMotion.jumpExit, value: isShown)
             .padding(.trailing, inset)
             .animation(ChatMotion.barInset.animation, value: isCompact)
             .offset(y: -(JumpToBottomButtonView.diameter + BarMetrics.jumpButtonGapAboveBar))
