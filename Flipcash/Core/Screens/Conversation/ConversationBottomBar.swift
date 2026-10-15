@@ -568,6 +568,12 @@ struct ConversationBottomBar: View {
                 transaction.animation = ChatMotion.composerChip.animation
             }
         }
+        // The link card arriving and leaving on the same spring as a photo chip.
+        .transaction(value: composer.showsLinkPreview) { transaction in
+            if transaction.animation == nil, !transaction.disablesAnimations {
+                transaction.animation = ChatMotion.composerChip.animation
+            }
+        }
         .onChange(of: wantsCameraWarm) { _, wanted in
             model.attachWarmUp.update(wanted: wanted)
         }
