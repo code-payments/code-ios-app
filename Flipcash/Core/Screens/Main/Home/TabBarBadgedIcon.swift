@@ -48,7 +48,7 @@ enum TabBarBadgedIcon {
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
-            .foregroundStyle(glyphColor(isSelected: isSelected))
+            .foregroundStyle(Color.textMain)
             .frame(width: glyphSize, height: glyphSize)
             .overlay(alignment: .topTrailing) {
                 Bubble(size: .regular, count: count, color: .unreadIndicator)
@@ -57,15 +57,6 @@ enum TabBarBadgedIcon {
             }
             .padding(.top, bubbleOverhang)
             .padding(.trailing, bubbleOverhang)
-    }
-
-    /// The color the bar paints its template glyphs in for the state. iOS 27
-    /// ignores the unselected `iconColor` from `HomeTabView` and paints every
-    /// glyph in the main text color, so the Chat glyph follows suit there.
-    private static func glyphColor(isSelected: Bool) -> Color {
-        if isSelected { return .textMain }
-        if #available(iOS 27, *) { return .textMain }
-        return .textSecondary
     }
 
     private static func image(of icon: some View) -> UIImage? {
