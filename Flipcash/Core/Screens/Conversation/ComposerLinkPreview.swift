@@ -121,10 +121,10 @@ final class ComposerLinkPreview {
         }
     }
 
-    /// The first link in `text` the classifier makes a web card, with the text it was found in.
+    /// The first link in `text` the classifier would preview, with the text it was found in.
     nonisolated static func webLink(in text: String, detector: LinkDetector, classifier: LinkCardClassifier) -> (text: String, url: URL)? {
-        guard case .web(let web)? = classifier.firstCard(in: detector.webLinks(in: text)) else { return nil }
-        return ((text as NSString).substring(with: web.range), web.url)
+        guard let link = classifier.firstWebLink(in: detector.webLinks(in: text)) else { return nil }
+        return ((text as NSString).substring(with: link.range), link.url)
     }
 }
 
@@ -139,7 +139,7 @@ extension ComposerLinkPreview {
         senderID: UserID
     ) -> Load {
         { url in
-            guard case .resolved(let page)? = try? await metadata.metadata(for: url) else { return nil }
+            guard let page = (try? await metadata.metadata(for: url)) ?? nil else { return nil }
             var image: MediaAttachment?
             var thumbnail: UIImage?
             if let imageURL = page.imageURL,

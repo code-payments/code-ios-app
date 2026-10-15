@@ -82,20 +82,6 @@ public final class ChatViewController: UICollectionViewController {
     /// carries no resolution state and a lookup landing cannot change a row's diff.
     public weak var linkCardSource: (any LinkCardSource)?
 
-    /// Whether this transcript's web cards ask for their pages as they draw or wait for the chip.
-    /// A change, such as the viewer joining the group, redraws the rows on screen.
-    public var webPreviewMode: WebLinkPreviewMode = .tapToLoad {
-        didSet {
-            guard webPreviewMode != oldValue, isViewLoaded else { return }
-            for cell in collectionView.visibleCells where cell is ChatLinkMessageCell {
-                guard let indexPath = collectionView.indexPath(for: cell),
-                      items.indices.contains(indexPath.item),
-                      case .message(let message) = items[indexPath.item] else { continue }
-                configure(cell, with: message)
-            }
-        }
-    }
-
     /// The capsule an `.updateApp` bubble draws, or nil while no newer version is known. A change
     /// redraws the rows on screen.
     public var updateAction: ChatBubbleAction? {
@@ -110,9 +96,6 @@ public final class ChatViewController: UICollectionViewController {
             collectionView.collectionViewLayout.invalidateLayout()
         }
     }
-
-    /// The web previews this transcript's viewer asked for through the chip, shared by every row.
-    private let webPreviewRequests = WebPreviewRequests()
 
     /// Called when the "Encrypted" marker is tapped; nil leaves it inert.
     public var onEncryptionMarkerTap: (() -> Void)?
@@ -684,8 +667,7 @@ public final class ChatViewController: UICollectionViewController {
         case let cell as ChatLinkMessageCell:
             // Before `configure`, which is where the card subscribes.
             cell.linkCardSource = linkCardSource
-            cell.webPreviewMode = webPreviewMode
-            cell.webPreviewRequests = webPreviewRequests
+            cell.webImages = mediaURLResolver.map(WebCardImages.init(resolver:))
             cell.configure(
                 with: message,
                 maxWidth: maxWidth,
