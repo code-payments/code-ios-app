@@ -165,36 +165,33 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
-/// The jump-to-bottom button's column, hosted beside the bar rather than in it: the bar's clip cuts
-/// everything drawn above the bar's top edge, and the transcript's inset follows that edge.
+/// The jump-to-bottom button, drawn in the bar's own hierarchy above its trailing control so the one
+/// transaction that moves `$` with the keyboard moves the button too.
 ///
-/// The column reads the same `isComposing` the bar's `$` does and moves on the same spring, so the
-/// two stay stacked while the composer gains and loses focus.
-struct JumpToBottomColumn: View {
+/// It stands outside the bar's measured height, so the transcript's inset and the keyboard floor
+/// never see it; the screen's clip leaves the area it travels uncut.
+struct JumpToBottomOverlay: View {
     let jump: JumpToBottomModel
-    let bar: ConversationBarModel
-
-    /// Room for the badge overhanging the button's corner and for the button's travel between the
-    /// compact and composing columns. Taps in it, outside the button, reach the transcript.
-    static let size = CGSize(width: 88, height: 52)
+    let isCompact: Bool
+    /// Whether the attach panel is up and takes every touch outside itself, the button's included.
+    let takesTouches: Bool
 
     var body: some View {
-        let isShown = jump.isVisible
-        let isCompact = !bar.isComposing
+        let isShown = jump.isShown
         // Centred on the trailing control's column, which is narrower than the button.
         let inset = BarMetrics.trailingControlCentreInset(isCompact: isCompact)
             - JumpToBottomButtonView.diameter / 2
         JumpToBottomButtonView(unreadCount: jump.unreadCount, action: jump.onTap)
             .frame(width: JumpToBottomButtonView.diameter, height: JumpToBottomButtonView.diameter)
+            // Opacity only: a glass effect under a scale effect drew a shrunken copy of the screen.
             .opacity(isShown ? 1 : 0)
-            .scaleEffect(isShown ? 1 : 0.8)
             // Hidden, the button also stops taking touches; opacity 0 alone would still be tappable.
-            .allowsHitTesting(isShown)
+            .allowsHitTesting(isShown && takesTouches)
             .accessibilityHidden(!isShown)
             .animation(ChatMotion.reflow.animation, value: isShown)
             .padding(.trailing, inset)
             .animation(ChatMotion.barInset.animation, value: isCompact)
-            .frame(width: Self.size.width, height: Self.size.height, alignment: .bottomTrailing)
+            .offset(y: -(JumpToBottomButtonView.diameter + BarMetrics.jumpButtonGapAboveBar))
     }
 }
 
@@ -233,6 +230,14 @@ enum BarMetrics {
     static let compactDrop: CGFloat = 8
     /// The margin between the compact bar's controls and the screen's sides.
     static let compactInset: CGFloat = 32
+    /// The gap between the field and the `$` beside it, the same compact and composing.
+    nonisolated static let controlSpacing: CGFloat = 10
+    /// The gap between the jump-to-bottom button's bottom edge and the top edge of `$`: twice the
+    /// field's gap to `$`.
+    static let jumpButtonGap: CGFloat = controlSpacing * 2
+    /// How far above the bar's top edge the button's bottom edge stands, which is `$`'s top edge
+    /// less the bar's own margin above its controls.
+    static let jumpButtonGapAboveBar: CGFloat = jumpButtonGap - contentPadding
 
     /// The margin between the bar's controls and the screen's sides: ``compactInset`` while the bar
     /// rests compact, ``edgeInset`` while composing.
@@ -311,6 +316,8 @@ struct ConversationBottomBar: View {
     let onSendCash: () -> Void
     let model: ConversationBarModel
     let composer: ComposerModel
+    /// What the jump-to-bottom button shows, or `nil` where the bar has none.
+    var jump: JumpToBottomModel? = nil
     /// Whether the chat's participation rules leave this user anything to type. Anything but
     /// ``ConversationGatePresentation/open`` replaces the whole composer with the gate panel.
     var gate: ConversationGatePresentation = .open
@@ -376,7 +383,7 @@ struct ConversationBottomBar: View {
         .combined(with: .scale(scale: 0.4))
     /// The gap between the field and the control beside it: cancel-edit on its left, `$` on its right. The composer's glass joins across no
     /// more than this, so `$` stays bridged to the field while it travels and pinches off at rest.
-    static let leadingSpacing: CGFloat = 10
+    static let leadingSpacing: CGFloat = BarMetrics.controlSpacing
     /// How close the composer's glass shapes come before they flow together: under the resting gap,
     /// so `$` is bridged to the field while it travels and stands clear of it at rest.
     private static let glassJoinDistance: CGFloat = 8
@@ -624,6 +631,11 @@ struct ConversationBottomBar: View {
             content
                 .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { composerRowHeight = $0 }
                 .preference(key: BarAccessoriesKey.self, value: BarAccessories(restHeight: composerRowHeight))
+        }
+        .overlay(alignment: .topTrailing) {
+            if let jump {
+                JumpToBottomOverlay(jump: jump, isCompact: isCompact, takesTouches: !model.attachPanel.isOpen)
+            }
         }
         .onChange(of: mentions == nil ? nil : composer.mentionQuery?.text, initial: true) { _, query in
             mentions?.update(query: query)

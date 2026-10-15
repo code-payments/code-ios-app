@@ -11,24 +11,33 @@ import SwiftUI
 import FlipcashCore
 
 /// What the jump-to-bottom button shows, set by ``ChatScreenViewController`` from the transcript and
-/// read by the column the owner hosts beside the bar. The button is drawn in SwiftUI so it can move
-/// on the same spring as the bar's `$` button.
+/// read by the bar, which draws the button above its trailing control so one transaction moves both.
 @MainActor @Observable
 public final class JumpToBottomModel {
     /// Whether the reader is off the bottom of a transcript whose opening scroll has landed.
     public var isVisible = false
+    /// Whether something drawn over the transcript (a blur, a spotlighted edit) means the button must
+    /// not show, since the bar's view stands above those.
+    public var isSuppressed = false
     /// Inbound messages the reader hasn't seen; the badge hides at zero.
     public var unreadCount = 0
     /// Scrolls the transcript to its newest message.
     public var onTap: () -> Void = {}
 
     public init() {}
+
+    /// Whether the button shows and takes taps.
+    public var isShown: Bool { isVisible && !isSuppressed }
 }
 
 /// The jump-to-bottom button: a 44pt circle in the composer's glass, with a chevron and an unread badge.
 public struct JumpToBottomButtonView: View {
 
     public static let diameter: CGFloat = 44
+    /// The area above the bar's top edge, from its trailing side, that the button and its badge
+    /// occupy, with room to spare for the gap the bar leaves under it. The bar's clip leaves it
+    /// uncut and lets touches in it through to the button.
+    public static let reach = CGSize(width: 88, height: 20 + diameter + 12)
     private static let badgeHeight: CGFloat = 22
 
     public let unreadCount: Int

@@ -24,4 +24,13 @@ struct JumpToBottomColumnTests {
         #expect(BarMetrics.trailingControlCentreInset(isCompact: true) == BarMetrics.compactInset + BarMetrics.contentHeight / 2)
         #expect(BarMetrics.trailingControlCentreInset(isCompact: false) == BarMetrics.edgeInset + BarMetrics.contentHeight / 2)
     }
+
+    @Test("The button stands twice the field-to-$ gap above $, whichever way the bar rests")
+    func jumpButtonGap_isTwiceTheFieldGap() {
+        #expect(ConversationBottomBar.leadingSpacing == BarMetrics.controlSpacing)
+        #expect(BarMetrics.jumpButtonGap == BarMetrics.controlSpacing * 2)
+        // Measured from the bar's top edge, which stands the bar's margin above `$`.
+        #expect(BarMetrics.jumpButtonGapAboveBar + BarMetrics.contentPadding == BarMetrics.jumpButtonGap)
+        #expect(JumpToBottomButtonView.reach.height >= JumpToBottomButtonView.diameter + BarMetrics.jumpButtonGapAboveBar)
+    }
 }

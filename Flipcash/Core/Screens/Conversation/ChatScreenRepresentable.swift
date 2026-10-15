@@ -137,6 +137,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var transcriptTopInset: CGFloat = 0
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
+        let jump = JumpToBottomModel()
+        context.coordinator.jump = jump
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
         barHost.view.backgroundColor = .clear
         // The bar's content is pinned to the bottom of this view and overhangs the top while the
@@ -146,7 +148,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // indicator's safe area. Left to respect that safe area, the bar pushes its content up by
         // however far it rests into it, past the clip's top edge.
         barHost.safeAreaRegions = []
-        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
+        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost, jump: jump)
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
@@ -197,11 +199,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         screen.update(items: items)
-        let jumpHost = UIHostingController(rootView: JumpToBottomColumn(jump: screen.jump, bar: barModel))
-        jumpHost.view.backgroundColor = .clear
-        jumpHost.safeAreaRegions = []
-        jumpHost.sizingOptions = [.intrinsicContentSize]
-        screen.installJumpColumn(jumpHost)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
         context.coordinator.lastMessageID = lastMessageID(of: items)
@@ -330,6 +327,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onSendCash: onSendCash,
                 model: barModel,
                 composer: composer,
+                jump: coordinator.jump,
                 gate: gate,
                 gateMintName: gateMintName,
                 gateShortfall: gateShortfall,
@@ -374,6 +372,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     @MainActor final class Coordinator {
         var barHost: UIHostingController<AnyView>?
+        /// What the bar's jump-to-bottom button shows; handed to the screen that drives it.
+        var jump: JumpToBottomModel?
         weak var screen: ChatScreenViewController?
         let model: ConversationBarModel
         let composer: ComposerModel
