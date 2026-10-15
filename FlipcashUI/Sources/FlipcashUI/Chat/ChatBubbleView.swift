@@ -10,6 +10,17 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
+/// A button drawn inside a chat bubble: its label and what a tap does.
+public struct ChatBubbleAction {
+    public let title: String
+    public let handler: @MainActor () -> Void
+
+    public init(title: String, handler: @escaping @MainActor () -> Void) {
+        self.title = title
+        self.handler = handler
+    }
+}
+
 /// A single chat bubble: a multiline label over the shared `BubbleBackgroundView`, styled to
 /// match the app's conversation design (white-opacity fill, hairline border, app font, flattened
 /// inner corners on a bubble run). Dumb — hand it a `ChatMessage` and it draws.
@@ -20,6 +31,11 @@ public final class ChatBubbleView: UIView {
     private let editedLabel = EditedMarker.makeLabel()
     /// The line under an unavailable message's bubble; hidden for every other row.
     private let hintLabel = UILabel()
+    /// The update bubble's optional capsule; hidden for every other row and when no action is given.
+    private let actionButton = UIButton(type: .system)
+    /// The update bubble's body, under the title the main label carries; empty on every other row.
+    private let detailLabel = UILabel()
+    private var action: ChatBubbleAction?
     private(set) var quotePanel = ChatQuotePanelView()
 
     /// Forwarded from the panel: the stable id of the message to jump to.
@@ -42,6 +58,12 @@ public final class ChatBubbleView: UIView {
     private var backgroundBottomToBounds: NSLayoutConstraint!
     private var backgroundBottomToLabel: NSLayoutConstraint!
     private var hintBottom: NSLayoutConstraint!
+    /// The update bubble's body closes the bubble when it has no capsule under it.
+    private var detailBottom: NSLayoutConstraint!
+    /// The action capsule sits under the body and takes over the body's bottom inset.
+    private var actionTop: NSLayoutConstraint!
+    private var actionBottom: NSLayoutConstraint!
+    private var actionLeading: NSLayoutConstraint!
     /// Whether the row currently draws bare, so `maskingPath` can decline to clip a lift preview to
     /// a bubble that is not drawn.
     private var isBare = false
@@ -50,6 +72,11 @@ public final class ChatBubbleView: UIView {
     private static let bodyPadding: CGFloat = 9
     private static let hintTopSpacing: CGFloat = 8
     private static let hintLeadingInset: CGFloat = 4
+    /// The update bubble's insets and spacing, from Figma component 11420:13397. It stacks a title,
+    /// a body and a capsule, so it takes the roomier card padding rather than a text bubble's.
+    private static let updateInsetVertical: CGFloat = 12
+    private static let updateInsetHorizontal: CGFloat = 14
+    private static let updateSpacing: CGFloat = 10
     /// A bare row's padding. Smaller than a bubble's because the emoji carries its own margin
     /// inside its line box, and the transcript's rhythm is what is being matched, not the bubble's.
     private static let barePadding: CGFloat = 4
@@ -88,6 +115,29 @@ public final class ChatBubbleView: UIView {
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(hintLabel)
 
+        var buttonConfig = UIButton.Configuration.filled()
+        buttonConfig.baseBackgroundColor = .white
+        buttonConfig.baseForegroundColor = .black
+        buttonConfig.cornerStyle = .capsule
+        buttonConfig.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14)
+        buttonConfig.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+            var attributes = attributes
+            attributes.font = UIFont.appTextSmall
+            return attributes
+        }
+        detailLabel.font = .appTextCaption
+        detailLabel.textColor = UIColor.white.withAlphaComponent(0.55)
+        detailLabel.numberOfLines = 0
+        detailLabel.isHidden = true
+        detailLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(detailLabel)
+
+        actionButton.configuration = buttonConfig
+        actionButton.isHidden = true
+        actionButton.translatesAutoresizingMaskIntoConstraints = false
+        actionButton.addAction(UIAction { [weak self] _ in self?.action?.handler() }, for: .primaryActionTriggered)
+        addSubview(actionButton)
+
         quotePanel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(quotePanel)
 
@@ -112,6 +162,10 @@ public final class ChatBubbleView: UIView {
         hintBottom = hintLabel.bottomAnchor.constraint(equalTo: bottomAnchor)
         labelLeading = label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.bodyInset)
         labelTrailing = label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.bodyInset)
+        detailBottom = detailLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.updateInsetVertical)
+        actionTop = actionButton.topAnchor.constraint(equalTo: detailLabel.bottomAnchor, constant: Self.updateSpacing)
+        actionBottom = actionButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.updateInsetVertical)
+        actionLeading = actionButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.updateInsetHorizontal)
 
         NSLayoutConstraint.activate(quoteCollapse + [
             background.topAnchor.constraint(equalTo: topAnchor),
@@ -129,6 +183,13 @@ public final class ChatBubbleView: UIView {
             hintLabel.topAnchor.constraint(equalTo: label.bottomAnchor, constant: Self.bodyPadding + Self.hintTopSpacing),
             hintLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.hintLeadingInset),
             hintLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+
+            detailLabel.topAnchor.constraint(equalTo: label.bottomAnchor, constant: Self.updateSpacing),
+            detailLabel.leadingAnchor.constraint(equalTo: label.leadingAnchor),
+            detailLabel.trailingAnchor.constraint(equalTo: label.trailingAnchor),
+
+            actionLeading,
+            actionButton.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -Self.updateInsetHorizontal),
 
             // Bottom-trailing corner: the body's reservation run keeps the space clear, so the
             // marker lands on the last line where it fits and on the wrapped line where it doesn't.
@@ -148,35 +209,59 @@ public final class ChatBubbleView: UIView {
     /// Whether this bubble is currently flashing.
     var isFlashingAttention: Bool { background.isFlashingAttention }
 
-    /// Fills the bubble; `quoteThumbnail` is where a quoted photo's thumbnail loads from.
-    public func configure(with message: ChatMessage, quoteThumbnail: ChatMediaLocation? = nil) {
+    /// Fills the bubble; `quoteThumbnail` is where a quoted photo's thumbnail loads from, and
+    /// `updateAction` is the capsule an `.updateApp` bubble draws, or nil for none.
+    public func configure(
+        with message: ChatMessage,
+        quoteThumbnail: ChatMediaLocation? = nil,
+        updateAction: ChatBubbleAction? = nil
+    ) {
         label.attributedText = Self.displayText(for: message)
         editedLabel.isHidden = !Self.showsEditedMarker(for: message) || message.rendersAsLargeEmoji
         isBare = message.rendersAsLargeEmoji
 
-        // Deactivate before activating, as with the quote's top constraints below.
         let hint: String?
+        let isUpdateBubble: Bool
         switch message.content {
-        case .unavailable(let unavailableHint): hint = unavailableHint.text
-        case .text, .cash, .deleted, .shareProfile, .media: hint = nil
+        case .unavailable(.updateApp):
+            hint = nil
+            isUpdateBubble = true
+        case .unavailable(let unavailableHint):
+            hint = unavailableHint.text
+            isUpdateBubble = false
+        case .text, .cash, .deleted, .shareProfile, .media:
+            hint = nil
+            isUpdateBubble = false
         }
+        action = isUpdateBubble ? updateAction : nil
+        let showsAction = action != nil
+        actionButton.configuration?.title = action?.title
+        actionButton.isHidden = !showsAction
+
+        // Deactivate before activating, as with the quote's top constraints below.
         hintLabel.text = hint
         hintLabel.isHidden = hint == nil
+        // Cleared rather than only hidden: a hidden label's text would still widen the bubble.
+        detailLabel.text = isUpdateBubble ? ChatMessage.UnavailableHint.updateApp.text : nil
+        detailLabel.isHidden = !isUpdateBubble
+        NSLayoutConstraint.deactivate([
+            labelBottom, hintBottom, detailBottom, actionTop, actionBottom, backgroundBottomToLabel, backgroundBottomToBounds,
+        ])
         if hint != nil {
-            labelBottom.isActive = false
-            backgroundBottomToBounds.isActive = false
-            backgroundBottomToLabel.isActive = true
-            hintBottom.isActive = true
+            NSLayoutConstraint.activate([backgroundBottomToLabel, hintBottom])
+        } else if showsAction {
+            NSLayoutConstraint.activate([backgroundBottomToBounds, actionTop, actionBottom])
+        } else if isUpdateBubble {
+            NSLayoutConstraint.activate([backgroundBottomToBounds, detailBottom])
         } else {
-            hintBottom.isActive = false
-            backgroundBottomToLabel.isActive = false
-            backgroundBottomToBounds.isActive = true
-            labelBottom.isActive = true
+            NSLayoutConstraint.activate([backgroundBottomToBounds, labelBottom])
         }
-        labelTopToBubble.constant = isBare ? Self.barePadding : Self.bodyPadding
-        labelBottom.constant = isBare ? -Self.barePadding : -Self.bodyPadding
-        labelLeading.constant = isBare ? 0 : Self.bodyInset
-        labelTrailing.constant = isBare ? 0 : -Self.bodyInset
+        let vertical = isBare ? Self.barePadding : isUpdateBubble ? Self.updateInsetVertical : Self.bodyPadding
+        let horizontal = isBare ? 0 : isUpdateBubble ? Self.updateInsetHorizontal : Self.bodyInset
+        labelTopToBubble.constant = vertical
+        labelBottom.constant = -vertical
+        labelLeading.constant = horizontal
+        labelTrailing.constant = -horizontal
 
         // Deactivate before activating: with both top constraints live the layout is
         // unsatisfiable, and UIKit resolves that by breaking one at random.
@@ -204,7 +289,7 @@ public final class ChatBubbleView: UIView {
                 groupedBelow: message.joinsBubbleBelow
             ),
             bare: isBare,
-            dashedBorder: Self.isUnavailable(message),
+            dashedBorder: Self.drawsDashedBorder(message),
             identity: message.id
         )
     }
@@ -220,9 +305,12 @@ public final class ChatBubbleView: UIView {
         }
     }
 
-    private static func isUnavailable(_ message: ChatMessage) -> Bool {
+    /// The hinted unavailable bubbles draw dashed; the update bubble draws as a plain received
+    /// bubble, as Figma component 11420:13397 has no outline.
+    private static func drawsDashedBorder(_ message: ChatMessage) -> Bool {
         switch message.content {
-        case .unavailable:              true
+        case .unavailable(.updateApp):  false
+        case .unavailable(.askToResend), .unavailable(.resend): true
         case .text, .cash, .deleted, .shareProfile, .media: false
         }
     }
@@ -250,6 +338,17 @@ public final class ChatBubbleView: UIView {
         return result
     }
 
+    /// The update bubble's title; `detailLabel` carries the body beneath it.
+    private static func updateAppText() -> NSAttributedString {
+        NSAttributedString(
+            string: ChatMessage.updateAppTitle,
+            attributes: [
+                .font: UIFont.appTextMedium,
+                .foregroundColor: UIColor.white.withAlphaComponent(0.9),
+            ]
+        )
+    }
+
     /// The bubble's rendered text: the body, a muted italic placeholder for a tombstone, and the
     /// "Edited" marker's reservation where the sender has revised the message — the marker itself is
     /// a separate label pinned to the bubble's corner. `nil` for cash rows, which use a dedicated
@@ -264,7 +363,9 @@ public final class ChatBubbleView: UIView {
         case .deleted(let placeholder):
             body = placeholder
             isPlaceholder = true
-        case .unavailable:
+        case .unavailable(.updateApp):
+            return updateAppText()
+        case .unavailable(.askToResend), .unavailable(.resend):
             return unavailableText()
         case .cash, .shareProfile, .media:
             return nil
@@ -308,6 +409,35 @@ public final class ChatBubbleView: UIView {
         let bubble = ChatBubbleView()
         bubble.configure(with: message)
         bubble.widthAnchor.constraint(lessThanOrEqualToConstant: 290).isActive = true
+        stack.addArrangedSubview(bubble)
+    }
+
+    let container = UIView()
+    container.backgroundColor = UIColor(Color.backgroundMain)
+    container.addSubview(stack)
+    NSLayoutConstraint.activate([
+        stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+    ])
+    return container
+}
+
+#Preview("Unavailable bubbles") {
+    let stack = UIStackView()
+    stack.axis = .vertical
+    stack.spacing = 12
+    stack.alignment = .leading
+    stack.translatesAutoresizingMaskIntoConstraints = false
+
+    let samples: [(ChatMessage, ChatBubbleAction?)] = [
+        (ChatMessage(id: "1", content: .unavailable(.updateApp), sender: .other), nil),
+        (ChatMessage(id: "2", content: .unavailable(.updateApp), sender: .other), ChatBubbleAction(title: "Update Flipcash") {}),
+        (ChatMessage(id: "3", content: .unavailable(.askToResend(firstName: "Ada")), sender: .other), nil),
+    ]
+    for (message, action) in samples {
+        let bubble = ChatBubbleView()
+        bubble.configure(with: message, updateAction: action)
+        bubble.widthAnchor.constraint(lessThanOrEqualToConstant: 280).isActive = true
         stack.addArrangedSubview(bubble)
     }
 

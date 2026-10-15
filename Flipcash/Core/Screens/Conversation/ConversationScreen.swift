@@ -98,6 +98,8 @@ struct ConversationScreen: View {
 
     /// The join-requests anchor's measured height, reserved at the transcript's top; 0 while hidden.
     @State private var anchorHeight: CGFloat = 0
+    /// Whether the keyboard is up, which holds the update toast back.
+    @State private var isKeyboardUp = false
 
     /// This conversation's id when the viewer hosts it as a private group; the anchor is host-only.
     private var hostedConversationID: ConversationID? {
@@ -217,6 +219,13 @@ struct ConversationScreen: View {
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
     /// DMs and members fetch web previews as they draw; anyone else, or a chat whose record has not
     /// loaded yet, waits for the chip.
+    /// The bubble's "Update Flipcash" action, offered whenever the store has a newer version.
+    private var updateAction: ChatBubbleAction? {
+        let updates = container.updateAvailability
+        guard updates.newerVersion != nil else { return nil }
+        return ChatBubbleAction(title: "Update Flipcash") { updates.openStore() }
+    }
+
     private var webPreviewMode: WebLinkPreviewMode {
         guard let conversationID,
               let conversation = conversationController.conversation(withID: conversationID),
@@ -403,6 +412,8 @@ struct ConversationScreen: View {
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
             webPreviewMode: webPreviewMode,
+            updateAction: updateAction,
+            toasts: container.toasts,
             onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
@@ -689,6 +700,20 @@ struct ConversationScreen: View {
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
     private func loads(_ content: some View) -> some View {
         content
+        // The update toast, once per version: a beat after the chat opens, never over a raised keyboard.
+        .task {
+            guard !openKeyboard else { return }
+            try? await Task.sleep(for: UpdatePolicy.chatSettle)
+            guard !Task.isCancelled, !isKeyboardUp else { return }
+            container.updateAvailability.showToastIfEligible(on: container.toasts, timeout: UpdatePolicy.chatTimeout)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardUp = true
+            container.updateAvailability.dismissToast(on: container.toasts)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardUp = false
+        }
         .task {
             await sessionContainer.linkCardMemo.awaitLoaded()
             waitedForLinkPreviews = true

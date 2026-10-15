@@ -26,8 +26,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         /// A deleted message's placeholder copy, already resolved for the viewer — "You deleted this
         /// message" or "This message was deleted". The mapper decides which; the view just draws it.
         case deleted(String)
-        /// A message this client cannot display — today, an encrypted one it cannot decrypt. Drawn
-        /// as a dashed "This message can't be displayed" bubble with `hint` beneath it.
+        /// A message this client cannot display: one it cannot decrypt, or a type it does not know.
+        /// `hint` decides its copy, and whether the bubble draws dashed.
         case unavailable(UnavailableHint)
         /// A shared profile, drawn as a card with a Share button. The card carries only the
         /// handle's link; the name and picture are looked up by the view, as a link card's are.
@@ -36,19 +36,20 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         case media(ChatMediaContent)
     }
 
-    /// The line under an unavailable message's bubble, chosen by why it can't be shown.
+    /// Why an unavailable message can't be shown, which picks the bubble's copy.
     public enum UnavailableHint: Hashable, Sendable, Codable {
-        /// A newer client can read it: "Update Flipcash to see it".
+        /// A newer client can read it. Drawn as its own bubble, titled ``ChatMessage/updateAppTitle``
+        /// with this hint's `text` as the body.
         case updateApp
         /// It failed to decrypt and only a resend can fix it: "Ask {first name} to send it again".
         case askToResend(firstName: String)
         /// The viewer's own message failed to decrypt: "Try sending it again".
         case resend
 
-        /// The hint's copy.
+        /// The hint's copy: the body inside the bubble for `.updateApp`, the line under it otherwise.
         public var text: String {
             switch self {
-            case .updateApp: "Update Flipcash to see it"
+            case .updateApp: "Update Flipcash to see messages like this. This one stays hidden."
             case .askToResend(let firstName): "Ask \(firstName) to send it again"
             case .resend: "Try sending it again"
             }
@@ -72,7 +73,10 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         }
     }
 
-    /// The bubble copy for an unavailable message.
+    /// The title of the bubble for a message a newer client can read.
+    public static let updateAppTitle = "This Message Needs a Newer Version of Flipcash"
+
+    /// The bubble copy for an unavailable message whose hint hangs beneath it.
     public static let unavailableCopy = "This message can\u{2019}t be displayed"
 
     public let id: String

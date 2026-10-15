@@ -96,6 +96,21 @@ public final class ChatViewController: UICollectionViewController {
         }
     }
 
+    /// The capsule an `.updateApp` bubble draws, or nil while no newer version is known. A change
+    /// redraws the rows on screen.
+    public var updateAction: ChatBubbleAction? {
+        didSet {
+            guard (updateAction == nil) != (oldValue == nil), isViewLoaded else { return }
+            for cell in collectionView.visibleCells where cell is ChatMessageCell {
+                guard let indexPath = collectionView.indexPath(for: cell),
+                      items.indices.contains(indexPath.item),
+                      case .message(let message) = items[indexPath.item] else { continue }
+                configure(cell, with: message)
+            }
+            collectionView.collectionViewLayout.invalidateLayout()
+        }
+    }
+
     /// The web previews this transcript's viewer asked for through the chip, shared by every row.
     private let webPreviewRequests = WebPreviewRequests()
 
@@ -690,7 +705,8 @@ public final class ChatViewController: UICollectionViewController {
                 with: message,
                 maxWidth: maxWidth,
                 authorImageData: authorImageData,
-                quoteThumbnail: quoteThumbnail(for: message)
+                quoteThumbnail: quoteThumbnail(for: message),
+                updateAction: updateAction
             )
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }

@@ -27,6 +27,9 @@ enum DefaultsKey: String {
     case contactsConnected = "com.flipcash.contacts.connected"
 
     case trustedWebsites = "com.flipcash.links.trustedWebsites"
+
+    case updateCheckResult = "com.flipcash.update.checkResult"
+    case updateToastShownVersion = "com.flipcash.update.toastShownVersion"
 }
 
 private let defaultsEncoder = JSONEncoder()
