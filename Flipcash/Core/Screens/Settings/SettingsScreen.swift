@@ -45,7 +45,7 @@ struct SettingsScreen: View {
                     accountSection
                     if !cardState.isPinned {
                         versionCard
-                            .padding(.top, 32)
+                            .padding(.top, 8)
                     }
                 }
                 .font(.appDisplayXS)
