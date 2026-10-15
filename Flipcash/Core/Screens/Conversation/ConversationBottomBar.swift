@@ -1301,7 +1301,8 @@ struct ConversationComposer: View {
                 .padding(.trailing, -BarMetrics.fieldPadding)
                 .padding(.top, BarMetrics.fieldVerticalPadding / 2)
                 .transition(motion.stripTransition(isLanding: model.attachCard.landingChipID != nil))
-            } else if composer.showsLinkPreview {
+            }
+            if composer.showsLinkPreview {
                 ComposerLinkChip(preview: composer.linkPreview, onRemove: { composer.linkPreview.remove() })
                     .padding(.leading, Self.leadingInset - BarMetrics.fieldPadding)
                     .padding(.trailing, Self.leadingInset - BarMetrics.fieldPadding)
@@ -1412,8 +1413,8 @@ struct ConversationComposer: View {
             // message.
             let draft = composer.persistableDraft
             let linkPreview: MessageLinkPreview? = switch outgoing {
-            case .text(let text): composer.linkPreview.attachment(for: text)
-            case .media:          nil
+            case .text(let text):       composer.linkPreview.attachment(for: text)
+            case .media(_, let caption): caption.flatMap(composer.linkPreview.attachment(for:))
             }
             composer.clear()
             isFocused = true
@@ -1430,9 +1431,21 @@ struct ConversationComposer: View {
                 }
             case .media(let chips, let caption):
                 // A photo that fails stays in the transcript to be retried, so nothing goes back
-                // into the field.
+                // into the field. A caption carries no link preview, so text with one follows the
+                // photos as its own message.
+                let followingText: (text: String, linkPreview: MessageLinkPreview)? = if let caption, let linkPreview {
+                    (caption, linkPreview)
+                } else {
+                    nil
+                }
                 Task {
-                    await conversationController.sendMedia(chips, caption: caption, to: conversationID, repliedTo: repliedTo)
+                    await conversationController.sendMedia(
+                        chips,
+                        caption: followingText == nil ? caption : nil,
+                        followedBy: followingText,
+                        to: conversationID,
+                        repliedTo: repliedTo
+                    )
                 }
             }
         case .editing(let messageID, _):

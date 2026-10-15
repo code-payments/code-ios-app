@@ -2282,6 +2282,7 @@ final class ConversationController {
     func sendMedia(
         _ chips: [ComposerChip],
         caption: String?,
+        followedBy followingText: (text: String, linkPreview: MessageLinkPreview)? = nil,
         to conversationID: ConversationID,
         repliedTo: MessageID? = nil
     ) async -> Bool {
@@ -2299,6 +2300,10 @@ final class ConversationController {
         let sends = ChatMediaSendPlan.mediaMessages(chips: chips, caption: caption, replyTo: repliedTo).map { message in
             (message: message, clientMessageID: insertPendingMedia(message, into: conversationID))
         }
+        // Inserted with the photos so it sits after them, and delivered after them so it lands there.
+        let textMessageID = followingText.map {
+            insertPending($0.text, repliedTo: nil, linkPreview: $0.linkPreview, into: conversationID)
+        }
 
         var deliveredAll = true
         for send in sends {
@@ -2307,6 +2312,16 @@ final class ConversationController {
                 chip: send.message.chip,
                 caption: send.message.caption,
                 repliedTo: send.message.replyTo,
+                to: conversationID
+            )
+            deliveredAll = deliveredAll && delivered
+        }
+        if let followingText, let textMessageID {
+            let delivered = await deliver(
+                clientMessageID: textMessageID,
+                text: followingText.text,
+                repliedTo: nil,
+                linkPreview: followingText.linkPreview,
                 to: conversationID
             )
             deliveredAll = deliveredAll && delivered
