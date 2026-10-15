@@ -54,6 +54,15 @@ final class ComposerModel {
     /// Photos staged for the next send, in the order they were added.
     private(set) var chips: [ComposerChip] = []
 
+    /// The preview of the draft's first web link, which a text send carries.
+    let linkPreview = ComposerLinkPreview()
+
+    /// Whether the link preview's chip is drawn: while it has a link and no photo is staged, since a
+    /// caption carries no preview, and not during an edit, which sends no new one.
+    var showsLinkPreview: Bool {
+        linkPreview.link != nil && chips.isEmpty && !isEditing
+    }
+
     /// The unsent new-message draft, held while an edit occupies the field.
     @ObservationIgnored private var stashedDraft = ""
     /// The text the message had when the edit began, so an unchanged edit can be refused.
@@ -247,6 +256,7 @@ final class ComposerModel {
         if !chips.isEmpty {
             chips = []
         }
+        linkPreview.reset()
     }
 
     /// The `@word` at the cursor that the mention picker searches for, or `nil` when it is closed.

@@ -69,7 +69,7 @@ struct WebLookupVectorTests {
     func looksUpLikeTheFixture(_ lookup: Lookup) async throws {
         let client = ScriptedClient(lookup.responses)
         let homes = HomeAnswers(lookup.cachedBefore)
-        let source = PinnedLinkMetadataSource(client: client, limiter: FetchLimiter(limit: 4), isEnabled: { true })
+        let source = PinnedLinkMetadataSource(client: client, limiter: FetchLimiter(limit: 4))
         let url = try #require(URL(string: lookup.url))
 
         // The feed's part: a returned answer is remembered under the link's key, a failure is not.

@@ -1301,6 +1301,11 @@ struct ConversationComposer: View {
                 .padding(.trailing, -BarMetrics.fieldPadding)
                 .padding(.top, BarMetrics.fieldVerticalPadding / 2)
                 .transition(motion.stripTransition(isLanding: model.attachCard.landingChipID != nil))
+            } else if composer.showsLinkPreview {
+                ComposerLinkChip(preview: composer.linkPreview, onRemove: { composer.linkPreview.remove() })
+                    .padding(.leading, Self.leadingInset - BarMetrics.fieldPadding)
+                    .padding(.top, BarMetrics.fieldVerticalPadding / 2)
+                    .transition(motion.stripTransition(isLanding: false))
             }
             row
         }
@@ -1319,6 +1324,9 @@ struct ConversationComposer: View {
             }
         }
         .onChange(of: composer.draft) { _, text in
+            if !composer.isEditing {
+                composer.linkPreview.update(for: text)
+            }
             guard let conversationID else { return }
             conversationController.draftDidChange(text, in: conversationID)
         }
@@ -1402,6 +1410,10 @@ struct ConversationComposer: View {
             // travels with the text, since restoring the words alone would downgrade it to a loose
             // message.
             let draft = composer.persistableDraft
+            let linkPreview: MessageLinkPreview? = switch outgoing {
+            case .text(let text): composer.linkPreview.attachment(for: text)
+            case .media:          nil
+            }
             composer.clear()
             isFocused = true
             switch outgoing {
@@ -1411,6 +1423,7 @@ struct ConversationComposer: View {
                         text,
                         to: conversationID,
                         repliedTo: repliedTo,
+                        linkPreview: linkPreview,
                         restoringOnFailure: draft
                     )
                 }

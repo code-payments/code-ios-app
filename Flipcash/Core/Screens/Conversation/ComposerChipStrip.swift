@@ -183,3 +183,66 @@ private struct ComposerChipView: View {
         }
     }
 }
+
+/// The draft link's preview, drawn like a staged photo: the page's image, or a link glyph when it
+/// has none, a spinner while it loads, and a remove button.
+struct ComposerLinkChip: View {
+
+    let preview: ComposerLinkPreview
+    let onRemove: () -> Void
+
+    private static let cornerRadius: CGFloat = 10
+
+    var body: some View {
+        let size = ComposerChipStrip.chipSize
+        Color.backgroundSecondary
+            .overlay { content }
+            .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+            .frame(width: size, height: size)
+            .overlay(alignment: .topTrailing) {
+                Button(action: onRemove) {
+                    Image(systemName: SystemSymbol.closeCircle.rawValue)
+                        .font(.default(size: 18, weight: .semibold))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(Color.white, Color.black.opacity(0.55))
+                        .padding(3)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove link preview")
+                .accessibilityIdentifier("composer-link-chip-remove")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityIdentifier("composer-link-chip")
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch preview.state {
+        case .none:
+            EmptyView()
+        case .loading:
+            ProgressView()
+        case .ready(_, _, let page):
+            if let thumbnail = page.thumbnail {
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "link")
+                    .font(.default(size: 20, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.6))
+            }
+        }
+    }
+
+    private var accessibilityLabel: String {
+        switch preview.state {
+        case .none:                         ""
+        case .loading(_, let host):         "Loading preview for \(host)"
+        case .ready(_, let host, let page): "Preview for \(host): \(page.title)"
+        }
+    }
+}
