@@ -20,14 +20,20 @@ final class ComposerLinkPreview {
     struct Page: Sendable {
         let title: String
         let description: String?
-        /// The page's image as uploaded, or `nil` when it had none or the upload failed.
-        let image: MediaAttachment?
-        /// The page's image for the composer's thumbnail.
-        let thumbnail: UIImage?
+        /// The page's image as uploaded, or `nil` until the upload lands or when there is none.
+        var image: MediaAttachment?
+        /// The page's image for the composer's card, or `nil` when it has none or its upload failed.
+        var thumbnail: UIImage?
+
+        /// Whether the thumbnail is still uploading, so a send now would go without it.
+        var isUploadingImage: Bool { thumbnail != nil && image == nil }
     }
 
-    /// Fetches the page at `url` and uploads its image, or returns `nil` when there is no preview.
+    /// Fetches the page at `url` and downloads its image, or returns `nil` when there is no preview.
     typealias Load = @MainActor (URL) async -> Page?
+
+    /// Uploads a page's image as a chat photo, or returns `nil` when the upload fails.
+    typealias Upload = @MainActor (UIImage) async -> MediaAttachment?
 
     enum State {
         /// No link in the draft has a preview to show.
@@ -42,6 +48,9 @@ final class ComposerLinkPreview {
 
     /// Builds the preview for a link; until it is set, nothing is fetched.
     @ObservationIgnored var load: Load?
+
+    /// Uploads a fetched page's image; until it is set, a preview goes without one.
+    @ObservationIgnored var upload: Upload?
 
     /// Links whose preview was removed, kept off for the rest of the draft.
     @ObservationIgnored private var dismissed: Set<String> = []
@@ -72,14 +81,26 @@ final class ComposerLinkPreview {
         guard let next, !dismissed.contains(next.text), let load else { return }
         let host = WebLinks.host(of: next.url) ?? next.url.host() ?? next.text
         state = .loading(link: next.text, host: host)
+        let upload = upload
         task = Task { [weak self] in
-            let page = await load(next.url)
-            guard let self, !Task.isCancelled, self.link == next.text else { return }
-            if let page {
-                self.state = .ready(link: next.text, host: host, page: page)
-            } else {
+            guard var page = await load(next.url) else {
+                guard let self, !Task.isCancelled, self.link == next.text else { return }
                 self.state = .none
+                return
             }
+            guard let self, !Task.isCancelled, self.link == next.text else { return }
+            if upload == nil {
+                page.thumbnail = nil
+            }
+            self.state = .ready(link: next.text, host: host, page: page)
+            guard page.isUploadingImage, let thumbnail = page.thumbnail, let upload else { return }
+            let image = await upload(thumbnail)
+            guard !Task.isCancelled, self.link == next.text else { return }
+            page.image = image
+            if image == nil {
+                page.thumbnail = nil
+            }
+            self.state = .ready(link: next.text, host: host, page: page)
         }
     }
 
@@ -130,30 +151,26 @@ final class ComposerLinkPreview {
 
 extension ComposerLinkPreview {
 
-    /// A loader that fetches pages through `metadata`, downloads their image through `images`, and
-    /// uploads it through `uploader` as `senderID`'s chat photo.
-    static func loader(
-        metadata: any LinkMetadataSource,
-        images: WebImageSource,
-        uploader: @escaping @MainActor () -> ChatMediaUploader,
-        senderID: UserID
-    ) -> Load {
+    /// A loader that fetches pages through `metadata` and downloads their image through `images`.
+    static func loader(metadata: any LinkMetadataSource, images: WebImageSource) -> Load {
         { url in
             guard let page = (try? await metadata.metadata(for: url)) ?? nil else { return nil }
-            var image: MediaAttachment?
             var thumbnail: UIImage?
-            if let imageURL = page.imageURL,
-               let data = await images.data(for: imageURL),
-               let picture = UIImage(data: data) {
-                var size: (width: Int, height: Int)?
-                if let uploaded = try? await uploader().upload(picture, onPrepared: { size = ($0, $1) }),
-                   let size {
-                    image = MediaAttachment(uploaded, width: size.width, height: size.height, senderID: senderID)
-                    thumbnail = picture
-                }
+            if let imageURL = page.imageURL, let data = await images.data(for: imageURL) {
+                thumbnail = UIImage(data: data)
             }
             guard !Task.isCancelled else { return nil }
-            return Page(title: page.title, description: page.description, image: image, thumbnail: thumbnail)
+            return Page(title: page.title, description: page.description, image: nil, thumbnail: thumbnail)
+        }
+    }
+
+    /// An uploader that sends a page's image through `uploader` as `senderID`'s chat photo.
+    static func uploader(_ uploader: @escaping @MainActor () -> ChatMediaUploader, senderID: UserID) -> Upload {
+        { picture in
+            var size: (width: Int, height: Int)?
+            guard let uploaded = try? await uploader().upload(picture, onPrepared: { size = ($0, $1) }),
+                  let size else { return nil }
+            return MediaAttachment(uploaded, width: size.width, height: size.height, senderID: senderID)
         }
     }
 }

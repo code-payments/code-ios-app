@@ -184,8 +184,8 @@ private struct ComposerChipView: View {
     }
 }
 
-/// The draft link's preview, drawn like a staged photo: the page's image, or a link glyph when it
-/// has none, a spinner while it loads, and a remove button.
+/// The draft link's preview as the recipient will see it: the page's image, title, description and
+/// host across the field's width, with a spinner while it loads and a remove button.
 struct ComposerLinkChip: View {
 
     let preview: ComposerLinkPreview
@@ -195,31 +195,35 @@ struct ComposerLinkChip: View {
 
     var body: some View {
         let size = ComposerChipStrip.chipSize
-        Color.backgroundSecondary
-            .overlay { content }
-            .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
-            .frame(width: size, height: size)
-            .overlay(alignment: .topTrailing) {
-                Button(action: onRemove) {
-                    Image(systemName: SystemSymbol.closeCircle.rawValue)
-                        .font(.default(size: 18, weight: .semibold))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(Color.white, Color.black.opacity(0.55))
-                        .padding(3)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove link preview")
-                .accessibilityIdentifier("composer-link-chip-remove")
+        HStack(spacing: 10) {
+            Color.backgroundSecondary
+                .overlay { thumbnail }
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+            VStack(alignment: .leading, spacing: 2) {
+                text
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(accessibilityLabel)
-            .accessibilityIdentifier("composer-link-chip")
+            Button(action: onRemove) {
+                Image(systemName: SystemSymbol.closeCircle.rawValue)
+                    .font(.default(size: 18, weight: .semibold))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(Color.white, Color.black.opacity(0.55))
+                    .padding(3)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove link preview")
+            .accessibilityIdentifier("composer-link-chip-remove")
+        }
+        .frame(height: size)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityIdentifier("composer-link-chip")
     }
 
     @ViewBuilder
-    private var content: some View {
+    private var thumbnail: some View {
         switch preview.state {
         case .none:
             EmptyView()
@@ -230,11 +234,45 @@ struct ComposerLinkChip: View {
                 Image(uiImage: thumbnail)
                     .resizable()
                     .scaledToFill()
+                    .overlay {
+                        if page.isUploadingImage {
+                            Color.black.opacity(0.35)
+                            ProgressView().tint(.white)
+                        }
+                    }
             } else {
                 Image(systemName: "link")
                     .font(.default(size: 20, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.6))
             }
+        }
+    }
+
+    @ViewBuilder
+    private var text: some View {
+        switch preview.state {
+        case .none:
+            EmptyView()
+        case .loading(_, let host):
+            Text(host)
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+        case .ready(_, let host, let page):
+            Text(page.title)
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+            if let description = page.description, !description.isEmpty {
+                Text(description)
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textSecondary)
+                    .lineLimit(1)
+            }
+            Text(host)
+                .font(.appTextCaption)
+                .foregroundStyle(Color.textSecondary)
+                .lineLimit(1)
         }
     }
 
