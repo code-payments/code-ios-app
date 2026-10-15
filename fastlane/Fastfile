@@ -258,6 +258,8 @@ platform :ios do
 
     build = wait_for_processed_build(app, options[:build])
 
+    record_testflight_build(build.version)
+
     # Notes before the group: adding the group is what notifies testers, and they
     # should open a build that already carries the right "What to Test".
     set_beta_build_notes(build, notes) if notes
@@ -721,6 +723,27 @@ platform :ios do
       sleep(interval)
       waited += interval
     end
+  end
+
+  # ── Release manifest ─────────────────────────────────────────────────
+
+  RELEASE_MANIFEST_PATH = File.expand_path("../.well-known/release-manifest.json", __dir__)
+
+  # Records the newest processed TestFlight build in the release manifest the app reads to tell
+  # TestFlight testers (and staff on a store build) that a newer build exists. Only ever raises the
+  # number, so redistributing an older build can't walk it back. It edits the file in the working
+  # tree; the app reads the copy on main, so the change still has to be committed and merged there.
+  def record_testflight_build(build_number)
+    build = Integer(build_number.to_s, exception: false)
+    return UI.important("Build '#{build_number}' is not a number — release manifest left alone") if build.nil?
+
+    manifest = JSON.parse(File.read(RELEASE_MANIFEST_PATH))
+    return if manifest.dig("testflight", "build").to_i >= build
+
+    manifest["testflight"] = { "build" => build }
+    manifest["updated"] = Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    File.write(RELEASE_MANIFEST_PATH, JSON.pretty_generate(manifest) + "\n")
+    UI.success("Release manifest now names TestFlight build #{build}. Commit .well-known/release-manifest.json to main for the app to see it.")
   end
 
   # ── TestFlight "What to Test" ────────────────────────────────────────
