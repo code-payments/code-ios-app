@@ -25,6 +25,7 @@
 require "net/http"
 require "json"
 require "spaceship"
+require_relative "release_manifest"
 
 default_platform(:ios)
 
@@ -257,8 +258,6 @@ platform :ios do
     end
 
     build = wait_for_processed_build(app, options[:build])
-
-    record_testflight_build(build.version)
 
     # Notes before the group: adding the group is what notifies testers, and they
     # should open a build that already carries the right "What to Test".
@@ -729,21 +728,42 @@ platform :ios do
 
   RELEASE_MANIFEST_PATH = File.expand_path("../.well-known/release-manifest.json", __dir__)
 
-  # Records the newest processed TestFlight build in the release manifest the app reads to tell
-  # TestFlight testers (and staff on a store build) that a newer build exists. Only ever raises the
-  # number, so redistributing an older build can't walk it back. It edits the file in the working
-  # tree; the app reads the copy on main, so the change still has to be committed and merged there.
-  def record_testflight_build(build_number)
-    build = Integer(build_number.to_s, exception: false)
-    return UI.important("Build '#{build_number}' is not a number — release manifest left alone") if build.nil?
+  # The version live on the App Store, or nil when the app has none.
+  def live_app_store_version(app)
+    app.get_live_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)&.version_string
+  end
 
-    manifest = JSON.parse(File.read(RELEASE_MANIFEST_PATH))
-    return if manifest.dig("testflight", "build").to_i >= build
+  # The newest iOS build that has finished processing, as its build number, or nil when none has.
+  def newest_processed_build_number(app)
+    Spaceship::ConnectAPI.get_builds(
+      filter: { app: app.id, processingState: "VALID" },
+      includes: Spaceship::ConnectAPI::Build::ESSENTIAL_INCLUDES,
+      sort: "-uploadedDate",
+      limit: 10
+    ).to_models.find { |b| b.pre_release_version&.platform == Spaceship::ConnectAPI::Platform::IOS }&.version
+  end
 
-    manifest["testflight"] = { "build" => build }
-    manifest["updated"] = Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-    File.write(RELEASE_MANIFEST_PATH, JSON.pretty_generate(manifest) + "\n")
-    UI.success("Release manifest now names TestFlight build #{build}. Commit .well-known/release-manifest.json to main for the app to see it.")
+  desc "Rewrite .well-known/release-manifest.json from App Store Connect"
+  desc "Usage: fastlane update_release_manifest"
+  desc "Sets production.version to the live App Store version and raises testflight.build to the"
+  desc "newest processed build. production.priority is never touched. Edits the working tree only;"
+  desc "the workflow commits it to main."
+  lane :update_release_manifest do
+    app = asc_app
+    live_version = live_app_store_version(app)
+    build_number = newest_processed_build_number(app)
+    UI.message("App Store: #{live_version || '(no live version)'} | newest processed TestFlight build: #{build_number || '(none)'}")
+
+    manifest, changed = ReleaseManifest.update_file(
+      RELEASE_MANIFEST_PATH,
+      live_version: live_version,
+      testflight_build: build_number
+    )
+    if changed
+      UI.success("Release manifest now: #{JSON.generate(manifest)}")
+    else
+      UI.message("Release manifest already current")
+    end
   end
 
   # ── TestFlight "What to Test" ────────────────────────────────────────
