@@ -165,6 +165,36 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
+/// The jump-to-bottom button, drawn in the bar's own hierarchy above its trailing control so the one
+/// transaction that moves `$` with the keyboard moves the button too.
+///
+/// It stands outside the bar's measured height, so the transcript's inset and the keyboard floor
+/// never see it; the screen's clip leaves the area it travels uncut.
+struct JumpToBottomOverlay: View {
+    let jump: JumpToBottomModel
+    let isCompact: Bool
+    /// Whether the attach panel is up and takes every touch outside itself, the button's included.
+    let takesTouches: Bool
+
+    var body: some View {
+        let isShown = jump.isShown
+        // Centred on the trailing control's column, which is narrower than the button.
+        let inset = BarMetrics.trailingControlCentreInset(isCompact: isCompact)
+            - JumpToBottomButtonView.diameter / 2
+        JumpToBottomButtonView(unreadCount: jump.unreadCount, action: jump.onTap)
+            .frame(width: JumpToBottomButtonView.diameter, height: JumpToBottomButtonView.diameter)
+            // Opacity only: a glass effect under a scale effect drew a shrunken copy of the screen.
+            .opacity(isShown ? 1 : 0)
+            // Hidden, the button also stops taking touches; opacity 0 alone would still be tappable.
+            .allowsHitTesting(isShown && takesTouches)
+            .accessibilityHidden(!isShown)
+            .animation(ChatMotion.reflow.animation, value: isShown)
+            .padding(.trailing, inset)
+            .animation(ChatMotion.barInset.animation, value: isCompact)
+            .offset(y: -(JumpToBottomButtonView.diameter + BarMetrics.jumpButtonGapAboveBar))
+    }
+}
+
 /// Single spring driving the bar's morphs: the focus-driven resize and the send-arrow pop.
 private let barMorphSpring = ChatMotion.swap.animation
 
@@ -200,6 +230,26 @@ enum BarMetrics {
     static let compactDrop: CGFloat = 8
     /// The margin between the compact bar's controls and the screen's sides.
     static let compactInset: CGFloat = 32
+    /// The gap between the field and the `$` beside it, the same compact and composing.
+    nonisolated static let controlSpacing: CGFloat = 10
+    /// The gap between the jump-to-bottom button's bottom edge and the top edge of `$`: twice the
+    /// field's gap to `$`.
+    static let jumpButtonGap: CGFloat = controlSpacing * 2
+    /// How far above the bar's top edge the button's bottom edge stands, which is `$`'s top edge
+    /// less the bar's own margin above its controls.
+    static let jumpButtonGapAboveBar: CGFloat = jumpButtonGap - contentPadding
+
+    /// The margin between the bar's controls and the screen's sides: ``compactInset`` while the bar
+    /// rests compact, ``edgeInset`` while composing.
+    static func controlInset(isCompact: Bool) -> CGFloat {
+        isCompact ? compactInset : edgeInset
+    }
+
+    /// Distance from the screen's side to the centre of the bar's trailing control (Send Cash). The
+    /// jump-to-bottom button centres on this column.
+    static func trailingControlCentreInset(isCompact: Bool) -> CGFloat {
+        controlInset(isCompact: isCompact) + contentHeight / 2
+    }
 }
 
 /// What stands outside the message field, beside it.
@@ -266,6 +316,8 @@ struct ConversationBottomBar: View {
     let onSendCash: () -> Void
     let model: ConversationBarModel
     let composer: ComposerModel
+    /// What the jump-to-bottom button shows, or `nil` where the bar has none.
+    var jump: JumpToBottomModel? = nil
     /// Whether the chat's participation rules leave this user anything to type. Anything but
     /// ``ConversationGatePresentation/open`` replaces the whole composer with the gate panel.
     var gate: ConversationGatePresentation = .open
@@ -319,7 +371,7 @@ struct ConversationBottomBar: View {
     var quoteThumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
-    private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
+    private static let widthSpring = ChatMotion.barInset.animation
     /// `$` splitting from the field's glass and joining back into it. Low bounce, so the overshoot
     /// does not carry the drop back into the field it just left.
     private static let cashSpring = Animation.spring(duration: 0.42, bounce: 0.12)
@@ -331,7 +383,7 @@ struct ConversationBottomBar: View {
         .combined(with: .scale(scale: 0.4))
     /// The gap between the field and the control beside it: cancel-edit on its left, `$` on its right. The composer's glass joins across no
     /// more than this, so `$` stays bridged to the field while it travels and pinches off at rest.
-    static let leadingSpacing: CGFloat = 10
+    static let leadingSpacing: CGFloat = BarMetrics.controlSpacing
     /// How close the composer's glass shapes come before they flow together: under the resting gap,
     /// so `$` is bridged to the field while it travels and stands clear of it at rest.
     private static let glassJoinDistance: CGFloat = 8
@@ -341,7 +393,7 @@ struct ConversationBottomBar: View {
     private var isCompact: Bool { !model.isComposing }
 
     /// How much further in than ``BarMetrics/edgeInset`` the controls and the reply quote sit.
-    private var compactExtraInset: CGFloat { isCompact ? BarMetrics.compactInset - BarMetrics.edgeInset : 0 }
+    private var compactExtraInset: CGFloat { BarMetrics.controlInset(isCompact: isCompact) - BarMetrics.edgeInset }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -579,6 +631,11 @@ struct ConversationBottomBar: View {
             content
                 .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { composerRowHeight = $0 }
                 .preference(key: BarAccessoriesKey.self, value: BarAccessories(restHeight: composerRowHeight))
+        }
+        .overlay(alignment: .topTrailing) {
+            if let jump {
+                JumpToBottomOverlay(jump: jump, isCompact: isCompact, takesTouches: !model.attachPanel.isOpen)
+            }
         }
         .onChange(of: mentions == nil ? nil : composer.mentionQuery?.text, initial: true) { _, query in
             mentions?.update(query: query)

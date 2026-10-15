@@ -183,6 +183,44 @@ struct ChatScreenBarClipTests {
         #expect(clipHeight(bar, window) == composerRow)
     }
 
+    @Test("The jump button showing leaves the clip, the transcript's inset and the keyboard floor alone")
+    func jumpButtonShowing_doesNotGrowTheInsetOrTheClip() throws {
+        let (screen, bar, window) = makeScreen()
+        let transcript = try #require(screen.view.firstSubview(of: UICollectionView.self))
+        let clip = try #require(bar.superview)
+
+        report(screen, composerRow)
+        window.layoutIfNeeded()
+        let inset = transcript.contentInset.bottom
+        let clipFrame = clip.frame
+
+        screen.jump.isVisible = true
+        window.layoutIfNeeded()
+        report(screen, composerRow)
+        window.layoutIfNeeded()
+
+        #expect(screen.jump.isShown)
+        #expect(transcript.contentInset.bottom == inset)
+        #expect(clip.frame == clipFrame, "The clip, which rides the keyboard floor, is the composer's alone")
+    }
+
+    @Test("Above the clip, only the button's band takes touches")
+    func jumpBand_takesTouchesAboveTheClipOnlyInItsBand() throws {
+        let (_, bar, _) = makeScreen()
+        let clip = try #require(bar.superview)
+        let reach = JumpToBottomButtonView.reach
+
+        let inBand = CGPoint(x: clip.bounds.width - reach.width / 2, y: -reach.height / 2)
+        #expect(clip.point(inside: inBand, with: nil))
+
+        let beside = CGPoint(x: clip.bounds.width - reach.width - 30, y: -reach.height / 2)
+        #expect(!clip.point(inside: beside, with: nil), "A tap beside the button belongs to the transcript")
+        #expect(clip.hitTest(beside, with: nil) == nil)
+
+        let above = CGPoint(x: clip.bounds.width - reach.width / 2, y: -reach.height - 1)
+        #expect(!clip.point(inside: above, with: nil))
+    }
+
     @Test("The room reported leaves the list out and counts the reply strip")
     func mentionRoom_excludesTheListAndCountsTheStrip() {
         let (screen, _, window) = makeScreen()

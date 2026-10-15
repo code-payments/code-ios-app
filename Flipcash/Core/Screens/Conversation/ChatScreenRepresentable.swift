@@ -58,6 +58,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onMessagesSeen: (MessageID) -> Void
     /// Whether rows on screen count as read right now.
     let reportsReads: Bool
+    /// Inbound messages after the viewer's read pointer, for the jump-to-bottom badge.
+    let unreadBelowCount: Int
+    /// Fired on the reader's first drag after the opening scroll.
+    let onUserScrollBegan: () -> Void
     /// Fired when a reaction pill is tapped: the row's stable id and the toggled emoji.
     let onReactionTap: (String, String) -> Void
     /// Fired when a reaction pill is long-pressed: the row's stable id and emoji, to open the
@@ -133,6 +137,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var transcriptTopInset: CGFloat = 0
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
+        let jump = JumpToBottomModel()
+        context.coordinator.jump = jump
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
         barHost.view.backgroundColor = .clear
         // The bar's content is pinned to the bottom of this view and overhangs the top while the
@@ -142,7 +148,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // indicator's safe area. Left to respect that safe area, the bar pushes its content up by
         // however far it rests into it, past the clip's top edge.
         barHost.safeAreaRegions = []
-        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
+        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost, jump: jump)
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
@@ -189,6 +195,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
+        screen.unreadBelowCount = unreadBelowCount
+        screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         screen.update(items: items)
         context.coordinator.barHost = barHost
@@ -239,6 +247,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
+        screen.unreadBelowCount = unreadBelowCount
+        screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
         // has to claim the menu's blur before the dismissal fades it; it comes down here, whichever
@@ -317,6 +327,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onSendCash: onSendCash,
                 model: barModel,
                 composer: composer,
+                jump: coordinator.jump,
                 gate: gate,
                 gateMintName: gateMintName,
                 gateShortfall: gateShortfall,
@@ -361,6 +372,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     @MainActor final class Coordinator {
         var barHost: UIHostingController<AnyView>?
+        /// What the bar's jump-to-bottom button shows; handed to the screen that drives it.
+        var jump: JumpToBottomModel?
         weak var screen: ChatScreenViewController?
         let model: ConversationBarModel
         let composer: ComposerModel

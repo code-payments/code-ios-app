@@ -43,6 +43,8 @@ extension ShapeStyle where Self == Color {
     public static var coverPlaceholder: Color            { Color(r: 50, g: 50, b: 52) }
 
     public static var unreadIndicator: Color             { Color(r: 10,  g: 132, b: 255) }
+    /// `#0A84FF` — the badge/focus token, used by the jump-to-bottom unread badge. Same value as `unreadIndicator`, named for its Figma token.
+    public static var badgeFocus: Color                  { Color(r: 10,  g: 132, b: 255) }
 
     public static var checkmarkBackground: Color         { Color.white }
 

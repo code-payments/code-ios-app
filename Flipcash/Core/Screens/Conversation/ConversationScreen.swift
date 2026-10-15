@@ -53,6 +53,8 @@ struct ConversationScreen: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var didInitialRead = false
+    /// The chat whose opening load has landed, for a coordinator built after it.
+    @State private var loadedConversationID: ConversationID?
     /// Set once the saved link previews have loaded or 300 ms have passed, so a chat opened right
     /// after launch draws its cards from them instead of flashing placeholders (P22d).
     @State private var waitedForLinkPreviews = false
@@ -407,6 +409,8 @@ struct ConversationScreen: View {
             onQuoteTap: jumpToQuote,
             onMessagesSeen: markSeen,
             reportsReads: reportsReads(gate: gate),
+            unreadBelowCount: coordinator?.jumpBadge.count ?? 0,
+            onUserScrollBegan: { coordinator?.jumpBadge.userDidScroll() },
             onReactionTap: toggleReaction,
             onReactionLongPress: openReactors,
             onReactionAdd: openReactionPicker,
@@ -1249,7 +1253,16 @@ struct ConversationScreen: View {
         // The newest page IS the fresh state and seats the event-log cursor to head, so opening a
         // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
         // foreground / reconnect / live-gap triggers instead.
-        await conversationController.loadMessages(for: conversationID)
+        let landed = await conversationController.loadMessages(for: conversationID)
+        // Only a load that landed seats the badge's arrival cutoff; after a failed one, the next
+        // successful newest-page load does, whichever path runs it.
+        if landed {
+            // The coordinator may not exist yet; `syncCoordinator` applies this when it builds one.
+            loadedConversationID = conversationID
+            if let coordinator, coordinator.conversationID == conversationID {
+                coordinator.jumpBadge.openingLoadLanded()
+            }
+        }
         await conversationController.refreshReactions(for: conversationID)
         // Reading the thread clears its own delivered pushes; other chats keep theirs.
         await pushController.clearDeliveredNotifications(for: conversationID)
@@ -1429,7 +1442,8 @@ struct ConversationScreen: View {
                 controller: conversationController,
                 session: session,
                 knownAuthors: sessionContainer.knownAuthors,
-                prefetchWebCards: { [linkCardFeed = sessionContainer.linkCardFeed] in linkCardFeed.prefetch($0) }
+                prefetchWebCards: { [linkCardFeed = sessionContainer.linkCardFeed] in linkCardFeed.prefetch($0) },
+                openingLoadLanded: loadedConversationID == id
             )
         }
     }

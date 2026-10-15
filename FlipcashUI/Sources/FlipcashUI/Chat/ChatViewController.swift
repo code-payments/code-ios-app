@@ -195,7 +195,9 @@ public final class ChatViewController: UICollectionViewController {
     /// Whether the user last left the transcript at the bottom. Updated only on user-driven
     /// scrolls, so content settling or the keyboard can't flip it — it's the gate for following
     /// the keyboard (an inset change) without yanking a reader who scrolled up.
-    private var wasAtBottom = true
+    private var wasAtBottom = true {
+        didSet { publishJumpButtonState() }
+    }
     /// True until the first non-empty content has been scrolled to the bottom. The open is
     /// deferred to `viewDidLayoutSubviews` so it runs once the collection view has real bounds.
     private var needsInitialScroll = false
@@ -207,7 +209,18 @@ public final class ChatViewController: UICollectionViewController {
     /// Set once the opening scroll has landed. Until then the transcript sits wherever the first
     /// layout put it — at the bottom, for a chat that is about to move up to its unread divider —
     /// and reporting that frame would mark read everything the divider is there to point at.
-    private var hasPositioned = false
+    private var hasPositioned = false {
+        didSet { publishJumpButtonState() }
+    }
+    /// Rows past the last visible one beyond which a tap on the jump button jumps instead of animating.
+    static let jumpAnimationRowLimit = 100
+    /// Fires when the jump-to-bottom button should appear or go: the opening scroll has landed and the
+    /// reader is outside ``bottomThreshold`` of the newest message.
+    var onJumpButtonVisibilityChange: ((Bool) -> Void)?
+    /// Fires when the reader starts a drag after the opening scroll has landed — the signal that
+    /// ends the jump badge's frozen count. Programmatic scrolls never fire it.
+    public var onUserScrollBegan: (() -> Void)?
+    private var isJumpButtonVisible = false
     /// What this visit has reported read so far.
     private var readProgress = ReadProgress()
     /// Whether a read report is queued for the next main-queue turn, so a burst of scroll ticks
@@ -924,6 +937,7 @@ public final class ChatViewController: UICollectionViewController {
         needsInitialScroll = false
         scrollToRow(id: target, animated: false)
         // The jump lands synchronously, so it is the opening position as soon as it runs.
+        wasAtBottom = isNearBottomByGeometry
         hasPositioned = true
         return true
     }
@@ -934,13 +948,18 @@ public final class ChatViewController: UICollectionViewController {
         guard let index = items.firstIndex(where: { $0.messageID == id }) else { return }
         let indexPath = IndexPath(item: index, section: 0)
         positionClaim += 1
+        let claim = positionClaim
         guard animated else {
             collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            wasAtBottom = isNearBottomByGeometry
             flashAttention(forStableID: id)
             return
         }
         ChatMotion.scroll.animate {
             self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+        } completion: { _ in
+            guard self.positionClaim == claim else { return }
+            self.wasAtBottom = self.isNearBottomByGeometry
         }
         // Alongside the scroll rather than after it: the flash's rise is shorter than the scroll's
         // settle, so the row is already lit when it arrives and there is no beat where the transcript
@@ -1008,6 +1027,9 @@ public final class ChatViewController: UICollectionViewController {
             edge: .bottom
         )
         let claim = positionClaim
+        // The reader is headed to the bottom, and these programmatic moves don't pass through the
+        // drag tracking that normally sets this.
+        wasAtBottom = true
         guard animated else {
             chatLayout.restoreContentOffset(with: snapshot)
             // The first restore positions by the estimate; once the bottom cells self-size, re-anchor
@@ -1015,6 +1037,7 @@ public final class ChatViewController: UICollectionViewController {
             DispatchQueue.main.async { [weak self] in
                 guard let self, positionClaim == claim else { return }
                 chatLayout.restoreContentOffset(with: snapshot)
+                wasAtBottom = true
             }
             return
         }
@@ -1028,7 +1051,55 @@ public final class ChatViewController: UICollectionViewController {
             // Lock to the exact bottom edge once the animation lands (the estimate may have moved).
             guard self.positionClaim == claim else { return }
             self.chatLayout.restoreContentOffset(with: snapshot)
+            self.wasAtBottom = true
         }
+    }
+
+    /// Whether the offset sits within ``bottomThreshold`` of the bottom edge. Geometry only; unlike
+    /// ``wasAtBottom`` it reads the live offset, so it is right after a programmatic move.
+    private var isNearBottomByGeometry: Bool {
+        let maxOffset = chatLayout.collectionViewContentSize.height - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
+        return maxOffset - collectionView.contentOffset.y < Self.bottomThreshold
+    }
+
+    private func publishJumpButtonState() {
+        let visible = hasPositioned && !wasAtBottom
+        guard visible != isJumpButtonVisible else { return }
+        isJumpButtonVisible = visible
+        onJumpButtonVisibilityChange?(visible)
+    }
+
+    /// Scrolls to the newest message for the jump button: a jump when more than
+    /// ``jumpAnimationRowLimit`` rows lie below the last visible one, an animated scroll otherwise.
+    func scrollToBottomFromJumpButton() {
+        guard !items.isEmpty else { return }
+        let lastVisible = (chatLayout.layoutAttributesForElements(in: chatLayout.visibleBounds) ?? [])
+            .filter { $0.representedElementCategory == .cell }
+            .map(\.indexPath.item)
+            .max() ?? 0
+        scrollToBottom(animated: items.count - 1 - lastVisible <= Self.jumpAnimationRowLimit)
+    }
+
+    public override func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        if hasPositioned { onUserScrollBegan?() }
+    }
+
+    // A scroll that no drag drives (status-bar tap, deceleration's end, a programmatic animation) never
+    // passes the drag check in `scrollViewDidScroll`, so each path that ends one re-reads the offset.
+    public override func scrollViewDidScrollToTop(_ scrollView: UIScrollView) {
+        wasAtBottom = isNearBottomByGeometry
+    }
+
+    public override func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        wasAtBottom = isNearBottomByGeometry
+    }
+
+    public override func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate { wasAtBottom = isNearBottomByGeometry }
+    }
+
+    public override func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        wasAtBottom = isNearBottomByGeometry
     }
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -1037,8 +1108,7 @@ public final class ChatViewController: UICollectionViewController {
         // Track "at the bottom" only from real user scrolling, so an inset change (keyboard) or
         // content settling doesn't flip it.
         if scrollView.isDragging || scrollView.isDecelerating {
-            let maxOffset = chatLayout.collectionViewContentSize.height - scrollView.bounds.height + scrollView.adjustedContentInset.bottom
-            wasAtBottom = maxOffset - scrollView.contentOffset.y < Self.bottomThreshold
+            wasAtBottom = isNearBottomByGeometry
         }
         // Don't paginate while a batch update animates, or before the opening scroll-to-bottom has
         // run — on open the content sits at the top for a beat, which would otherwise fire a stray
