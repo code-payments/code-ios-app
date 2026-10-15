@@ -174,38 +174,46 @@ private struct ComposerChipView: View {
     }
 }
 
-/// The draft link's preview as the recipient will see it: the page's image, title, description and
-/// host across the field's width, with a spinner while it loads and a remove button.
+/// The draft link's preview as the recipient will see it: a compact card with the page's image,
+/// host, description and title, a spinner while it loads, and a remove button on its corner.
 struct ComposerLinkChip: View {
 
     let preview: ComposerLinkPreview
     let onRemove: () -> Void
 
-    private static let cornerRadius: CGFloat = 10
+    private static let cardCornerRadius: CGFloat = 14
+    private static let imageCornerRadius: CGFloat = 8
+    private static let imageSize: CGFloat = 44
+    private static let maxCardWidth: CGFloat = 280
 
-    /// Larger than a photo chip, so the page's image reads at a glance beside its text.
-    static let imageSize: CGFloat = 80
+    /// How far the remove button hangs past the card's top-trailing corner.
+    private static let removeOverhang: CGFloat = 9
 
     var body: some View {
-        let size = Self.imageSize
         HStack(spacing: 10) {
             Color.backgroundSecondary
                 .overlay { thumbnail }
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
-                .overlay(alignment: .topTrailing) {
-                    ComposerChipRemoveButton(
-                        label: "Remove link preview",
-                        identifier: "composer-link-chip-remove",
-                        action: onRemove
-                    )
-                }
+                .frame(width: Self.imageSize, height: Self.imageSize)
+                .clipShape(RoundedRectangle(cornerRadius: Self.imageCornerRadius))
             VStack(alignment: .leading, spacing: 2) {
                 text
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: size)
+        .padding(12)
+        .frame(maxWidth: Self.maxCardWidth, alignment: .leading)
+        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: Self.cardCornerRadius))
+        .overlay(alignment: .topTrailing) {
+            ComposerChipRemoveButton(
+                label: "Remove link preview",
+                identifier: "composer-link-chip-remove",
+                action: onRemove
+            )
+            .offset(x: Self.removeOverhang, y: -Self.removeOverhang)
+        }
+        .padding(.top, Self.removeOverhang)
+        .padding(.trailing, Self.removeOverhang)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityIdentifier("composer-link-chip")
@@ -248,17 +256,19 @@ struct ComposerLinkChip: View {
                 .foregroundStyle(Color.textMain)
                 .lineLimit(1)
         case .ready(_, let host, let page):
-            Text(page.title)
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
-            if let description = page.description, !description.isEmpty {
-                Text(description)
-                    .font(.appTextCaption)
-                    .foregroundStyle(Color.textSecondary)
-                    .lineLimit(2)
+            HStack(spacing: 6) {
+                Text(host)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textMain)
+                    .layoutPriority(1)
+                if let description = page.description, !description.isEmpty {
+                    Text(description)
+                        .font(.appTextCaption)
+                        .foregroundStyle(Color.textSecondary)
+                }
             }
-            Text(host)
+            .lineLimit(1)
+            Text(page.title)
                 .font(.appTextCaption)
                 .foregroundStyle(Color.textSecondary)
                 .lineLimit(1)
