@@ -69,17 +69,29 @@ struct ComposerLinkPreviewTests {
     }
 
     @Test
-    func aRemovedPreviewStaysOffForTheDraft() async {
+    func aRemovedPreviewStaysOffWhileItsLinkStays() async {
         let (preview, box) = preview()
         preview.update(for: "https://example.com/a")
         await settle(preview)
         preview.remove()
         #expect(preview.link == nil)
-        preview.update(for: "")
-        preview.update(for: "https://example.com/a")
+        preview.update(for: "https://example.com/a and more")
         await settle(preview)
         #expect(preview.link == nil)
         #expect(box.asked.count == 1)
+    }
+
+    @Test
+    func aRemovedPreviewComesBackOnceItsLinkIsEditedOut() async {
+        let (preview, box) = preview()
+        preview.update(for: "https://example.com/a")
+        await settle(preview)
+        preview.remove()
+        preview.update(for: "https://example.com/")
+        preview.update(for: "https://example.com/a")
+        await settle(preview)
+        #expect(preview.link == "https://example.com/a")
+        #expect(box.asked.last == "https://example.com/a")
     }
 
     @Test

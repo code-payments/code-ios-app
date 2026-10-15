@@ -52,7 +52,7 @@ final class ComposerLinkPreview {
     /// Uploads a fetched page's image; until it is set, a preview goes without one.
     @ObservationIgnored var upload: Upload?
 
-    /// Links whose preview was removed, kept off for the rest of the draft.
+    /// Links whose preview was removed, kept off while they stay in the draft.
     @ObservationIgnored private var dismissed: Set<String> = []
     @ObservationIgnored private var task: Task<Void, Never>?
     /// The draft link last looked at, including one whose fetch found nothing, so a failure is not
@@ -75,6 +75,8 @@ final class ComposerLinkPreview {
     /// web card, and otherwise starts on the new one.
     func update(for text: String) {
         let next = Self.webLink(in: text, detector: detector, classifier: classifier)
+        // Editing a removed link out of the draft lets its preview come back when it is typed again.
+        dismissed = dismissed.filter { text.contains($0) }
         guard next?.text != current else { return }
         cancel()
         current = next?.text
@@ -104,7 +106,7 @@ final class ComposerLinkPreview {
         }
     }
 
-    /// Removes the preview, which stays off for this link until the draft is cleared.
+    /// Removes the preview, which stays off for this link until it is edited out of the draft.
     func remove() {
         if let link {
             dismissed.insert(link)
