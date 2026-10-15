@@ -134,17 +134,7 @@ private struct ComposerChipView: View {
             .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .frame(width: size, height: size)
         .overlay(alignment: .topTrailing) {
-            Button(action: onRemove) {
-                Image(systemName: SystemSymbol.closeCircle.rawValue)
-                    .font(.default(size: 18, weight: .semibold))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(Color.white, Color.black.opacity(0.55))
-                    .padding(3)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove photo")
-            .accessibilityIdentifier("composer-chip-remove")
+            ComposerChipRemoveButton(label: "Remove photo", identifier: "composer-chip-remove", action: onRemove)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("composer-chip")
@@ -193,28 +183,27 @@ struct ComposerLinkChip: View {
 
     private static let cornerRadius: CGFloat = 10
 
+    /// Larger than a photo chip, so the page's image reads at a glance beside its text.
+    static let imageSize: CGFloat = 80
+
     var body: some View {
-        let size = ComposerChipStrip.chipSize
+        let size = Self.imageSize
         HStack(spacing: 10) {
             Color.backgroundSecondary
                 .overlay { thumbnail }
                 .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+                .overlay(alignment: .topTrailing) {
+                    ComposerChipRemoveButton(
+                        label: "Remove link preview",
+                        identifier: "composer-link-chip-remove",
+                        action: onRemove
+                    )
+                }
             VStack(alignment: .leading, spacing: 2) {
                 text
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: onRemove) {
-                Image(systemName: SystemSymbol.closeCircle.rawValue)
-                    .font(.default(size: 18, weight: .semibold))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(Color.white, Color.black.opacity(0.55))
-                    .padding(3)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove link preview")
-            .accessibilityIdentifier("composer-link-chip-remove")
         }
         .frame(height: size)
         .accessibilityElement(children: .contain)
@@ -267,7 +256,7 @@ struct ComposerLinkChip: View {
                 Text(description)
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textSecondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
             Text(host)
                 .font(.appTextCaption)
@@ -282,5 +271,27 @@ struct ComposerLinkChip: View {
         case .loading(_, let host):         "Loading preview for \(host)"
         case .ready(_, let host, let page): "Preview for \(host): \(page.title)"
         }
+    }
+}
+
+/// The remove button drawn on the top-trailing corner of a staged photo or link thumbnail.
+private struct ComposerChipRemoveButton: View {
+
+    let label: String
+    let identifier: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: SystemSymbol.closeCircle.rawValue)
+                .font(.default(size: 18, weight: .semibold))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(Color.white, Color.black.opacity(0.55))
+                .padding(3)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 }
