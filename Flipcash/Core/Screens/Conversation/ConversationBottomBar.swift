@@ -165,19 +165,20 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
-/// The jump-to-bottom button, drawn in the bar's own hierarchy above its trailing control so the one
-/// transaction that moves `$` with the keyboard moves the button too.
+/// The jump-to-bottom button, centred over the bar's trailing control at the foot of the box the
+/// screen stands on the bar's top edge.
 ///
-/// It stands outside the bar's measured height, so the transcript's inset and the keyboard floor
-/// never see it; the screen's clip leaves the area it travels uncut.
+/// It is hosted outside the bar, so the transcript's inset and the keyboard floor never see it and
+/// the bar's clip never cuts it.
 struct JumpToBottomOverlay: View {
     let jump: JumpToBottomModel
-    let isCompact: Bool
-    /// Whether the attach panel is up and takes every touch outside itself, the button's included.
-    let takesTouches: Bool
+    let model: ConversationBarModel
 
     var body: some View {
         let isShown = jump.isShown
+        let isCompact = !model.isComposing
+        // The attach panel takes every touch outside itself, the button's included.
+        let takesTouches = !model.attachPanel.isOpen
         // Centred on the trailing control's column, which is narrower than the button.
         let inset = BarMetrics.trailingControlCentreInset(isCompact: isCompact)
             - JumpToBottomButtonView.diameter / 2
@@ -191,7 +192,8 @@ struct JumpToBottomOverlay: View {
             .animation(ChatMotion.reflow.animation, value: isShown)
             .padding(.trailing, inset)
             .animation(ChatMotion.barInset.animation, value: isCompact)
-            .offset(y: -(JumpToBottomButtonView.diameter + BarMetrics.jumpButtonGapAboveBar))
+            .padding(.bottom, BarMetrics.jumpButtonGapAboveBar)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
     }
 }
 
@@ -321,8 +323,6 @@ struct ConversationBottomBar: View {
     let onSendCash: () -> Void
     let model: ConversationBarModel
     let composer: ComposerModel
-    /// What the jump-to-bottom button shows, or `nil` where the bar has none.
-    var jump: JumpToBottomModel? = nil
     /// Whether the chat's participation rules leave this user anything to type. Anything but
     /// ``ConversationGatePresentation/open`` replaces the whole composer with the gate panel.
     var gate: ConversationGatePresentation = .open
@@ -636,11 +636,6 @@ struct ConversationBottomBar: View {
             content
                 .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { composerRowHeight = $0 }
                 .preference(key: BarAccessoriesKey.self, value: BarAccessories(restHeight: composerRowHeight))
-        }
-        .overlay(alignment: .topTrailing) {
-            if let jump {
-                JumpToBottomOverlay(jump: jump, isCompact: isCompact, takesTouches: !model.attachPanel.isOpen)
-            }
         }
         .onChange(of: mentions == nil ? nil : composer.mentionQuery?.text, initial: true) { _, query in
             mentions?.update(query: query)

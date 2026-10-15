@@ -24,6 +24,8 @@ public final class ChatScreenViewController: UIViewController {
     private let transcript = ChatViewController()
     private let bar: UIView
     private let barController: UIViewController?
+    /// Draws the jump-to-bottom button, standing on the clip's top edge outside it.
+    private let jumpButtonController: UIViewController?
     /// The box the bar is seen through: the bar sits at its *bottom* edge and is clipped by it.
     ///
     /// The reply strip is the reason there are two views rather than one. The bar's own height has
@@ -68,7 +70,7 @@ public final class ChatScreenViewController: UIViewController {
             guard barOverflowsTop != oldValue, barClipHeightConstraint != nil else { return }
             // The bar is already as tall as the screen and pinned to the clip's bottom, so letting
             // it draw and take touches above the clip is all the overflow needs.
-            barClip.clipsBar = !barOverflowsTop
+            barClip.clipsToBounds = !barOverflowsTop
             barClip.overflowTarget = barOverflowsTop ? bar : nil
         }
     }
@@ -112,7 +114,7 @@ public final class ChatScreenViewController: UIViewController {
     private let backdrop = MessageBackdrop()
     /// The blur over a transcript the user is not allowed to read. See `TranscriptBlur`.
     private let transcriptBlur = TranscriptBlur()
-    /// What the jump-to-bottom button shows. The bar draws the button, above its trailing control.
+    /// What the jump-to-bottom button shows. `jumpButtonController` draws it.
     public let jump: JumpToBottomModel
     /// The decorative shapes the blur softens when there is no transcript to soften. See
     /// `GatePreviewPlaceholder`.
@@ -161,11 +163,20 @@ public final class ChatScreenViewController: UIViewController {
     ///   - barController: the view controller owning the bar, when hosted (e.g. a
     ///     `UIHostingController` for a SwiftUI bar). Adopted as a child so its lifecycle and
     ///     environment work. Pass `nil` for a plain `UIView` bar.
-    ///   - jump: the model the bar draws its jump-to-bottom button from; this screen drives it.
-    public init(bar: UIView, barController: UIViewController? = nil, jump: JumpToBottomModel = JumpToBottomModel()) {
+    ///   - jump: the model the jump-to-bottom button is drawn from; this screen drives it.
+    ///   - jumpButtonController: draws the jump-to-bottom button, in a box of
+    ///     ``JumpToBottomButtonView/reach`` standing on the bar's top edge across its width. Only the
+    ///     box's trailing `reach.width` takes touches, and only while the button shows.
+    public init(
+        bar: UIView,
+        barController: UIViewController? = nil,
+        jump: JumpToBottomModel = JumpToBottomModel(),
+        jumpButtonController: UIViewController? = nil
+    ) {
         self.jump = jump
         self.bar = bar
         self.barController = barController
+        self.jumpButtonController = jumpButtonController
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -401,8 +412,10 @@ public final class ChatScreenViewController: UIViewController {
         // Under the blur, so the shapes are only ever seen through it.
         gatePlaceholder.install(in: view, below: transcriptBlur.view)
 
+        // Above the blur and the composer fade, and under the clip, so a bar overflowing its top
+        // for the attach panel covers the button.
+        addJumpButton()
         wireJumpButton()
-        barClip.overhang = JumpToBottomButtonView.reach
         barClipHeightConstraint = constraints.clipHeight
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom, keyboardEdgeConstraint: constraints.keyboardEdge)
         keyboardFloor.restingDrop = barRestingDrop
@@ -592,7 +605,7 @@ public final class ChatScreenViewController: UIViewController {
     ) -> (clipHeight: NSLayoutConstraint, bottom: NSLayoutConstraint, keyboardEdge: NSLayoutConstraint) {
         if let controller { addChild(controller) }
         barClip.translatesAutoresizingMaskIntoConstraints = false
-        barClip.clipsBar = true
+        barClip.clipsToBounds = true
         view.addSubview(barClip)
         let keyboardEdge = addComposerFade(below: barClip)
         addKeyboardCornerCover(below: barClip)
@@ -948,6 +961,32 @@ public final class ChatScreenViewController: UIViewController {
         didSet { jump.unreadCount = unreadBelowCount }
     }
 
+    /// Stands the button's box on the clip's top edge, so it rides the keyboard and every travel of
+    /// that edge in the same layout pass as the clip.
+    private func addJumpButton() {
+        guard let jumpButtonController else { return }
+        let host = PassthroughView()
+        host.takesTouches = { [jump] in jump.isShown }
+        host.translatesAutoresizingMaskIntoConstraints = false
+        view.insertSubview(host, belowSubview: barClip)
+        addChild(jumpButtonController)
+        let button = jumpButtonController.view!
+        button.backgroundColor = .clear
+        button.translatesAutoresizingMaskIntoConstraints = false
+        host.addSubview(button)
+        jumpButtonController.didMove(toParent: self)
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: barClip.leadingAnchor),
+            host.trailingAnchor.constraint(equalTo: barClip.trailingAnchor),
+            host.bottomAnchor.constraint(equalTo: barClip.topAnchor),
+            host.heightAnchor.constraint(equalToConstant: JumpToBottomButtonView.reach.height),
+            button.topAnchor.constraint(equalTo: host.topAnchor),
+            button.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            button.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            button.bottomAnchor.constraint(equalTo: host.bottomAnchor),
+        ])
+    }
+
     private func wireJumpButton() {
         jump.onTap = { [weak self] in self?.transcript.scrollToBottomFromJumpButton() }
         transcript.onJumpButtonVisibilityChange = { [weak self] visible in
@@ -1159,54 +1198,6 @@ private final class BarClipView: UIView {
     /// Where, in window coordinates, the target starts taking those touches; `nil` for all of it.
     var overflowTouchTop: CGFloat?
 
-    /// The area above the box's top edge, from its trailing side, that is left uncut and takes
-    /// touches: where the bar draws its jump-to-bottom button. Touches in it that the bar's content
-    /// does not claim fall through to what is behind the box.
-    var overhang: CGSize = .zero {
-        didSet { applyClipping() }
-    }
-
-    /// Whether the bar is cut at the box's edges. Off while the bar overflows.
-    var clipsBar = true {
-        didSet { applyClipping() }
-    }
-
-    // A mask view rather than a layer: its frame animates with the box when the height constraint
-    // changes inside an animation block, where a bare layer's would trail it.
-    private let maskContainer = UIView()
-    private let maskBody = UIView()
-    private let maskOverhang = UIView()
-
-    private func applyClipping() {
-        if clipsBar, overhang != .zero {
-            if maskContainer.superview == nil {
-                maskContainer.backgroundColor = .clear
-                for part in [maskBody, maskOverhang] {
-                    part.backgroundColor = .black
-                    maskContainer.addSubview(part)
-                }
-            }
-            clipsToBounds = false
-            mask = maskContainer
-            setNeedsLayout()
-        } else {
-            mask = nil
-            clipsToBounds = clipsBar
-        }
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        guard mask === maskContainer else { return }
-        maskContainer.frame = bounds
-        maskBody.frame = bounds
-        maskOverhang.frame = CGRect(x: bounds.width - overhang.width, y: -overhang.height, width: overhang.width, height: overhang.height)
-    }
-
-    private var overhangRect: CGRect {
-        CGRect(x: bounds.width - overhang.width, y: -overhang.height, width: overhang.width, height: overhang.height)
-    }
-
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         if let overflowTarget {
             var region = overflowTarget.frame
@@ -1216,7 +1207,6 @@ private final class BarClipView: UIView {
             }
             if region.contains(point) { return true }
         }
-        if clipsBar, overhang != .zero, overhangRect.contains(point) { return true }
         return super.point(inside: point, with: event)
     }
 
@@ -1225,6 +1215,22 @@ private final class BarClipView: UIView {
         // The box itself is never what a touch above it lands on.
         if hit === self, !bounds.contains(point) { return nil }
         return hit
+    }
+}
+
+/// The jump button's box, which takes touches only in its trailing ``JumpToBottomButtonView/reach``
+/// while the button shows, and lets every other one through to the transcript.
+///
+/// Decided by where the touch lands, not what claims it: SwiftUI answers a tap on its content with the
+/// hosting view itself, the same view that answers a tap on its empty area.
+private final class PassthroughView: UIView {
+
+    var takesTouches: () -> Bool = { false }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard takesTouches(), point.x >= bounds.maxX - JumpToBottomButtonView.reach.width else { return nil }
+        let hit = super.hitTest(point, with: event)
+        return hit === self ? nil : hit
     }
 }
 
