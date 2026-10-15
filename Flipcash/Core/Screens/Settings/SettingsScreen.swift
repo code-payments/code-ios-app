@@ -28,6 +28,8 @@ struct SettingsScreen: View {
     /// The version card's beta-access easter egg — the tap count and the line
     /// it shows for the last few taps.
     @State private var versionUnlock = VersionTapUnlock()
+    /// How the list fits the screen, which is when the inline state's bottom fade belongs.
+    @State private var scrollFit = ProfileScrollFit()
 
     // Horizontal inset lives on the rows, not the list: the section headers
     // carry their own 20pt.
@@ -50,16 +52,19 @@ struct SettingsScreen: View {
                 .foregroundStyle(.textMain)
                 .padding(.bottom, 24)
             }
+            .profileScrollFit($scrollFit)
         }
-        // A bar, not a plain inset, so the soft bottom scroll edge has something to draw from: the
-        // pinned card sits on glass in it, and inline the bar is empty, so rows fade at the bottom
-        // in both states. The bar's inset also keeps Log Out and Delete Account clear of the card.
+        // Pinned, the card sits on glass in the bar and the soft scroll edge fades rows under it; its
+        // inset keeps Log Out and Delete Account clear of the card. Inline the bar is empty, which
+        // draws no edge, so it carries the barless fade the profiles use while rows run past the screen.
         .scrollEdgeBar(.bottom) {
             if cardState.isPinned {
                 versionCard
                     .padding(.bottom, 16)
             } else {
-                Color.clear.frame(height: 0)
+                Color.clear
+                    .frame(height: 0)
+                    .profileBarlessFade(isActive: scrollFit.fadesBottom)
             }
         }
         .navigationTitle("Settings")
