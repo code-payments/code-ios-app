@@ -90,6 +90,7 @@ platform :ios do
     set_review_notes(review_notes) if review_notes
 
     submit_to_app_review(version, build_number, phased)
+    record_release_in_manifest(version)
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -728,11 +729,6 @@ platform :ios do
 
   RELEASE_MANIFEST_PATH = File.expand_path("../.well-known/release-manifest.json", __dir__)
 
-  # The version live on the App Store, or nil when the app has none.
-  def live_app_store_version(app)
-    app.get_live_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)&.version_string
-  end
-
   # The newest iOS build that has finished processing, as its build number, or nil when none has.
   def newest_processed_build_number(app)
     Spaceship::ConnectAPI.get_builds(
@@ -743,26 +739,25 @@ platform :ios do
     ).to_models.find { |b| b.pre_release_version&.platform == Spaceship::ConnectAPI::Platform::IOS }&.version
   end
 
-  desc "Rewrite .well-known/release-manifest.json from App Store Connect"
+  desc "Raise testflight.build in .well-known/release-manifest.json to the newest processed build"
   desc "Usage: fastlane update_release_manifest"
-  desc "Sets production.version to the live App Store version and raises testflight.build to the"
-  desc "newest processed build. production.priority is never touched. Edits the working tree only;"
-  desc "the workflow commits it to main."
+  desc "Edits the working tree only; the deploy workflow commits it to main. Never lowers the build."
   lane :update_release_manifest do
-    app = asc_app
-    live_version = live_app_store_version(app)
-    build_number = newest_processed_build_number(app)
-    UI.message("App Store: #{live_version || '(no live version)'} | newest processed TestFlight build: #{build_number || '(none)'}")
+    build_number = newest_processed_build_number(asc_app)
+    UI.message("Newest processed TestFlight build: #{build_number || '(none)'}")
 
-    manifest, changed = ReleaseManifest.update_file(
-      RELEASE_MANIFEST_PATH,
-      live_version: live_version,
-      testflight_build: build_number
-    )
+    manifest, changed = ReleaseManifest.update_file(RELEASE_MANIFEST_PATH, testflight_build: build_number)
+    UI.message(changed ? "Release manifest now: #{JSON.generate(manifest)}" : "Release manifest already current")
+  end
+
+  # Records the version being released as production.version and resets production.priority to 0.
+  # Working tree only: commit .well-known/release-manifest.json to main with the release.
+  def record_release_in_manifest(version)
+    manifest, changed = ReleaseManifest.update_file(RELEASE_MANIFEST_PATH, release_version: version)
     if changed
-      UI.success("Release manifest now: #{JSON.generate(manifest)}")
+      UI.success("Release manifest now: #{JSON.generate(manifest)}. Commit .well-known/release-manifest.json to main.")
     else
-      UI.message("Release manifest already current")
+      UI.message("Release manifest already names #{version} at priority 0")
     end
   end
 

@@ -7,24 +7,19 @@ require "time"
 module ReleaseManifest
   module_function
 
-  # Returns the manifest with App Store Connect's answers applied, and whether anything changed.
+  # Returns the manifest with the given changes applied, and whether anything changed.
   #
-  # - `live_version`: the version live on the App Store, or nil when there is none. Replaces
-  #   `production.version`; a nil keeps the existing one rather than writing null.
   # - `testflight_build`: the newest processed TestFlight build number, or nil. Only ever raises
   #   `testflight.build`, so an older build being redistributed can't walk it back.
-  # - `production.priority` and every key this doesn't own are left as they are: priority is set
-  #   by hand to force an update.
+  # - `release_version`: set only by a release. Becomes `production.version` and resets
+  #   `production.priority` to 0, so a forced-update priority from the previous release can't
+  #   linger. The app takes the live store version from Apple's lookup; this records which
+  #   version the priority applies to.
+  # - Every key this doesn't own is left as it is.
   # - `updated` moves only when a value changed, so a no-op run produces no commit.
-  def apply(manifest, live_version:, testflight_build:, now: Time.now.utc)
+  def apply(manifest, testflight_build: nil, release_version: nil, now: Time.now.utc)
     result = JSON.parse(JSON.generate(manifest))
     changed = false
-
-    version = live_version.to_s.strip
-    if !version.empty? && result.dig("production", "version") != version
-      result["production"] = (result["production"] || {}).merge("version" => version)
-      changed = true
-    end
 
     build = Integer(testflight_build.to_s, exception: false)
     if build && build > result.dig("testflight", "build").to_i
@@ -32,14 +27,23 @@ module ReleaseManifest
       changed = true
     end
 
+    version = release_version.to_s.strip
+    unless version.empty?
+      production = { "version" => version, "priority" => 0 }
+      if result["production"] != (result["production"] || {}).merge(production)
+        result["production"] = (result["production"] || {}).merge(production)
+        changed = true
+      end
+    end
+
     result["updated"] = now.strftime("%Y-%m-%dT%H:%M:%SZ") if changed
     [result, changed]
   end
 
-  # Reads `path`, applies the answers, and writes it back when something changed.
-  def update_file(path, live_version:, testflight_build:, now: Time.now.utc)
+  # Reads `path`, applies the changes, and writes it back when something changed.
+  def update_file(path, testflight_build: nil, release_version: nil, now: Time.now.utc)
     manifest = JSON.parse(File.read(path))
-    result, changed = apply(manifest, live_version: live_version, testflight_build: testflight_build, now: now)
+    result, changed = apply(manifest, testflight_build: testflight_build, release_version: release_version, now: now)
     File.write(path, JSON.pretty_generate(result) + "\n") if changed
     [result, changed]
   end
