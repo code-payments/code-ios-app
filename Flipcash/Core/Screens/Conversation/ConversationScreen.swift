@@ -872,6 +872,12 @@ struct ConversationScreen: View {
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
             syncCoordinator(conversationID)
+            composer.linkPreview.load = ComposerLinkPreview.loader(
+                metadata: sessionContainer.linkMetadataSource,
+                images: WebImageSource(),
+                uploader: { mediaUploader },
+                senderID: sessionContainer.session.userID
+            )
             restoreDraft(conversationID)
         }
         // A matched contact's chat is created mid-screen on the first payment,

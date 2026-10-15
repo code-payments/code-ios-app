@@ -30,9 +30,6 @@ nonisolated protocol WebHomeAnswers: Sendable {
     func record(_ state: LinkCard.Web.State, forHome home: URL) async
 }
 
-/// Thrown while the `webLinkPreviews` flag is off, so nothing is fetched or remembered.
-nonisolated struct WebLinkPreviewsDisabled: Error {}
-
 /// A server error worth asking again later, so it is never remembered.
 nonisolated struct WebLinkHTTPStatus: Error, Equatable {
     let code: Int
@@ -42,19 +39,15 @@ nonisolated struct WebLinkHTTPStatus: Error, Equatable {
 nonisolated final class PinnedLinkMetadataSource: LinkMetadataSource {
 
     private let client: any PinnedFetching
-    private let isEnabled: @Sendable () async -> Bool
     private let limiter: FetchLimiter
 
     init(client: any PinnedFetching = PinnedHTTPClient(),
-         limiter: FetchLimiter = .shared,
-         isEnabled: @escaping @Sendable () async -> Bool = { await MainActor.run { BetaFlags.shared.hasEnabled(.webLinkPreviews) } }) {
+         limiter: FetchLimiter = .shared) {
         self.client = client
         self.limiter = limiter
-        self.isEnabled = isEnabled
     }
 
     func metadata(for url: URL, homes: (any WebHomeAnswers)?) async throws -> LinkCard.Web.State {
-        guard await isEnabled() else { throw WebLinkPreviewsDisabled() }
         return try await limiter.run {
             // P24b: the link and its home-page fallback share one deadline and one redirect budget.
             try await WebRedirects.withDeadline(.seconds(2 * WebLinks.timeout)) {

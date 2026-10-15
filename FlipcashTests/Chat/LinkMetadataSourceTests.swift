@@ -78,15 +78,6 @@ struct LinkMetadataSourceTests {
         }
     }
 
-    @Test func flagOffThrowsWithoutFetching() async throws {
-        let client = FakeClient([:])
-        await #expect(throws: WebLinkPreviewsDisabled.self) {
-            try await PinnedLinkMetadataSource(client: client, limiter: FetchLimiter(limit: 1), isEnabled: { false })
-                .metadata(for: URL(string: "https://example.com/")!)
-        }
-        #expect(client.requested.isEmpty)
-    }
-
     @Test func anImageOnDiskIsReadWithoutFetching() async {
         let disk = WebImageDiskCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         let url = URL(string: "https://img.example.com/a.png")!
@@ -193,7 +184,7 @@ struct LinkMetadataSourceTests {
     // MARK: - Helpers
 
     private func source(_ client: FakeClient) -> PinnedLinkMetadataSource {
-        PinnedLinkMetadataSource(client: client, limiter: FetchLimiter(limit: 4), isEnabled: { true })
+        PinnedLinkMetadataSource(client: client, limiter: FetchLimiter(limit: 4))
     }
 
     private func html(_ body: Data, extra: [String: String] = [:]) -> PinnedResponse {
