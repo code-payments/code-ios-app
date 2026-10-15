@@ -8,7 +8,7 @@
 #if canImport(UIKit)
 import Observation
 import SwiftUI
-import UIKit
+import FlipcashCore
 
 /// What the jump-to-bottom button shows, set by ``ChatScreenViewController`` from the transcript and
 /// read by the column the owner hosts beside the bar. The button is drawn in SwiftUI so it can move
@@ -25,40 +25,56 @@ public final class JumpToBottomModel {
     public init() {}
 }
 
-/// The jump-to-bottom button: ``JumpToBottomButton`` in a SwiftUI view, so its frost, badge and
-/// hairline are the ones the UIKit control draws.
-public struct JumpToBottomButtonView: UIViewRepresentable {
+/// The jump-to-bottom button: a 44pt circle in the composer's glass, with a chevron and an unread badge.
+public struct JumpToBottomButtonView: View {
 
-    public static let diameter: CGFloat = JumpToBottomButton.diameter
+    public static let diameter: CGFloat = 44
+    private static let badgeHeight: CGFloat = 22
 
     public let unreadCount: Int
     public let action: () -> Void
+
+    /// The button's own, so its glass never joins the `$` button's.
+    @Namespace private var glassNamespace
 
     public init(unreadCount: Int, action: @escaping () -> Void) {
         self.unreadCount = unreadCount
         self.action = action
     }
 
-    public func makeCoordinator() -> Coordinator { Coordinator() }
-
-    public func makeUIView(context: Context) -> UIView {
-        let button = JumpToBottomButton()
-        let coordinator = context.coordinator
-        button.addAction(UIAction { _ in coordinator.action() }, for: .touchUpInside)
-        return button
+    public var body: some View {
+        let badgeText = UnreadBadgeText.text(for: unreadCount)
+        Button(action: action) {
+            Image(systemName: "chevron.down")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: Self.diameter, height: Self.diameter)
+                .composerGlass(in: Circle(), id: "jump", namespace: glassNamespace)
+                .composerRim(in: Circle())
+                .contentShape(Circle())
+                .overlay(alignment: .topTrailing) {
+                    if let badgeText {
+                        badge(badgeText)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Jump to latest message")
+        .accessibilityValue(badgeText ?? "")
     }
 
-    public func updateUIView(_ view: UIView, context: Context) {
-        context.coordinator.action = action
-        (view as? JumpToBottomButton)?.setUnreadCount(unreadCount)
-    }
-
-    public func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIView, context: Context) -> CGSize? {
-        CGSize(width: Self.diameter, height: Self.diameter)
-    }
-
-    @MainActor public final class Coordinator {
-        var action: () -> Void = {}
+    /// The pill: blue fill, white semibold 11, and a 2pt ring in the chat background that separates it
+    /// from the circle. Its centre sits near the circle's top-trailing corner, pulled in along the arc.
+    private func badge(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .frame(minWidth: Self.badgeHeight, minHeight: Self.badgeHeight)
+            .background(Color.badgeFocus, in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.backgroundMain, lineWidth: 2))
+            .alignmentGuide(.trailing) { $0.width / 2 + 4 }
+            .alignmentGuide(.top) { _ in Self.badgeHeight / 2 - 4 }
     }
 }
 #endif
