@@ -1,0 +1,65 @@
+name: Update release manifest
+
+# Raise testflight.build in main's .well-known/release-manifest.json to the
+# newest processed TestFlight build, without deploying. deploy.yml does the
+# same after a waited deploy; this covers builds that reached TestFlight some
+# other way. Commits straight to main, so it needs a PAT.
+#
+# Required repository secrets:
+#   ASC_KEY_ID       - App Store Connect API Key ID
+#   ASC_ISSUER_ID    - App Store Connect Issuer ID
+#   ASC_KEY_CONTENT  - App Store Connect API Key (.p8) contents, base64-encoded
+#   APP_IDENTIFIER   - App bundle identifier
+#   BOT_GITHUB_TOKEN - admin-owned PAT that can push to main (GITHUB_TOKEN
+#                      cannot push to main here)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release-manifest
+  cancel-in-progress: false
+
+jobs:
+  update-manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false   # push with the PAT below, not GITHUB_TOKEN
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install fastlane
+        run: gem install fastlane -v 2.227.1
+
+      - name: Update release manifest
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          APP_IDENTIFIER: ${{ secrets.APP_IDENTIFIER }}
+        run: fastlane update_release_manifest
+
+      - name: Commit & push release manifest to main
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .well-known/release-manifest.json
+          if git diff --cached --quiet; then
+            echo "Release manifest already current — nothing to commit."
+            exit 0
+          fi
+          git commit -m "build: update release manifest"
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git pull --rebase "$REMOTE" main
+          git push "$REMOTE" HEAD:main
