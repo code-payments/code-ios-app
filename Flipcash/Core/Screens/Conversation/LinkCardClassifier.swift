@@ -33,10 +33,6 @@ import FlipcashCore
 /// tap target in front of either is a phishing aid.
 nonisolated struct LinkCardClassifier {
 
-    /// Whether an outside link may become a web card. False while `webLinkPreviews` is off, so the
-    /// feature draws nothing at all: no card, no chip, no prefetch.
-    var webLinks: Bool = true
-
     /// The first card-eligible link wins; at most one card per message.
     ///
     /// Takes the detected links rather than their URLs because the card carries the span it was
@@ -44,24 +40,28 @@ nonisolated struct LinkCardClassifier {
     /// is the wrapper while its `url` is the target, so a later search for the URL would find
     /// nothing to remove.
     ///
-    /// A Flipcash card anywhere in the message beats an outside page earlier in it. Only when there is
-    /// none does the first outside `https` link become a web card.
+    /// Only Flipcash cards: a web card is drawn from the preview its message carries, never from
+    /// the text.
     func firstCard(in links: [DetectedLink]) -> LinkCard? {
-        if let card = links.lazy.compactMap({ classify($0) }).first { return card }
-        guard webLinks else { return nil }
-        return links.lazy.compactMap { web($0) }.first
+        links.lazy.compactMap { classify($0) }.first
     }
 
-    /// An outside `https` link, or a marketing page on the apex or `www`. Any other Flipcash host
-    /// never falls through to here, whatever its path, and that includes a jump wrapper around an
-    /// outside target.
-    private func web(_ link: DetectedLink) -> LinkCard? {
+    /// The link a sender's composer previews: the first outside `https` link, or a marketing page
+    /// on the apex or `www`, and none when a Flipcash card anywhere in the text would win.
+    func firstWebLink(in links: [DetectedLink]) -> DetectedLink? {
+        guard firstCard(in: links) == nil else { return nil }
+        return links.first(where: isWebLink)
+    }
+
+    /// Any Flipcash host other than the marketing ones never passes, whatever its path, and that
+    /// includes a jump wrapper around an outside target.
+    private func isWebLink(_ link: DetectedLink) -> Bool {
         guard WebLinks.isFetchable(link.url),
-              let host = WebLinks.host(of: link.url) else { return nil }
+              let host = WebLinks.host(of: link.url) else { return false }
         if Route.flipcashHosts.contains(host) {
-            guard Self.marketingHosts.contains(host), Self.isMarketingPage(link.url) else { return nil }
+            return Self.marketingHosts.contains(host) && Self.isMarketingPage(link.url)
         }
-        return .web(LinkCard.Web(url: link.url, range: link.range))
+        return true
     }
 
     /// Flipcash hosts whose unclassified pages are fetched like any outside site.

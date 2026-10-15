@@ -17,8 +17,7 @@ struct LinkMetadataSourceTests {
 
     @Test func parsesAnHTMLPage() async throws {
         let client = FakeClient(["https://example.com/": html(Self.page)])
-        let state = try await source(client).metadata(for: URL(string: "https://example.com/")!)
-        guard case .resolved(let resolved) = state else { Issue.record("\(state)"); return }
+        let resolved = try #require(try await source(client).metadata(for: URL(string: "https://example.com/")!))
         #expect(resolved.title == "Hello")
         #expect(resolved.host == "example.com")
     }
@@ -29,46 +28,46 @@ struct LinkMetadataSourceTests {
         }
         chain["https://example.com/3"] = html(Self.page)
         let three = try await source(FakeClient(chain)).metadata(for: URL(string: "https://example.com/0")!)
-        #expect(three != .none)
+        #expect(three != nil)
 
         chain["https://example.com/3"] = redirect("/4")
         chain["https://example.com/4"] = html(Self.page)
         let client = FakeClient(chain)
         let four = try await source(client).metadata(for: URL(string: "https://example.com/0")!)
-        #expect(four == .none)
+        #expect(four == nil)
         #expect(client.requested == (0...3).map { "https://example.com/\($0)" })
     }
 
     @Test func redirectToAnIneligibleHostIsNone() async throws {
         let client = FakeClient(["https://example.com/": redirect("https://localhost/")])
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == nil)
         #expect(client.requested == ["https://example.com/"])
     }
 
     @Test func redirectToHTTPIsNone() async throws {
         let client = FakeClient(["https://example.com/": redirect("http://example.com/")])
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == nil)
     }
 
     @Test func percentEscapedHostIsNeverFetched() async throws {
         let client = FakeClient([:])
-        #expect(try await source(client).metadata(for: URL(string: "https://ex%61mple.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://ex%61mple.com/")!) == nil)
         #expect(client.requested.isEmpty)
     }
 
     @Test func nonIdentityEncodingIsNone() async throws {
         let client = FakeClient(["https://example.com/": html(Self.page, extra: ["content-encoding": "gzip"])])
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == nil)
     }
 
     @Test func notHTMLIsNone() async throws {
         let client = FakeClient(["https://example.com/": PinnedResponse(status: 200, headers: ["content-type": "application/pdf"], body: Self.page, truncated: false)])
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == nil)
     }
 
     @Test func clientErrorIsNone() async throws {
         let client = FakeClient(["https://example.com/": PinnedResponse(status: 404, headers: [:], body: Data(), truncated: false)])
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == nil)
     }
 
     @Test func serverErrorThrows() async throws {
@@ -78,28 +77,18 @@ struct LinkMetadataSourceTests {
         }
     }
 
-    @Test func anImageOnDiskIsReadWithoutFetching() async {
-        let disk = WebImageDiskCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
-        let url = URL(string: "https://img.example.com/a.png")!
-        disk.store(Data([9]), for: url)
-        let client = FakeClient([:])
-        #expect(await WebImageSource(client: client, limiter: FetchLimiter(limit: 1), disk: disk).data(for: url) == Data([9]))
-        #expect(client.requested.isEmpty)
-    }
-
-    @Test func aFetchedImageIsWrittenToDiskAndAFailureIsNot() async {
-        let disk = WebImageDiskCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+    @Test func aFetchedImageIsHeldAndAFailureIsNot() async {
         let good = URL(string: "https://img.example.com/a.png")!
         let html = URL(string: "https://img.example.com/b.png")!
         let client = FakeClient([
             good.absoluteString: PinnedResponse(status: 200, headers: ["content-type": "image/png"], body: Data([1]), truncated: false),
             html.absoluteString: PinnedResponse(status: 200, headers: ["content-type": "text/html"], body: Data([2]), truncated: false),
         ])
-        let source = WebImageSource(client: client, limiter: FetchLimiter(limit: 1), disk: disk)
+        let source = WebImageSource(client: client, limiter: FetchLimiter(limit: 1))
         _ = await source.data(for: good)
         _ = await source.data(for: html)
-        #expect(disk.data(for: good) == Data([1]))
-        #expect(disk.data(for: html) == nil)
+        #expect(source.cached(for: good) == Data([1]))
+        #expect(source.cached(for: html) == nil)
     }
 
     @Test func imageNeedsAnImageContentTypeAndFullBody() async {
@@ -138,9 +127,9 @@ struct LinkMetadataSourceTests {
     /// D12: a port other than 443 is never fetched, on the first URL or a hop.
     @Test func nonDefaultPortIsNone() async throws {
         let client = FakeClient(["https://example.com/": redirect("https://example.com:8443/")])
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com:6379/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com:6379/")!) == nil)
         #expect(client.requested.isEmpty)
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == nil)
         #expect(client.requested == ["https://example.com/"])
     }
 
@@ -150,15 +139,13 @@ struct LinkMetadataSourceTests {
             "https://example.com/": redirect("/redir?to=https://a%20b"),
             "https://example.com/redir?to=https://a%20b": html(Self.page),
         ])
-        guard case .resolved = try await source(client).metadata(for: URL(string: "https://example.com/")!) else {
-            Issue.record("expected a resolved card"); return
-        }
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) != nil)
     }
 
     @Test(arguments: ["//ex%61mple.org/x", "https:\\\\ex%61mple.org", "https://ex%61mple.org/"])
     func escapedOrBackslashLocationIsNone(_ location: String) async throws {
         let client = FakeClient(["https://example.com/": redirect(location)])
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == nil)
         #expect(client.requested == ["https://example.com/"])
     }
 
@@ -166,7 +153,7 @@ struct LinkMetadataSourceTests {
     @Test(arguments: ["identity, gzip", "", "identity, "])
     func anyNonIdentityOrEmptyEncodingTokenIsNone(_ encoding: String) async throws {
         let client = FakeClient(["https://example.com/": html(Self.page, extra: ["content-encoding": encoding])])
-        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == .none)
+        #expect(try await source(client).metadata(for: URL(string: "https://example.com/")!) == nil)
     }
 
     /// D18: one deadline covers every hop, and running out throws so nothing is remembered.

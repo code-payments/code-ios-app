@@ -46,17 +46,11 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         didSet { bubble.linkCardSource = linkCardSource }
     }
 
-    /// Whether the bubble's web card asks for its page as it draws or waits for its chip. Set
-    /// before ``configure(with:maxWidth:authorImageData:quoteThumbnail:)``.
-    var webPreviewMode: WebLinkPreviewMode {
-        get { bubble.webPreviewMode }
-        set { bubble.webPreviewMode = newValue }
-    }
-
-    /// The transcript's record of the web previews its viewer asked for, shared by every row.
-    var webPreviewRequests: WebPreviewRequests {
-        get { bubble.webPreviewRequests }
-        set { bubble.webPreviewRequests = newValue }
+    /// Where the bubble's web card gets its image. Set before
+    /// ``configure(with:maxWidth:authorImageData:quoteThumbnail:)``.
+    var webImages: WebCardImages? {
+        get { bubble.webImages }
+        set { bubble.webImages = newValue }
     }
 
     var bubbleView: LinkableBubbleView { bubble }

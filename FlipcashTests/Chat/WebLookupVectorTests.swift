@@ -10,7 +10,7 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-/// Runs every `lookups` vector in link_metadata.json through the real source and response reader.
+/// Runs the `lookups` vectors in link_metadata.json through the real source and response reader.
 @Suite("WebLookupVectors")
 struct WebLookupVectorTests {
 
@@ -53,33 +53,33 @@ struct WebLookupVectorTests {
 
     private struct Fixture: Decodable { let lookups: [Lookup] }
 
+    /// Every lookup except those that start from a remembered home answer: the sender fetches
+    /// fresh each time, so it holds none.
     static let lookups: [Lookup] = {
         let bundle = Bundle(for: BundleToken.self)
         guard let url = bundle.url(forResource: "link_metadata", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let fixture = try? JSONDecoder().decode(Fixture.self, from: data) else { return [] }
-        return fixture.lookups
+        return fixture.lookups.filter { $0.cachedBefore.isEmpty }
     }()
 
     @Test func fixtureIsLoaded() {
-        #expect(Self.lookups.count == 20)
+        #expect(Self.lookups.count == 18)
     }
 
     @Test(arguments: lookups)
     func looksUpLikeTheFixture(_ lookup: Lookup) async throws {
         let client = ScriptedClient(lookup.responses)
-        let homes = HomeAnswers(lookup.cachedBefore)
         let source = PinnedLinkMetadataSource(client: client, limiter: FetchLimiter(limit: 4))
         let url = try #require(URL(string: lookup.url))
 
-        // The feed's part: a returned answer is remembered under the link's key, a failure is not.
-        let state: LinkCard.Web.State?
+        let page: LinkCard.Web.Resolved?
+        var failed = false
         do {
-            let answer = try await source.metadata(for: url, homes: homes)
-            await homes.write(answer, key: Self.key(url))
-            state = answer
+            page = try await source.metadata(for: url)
         } catch {
-            state = nil
+            page = nil
+            failed = true
         }
 
         #expect(client.requested == lookup.fetches)
@@ -87,62 +87,18 @@ struct WebLookupVectorTests {
 
         switch lookup.result {
         case "failure":
-            #expect(state == nil)
+            #expect(failed)
         case "none":
-            #expect(state == LinkCard.Web.State.none)
+            #expect(!failed)
+            #expect(page == nil)
         default:
-            #expect(Self.card(state) == lookup.card)
-        }
-
-        let written = Dictionary(await homes.written.map { ($0.key, $0.state) }, uniquingKeysWith: { $1 })
-        let expected = Dictionary(lookup.cached.map { (Self.key(URL(string: $0.key)!), $0) }, uniquingKeysWith: { $1 })
-        #expect(Set(written.keys) == Set(expected.keys))
-        for (key, entry) in expected {
-            guard let state = written[key] else { continue }
-            #expect(Self.card(state) == entry.card, "\(key)")
-            #expect((state == LinkCard.Web.State.none) == (entry.state == "none"), "\(key)")
+            #expect(Self.card(page) == lookup.card)
         }
     }
 
-    static func key(_ url: URL) -> String { LinkCard.webKey(url) }
-
-    static func card(_ state: LinkCard.Web.State?) -> Card? {
-        guard case .resolved(let resolved) = state else { return nil }
-        return Card(title: resolved.title, description: resolved.description,
-                    imageUrl: resolved.imageURL?.absoluteString, host: resolved.host)
-    }
-}
-
-/// The remembered home answers before a lookup, and every answer written during it, in order.
-private actor HomeAnswers: WebHomeAnswers {
-    private var held: [String: LinkCard.Web.State] = [:]
-    private(set) var written: [(key: String, state: LinkCard.Web.State)] = []
-
-    init(_ entries: [WebLookupVectorTests.Entry]) {
-        for entry in entries {
-            let state: LinkCard.Web.State = switch entry.card {
-            case .some(let card):
-                .resolved(LinkCard.Web.Resolved(
-                    title: card.title, description: card.description,
-                    imageURL: card.imageUrl.flatMap(URL.init(string:)), host: card.host
-                ))
-            case .none: .none
-            }
-            held[WebLookupVectorTests.key(URL(string: entry.key)!)] = state
-        }
-    }
-
-    func answer(forHome home: URL) -> LinkCard.Web.State? {
-        held[WebLookupVectorTests.key(home)]
-    }
-
-    func record(_ state: LinkCard.Web.State, forHome home: URL) {
-        write(state, key: WebLookupVectorTests.key(home))
-    }
-
-    func write(_ state: LinkCard.Web.State, key: String) {
-        held[key] = state
-        written.append((key, state))
+    static func card(_ page: LinkCard.Web.Resolved?) -> Card? {
+        page.map { Card(title: $0.title, description: $0.description,
+                        imageUrl: $0.imageURL?.absoluteString, host: $0.host) }
     }
 }
 

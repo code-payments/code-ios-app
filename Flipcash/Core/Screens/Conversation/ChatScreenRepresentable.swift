@@ -42,8 +42,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Where a link card looks its link up — see ``LinkCardFeed``. Container-scoped, so it outlives
     /// both this view and the rows that subscribe to it.
     let linkCardSource: any LinkCardSource
-    /// Whether web cards ask for their pages as they draw (DMs, members) or wait for the chip.
-    let webPreviewMode: WebLinkPreviewMode
     /// The "Update Flipcash" capsule an `.updateApp` bubble draws, or nil while no newer version is known.
     let updateAction: ChatBubbleAction?
     /// The app's toast, raised over the bar and narrowed to its width while the chat is open. Passed in:
@@ -174,7 +172,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
-        screen.webPreviewMode = webPreviewMode
         screen.updateAction = updateAction
         screen.onMediaTap = onMediaTap
         screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
@@ -234,7 +231,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
-        screen.webPreviewMode = webPreviewMode
         screen.updateAction = updateAction
         screen.onMediaTap = onMediaTap
         screen.acceptsPastedImages = acceptsMedia && editingStableID == nil

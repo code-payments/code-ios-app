@@ -180,7 +180,6 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
-        case webLinkPreviews
 
         var id: String {
             localizedTitle
@@ -192,8 +191,6 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
-            case .webLinkPreviews:
-                return "Web link previews"
             }
         }
 
@@ -203,8 +200,6 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
-            case .webLinkPreviews:
-                return "If enabled, links to other websites show a preview card"
             }
         }
 
@@ -213,7 +208,6 @@ extension BetaFlags {
             switch self {
             case .vibrateOnScan:  return .developer
             case .enableCoinbase: return .developer
-            case .webLinkPreviews: return .developer
             }
         }
 
@@ -223,7 +217,6 @@ extension BetaFlags {
             switch self {
             case .vibrateOnScan:  return false
             case .enableCoinbase: return false
-            case .webLinkPreviews: return true
             }
         }
     }

@@ -542,7 +542,7 @@ final class SessionContainer {
     /// beside the resolver because it remembers the same answers; a transcript seeds its first
     /// paint from this so a chat opened again does not flash an unresolved card it already knows.
     let linkCardMemo: LinkCardMemo
-    /// Fetches web pages' heads for web link cards, through the pinned client.
+    /// Fetches a linked page's head for the preview a sent message carries, through the pinned client.
     let linkMetadataSource: any LinkMetadataSource = PinnedLinkMetadataSource()
     /// What a link card in a transcript asks for its contents — see ``LinkCardFeed``. Lazy so it
     /// can read the resolver and memo built alongside it; container-scoped for the same reason they
@@ -628,14 +628,12 @@ final class SessionContainer {
         let coinbaseApiKey = (try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()) ?? ""
         let owner = session.ownerKeyPair
 
-        let linkCardMemo = LinkCardMemo(store: database, images: .shared)
-        self.linkCardMemo = linkCardMemo
+        self.linkCardMemo = LinkCardMemo()
         self.linkCardResolver = LinkCardResolver(
             cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
             mintLookup: LinkCardResolver.mintLookup(reader: client),
             groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
-            userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID),
-            webLookup: { [linkMetadataSource, linkCardMemo] in try await linkMetadataSource.metadata(for: $0, homes: linkCardMemo) }
+            userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID)
         )
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {

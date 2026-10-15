@@ -20,10 +20,16 @@ public enum LinkPreviewSendChecks {
 
     /// Whether `url` is a link the contract accepts and appears in `text` as a whole link.
     public static func isWholeLink(url: String, in text: String) -> Bool {
+        wholeLinkRange(url: url, in: text) != nil
+    }
+
+    /// The UTF-16 range of the first place `url` appears in `text` as a whole link, or `nil` when
+    /// it never does or is not a link the contract accepts.
+    public static func wholeLinkRange(url: String, in text: String) -> NSRange? {
         let link = Array(url.unicodeScalars)
-        guard isValidURL(link) else { return false }
+        guard isValidURL(link) else { return nil }
         let haystack = Array(text.unicodeScalars)
-        guard haystack.count >= link.count else { return false }
+        guard haystack.count >= link.count else { return nil }
 
         var start = 0
         while start <= haystack.count - link.count {
@@ -34,11 +40,14 @@ public enum LinkPreviewSendChecks {
                 var j = start + link.count
                 while j < haystack.count, trailers.contains(haystack[j]) { j += 1 }
                 let after = j == haystack.count || whiteSpace.contains(haystack[j])
-                if before && after { return true }
+                if before && after {
+                    let location = haystack[..<start].reduce(0) { $0 + $1.utf16.count }
+                    return NSRange(location: location, length: url.utf16.count)
+                }
             }
             start += 1
         }
-        return false
+        return nil
     }
 
     // MARK: - Cleaning -

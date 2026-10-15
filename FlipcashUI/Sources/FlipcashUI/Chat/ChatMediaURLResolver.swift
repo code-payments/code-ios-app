@@ -72,7 +72,18 @@ public final class ChatMediaURLResolver {
     /// to draw or the fetch failed. Follows the same rules as the callback form.
     public func thumbnailLocation(for kind: ChatQuote.Kind, canReact: Bool) async -> ChatMediaLocation? {
         guard let (blobID, sealed) = Self.thumbnailBlob(for: kind, canReact: canReact) else { return nil }
-        return await withCheckedContinuation { continuation in
+        return await location(of: blobID, sealed: sealed)
+    }
+
+    /// Where to draw `attachment` from, waiting for the fetch; nil when it has no blob or the fetch
+    /// failed. A link preview's image goes through here, sharing the photo rows' cache.
+    public func location(for attachment: MediaAttachment) async -> ChatMediaLocation? {
+        guard let blobID = attachment.blobID else { return nil }
+        return await location(of: blobID, sealed: attachment.sealed)
+    }
+
+    private func location(of blobID: BlobID, sealed: SealedBlob?) async -> ChatMediaLocation? {
+        await withCheckedContinuation { continuation in
             var resumed = false
             let immediate = resolve(blobID, sealed: sealed) { location in
                 guard !resumed else { return }

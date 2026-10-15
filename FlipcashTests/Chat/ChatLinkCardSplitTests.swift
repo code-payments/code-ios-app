@@ -50,7 +50,7 @@ struct ChatLinkCardSplitTests {
 
     /// The cash card when there is one, else the first link as a web card, as the classifier picks.
     private func cashOrWebCard(_ links: [DetectedLink]) -> LinkCard? {
-        cashCard(links) ?? links.first.map { .web(LinkCard.Web(url: $0.url, range: $0.range)) }
+        cashCard(links) ?? links.first.map { .web(LinkCard.Web(url: $0.url, range: $0.range, page: MessageLinkPreview(url: $0.url.absoluteString, title: "Example", description: nil, image: nil))) }
     }
 
     private func rows(
@@ -291,5 +291,53 @@ struct ChatLinkCardSplitTests {
         ])
         #expect(rows.map(\.joinsBubbleAbove) == [false, true, true])
         #expect(rows.map(\.joinsBubbleBelow) == [true, true, false])
+    }
+
+    // MARK: - Web cards come from the sent preview
+
+    private func page(_ url: String, title: String = "Example") -> MessageLinkPreview {
+        MessageLinkPreview(url: url, title: title, description: nil, image: nil)
+    }
+
+    private func withPreview(_ message: ConversationMessage, _ preview: MessageLinkPreview) -> ConversationMessage {
+        message.replacingContent(message.content, lastEditedTs: nil, linkPreview: preview)
+    }
+
+    @Test("A sent preview draws a web card at its link, and the text stays whole")
+    func sentPreview_drawsAWebCard() throws {
+        let link = "https://example.com/a"
+        let rows = rows([withPreview(text(1, them, "look \(link)"), page(link))])
+        #expect(rows.count == 1)
+        #expect(body(rows[0]) == "look \(link)")
+        guard case .web(let web) = rows[0].linkPreview?.card else {
+            Issue.record("expected a web card")
+            return
+        }
+        #expect(web.range == NSRange(location: 5, length: (link as NSString).length))
+        #expect(web.page.title == "Example")
+    }
+
+    @Test("A link without a sent preview draws no web card")
+    func noPreview_noWebCard() {
+        let rows = rows([text(1, them, "look https://example.com/a")])
+        #expect(rows[0].linkPreview?.card == nil)
+    }
+
+    @Test("A preview whose url is not a whole link in the text, or whose title is empty, draws nothing")
+    func invalidPreview_noWebCard() {
+        let mismatched = rows([withPreview(text(1, them, "look https://example.com/ab"), page("https://example.com/a"))])
+        #expect(mismatched[0].linkPreview?.card == nil)
+        let untitled = rows([withPreview(text(2, them, "https://example.com/a"), page("https://example.com/a", title: ""))])
+        #expect(untitled[0].linkPreview?.card == nil)
+    }
+
+    @Test("A preview of a link the composer would never fetch still draws: the sender decided")
+    func foreignPreview_stillDraws() {
+        let link = "http://example.com/a"
+        let rows = rows([withPreview(text(1, them, link), page(link))])
+        guard case .web = rows[0].linkPreview?.card else {
+            Issue.record("expected a web card")
+            return
+        }
     }
 }

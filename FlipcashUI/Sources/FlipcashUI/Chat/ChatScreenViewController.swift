@@ -236,12 +236,6 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.linkCardSource = newValue }
     }
 
-    /// ``ChatViewController/webPreviewMode``.
-    public var webPreviewMode: WebLinkPreviewMode {
-        get { transcript.webPreviewMode }
-        set { transcript.webPreviewMode = newValue }
-    }
-
     /// ``ChatViewController/updateAction``.
     public var updateAction: ChatBubbleAction? {
         get { transcript.updateAction }

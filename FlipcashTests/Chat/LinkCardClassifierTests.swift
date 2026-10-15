@@ -38,7 +38,7 @@ import FlipcashCore
                     DetectedLink(range: NSRange(location: span.start, length: span.end - span.start), url: $0)
                 }
             }
-            let actual = classifier.firstCard(in: links)
+            let actual = classifier.cardOrWebLink(in: links)
 
             guard let expected = vector.card else {
                 #expect(actual == nil, "vector `\(vector.name)`: \(vector.note)")
@@ -77,7 +77,7 @@ import FlipcashCore
         let url = try #require(URL(string: wrapper))
         let link = DetectedLink(range: NSRange(location: 0, length: (wrapper as NSString).length), url: url)
 
-        #expect(LinkCardClassifier().firstCard(in: [link]) == nil)
+        #expect(LinkCardClassifier().cardOrWebLink(in: [link]) == nil)
     }
 
     /// Not in the canonical fixture yet: Android refuses `/chat/` links until it ships the group
@@ -87,7 +87,7 @@ import FlipcashCore
         let url = try #require(URL(string: text))
         let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
 
-        let card = try #require(LinkCardClassifier().firstCard(in: [link]))
+        let card = try #require(LinkCardClassifier().cardOrWebLink(in: [link]))
         guard case .group(let group) = card else {
             Issue.record("expected a group card, got \(card.kindName)")
             return
@@ -103,7 +103,7 @@ import FlipcashCore
         let url = try #require(URL(string: text))
         let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
 
-        #expect(LinkCardClassifier().firstCard(in: [link]) == nil)
+        #expect(LinkCardClassifier().cardOrWebLink(in: [link]) == nil)
     }
 
     // MARK: - Person cards -
@@ -111,7 +111,7 @@ import FlipcashCore
     private static func card(for text: String) throws -> LinkCard? {
         let url = try #require(URL(string: text))
         let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
-        return LinkCardClassifier().firstCard(in: [link])
+        return LinkCardClassifier().cardOrWebLink(in: [link])
     }
 
     private static let userID = "2b0b4d1e-9f3e-4c21-9f1a-6d5f7c8e9a0b"
@@ -172,26 +172,15 @@ import FlipcashCore
             DetectedLink(range: NSRange(location: 0, length: 21), url: web),
             DetectedLink(range: NSRange(location: 22, length: 66), url: group),
         ]
-        #expect(LinkCardClassifier().firstCard(in: links)?.kindName == "group")
+        #expect(LinkCardClassifier().cardOrWebLink(in: links)?.kindName == "group")
     }
 
-    /// With `webLinkPreviews` off an outside link gets no card at all, so no chip and no prefetch.
-    @Test func webLinksOff_anOutsideLinkGetsNoCard() throws {
+    /// The text alone never makes a web card: that comes only from a sent preview.
+    @Test func anOutsideLinkIsNeverACardOnItsOwn() throws {
         let web = try #require(URL(string: "https://example.com/a"))
         let links = [DetectedLink(range: NSRange(location: 0, length: 21), url: web)]
-        #expect(LinkCardClassifier(webLinks: false).firstCard(in: links) == nil)
-        #expect(LinkCardClassifier(webLinks: true).firstCard(in: links)?.kindName == "web")
-    }
-
-    /// Turning web links off leaves Flipcash cards alone.
-    @Test func webLinksOff_aFlipcashCardStillDraws() throws {
-        let web = try #require(URL(string: "https://example.com/a"))
-        let group = try #require(URL(string: "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162"))
-        let links = [
-            DetectedLink(range: NSRange(location: 0, length: 21), url: web),
-            DetectedLink(range: NSRange(location: 22, length: 66), url: group),
-        ]
-        #expect(LinkCardClassifier(webLinks: false).firstCard(in: links)?.kindName == "group")
+        #expect(LinkCardClassifier().firstCard(in: links) == nil)
+        #expect(LinkCardClassifier().firstWebLink(in: links)?.url == web)
     }
 
     /// An outside link that fails the fetch rules is skipped for the next one that passes.
@@ -202,7 +191,7 @@ import FlipcashCore
             DetectedLink(range: NSRange(location: 0, length: 25), url: port),
             DetectedLink(range: NSRange(location: 26, length: 21), url: next),
         ]
-        guard case .web(let web) = LinkCardClassifier().firstCard(in: links) else {
+        guard case .web(let web) = LinkCardClassifier().cardOrWebLink(in: links) else {
             Issue.record("expected a web card")
             return
         }
@@ -235,6 +224,21 @@ import FlipcashCore
 
     @Test func theHostAllowlistMatchesTheCrossPlatformFixture() throws {
         #expect(Set(try loadFixture().cardHosts) == Route.flipcashHosts)
+    }
+}
+
+private extension LinkCardClassifier {
+    /// The Flipcash card, or else the link the composer would preview as a web card: the one
+    /// answer the shared fixture describes.
+    func cardOrWebLink(in links: [DetectedLink]) -> LinkCard? {
+        if let card = firstCard(in: links) { return card }
+        return firstWebLink(in: links).map {
+            .web(LinkCard.Web(
+                url: $0.url,
+                range: $0.range,
+                page: MessageLinkPreview(url: $0.url.absoluteString, title: "t", description: nil, image: nil)
+            ))
+        }
     }
 }
 
