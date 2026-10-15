@@ -33,4 +33,25 @@ struct JumpToBottomColumnTests {
         #expect(BarMetrics.jumpButtonGapAboveBar + BarMetrics.contentPadding == BarMetrics.jumpButtonGap)
         #expect(JumpToBottomButtonView.reach.height >= JumpToBottomButtonView.diameter + BarMetrics.jumpButtonGapAboveBar)
     }
+
+    @Test("The button takes touches on its circle and badge only, and only while shown")
+    func hitsButton_circleAndBadgeOnly() {
+        let model = JumpToBottomModel()
+        model.buttonFrame = CGRect(x: 300, y: 600, width: 44, height: 44)
+        let centre = CGPoint(x: 322, y: 622)
+        #expect(!model.hitsButton(at: centre), "Hidden")
+
+        model.isVisible = true
+        #expect(model.hitsButton(at: centre))
+        #expect(!model.hitsButton(at: CGPoint(x: 300 - 20, y: 622)), "20pt left of the circle")
+        #expect(!model.hitsButton(at: CGPoint(x: 301, y: 601)), "The square's corner")
+
+        let overhang = CGPoint(x: 346, y: 598)
+        #expect(!model.hitsButton(at: overhang), "No badge, no overhang")
+        model.unreadCount = 3
+        #expect(model.hitsButton(at: overhang))
+
+        model.isSuppressed = true
+        #expect(!model.hitsButton(at: centre))
+    }
 }

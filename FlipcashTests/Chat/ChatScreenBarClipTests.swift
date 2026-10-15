@@ -204,21 +204,29 @@ struct ChatScreenBarClipTests {
         #expect(clip.frame == clipFrame, "The clip, which rides the keyboard floor, is the composer's alone")
     }
 
-    @Test("Above the clip, only the button's band takes touches")
-    func jumpBand_takesTouchesAboveTheClipOnlyInItsBand() throws {
-        let (_, bar, _) = makeScreen()
+    @Test("Above the clip, only the visible button's circle takes touches")
+    func jumpBand_takesTouchesAboveTheClipOnlyOnTheButton() throws {
+        let (screen, bar, window) = makeScreen()
         let clip = try #require(bar.superview)
-        let reach = JumpToBottomButtonView.reach
+        let d = JumpToBottomButtonView.diameter
+        let centre = CGPoint(x: clip.bounds.width - d / 2 - 16, y: -JumpToBottomButtonView.reach.height + d / 2)
+        screen.jump.buttonFrame = CGRect(
+            origin: clip.convert(CGPoint(x: centre.x - d / 2, y: centre.y - d / 2), to: nil),
+            size: CGSize(width: d, height: d)
+        )
 
-        let inBand = CGPoint(x: clip.bounds.width - reach.width / 2, y: -reach.height / 2)
-        #expect(clip.point(inside: inBand, with: nil))
+        #expect(!clip.point(inside: centre, with: nil), "Hidden, the button takes no touches")
 
-        let beside = CGPoint(x: clip.bounds.width - reach.width - 30, y: -reach.height / 2)
-        #expect(!clip.point(inside: beside, with: nil), "A tap beside the button belongs to the transcript")
+        screen.jump.isVisible = true
+        window.layoutIfNeeded()
+        #expect(clip.point(inside: centre, with: nil))
+
+        let beside = CGPoint(x: centre.x - d / 2 - 20, y: centre.y)
+        #expect(!clip.point(inside: beside, with: nil), "A tap 20pt beside the circle belongs to the transcript")
         #expect(clip.hitTest(beside, with: nil) == nil)
 
-        let above = CGPoint(x: clip.bounds.width - reach.width / 2, y: -reach.height - 1)
-        #expect(!clip.point(inside: above, with: nil))
+        let corner = CGPoint(x: centre.x - d / 2 + 1, y: centre.y - d / 2 + 1)
+        #expect(!clip.point(inside: corner, with: nil), "The square's corner is outside the circle")
     }
 
     @Test("The room reported leaves the list out and counts the reply strip")

@@ -183,6 +183,7 @@ struct JumpToBottomOverlay: View {
             - JumpToBottomButtonView.diameter / 2
         JumpToBottomButtonView(unreadCount: jump.unreadCount, action: jump.onTap)
             .frame(width: JumpToBottomButtonView.diameter, height: JumpToBottomButtonView.diameter)
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { jump.buttonFrame = $0 }
             // Opacity only: a glass effect under a scale effect drew a shrunken copy of the screen.
             .opacity(isShown ? 1 : 0)
             // Hidden, the button also stops taking touches; opacity 0 alone would still be tappable.

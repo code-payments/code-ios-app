@@ -397,6 +397,7 @@ public final class ChatScreenViewController: UIViewController {
 
         wireJumpButton()
         barClip.overhang = JumpToBottomButtonView.reach
+        barClip.hitsJumpButton = { [weak self] windowPoint in self?.jump.hitsButton(at: windowPoint) ?? false }
         barClipHeightConstraint = constraints.clipHeight
         keyboardFloor = KeyboardFloor(view: view, bottomConstraint: constraints.bottom, keyboardEdgeConstraint: constraints.keyboardEdge)
         keyboardFloor.restingDrop = barRestingDrop
@@ -1160,6 +1161,10 @@ private final class BarClipView: UIView {
         didSet { applyClipping() }
     }
 
+    /// Whether a point in window coordinates lands on the visible jump button. Above the box, only
+    /// those points take touches: the bar's hosting view claims a wider area around its controls.
+    var hitsJumpButton: (CGPoint) -> Bool = { _ in false }
+
     /// Whether the bar is cut at the box's edges. Off while the bar overflows.
     var clipsBar = true {
         didSet { applyClipping() }
@@ -1210,7 +1215,9 @@ private final class BarClipView: UIView {
             }
             if region.contains(point) { return true }
         }
-        if clipsBar, overhang != .zero, overhangRect.contains(point) { return true }
+        if clipsBar, overhang != .zero, overhangRect.contains(point) {
+            return hitsJumpButton(convert(point, to: nil))
+        }
         return super.point(inside: point, with: event)
     }
 

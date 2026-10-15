@@ -26,8 +26,23 @@ public final class JumpToBottomModel {
 
     public init() {}
 
+    /// Where the button stands, in window coordinates, as the bar last laid it out.
+    public var buttonFrame: CGRect = .zero
+
     /// Whether the button shows and takes taps.
     public var isShown: Bool { isVisible && !isSuppressed }
+
+    /// Whether a touch at `point`, in window coordinates, lands on the visible button: its circle, or
+    /// the badge overhanging its top-trailing corner. Nothing else near the button counts.
+    public func hitsButton(at point: CGPoint) -> Bool {
+        guard isShown, !buttonFrame.isEmpty else { return false }
+        let radius = buttonFrame.width / 2
+        let centre = CGPoint(x: buttonFrame.midX, y: buttonFrame.midY)
+        if hypot(point.x - centre.x, point.y - centre.y) <= radius { return true }
+        guard unreadCount > 0 else { return false }
+        let badge = CGRect(x: buttonFrame.maxX - 22, y: buttonFrame.minY - 6, width: 28, height: 28)
+        return badge.contains(point)
+    }
 }
 
 /// The jump-to-bottom button: a 44pt circle in the composer's glass, with a chevron and an unread badge.
