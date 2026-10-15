@@ -57,10 +57,10 @@ final class ComposerModel {
     /// The preview of the draft's first web link, which a text send carries.
     let linkPreview = ComposerLinkPreview()
 
-    /// Whether the link preview's chip is drawn: while it has a link and no photo is staged, since a
-    /// caption carries no preview, and not during an edit, which sends no new one.
+    /// Whether the link preview's card is drawn: while it has a link, and not during an edit, which
+    /// sends no new one.
     var showsLinkPreview: Bool {
-        linkPreview.link != nil && chips.isEmpty && !isEditing
+        linkPreview.link != nil && !isEditing
     }
 
     /// The unsent new-message draft, held while an edit occupies the field.

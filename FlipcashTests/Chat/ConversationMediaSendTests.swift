@@ -143,6 +143,36 @@ struct ConversationMediaSendTests {
         #expect(mock.sentMedia.map(\.blobID) == [blobID("slow"), blobID("fast")])
     }
 
+    @Test("Text with a link preview posts after the photos as its own message, and no photo carries it as a caption")
+    func linkTextFollowsThePhotos() async {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        let gate = UploadGate()
+        let text = "look https://example.com/a"
+        let preview = MessageLinkPreview(url: "https://example.com/a", title: "Example", description: nil, image: nil)
+
+        let send = Task {
+            await controller.sendMedia(
+                [gatedChip(gate)],
+                caption: nil,
+                followedBy: (text: text, linkPreview: preview),
+                to: conversationID,
+                repliedTo: MessageID(value: 7)
+            )
+        }
+        await yield { pendingMedia(controller).count == 1 }
+        for _ in 0..<20 { await Task.yield() }
+        #expect(mock.sent.isEmpty, "the text waits for the photo")
+
+        gate.open(.success(blobID("photo")))
+        #expect(await send.value)
+        #expect(mock.sentMedia.map(\.caption) == [nil])
+        #expect(mock.sentMedia.map(\.repliedTo) == [MessageID(value: 7)])
+        #expect(mock.sent.map(\.text) == [text])
+        #expect(mock.sent.map(\.linkPreview) == [preview])
+        #expect(mock.sent.map(\.repliedTo) == [nil], "the reply goes on the first message only")
+    }
+
     @Test("A photo that fails to upload fails only its own bubble")
     func failedUploadFailsOnlyItsRow() async throws {
         let mock = MockConversations()
