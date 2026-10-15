@@ -51,11 +51,15 @@ struct SettingsScreen: View {
                 .padding(.bottom, 24)
             }
         }
-        // Pinned over the list on glass; the inset keeps Log Out and Delete Account clear of it.
-        .safeAreaInset(edge: .bottom) {
+        // A bar, not a plain inset, so the soft bottom scroll edge has something to draw from: the
+        // pinned card sits on glass in it, and inline the bar is empty, so rows fade at the bottom
+        // in both states. The bar's inset also keeps Log Out and Delete Account clear of the card.
+        .scrollEdgeBar(.bottom) {
             if cardState.isPinned {
                 versionCard
                     .padding(.bottom, 16)
+            } else {
+                Color.clear.frame(height: 0)
             }
         }
         .navigationTitle("Settings")
