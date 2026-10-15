@@ -23,6 +23,7 @@ struct YouScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
+    @Environment(UpdateAvailability.self) private var updateAvailability
     @Environment(RatesController.self) private var ratesController
     @Environment(ConversationController.self) private var conversationController
 
@@ -173,11 +174,19 @@ struct YouScreen: View {
         .accessibilityIdentifier("you-share")
     }
 
+    private var showsUpdateDot: Bool {
+        SettingsVersionCardState(
+            newerVersion: updateAvailability.newerVersion,
+            isDebugBuild: SettingsVersionCardState.isDebugBuild
+        ).showsGearDot
+    }
+
     private var settingsGear: some View {
         Button {
             router.push(.settings)
         } label: {
             Image(systemName: "gearshape")
+                .notificationDot(showsUpdateDot)
         }
         .accessibilityLabel("Settings")
         .accessibilityIdentifier("you-settings")
