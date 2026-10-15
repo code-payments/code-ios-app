@@ -1304,6 +1304,7 @@ struct ConversationComposer: View {
             } else if composer.showsLinkPreview {
                 ComposerLinkChip(preview: composer.linkPreview, onRemove: { composer.linkPreview.remove() })
                     .padding(.leading, Self.leadingInset - BarMetrics.fieldPadding)
+                    .padding(.trailing, Self.leadingInset - BarMetrics.fieldPadding)
                     .padding(.top, BarMetrics.fieldVerticalPadding / 2)
                     .transition(motion.stripTransition(isLanding: false))
             }

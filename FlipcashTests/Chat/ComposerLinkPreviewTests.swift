@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import Testing
 import FlipcashCore
 @testable import Flipcash
@@ -138,5 +139,65 @@ struct ComposerLinkPreviewTests {
         preview.update(for: "https://example.com/a")
         await settle(preview)
         #expect(preview.attachment(for: "https://example.com/a") == nil)
+    }
+
+    // MARK: - Image upload
+
+    private static let picture = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
+    private static let uploaded = MediaAttachment(blobID: BlobID(data: Data(repeating: 7, count: 16)), width: 4, height: 4, blurhash: nil)
+
+    /// A preview whose page has an image and whose upload waits until `release` answers it.
+    private func uploadingPreview() -> (ComposerLinkPreview, (MediaAttachment?) -> Void) {
+        let page = ComposerLinkPreview.Page(title: "Example", description: nil, image: nil, thumbnail: Self.picture)
+        let (preview, _) = preview(answering: page)
+        let (answers, answer) = AsyncStream.makeStream(of: MediaAttachment?.self)
+        preview.upload = { _ in
+            for await image in answers { return image }
+            return nil
+        }
+        return (preview, { answer.yield($0) })
+    }
+
+    private func settleUpload(_ preview: ComposerLinkPreview) async {
+        for _ in 0..<50 {
+            if case .ready(_, _, let page) = preview.state, !page.isUploadingImage { return }
+            await Task.yield()
+        }
+    }
+
+    @Test
+    func thePageShowsBeforeItsImageUploads() async {
+        let (preview, release) = uploadingPreview()
+        preview.update(for: "https://example.com/a")
+        await settle(preview)
+        guard case .ready(_, _, let page) = preview.state else { Issue.record("not ready"); return }
+        #expect(page.thumbnail != nil)
+        #expect(page.isUploadingImage)
+        #expect(preview.attachment(for: "https://example.com/a")?.image == nil)
+        release(Self.uploaded)
+        await settleUpload(preview)
+        #expect(preview.attachment(for: "https://example.com/a")?.image == Self.uploaded)
+    }
+
+    @Test
+    func aFailedUploadDropsTheThumbnail() async {
+        let (preview, release) = uploadingPreview()
+        preview.update(for: "https://example.com/a")
+        await settle(preview)
+        release(nil)
+        await settleUpload(preview)
+        guard case .ready(_, _, let page) = preview.state else { Issue.record("not ready"); return }
+        #expect(page.thumbnail == nil)
+        #expect(preview.attachment(for: "https://example.com/a")?.title == "Example")
+    }
+
+    @Test
+    func withoutAnUploaderThePageGoesWithoutItsImage() async {
+        let page = ComposerLinkPreview.Page(title: "Example", description: nil, image: nil, thumbnail: Self.picture)
+        let (preview, _) = preview(answering: page)
+        preview.update(for: "https://example.com/a")
+        await settle(preview)
+        guard case .ready(_, _, let ready) = preview.state else { Issue.record("not ready"); return }
+        #expect(ready.thumbnail == nil)
     }
 }

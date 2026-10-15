@@ -856,8 +856,10 @@ struct ConversationScreen: View {
             syncCoordinator(conversationID)
             composer.linkPreview.load = ComposerLinkPreview.loader(
                 metadata: sessionContainer.linkMetadataSource,
-                images: WebImageSource(),
-                uploader: { mediaUploader },
+                images: WebImageSource()
+            )
+            composer.linkPreview.upload = ComposerLinkPreview.uploader(
+                { mediaUploader },
                 senderID: sessionContainer.session.userID
             )
             restoreDraft(conversationID)
