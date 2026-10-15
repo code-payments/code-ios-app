@@ -611,6 +611,7 @@ nonisolated extension Database {
             var encryptedNonce: Data?
             var encryptedCiphertext: Data?
             var mediaJson: Data?
+            var linkPreviewJson: Data?
             if let sealed = message.sealed {
                 encryptedScheme = sealed.scheme
                 encryptedNonce = sealed.nonce
@@ -621,6 +622,7 @@ nonisolated extension Database {
             case .text(let value):
                 kind = 0
                 text = value
+                linkPreviewJson = try message.linkPreview.map { try JSONEncoder().encode($0) }
             case .cash(let amount):
                 kind = 1
                 quarks = amount.onChainAmount.quarks
@@ -685,7 +687,8 @@ nonisolated extension Database {
                     m.encryptedCiphertext <- encryptedCiphertext,
                     m.decryptFailure      <- message.decryptFailure?.rawValue,
                     m.reactionsJson       <- Self.encodeReactions(message.reactionState),
-                    m.mediaJson           <- mediaJson
+                    m.mediaJson           <- mediaJson,
+                    m.linkPreviewJson     <- linkPreviewJson
                 )
             )
         }
@@ -852,10 +855,12 @@ nonisolated extension Database {
 
         let content: ConversationMessage.Content
         var redacted = false
+        var linkPreview: MessageLinkPreview?
         switch row[m.kind] {
         case 0:
             guard let text = row[m.text] else { return nil }
             content = .text(text)
+            linkPreview = row[m.linkPreviewJson].flatMap { try? JSONDecoder().decode(MessageLinkPreview.self, from: $0) }
         case 1:
             guard let quarks = row[m.quarks],
                   let nativeAmount = row[m.nativeAmount].flatMap({ Decimal(string: $0) }),
@@ -923,6 +928,7 @@ nonisolated extension Database {
             eventSequence: row[m.eventSequence],
             lastEditedTs: row[m.lastEditedTs].map(Date.init(timeIntervalSinceReferenceDate:)),
             repliedTo: row[m.repliedToId].map(MessageID.init(value:)),
+            linkPreview: linkPreview,
             clientMessageID: row[m.clientMessageID],
             redacted: redacted,
             reactionState: Self.decodeReactions(row[m.reactionsJson]),

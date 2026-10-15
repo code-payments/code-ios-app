@@ -394,6 +394,8 @@ nonisolated public struct ConversationMessageTable: Sendable {
     public let reactionsJson  = Expression <Data?>         ("reactionsJson")
     // JSON-encoded `.media` payload (attachments, caption, redaction); nil for a non-media row.
     public let mediaJson      = Expression <Data?>         ("mediaJson")
+    // JSON-encoded `MessageLinkPreview` of a `.text` row; nil when it carries none.
+    public let linkPreviewJson = Expression <Data?>        ("linkPreviewJson")
 }
 
 
@@ -675,6 +677,7 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.decryptFailure)
                     t.column(conversationMessageTable.reactionsJson)
                     t.column(conversationMessageTable.mediaJson)
+                    t.column(conversationMessageTable.linkPreviewJson)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
                 })
             }

@@ -121,6 +121,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// path — link detection, the transcript mapper, the bubble, edit — sees the shape it
     /// always saw.
     public let repliedTo: MessageID?
+    /// The preview the sender built for a link in this text message, or `nil` when it carries none.
+    /// Like `repliedTo`, it decorates `.text` content rather than being a kind of its own.
+    public let linkPreview: MessageLinkPreview?
     /// Delivery state. `.sent` for every server/cache message; `.sending`/`.failed` only for an
     /// in-flight optimistic message.
     public var status: SendStatus
@@ -154,6 +157,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         eventSequence: UInt64 = 0,
         lastEditedTs: Date? = nil,
         repliedTo: MessageID? = nil,
+        linkPreview: MessageLinkPreview? = nil,
         status: SendStatus = .sent,
         clientMessageID: UUID? = nil,
         redacted: Bool = false,
@@ -171,6 +175,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.eventSequence = eventSequence
         self.lastEditedTs = lastEditedTs
         self.repliedTo = repliedTo
+        self.linkPreview = linkPreview
         self.status = status
         self.clientMessageID = clientMessageID
         self.redacted = redacted
@@ -201,7 +206,7 @@ extension ConversationMessage {
     /// A copy carrying different content. Identity, ordering, and delivery status are preserved —
     /// this exists for the optimistic mutation overlay, which changes what a message says and
     /// nothing else about where it sits.
-    public func replacingContent(_ content: Content, lastEditedTs: Date?) -> ConversationMessage {
+    public func replacingContent(_ content: Content, lastEditedTs: Date?, linkPreview: MessageLinkPreview? = nil) -> ConversationMessage {
         ConversationMessage(
             id: id,
             senderID: senderID,
@@ -213,6 +218,7 @@ extension ConversationMessage {
             eventSequence: eventSequence,
             lastEditedTs: lastEditedTs,
             repliedTo: repliedTo,
+            linkPreview: linkPreview,
             status: status,
             clientMessageID: clientMessageID,
             redacted: redacted,
@@ -247,20 +253,24 @@ extension ConversationMessage {
         }
     }
 
-    /// A copy carrying the outcome of decrypting it: the decrypted content and the message it
-    /// replies to, or the reason it failed. Everything else is kept, including the ciphertext.
-    public func opened(_ outcome: Result<(content: Content, repliedTo: MessageID?), DecryptFailure>) -> ConversationMessage {
+    /// A copy carrying the outcome of decrypting it: the decrypted content, the message it replies
+    /// to and its `linkPreview`, or the reason it failed. Everything else is kept, including the
+    /// ciphertext.
+    public func opened(_ outcome: Result<(content: Content, repliedTo: MessageID?), DecryptFailure>, linkPreview: MessageLinkPreview? = nil) -> ConversationMessage {
         let content: Content
         let repliedTo: MessageID?
+        let preview: MessageLinkPreview?
         let failure: DecryptFailure?
         switch outcome {
         case .success(let plaintext):
             content = plaintext.content
             repliedTo = plaintext.repliedTo
+            preview = linkPreview
             failure = nil
         case .failure(let reason):
             content = self.content
             repliedTo = self.repliedTo
+            preview = self.linkPreview
             failure = reason
         }
         return ConversationMessage(
@@ -274,6 +284,7 @@ extension ConversationMessage {
             eventSequence: eventSequence,
             lastEditedTs: lastEditedTs,
             repliedTo: repliedTo,
+            linkPreview: preview,
             status: status,
             clientMessageID: clientMessageID,
             redacted: redacted,
@@ -319,10 +330,12 @@ extension ConversationMessage {
     /// and can't leave the pre-delete content on screen.
     public init?(_ proto: Flipcash_Messaging_V1_Message) {
         let repliedTo: MessageID?
+        var linkPreview: MessageLinkPreview?
         var cashReceiverID: UserID?
         switch proto.content.first?.type {
         case .text(let textContent):
             self.content = .text(textContent.text)
+            linkPreview = .first(of: textContent)
             self.cashAction = nil
             repliedTo = nil
         case .cash(let cashContent):
@@ -352,6 +365,7 @@ extension ConversationMessage {
             switch replyContent.content.first?.type {
             case .text(let textContent):
                 self.content = .text(textContent.text)
+                linkPreview = .first(of: textContent)
             case .media(let mediaContent):
                 guard let content = Content(mediaContent) else { return nil }
                 self.content = content
@@ -403,6 +417,7 @@ extension ConversationMessage {
         self.eventSequence = proto.eventSequence
         self.lastEditedTs = proto.hasLastEditedTs ? proto.lastEditedTs.date : nil
         self.repliedTo = repliedTo
+        self.linkPreview = linkPreview
         self.status = .sent
         self.clientMessageID = nil
         self.redacted = proto.redacted
