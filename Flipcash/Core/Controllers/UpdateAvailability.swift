@@ -15,8 +15,9 @@ nonisolated private let logger = Logger(label: "flipcash.update-availability")
 /// may show for it.
 ///
 /// Checks the App Store lookup and the repo's release manifest when the app becomes active, at most
-/// once per ``UpdatePolicy/checkInterval``, and keeps the last result across launches. Debug,
-/// TestFlight and other non-store builds never check, so they never report an update.
+/// once per ``UpdatePolicy/checkInterval``, and keeps the last result across launches. Only a store
+/// build looks up the store, so debug, TestFlight and other builds never report a store update; every
+/// build reads the manifest for the newest TestFlight build.
 @MainActor
 @Observable
 final class UpdateAvailability {
@@ -36,6 +37,15 @@ final class UpdateAvailability {
         )
     }
 
+    /// How the installed build reached the device. Unknown (`other`) until the first check resolves it.
+    private(set) var channel: InstallChannel
+
+    /// The newest TestFlight build the manifest names, or `nil` when it hasn't been read.
+    private(set) var latestTestFlightBuild: Int?
+
+    /// The build number of the installed app, or `nil` when the bundle's isn't a number.
+    @ObservationIgnored let installedBuild: Int?
+
     private var result: UpdateCheckResult?
     private var lastShownVersion: AppVersion?
 
@@ -43,7 +53,8 @@ final class UpdateAvailability {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let fetch: @Sendable (URL) async throws -> Data
-    @ObservationIgnored private let isStoreBuild: () async -> Bool
+    @ObservationIgnored private let installChannel: () async -> InstallChannel
+    @ObservationIgnored private var lastManifestCheck: Date?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var storeDelegate: StoreProductDelegate?
     @ObservationIgnored private var shownToastID: ToastController.Toast.ID?
@@ -52,18 +63,22 @@ final class UpdateAvailability {
 
     init(
         installedVersion: String = AppMeta.version,
+        installedBuild: String = AppMeta.build,
         defaults: UserDefaults = .standard,
         now: @escaping () -> Date = Date.init,
         fetch: @escaping @Sendable (URL) async throws -> Data = UpdateAvailability.fetchFromNetwork,
-        isStoreBuild: @escaping () async -> Bool = UpdateAvailability.isRunningStoreBuild
+        installChannel: @escaping () async -> InstallChannel = UpdateAvailability.resolveInstallChannel
     ) {
         self.installedVersion = AppVersion(installedVersion)
+        self.installedBuild = Int(installedBuild)
         self.defaults = defaults
         self.now = now
         self.fetch = fetch
-        self.isStoreBuild = isStoreBuild
+        self.installChannel = installChannel
         self.result = Self.load(UpdateCheckResult.self, .updateCheckResult, from: defaults)
         self.lastShownVersion = Self.load(AppVersion.self, .updateToastShownVersion, from: defaults)
+        self.latestTestFlightBuild = Self.load(Int.self, .latestTestFlightBuild, from: defaults)
+        self.channel = Self.load(InstallChannel.self, .installChannel, from: defaults) ?? .other
         #if DEBUG
         applyDebugOverride()
         #endif
@@ -75,40 +90,49 @@ final class UpdateAvailability {
     func refresh() {
         guard refreshTask == nil else { return }
         #if DEBUG
-        if Self.debugOverride != nil { return }
+        if Self.hasDebugOverride { return }
         #endif
-        if let result, now().timeIntervalSince(result.checkedAt) < UpdatePolicy.checkInterval { return }
+        if let lastCheck = result?.checkedAt ?? lastManifestCheck,
+           now().timeIntervalSince(lastCheck) < UpdatePolicy.checkInterval { return }
         refreshTask = Task {
             await check()
             refreshTask = nil
         }
     }
 
-    /// Runs one store check and records what it found. A failed lookup reads as no update.
+    /// Runs one check and records what it found. Every build reads the manifest for the newest TestFlight
+    /// build; only a store build looks up the store, and a failed lookup reads as no update.
     func check() async {
-        guard await isStoreBuild() else {
-            result = nil
-            return
-        }
+        let channel = await installChannel()
+        self.channel = channel
+        save(channel, .installChannel)
         let checkedAt = now()
-        let country = Locale.current.region?.identifier ?? "us"
+        lastManifestCheck = checkedAt
 
-        async let lookupData = fetch(StoreRelease.lookupURL(country: country))
         async let manifestData = fetch(ReleaseManifest.url)
-
-        let release: StoreRelease?
-        do {
-            release = StoreRelease.parseLookup(try await lookupData)
-        } catch {
-            logger.warning("App Store lookup failed", metadata: ["error": "\(error)"])
-            release = nil
-        }
-
         var manifest: ReleaseManifest?
         do {
             manifest = ReleaseManifest.parse(try await manifestData)
         } catch {
             logger.warning("Release manifest fetch failed", metadata: ["error": "\(error)"])
+        }
+        if let build = manifest?.testFlightBuild {
+            latestTestFlightBuild = build
+            save(build, .latestTestFlightBuild)
+        }
+
+        guard channel == .store else {
+            result = nil
+            return
+        }
+
+        let country = Locale.current.region?.identifier ?? "us"
+        let release: StoreRelease?
+        do {
+            release = StoreRelease.parseLookup(try await fetch(StoreRelease.lookupURL(country: country)))
+        } catch {
+            logger.warning("App Store lookup failed", metadata: ["error": "\(error)"])
+            release = nil
         }
 
         guard let release else {
@@ -186,6 +210,14 @@ final class UpdateAvailability {
         }
     }
 
+    /// Opens the app's page in TestFlight, which is where a tester installs the newer build.
+    func openTestFlight() {
+        UIApplication.shared.open(URL.testFlightApplicationHome, options: [:]) { opened in
+            guard !opened else { return }
+            logger.warning("TestFlight failed to open")
+        }
+    }
+
     private static let appStoreID = 6758636374
 
     private static var topViewController: UIViewController? {
@@ -209,14 +241,18 @@ final class UpdateAvailability {
         return data
     }
 
-    /// Whether this build came from the App Store. Debug builds never do; TestFlight reports sandbox and a
-    /// build run from Xcode reports `xcode`.
-    static func isRunningStoreBuild() async -> Bool {
+    /// How this build was installed. Debug builds are `other`; TestFlight reports sandbox, the App Store
+    /// production, and a build run from Xcode reports `xcode`.
+    static func resolveInstallChannel() async -> InstallChannel {
         #if DEBUG
-        return false
+        return .other
         #else
-        guard let transaction = try? await AppTransaction.shared.payloadValue else { return false }
-        return transaction.environment == .production
+        guard let transaction = try? await AppTransaction.shared.payloadValue else { return .other }
+        switch transaction.environment {
+        case .production: return .store
+        case .sandbox: return .testFlight
+        default: return .other
+        }
         #endif
     }
 
@@ -244,7 +280,23 @@ final class UpdateAvailability {
         UserDefaults.standard.string(forKey: "UpdateAvailableOverride").flatMap(AppVersion.init)
     }
 
+    /// The channel a debug launch pretends to run on, set by `-InstallChannelOverride store|testFlight`.
+    private static var channelOverride: InstallChannel? {
+        UserDefaults.standard.string(forKey: "InstallChannelOverride").flatMap(InstallChannel.init)
+    }
+
+    /// The newest TestFlight build a debug launch pretends to find, set by `-TestFlightBuildOverride <build>`.
+    private static var testFlightBuildOverride: Int? {
+        UserDefaults.standard.object(forKey: "TestFlightBuildOverride") as? Int
+    }
+
+    private static var hasDebugOverride: Bool {
+        debugOverride != nil || channelOverride != nil || testFlightBuildOverride != nil
+    }
+
     private func applyDebugOverride() {
+        if let channel = Self.channelOverride { self.channel = channel }
+        if let build = Self.testFlightBuildOverride { latestTestFlightBuild = build }
         guard let version = Self.debugOverride else { return }
         result = UpdateCheckResult(
             release: StoreRelease(version: version, releasedAt: now()),

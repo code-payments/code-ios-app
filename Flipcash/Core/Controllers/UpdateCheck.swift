@@ -104,10 +104,23 @@ nonisolated struct StoreRelease: Codable, Equatable, Sendable {
     }
 }
 
-/// The release manifest published from the repo, which marks how urgent the production version is.
+/// How the installed build reached the device, which decides what an update means for it.
+nonisolated enum InstallChannel: String, Codable, Equatable, Sendable {
+    /// Installed from the App Store.
+    case store
+    /// Installed from TestFlight, which StoreKit reports as the sandbox environment.
+    case testFlight
+    /// Run from Xcode or any other source: it can't be updated from the store or TestFlight.
+    case other
+}
+
+/// The release manifest published from the repo, which marks how urgent the production version is
+/// and which TestFlight build is the newest.
 nonisolated struct ReleaseManifest: Equatable, Sendable {
     let productionVersion: AppVersion
     let priority: Int
+    /// The newest build TestFlight has, or `nil` when the manifest doesn't carry one.
+    let testFlightBuild: Int?
 
     /// Where the manifest is read from.
     static let url = URL(string: "https://raw.githubusercontent.com/code-payments/code-ios-app/main/.well-known/release-manifest.json")!
@@ -119,12 +132,20 @@ nonisolated struct ReleaseManifest: Equatable, Sendable {
                 let version: String
                 let priority: Int
             }
+            struct TestFlight: Decodable {
+                let build: Int
+            }
             let production: Production
+            let testflight: TestFlight?
         }
         guard let body = try? JSONDecoder().decode(Body.self, from: data),
               let version = AppVersion(body.production.version)
         else { return nil }
-        return ReleaseManifest(productionVersion: version, priority: body.production.priority)
+        return ReleaseManifest(
+            productionVersion: version,
+            priority: body.production.priority,
+            testFlightBuild: body.testflight?.build
+        )
     }
 
     /// The priority this manifest gives `version`: its own priority when it names that version, else 0.

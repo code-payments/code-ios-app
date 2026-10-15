@@ -13,6 +13,8 @@ name: Deploy to TestFlight (Xcode Cloud)
 #   APP_IDENTIFIER   - App bundle identifier
 #   TESTFLIGHT_GROUP - default TestFlight group to assign builds to
 #                      (kept in secrets so the name stays out of the repo)
+#   BOT_GITHUB_TOKEN - admin-owned PAT that can push to main, used to commit the
+#                      release manifest (GITHUB_TOKEN cannot push to main here)
 #
 # The optional "notes" input overwrites the build's TestFlight "What to Test"
 # after it processes; leaving it blank keeps whatever Xcode Cloud attached from
@@ -92,3 +94,40 @@ jobs:
             *) args+=(group:"$GROUP_INPUT") ;;
           esac
           fastlane deploy "${args[@]}"
+
+      - name: Checkout main for the release manifest
+        if: ${{ inputs.wait }}
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: manifest-main
+          persist-credentials: false   # push with the PAT below, not GITHUB_TOKEN
+
+      - name: Update release manifest
+        if: ${{ inputs.wait }}
+        working-directory: manifest-main
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          APP_IDENTIFIER: ${{ secrets.APP_IDENTIFIER }}
+        run: fastlane update_release_manifest
+
+      - name: Commit & push release manifest to main
+        if: ${{ inputs.wait }}
+        working-directory: manifest-main
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .well-known/release-manifest.json
+          if git diff --cached --quiet; then
+            echo "Release manifest already current — nothing to commit."
+            exit 0
+          fi
+          git commit -m "build: update release manifest"
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git pull --rebase "$REMOTE" main
+          git push "$REMOTE" HEAD:main

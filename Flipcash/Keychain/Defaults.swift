@@ -30,6 +30,8 @@ enum DefaultsKey: String {
 
     case updateCheckResult = "com.flipcash.update.checkResult"
     case updateToastShownVersion = "com.flipcash.update.toastShownVersion"
+    case installChannel = "com.flipcash.update.installChannel"
+    case latestTestFlightBuild = "com.flipcash.update.latestTestFlightBuild"
 }
 
 private let defaultsEncoder = JSONEncoder()

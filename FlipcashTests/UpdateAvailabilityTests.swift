@@ -124,7 +124,7 @@ import FlipcashUI
     """.utf8)
 
     private func sut(
-        isStoreBuild: Bool = true,
+        channel: InstallChannel = .store,
         lookup: Data = staleLookup,
         manifest: Data? = nil,
         at date: Date? = nil
@@ -141,7 +141,7 @@ import FlipcashUI
                 }
                 return lookup
             },
-            isStoreBuild: { isStoreBuild }
+            installChannel: { channel }
         )
     }
 
@@ -153,10 +153,44 @@ import FlipcashUI
     }
 
     @Test func nonStoreBuildNeverReportsAnUpdate() async {
-        let updates = sut(isStoreBuild: false)
+        let updates = sut(channel: .other)
         await updates.check()
         #expect(updates.newerVersion == nil)
         #expect(!updates.isToastEligible)
+    }
+
+    @Test func testFlightBuildComesFromTheManifestOnEveryChannel() async {
+        let manifest = Data(#"{"production":{"version":"2026.10.2","priority":0},"testflight":{"build":281}}"#.utf8)
+        for channel in [InstallChannel.store, .testFlight, .other] {
+            let updates = sut(channel: channel, manifest: manifest)
+            await updates.check()
+            #expect(updates.latestTestFlightBuild == 281)
+            #expect(updates.channel == channel)
+        }
+    }
+
+    @Test func testFlightInstallNeverLooksUpTheStore() async {
+        let manifest = Data(#"{"production":{"version":"2026.10.2","priority":0},"testflight":{"build":281}}"#.utf8)
+        let updates = sut(channel: .testFlight, manifest: manifest)
+        await updates.check()
+        #expect(updates.newerVersion == nil)
+        #expect(updates.latestTestFlightBuild == 281)
+    }
+
+    @Test func channelAndTestFlightBuildSurviveRelaunch() async {
+        let manifest = Data(#"{"production":{"version":"2026.10.2","priority":0},"testflight":{"build":281}}"#.utf8)
+        await sut(channel: .testFlight, manifest: manifest).check()
+        let relaunched = sut(channel: .testFlight)
+        #expect(relaunched.channel == .testFlight)
+        #expect(relaunched.latestTestFlightBuild == 281)
+    }
+
+    @Test func manifestWithoutTestFlightLeavesTheBuildUnknown() async {
+        let manifest = Data(#"{"production":{"version":"2026.10.2","priority":0}}"#.utf8)
+        let updates = sut(manifest: manifest)
+        await updates.check()
+        #expect(updates.latestTestFlightBuild == nil)
+        #expect(ReleaseManifest.parse(manifest)?.testFlightBuild == nil)
     }
 
     @Test func failedLookupIsNoUpdate() async {
@@ -165,7 +199,7 @@ import FlipcashUI
             defaults: defaults,
             now: { now },
             fetch: { _ in throw URLError(.notConnectedToInternet) },
-            isStoreBuild: { true }
+            installChannel: { .store }
         )
         await updates.check()
         #expect(updates.newerVersion == nil)

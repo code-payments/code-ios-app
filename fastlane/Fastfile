@@ -25,6 +25,7 @@
 require "net/http"
 require "json"
 require "spaceship"
+require_relative "release_manifest"
 
 default_platform(:ios)
 
@@ -89,6 +90,7 @@ platform :ios do
     set_review_notes(review_notes) if review_notes
 
     submit_to_app_review(version, build_number, phased)
+    record_release_in_manifest(version)
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -720,6 +722,42 @@ platform :ios do
       UI.user_error!("Timed out after #{timeout / 60} min waiting for a processed build") if waited >= timeout
       sleep(interval)
       waited += interval
+    end
+  end
+
+  # ── Release manifest ─────────────────────────────────────────────────
+
+  RELEASE_MANIFEST_PATH = File.expand_path("../.well-known/release-manifest.json", __dir__)
+
+  # The newest iOS build that has finished processing, as its build number, or nil when none has.
+  def newest_processed_build_number(app)
+    Spaceship::ConnectAPI.get_builds(
+      filter: { app: app.id, processingState: "VALID" },
+      includes: Spaceship::ConnectAPI::Build::ESSENTIAL_INCLUDES,
+      sort: "-uploadedDate",
+      limit: 10
+    ).to_models.find { |b| b.pre_release_version&.platform == Spaceship::ConnectAPI::Platform::IOS }&.version
+  end
+
+  desc "Raise testflight.build in .well-known/release-manifest.json to the newest processed build"
+  desc "Usage: fastlane update_release_manifest"
+  desc "Edits the working tree only; the deploy workflow commits it to main. Never lowers the build."
+  lane :update_release_manifest do
+    build_number = newest_processed_build_number(asc_app)
+    UI.message("Newest processed TestFlight build: #{build_number || '(none)'}")
+
+    manifest, changed = ReleaseManifest.update_file(RELEASE_MANIFEST_PATH, testflight_build: build_number)
+    UI.message(changed ? "Release manifest now: #{JSON.generate(manifest)}" : "Release manifest already current")
+  end
+
+  # Records the version being released as production.version and resets production.priority to 0.
+  # Working tree only: commit .well-known/release-manifest.json to main with the release.
+  def record_release_in_manifest(version)
+    manifest, changed = ReleaseManifest.update_file(RELEASE_MANIFEST_PATH, release_version: version)
+    if changed
+      UI.success("Release manifest now: #{JSON.generate(manifest)}. Commit .well-known/release-manifest.json to main.")
+    else
+      UI.message("Release manifest already names #{version} at priority 0")
     end
   end
 
