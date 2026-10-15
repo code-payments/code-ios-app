@@ -177,7 +177,11 @@ struct YouScreen: View {
     private var showsUpdateDot: Bool {
         SettingsVersionCardState(
             newerVersion: updateAvailability.newerVersion,
-            isDebugBuild: SettingsVersionCardState.isDebugBuild
+            isDebugBuild: SettingsVersionCardState.isDebugBuild,
+            channel: updateAvailability.channel,
+            installedBuild: updateAvailability.installedBuild,
+            latestTestFlightBuild: updateAvailability.latestTestFlightBuild,
+            isStaff: sessionContainer.session.isStaff
         ).showsGearDot
     }
 

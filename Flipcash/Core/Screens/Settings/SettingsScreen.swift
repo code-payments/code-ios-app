@@ -170,13 +170,20 @@ struct SettingsScreen: View {
     private var cardState: SettingsVersionCardState {
         SettingsVersionCardState(
             newerVersion: updateAvailability.newerVersion,
-            isDebugBuild: SettingsVersionCardState.isDebugBuild
+            isDebugBuild: SettingsVersionCardState.isDebugBuild,
+            channel: updateAvailability.channel,
+            installedBuild: updateAvailability.installedBuild,
+            latestTestFlightBuild: updateAvailability.latestTestFlightBuild,
+            isStaff: session.isStaff
         )
     }
 
     private var versionCard: some View {
         SettingsVersionCard(state: cardState, onTapVersion: registerVersionTap) {
-            updateAvailability.openStore()
+            switch cardState {
+            case .testFlightUpdate, .testFlightNewer: updateAvailability.openTestFlight()
+            case .updateAvailable, .upToDate, .debug: updateAvailability.openStore()
+            }
         }
     }
 
