@@ -153,7 +153,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // indicator's safe area. Left to respect that safe area, the bar pushes its content up by
         // however far it rests into it, past the clip's top edge.
         barHost.safeAreaRegions = []
-        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost, jump: jump)
+        let jumpHost = UIHostingController(rootView: JumpToBottomOverlay(jump: jump, model: barModel))
+        jumpHost.view.backgroundColor = .clear
+        // The badge stands past the button's top edge.
+        jumpHost.view.clipsToBounds = false
+        jumpHost.safeAreaRegions = []
+        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost, jump: jump, jumpButtonController: jumpHost)
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
@@ -334,7 +339,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onSendCash: onSendCash,
                 model: barModel,
                 composer: composer,
-                jump: coordinator.jump,
                 gate: gate,
                 gateMintName: gateMintName,
                 gateShortfall: gateShortfall,
@@ -380,7 +384,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     @MainActor final class Coordinator {
         var barHost: UIHostingController<AnyView>?
-        /// What the bar's jump-to-bottom button shows; handed to the screen that drives it.
+        /// What the jump-to-bottom button shows; handed to the screen that drives it.
         var jump: JumpToBottomModel?
         weak var screen: ChatScreenViewController?
         let model: ConversationBarModel

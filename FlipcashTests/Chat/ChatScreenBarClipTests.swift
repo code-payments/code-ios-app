@@ -204,21 +204,38 @@ struct ChatScreenBarClipTests {
         #expect(clip.frame == clipFrame, "The clip, which rides the keyboard floor, is the composer's alone")
     }
 
-    @Test("Above the clip, only the button's band takes touches")
-    func jumpBand_takesTouchesAboveTheClipOnlyInItsBand() throws {
-        let (_, bar, _) = makeScreen()
+    @Test("The button's box stands on the clip's edge through a reply, and takes only the button's touches")
+    func jumpButton_ridesTheClipEdgeAndPassesOtherTouchesThrough() throws {
+        let buttonHost = UIViewController()
+        // SwiftUI answers a hit on its content with the hosting view itself, not a subview.
+        let button = UIView(frame: CGRect(x: 320, y: 20, width: 44, height: 44))
+        button.isUserInteractionEnabled = false
+        buttonHost.view.addSubview(button)
+        let bar = UIView()
+        let screen = ChatScreenViewController(bar: bar, jumpButtonController: buttonHost)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = screen
+        window.makeKeyAndVisible()
         let clip = try #require(bar.superview)
-        let reach = JumpToBottomButtonView.reach
+        let box = try #require(buttonHost.view.superview)
 
-        let inBand = CGPoint(x: clip.bounds.width - reach.width / 2, y: -reach.height / 2)
-        #expect(clip.point(inside: inBand, with: nil))
+        for (height, open, exiting) in [(composerRow, [], 0), (composerRow + strip, [.reply], 0), (composerRow + strip, [], strip)] as [(CGFloat, Set<BarAccessories.Kind>, CGFloat)] {
+            report(screen, height, open: open, exiting: exiting)
+            window.layoutIfNeeded()
+            #expect(box.frame.maxY == clip.frame.minY)
+            #expect(box.frame.height == JumpToBottomButtonView.reach.height)
+        }
 
-        let beside = CGPoint(x: clip.bounds.width - reach.width - 30, y: -reach.height / 2)
-        #expect(!clip.point(inside: beside, with: nil), "A tap beside the button belongs to the transcript")
-        #expect(clip.hitTest(beside, with: nil) == nil)
-
-        let above = CGPoint(x: clip.bounds.width - reach.width / 2, y: -reach.height - 1)
-        #expect(!clip.point(inside: above, with: nil))
+        let onButton = button.convert(CGPoint(x: 22, y: 22), to: window)
+        screen.jump.isVisible = true
+        #expect(window.hitTest(onButton, with: nil) === buttonHost.view, "The button takes its own tap")
+        screen.jump.isVisible = false
+        #expect(window.hitTest(onButton, with: nil) !== buttonHost.view, "A hidden button takes nothing")
+        screen.jump.isVisible = true
+        let beside = button.convert(CGPoint(x: -100, y: 22), to: window)
+        let hit = window.hitTest(beside, with: nil)
+        #expect(hit !== box && hit !== buttonHost.view, "A tap beside the button belongs to the transcript")
+        #expect(!clip.point(inside: CGPoint(x: clip.bounds.width - 22, y: -22), with: nil), "The clip takes nothing above its edge")
     }
 
     @Test("The room reported leaves the list out and counts the reply strip")

@@ -35,8 +35,7 @@ public struct JumpToBottomButtonView: View {
 
     public static let diameter: CGFloat = 44
     /// The area above the bar's top edge, from its trailing side, that the button and its badge
-    /// occupy, with room to spare for the gap the bar leaves under it. The bar's clip leaves it
-    /// uncut and lets touches in it through to the button.
+    /// occupy, with the gap the bar leaves under the button. Touches in it go to the button.
     public static let reach = CGSize(width: 88, height: 20 + diameter + 12)
     private static let badgeHeight: CGFloat = 22
 
