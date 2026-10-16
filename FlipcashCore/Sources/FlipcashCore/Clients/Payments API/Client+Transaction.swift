@@ -61,6 +61,25 @@ extension Client {
         }
     }
 
+    /// Pays two to ten recipients from `owner` in one intent. Not yet called by the app; the
+    /// reaction-boost flow is its first consumer.
+    public func transferMultiple(payments: [(destination: PublicKey, destinationOwner: PublicKey?, exchangedFiat: ExchangedFiat)], verifiedState: VerifiedState, owner: AccountCluster, chatMetadata: ChatPaymentMetadata? = nil, rendezvous: PublicKey) async throws {
+        let appMetadata = try chatMetadata?.serializedAppMetadata()
+        let payments = payments.map {
+            IntentMultiTransfer.Payment(destination: $0.destination, destinationOwner: $0.destinationOwner, exchangedFiat: $0.exchangedFiat)
+        }
+        _ = try await withCheckedThrowingContinuation { c in
+            transactionService.transferMultiple(
+                payments: payments,
+                verifiedState: verifiedState,
+                sourceCluster: owner,
+                appMetadata: appMetadata,
+                owner: owner.authority.keyPair,
+                rendezvous: rendezvous
+            ) { c.resume(with: $0) }
+        }
+    }
+
     public func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: TokenAmount, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(

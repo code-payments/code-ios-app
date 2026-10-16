@@ -499,7 +499,7 @@ final class ChatMessagingService: Sendable {
         switch error {
         case .ok:
             return response.hasReaction ? .success(EmojiReaction(response.reaction)) : .failure(.unknown)
-        case .denied, .messageNotFound, .unknown, .transportFailure, .cancelled, .rejected:
+        case .denied, .messageNotFound, .cannotRemoveBoosted, .unknown, .transportFailure, .cancelled, .rejected:
             return .failure(error)
         }
     }
@@ -752,6 +752,8 @@ public enum ErrorRemoveReaction: Int, Error {
     case ok
     case denied
     case messageNotFound
+    /// The caller paid to boost the emoji, and a boosted reaction is permanent.
+    case cannotRemoveBoosted
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -795,7 +797,7 @@ extension ErrorRemoveReaction: ServerError, TransportClassifiableError {
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .messageNotFound: .info
+        case .denied, .messageNotFound, .cannotRemoveBoosted: .info
         case .unknown, .rejected: .error
         }
     }
@@ -804,6 +806,7 @@ extension ErrorRemoveReaction: ServerError, TransportClassifiableError {
     public var reactionFailure: ReactionFailure {
         switch self {
         case .messageNotFound: .messageNotFound
+        case .cannotRemoveBoosted: .cannotRemoveBoosted
         case .denied: .denied
         case .ok, .unknown, .transportFailure, .cancelled, .rejected: .network
         }

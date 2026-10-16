@@ -62,6 +62,8 @@ public enum ReactionFailure: Hashable, Sendable {
     case messageNotFound
     case cannotReact
     case tooManyReactionTypes
+    /// A remove was refused because the caller boosted the reaction, which is permanent.
+    case cannotRemoveBoosted
 
     /// The error to show the user for this failure, or nil when the rollback is silent.
     public var userError: ReactionError? {
@@ -70,7 +72,7 @@ public enum ReactionFailure: Hashable, Sendable {
             return .reactionFailed
         case .tooManyReactionTypes:
             return .tooManyReactionTypes
-        case .messageNotFound, .cannotReact:
+        case .messageNotFound, .cannotReact, .cannotRemoveBoosted:
             return nil
         }
     }

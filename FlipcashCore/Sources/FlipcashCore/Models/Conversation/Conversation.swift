@@ -77,7 +77,14 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// server's copy refreshes it.
     public var inLobby: Bool
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false, description: String? = nil, coverPicture: ProfilePicture? = nil) {
+    /// What the group's members hold of the currency it is gated on. Only set for a public group
+    /// gated on a single Flipcash-launched currency, and only above the server's minimum holder
+    /// count. A periodic snapshot with no change events, so it refreshes by refetching the chat.
+    /// Not persisted: a conversation restored from the local database reports `nil` until the
+    /// server's copy refreshes it.
+    public var holdingsSummary: HoldingsSummary?
+
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false, description: String? = nil, coverPicture: ProfilePicture? = nil, holdingsSummary: HoldingsSummary? = nil) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -96,6 +103,7 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.useE2Ee = useE2Ee
         self.isPrivate = isPrivate
         self.inLobby = inLobby
+        self.holdingsSummary = holdingsSummary
     }
 }
 
@@ -185,6 +193,7 @@ extension Conversation {
         self.useE2Ee = proto.useE2Ee
         self.isPrivate = proto.isPrivate
         self.inLobby = proto.inLobby
+        self.holdingsSummary = proto.hasHoldingsSummary ? HoldingsSummary(proto.holdingsSummary) : nil
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.

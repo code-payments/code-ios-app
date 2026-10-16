@@ -82,6 +82,37 @@ final class TransactionService: Sendable {
         }
     }
 
+    func transferMultiple(payments: [IntentMultiTransfer.Payment], verifiedState: VerifiedState, sourceCluster: AccountCluster, appMetadata: Data? = nil, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+        logger.info("Sending multi-payment transfer", metadata: ["payments": "\(payments.count)"])
+
+        let intent: IntentMultiTransfer
+        do {
+            intent = try IntentMultiTransfer(
+                rendezvous: rendezvous,
+                sourceCluster: sourceCluster,
+                payments: payments,
+                verifiedState: verifiedState,
+                appMetadata: appMetadata
+            )
+        } catch {
+            logger.error("Invalid multi-payment transfer", metadata: ["error": "\(error)"])
+            completion(.failure(error))
+            return
+        }
+
+        submit(intent: intent, owner: owner) { result in
+            switch result {
+            case .success(_):
+                logger.info("Multi-payment transfer succeeded")
+                completion(.success(()))
+
+            case .failure(let error):
+                logger.error("Multi-payment transfer failed", metadata: ["error": "\(error)"])
+                completion(.failure(error))
+            }
+        }
+    }
+
     func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: TokenAmount, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Sending withdrawal")
 

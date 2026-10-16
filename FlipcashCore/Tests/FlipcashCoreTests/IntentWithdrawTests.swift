@@ -103,7 +103,7 @@ struct IntentWithdrawTests {
         switch metadata.type {
         case .sendPublicPayment:
             break
-        case .openAccounts, .receivePaymentsPublicly, .publicDistribution, .none:
+        case .openAccounts, .receivePaymentsPublicly, .publicDistribution, .sendPublicMultiPayment, .none:
             Issue.record("Expected sendPublicPayment metadata")
             return
         }
