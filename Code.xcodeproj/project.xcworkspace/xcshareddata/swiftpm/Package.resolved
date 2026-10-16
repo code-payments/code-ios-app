@@ -1,5 +1,5 @@
 {
-  "originHash" : "d61d3d0a8bd1078b5f85476541742804facb4c56b3b33fa2f04e283ed039e8be",
+  "originHash" : "44c64715516fa049f4ec78036ea21f0acae42d360ae655fde887e6a92f4c7d48",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -213,8 +213,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/ocp-client-protocol",
       "state" : {
-        "revision" : "756e3724c217f556d9cb8799037f5ff8a216ac06",
-        "version" : "0.7.0"
+        "revision" : "01b4f913f076e03732d7aed0e19a689cce14ab07",
+        "version" : "0.8.0"
       }
     },
     {
