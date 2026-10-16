@@ -108,6 +108,9 @@ nonisolated struct LinkCardClassifier {
             // anything is a question only the lookup can answer.
             return .token(LinkCard.Token(url: target, mint: mint, range: link.range))
 
+        case .chatMessage(let chatID, let messageID):
+            return .message(LinkCard.Message(url: target, chatID: chatID, messageID: messageID, range: link.range))
+
         case .chat(let chatID):
             // A group invite. Whether the id names a group this viewer can see is, as with a mint,
             // a question for the lookup; a chat that turns out not to exist renders unavailable.

@@ -160,4 +160,91 @@ struct DeepLinkControllerTests {
         _ = controller.open(url)
         try await waitUntil { controller.open(url) == false }
     }
+
+    // MARK: - Chat links -
+
+    private static let chatID = ConversationID(data: Data((0..<32).map { UInt8($0) }))
+
+    private static func chatLink(_ tail: String = "") -> URL {
+        URL(string: "https://app.flipcash.com/chat/\(chatID.linkPathComponent)\(tail)")!
+    }
+
+    @Test("A message link opens the chat on that message")
+    func messageLink_opensChatMessage() throws {
+        let kind = try #require(makeController().handle(open: Self.chatLink("/m/42"))?.kind)
+        guard case .chatMessage(let chatID, let messageID) = kind else {
+            Issue.record("/m/{seq} should dispatch .chatMessage, got \(kind.analyticsName)")
+            return
+        }
+        #expect(chatID == Self.chatID)
+        #expect(messageID == MessageID(value: 42))
+    }
+
+    @Test(
+        "A message link built for sharing routes back to the same chat and message",
+        arguments: [
+            // A DM's 32-byte id travels as base64url.
+            ConversationID(data: Data((0..<32).map { UInt8($0) })),
+            // A group's 16-byte id travels as its dashed UUID.
+            ConversationID(data: UUID(uuidString: "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b")!.data),
+        ]
+    )
+    func builtMessageLink_roundTrips(chatID: ConversationID) throws {
+        let link = URL.messageLink(in: chatID, messageID: MessageID(value: 1180))
+        let kind = try #require(makeController().handle(open: link)?.kind)
+        guard case .chatMessage(let parsedID, let messageID) = kind else {
+            Issue.record("\(link) should dispatch .chatMessage, got \(kind.analyticsName)")
+            return
+        }
+        #expect(parsedID == chatID)
+        #expect(messageID == MessageID(value: 1180))
+    }
+
+    @Test("A bare chat link still opens the chat")
+    func chatLink_opensChat() throws {
+        let kind = try #require(makeController().handle(open: Self.chatLink())?.kind)
+        guard case .chat(let chatID) = kind else {
+            Issue.record("/chat/{id} should dispatch .chat, got \(kind.analyticsName)")
+            return
+        }
+        #expect(chatID == Self.chatID)
+    }
+
+    @Test("The Send Cash chat link still opens Send Cash")
+    func sendCashLink_opensSendCash() throws {
+        let kind = try #require(makeController().handle(open: Self.chatLink("/send"))?.kind)
+        guard case .chatSendCash(let chatID) = kind else {
+            Issue.record("/chat/{id}/send should dispatch .chatSendCash, got \(kind.analyticsName)")
+            return
+        }
+        #expect(chatID == Self.chatID)
+    }
+
+    @Test("A message link whose sequence isn't a number opens the chat",
+          arguments: ["/m/abc", "/m/", "/m/-1", "/m"])
+    func malformedMessageLink_opensChat(tail: String) throws {
+        let kind = try #require(makeController().handle(open: Self.chatLink(tail))?.kind)
+        guard case .chat(let chatID) = kind else {
+            Issue.record("\(tail) should fall back to .chat, got \(kind.analyticsName)")
+            return
+        }
+        #expect(chatID == Self.chatID)
+    }
+
+    @Test("A message link lands in a readable chat and drops the message for a private outsider")
+    func chatDestination_withLanding() {
+        let landing = MessageLanding(messageID: MessageID(value: 42), returnTo: nil)
+        #expect(
+            DeepLinkAction.chatDestination(for: .group, conversationID: Self.chatID, landing: landing)
+                == .chatMessage(Self.chatID, landing)
+        )
+        #expect(
+            DeepLinkAction.chatDestination(for: .tipDm, conversationID: Self.chatID, landing: landing)
+                == .chatMessage(Self.chatID, landing)
+        )
+        #expect(
+            DeepLinkAction.chatDestination(for: .group, isPrivateOutsider: true, conversationID: Self.chatID, landing: landing)
+                == .chatProfile(Self.chatID, origin: .featuredGroup)
+        )
+    }
 }

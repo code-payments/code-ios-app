@@ -244,6 +244,11 @@ struct DestinationView: View {
             ConversationScreen(context: .existing(conversationID), openKeyboard: true)
                 .id(conversationID)
 
+        case .chatMessage(let conversationID, let landing):
+            // A message link: same screen, opened on the linked message.
+            ConversationScreen(context: .existing(conversationID), landing: landing)
+                .id(conversationID)
+
         case .userProfile(let userID, let origin):
             UserProfileScreen(userID: userID, origin: origin)
                 .id(userID)

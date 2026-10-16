@@ -137,7 +137,7 @@ class ScanViewModel {
     /// so nothing vouched for its host, and `Route` matches on path alone — ungated, a Discord
     /// invite scans as a handle and a stranger's `/c/#/e=…` scans as a cash link.
     ///
-    /// Then the route: an allowlist of `.cash`, `.token`, `.tip`, `.profile`, `.username`, and `.chat`, with
+    /// Then the route: an allowlist of `.cash`, `.token`, `.tip`, `.profile`, `.username`, `.chat`, and `.chatMessage`, with
     /// every other route refused by name — including the security-sensitive `.login` and
     /// `.verifyEmail`. A new `Route.Path` case is refused until someone adds it here.
     ///
@@ -154,8 +154,8 @@ class ScanViewModel {
         case .cash, .token, .tip, .profile, .username:
             return true
         // A group's invite link is printed as a QR; opening it lands on the
-        // transcript, which gates the join itself.
-        case .chat:
+        // transcript, which gates the join itself. A message link lands on the same transcript.
+        case .chat, .chatMessage:
             return true
         case .login, .verifyEmail, .chatSendCash, .give, .balance, .discover, .unknown:
             return false

@@ -45,8 +45,9 @@ final class DeepLinkController {
 
     /// The canonical deep-link entry: dedups opens of the same URL within a short window, records
     /// analytics, and executes the parsed action. Returns false when the URL parses to no action.
+    /// `sourceChat` is the chat the link was tapped in, which a message link offers a way back to.
     @discardableResult
-    func open(_ url: URL, origin: DeepLinkOrigin = .link) -> Bool {
+    func open(_ url: URL, origin: DeepLinkOrigin = .link, sourceChat: ConversationID? = nil) -> Bool {
         // Drop duplicate deliveries: a second claim is rejected server-side as
         // stale state and surfaces as a false error after the first succeeded.
         // A scene link can arrive twice — once from `SceneDelegate`, and
@@ -61,6 +62,7 @@ final class DeepLinkController {
         Analytics.deeplinkOpened(url: url)
         var action = handle(open: url)
         action?.origin = origin
+        action?.sourceChat = sourceChat
         // Only record a parse result for URLs that resolve to an action. Chat links now route through
         // here too, and most are ordinary web URLs — logging every non-match as a "failed to parse"
         // error would bury genuine deep-link parse failures in expected noise.
@@ -166,6 +168,9 @@ final class DeepLinkController {
         case .chatSendCash(let conversationID):
             return action(.chatSendCash(conversationID))
 
+        case .chatMessage(let conversationID, let messageID):
+            return action(.chatMessage(conversationID, messageID))
+
         case .tip(let userID):
             return action(.tip(userID))
 
@@ -202,6 +207,9 @@ struct DeepLinkAction {
 
     /// Where the URL that produced this action entered the app.
     var origin: DeepLinkOrigin = .link
+
+    /// The chat the link was tapped in, or nil when it came from outside a chat.
+    var sourceChat: ConversationID?
     
     private let sessionAuthenticator: SessionAuthenticator
     
@@ -221,7 +229,14 @@ struct DeepLinkAction {
     ///
     /// `GetGroupChatFeed` carries only the groups the user has joined, so for a group they have not
     /// joined this link is the only way in — and the screen it lands on is the one that offers the join.
-    private static func routeChat(_ conversationID: ConversationID, origin: DeepLinkOrigin, in container: SessionContainer) async {
+    ///
+    /// `landing` names the message a message link points at; the transcript opens on it.
+    private static func routeChat(
+        _ conversationID: ConversationID,
+        landing: MessageLanding? = nil,
+        origin: DeepLinkOrigin,
+        in container: SessionContainer
+    ) async {
         let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
 
         let isPrivateOutsider = conversation.map {
@@ -230,7 +245,8 @@ struct DeepLinkAction {
         guard let destination = chatDestination(
             for: conversation?.type,
             isPrivateOutsider: isPrivateOutsider,
-            conversationID: conversationID
+            conversationID: conversationID,
+            landing: landing
         ) else {
             logger.info("Ignoring non-tip chat deeplink", metadata: [
                 "conversationID": "\(conversationID)",
@@ -244,7 +260,15 @@ struct DeepLinkAction {
             Analytics.groupInviteFollowed(source: source)
         }
 
-        container.appRouter.navigate(to: destination)
+        // A message link tapped in another chat goes on top of it, so the back chip and the back
+        // chevron return to that chat where the reader left it.
+        let router = container.appRouter
+        if case .chatMessage(let id, var landing) = destination, landing.returnTo != nil, router.canNavigateOver(destination) {
+            landing.isOverReturnChat = true
+            router.push(.chatMessage(id, landing))
+        } else {
+            router.navigate(to: destination)
+        }
     }
 
     /// The screen a chat id opens, or nil when it isn't one the app surfaces.
@@ -252,16 +276,20 @@ struct DeepLinkAction {
     /// A group routes to the same transcript a tip DM does whether or not the viewer is a member:
     /// the screen gates itself, so an invite link and a push tap land on one destination. The
     /// exception is a private group the viewer isn't in, which has no chat they can read; it opens
-    /// the profile, where they ask to join.
+    /// the profile, where they ask to join, and a message link into it lands there too.
     static func chatDestination(
         for type: ConversationType?,
         isPrivateOutsider: Bool = false,
-        conversationID: ConversationID
+        conversationID: ConversationID,
+        landing: MessageLanding? = nil
     ) -> AppRouter.Destination? {
         switch type {
         case .group where isPrivateOutsider:
             return .chatProfile(conversationID, origin: .featuredGroup)
         case .tipDm, .group:
+            if let landing {
+                return .chatMessage(conversationID, landing)
+            }
             return .tipConversation(conversationID)
         case .contactDm, nil:
             return nil
@@ -419,6 +447,19 @@ struct DeepLinkAction {
                 await Self.routeChat(conversationID, origin: origin, in: container)
             }
 
+        case .chatMessage(let conversationID, let messageID):
+            if let container = sessionAuthenticator.loggedInContainer {
+                Analytics.deeplinkRouted(kind: kind)
+                // A link back into the chat it was tapped in has nothing to return to.
+                let returnTo = sourceChat == conversationID ? nil : sourceChat
+                await Self.routeChat(
+                    conversationID,
+                    landing: MessageLanding(messageID: messageID, returnTo: returnTo),
+                    origin: origin,
+                    in: container
+                )
+            }
+
         case .chatSendCash(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
                 // Only tip DMs take the Send Cash action; contact/phone sends are no longer
@@ -495,6 +536,8 @@ extension DeepLinkAction {
         case currencyInfo(PublicKey)
         case chat(ConversationID)
         case chatSendCash(ConversationID)
+        /// One message in a chat: the chat, opened on that message.
+        case chatMessage(ConversationID, MessageID)
         /// The tipcard for the legacy `/tip/<userId>` link.
         case tip(UserID)
         /// The profile a `flipcash.com/<userId>` or `flipcash.com/<handle>` link names.
@@ -516,6 +559,7 @@ extension DeepLinkAction.Kind {
         case .currencyInfo:         "TokenInfo"
         case .chat:                 "Chat"
         case .chatSendCash:         "ChatSendCash"
+        case .chatMessage:          "ChatMessage"
         case .tip:                  "Tip"
         case .profile:              "Profile"
         case .wallet:               "Wallet"

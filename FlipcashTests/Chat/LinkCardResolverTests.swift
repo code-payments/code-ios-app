@@ -33,9 +33,12 @@ import FlipcashCore
         },
         user: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts = { _ in
             Issue.record("the user lookup was called"); throw Offline()
+        },
+        message: @escaping @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State = { _ in
+            Issue.record("the message lookup was called"); throw Offline()
         }
     ) -> LinkCardResolver {
-        LinkCardResolver(cashLookup: cash, mintLookup: mint, groupLookup: group, userLookup: user)
+        LinkCardResolver(cashLookup: cash, mintLookup: mint, groupLookup: group, userLookup: user, messageLookup: message)
     }
 
     @Test func aFailedLookupStaysUnresolved() async throws {
@@ -192,6 +195,48 @@ import FlipcashCore
         #expect(LinkCard.cash(card).resolutionKey != LinkCard.token(Self.tokenCard).resolutionKey)
         #expect(LinkCard.cash(card).resolutionKey.hasPrefix("cash:"))
         #expect(LinkCard.token(Self.tokenCard).resolutionKey.hasPrefix("token:"))
+    }
+
+    // MARK: - Message -
+
+    private static let messageCard = LinkCard.Message(
+        url: URL(string: "https://app.flipcash.com/chat/6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162/m/42")!,
+        chatID: ConversationID(uuidString: "6f1c3a9e-2b7d-4e0a-9c55-1d2e3f405162")!,
+        messageID: MessageID(value: 42),
+        range: NSRange(location: 0, length: 72)
+    )
+
+    @Test func aFailedMessageLookupIsUnavailable() async {
+        let resolver = Self.resolver(message: { _ in throw Offline() })
+        #expect(await resolver.message(Self.messageCard) == .unavailable)
+    }
+
+    @Test func aMessageAnswerIsPassedThrough() async {
+        let state = LinkCard.Message.State.gatedRedacted(.init(chatTitle: "Moony", authorName: "Ana", time: "2h", requirement: "Balance Requirement:\n$10 of MOONY"))
+        let resolver = Self.resolver(message: { _ in state })
+        #expect(await resolver.message(Self.messageCard) == state)
+    }
+
+    @Test func aMessageAnswerIsNotRememberedAcrossCalls() async {
+        let counter = Counter()
+        let resolver = Self.resolver(message: { _ in await counter.increment(); return .lockedDirect })
+        _ = await resolver.message(Self.messageCard)
+        _ = await resolver.message(Self.messageCard)
+        #expect(await counter.value == 2)
+    }
+
+    @Test func onlyUnavailableIsUnresolved() {
+        let resolved = LinkCard.Message.Resolved(chatTitle: "t", kind: .publicGroup, authorName: "a", time: "1:00 PM", excerpt: "x", reactionCount: 0, avatarID: "a")
+        let states: [LinkCard.Message.State] = [
+            .resolved(resolved), .gatedReadable(resolved),
+            .gatedRedacted(.init(chatTitle: "t", authorName: "a", time: "1:00 PM", requirement: nil)),
+            .lockedGroup(.init(title: "t", memberCount: "2 people", hostName: nil, avatarID: "a", imageData: nil, blurHash: nil)),
+            .lockedDirect,
+            .cash(.init(chatTitle: "t", kind: .publicGroup, authorName: "a", time: "1:00 PM", amount: "$1.00", verb: .sent)),
+            .deleted(.init(chatTitle: "t", kind: .publicGroup, avatarID: "a")),
+        ]
+        #expect(states.allSatisfy { $0.isResolved })
+        #expect(!LinkCard.Message.State.unavailable.isResolved)
     }
 
     private actor Counter {

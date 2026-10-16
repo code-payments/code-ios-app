@@ -32,6 +32,7 @@ actor LinkCardResolver {
     private let mintLookup: @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved
     private let groupLookup: @Sendable (ConversationID) async throws -> GroupLinkFacts
     private let userLookup: @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts
+    private let messageLookup: @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State
 
     /// The query per key, not the answer.
     ///
@@ -48,17 +49,23 @@ actor LinkCardResolver {
     private var tokenQueries: [PublicKey: Task<LinkCard.Token.State, Never>] = [:]
     private var groupQueries: [ConversationID: Task<GroupLinkFacts?, Never>] = [:]
     private var userQueries: [LinkCard.User.Identity: Task<Result<UserLinkFacts, any Error>, Never>] = [:]
+    /// A message card's answer depends on the viewer's standing in the chat, which moves under it
+    /// (a join turns Join into the message), so only the query in flight is held and a finished
+    /// answer is dropped; the feed holds it in memory for the visit.
+    private var messageQueries: [String: Task<LinkCard.Message.State, Never>] = [:]
 
     init(
         cashLookup: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved,
         mintLookup: @escaping @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved,
         groupLookup: @escaping @Sendable (ConversationID) async throws -> GroupLinkFacts,
-        userLookup: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts
+        userLookup: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts,
+        messageLookup: @escaping @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State = { _ in .unavailable }
     ) {
         self.cashLookup = cashLookup
         self.mintLookup = mintLookup
         self.groupLookup = groupLookup
         self.userLookup = userLookup
+        self.messageLookup = messageLookup
     }
 
     /// How far a cash or token card's lookup got: resolved, or unresolved if it failed.
@@ -78,6 +85,9 @@ actor LinkCardResolver {
             return .user(.notFound)
         case .web:
             preconditionFailure("A web card draws the preview its message carries and is never resolved")
+        case .message:
+            assertionFailure("A message card resolves through message(_:), not resolve(_:)")
+            return .message(.unavailable)
         }
     }
 
@@ -116,6 +126,23 @@ actor LinkCardResolver {
         let result = await query.value
         if case .failure = result, userQueries[identity] == query { userQueries[identity] = nil }
         return result
+    }
+
+    /// What a message link's card shows for this viewer. A failure of any kind is `unavailable`,
+    /// which draws as the URL-only card: the link underneath still opens.
+    func message(_ card: LinkCard.Message) async -> LinkCard.Message.State {
+        let key = LinkCard.message(card).resolutionKey
+        if let query = messageQueries[key] { return await query.value }
+
+        let lookup = messageLookup
+        let query = Task<LinkCard.Message.State, Never> {
+            (try? await lookup(card)) ?? .unavailable
+        }
+        messageQueries[key] = query
+
+        let state = await query.value
+        if messageQueries[key] == query { messageQueries[key] = nil }
+        return state
     }
 
     /// Forgets what a cash link's lookup answered, so the next ask goes back to the server.
@@ -174,6 +201,7 @@ nonisolated extension LinkCard {
         case .cash(let cash): Self.cashKey(entropy: cash.entropy)
         case .token(let token): "token:\(token.mint.base58)"
         case .group(let group): "group:\(group.chatID.description)"
+        case .message(let message): "message:\(message.chatID.description):\(message.sequence)"
         case .user(let user):
             switch user.identity {
             // Lowercased because the no-handle link is, and a handle already is.

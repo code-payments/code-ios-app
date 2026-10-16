@@ -145,6 +145,9 @@ nonisolated extension Route {
         case token(PublicKey)
         case chat(ConversationID)
         case chatSendCash(ConversationID)
+        /// One message in a chat — `/chat/{chatId}/m/{seq}`, where `seq` is the message's
+        /// per-chat id. Opens the chat on that message.
+        case chatMessage(ConversationID, MessageID)
         /// The older tipcard link, `/tip/<userId>`, which stays parseable for
         /// links already shared and still opens the tipcard.
         case tip(UserID)
@@ -209,6 +212,11 @@ nonisolated extension Route {
                         ?? ConversationID(base64URLEncoded: components[1])
                 else {
                     return nil
+                }
+                // `/chat/{id}/m/{seq}` names one message. A tail that isn't a sequence number
+                // opens the chat, the same as a build that predates message links.
+                if components.count > 3, components[2] == "m", let seq = UInt64(components[3]) {
+                    return .chatMessage(id, MessageID(value: seq))
                 }
                 // `/chat/{id}/send` opens the Send Cash sheet over the chat.
                 if components.count > 2, components[2] == "send" {

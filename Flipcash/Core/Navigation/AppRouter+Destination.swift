@@ -116,6 +116,9 @@ extension AppRouter {
         /// trace shows "post-tip, keyboard up" distinctly, and so the ordinary
         /// tip-list / push-notification opens stay keyboard-closed untouched.
         case tipConversationWithKeyboard(ConversationID)
+        /// Same screen as `tipConversation`, opened on one message from a message link. A sibling
+        /// case for the same reason as `tipConversationWithKeyboard`: the ordinary opens stay untouched.
+        case chatMessage(ConversationID, MessageLanding)
         /// A person's Flipcash profile, pushed from a tip DM's title/card or a group member's face;
         /// hosts the Block action. `origin` decides whether it offers a way into the DM.
         case userProfile(UserID, origin: UserProfileOrigin)
@@ -165,7 +168,7 @@ extension AppRouter {
                  .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw:
                 return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
-                 .tipConversation, .tipConversationWithKeyboard, .userProfile, .chatProfile,
+                 .tipConversation, .tipConversationWithKeyboard, .chatMessage, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
                  .editGroupDescription, .archivedChats, .requests, .joinRequests, .groupMembers:
                 return .tips
@@ -221,6 +224,7 @@ extension AppRouter {
             case .newPrivateGroup:              "newPrivateGroup"
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
+            case .chatMessage:                  "chatMessage"
             case .userProfile:                  "userProfile"
             case .chatProfile:                  "chatProfile"
             case .editGroup:                    "editGroup"
@@ -254,6 +258,7 @@ extension AppRouter {
                 return activity.id.base58
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID),
+                 .chatMessage(let conversationID, _),
                  .chatProfile(let conversationID, _),
                  .editGroup(let conversationID),
                  .editGroupName(let conversationID),

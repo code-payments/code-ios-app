@@ -195,3 +195,15 @@ final class ProfileAvatarStore {
         blobBySubject[subject] = blobID
     }
 }
+
+extension Conversation {
+
+    /// What a chat's avatar is of, as the Chats tab draws it: the chat itself for a group, whose
+    /// roster has no single face to stand for it, and the other person for a DM.
+    func avatar(excluding selfUserID: UserID) -> (subject: ProfileAvatarStore.AvatarSubject, picture: ProfilePicture?) {
+        guard type != .group, let other = counterpart(excluding: selfUserID), let userID = other.userID else {
+            return (.chat(id), picture)
+        }
+        return (.user(userID), other.profilePicture)
+    }
+}

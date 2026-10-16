@@ -552,7 +552,25 @@ final class SessionContainer {
         memo: linkCardMemo,
         claims: session.cashLinkClaims,
         groups: GroupLinkPresenter(avatars: profileAvatars),
-        users: UserLinkPresenter(avatars: profileAvatars)
+        users: UserLinkPresenter(avatars: profileAvatars),
+        messagePhotos: { [flipClient, owner = session.ownerKeyPair, conversationController] photo, chatID in
+            guard let blobID = photo.blobID,
+                  let url = try? await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(chatID))
+            else { return nil }
+            guard let sealed = photo.sealed else { return ChatMediaLocation(url: url) }
+            guard let decrypt = await conversationController.mediaBlobDecrypt(for: chatID) else { return nil }
+            return ChatMediaLocation(url: url) { try decrypt($0, blobID, sealed) }
+        },
+        chatAvatars: { [profileAvatars, conversationController] chatID in
+            guard let conversation = conversationController.conversation(withID: chatID) else { return nil }
+            let avatar = conversation.avatar(excluding: conversationController.selfUserID)
+            await profileAvatars.load(avatar.subject, picture: avatar.picture)
+            return profileAvatars.data(for: avatar.subject)
+        },
+        cachedChatAvatars: { [profileAvatars, conversationController] chatID in
+            guard let conversation = conversationController.conversation(withID: chatID) else { return nil }
+            return profileAvatars.data(for: conversation.avatar(excluding: conversationController.selfUserID).subject)
+        }
     )
 
     /// Lazy so it can capture the container it reads its dependencies from;
@@ -629,12 +647,6 @@ final class SessionContainer {
         let owner = session.ownerKeyPair
 
         self.linkCardMemo = LinkCardMemo()
-        self.linkCardResolver = LinkCardResolver(
-            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
-            mintLookup: LinkCardResolver.mintLookup(reader: client),
-            groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
-            userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID)
-        )
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {
                 throw MissingCoinbaseApiKey()
@@ -771,6 +783,23 @@ final class SessionContainer {
         conversationController.start()
         self.conversationController = conversationController
 
+        let knownAuthors = KnownAuthorDirectory(database: database, flipClient: flipClient, owner: session.ownerKeyPair)
+        self.knownAuthors = knownAuthors
+        self.linkCardResolver = LinkCardResolver(
+            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
+            mintLookup: LinkCardResolver.mintLookup(reader: client),
+            groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
+            userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID),
+            messageLookup: LinkCardResolver.messageLookup(
+                chats: flipClient,
+                messages: chatClient,
+                mints: client,
+                owner: owner,
+                viewer: MessageLinkViewer(controller: conversationController, knownAuthors: knownAuthors, userID: session.userID),
+                cashLinks: LinkCardResolver.giftCardLookup(reader: client, viewer: owner)
+            )
+        )
+
         let blocklistController = BlocklistController(
             fetching: FlipBlocklisting(flipClient: flipClient, owner: owner),
             database: database
@@ -841,7 +870,6 @@ final class SessionContainer {
         self.chatSpotlightIndexer = chatSpotlightIndexer
 
         self.profileAvatars = ProfileAvatarStore(flipClient: flipClient, owner: session.ownerKeyPair)
-        self.knownAuthors = KnownAuthorDirectory(database: database, flipClient: flipClient, owner: session.ownerKeyPair)
         knownAuthors.preload()
     }
 
