@@ -152,7 +152,7 @@ import FlipcashCore
             held: Self.conversation(type: .group), member: true, message: .success(Self.message(.media([Self.photo], caption: nil)))
         )
         guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
-        #expect(value.excerpt == "Photo")
+        #expect(value.excerpt.isEmpty)
         #expect(value.photo == LinkCard.Message.Photo(blobID: Self.photo.blobID, sealed: nil, blurHash: "LEHV6nWB2yk8"))
     }
 

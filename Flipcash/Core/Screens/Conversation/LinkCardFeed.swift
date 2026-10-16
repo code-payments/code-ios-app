@@ -37,6 +37,8 @@ final class LinkCardFeed: LinkCardSource {
     private let cachedWebImages: @Sendable (URL) -> Data?
     /// Mints a message card photo's download URL, and its decryption for an encrypted chat.
     private let messagePhotos: @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation?
+    private let chatAvatars: @MainActor (ConversationID) async -> Data?
+    private let cachedChatAvatars: @MainActor (ConversationID) -> Data?
 
     /// What a group or person link's lookup fetched.
     private enum Fetched {
@@ -85,7 +87,9 @@ final class LinkCardFeed: LinkCardSource {
         users: any UserLinkPresenting,
         webImages: @escaping @Sendable (URL) async -> Data? = { await WebImageSource.shared.data(for: $0) },
         cachedWebImages: @escaping @Sendable (URL) -> Data? = { WebImageSource.shared.cached(for: $0) },
-        messagePhotos: @escaping @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation? = { _, _ in nil }
+        messagePhotos: @escaping @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation? = { _, _ in nil },
+        chatAvatars: @escaping @MainActor (ConversationID) async -> Data? = { _ in nil },
+        cachedChatAvatars: @escaping @MainActor (ConversationID) -> Data? = { _ in nil }
     ) {
         self.resolver = resolver
         self.memo = memo
@@ -95,6 +99,8 @@ final class LinkCardFeed: LinkCardSource {
         self.webImages = webImages
         self.cachedWebImages = cachedWebImages
         self.messagePhotos = messagePhotos
+        self.chatAvatars = chatAvatars
+        self.cachedChatAvatars = cachedChatAvatars
         observeSettledClaims()
         startClaimableRefresh()
     }
@@ -136,6 +142,14 @@ final class LinkCardFeed: LinkCardSource {
 
     func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation? {
         await messagePhotos(photo, chatID)
+    }
+
+    func chatAvatar(for chatID: ConversationID) async -> Data? {
+        await chatAvatars(chatID)
+    }
+
+    func cachedChatAvatar(for chatID: ConversationID) -> Data? {
+        cachedChatAvatars(chatID)
     }
 
     func states(for card: LinkCard) -> AsyncStream<LinkCard.State> {

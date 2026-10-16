@@ -306,6 +306,11 @@ final class LinkCardView: UIView {
             setSized(.message)
             let chatID = message.chatID
             messageView.loadPhoto = { [weak self] photo in await self?.imageSource?.messagePhoto(photo, in: chatID) }
+            messageView.chatAvatar = .init(
+                id: chatID.description,
+                cached: imageSource?.cachedChatAvatar(for: chatID),
+                load: { [weak self] in await self?.imageSource?.chatAvatar(for: chatID) }
+            )
             return messageView.configure(with: Self.messageState(state), loading: loading)
 
         case .user(let user):

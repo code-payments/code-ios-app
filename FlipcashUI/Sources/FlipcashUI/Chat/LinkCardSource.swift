@@ -51,6 +51,13 @@ public protocol LinkCardSource: AnyObject {
     /// Where to draw a message card's photo from, or nil when it cannot be fetched or the card
     /// carries no blob (a viewer below the chat's rules gets the BlurHash alone).
     func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation?
+
+    /// The avatar of a message card's chat, or nil when it has no picture or cannot be fetched:
+    /// the chat's picture for a group, the other person's for a DM.
+    func chatAvatar(for chatID: ConversationID) async -> Data?
+
+    /// The chat avatar if already held in memory, without suspending.
+    func cachedChatAvatar(for chatID: ConversationID) -> Data?
 }
 
 extension LinkCardSource {
@@ -65,6 +72,12 @@ extension LinkCardSource {
 
     /// Nil by default, so a source with no photo lookup draws every photo as its BlurHash.
     public func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation? { nil }
+
+    /// Nil by default, so a source with no avatar lookup draws every chat as its monogram.
+    public func chatAvatar(for chatID: ConversationID) async -> Data? { nil }
+
+    /// Nil by default: nothing is held.
+    public func cachedChatAvatar(for chatID: ConversationID) -> Data? { nil }
 }
 
 /// Whether a web card in this transcript looks its page up on its own or waits to be asked.

@@ -560,6 +560,16 @@ final class SessionContainer {
             guard let sealed = photo.sealed else { return ChatMediaLocation(url: url) }
             guard let decrypt = await conversationController.mediaBlobDecrypt(for: chatID) else { return nil }
             return ChatMediaLocation(url: url) { try decrypt($0, blobID, sealed) }
+        },
+        chatAvatars: { [profileAvatars, conversationController] chatID in
+            guard let conversation = conversationController.conversation(withID: chatID) else { return nil }
+            let avatar = conversation.avatar(excluding: conversationController.selfUserID)
+            await profileAvatars.load(avatar.subject, picture: avatar.picture)
+            return profileAvatars.data(for: avatar.subject)
+        },
+        cachedChatAvatars: { [profileAvatars, conversationController] chatID in
+            guard let conversation = conversationController.conversation(withID: chatID) else { return nil }
+            return profileAvatars.data(for: conversation.avatar(excluding: conversationController.selfUserID).subject)
         }
     )
 

@@ -34,6 +34,9 @@ final class LinkMessageCardView: UIView {
     /// Where a photo message's thumbnail downloads from; nil draws every photo as its BlurHash.
     var loadPhoto: (@MainActor (LinkCard.Message.Photo) async -> ChatMediaLocation?)?
 
+    /// The card's chat avatar: its monogram identity, the bytes already held, and how to fetch them.
+    var chatAvatar: LinkMessageCardContent.ChatAvatar?
+
     /// Called when the content's height at the card's width changes.
     var onHeightChange: (() -> Void)?
 
@@ -114,6 +117,7 @@ final class LinkMessageCardView: UIView {
         let display = shown
         let radii = cornerRadii
         let loadPhoto = loadPhoto
+        let chatAvatar = chatAvatar
         actionFrame = .null
         content.configuration = UIHostingConfiguration {
             LinkMessageCardContent(
@@ -121,6 +125,7 @@ final class LinkMessageCardView: UIView {
                 loading: display?.loading ?? false,
                 cornerRadii: radii,
                 loadPhoto: loadPhoto,
+                chatAvatar: chatAvatar,
                 onAction: { [weak self] in self?.onAction?() },
                 onActionFrame: { [weak self] in self?.actionFrame = $0 }
             )
@@ -145,14 +150,26 @@ struct LinkMessageCardContent: View {
         topTrailing: LinkCardMetrics.radius
     )
     var loadPhoto: (@MainActor (LinkCard.Message.Photo) async -> ChatMediaLocation?)? = nil
+    var chatAvatar: ChatAvatar? = nil
     var onAction: () -> Void = {}
     var onActionFrame: ((CGRect) -> Void)? = nil
+
+    /// The header's picture of the card's chat. Nil draws a fixed monogram.
+    struct ChatAvatar {
+        /// Monogram colour and identity: the chat id.
+        let id: String
+        /// The bytes already in memory, drawn on the first frame.
+        let cached: Data?
+        let load: @MainActor () async -> Data?
+    }
+
+    @State private var loadedAvatar: Data?
 
     /// Values this card adds to ``LinkCardMetrics``, from node 11493:201.
     enum Layout {
         static let padding: CGFloat = 12
         static let spacing: CGFloat = 6
-        static let avatar: CGFloat = 20
+        static let avatar: CGFloat = 24
         static let excerptLines = 4
         static let redactedBlur: CGFloat = 6
         static let panelOpacity: Double = 0.08
@@ -203,6 +220,9 @@ struct LinkMessageCardContent: View {
         VStack(alignment: .leading, spacing: Layout.spacing) {
             faces
         }
+        .task(id: chatAvatar?.id) {
+            loadedAvatar = await chatAvatar?.load()
+        }
         .padding(Layout.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(Layout.panelOpacity))
@@ -216,26 +236,26 @@ struct LinkMessageCardContent: View {
     @ViewBuilder private var faces: some View {
         switch state {
         case .resolved(let message):
-            header(avatarID: message.avatarID, name: message.chatTitle, kind: Copy.kind(message.kind))
+            chatHeader(name: message.chatTitle, kind: Copy.kind(message.kind))
             byline("\(message.authorName) · \(message.time)")
             excerpt(message.excerpt, blurred: false, photo: message.photo)
             footer(message.reactionCount > 0 ? Copy.reactions(message.reactionCount) : nil, showsOpen: true)
 
         case .gatedReadable(let message):
-            header(avatarID: message.avatarID, name: message.chatTitle, kind: Copy.kind(message.kind))
+            chatHeader(name: message.chatTitle, kind: Copy.kind(message.kind))
             byline("\(message.authorName) · \(message.time)")
             excerpt(message.excerpt, blurred: false, photo: message.photo)
             button(Copy.join)
 
         case .gatedRedacted(let redacted):
-            header(avatarID: redacted.chatTitle, name: redacted.chatTitle, kind: Copy.publicGroup)
+            chatHeader(name: redacted.chatTitle, kind: Copy.publicGroup)
             byline("\(redacted.authorName) · \(redacted.time)")
             excerpt(Copy.redactedFiller, blurred: true, photo: redacted.photoBlurHash.map { .init(blobID: nil, sealed: nil, blurHash: $0) })
             footer(redacted.requirement, showsOpen: false)
             button(Copy.buy)
 
         case .lockedGroup(let group):
-            header(avatarID: group.avatarID, name: group.title, kind: Copy.privateGroup, imageData: group.imageData, blurHash: group.blurHash)
+            chatHeader(name: group.title, kind: Copy.privateGroup, fallbackData: group.imageData, blurHash: group.blurHash)
             dimBody(Copy.groupLocked(group.title))
             footer([group.memberCount, group.hostName.map { "Hosted by \($0)" }].compactMap { $0 }.joined(separator: " · "), showsOpen: false)
             button(Copy.request)
@@ -245,7 +265,7 @@ struct LinkMessageCardContent: View {
             dimBody(Copy.directLocked)
 
         case .cash(let cash):
-            header(avatarID: cash.chatTitle, name: cash.chatTitle, kind: Copy.kind(cash.kind))
+            chatHeader(name: cash.chatTitle, kind: Copy.kind(cash.kind))
             byline("\(cash.authorName) \(Copy.cashVerb(cash.verb)) · \(cash.time)")
             Text(cash.amount)
                 .font(.default(size: 24, weight: .semibold))
@@ -254,13 +274,24 @@ struct LinkMessageCardContent: View {
             footer(cash.claim?.caption ?? Copy.settled, showsOpen: true)
 
         case .deleted(let deleted):
-            header(avatarID: deleted.avatarID, name: deleted.chatTitle, kind: Copy.kind(deleted.kind))
+            chatHeader(name: deleted.chatTitle, kind: Copy.kind(deleted.kind))
             dimBody(Copy.deleted)
 
         case .unavailable, nil:
             header(avatarID: Copy.flipcash, name: Copy.flipcash, kind: Copy.message)
             skeleton
         }
+    }
+
+    /// The header for a known chat: its avatar once loaded, its monogram until then.
+    private func chatHeader(name: String, kind: String?, fallbackData: Data? = nil, blurHash: String? = nil) -> some View {
+        header(
+            avatarID: chatAvatar?.id ?? name,
+            name: name,
+            kind: kind,
+            imageData: loadedAvatar ?? chatAvatar?.cached ?? fallbackData,
+            blurHash: blurHash
+        )
     }
 
     private func header(avatarID: String, name: String, kind: String?, imageData: Data? = nil, blurHash: String? = nil) -> some View {
@@ -290,7 +321,10 @@ struct LinkMessageCardContent: View {
     /// The message body, up to four lines. A redacted body is blurred filler: the model carries no
     /// text for it, and it is hidden from accessibility and never selectable.
     @ViewBuilder private func excerpt(_ text: String, blurred: Bool, photo: LinkCard.Message.Photo? = nil) -> some View {
-        if let photo {
+        if let photo, text.isEmpty {
+            MessageCardPhoto(photo: photo, load: loadPhoto)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else if let photo {
             HStack(alignment: .top, spacing: Layout.padding) {
                 excerptText(text, blurred: blurred)
                 MessageCardPhoto(photo: photo, load: loadPhoto)

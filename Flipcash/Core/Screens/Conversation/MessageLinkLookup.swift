@@ -229,7 +229,7 @@ extension LinkCardResolver {
             return wrapping(resolved(message, kind: kind(of: conversation), title: title, author: author, excerpt: text))
 
         case .media(let attachments, let caption):
-            let excerpt = (caption?.isEmpty ?? true) ? "Photo" : caption!
+            let excerpt = caption ?? ""
             let photo = attachments.first.map {
                 LinkCard.Message.Photo(blobID: message.redacted ? nil : $0.blobID, sealed: $0.sealed, blurHash: $0.blurhash)
             }
