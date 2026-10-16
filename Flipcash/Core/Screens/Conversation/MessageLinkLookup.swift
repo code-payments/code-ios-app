@@ -199,9 +199,29 @@ extension LinkCardResolver {
     }
 
     private static func time(of message: ConversationMessage) -> String {
-        Calendar.current.isDateInToday(message.date)
-            ? message.date.formatted(date: .omitted, time: .shortened)
-            : message.date.formatted(date: .abbreviated, time: .omitted)
+        relativeTime(of: message.date)
+    }
+
+    /// How long ago `date` was, as the card's byline says it: "now", "45m" and "2h" within the
+    /// day, then "Yesterday", "Oct 9" within the year, and "Oct 9, 2025" before it.
+    static func relativeTime(of date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+        let elapsed = max(0, now.timeIntervalSince(date))
+        if calendar.isDate(date, inSameDayAs: now) {
+            if elapsed < 60 { return "now" }
+            if elapsed < 3600 { return "\(Int(elapsed / 60))m" }
+            return "\(Int(elapsed / 3600))h"
+        }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) {
+            return "Yesterday"
+        }
+        var style = Date.FormatStyle(date: .omitted, time: .omitted).month(.abbreviated).day()
+        style.calendar = calendar
+        style.timeZone = calendar.timeZone
+        style.locale = calendar.locale ?? .current
+        if calendar.component(.year, from: date) != calendar.component(.year, from: now) {
+            style = style.year()
+        }
+        return date.formatted(style)
     }
 
     /// The card for a message the viewer may read in full: cash, and a text that is only a cash
