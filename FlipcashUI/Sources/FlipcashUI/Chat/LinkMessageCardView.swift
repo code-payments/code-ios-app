@@ -251,12 +251,12 @@ struct LinkMessageCardContent: View {
         HStack(spacing: Layout.spacing) {
             ContactAvatarView(id: avatarID, displayName: name, imageData: imageData, blurhash: blurHash, size: Layout.avatar)
             Text(name)
-                .font(.default(size: 12, weight: .semibold))
+                .font(.default(size: 14, weight: .semibold))
                 .foregroundStyle(Color.textMain)
                 .lineLimit(1)
             if let kind {
                 Text(kind)
-                    .font(.default(size: 12, weight: .medium))
+                    .font(.default(size: 14, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.55))
                     .lineLimit(1)
             }
@@ -265,7 +265,7 @@ struct LinkMessageCardContent: View {
 
     private func byline(_ text: String) -> some View {
         Text(text)
-            .font(.default(size: 12, weight: .medium))
+            .font(.default(size: 14, weight: .medium))
             .foregroundStyle(Color.textSecondary)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -291,7 +291,7 @@ struct LinkMessageCardContent: View {
 
     private func dimBody(_ text: String) -> some View {
         Text(text)
-            .font(.default(size: 15, weight: .medium))
+            .font(.default(size: 16, weight: .medium))
             .foregroundStyle(Color.white.opacity(0.5))
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -300,12 +300,12 @@ struct LinkMessageCardContent: View {
         if text != nil || showsOpen {
             HStack(spacing: 8) {
                 Text(text ?? "")
-                    .font(.default(size: 12, weight: .medium))
+                    .font(.default(size: 14, weight: .medium))
                     .foregroundStyle(Color.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if showsOpen {
                     Text(Copy.open)
-                        .font(.default(size: 12, weight: .semibold))
+                        .font(.default(size: 14, weight: .semibold))
                         .foregroundStyle(Color.textMain)
                 }
             }
