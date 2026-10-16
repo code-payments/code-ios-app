@@ -81,7 +81,7 @@ struct IntentMultiTransferTests {
     @Test("Rejects a repeated destination owner")
     func rejectsDuplicateOwner() {
         let owner = PublicKey.generate()!
-        #expect(throws: IntentMultiTransfer.Error.duplicateDestination) {
+        #expect(throws: IntentMultiTransfer.Error.duplicateDestinationOwner) {
             try makeIntent(payments: [makePayment(quarks: 1, owner: owner), makePayment(quarks: 1, owner: owner)])
         }
     }
@@ -100,7 +100,7 @@ struct IntentMultiTransferTests {
     @Test("Rejects a destination equal to the source vault")
     func rejectsDestinationEqualToSourceVault() {
         let source = AccountCluster.mock
-        #expect(throws: IntentMultiTransfer.Error.duplicateDestination) {
+        #expect(throws: IntentMultiTransfer.Error.destinationIsSource) {
             try makeIntent(source: source, payments: [
                 makePayment(quarks: 1, destination: source.vaultPublicKey),
                 makePayment(quarks: 1),

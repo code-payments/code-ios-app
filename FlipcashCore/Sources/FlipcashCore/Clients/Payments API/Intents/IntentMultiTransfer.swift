@@ -31,10 +31,12 @@ final class IntentMultiTransfer: IntentType {
         case invalidPaymentCount
         /// Every payment must pay the same mint.
         case mintMismatch
-        /// Destinations, and their owners, must each be unique, and no destination may be the
-        /// source vault.
+        /// Destinations must be unique.
         case duplicateDestination
-        /// A destination owner must differ from the source's owner authority.
+        /// Destination owners must be unique.
+        case duplicateDestinationOwner
+        /// No destination may be the source vault, and no destination owner may be the source's
+        /// owner authority.
         case destinationIsSource
         /// Every payment must use one currency, the verified rate's.
         case currencyMismatch
@@ -62,13 +64,16 @@ final class IntentMultiTransfer: IntentType {
         guard payments.allSatisfy({ $0.exchangedFiat.mint == mint }) else {
             throw Error.mintMismatch
         }
-        let destinations = payments.map(\.destination) + [sourceCluster.vaultPublicKey]
+        let destinations = payments.map(\.destination)
         guard Set(destinations).count == destinations.count else {
             throw Error.duplicateDestination
         }
+        guard !destinations.contains(sourceCluster.vaultPublicKey) else {
+            throw Error.destinationIsSource
+        }
         let owners = payments.map(\.destinationOwner)
         guard Set(owners).count == owners.count else {
-            throw Error.duplicateDestination
+            throw Error.duplicateDestinationOwner
         }
         guard !owners.contains(sourceCluster.authorityPublicKey) else {
             throw Error.destinationIsSource

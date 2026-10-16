@@ -1,0 +1,767 @@
+{
+  "algorithm": "ocp-send-public-multi-payment",
+  "note": "IntentMultiTransfer: one NoPrivacyTransfer per payment in input order, ids 0..n-1, per-action transfer compact message + SHA256 + ed25519 signature by the source authority. Every payment carries destination_owner. `rejections` must each make the builder throw; expectedError names the rule, not a platform error type. A destinationOwnerSeed of \"sourceAuthority\" means the sourceAuthority key itself.",
+  "vectors": [
+    {
+      "name": "boost 80/20",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "800000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.800000"
+        },
+        {
+          "destinationSeed": 34,
+          "destinationOwnerSeed": 50,
+          "quarks": "200000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.200000"
+        }
+      ],
+      "expectedActions": [
+        {
+          "id": 0,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 33,
+          "mintSeed": 15,
+          "amount": "800000",
+          "nonceSeed": 160,
+          "nonceValueSeed": 192,
+          "message": "7472616e736665721010101010101010101010101010101010101010101010101010101010101010212121212121212121212121212121212121212121212121212121212121212100350c0000000000a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+          "sha256": "156a00c82cb69e115181b1def043ba761bae4e975577b069816a3e9264c19eaf",
+          "signature": "31b436fe31c538740c53831287a950c4f607e253003769f9bcfeae429ff8662b2c0033a1616c3ea2b6830cfdf3bdd621284567a51870541fca7d8d27b74fe70a"
+        },
+        {
+          "id": 1,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 34,
+          "mintSeed": 15,
+          "amount": "200000",
+          "nonceSeed": 161,
+          "nonceValueSeed": 193,
+          "message": "7472616e7366657210101010101010101010101010101010101010101010101010101010101010102222222222222222222222222222222222222222222222222222222222222222400d030000000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+          "sha256": "450cf9885637e4232be482e041807938ee0b5e464be21942417ce2ff5d96db83",
+          "signature": "5275e17aaee5f08f847db11d3a70444de511798d4a9ed179c08b11167ab879e16180de0d1d044874d599d061e40ce708ff92b0e00ffc7f68c4582d97d11a860f"
+        }
+      ],
+      "expectedMetadata": {
+        "sourceSeed": 16,
+        "mintSeed": 15,
+        "payments": [
+          {
+            "destinationSeed": 33,
+            "destinationOwnerSeed": 49,
+            "quarks": "800000",
+            "nativeAmount": "0.800000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 34,
+            "destinationOwnerSeed": 50,
+            "quarks": "200000",
+            "nativeAmount": "0.200000",
+            "currency": "usd"
+          }
+        ]
+      }
+    },
+    {
+      "name": "two uneven, large amount",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "9223372036854775807",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "9223372036854.775807"
+        },
+        {
+          "destinationSeed": 34,
+          "destinationOwnerSeed": 50,
+          "quarks": "1",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.000001"
+        }
+      ],
+      "expectedActions": [
+        {
+          "id": 0,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 33,
+          "mintSeed": 15,
+          "amount": "9223372036854775807",
+          "nonceSeed": 160,
+          "nonceValueSeed": 192,
+          "message": "7472616e7366657210101010101010101010101010101010101010101010101010101010101010102121212121212121212121212121212121212121212121212121212121212121ffffffffffffff7fa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+          "sha256": "5db9333e9b97df29a5b3f9ee2dd0c1fbcd10b1c1eb7eed3913f877c27d294cba",
+          "signature": "39600fe7fd0f82e9d9eff2e9f67d86b2c2a16b799e801f0e05b637f60c35cddfaf7a34962881c708cc0c7125a1a8956dff76d68ee02786eda20006f0a630fe0c"
+        },
+        {
+          "id": 1,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 34,
+          "mintSeed": 15,
+          "amount": "1",
+          "nonceSeed": 161,
+          "nonceValueSeed": 193,
+          "message": "7472616e73666572101010101010101010101010101010101010101010101010101010101010101022222222222222222222222222222222222222222222222222222222222222220100000000000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+          "sha256": "862abc7fe1f9a4a70f1253ac9faf8c4fb59cb66ace3a267b67ab179190008fcd",
+          "signature": "7e4bb6ba00e1274c2cf6381d8fa48cb58ec2c9972f4fac700056c005948857bb3c92dff15561edb30754ce24ed7125a537c8bcfafeb1ea4af03ec5ce0475b700"
+        }
+      ],
+      "expectedMetadata": {
+        "sourceSeed": 16,
+        "mintSeed": 15,
+        "payments": [
+          {
+            "destinationSeed": 33,
+            "destinationOwnerSeed": 49,
+            "quarks": "9223372036854775807",
+            "nativeAmount": "9223372036854.775807",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 34,
+            "destinationOwnerSeed": 50,
+            "quarks": "1",
+            "nativeAmount": "0.000001",
+            "currency": "usd"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ten payments (max)",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 64,
+          "destinationOwnerSeed": 96,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 65,
+          "destinationOwnerSeed": 97,
+          "quarks": "2000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.002000"
+        },
+        {
+          "destinationSeed": 66,
+          "destinationOwnerSeed": 98,
+          "quarks": "3000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.003000"
+        },
+        {
+          "destinationSeed": 67,
+          "destinationOwnerSeed": 99,
+          "quarks": "4000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.004000"
+        },
+        {
+          "destinationSeed": 68,
+          "destinationOwnerSeed": 100,
+          "quarks": "5000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.005000"
+        },
+        {
+          "destinationSeed": 69,
+          "destinationOwnerSeed": 101,
+          "quarks": "6000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.006000"
+        },
+        {
+          "destinationSeed": 70,
+          "destinationOwnerSeed": 102,
+          "quarks": "7000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.007000"
+        },
+        {
+          "destinationSeed": 71,
+          "destinationOwnerSeed": 103,
+          "quarks": "8000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.008000"
+        },
+        {
+          "destinationSeed": 72,
+          "destinationOwnerSeed": 104,
+          "quarks": "9000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.009000"
+        },
+        {
+          "destinationSeed": 73,
+          "destinationOwnerSeed": 105,
+          "quarks": "10000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.010000"
+        }
+      ],
+      "expectedActions": [
+        {
+          "id": 0,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 64,
+          "mintSeed": 15,
+          "amount": "1000",
+          "nonceSeed": 160,
+          "nonceValueSeed": 192,
+          "message": "7472616e7366657210101010101010101010101010101010101010101010101010101010101010104040404040404040404040404040404040404040404040404040404040404040e803000000000000a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+          "sha256": "554aa96015b18f275d52ddca389a2e4b020b0d243db5bd2eccf82a9c3007331f",
+          "signature": "e0bdf877b02cf0fd0f3f96341943dbe045ffa03646ed8219cbff15c391e36c77dcab520ce31247da462c507da36f7f00451e09666aeaf1a215ead4bd27aef609"
+        },
+        {
+          "id": 1,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 65,
+          "mintSeed": 15,
+          "amount": "2000",
+          "nonceSeed": 161,
+          "nonceValueSeed": 193,
+          "message": "7472616e7366657210101010101010101010101010101010101010101010101010101010101010104141414141414141414141414141414141414141414141414141414141414141d007000000000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+          "sha256": "4709579b5c6332ee4df28d529b48e6bfac95bf2afe0f622bb2603151df419af5",
+          "signature": "97bdae2ae8d37ad6ef4405db5d9160089ffebed060678727ff7ed26e0fa09f6940239bea506bc319cc5a7e109f92a737d832183beea99e8423fdc40a623be30a"
+        },
+        {
+          "id": 2,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 66,
+          "mintSeed": 15,
+          "amount": "3000",
+          "nonceSeed": 162,
+          "nonceValueSeed": 194,
+          "message": "7472616e7366657210101010101010101010101010101010101010101010101010101010101010104242424242424242424242424242424242424242424242424242424242424242b80b000000000000a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+          "sha256": "d5d058613d75eed724b6068da891c2ba337429d33cdb6b07275490db7406950b",
+          "signature": "f96d2d65e704babbe306404b1ea7faf5ced9d07d5052d206d97d34b7256e16aaa10acc799f5b9d7b024693d82b29e8bc356f077f07a6c96ed09d79934ba5d60d"
+        },
+        {
+          "id": 3,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 67,
+          "mintSeed": 15,
+          "amount": "4000",
+          "nonceSeed": 163,
+          "nonceValueSeed": 195,
+          "message": "7472616e7366657210101010101010101010101010101010101010101010101010101010101010104343434343434343434343434343434343434343434343434343434343434343a00f000000000000a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+          "sha256": "4179a86cc44c53bee5f5ba11d36dbb5ab46e7fcf80dbf5c15a0c1ffc8fd5259d",
+          "signature": "0be3596cc71f48a86e304d0a41ce64a2b36f4c21b6e0d1ab1d004b8eaa43893d2bc6a1bc147cd001a9cd8ccf9be76ddfcab9d2e300a2ffb2345197659347a60d"
+        },
+        {
+          "id": 4,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 68,
+          "mintSeed": 15,
+          "amount": "5000",
+          "nonceSeed": 164,
+          "nonceValueSeed": 196,
+          "message": "7472616e73666572101010101010101010101010101010101010101010101010101010101010101044444444444444444444444444444444444444444444444444444444444444448813000000000000a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4",
+          "sha256": "d6f72ded8294a5ade7ddb036e5d6369f8a8c8153022c1977815952ed1855b798",
+          "signature": "d976d7df516eafe031556353681987c695a93b1c967c7e7c8a90029302ee5cb9ab823d13984c7d317eeca76256c67da207aa0bf8873d28f91f50ee1edadc4504"
+        },
+        {
+          "id": 5,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 69,
+          "mintSeed": 15,
+          "amount": "6000",
+          "nonceSeed": 165,
+          "nonceValueSeed": 197,
+          "message": "7472616e73666572101010101010101010101010101010101010101010101010101010101010101045454545454545454545454545454545454545454545454545454545454545457017000000000000a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5",
+          "sha256": "584f4dfa872b2c2eef7b51cc91ef2b5de86b95f313e38ea0ba60ce7c558dfe26",
+          "signature": "94beacefed5d7079f9ebdd78e5b801c57d081df43a522bd363a181c31ade587647a2082ab32e0aaa929578eaeec8149bb2d50f78618bbbc63f5ed4bc54916903"
+        },
+        {
+          "id": 6,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 70,
+          "mintSeed": 15,
+          "amount": "7000",
+          "nonceSeed": 166,
+          "nonceValueSeed": 198,
+          "message": "7472616e7366657210101010101010101010101010101010101010101010101010101010101010104646464646464646464646464646464646464646464646464646464646464646581b000000000000a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6",
+          "sha256": "156cd8dda1e314e19910146810f53732229c8b40efcb7c5b411112c514fd4260",
+          "signature": "db9462c1d7c050d9df4f2f9e744bcf63f87af7581751770eb1322602df246cf7c641cecb21a4f62257343c18cf7b7eb72c75b384080ae2558846f0935b3c5a08"
+        },
+        {
+          "id": 7,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 71,
+          "mintSeed": 15,
+          "amount": "8000",
+          "nonceSeed": 167,
+          "nonceValueSeed": 199,
+          "message": "7472616e7366657210101010101010101010101010101010101010101010101010101010101010104747474747474747474747474747474747474747474747474747474747474747401f000000000000a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7",
+          "sha256": "ca3dcdc3bac5059282424ffb53d8d72f9e11cf426208bcb6b2d5594f41b1b400",
+          "signature": "99ec6f60700886389aff2eaf46ba258b4f296345144073d791b92d167961fab710c74351437028d5fed4aebe610a87df9fe40d25fdb9af0e2e3f2bdbcb7e0807"
+        },
+        {
+          "id": 8,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 72,
+          "mintSeed": 15,
+          "amount": "9000",
+          "nonceSeed": 168,
+          "nonceValueSeed": 200,
+          "message": "7472616e73666572101010101010101010101010101010101010101010101010101010101010101048484848484848484848484848484848484848484848484848484848484848482823000000000000a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8",
+          "sha256": "ff021a571ab510fd5c2ac7f33d61ec9b65ba8b5edf4ea60ff5b28c09f8ef7c75",
+          "signature": "8192b6b7090119598f796a7ac9be1ecfd71c901db2d392e42128d3566022ec7e2eeee93f21afd9f6ccfa86a3d2f1abc8a58efe466d0e3b83cd358801d134990f"
+        },
+        {
+          "id": 9,
+          "sourceSeed": 16,
+          "authority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "destinationSeed": 73,
+          "mintSeed": 15,
+          "amount": "10000",
+          "nonceSeed": 169,
+          "nonceValueSeed": 201,
+          "message": "7472616e73666572101010101010101010101010101010101010101010101010101010101010101049494949494949494949494949494949494949494949494949494949494949491027000000000000a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9",
+          "sha256": "926fe8924d46602353ec919d83284fe3fd1a471a688fd56626079207a8ff41cf",
+          "signature": "c0b477d29f75a16257f65882582d4e8d3f7af48527f713bf268d8ab4154f112418b8ae0417edbfab9a8e7f683410a9de31419ba02cce08c4709b23f066bef104"
+        }
+      ],
+      "expectedMetadata": {
+        "sourceSeed": 16,
+        "mintSeed": 15,
+        "payments": [
+          {
+            "destinationSeed": 64,
+            "destinationOwnerSeed": 96,
+            "quarks": "1000",
+            "nativeAmount": "0.001000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 65,
+            "destinationOwnerSeed": 97,
+            "quarks": "2000",
+            "nativeAmount": "0.002000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 66,
+            "destinationOwnerSeed": 98,
+            "quarks": "3000",
+            "nativeAmount": "0.003000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 67,
+            "destinationOwnerSeed": 99,
+            "quarks": "4000",
+            "nativeAmount": "0.004000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 68,
+            "destinationOwnerSeed": 100,
+            "quarks": "5000",
+            "nativeAmount": "0.005000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 69,
+            "destinationOwnerSeed": 101,
+            "quarks": "6000",
+            "nativeAmount": "0.006000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 70,
+            "destinationOwnerSeed": 102,
+            "quarks": "7000",
+            "nativeAmount": "0.007000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 71,
+            "destinationOwnerSeed": 103,
+            "quarks": "8000",
+            "nativeAmount": "0.008000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 72,
+            "destinationOwnerSeed": 104,
+            "quarks": "9000",
+            "nativeAmount": "0.009000",
+            "currency": "usd"
+          },
+          {
+            "destinationSeed": 73,
+            "destinationOwnerSeed": 105,
+            "quarks": "10000",
+            "nativeAmount": "0.010000",
+            "currency": "usd"
+          }
+        ]
+      }
+    }
+  ],
+  "rejections": [
+    {
+      "name": "one payment",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "800000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.800000"
+        }
+      ],
+      "expectedError": "count"
+    },
+    {
+      "name": "eleven payments",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 64,
+          "destinationOwnerSeed": 96,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 65,
+          "destinationOwnerSeed": 97,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 66,
+          "destinationOwnerSeed": 98,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 67,
+          "destinationOwnerSeed": 99,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 68,
+          "destinationOwnerSeed": 100,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 69,
+          "destinationOwnerSeed": 101,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 70,
+          "destinationOwnerSeed": 102,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 71,
+          "destinationOwnerSeed": 103,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 72,
+          "destinationOwnerSeed": 104,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 73,
+          "destinationOwnerSeed": 105,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        },
+        {
+          "destinationSeed": 74,
+          "destinationOwnerSeed": 106,
+          "quarks": "1000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.001000"
+        }
+      ],
+      "expectedError": "count"
+    },
+    {
+      "name": "duplicate destination",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "800000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.800000"
+        },
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 50,
+          "quarks": "200000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.200000"
+        }
+      ],
+      "expectedError": "duplicateDestination"
+    },
+    {
+      "name": "duplicate destination owner",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "800000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.800000"
+        },
+        {
+          "destinationSeed": 34,
+          "destinationOwnerSeed": 49,
+          "quarks": "200000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.200000"
+        }
+      ],
+      "expectedError": "duplicateDestinationOwner"
+    },
+    {
+      "name": "destination is source vault",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "800000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.800000"
+        },
+        {
+          "destinationSeed": 16,
+          "destinationOwnerSeed": 50,
+          "quarks": "200000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.200000"
+        }
+      ],
+      "expectedError": "destinationIsSource"
+    },
+    {
+      "name": "destination owner is source authority",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "800000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.800000"
+        },
+        {
+          "destinationSeed": 34,
+          "destinationOwnerSeed": "sourceAuthority",
+          "quarks": "200000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.200000"
+        }
+      ],
+      "expectedError": "destinationIsSource"
+    },
+    {
+      "name": "mint mismatch",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "800000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.800000"
+        },
+        {
+          "destinationSeed": 34,
+          "destinationOwnerSeed": 50,
+          "quarks": "200000",
+          "mintSeed": 14,
+          "currency": "usd",
+          "nativeAmount": "0.200000"
+        }
+      ],
+      "expectedError": "mintMismatch"
+    },
+    {
+      "name": "currency mismatch",
+      "sourceVaultSeed": 16,
+      "sourceAuthority": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "signerSeed": "0101010101010101010101010101010101010101010101010101010101010101",
+      "mintSeed": 15,
+      "verifiedState": {
+        "currency": "usd",
+        "rate": "1.0"
+      },
+      "payments": [
+        {
+          "destinationSeed": 33,
+          "destinationOwnerSeed": 49,
+          "quarks": "800000",
+          "mintSeed": 15,
+          "currency": "usd",
+          "nativeAmount": "0.800000"
+        },
+        {
+          "destinationSeed": 34,
+          "destinationOwnerSeed": 50,
+          "quarks": "200000",
+          "mintSeed": 15,
+          "currency": "cad",
+          "nativeAmount": "0.200000"
+        }
+      ],
+      "expectedError": "currencyMismatch"
+    }
+  ]
+}
