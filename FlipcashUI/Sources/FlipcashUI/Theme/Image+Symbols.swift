@@ -60,6 +60,7 @@ public enum SystemSymbol: String {
     
     case info = "info.circle"
     case doc = "doc.on.doc"
+    case forwardArrow = "arrowshape.turn.up.right"
     case clipboard = "doc.on.clipboard"
     case paste = "arrow.turn.left.down"
     case touchID = "touchid"

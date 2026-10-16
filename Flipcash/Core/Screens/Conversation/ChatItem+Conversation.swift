@@ -603,10 +603,11 @@ extension ChatItem {
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
     /// must not shuffle its rows between renders of the same message.
     ///
-    /// Report goes last: it is the rarest row and the only one that never appears on your own
-    /// message, so the menu reads "yours ends with delete, theirs ends with report".
+    /// Forward follows Reply, as on Android. Report goes
+    /// last: it is the rarest row and the only one that never appears on your own message, so the
+    /// menu reads "yours ends with delete, theirs ends with report".
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
-        [.copy, .reply, .edit, .delete, .report].filter(capabilities.contains)
+        [.copy, .reply, .forward, .edit, .delete, .report].filter(capabilities.contains)
     }
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's

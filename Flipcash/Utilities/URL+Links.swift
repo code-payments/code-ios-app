@@ -45,6 +45,12 @@ extension URL {
         URL(string: "https://app.flipcash.com/chat/\(conversationID.linkPathComponent)")!
     }
 
+    /// A link to one message — `app.flipcash.com/chat/{chatId}/m/{seq}`, where `seq` is the
+    /// message's per-chat id. `Route` parses it back to ``Route/Path/chatMessage(_:_:)``.
+    nonisolated static func messageLink(in conversationID: ConversationID, messageID: MessageID) -> URL {
+        URL(string: "https://app.flipcash.com/chat/\(conversationID.linkPathComponent)/m/\(messageID.value)")!
+    }
+
     /// The in-app link a chat opens through, for the push tap that has no `target_url` to follow.
     ///
     /// The same id an invite link carries, routed the same way, so a group the user has not joined

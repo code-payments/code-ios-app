@@ -1459,7 +1459,8 @@ extension ChatViewController {
                 switch action {
                 case .copy:
                     if let body { UIPasteboard.general.string = body }
-                case .reply, .edit, .delete, .report:
+                // The link rows need the chat's id, which this module never holds.
+                case .reply, .edit, .delete, .report, .forward:
                     handler?(rowID, action)
                 }
             }
@@ -1660,6 +1661,7 @@ private extension MessageCapability {
         case .edit:   .pencil
         case .delete: .trash
         case .report: .exclamationBubble
+        case .forward: .forwardArrow
         }
     }
 }
