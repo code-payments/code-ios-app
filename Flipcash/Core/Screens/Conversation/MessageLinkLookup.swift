@@ -23,15 +23,23 @@ nonisolated struct MessageLinkViewer: Sendable {
     let isMember: @Sendable (Conversation) async -> Bool
     /// How the viewer's own transcript names `conversation`.
     let title: @Sendable (Conversation) async -> String
+    /// A sender the chat's own roster leaves unnamed, as the rest of the app knows them.
+    let knownMember: @Sendable (UserID) async -> ConversationMember?
     /// The viewer, so their own messages are authored "You".
     let userID: UserID
 
     /// The app's viewer, answered by the conversation feed.
     @MainActor
-    init(controller: ConversationController, userID: UserID) {
+    init(controller: ConversationController, knownAuthors: KnownAuthorDirectory, userID: UserID) {
         self.conversation = { [weak controller] in await controller?.conversation(withID: $0) }
         self.isMember = { [weak controller] in await controller?.isMember(of: $0) ?? false }
         self.title = { [weak controller] in await controller?.displayName(for: $0) ?? "Group Chat" }
+        self.knownMember = { [weak knownAuthors] userID in
+            guard let knownAuthors else { return nil }
+            if let member = await knownAuthors.snapshot.membersByUserID[userID] { return member }
+            await knownAuthors.resolve([userID])
+            return await knownAuthors.snapshot.membersByUserID[userID]
+        }
         self.userID = userID
     }
 
@@ -39,11 +47,13 @@ nonisolated struct MessageLinkViewer: Sendable {
         conversation: @escaping @Sendable (ConversationID) async -> Conversation?,
         isMember: @escaping @Sendable (Conversation) async -> Bool,
         title: @escaping @Sendable (Conversation) async -> String,
+        knownMember: @escaping @Sendable (UserID) async -> ConversationMember? = { _ in nil },
         userID: UserID
     ) {
         self.conversation = conversation
         self.isMember = isMember
         self.title = title
+        self.knownMember = knownMember
         self.userID = userID
     }
 }
@@ -130,10 +140,10 @@ extension LinkCardResolver {
     }
 
     @MainActor
-    private static func redactedState(_ message: ConversationMessage, _ conversation: Conversation, mintName: String?, context: MessageLinkViewer) -> LinkCard.Message.State {
+    private static func redactedState(_ message: ConversationMessage, _ conversation: Conversation, mintName: String?, context: MessageLinkViewer) async -> LinkCard.Message.State {
         .gatedRedacted(.init(
             chatTitle: conversation.groupLinkTitle,
-            authorName: author(of: message, in: conversation, context: context),
+            authorName: await author(of: message, in: conversation, context: context),
             time: time(of: message),
             requirement: groupRequirementLine(headline(for: conversation.rules?.listener ?? []), mintName: mintName)
         ))
@@ -166,10 +176,22 @@ extension LinkCardResolver {
         .deleted(.init(chatTitle: await context.title(conversation), kind: kind(of: conversation), avatarID: conversation.id.description))
     }
 
-    private static func author(of message: ConversationMessage, in conversation: Conversation, context: MessageLinkViewer) -> String {
-        if let sender = message.senderID, sender == context.userID { return "You" }
-        let name = conversation.members.first { $0.userID == message.senderID }?.displayName
-        return (name?.isEmpty ?? true) ? "Someone" : name!
+    // Names a sender the way the chat's own rows do: the chat roster first, then the rest of the
+    // app's known authors, and for either a display name before a username.
+    private static func author(of message: ConversationMessage, in conversation: Conversation, context: MessageLinkViewer) async -> String {
+        guard let sender = message.senderID else { return "Someone" }
+        if sender == context.userID { return "You" }
+        if let member = conversation.members.first(where: { $0.userID == sender }), let name = name(of: member) {
+            return name
+        }
+        if let member = await context.knownMember(sender), let name = name(of: member) {
+            return name
+        }
+        return "Someone"
+    }
+
+    private static func name(of member: ConversationMember) -> String? {
+        member.displayName.isEmpty ? member.username?.handle : member.displayName
     }
 
     private static func time(of message: ConversationMessage) -> String {
@@ -188,7 +210,7 @@ extension LinkCardResolver {
         wrapping: (LinkCard.Message.Resolved) -> LinkCard.Message.State
     ) async -> LinkCard.Message.State {
         let title = await context.title(conversation)
-        let author = author(of: message, in: conversation, context: context)
+        let author = await author(of: message, in: conversation, context: context)
 
         switch message.content {
         case .cash(let amount):

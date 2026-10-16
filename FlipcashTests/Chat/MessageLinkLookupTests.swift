@@ -37,13 +37,17 @@ import FlipcashCore
         func fetchMint(mint: PublicKey) async throws -> MintMetadata { throw Offline() }
     }
 
-    private static func conversation(type: ConversationType, isPrivate: Bool = false, rules: ConversationRules? = nil) -> Conversation {
+    private static let ana = [ConversationMember(userID: me, displayName: "Me"), ConversationMember(userID: other, displayName: "Ana")]
+
+    private static func conversation(
+        type: ConversationType,
+        isPrivate: Bool = false,
+        rules: ConversationRules? = nil,
+        members: [ConversationMember] = ana
+    ) -> Conversation {
         Conversation(
             id: chatID,
-            members: [
-                ConversationMember(userID: me, displayName: "Me"),
-                ConversationMember(userID: other, displayName: "Ana"),
-            ],
+            members: members,
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 0),
             type: type,
@@ -69,12 +73,14 @@ import FlipcashCore
         held: Conversation?,
         member: Bool,
         chat: Result<Conversation, any Error> = .failure(Offline()),
-        message: Result<ConversationMessage?, any Error>
+        message: Result<ConversationMessage?, any Error>,
+        known: ConversationMember? = nil
     ) async throws -> LinkCard.Message.State {
         let viewer = MessageLinkViewer(
             conversation: { _ in held },
             isMember: { _ in member },
             title: { _ in "Moony" },
+            knownMember: { _ in known },
             userID: me
         )
         let lookup = LinkCardResolver.messageLookup(
@@ -92,6 +98,34 @@ import FlipcashCore
         guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
         #expect(value.excerpt == "hello")
         #expect(value.authorName == "Ana")
+    }
+
+    @Test func aRosterMemberWithNoDisplayNameIsNamedByUsername() async throws {
+        let members = [ConversationMember(userID: Self.other, displayName: "", username: Username("ana"))]
+        let state = try await Self.state(
+            held: Self.conversation(type: .group, members: members), member: true, message: .success(Self.message(.text("hello")))
+        )
+        guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.authorName == "@ana")
+    }
+
+    @Test func aSenderTheRosterLeavesOutIsNamedByTheKnownAuthors() async throws {
+        let state = try await Self.state(
+            held: Self.conversation(type: .group, members: []),
+            member: true,
+            message: .success(Self.message(.text("hello"))),
+            known: ConversationMember(userID: Self.other, displayName: "Ted")
+        )
+        guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.authorName == "Ted")
+    }
+
+    @Test func aSenderNobodyCanNameIsSomeone() async throws {
+        let state = try await Self.state(
+            held: Self.conversation(type: .group, members: []), member: true, message: .success(Self.message(.text("hello")))
+        )
+        guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.authorName == "Someone")
     }
 
     @Test func aNonMemberWhoMeetsTheRulesGetsTheExcerptAndJoin() async throws {

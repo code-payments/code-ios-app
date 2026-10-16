@@ -766,6 +766,8 @@ final class SessionContainer {
         conversationController.start()
         self.conversationController = conversationController
 
+        let knownAuthors = KnownAuthorDirectory(database: database, flipClient: flipClient, owner: session.ownerKeyPair)
+        self.knownAuthors = knownAuthors
         self.linkCardResolver = LinkCardResolver(
             cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
             mintLookup: LinkCardResolver.mintLookup(reader: client),
@@ -777,7 +779,7 @@ final class SessionContainer {
                 messages: chatClient,
                 mints: client,
                 owner: owner,
-                viewer: MessageLinkViewer(controller: conversationController, userID: session.userID)
+                viewer: MessageLinkViewer(controller: conversationController, knownAuthors: knownAuthors, userID: session.userID)
             )
         )
 
@@ -851,7 +853,6 @@ final class SessionContainer {
         self.chatSpotlightIndexer = chatSpotlightIndexer
 
         self.profileAvatars = ProfileAvatarStore(flipClient: flipClient, owner: session.ownerKeyPair)
-        self.knownAuthors = KnownAuthorDirectory(database: database, flipClient: flipClient, owner: session.ownerKeyPair)
         knownAuthors.preload()
     }
 
