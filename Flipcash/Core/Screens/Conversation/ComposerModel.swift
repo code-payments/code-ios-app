@@ -177,6 +177,8 @@ final class ComposerModel {
         guard case .new = mode, draft.isEmpty else { return }
         draft = stored.text
         selection = nil
+        // The restore can land before the bar's draft observer is attached, so feed the preview here.
+        linkPreview.update(for: stored.text)
         if let target = stored.replyTarget {
             mode = .replying(to: ReplyTarget(target))
         }

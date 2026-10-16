@@ -47,6 +47,20 @@ struct ComposerLinkPreviewTests {
     }
 
     @Test
+    func aRestoredDraftLinkLoadsItsPreview() async {
+        let composer = ComposerModel()
+        var asked: [String] = []
+        composer.linkPreview.load = { url in
+            asked.append(url.absoluteString)
+            return Self.page
+        }
+        composer.restore(ChatDraft(text: "https://example.com/a", replyTarget: nil))
+        await settle(composer.linkPreview)
+        #expect(asked == ["https://example.com/a"])
+        #expect(composer.showsLinkPreview)
+    }
+
+    @Test
     func typingAroundTheSameLinkFetchesOnce() async {
         let (preview, box) = preview()
         preview.update(for: "https://example.com/a")
