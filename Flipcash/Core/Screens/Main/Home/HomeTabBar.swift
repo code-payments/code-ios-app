@@ -9,7 +9,8 @@ import FlipcashUI
 /// The floating pill tab bar for the v2 UI. A Liquid Glass capsule holds one
 /// button per ``HomeTab``, with a white selection pill that slides to the active
 /// tab. Ported from Android's `NavigationBarV2` (Figma frame 9013-5434):
-/// translucent capsule, white-20% sliding indicator, icons at full/half opacity.
+/// translucent capsule, white-20% sliding indicator, white icons and labels in
+/// both states. Only the profile photo dims when unselected.
 struct HomeTabBar: View {
 
     @Binding var selection: HomeTab
@@ -80,7 +81,6 @@ struct HomeTabBar: View {
                                     .frame(height: Self.labelLineHeight)
                                     .accessibilityHidden(true)
                             }
-                            .opacity(selection == tab ? 1 : 0.5)
                             .frame(width: itemWidth, height: Self.itemHeight)
                             .contentShape(Capsule())
                         }
@@ -110,6 +110,7 @@ struct HomeTabBar: View {
     private func icon(for tab: HomeTab) -> some View {
         if tab == .tipCard, let profileSlot {
             ProfileTabIcon(photo: profileSlot.preview, isSelected: tab == selection)
+                .opacity(tab == selection ? 1 : 0.5)
                 .scaleEffect(Self.iconSize / ProfileTabIcon.slotSize)
                 .frame(width: Self.iconSize, height: Self.iconSize)
         } else {

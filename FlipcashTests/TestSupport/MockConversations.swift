@@ -15,6 +15,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let conversationID: ConversationID
         let text: String
         let repliedTo: MessageID?
+        var linkPreview: MessageLinkPreview? = nil
     }
     /// One `sendMediaMessage` call.
     struct SentMedia: Sendable, Equatable {
@@ -42,6 +43,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let messageID: MessageID
         let text: String
         let repliedTo: MessageID?
+        var linkPreview: MessageLinkPreview? = nil
         let expectedEventSequence: UInt64
     }
 
@@ -383,6 +385,12 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         set { lock.withLock { _messagesDelay = newValue } }
     }
     private var _messagesDelay: Duration = .zero
+    /// When set, the newest-page `getMessages` throws this instead of returning `messages`.
+    var messagesError: Error? {
+        get { lock.withLock { _messagesError } }
+        set { lock.withLock { _messagesError = newValue } }
+    }
+    private var _messagesError: Error?
 
     func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
         lock.withLock { _singleMessageQueries.append(messageID) }
@@ -395,21 +403,22 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         guard let before else {
             lock.withLock { _latestPageQueries.append(conversationID) }
             if messagesDelay > .zero { try? await Task.sleep(for: messagesDelay) }
+            if let error = messagesError { throw error }
             return messages
         }
         lock.withLock { _olderQueries.append(before) }
         return olderMessages
     }
 
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage {
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, clientMessageID: UUID) async throws -> ConversationMessage {
         lock.withLock {
-            _sent.append(Sent(conversationID: conversationID, text: text, repliedTo: repliedTo))
+            _sent.append(Sent(conversationID: conversationID, text: text, repliedTo: repliedTo, linkPreview: linkPreview))
             _sentClientIDs.append(clientMessageID)
         }
         if let error = sendError { throw error }
         return sendResult ?? ConversationMessage(
             id: MessageID(value: 1), senderID: nil, content: .text(text),
-            date: Date(timeIntervalSince1970: 0), unreadSeq: 0, repliedTo: repliedTo
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 0, repliedTo: repliedTo, linkPreview: linkPreview
         )
     }
 
@@ -440,9 +449,9 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         )
     }
 
-    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, expectedEventSequence: UInt64) async throws -> MessageMutation {
+    func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, expectedEventSequence: UInt64) async throws -> MessageMutation {
         lock.withLock {
-            _edited.append(Edited(conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, expectedEventSequence: expectedEventSequence))
+            _edited.append(Edited(conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, linkPreview: linkPreview, expectedEventSequence: expectedEventSequence))
         }
         if let editError { throw editError }
         guard let editResult else { throw ErrorEditMessage.unknown }

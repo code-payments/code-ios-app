@@ -56,25 +56,20 @@ final class LinkCardView: UIView {
     /// The same, for the web card, which takes no height while it draws nothing.
     private var webBottom: NSLayoutConstraint!
 
-    /// Whether a web card asks for its page as it draws or waits for its chip. Set before
-    /// ``configure(with:source:)``.
-    var webPreviewMode: WebLinkPreviewMode = .tapToLoad
-    /// The web links this transcript's viewer has already asked to preview, so a recycled row does
-    /// not put the chip back up in front of an answer they asked for.
-    var webPreviewRequests = WebPreviewRequests()
-    /// Where the web card's image comes from: the source the card was last configured with.
-    private weak var imageSource: (any LinkCardSource)?
+    /// Where a web card's image comes from. Set before ``configure(with:source:)``.
+    var webImages: WebCardImages? {
+        didSet {
+            webView.loadImage = webImages?.load
+            webView.cachedImage = webImages?.cached
+        }
+    }
 
-    /// Whether a web card that is still waiting on its page draws the placeholder: set for a message
-    /// that is only its link, before ``configure(with:source:)``.
-    var webShowsPlaceholder = false
-
-    /// Whether a web card's page preview, or its placeholder, is drawn: what widens the bubble around
-    /// it, and what a link-only message is drawn bare for.
+    /// Whether a web card's page preview is drawn: what widens the bubble around it, and what a
+    /// link-only message is drawn bare for.
     var drawsWebPreview: Bool {
         switch webView.content {
-        case .preview, .placeholder: true
-        case .nothing, .chip: false
+        case .preview: true
+        case .nothing: false
         }
     }
 
@@ -87,12 +82,11 @@ final class LinkCardView: UIView {
     var onCardButton: (() -> Void)?
 
     /// Whether `point`, in this view's coordinates, is on one of the card's own buttons: the cash
-    /// card's "Claim" pill, the group card's "View" or the web card's "Show preview" chip. These
-    /// act on the first tap; the rest of a card takes the transcript's double tap.
+    /// card's "Claim" pill or the group card's "View". These act on the first tap; the rest of a
+    /// card takes the transcript's double tap.
     func hasButton(at point: CGPoint) -> Bool {
         if !cashView.isHidden, cashView.hasButton(at: convert(point, to: cashView)) { return true }
         if !groupView.isHidden, groupView.hasButton(at: convert(point, to: groupView)) { return true }
-        if !webView.isHidden, webView.hasButton(at: convert(point, to: webView)) { return true }
         return false
     }
 
@@ -217,36 +211,21 @@ final class LinkCardView: UIView {
     ///
     /// With no source the card paints unresolved and asks nothing, which is what a preview or a
     /// test that does not care about resolution gets.
+    ///
+    /// A web card asks nothing either way: its page came with the message.
     func configure(with card: LinkCard, source: (any LinkCardSource)?) {
         subscription?.cancel()
         subscription = nil
 
-        imageSource = source
-        webView.onShowPreview = nil
+        if case .web = card {
+            show(card, state: nil, loading: false)
+            return
+        }
         let known = source?.known(card)
         show(card, state: known, loading: known == nil && source != nil)
 
         guard let source else { return }
-        // A held answer costs no request, so it paints in either mode; the chip stands in for
-        // the lookup until the viewer asks.
-        if case .web(let web) = card, known == nil, awaitsChip(web) {
-            webView.onShowPreview = { [weak self, weak source] in
-                guard let self, let source else { return }
-                webPreviewRequests.insert(web.url)
-                configure(with: card, source: source)
-                onHeightChange?()
-            }
-            return
-        }
         subscribe(to: card, source: source)
-    }
-
-    /// Whether `web` waits behind the chip: a viewer outside the group who has not asked for it.
-    private func awaitsChip(_ web: LinkCard.Web) -> Bool {
-        switch webPreviewMode {
-        case .automatic: false
-        case .tapToLoad: !webPreviewRequests.contains(web.url)
-        }
     }
 
     private func subscribe(to card: LinkCard, source: any LinkCardSource) {
@@ -298,57 +277,38 @@ final class LinkCardView: UIView {
             cashView.isHidden = true
             tokenView.isHidden = true
             setSized(.web)
-            webView.loadImage = { [weak self] url in await self?.imageSource?.webImage(for: url) }
-            webView.cachedImage = { [weak self] url in self?.imageSource?.cachedWebImage(for: url) }
-            let placeholder = webShowsPlaceholder && loading ? Self.displayHost(of: web) : nil
-            return webView.configure(with: Self.webContent(
-                state, chip: chipHost(web), placeholder: placeholder.map { ($0, web.url) }
-            ))
+            return webView.configure(with: .preview(Self.page(of: web)))
         }
     }
 
-    /// The chip's host when `web` waits behind the chip, else nil.
-    private func chipHost(_ web: LinkCard.Web) -> String? {
-        guard awaitsChip(web) else { return nil }
-        return Self.displayHost(of: web)
+    /// The page as the web card draws it. Title and description are clamped by the labels, not
+    /// cleaned again: the sender cleaned them, and the recipient draws what was sent.
+    static func page(of web: LinkCard.Web) -> LinkWebCardView.Page {
+        LinkWebCardView.Page(
+            host: displayHost(of: web.url),
+            title: web.page.title,
+            description: web.page.description,
+            image: web.page.image
+        )
     }
 
-    /// The link's own host as the chip and placeholder show it, without its "www.".
-    private static func displayHost(of web: LinkCard.Web) -> String {
-        let host = WebLinks.host(of: web.url) ?? web.url.host() ?? ""
+    /// The link's own host as the card shows it, without its "www.".
+    private static func displayHost(of url: URL) -> String {
+        let host = url.host() ?? ""
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-    }
-
-    /// `.none` draws nothing. Loading draws the chip while it waits to be tapped, the placeholder for
-    /// a link-only message, and otherwise nothing.
-    private static func webContent(
-        _ state: LinkCard.State?,
-        chip host: String?,
-        placeholder: (host: String, url: URL)?
-    ) -> LinkWebCardView.Content {
-        switch state {
-        case .web(.resolved(let page)):
-            return .preview(page)
-        case .web(.none):
-            return .nothing
-        case .cash, .token, .group, .user, nil:
-            if let host { return .chip(host: host) }
-            if let placeholder { return .placeholder(host: placeholder.host, url: placeholder.url) }
-            return .nothing
-        }
     }
 
     private static func cashState(_ state: LinkCard.State?) -> LinkCard.Cash.State {
         switch state {
         case .cash(let cash):       cash
-        case .token, .group, .user, .web, nil: .unresolved
+        case .token, .group, .user, nil: .unresolved
         }
     }
 
     private static func tokenState(_ state: LinkCard.State?) -> LinkCard.Token.State {
         switch state {
         case .token(let token):     token
-        case .cash, .group, .user, .web, nil: .unresolved
+        case .cash, .group, .user, nil: .unresolved
         }
     }
 
@@ -356,7 +316,7 @@ final class LinkCardView: UIView {
     private static func groupState(_ state: LinkCard.State?) -> LinkCard.Group.State? {
         switch state {
         case .group(let group):     group
-        case .cash, .token, .user, .web, nil: nil
+        case .cash, .token, .user, nil: nil
         }
     }
 
@@ -364,7 +324,7 @@ final class LinkCardView: UIView {
     private static func userState(_ state: LinkCard.State?) -> LinkCard.User.State? {
         switch state {
         case .user(let user):               user
-        case .cash, .token, .group, .web, nil: nil
+        case .cash, .token, .group, nil: nil
         }
     }
 }

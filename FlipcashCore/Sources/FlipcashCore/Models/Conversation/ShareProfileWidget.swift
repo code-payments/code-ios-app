@@ -37,7 +37,8 @@ extension Flipcash_Messaging_V1_WidgetContent {
     var shareProfile: ShareProfileWidget? {
         switch type {
         case .shareProfile(let widget): ShareProfileWidget(widget)
-        case nil:                       nil
+        // A poll widget has no local representation yet; it degrades to `.unrecognized` upstream.
+        case .poll, nil:                nil
         }
     }
 }

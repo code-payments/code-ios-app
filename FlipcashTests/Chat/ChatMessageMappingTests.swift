@@ -113,6 +113,19 @@ struct ChatMessageMappingTests {
         #expect(hint(me, .authentication) == [.unavailable(.resend)])
     }
 
+    @Test("an unrecognized widget draws as the update bubble")
+    func unrecognizedWidgetIsUpdateApp() {
+        let widget = ConversationMessage(
+            id: MessageID(value: 1),
+            senderID: them,
+            content: .widget(.unrecognized),
+            date: base,
+            unreadSeq: 1
+        )
+        let items = ChatItem.from([widget], selfUserID: me, counterpartName: "Ada Lovelace")
+        #expect(messageRows(items).map(\.content) == [.unavailable(.updateApp)])
+    }
+
     @Test("a group's resend hint names the message's author, not the empty DM counterpart")
     func decryptFailureHintNamesGroupAuthor() {
         let items = ChatItem.from(
