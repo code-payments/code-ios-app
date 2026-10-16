@@ -257,7 +257,7 @@ struct LinkMessageCardContent: View {
             if let kind {
                 Text(kind)
                     .font(.default(size: 14, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.55))
+                    .foregroundStyle(Color.white.opacity(0.6))
                     .lineLimit(1)
             }
         }
@@ -266,7 +266,7 @@ struct LinkMessageCardContent: View {
     private func byline(_ text: String) -> some View {
         Text(text)
             .font(.default(size: 14, weight: .medium))
-            .foregroundStyle(Color.textSecondary)
+            .foregroundStyle(Color.white.opacity(0.6))
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -301,7 +301,7 @@ struct LinkMessageCardContent: View {
             HStack(spacing: 8) {
                 Text(text ?? "")
                     .font(.default(size: 14, weight: .medium))
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.white.opacity(0.6))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if showsOpen {
                     Text(Copy.open)
