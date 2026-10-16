@@ -20,9 +20,9 @@ final class IntentMultiTransfer: IntentType {
     struct Payment {
         /// The recipient's PRIMARY account for the intent's mint.
         let destination: PublicKey
-        /// The recipient's owner authority. The server requires it only when `destination` is
-        /// auto-opened by this intent; sending it always is harmless.
-        let destinationOwner: PublicKey?
+        /// The recipient's owner authority. The server requires it when `destination` (a PRIMARY
+        /// account) is auto-opened by this intent; we always send it.
+        let destinationOwner: PublicKey
         let exchangedFiat: ExchangedFiat
     }
 
@@ -31,8 +31,13 @@ final class IntentMultiTransfer: IntentType {
         case invalidPaymentCount
         /// Every payment must pay the same mint.
         case mintMismatch
-        /// Destinations, and their owners, must be unique and must differ from the source.
+        /// Destinations, and their owners, must each be unique, and no destination may be the
+        /// source vault.
         case duplicateDestination
+        /// A destination owner must differ from the source's owner authority.
+        case destinationIsSource
+        /// Every payment must use one currency, the verified rate's.
+        case currencyMismatch
     }
 
     static let paymentCountRange = 2...10
@@ -61,9 +66,16 @@ final class IntentMultiTransfer: IntentType {
         guard Set(destinations).count == destinations.count else {
             throw Error.duplicateDestination
         }
-        let owners = payments.compactMap(\.destinationOwner)
+        let owners = payments.map(\.destinationOwner)
         guard Set(owners).count == owners.count else {
             throw Error.duplicateDestination
+        }
+        guard !owners.contains(sourceCluster.authorityPublicKey) else {
+            throw Error.destinationIsSource
+        }
+        let verifiedCurrency = verifiedState.rateProto.exchangeRate.currencyCode.lowercased()
+        guard payments.allSatisfy({ $0.exchangedFiat.nativeAmount.currency.rawValue.lowercased() == verifiedCurrency }) else {
+            throw Error.currencyMismatch
         }
 
         self.id            = rendezvous
@@ -96,9 +108,7 @@ extension IntentMultiTransfer {
                 $0.payments = payments.map { payment in
                     .with {
                         $0.destination = payment.destination.solanaAccountID
-                        if let destinationOwner = payment.destinationOwner {
-                            $0.destinationOwner = destinationOwner.solanaAccountID
-                        }
+                        $0.destinationOwner = payment.destinationOwner.solanaAccountID
                         $0.clientExchangeData = .with {
                             $0.mint = payment.exchangedFiat.mint.solanaAccountID
                             $0.quarks = payment.exchangedFiat.onChainAmount.quarks
