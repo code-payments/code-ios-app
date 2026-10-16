@@ -133,10 +133,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var transcriptTopInset: CGFloat = 0
     /// The latest request to land on a message, from a message link; each new token scrolls once.
     var messageJump: MessageJump? = nil
-    /// Fired when the user starts dragging the transcript.
-    var onUserScroll: () -> Void = {}
-    /// Fired when the user's own message is appended to the transcript.
-    var onOwnMessageAppended: () -> Void = {}
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -196,7 +192,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
         screen.reportsReads = reportsReads
-        screen.onUserScroll = onUserScroll
         perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
         context.coordinator.barHost = barHost
@@ -265,16 +260,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         let lastIsOwnMessage = if case .message(let message) = newLastMessage { message.sender == .me } else { false }
         let appendedOwn = newLastMessageID != context.coordinator.lastMessageID && lastIsOwnMessage
         let wasAtBottom = screen.isTranscriptAtBottom
-        screen.onUserScroll = onUserScroll
         // Before the items land, so a row still outside the window is recorded as the pending
         // target and the update that brings it in positions on it instead of at the bottom.
         perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
         if appendedOwn, !wasAtBottom {
             screen.scrollToBottom(animated: true)
-        }
-        if appendedOwn {
-            onOwnMessageAppended()
         }
         context.coordinator.lastMessageID = newLastMessageID
     }

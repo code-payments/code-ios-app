@@ -273,12 +273,6 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onMessageAction = newValue }
     }
 
-    /// Forwards the start of a user drag on the transcript; programmatic scrolls never fire it.
-    public var onUserScroll: (() -> Void)? {
-        get { transcript.onUserScroll }
-        set { transcript.onUserScroll = newValue }
-    }
-
     /// Forwards a tap on a reply's quote panel, with the quoted row's id.
     public var onQuoteTap: ((String) -> Void)? {
         get { transcript.onQuoteTap }

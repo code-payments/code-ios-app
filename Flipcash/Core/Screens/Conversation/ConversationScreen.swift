@@ -103,7 +103,7 @@ struct ConversationScreen: View {
     /// already-open chat (same screen identity, new `landing`) still does.
     @State private var landedOn: MessageLanding?
     /// The chat the back chip returns to, or nil while it is hidden. Set by a landing from another
-    /// chat; cleared when the user scrolls away or sends.
+    /// chat; the chip stays until it is tapped or the reader leaves this chat.
     @State private var backChipTarget: ConversationID?
 
     /// The join-requests anchor's measured height, reserved at the transcript's top; 0 while hidden.
@@ -459,9 +459,7 @@ struct ConversationScreen: View {
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
             transcriptTopInset: anchorHeight > 0 ? anchorHeight + 8 : 0,
-            messageJump: messageJump,
-            onUserScroll: hideBackChip,
-            onOwnMessageAppended: hideBackChip
+            messageJump: messageJump
         )
     }
 
@@ -1179,10 +1177,6 @@ struct ConversationScreen: View {
         landedOn = landing
         backChipTarget = landing.returnTo
         land(on: landing.messageID)
-    }
-
-    private func hideBackChip() {
-        if backChipTarget != nil { backChipTarget = nil }
     }
 
     private func confirmDelete(_ messageID: MessageID) {

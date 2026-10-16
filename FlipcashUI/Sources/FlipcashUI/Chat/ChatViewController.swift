@@ -31,9 +31,6 @@ public final class ChatViewController: UICollectionViewController {
     /// Fired whenever the transcript's content moves, so an overlay pinned to a row — the edit
     /// spotlight — can follow it.
     public var onScroll: (() -> Void)?
-    /// Fired when the user starts dragging the transcript. Programmatic scrolls — a jump, the
-    /// opening scroll, keep-at-bottom — never fire it.
-    public var onUserScroll: (() -> Void)?
 
     /// Called with the newest message someone else sent that has been on screen, each time it moves
     /// past the last one reported. Silent until the opening scroll has landed, and while
@@ -1049,10 +1046,6 @@ public final class ChatViewController: UICollectionViewController {
             guard self.positionClaim == claim else { return }
             self.chatLayout.restoreContentOffset(with: snapshot)
         }
-    }
-
-    public override func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        onUserScroll?()
     }
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
