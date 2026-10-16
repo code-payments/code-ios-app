@@ -116,6 +116,7 @@ public final class ChatCashCardCell: ChatColumnCell {
     /// space beside the card — the same reason the retry gesture on text rows hugs the bubble.
     public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         card.convert(card.bounds, to: self).contains(point) || reactionRow.convert(reactionRow.bounds, to: self).contains(point)
+            || authorAvatarContains(point)
     }
 
     /// Fired when the viewer taps a reaction pill — the argument is the toggled emoji.
