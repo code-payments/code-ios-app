@@ -152,6 +152,15 @@ struct ComposerLinkPreviewTests {
     }
 
     @Test
+    func aCapitalisedSchemeGetsNoCard() async {
+        let (preview, box) = preview()
+        preview.update(for: "Https://example.com")
+        await settle(preview)
+        #expect(preview.link == nil)
+        #expect(box.asked.isEmpty)
+    }
+
+    @Test
     func noAttachmentOnceTheLinkIsNoLongerWhole() async {
         let (preview, _) = preview()
         preview.update(for: "https://example.com/a")

@@ -80,7 +80,10 @@ final class ComposerLinkPreview {
         guard next?.text != current else { return }
         cancel()
         current = next?.text
-        guard let next, !dismissed.contains(next.text), let load else { return }
+        // A link the contract would refuse at send (e.g. an autocapitalised `Https://`) gets no card.
+        guard let next, !dismissed.contains(next.text), let load,
+              LinkPreviewSendChecks.isWholeLink(url: LinkPreviewSendChecks.previewURL(forLinkText: next.text), in: text)
+        else { return }
         let host = WebLinks.host(of: next.url) ?? next.url.host() ?? next.text
         state = .loading(link: next.text, host: host)
         let upload = upload
