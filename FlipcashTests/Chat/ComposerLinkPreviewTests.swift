@@ -142,6 +142,16 @@ struct ComposerLinkPreviewTests {
     }
 
     @Test
+    func aBareDomainIsSentAsHTTPS() async throws {
+        let (preview, box) = preview()
+        preview.update(for: "see example.com")
+        await settle(preview)
+        #expect(box.asked == ["https://example.com"])
+        let sent = try #require(preview.attachment(for: "see example.com"))
+        #expect(sent.url == "https://example.com")
+    }
+
+    @Test
     func noAttachmentOnceTheLinkIsNoLongerWhole() async {
         let (preview, _) = preview()
         preview.update(for: "https://example.com/a")

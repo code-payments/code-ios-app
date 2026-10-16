@@ -125,11 +125,12 @@ final class ComposerLinkPreview {
     /// in `text`, or its title cleans to nothing.
     func attachment(for text: String) -> MessageLinkPreview? {
         guard case .ready(let link, _, let page) = state,
-              LinkPreviewSendChecks.isWholeLink(url: link, in: text),
+              case let url = LinkPreviewSendChecks.previewURL(forLinkText: link),
+              LinkPreviewSendChecks.isWholeLink(url: url, in: text),
               let title = LinkPreviewSendChecks.cleanTitle(page.title) else { return nil }
         let description = page.description.map(LinkPreviewSendChecks.cleanDescription)
         return MessageLinkPreview(
-            url: link,
+            url: url,
             title: title,
             description: description?.isEmpty == false ? description : nil,
             image: page.image

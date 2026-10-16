@@ -24,13 +24,36 @@ public enum LinkPreviewSendChecks {
     }
 
     /// The UTF-16 range of the first place `url` appears in `text` as a whole link, or `nil` when
-    /// it never does or is not a link the contract accepts.
+    /// it never does or is not a link the contract accepts. An `https://` url whose host has a dot
+    /// also matches its bare form, the url less `https://`, which is then the range returned.
     public static func wholeLinkRange(url: String, in text: String) -> NSRange? {
         let link = Array(url.unicodeScalars)
         guard isValidURL(link) else { return nil }
         let haystack = Array(text.unicodeScalars)
-        guard haystack.count >= link.count else { return nil }
+        if let range = firstWholeRange(of: link[...], in: haystack) { return range }
+        guard let bare = bareForm(of: link) else { return nil }
+        return firstWholeRange(of: bare, in: haystack)
+    }
 
+    /// The url a preview of `linkText`, a link as written in a message, is sent with: the text
+    /// itself, or `https://` and the text for a bare domain.
+    public static func previewURL(forLinkText linkText: String) -> String {
+        linkText.contains("://") ? linkText : "https://" + linkText
+    }
+
+    /// `link` less its `https://`, when the contract lets a text carry it that way: the host has at
+    /// least two labels, not counting a trailing dot.
+    private static func bareForm(of link: [Unicode.Scalar]) -> ArraySlice<Unicode.Scalar>? {
+        guard link.starts(with: "https://".unicodeScalars) else { return nil }
+        let rest = link.dropFirst(8)
+        var host = rest.prefix { $0 != "/" && $0 != "?" && $0 != "#" && $0 != ":" }
+        if host.last == "." { host = host.dropLast() }
+        guard host.contains(".") else { return nil }
+        return rest
+    }
+
+    private static func firstWholeRange(of link: ArraySlice<Unicode.Scalar>, in haystack: [Unicode.Scalar]) -> NSRange? {
+        guard !link.isEmpty, haystack.count >= link.count else { return nil }
         var start = 0
         while start <= haystack.count - link.count {
             if haystack[start..<(start + link.count)].elementsEqual(link) {
@@ -42,7 +65,8 @@ public enum LinkPreviewSendChecks {
                 let after = j == haystack.count || whiteSpace.contains(haystack[j])
                 if before && after {
                     let location = haystack[..<start].reduce(0) { $0 + $1.utf16.count }
-                    return NSRange(location: location, length: url.utf16.count)
+                    let length = link.reduce(0) { $0 + $1.utf16.count }
+                    return NSRange(location: location, length: length)
                 }
             }
             start += 1

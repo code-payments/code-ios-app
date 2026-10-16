@@ -131,6 +131,54 @@
       "name": "bare domain resolved by the detector",
       "text": "see a.example",
       "url": "https://a.example",
+      "accepted": true
+    },
+    {
+      "name": "bare domain with a path",
+      "text": "see a.example/x",
+      "url": "https://a.example/x",
+      "accepted": true
+    },
+    {
+      "name": "bare domain in brackets",
+      "text": "(a.example).",
+      "url": "https://a.example",
+      "accepted": true
+    },
+    {
+      "name": "bare domain never takes http",
+      "text": "see a.example",
+      "url": "http://a.example",
+      "accepted": false
+    },
+    {
+      "name": "bare domain with a case-folded host",
+      "text": "see A.example",
+      "url": "https://a.example",
+      "accepted": false
+    },
+    {
+      "name": "bare single label",
+      "text": "see example",
+      "url": "https://example",
+      "accepted": false
+    },
+    {
+      "name": "bare domain in an email address",
+      "text": "me@a.example",
+      "url": "https://a.example",
+      "accepted": false
+    },
+    {
+      "name": "bare domain inside a path",
+      "text": "https://evil.example/a.example",
+      "url": "https://a.example",
+      "accepted": false
+    },
+    {
+      "name": "bare domain against a trailing-dot url",
+      "text": "see a.example",
+      "url": "https://a.example.",
       "accepted": false
     },
     {
