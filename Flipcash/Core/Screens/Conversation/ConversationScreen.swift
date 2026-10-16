@@ -79,6 +79,7 @@ struct ConversationScreen: View {
     /// Whether the encryption explainer opened from the transcript's marker is showing.
     @State private var isShowingEncryptionInfo = false
     @State private var messageReport: MessageReportRequest?
+    @State private var messageShare: MessageShareRequest?
     /// Whether `Group: Gate Shown` has gone out for this visit. The destination is keyed by
     /// conversation ID, so a new push is a new visit; a return from a pushed screen is not.
     @State private var didReportGate = false
@@ -805,6 +806,20 @@ struct ConversationScreen: View {
         .sheet(isPresented: $isShowingEncryptionInfo) {
             E2eeLearnMoreSheet(kind: .dm, isPresented: $isShowingEncryptionInfo)
         }
+        .fullScreenCover(item: $messageShare) { share in
+            ShareToChatsSheet(
+                subject: .message(share.url),
+                isPresented: Binding(
+                    get: { messageShare != nil },
+                    set: { if !$0 { messageShare = nil } }
+                )
+            ) { chatID in
+                // The chat the message is in stays in the picker, and sending there leaves the
+                // viewer where they already are.
+                guard chatID != conversationID else { return }
+                router.push(.tipConversation(chatID))
+            }
+        }
         .fullScreenCover(item: $messageReport) { report in
             NavigationStack {
                 ReportFlowScreen(
@@ -1032,6 +1047,9 @@ struct ConversationScreen: View {
             // that one.
             guard let conversationID else { return }
             messageReport = MessageReportRequest(id: stableID, chatID: conversationID, messageID: message.id)
+        case .forward:
+            guard let conversationID else { return }
+            messageShare = MessageShareRequest(id: stableID, url: .messageLink(in: conversationID, messageID: message.id))
         }
     }
 
@@ -1127,6 +1145,12 @@ struct ConversationScreen: View {
         let id: String
         let chatID: ConversationID
         let messageID: MessageID
+    }
+
+    private struct MessageShareRequest: Identifiable {
+        /// The transcript row's stable id.
+        let id: String
+        let url: URL
     }
 
     private struct ReactionPickerRequest: Identifiable {

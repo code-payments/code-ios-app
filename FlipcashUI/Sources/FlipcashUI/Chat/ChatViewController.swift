@@ -1527,7 +1527,8 @@ extension ChatViewController {
                 switch action {
                 case .copy:
                     if let body { UIPasteboard.general.string = body }
-                case .reply, .edit, .delete, .report:
+                // The link rows need the chat's id, which this module never holds.
+                case .reply, .edit, .delete, .report, .forward:
                     handler?(rowID, action)
                 }
             }
@@ -1723,11 +1724,12 @@ private extension MessageCapability {
     /// this module's symbol registry, and `MessageCapability` is a core model.
     var menuSymbol: SystemSymbol {
         switch self {
-        case .copy:   .doc
+        case .copy:   .docFill
         case .reply:  .replyArrow
         case .edit:   .pencil
         case .delete: .trash
         case .report: .exclamationBubble
+        case .forward: .forwardArrow
         }
     }
 }
