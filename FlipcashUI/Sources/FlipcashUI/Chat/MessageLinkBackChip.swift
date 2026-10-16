@@ -25,7 +25,7 @@ public struct MessageLinkBackChip: View {
             HStack(spacing: 6) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .medium))
-                Text(title)
+                Text(Self.label(title))
                     .font(.appTextSmall)
                     .lineLimit(1)
             }
@@ -36,8 +36,10 @@ public struct MessageLinkBackChip: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Back to \(title)")
     }
+
+    /// What the chip says: where a tap takes the reader.
+    static func label(_ title: String) -> String { "Back to \(title)" }
 
     private static let height: CGFloat = 36
 }
