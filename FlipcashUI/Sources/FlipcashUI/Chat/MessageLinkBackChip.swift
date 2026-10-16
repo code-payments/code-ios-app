@@ -32,8 +32,7 @@ public struct MessageLinkBackChip: View {
             .foregroundStyle(Color.textMain)
             .padding(.horizontal, 14)
             .frame(height: Self.height)
-            .background(Color.white.opacity(0.12), in: Capsule())
-            .overlay(Capsule().strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity), lineWidth: 1))
+            .modifier(ChipBackground())
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -41,5 +40,19 @@ public struct MessageLinkBackChip: View {
     }
 
     private static let height: CGFloat = 36
+}
+
+/// Glass on iOS 26, like the composer and the other floating chat surfaces; below that, a flat
+/// white fill with the link card's hairline border.
+private struct ChipBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.glassEffect(.regular.interactive(), in: .capsule)
+        } else {
+            content
+                .background(Color.white.opacity(0.12), in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity), lineWidth: 1))
+        }
+    }
 }
 #endif
