@@ -1465,6 +1465,11 @@ struct ConversationScreen: View {
         case .web:
             // Through the same "You're Leaving Flipcash" path as a tap on the link text.
             openLink(card.url)
+        case .message:
+            // The card and its Join, Buy and Request buttons all lead to the message: in place in
+            // this chat, else its landing, where the chat gates itself and offers the join, the buy
+            // or the request. The card never joins, buys or requests from here.
+            openLink(card.url)
         case .group(let group):
             // A link to the chat already on screen has nowhere to go.
             guard group.chatID != conversationID else { return }

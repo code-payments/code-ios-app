@@ -145,6 +145,18 @@ public final class ChatViewController: UICollectionViewController {
     /// `CASH_CARD_WIDTH_FRACTION` so the card reads the same size on both.
     private static let cashCardWidthFraction: CGFloat = 0.64
 
+    /// The width of a cash card in a row `available` points wide.
+    private func cashCardWidth(available: CGFloat) -> CGFloat {
+        (available - ChatColumnCell.rowInset * 2) * Self.cashCardWidthFraction
+    }
+
+    /// The width a link message's card is held to, or nil when it takes the bubble's width. A message
+    /// card sits at the cash card's width in every state rather than filling the row.
+    private func linkCardWidth(for message: ChatMessage, available: CGFloat) -> CGFloat? {
+        guard case .message = message.linkPreview?.card else { return nil }
+        return cashCardWidth(available: available)
+    }
+
     /// Avatar bytes for the transcript's authors and typists, keyed by user id. Empty in a DM, where
     /// no row is attributed. The owner fills it as pictures download; rows already on screen pick the
     /// new bytes up without a diff, since nothing about the row itself changed.
@@ -670,7 +682,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.webImages = mediaURLResolver.map(WebCardImages.init(resolver:))
             cell.configure(
                 with: message,
-                maxWidth: maxWidth,
+                maxWidth: linkCardWidth(for: message, available: available) ?? maxWidth,
                 authorImageData: authorImageData,
                 quoteThumbnail: quoteThumbnail(for: message)
             )
@@ -696,8 +708,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
         case let cell as ChatCashCardCell:
-            let cardWidth = (available - ChatColumnCell.rowInset * 2) * Self.cashCardWidthFraction
-            cell.configure(with: message, maxWidth: cardWidth, authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: cashCardWidth(available: available), authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }

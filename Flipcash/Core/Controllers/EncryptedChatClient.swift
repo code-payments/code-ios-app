@@ -113,8 +113,9 @@ extension EncryptedChatClient: ConversationFetching {
 
 extension EncryptedChatClient: ConversationMessaging {
 
-    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
-        guard let message = try await client.getMessage(owner: owner, conversationID: conversationID, messageID: messageID) else { return nil }
+    /// One message, decrypted when it came back sealed, read under `viewMode`.
+    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, viewMode: ConversationViewMode) async throws -> ConversationMessage? {
+        guard let message = try await client.getMessage(owner: owner, conversationID: conversationID, messageID: messageID, viewMode: viewMode) else { return nil }
         guard message.isAwaitingDecryption else { return message }
         return await opener(conversationID, owner: owner).open(message)
     }
