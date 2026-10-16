@@ -42,6 +42,9 @@ struct ConversationScreen: View {
     /// post-tip navigation; every other entry point opens keyboard-closed.
     var openKeyboard: Bool = false
 
+    /// The message a message link opened this chat on, or nil for every other entry point.
+    var landing: MessageLanding? = nil
+
     @Environment(ConversationController.self) private var conversationController
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
@@ -92,6 +95,15 @@ struct ConversationScreen: View {
     @State private var undrawableEmoji: Set<String> = []
     /// The catalog's first category, in catalog order, that fills the strip after the recents.
     @State private var stripCatalog: [String] = []
+
+    /// The latest request to scroll to a linked message; each new one scrolls once.
+    @State private var messageJump: MessageJump?
+    /// The landing last acted on, so a reload doesn't jump again while a new link into this
+    /// already-open chat (same screen identity, new `landing`) still does.
+    @State private var landedOn: MessageLanding?
+    /// The chat the back chip returns to, or nil while it is hidden. Set by a landing from another
+    /// chat; the chip stays until it is tapped or the reader leaves this chat.
+    @State private var backChipTarget: ConversationID?
 
     /// The join-requests anchor's measured height, reserved at the transcript's top; 0 while hidden.
     @State private var anchorHeight: CGFloat = 0
@@ -447,7 +459,8 @@ struct ConversationScreen: View {
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
-            transcriptTopInset: anchorHeight > 0 ? anchorHeight + 8 : 0
+            transcriptTopInset: anchorHeight > 0 ? anchorHeight + 8 : 0,
+            messageJump: messageJump
         )
     }
 
@@ -558,6 +571,7 @@ struct ConversationScreen: View {
     private func chrome(_ content: some View) -> some View {
         content
         .animation(.default, value: reactionToastText)
+        .animation(.default, value: backChipTarget)
         .animation(.default, value: hostRequests.map(\.userID))
         .task(id: hostedConversationID) {
             guard let hostedConversationID else { return }
@@ -618,6 +632,18 @@ struct ConversationScreen: View {
         // display, under the status bar, rather than below the navigation bar.
         .overlay(alignment: .top) {
             VStack(spacing: 8) {
+                if let backChipTarget {
+                    MessageLinkBackChip(title: conversationController.displayName(forConversationID: backChipTarget)) {
+                        if landing?.isOverReturnChat == true {
+                            router.popTopmost()
+                        } else {
+                            router.navigate(to: .tipConversation(backChipTarget))
+                        }
+                    }
+                    // 10pt under the bar, with the stack's own 8.
+                    .padding(.top, 2)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 if !hostRequests.isEmpty, let conversationID {
                     JoinRequestsAnchor(
                         requests: hostRequests,
@@ -831,6 +857,14 @@ struct ConversationScreen: View {
         }
         .onChange(of: gate, initial: true) { _, gate in
             reportGateShown(gate)
+        }
+        // A message link lands once the opening read has stored the newest page, so paging back
+        // to the message starts from history the database holds.
+        .onChange(of: didInitialRead, initial: true) { _, _ in
+            landIfNeeded()
+        }
+        .onChange(of: landing) { _, _ in
+            landIfNeeded()
         }
         .onChange(of: gate.obscuresTranscript) { _, obscures in
             // The opening task read the gate it started with, which for a chat reached by link or
@@ -1148,6 +1182,26 @@ struct ConversationScreen: View {
         _ = coordinator?.loader.reveal(MessageID(value: value))
     }
 
+    /// Brings `messageID` into the window, paging older history when it isn't stored, then scrolls
+    /// to it and flashes it. A message the server no longer has leaves the transcript where it is.
+    private func land(on messageID: MessageID) {
+        guard let loader = coordinator?.loader else { return }
+        Task {
+            guard await loader.revealPaging(messageID) else {
+                session.dialogItem = .info(title: "Message Unavailable", subtitle: "This message may have been deleted.")
+                return
+            }
+            messageJump = MessageJump(stableID: String(messageID.value), token: (messageJump?.token ?? 0) + 1)
+        }
+    }
+
+    private func landIfNeeded() {
+        guard didInitialRead, let landing, landing != landedOn else { return }
+        landedOn = landing
+        backChipTarget = landing.returnTo
+        land(on: landing.messageID)
+    }
+
     private func confirmDelete(_ messageID: MessageID) {
         guard let conversationID else { return }
 
@@ -1321,8 +1375,15 @@ struct ConversationScreen: View {
     }
 
     private func openLink(_ url: URL) {
+        // A link to a message in this chat jumps in place; routing it would remount the chat.
+        if Route.isFlipcashLink(url),
+           case .chatMessage(let chatID, let messageID)? = Route(url: url)?.path,
+           chatID == conversationID {
+            land(on: messageID)
+            return
+        }
         ChatLinkOpener(
-            openDeepLink: { container.deepLinkController.open($0) },
+            openDeepLink: { container.deepLinkController.open($0, sourceChat: conversationID) },
             openExternally: {
                 ExternalLinkOpener(session: session, trustedWebsites: container.trustedWebsites).open($0)
             }

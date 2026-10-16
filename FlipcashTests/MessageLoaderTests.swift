@@ -23,6 +23,16 @@ struct MessageLoaderTests {
         )
     }
 
+    private func makeController(_ database: Database, server: MockConversations) -> ConversationController {
+        ConversationController(
+            fetching: server, membership: server, viewerSettings: server, messaging: server, streaming: server,
+            contactNaming: MockDMContactNaming(),
+            database: database,
+            owner: .generate()!, selfUserID: UUID(),
+            typingHeartbeatInterval: .seconds(3), incomingTypingExpiry: .seconds(10)
+        )
+    }
+
     private func message(_ id: UInt64) -> ConversationMessage {
         ConversationMessage(id: MessageID(value: id), senderID: nil, content: .text("m\(id)"), date: Date(timeIntervalSince1970: TimeInterval(id)), unreadSeq: id)
     }
@@ -100,5 +110,35 @@ struct MessageLoaderTests {
 
         let loader = MessageLoader(conversationID: id, controller: makeController(database))
         #expect(loader.messages.map(\.id.value) == Array(1...10).map(UInt64.init))
+    }
+
+    @Test("revealPaging fetches older pages until a linked message outside the local history is stored")
+    func revealPagingFetchesToTarget() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages((141...200).map { message(UInt64($0)) }, conversationID: id)
+        let server = MockConversations()
+        server.olderMessages = (81...140).map { message(UInt64($0)) }
+        let loader = MessageLoader(conversationID: id, controller: makeController(database, server: server))
+
+        #expect(loader.reveal(MessageID(value: 100)) == false)
+        #expect(await loader.revealPaging(MessageID(value: 100)))
+        #expect(loader.messages.contains { $0.id.value == 100 })
+        #expect(server.olderQueries == [MessageID(value: 141)])
+    }
+
+    @Test("revealPaging gives up once the server has no older history")
+    func revealPagingStopsAtHistoryStart() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages((141...200).map { message(UInt64($0)) }, conversationID: id)
+        let server = MockConversations()
+        server.olderMessages = []
+        let loader = MessageLoader(conversationID: id, controller: makeController(database, server: server))
+
+        #expect(await loader.revealPaging(MessageID(value: 5)) == false)
+        #expect(server.olderQueries.count == 1)
     }
 }

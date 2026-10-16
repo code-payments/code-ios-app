@@ -67,6 +67,24 @@ struct AppRouterCrossStackTests {
         #expect(router[.tips] == AppRouter.navigationPath(.tipConversation(chatID), profile))
     }
 
+    @Test("canNavigateOver holds only for the owning tab with no sheet up")
+    func canNavigateOver_onlyOnOwningTab() {
+        let router = AppRouter()
+        let chatID = ConversationID(uuidString: UUID().uuidString)!
+        let landing = MessageLanding(messageID: MessageID(value: 7), returnTo: chatID)
+        let destination = AppRouter.Destination.chatMessage(chatID, landing)
+
+        router.activeTabStack = .tips
+        #expect(router.canNavigateOver(destination))
+
+        router.present(.give)
+        #expect(!router.canNavigateOver(destination))
+
+        router.dismissSheet()
+        router.activeTabStack = .balance
+        #expect(!router.canNavigateOver(destination))
+    }
+
     @Test("navigateOver from another tab navigates, replacing the owning stack's path")
     func navigateOver_fromOtherTab_navigates() {
         let router = AppRouter()

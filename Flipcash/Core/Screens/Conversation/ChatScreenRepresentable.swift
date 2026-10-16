@@ -138,6 +138,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var onMediaTap: (ChatMediaViewerRequest) -> Void = { _ in }
     /// Room the transcript reserves under the navigation bar for the join-requests anchor.
     var transcriptTopInset: CGFloat = 0
+    /// The latest request to land on a message, from a message link; each new token scrolls once.
+    var messageJump: MessageJump? = nil
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         let jump = JumpToBottomModel()
@@ -206,6 +208,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.unreadBelowCount = unreadBelowCount
         screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
+        perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
@@ -275,11 +278,21 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         let lastIsOwnMessage = if case .message(let message) = newLastMessage { message.sender == .me } else { false }
         let appendedOwn = newLastMessageID != context.coordinator.lastMessageID && lastIsOwnMessage
         let wasAtBottom = screen.isTranscriptAtBottom
+        // Before the items land, so a row still outside the window is recorded as the pending
+        // target and the update that brings it in positions on it instead of at the bottom.
+        perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
         if appendedOwn, !wasAtBottom {
             screen.scrollToBottom(animated: true)
         }
         context.coordinator.lastMessageID = newLastMessageID
+    }
+
+    /// Scrolls to `jump`'s message once per token.
+    private func perform(_ jump: MessageJump?, on screen: ChatScreenViewController, coordinator: Coordinator) {
+        guard let jump, jump.token != coordinator.lastJumpToken else { return }
+        coordinator.lastJumpToken = jump.token
+        screen.scrollToMessage(id: jump.stableID)
     }
 
     /// Wraps the action handler so the screen follows the action. The menu dismissed the keyboard
@@ -389,6 +402,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         let overlay: AttachKeyboardOverlay
         /// What the attach menu and its cards hand back, as of the latest render.
         var attachActions = AttachActions()
+        /// The last message jump performed, so a re-render doesn't scroll again.
+        var lastJumpToken: Int?
 
         init(model: ConversationBarModel, composer: ComposerModel) {
             self.model = model
