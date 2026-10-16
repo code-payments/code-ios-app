@@ -75,7 +75,7 @@ struct ChatPreviewDecryptionTests {
 
     @Test("The hint's copy")
     func hintCopy() {
-        #expect(ChatMessage.UnavailableHint.updateApp.text == "Update Flipcash to see messages like this. This one stays hidden.")
+        #expect(ChatMessage.UnavailableHint.updateApp.text == "Update Flipcash to see new messages like this")
         #expect(ChatMessage.UnavailableHint.askToResend(firstName: "Ada").text == "Ask Ada to send it again")
         #expect(ChatMessage.UnavailableHint.resend.text == "Try sending it again")
     }
