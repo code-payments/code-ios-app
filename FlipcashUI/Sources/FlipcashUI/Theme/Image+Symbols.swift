@@ -60,7 +60,8 @@ public enum SystemSymbol: String {
     
     case info = "info.circle"
     case doc = "doc.on.doc"
-    case forwardArrow = "arrowshape.turn.up.right"
+    case docFill = "doc.on.doc.fill"
+    case forwardArrow = "arrowshape.turn.up.right.fill"
     case clipboard = "doc.on.clipboard"
     case paste = "arrow.turn.left.down"
     case touchID = "touchid"
@@ -84,8 +85,8 @@ public enum SystemSymbol: String {
     case closeCircle = "xmark.circle.fill"
 
     case pencil = "pencil"
-    case trash = "trash"
-    case exclamationBubble = "exclamationmark.bubble"
+    case trash = "trash.fill"
+    case exclamationBubble = "exclamationmark.bubble.fill"
 
     /// The two rows of the group edit list, matched to the glyphs Android uses for the same rows
     /// (`Icons.Outlined.Image` and `Icons.Outlined.TextFields`) so the screen reads the same on

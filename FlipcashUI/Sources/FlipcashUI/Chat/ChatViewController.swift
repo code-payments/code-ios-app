@@ -1656,7 +1656,7 @@ private extension MessageCapability {
     /// this module's symbol registry, and `MessageCapability` is a core model.
     var menuSymbol: SystemSymbol {
         switch self {
-        case .copy:   .doc
+        case .copy:   .docFill
         case .reply:  .replyArrow
         case .edit:   .pencil
         case .delete: .trash
