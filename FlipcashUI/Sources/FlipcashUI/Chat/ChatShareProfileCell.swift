@@ -100,6 +100,7 @@ public final class ChatShareProfileCell: ChatColumnCell {
     /// Scopes the row's touch target to the card, not the full-width cell.
     public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         card.convert(card.bounds, to: self).contains(point) || reactionRow.convert(reactionRow.bounds, to: self).contains(point)
+            || authorAvatarContains(point)
     }
 
     public override func prepareForReuse() {

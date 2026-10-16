@@ -427,6 +427,12 @@ public class ChatColumnCell: UICollectionViewCell {
         onRetry?(retryID)
     }
 
+    /// Whether `point`, in the cell's coordinates, lands on the visible author avatar. A subclass that
+    /// scopes `point(inside:with:)` to its card includes this, or the avatar beside the card can't be tapped.
+    func authorAvatarContains(_ point: CGPoint) -> Bool {
+        !authorAvatar.isHidden && authorAvatar.convert(authorAvatar.bounds, to: self).contains(point)
+    }
+
     @objc private func authorTapped() {
         guard let authorID else { return }
         onAuthorTap?(authorID)
