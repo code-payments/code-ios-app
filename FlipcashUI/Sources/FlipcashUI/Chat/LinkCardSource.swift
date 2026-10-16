@@ -47,6 +47,10 @@ public protocol LinkCardSource: AnyObject {
     ///
     /// Lets a card draw an image it has shown before on its first frame instead of the loading slot.
     func cachedWebImage(for url: URL) -> Data?
+
+    /// Where to draw a message card's photo from, or nil when it cannot be fetched or the card
+    /// carries no blob (a viewer below the chat's rules gets the BlurHash alone).
+    func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation?
 }
 
 extension LinkCardSource {
@@ -58,6 +62,9 @@ extension LinkCardSource {
 
     /// Nil by default: nothing is held, so every image goes through ``webImage(for:)``.
     public func cachedWebImage(for url: URL) -> Data? { nil }
+
+    /// Nil by default, so a source with no photo lookup draws every photo as its BlurHash.
+    public func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation? { nil }
 }
 
 /// Whether a web card in this transcript looks its page up on its own or waits to be asked.

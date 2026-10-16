@@ -35,6 +35,8 @@ final class LinkCardFeed: LinkCardSource {
     private let users: any UserLinkPresenting
     private let webImages: @Sendable (URL) async -> Data?
     private let cachedWebImages: @Sendable (URL) -> Data?
+    /// Mints a message card photo's download URL, and its decryption for an encrypted chat.
+    private let messagePhotos: @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation?
 
     /// What a group or person link's lookup fetched.
     private enum Fetched {
@@ -82,7 +84,8 @@ final class LinkCardFeed: LinkCardSource {
         groups: any GroupLinkPresenting,
         users: any UserLinkPresenting,
         webImages: @escaping @Sendable (URL) async -> Data? = { await WebImageSource.shared.data(for: $0) },
-        cachedWebImages: @escaping @Sendable (URL) -> Data? = { WebImageSource.shared.cached(for: $0) }
+        cachedWebImages: @escaping @Sendable (URL) -> Data? = { WebImageSource.shared.cached(for: $0) },
+        messagePhotos: @escaping @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation? = { _, _ in nil }
     ) {
         self.resolver = resolver
         self.memo = memo
@@ -91,6 +94,7 @@ final class LinkCardFeed: LinkCardSource {
         self.users = users
         self.webImages = webImages
         self.cachedWebImages = cachedWebImages
+        self.messagePhotos = messagePhotos
         observeSettledClaims()
         startClaimableRefresh()
     }
@@ -128,6 +132,10 @@ final class LinkCardFeed: LinkCardSource {
 
     func cachedWebImage(for url: URL) -> Data? {
         cachedWebImages(url)
+    }
+
+    func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation? {
+        await messagePhotos(photo, chatID)
     }
 
     func states(for card: LinkCard) -> AsyncStream<LinkCard.State> {

@@ -552,7 +552,15 @@ final class SessionContainer {
         memo: linkCardMemo,
         claims: session.cashLinkClaims,
         groups: GroupLinkPresenter(avatars: profileAvatars),
-        users: UserLinkPresenter(avatars: profileAvatars)
+        users: UserLinkPresenter(avatars: profileAvatars),
+        messagePhotos: { [flipClient, owner = session.ownerKeyPair, conversationController] photo, chatID in
+            guard let blobID = photo.blobID,
+                  let url = try? await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(chatID))
+            else { return nil }
+            guard let sealed = photo.sealed else { return ChatMediaLocation(url: url) }
+            guard let decrypt = await conversationController.mediaBlobDecrypt(for: chatID) else { return nil }
+            return ChatMediaLocation(url: url) { try decrypt($0, blobID, sealed) }
+        }
     )
 
     /// Lazy so it can capture the container it reads its dependencies from;
@@ -779,7 +787,8 @@ final class SessionContainer {
                 messages: chatClient,
                 mints: client,
                 owner: owner,
-                viewer: MessageLinkViewer(controller: conversationController, knownAuthors: knownAuthors, userID: session.userID)
+                viewer: MessageLinkViewer(controller: conversationController, knownAuthors: knownAuthors, userID: session.userID),
+                cashLinks: LinkCardResolver.giftCardLookup(reader: client, viewer: owner)
             )
         )
 

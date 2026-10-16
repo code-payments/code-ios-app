@@ -74,7 +74,8 @@ import FlipcashCore
         member: Bool,
         chat: Result<Conversation, any Error> = .failure(Offline()),
         message: Result<ConversationMessage?, any Error>,
-        known: ConversationMember? = nil
+        known: ConversationMember? = nil,
+        cashLinks: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved = { _ in throw Offline() }
     ) async throws -> LinkCard.Message.State {
         let viewer = MessageLinkViewer(
             conversation: { _ in held },
@@ -84,7 +85,7 @@ import FlipcashCore
             userID: me
         )
         let lookup = LinkCardResolver.messageLookup(
-            chats: Chats(result: chat), messages: Messages(result: message), mints: Mints(), owner: owner, viewer: viewer
+            chats: Chats(result: chat), messages: Messages(result: message), mints: Mints(), owner: owner, viewer: viewer, cashLinks: cashLinks
         )
         return try await lookup(card)
     }
@@ -142,6 +143,49 @@ import FlipcashCore
         guard case .gatedRedacted(let value) = state else { Issue.record("got \(state)"); return }
         #expect(value.requirement == "Balance Requirement:\n$10")
         #expect(!"\(state)".contains("secret words"))
+    }
+
+    private static let photo = MediaAttachment(blobID: BlobID(data: Data(repeating: 7, count: 16)), width: 4, height: 3, blurhash: "LEHV6nWB2yk8")
+
+    @Test func aMemberSeesThePhotoWithItsBlob() async throws {
+        let state = try await Self.state(
+            held: Self.conversation(type: .group), member: true, message: .success(Self.message(.media([Self.photo], caption: nil)))
+        )
+        guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.excerpt == "Photo")
+        #expect(value.photo == LinkCard.Message.Photo(blobID: Self.photo.blobID, sealed: nil, blurHash: "LEHV6nWB2yk8"))
+    }
+
+    @Test func aRedactedPhotoCarriesOnlyItsBlurHash() async throws {
+        let state = try await Self.state(
+            held: Self.conversation(type: .group, rules: Self.gate), member: false,
+            message: .success(Self.message(.media([Self.photo], caption: "secret"), redacted: true))
+        )
+        guard case .gatedRedacted(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.photoBlurHash == "LEHV6nWB2yk8")
+        #expect(!"\(state)".contains("secret"))
+    }
+
+    @Test func aTextThatIsOnlyACashLinkIsDrawnAsCash() async throws {
+        let state = try await Self.state(
+            held: Self.conversation(type: .group), member: true,
+            message: .success(Self.message(.text("https://send.flipcash.com/c/#/e=HQPkfAZjgpGGANQfUNPKvW"))),
+            cashLinks: { _ in LinkCard.Cash.Resolved(amount: "$1.00", claim: .claimed, tokenName: "USDF", iconURL: nil) }
+        )
+        guard case .cash(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.verb == .cashLink)
+        #expect(value.amount == "$1.00")
+        #expect(value.claim == .claimed)
+    }
+
+    @Test func aCashLinkWithMoreTextStaysAnExcerpt() async throws {
+        let text = "here you go https://send.flipcash.com/c/#/e=HQPkfAZjgpGGANQfUNPKvW"
+        let state = try await Self.state(
+            held: Self.conversation(type: .group), member: true, message: .success(Self.message(.text(text))),
+            cashLinks: { _ in LinkCard.Cash.Resolved(amount: "$1.00", claim: .claimed, tokenName: "USDF", iconURL: nil) }
+        )
+        guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.excerpt == text)
     }
 
     @Test func cashIsNeverRedactedForANonMember() async throws {

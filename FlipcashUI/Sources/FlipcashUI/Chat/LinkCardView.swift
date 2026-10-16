@@ -300,10 +300,12 @@ final class LinkCardView: UIView {
             setSized(.group)
             return groupView.configure(with: Self.groupState(state), loading: loading)
 
-        case .message:
+        case .message(let message):
             cashView.isHidden = true
             tokenView.isHidden = true
             setSized(.message)
+            let chatID = message.chatID
+            messageView.loadPhoto = { [weak self] photo in await self?.imageSource?.messagePhoto(photo, in: chatID) }
             return messageView.configure(with: Self.messageState(state), loading: loading)
 
         case .user(let user):

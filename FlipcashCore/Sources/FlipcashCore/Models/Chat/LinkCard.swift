@@ -359,8 +359,10 @@ extension LinkCard {
             public let reactionCount: Int
             /// Stable identity for the author's avatar.
             public let avatarID: String
+            /// The message's first photo, drawn beside the excerpt; nil for anything but a photo.
+            public let photo: Photo?
 
-            public init(chatTitle: String, kind: Kind, authorName: String, time: String, excerpt: String, reactionCount: Int, avatarID: String) {
+            public init(chatTitle: String, kind: Kind, authorName: String, time: String, excerpt: String, reactionCount: Int, avatarID: String, photo: Photo? = nil) {
                 self.chatTitle = chatTitle
                 self.kind = kind
                 self.authorName = authorName
@@ -368,6 +370,22 @@ extension LinkCard {
                 self.excerpt = excerpt
                 self.reactionCount = reactionCount
                 self.avatarID = avatarID
+                self.photo = photo
+            }
+        }
+
+        /// A photo the card may draw. A card whose viewer may see the bytes carries the blob; one
+        /// whose viewer may not carries only the BlurHash, so nothing here can fetch them.
+        public struct Photo: Hashable, Sendable, Codable {
+            /// Nil when the viewer may not fetch the photo: the card then draws its BlurHash alone.
+            public let blobID: BlobID?
+            public let sealed: SealedBlob?
+            public let blurHash: String?
+
+            public init(blobID: BlobID?, sealed: SealedBlob?, blurHash: String?) {
+                self.blobID = blobID
+                self.sealed = sealed
+                self.blurHash = blurHash
             }
         }
 
@@ -379,12 +397,15 @@ extension LinkCard {
             public let time: String
             /// The group card's requirement wording, e.g. "Balance Requirement: $10 of MOONY".
             public let requirement: String?
+            /// A photo message's BlurHash, which the server sends even under redaction; never its bytes.
+            public let photoBlurHash: String?
 
-            public init(chatTitle: String, authorName: String, time: String, requirement: String?) {
+            public init(chatTitle: String, authorName: String, time: String, requirement: String?, photoBlurHash: String? = nil) {
                 self.chatTitle = chatTitle
                 self.authorName = authorName
                 self.time = time
                 self.requirement = requirement
+                self.photoBlurHash = photoBlurHash
             }
         }
 
@@ -411,6 +432,8 @@ extension LinkCard {
             public enum Verb: String, Hashable, Sendable, Codable {
                 case sent = "SENT"
                 case tipped = "TIPPED"
+                /// A text message that is a cash link and nothing else.
+                case cashLink = "CASH_LINK"
             }
 
             public let chatTitle: String
@@ -420,14 +443,17 @@ extension LinkCard {
             /// Pre-formatted, e.g. "$15.00".
             public let amount: String
             public let verb: Verb
+            /// Where a cash link's claim stands; nil for a payment, which settles when sent.
+            public let claim: LinkCard.Cash.Claim?
 
-            public init(chatTitle: String, kind: Kind, authorName: String, time: String, amount: String, verb: Verb) {
+            public init(chatTitle: String, kind: Kind, authorName: String, time: String, amount: String, verb: Verb, claim: LinkCard.Cash.Claim? = nil) {
                 self.chatTitle = chatTitle
                 self.kind = kind
                 self.authorName = authorName
                 self.time = time
                 self.amount = amount
                 self.verb = verb
+                self.claim = claim
             }
         }
     }

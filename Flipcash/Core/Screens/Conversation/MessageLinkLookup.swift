@@ -72,7 +72,8 @@ extension LinkCardResolver {
         messages: any MessageLinkReading,
         mints: any MintMetadataReading,
         owner: KeyPair,
-        viewer context: MessageLinkViewer
+        viewer context: MessageLinkViewer,
+        cashLinks: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved = { _ in throw CancellationError() }
     ) -> @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State {
         { card in
             let chatID = card.chatID
@@ -100,14 +101,14 @@ extension LinkCardResolver {
                 let message: ConversationMessage?
                 do { message = try await read(.full) } catch ErrorGetMessage.denied { return .lockedDirect }
                 guard let message else { return await deleted(conversation, context: context) }
-                return await memberState(message, in: conversation, context: context) { .resolved($0) }
+                return await memberState(message, in: conversation, context: context, cashLinks: cashLinks) { .resolved($0) }
 
             case .group where conversation.isPrivate:
                 guard await context.isMember(conversation) else { return await lockedGroup(conversation) }
                 let message: ConversationMessage?
                 do { message = try await read(.full) } catch ErrorGetMessage.denied { return await lockedGroup(conversation) }
                 guard let message else { return await deleted(conversation, context: context) }
-                return await memberState(message, in: conversation, context: context) { .resolved($0) }
+                return await memberState(message, in: conversation, context: context, cashLinks: cashLinks) { .resolved($0) }
 
             case .group:
                 let isMember = await context.isMember(conversation)
@@ -116,11 +117,11 @@ extension LinkCardResolver {
                 guard let message else { return await deleted(conversation, context: context) }
 
                 if isMember, !message.redacted {
-                    return await memberState(message, in: conversation, context: context) { .resolved($0) }
+                    return await memberState(message, in: conversation, context: context, cashLinks: cashLinks) { .resolved($0) }
                 }
                 // Cash is never redacted, so a non-member reads it whatever their balance.
                 if case .cash = message.content {
-                    return await memberState(message, in: conversation, context: context) { .resolved($0) }
+                    return await memberState(message, in: conversation, context: context, cashLinks: cashLinks) { .resolved($0) }
                 }
                 if message.redacted {
                     let mint = await headlineMint(of: conversation)
@@ -128,7 +129,7 @@ extension LinkCardResolver {
                     if let mint { mintName = try? await mints.fetchMint(mint: mint).name }
                     return await redactedState(message, conversation, mintName: mintName, context: context)
                 }
-                return await memberState(message, in: conversation, context: context) { .gatedReadable($0) }
+                return await memberState(message, in: conversation, context: context, cashLinks: cashLinks) { .gatedReadable($0) }
             }
         }
     }
@@ -141,11 +142,14 @@ extension LinkCardResolver {
 
     @MainActor
     private static func redactedState(_ message: ConversationMessage, _ conversation: Conversation, mintName: String?, context: MessageLinkViewer) async -> LinkCard.Message.State {
-        .gatedRedacted(.init(
+        var photoBlurHash: String?
+        if case .media(let attachments, _) = message.content { photoBlurHash = attachments.first?.blurhash }
+        return .gatedRedacted(.init(
             chatTitle: conversation.groupLinkTitle,
             authorName: await author(of: message, in: conversation, context: context),
             time: time(of: message),
-            requirement: groupRequirementLine(headline(for: conversation.rules?.listener ?? []), mintName: mintName)
+            requirement: groupRequirementLine(headline(for: conversation.rules?.listener ?? []), mintName: mintName),
+            photoBlurHash: photoBlurHash
         ))
     }
 
@@ -200,13 +204,14 @@ extension LinkCardResolver {
             : message.date.formatted(date: .abbreviated, time: .omitted)
     }
 
-    /// The card for a message the viewer may read in full: cash as an amount, text and photo
-    /// captions as an excerpt, and anything else (a tombstone, a widget, ciphertext that would not
+    /// The card for a message the viewer may read in full: cash, and a text that is only a cash
+    /// link, as an amount; text and photo captions as an excerpt, a photo with its thumbnail; and anything else (a tombstone, a widget, ciphertext that would not
     /// open) as unavailable.
     private static func memberState(
         _ message: ConversationMessage,
         in conversation: Conversation,
         context: MessageLinkViewer,
+        cashLinks: @Sendable (String) async throws -> LinkCard.Cash.Resolved,
         wrapping: (LinkCard.Message.Resolved) -> LinkCard.Message.State
     ) async -> LinkCard.Message.State {
         let title = await context.title(conversation)
@@ -218,11 +223,17 @@ extension LinkCardResolver {
             return .cash(.init(chatTitle: title, kind: kind(of: conversation), authorName: author, time: time(of: message), amount: amount.nativeAmount.formatted(), verb: verb))
 
         case .text(let text):
+            if let entropy = soleCashLink(in: text), let link = try? await cashLinks(entropy) {
+                return .cash(.init(chatTitle: title, kind: kind(of: conversation), authorName: author, time: time(of: message), amount: link.amount, verb: .cashLink, claim: link.claim))
+            }
             return wrapping(resolved(message, kind: kind(of: conversation), title: title, author: author, excerpt: text))
 
-        case .media(_, let caption):
+        case .media(let attachments, let caption):
             let excerpt = (caption?.isEmpty ?? true) ? "Photo" : caption!
-            return wrapping(resolved(message, kind: kind(of: conversation), title: title, author: author, excerpt: excerpt))
+            let photo = attachments.first.map {
+                LinkCard.Message.Photo(blobID: message.redacted ? nil : $0.blobID, sealed: $0.sealed, blurHash: $0.blurhash)
+            }
+            return wrapping(resolved(message, kind: kind(of: conversation), title: title, author: author, excerpt: excerpt, photo: photo))
 
         case .deleted:
             return await deleted(conversation, context: context)
@@ -232,7 +243,17 @@ extension LinkCardResolver {
         }
     }
 
-    private static func resolved(_ message: ConversationMessage, kind: LinkCard.Message.Kind, title: String, author: String, excerpt: String) -> LinkCard.Message.Resolved {
+    /// The entropy of the cash link `text` consists of, or nil when it is anything more than that link.
+    private static func soleCashLink(in text: String) -> String? {
+        let links = LinkDetector().webLinks(in: text)
+        guard links.count == 1, let link = links.first,
+              case .cash(let cash) = LinkCardClassifier().firstCard(in: links) else { return nil }
+        let rest = (text as NSString).replacingCharacters(in: link.range, with: "")
+        guard rest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return cash.entropy
+    }
+
+    private static func resolved(_ message: ConversationMessage, kind: LinkCard.Message.Kind, title: String, author: String, excerpt: String, photo: LinkCard.Message.Photo? = nil) -> LinkCard.Message.Resolved {
         let reactions = message.reactionState?.confirmed.values.reduce(0) { $0 + Int($1.count) } ?? 0
         return .init(
             chatTitle: title,
@@ -241,7 +262,8 @@ extension LinkCardResolver {
             time: time(of: message),
             excerpt: excerpt,
             reactionCount: reactions,
-            avatarID: message.senderID?.uuidString ?? title
+            avatarID: message.senderID?.uuidString ?? title,
+            photo: photo
         )
     }
 }
