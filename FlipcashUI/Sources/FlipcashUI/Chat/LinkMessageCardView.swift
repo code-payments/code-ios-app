@@ -167,26 +167,33 @@ struct LinkMessageCardContent: View {
 
     /// Values this card adds to ``LinkCardMetrics``, from node 11493:201.
     enum Layout {
-        static let padding: CGFloat = 12
-        static let spacing: CGFloat = 6
-        static let avatar: CGFloat = 24
+        static let padding = EdgeInsets(top: 12, leading: 14, bottom: 13, trailing: 14)
+        /// Between the card's groups: identity, body, footer, button.
+        static let spacing: CGFloat = 10
+        /// Between the name and meta lines of the identity block.
+        static let identitySpacing: CGFloat = 2
+        static let avatar: CGFloat = 32
+        static let avatarGap: CGFloat = 10
         static let excerptLines = 4
+        static let excerptLineSpacing: CGFloat = 3
         static let redactedBlur: CGFloat = 6
         static let panelOpacity: Double = 0.08
+        static let excerptOpacity: Double = 0.88
+        static let secondaryOpacity: Double = 0.6
+        static let chevronOpacity: Double = 0.42
         static let skeletonOpacity: Double = 0.12
         static let skeletonBar: CGFloat = 10
-        static let footerTop: CGFloat = 4
         /// The second skeleton bar's share of the first's width.
         static let skeletonShortFraction: CGFloat = 0.55
+        /// The identity block's placeholder bars' share of the card's width.
+        static let skeletonNameFraction: CGFloat = 0.45
+        static let skeletonMetaFraction: CGFloat = 0.25
         static let photo: CGFloat = 56
         static let photoRadius: CGFloat = 8
     }
 
     /// Copy, Title Case where it is a button.
     enum Copy {
-        static let flipcash = "Flipcash"
-        static let message = "Message"
-        static let publicGroup = "Public group"
         static let privateGroup = "Private group"
         static let directMessage = "Direct message"
         static let deleted = "This message was deleted."
@@ -198,14 +205,7 @@ struct LinkMessageCardContent: View {
             case .cashLink: "sent a cash link"
             }
         }
-        static func kind(_ kind: LinkCard.Message.Kind) -> String {
-            switch kind {
-            case .publicGroup: publicGroup
-            case .privateGroup: privateGroup
-            case .directMessage: directMessage
-            }
-        }
-        static let open = "Open"
+        static func byline(_ author: String, _ time: String) -> String { "\(author) · \(time)" }
         static let join = "Join"
         static let buy = "Buy"
         static let request = "Request"
@@ -236,86 +236,84 @@ struct LinkMessageCardContent: View {
     @ViewBuilder private var faces: some View {
         switch state {
         case .resolved(let message):
-            chatHeader(name: message.chatTitle, kind: Copy.kind(message.kind))
-            byline("\(message.authorName) · \(message.time)")
+            chatIdentity(name: message.chatTitle, meta: Copy.byline(message.authorName, message.time))
             excerpt(message.excerpt, blurred: false, photo: message.photo)
-            footer(message.reactionCount > 0 ? Copy.reactions(message.reactionCount) : nil, showsOpen: true)
+            footer(message.reactionCount > 0 ? Copy.reactions(message.reactionCount) : nil)
 
         case .gatedReadable(let message):
-            chatHeader(name: message.chatTitle, kind: Copy.kind(message.kind))
-            byline("\(message.authorName) · \(message.time)")
+            chatIdentity(name: message.chatTitle, meta: Copy.byline(message.authorName, message.time))
             excerpt(message.excerpt, blurred: false, photo: message.photo)
             button(Copy.join)
 
         case .gatedRedacted(let redacted):
-            chatHeader(name: redacted.chatTitle, kind: Copy.publicGroup)
-            byline("\(redacted.authorName) · \(redacted.time)")
+            chatIdentity(name: redacted.chatTitle, meta: Copy.byline(redacted.authorName, redacted.time))
             excerpt(Copy.redactedFiller, blurred: true, photo: redacted.photoBlurHash.map { .init(blobID: nil, sealed: nil, blurHash: $0) })
-            footer(redacted.requirement, showsOpen: false)
+            footer(redacted.requirement)
             button(Copy.buy)
 
         case .lockedGroup(let group):
-            chatHeader(name: group.title, kind: Copy.privateGroup, fallbackData: group.imageData, blurHash: group.blurHash)
+            chatIdentity(name: group.title, meta: Copy.privateGroup, fallbackData: group.imageData, blurHash: group.blurHash)
             dimBody(Copy.groupLocked(group.title))
-            footer([group.memberCount, group.hostName.map { "Hosted by \($0)" }].compactMap { $0 }.joined(separator: " · "), showsOpen: false)
+            footer([group.memberCount, group.hostName.map { "Hosted by \($0)" }].compactMap { $0 }.joined(separator: " · "))
             button(Copy.request)
 
         case .lockedDirect:
-            header(avatarID: Copy.directMessage, name: Copy.directMessage, kind: nil)
+            identity(avatarID: Copy.directMessage, name: Copy.directMessage, meta: nil, opens: false)
             dimBody(Copy.directLocked)
 
         case .cash(let cash):
-            chatHeader(name: cash.chatTitle, kind: Copy.kind(cash.kind))
-            byline("\(cash.authorName) \(Copy.cashVerb(cash.verb)) · \(cash.time)")
+            chatIdentity(name: cash.chatTitle, meta: Copy.byline("\(cash.authorName) \(Copy.cashVerb(cash.verb))", cash.time))
             Text(cash.amount)
                 .font(.default(size: 24, weight: .semibold))
                 .foregroundStyle(Color.textMain)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            footer(cash.claim?.caption ?? Copy.settled, showsOpen: true)
+            footer(cash.claim?.caption ?? Copy.settled)
 
         case .deleted(let deleted):
-            chatHeader(name: deleted.chatTitle, kind: Copy.kind(deleted.kind))
+            chatIdentity(name: deleted.chatTitle, meta: nil)
             dimBody(Copy.deleted)
 
         case .unavailable, nil:
-            header(avatarID: Copy.flipcash, name: Copy.flipcash, kind: Copy.message)
+            skeletonIdentity
             skeleton
         }
     }
 
-    /// The header for a known chat: its avatar once loaded, its monogram until then.
-    private func chatHeader(name: String, kind: String?, fallbackData: Data? = nil, blurHash: String? = nil) -> some View {
-        header(
+    /// The identity block for a known chat: its avatar once loaded, its monogram until then.
+    private func chatIdentity(name: String, meta: String?, fallbackData: Data? = nil, blurHash: String? = nil) -> some View {
+        identity(
             avatarID: chatAvatar?.id ?? name,
             name: name,
-            kind: kind,
+            meta: meta,
             imageData: loadedAvatar ?? chatAvatar?.cached ?? fallbackData,
             blurHash: blurHash
         )
     }
 
-    private func header(avatarID: String, name: String, kind: String?, imageData: Data? = nil, blurHash: String? = nil) -> some View {
-        HStack(spacing: Layout.spacing) {
+    /// The avatar beside the chat's name over one meta line, with a chevron when the card opens.
+    private func identity(avatarID: String, name: String, meta: String?, imageData: Data? = nil, blurHash: String? = nil, opens: Bool = true) -> some View {
+        HStack(spacing: Layout.avatarGap) {
             ContactAvatarView(id: avatarID, displayName: name, imageData: imageData, blurhash: blurHash, size: Layout.avatar)
-            Text(name)
-                .font(.default(size: 14, weight: .semibold))
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
-            if let kind {
-                Text(kind)
-                    .font(.default(size: 14, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.6))
+            VStack(alignment: .leading, spacing: Layout.identitySpacing) {
+                Text(name)
+                    .font(.default(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.textMain)
                     .lineLimit(1)
+                if let meta {
+                    Text(meta)
+                        .font(.default(size: 13, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(Layout.secondaryOpacity))
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if opens {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(Layout.chevronOpacity))
+                    .accessibilityHidden(true)
             }
         }
-    }
-
-    private func byline(_ text: String) -> some View {
-        Text(text)
-            .font(.default(size: 14, weight: .medium))
-            .foregroundStyle(Color.white.opacity(0.6))
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// The message body, up to four lines. A redacted body is blurred filler: the model carries no
@@ -325,7 +323,7 @@ struct LinkMessageCardContent: View {
             MessageCardPhoto(photo: photo, load: loadPhoto)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else if let photo {
-            HStack(alignment: .top, spacing: Layout.padding) {
+            HStack(alignment: .top, spacing: Layout.avatarGap) {
                 excerptText(text, blurred: blurred)
                 MessageCardPhoto(photo: photo, load: loadPhoto)
             }
@@ -335,9 +333,10 @@ struct LinkMessageCardContent: View {
     }
 
     @ViewBuilder private func excerptText(_ text: String, blurred: Bool) -> some View {
-        let body = Text(text)
-            .font(.default(size: 16, weight: .medium))
-            .foregroundStyle(Color.textMain)
+        let body = Text(Self.flattened(text))
+            .font(.default(size: 15))
+            .foregroundStyle(Color.white.opacity(Layout.excerptOpacity))
+            .lineSpacing(Layout.excerptLineSpacing)
             .lineLimit(Layout.excerptLines)
             .frame(maxWidth: .infinity, alignment: .leading)
         if blurred {
@@ -350,27 +349,27 @@ struct LinkMessageCardContent: View {
         }
     }
 
+    /// `text` with each line break and the whitespace around it folded to one space, so blank
+    /// lines do not spend the excerpt's four lines.
+    static func flattened(_ text: String) -> String {
+        text.replacing(/\s*\n\s*/, with: " ")
+    }
+
     private func dimBody(_ text: String) -> some View {
         Text(text)
-            .font(.default(size: 16, weight: .medium))
-            .foregroundStyle(Color.white.opacity(0.5))
+            .font(.default(size: 15))
+            .foregroundStyle(Color.white.opacity(Layout.secondaryOpacity))
+            .lineSpacing(Layout.excerptLineSpacing)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder private func footer(_ text: String?, showsOpen: Bool) -> some View {
-        if text != nil || showsOpen {
-            HStack(spacing: 8) {
-                Text(text ?? "")
-                    .font(.default(size: 14, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.6))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if showsOpen {
-                    Text(Copy.open)
-                        .font(.default(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.textMain)
-                }
-            }
-            .padding(.top, Layout.footerTop)
+    @ViewBuilder private func footer(_ text: String?) -> some View {
+        if let text, !text.isEmpty {
+            Text(text)
+                .font(.default(size: 13, weight: .medium))
+                .foregroundStyle(Color.white.opacity(Layout.secondaryOpacity))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -381,17 +380,33 @@ struct LinkMessageCardContent: View {
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onActionFrame?($0) }
     }
 
-    private var skeleton: some View {
-        VStack(alignment: .leading, spacing: Layout.spacing) {
-            RoundedRectangle(cornerRadius: Layout.skeletonBar / 2)
+    /// The identity block before anything is known: a gray circle and two gray bars.
+    private var skeletonIdentity: some View {
+        HStack(spacing: Layout.avatarGap) {
+            Circle()
                 .fill(Color.white.opacity(Layout.skeletonOpacity))
-                .frame(height: Layout.skeletonBar)
-            RoundedRectangle(cornerRadius: Layout.skeletonBar / 2)
-                .fill(Color.white.opacity(Layout.skeletonOpacity))
-                .frame(height: Layout.skeletonBar)
-                .containerRelativeFrame(.horizontal) { width, _ in width * Layout.skeletonShortFraction }
+                .frame(width: Layout.avatar, height: Layout.avatar)
+            VStack(alignment: .leading, spacing: Layout.identitySpacing * 3) {
+                skeletonBar(fraction: Layout.skeletonNameFraction)
+                skeletonBar(fraction: Layout.skeletonMetaFraction)
+            }
         }
-        .padding(.vertical, Layout.footerTop)
+        .accessibilityHidden(true)
+    }
+
+    private var skeleton: some View {
+        VStack(alignment: .leading, spacing: Layout.spacing / 2) {
+            skeletonBar(fraction: 1)
+            skeletonBar(fraction: Layout.skeletonShortFraction)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func skeletonBar(fraction: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: Layout.skeletonBar / 2)
+            .fill(Color.white.opacity(Layout.skeletonOpacity))
+            .frame(height: Layout.skeletonBar)
+            .containerRelativeFrame(.horizontal) { width, _ in width * fraction }
     }
 }
 /// A photo message's thumbnail: its BlurHash, faded to the photo once it downloads. A photo
