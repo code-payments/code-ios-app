@@ -81,6 +81,11 @@ extension URL {
         URL(string: "https://apps.apple.com/app/flipcash/id6758636374")!
     }
 
+    /// The app's page in TestFlight, which opens the TestFlight app on that build list.
+    static var testFlightApplicationHome: URL {
+        URL(string: "itms-beta://beta.itunes.apple.com/v1/app/6758636374")!
+    }
+
     static var downloadApp: URL {
         URL(string: "https://www.flipcash.com/download")!
     }

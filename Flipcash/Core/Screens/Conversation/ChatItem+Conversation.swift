@@ -39,7 +39,7 @@ nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLink
     return cache
 }()
 
-nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) -> LinkCard?) -> LinkPreview? {
+nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) -> LinkCard?, page: MessageLinkPreview? = nil) -> LinkPreview? {
     let key = text as NSString
     let links: [DetectedLink]
     let mentions: [DetectedMention]
@@ -51,24 +51,22 @@ nonisolated private func detectedLink(in text: String, card: ([DetectedLink]) ->
         mentions = MentionDetector.mentions(in: text, excluding: links)
         linkPreviewCache.setObject(DetectedLinkBox(links, mentions), forKey: key)
     }
-    guard !links.isEmpty || !mentions.isEmpty else { return nil }
-    return LinkPreview(links: links, card: card(links), mentions: mentions)
+    let card = card(links) ?? page.flatMap { webCard(for: $0, in: text) }
+    guard !links.isEmpty || !mentions.isEmpty || card != nil else { return nil }
+    return LinkPreview(links: links, card: card, mentions: mentions)
+}
+
+/// The web card for the preview a message's sender attached, placed at the first whole-link
+/// occurrence of its url, or nil when the text never holds it as one. No fetch rule applies here:
+/// whatever the sender's platform previewed, the recipient draws.
+nonisolated private func webCard(for page: MessageLinkPreview, in text: String) -> LinkCard? {
+    guard !page.title.isEmpty,
+          let range = LinkPreviewSendChecks.wholeLinkRange(url: page.url, in: text),
+          let url = URL(string: page.url) else { return nil }
+    return .web(LinkCard.Web(url: url, range: range, page: page))
 }
 
 extension ChatItem {
-
-    /// The web cards the text messages in `messages` would draw, one per message at most.
-    nonisolated static func webCards(in messages: [ConversationMessage], webLinks: Bool) -> [LinkCard] {
-        guard webLinks else { return [] }
-        let classifier = LinkCardClassifier(webLinks: webLinks)
-        return messages.compactMap { message in
-            guard case .text(let text) = message.content,
-                  let card = detectedLink(in: text, card: { classifier.firstCard(in: $0) })?.card,
-                  case .web = card
-            else { return nil }
-            return card
-        }
-    }
 
     /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
     /// formats cash amounts, derives the currency flag, inserts a date separator before the first
@@ -195,7 +193,7 @@ extension ChatItem {
         // split around it.
         let layouts = messages.map { message in
             switch message.content {
-            case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard))
+            case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard, page: message.linkPreview))
             case .cash, .deleted, .encrypted, .widget, .media, .system: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }

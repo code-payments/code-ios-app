@@ -190,18 +190,6 @@ nonisolated public struct BlocklistTable: Sendable {
     public let avatarBlurhash = Expression <String?> ("avatarBlurhash")
 }
 
-// Cached web link preview answers, keyed by the previewed URL.
-nonisolated public struct LinkPreviewTable: Sendable {
-    public static let name = "linkPreview"
-
-    public init() {}
-
-    public let table     = Table(Self.name)
-    public let key       = Expression <String> ("key")        // PK
-    public let json      = Expression <Data>   ("json")
-    public let updatedAt = Expression <Double> ("updatedAt")  // timeIntervalSinceReferenceDate
-}
-
 // Verified reserve-state proofs, one per mint.
 nonisolated public struct VerifiedReserveTable: Sendable {
     public static let name = "verified_reserve"
@@ -394,6 +382,8 @@ nonisolated public struct ConversationMessageTable: Sendable {
     public let reactionsJson  = Expression <Data?>         ("reactionsJson")
     // JSON-encoded `.media` payload (attachments, caption, redaction); nil for a non-media row.
     public let mediaJson      = Expression <Data?>         ("mediaJson")
+    // JSON-encoded `MessageLinkPreview` of a `.text` row; nil when it carries none.
+    public let linkPreviewJson = Expression <Data?>        ("linkPreviewJson")
 }
 
 
@@ -675,6 +665,7 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.decryptFailure)
                     t.column(conversationMessageTable.reactionsJson)
                     t.column(conversationMessageTable.mediaJson)
+                    t.column(conversationMessageTable.linkPreviewJson)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
                 })
             }
@@ -690,15 +681,6 @@ nonisolated extension Database {
                 })
             }
 
-            let linkPreviewTable = LinkPreviewTable()
-
-            try writer.transaction(.immediate) {
-                try writer.run(linkPreviewTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                    t.column(linkPreviewTable.key, primaryKey: true)
-                    t.column(linkPreviewTable.json)
-                    t.column(linkPreviewTable.updatedAt)
-                })
-            }
 
         }
     }

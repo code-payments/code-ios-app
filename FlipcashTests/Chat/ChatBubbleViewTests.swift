@@ -442,3 +442,24 @@ struct ChatEditedMarkerPlacementTests {
         #expect(visibleMarkers(in: cell).isEmpty)
     }
 }
+
+@MainActor
+@Suite("Bubble border")
+struct ChatBubbleViewBorderTests {
+
+    private static func border(_ content: ChatMessage.Content) -> BubbleBackgroundView.Border {
+        ChatBubbleView.border(for: ChatMessage(id: "1", content: content, sender: .other))
+    }
+
+    @Test("The update bubble keeps its wash under a dashed outline, as on Android")
+    func updateApp_dashedOverWash() {
+        #expect(Self.border(.unavailable(.updateApp)) == .dashedOverWash)
+    }
+
+    @Test("The resend hints stay dashed without a wash, and text keeps the hairline")
+    func otherBubbles_unchanged() {
+        #expect(Self.border(.unavailable(.resend)) == .dashed)
+        #expect(Self.border(.unavailable(.askToResend(firstName: "Raul"))) == .dashed)
+        #expect(Self.border(.text("hi")) == .hairline)
+    }
+}

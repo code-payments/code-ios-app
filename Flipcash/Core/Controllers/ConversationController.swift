@@ -1605,7 +1605,7 @@ final class ConversationController {
     /// Persist operations that write confirmed messages — the ones that must bump `messageRevision`.
     private static let messageWriteOperations: Set<String> = [
         "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
-        "send-message", "reset-resync", "edit-message", "delete-message",
+        "send-message", "send-media-message", "reset-resync", "edit-message", "delete-message",
     ]
 
     // MARK: - Names
@@ -1797,6 +1797,10 @@ final class ConversationController {
     /// re-fire through the store directly.
     private(set) var messageRevision = 0
 
+    /// Own sends the server has confirmed this session, per chat. Observed by the jump badge, which
+    /// reads a rise as the viewer having caught up with the transcript.
+    private(set) var confirmedOwnSendCounts: [ConversationID: Int] = [:]
+
     /// Forces the transcript to re-read its window. `persist(operation:)` does this for database
     /// writes; an overlay change writes nothing, so it has to say so explicitly.
     func bumpMessageRevision() {
@@ -1911,18 +1915,47 @@ final class ConversationController {
     /// pointer — see ``UnreadBoundary``.
     func unreadBoundary(for conversationID: ConversationID) -> UnreadBoundary {
         UnreadBoundary.resolve(
-            readPointer: store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
+            readPointer: readThrough(for: conversationID),
             firstInbound: { readPointer in
                 ((try? database.firstInboundMessageID(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? nil)
                     .map(MessageID.init(value:))
             },
             unreadCount: { readPointer in
-                (try? database.inboundMessageCount(conversationID: conversationID, after: readPointer, excludingSender: selfUserID)) ?? 0
+                inboundMessageCount(after: readPointer, in: conversationID)
             },
             hasStored: { readThrough in
                 newestPersistedMessageID(through: readThrough, in: conversationID) != nil
             }
         )
+    }
+
+    /// The newest inbound id the viewer has seen: the stored READ pointer or the unsynced one ahead of
+    /// it. The one value the unread divider, the jump-to-bottom badge, and
+    /// ``advanceReadPointer(to:in:)`` all read, so they can't disagree.
+    func readThrough(for conversationID: ConversationID) -> MessageID? {
+        [
+            store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
+            store.unsyncedSelfReadPointers[conversationID],
+        ].compactMap { $0 }.max()
+    }
+
+    /// How many stored, non-deleted messages someone else sent after `messageID`.
+    func inboundMessageCount(after messageID: MessageID, in conversationID: ConversationID) -> Int {
+        (try? database.inboundMessageCount(conversationID: conversationID, after: messageID, excludingSender: selfUserID)) ?? 0
+    }
+
+    /// The newest message someone else sent, or nil when there is none.
+    func newestInboundMessageID(in conversationID: ConversationID) -> MessageID? {
+        ((try? database.newestInboundMessageID(conversationID: conversationID, excludingSender: selfUserID)) ?? nil)
+    }
+
+    /// Inbound messages the viewer hasn't seen: those after ``readThrough(for:)``, or 0 when the
+    /// pointer is unknown (as ``unreadBoundary(for:)`` treats it). Observes the read pointer and
+    /// `messageRevision`, so it re-evaluates when either the pointer moves or a message lands.
+    func unreadBelowCount(in conversationID: ConversationID) -> Int {
+        _ = messageRevision   // observe: re-count when a confirmed DB write lands
+        guard let readThrough = readThrough(for: conversationID) else { return 0 }
+        return inboundMessageCount(after: readThrough, in: conversationID)
     }
 
     /// The newest stored message id at or below `messageID`, or nil when none is stored.
@@ -1959,12 +1992,15 @@ final class ConversationController {
         return store.hasPendingMessages(for: conversationID) || (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 } != nil
     }
 
-    func loadMessages(for conversationID: ConversationID) async {
+    /// Loads the newest page. Returns whether it was fetched and persisted; a skipped, failed or
+    /// unpersisted load returns false and records no landing.
+    @discardableResult
+    func loadMessages(for conversationID: ConversationID) async -> Bool {
         guard canRead(conversationID) else {
             logger.info("Skipping message load for a conversation the user may not read", metadata: [
                 "conversationID": "\(conversationID)",
             ])
-            return
+            return false
         }
         messageLoadsInFlight.insert(conversationID)
         // This load is the backfill: a queued one would fetch the same page again.
@@ -1991,15 +2027,30 @@ final class ConversationController {
             if ok {
                 commitReconciled(pairs, in: conversationID)
                 if head > 0 { store.setAppliedCursor(head, for: conversationID) }
+                recordNewestPageLanding(in: conversationID)
             }
             refreshFeedPreview(for: conversationID)
+            return ok
         } catch {
             logger.error("Failed to load conversation messages", metadata: [
                 "conversationID": "\(conversationID)",
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation messages")
+            return false
         }
+    }
+
+    /// Successful newest-page loads per chat, from any path: the opening load, a retry, a backfill,
+    /// the gate lifting, a join.
+    @ObservationIgnored private(set) var newestPageLandings: [ConversationID: Int] = [:]
+    /// The newest inbound id stored when the latest landing finished, so the history that page
+    /// brought in can be told apart from what arrives after it.
+    @ObservationIgnored private(set) var newestInboundAtLanding: [ConversationID: MessageID] = [:]
+
+    private func recordNewestPageLanding(in conversationID: ConversationID) {
+        newestPageLandings[conversationID, default: 0] += 1
+        newestInboundAtLanding[conversationID] = newestInboundMessageID(in: conversationID)
     }
 
     // MARK: - Pagination
@@ -2063,16 +2114,17 @@ final class ConversationController {
         _ text: String,
         to conversationID: ConversationID,
         repliedTo: MessageID? = nil,
+        linkPreview: MessageLinkPreview? = nil,
         restoringOnFailure draft: ChatDraft? = nil
     ) async -> Bool {
-        let clientMessageID = insertPending(text, repliedTo: repliedTo, into: conversationID)
+        let clientMessageID = insertPending(text, repliedTo: repliedTo, linkPreview: linkPreview, into: conversationID)
         // The composer's own snapshot, carried down rather than re-derived: only the bar holds the
         // untrimmed text and the reply strip's author and snippet, and it has already cleared both
         // by the time a failure comes back.
         if let draft {
             failedSends?.willSend(draft, clientMessageID: clientMessageID, in: conversationID)
         }
-        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, to: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: repliedTo, linkPreview: linkPreview, to: conversationID)
         if delivered { donateShareSuggestion(for: conversationID) }
         return delivered
     }
@@ -2086,15 +2138,15 @@ final class ConversationController {
     /// Posts `text` the way ``send(_:to:repliedTo:restoringOnFailure:)`` does, except that a
     /// refused message leaves the transcript rather than staying there to be retried.
     func postOnce(_ text: String, to conversationID: ConversationID) async -> Bool {
-        let clientMessageID = insertPending(text, repliedTo: nil, into: conversationID)
-        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: nil, to: conversationID)
+        let clientMessageID = insertPending(text, repliedTo: nil, linkPreview: nil, into: conversationID)
+        let delivered = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: nil, linkPreview: nil, to: conversationID)
         if !delivered {
             store.discardPending(clientMessageID: clientMessageID, in: conversationID)
         }
         return delivered
     }
 
-    private func insertPending(_ text: String, repliedTo: MessageID?, into conversationID: ConversationID) -> UUID {
+    private func insertPending(_ text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, into conversationID: ConversationID) -> UUID {
         let clientMessageID = UUID()
         let pending = ConversationMessage(
             id: .unassigned,
@@ -2103,6 +2155,7 @@ final class ConversationController {
             date: .now,
             unreadSeq: 0,
             repliedTo: repliedTo,
+            linkPreview: linkPreview,
             status: .sending,
             clientMessageID: clientMessageID
         )
@@ -2125,7 +2178,7 @@ final class ConversationController {
         switch pending.content {
         case .text(let text):
             store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
-            _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, to: conversationID)
+            _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, linkPreview: pending.linkPreview, to: conversationID)
         case .media(_, let caption):
             await retryMedia(clientMessageID: clientMessageID, caption: caption, repliedTo: pending.repliedTo, in: conversationID)
         case .encrypted, .cash, .deleted, .widget, .system:
@@ -2140,7 +2193,7 @@ final class ConversationController {
         }
     }
 
-    private func deliver(clientMessageID: UUID, text: String, repliedTo: MessageID?, to conversationID: ConversationID) async -> Bool {
+    private func deliver(clientMessageID: UUID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, to conversationID: ConversationID) async -> Bool {
         // Captured before the send so success and failure report the same
         // conversation kind; an unresolved conversation reports as Unknown.
         let chatType = conversation(withID: conversationID)?.type
@@ -2150,6 +2203,7 @@ final class ConversationController {
                 conversationID: conversationID,
                 text: text,
                 repliedTo: repliedTo,
+                linkPreview: linkPreview,
                 clientMessageID: clientMessageID
             )
             // Persist the row carrying its client id (the server echoes none) so the DB keeps the send's
@@ -2165,6 +2219,12 @@ final class ConversationController {
                 scheduleGapCatchUp(conversationID)
             }
             store.advanceLastActivity(to: message.date, in: conversationID)
+            // The server confirmed the send, so everything up to it is seen; matches Android's
+            // `MessagingDelegate` advancing its own pointer to the sent id.
+            // The jump badge's hold releases only onto a pointer that moved.
+            if advanceReadPointer(to: message.id, in: conversationID) {
+                confirmedOwnSendCounts[conversationID, default: 0] += 1
+            }
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             // Outside the `ok` branch: the message reached the server either way, so a draft put
@@ -2222,6 +2282,7 @@ final class ConversationController {
     func sendMedia(
         _ chips: [ComposerChip],
         caption: String?,
+        followedBy followingText: (text: String, linkPreview: MessageLinkPreview)? = nil,
         to conversationID: ConversationID,
         repliedTo: MessageID? = nil
     ) async -> Bool {
@@ -2239,6 +2300,10 @@ final class ConversationController {
         let sends = ChatMediaSendPlan.mediaMessages(chips: chips, caption: caption, replyTo: repliedTo).map { message in
             (message: message, clientMessageID: insertPendingMedia(message, into: conversationID))
         }
+        // Inserted with the photos so it sits after them, and delivered after them so it lands there.
+        let textMessageID = followingText.map {
+            insertPending($0.text, repliedTo: nil, linkPreview: $0.linkPreview, into: conversationID)
+        }
 
         var deliveredAll = true
         for send in sends {
@@ -2247,6 +2312,16 @@ final class ConversationController {
                 chip: send.message.chip,
                 caption: send.message.caption,
                 repliedTo: send.message.replyTo,
+                to: conversationID
+            )
+            deliveredAll = deliveredAll && delivered
+        }
+        if let followingText, let textMessageID {
+            let delivered = await deliver(
+                clientMessageID: textMessageID,
+                text: followingText.text,
+                repliedTo: nil,
+                linkPreview: followingText.linkPreview,
                 to: conversationID
             )
             deliveredAll = deliveredAll && delivered
@@ -2494,6 +2569,10 @@ final class ConversationController {
                 scheduleGapCatchUp(conversationID)
             }
             store.advanceLastActivity(to: message.date, in: conversationID)
+            // The jump badge's hold releases only onto a pointer that moved.
+            if advanceReadPointer(to: message.id, in: conversationID) {
+                confirmedOwnSendCounts[conversationID, default: 0] += 1
+            }
             refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             Analytics.sentMessage(chatType: chatType)
@@ -2518,16 +2597,16 @@ final class ConversationController {
     /// inbound messages it crossed report their receipts. `AdvancePointer` goes out after. When it
     /// fails, the local pointer stays ahead and the next feed load sends it again. Android's
     /// `MessagingDelegate.advanceReadPointer` works in the same order.
-    func advanceReadPointer(to messageID: MessageID, in conversationID: ConversationID) {
+    ///
+    /// Returns whether the pointer now sits at or past `messageID`; false when the viewer can't move it.
+    @discardableResult
+    func advanceReadPointer(to messageID: MessageID, in conversationID: ConversationID) -> Bool {
         // A pointer advance is denied to a non-member even when the fetch isn't, and a chat the user
         // cannot read has nothing to mark.
-        guard canAdvancePointer(conversationID) else { return }
+        guard canAdvancePointer(conversationID) else { return false }
         // A chat not in the feed yet has no member row to hold the pointer, only the unsynced entry.
-        let previous = [
-            store.selfReadPointer(for: conversationID, selfUserID: selfUserID),
-            store.unsyncedSelfReadPointers[conversationID],
-        ].compactMap { $0 }.max()
-        if let previous, messageID <= previous { return }
+        let previous = readThrough(for: conversationID)
+        if let previous, messageID <= previous { return true }
         store.advanceSelfReadPointer(to: messageID, in: conversationID, selfUserID: selfUserID)
         // The pointer only moves forward, so the window it just crossed holds exactly the messages the
         // reader is seeing for the first time. The reporter keeps only the inbound ones.
@@ -2535,6 +2614,7 @@ final class ConversationController {
         receipts.reportRead(crossed, chatType: conversation(withID: conversationID)?.type)
         persistConversation(conversationID)
         syncReadPointer(in: conversationID)
+        return true
     }
 
     /// Sends the viewer's unsynced READ pointer for `conversationID`, if it has one. Called as the

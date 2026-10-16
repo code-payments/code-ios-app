@@ -67,13 +67,15 @@ public final class ChatMessageCell: ChatColumnCell {
     ///   - maxWidth: the widest the bubble may grow before its text wraps, in points. The owner
     ///     derives it from the collection view's width.
     ///   - quoteThumbnail: where a quoted photo's thumbnail loads from, or nil until it resolves.
+    ///   - updateAction: the capsule an `.updateApp` bubble draws, or nil for none.
     public func configure(
         with message: ChatMessage,
         maxWidth: CGFloat,
         authorImageData: Data? = nil,
-        quoteThumbnail: ChatMediaLocation? = nil
+        quoteThumbnail: ChatMediaLocation? = nil,
+        updateAction: ChatBubbleAction? = nil
     ) {
-        bubble.configure(with: message, quoteThumbnail: quoteThumbnail)
+        bubble.configure(with: message, quoteThumbnail: quoteThumbnail, updateAction: updateAction)
         maxWidthConstraint.constant = maxWidth
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth

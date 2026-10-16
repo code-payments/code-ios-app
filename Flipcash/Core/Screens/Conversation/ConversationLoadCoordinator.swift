@@ -38,10 +38,6 @@ final class ConversationLoadCoordinator {
     let claimReplies: CashLinkClaimReplies
 
     private let controller: ConversationController
-    /// Starts lookups for web cards; called only while ``mayPrefetchWebCards(_:)`` holds.
-    private let prefetchWebCards: @MainActor ([LinkCard]) -> Void
-    /// Whether the app is in the foreground. A seam for tests.
-    private let isAppActive: @MainActor () -> Bool
     private let session: Session
     /// Names senders the chat's own roster leaves out, from what the device already knows about
     /// them. Observed like every other input, so a reload re-attributes the window in place.
@@ -50,6 +46,8 @@ final class ConversationLoadCoordinator {
     /// `init`, which the screen runs as it appears and so before its opening task marks the chat
     /// read; never re-read for the life of this coordinator.
     private let openingUnreadBoundary: UnreadBoundary
+    /// The jump-to-bottom badge's count, frozen at the divider's until the reader first scrolls.
+    let jumpBadge: JumpBadgeCount
     /// The newest stored message at open. A message of the viewer's past it is a send made on this
     /// visit, which ends the divider under ``UnreadDividerLifetime/untilSend``.
     private let newestAtOpen: MessageID?
@@ -83,18 +81,16 @@ final class ConversationLoadCoordinator {
         controller: ConversationController,
         session: Session,
         knownAuthors: KnownAuthorDirectory,
-        prefetchWebCards: @escaping @MainActor ([LinkCard]) -> Void = { _ in },
-        isAppActive: @escaping @MainActor () -> Bool = { UIApplication.shared.applicationState == .active }
+        openingLoadLanded: Bool = false
     ) {
         self.conversationID = conversationID
         self.controller = controller
-        self.prefetchWebCards = prefetchWebCards
-        self.isAppActive = isAppActive
         self.session = session
         self.knownAuthors = knownAuthors
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
         let boundary = controller.unreadBoundary(for: conversationID)
         self.openingUnreadBoundary = boundary
+        self.jumpBadge = JumpBadgeCount(controller: controller, conversationID: conversationID, boundary: boundary, openingLoadLanded: openingLoadLanded)
         self.newestAtOpen = controller.lastConfirmedMessage(for: conversationID)?.id
         self.claimReplies = CashLinkClaimReplies(claims: session.cashLinkClaims) { [controller] messageID in
             guard CashLinkClaimReplies.isEnabled else { return }
@@ -163,33 +159,14 @@ final class ConversationLoadCoordinator {
         let authors = Self.authors(from: attribution.members)
         mapTask?.cancel()
         mapTask = Task { [weak self] in
-            let (mapped, webCards) = await Task.detached {
-                (Self.map(inputs, authors: authors), ChatItem.webCards(in: inputs.messages, webLinks: inputs.webLinks))
+            let mapped = await Task.detached {
+                Self.map(inputs, authors: authors)
             }.value
             guard let self, !Task.isCancelled else { return }
             self.items = mapped
-            if !webCards.isEmpty, self.mayPrefetchWebCards(inputs) {
-                self.prefetchWebCards(webCards)
-            }
             self.attributedMembers = attribution.members
             self.unattributedSenders = attribution.unnamed
         }
-    }
-
-    // A chat whose record has not landed yet does not prefetch; its cards still resolve when drawn.
-    private func mayPrefetchWebCards(_ inputs: Inputs) -> Bool {
-        guard let conversation = inputs.conversation else { return false }
-        return Self.mayPrefetchWebCards(
-            isMember: controller.isMember(of: conversation),
-            isVisible: controller.visibleConversationID == conversationID,
-            isAppActive: isAppActive()
-        )
-    }
-
-    /// Whether a page's web cards fetch ahead of being drawn: only for the chat on screen, in the
-    /// foreground, and in a group only for a member (a DM always counts as membership).
-    static func mayPrefetchWebCards(isMember: Bool, isVisible: Bool, isAppActive: Bool) -> Bool {
-        isMember && isVisible && isAppActive
     }
 
     // Maps on the main thread and lands the whole result at once, rather than through `refresh`'s
@@ -299,8 +276,7 @@ final class ConversationLoadCoordinator {
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory,
-            unreadBoundary: unreadBoundary(in: window),
-            webLinks: BetaFlags.shared.hasEnabled(.webLinkPreviews)
+            unreadBoundary: unreadBoundary(in: window)
         )
     }
 
@@ -323,7 +299,7 @@ final class ConversationLoadCoordinator {
     }
 
     nonisolated private static func map(_ inputs: Inputs, authors: [UserID: ChatAuthor]) -> [ChatItem] {
-        let classifier = LinkCardClassifier(webLinks: inputs.webLinks)
+        let classifier = LinkCardClassifier()
         var items = ChatItem.from(
             inputs.messages,
             selfUserID: inputs.selfUserID,
@@ -466,8 +442,6 @@ final class ConversationLoadCoordinator {
         var headsHistory: Bool
         /// Where the divider goes; `.none` draws none.
         var unreadBoundary: UnreadBoundary
-        /// Whether outside links become web cards; the `webLinkPreviews` flag, read live.
-        var webLinks: Bool = true
 
         struct Branding: Equatable, Sendable {
             var token: String

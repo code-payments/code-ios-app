@@ -148,6 +148,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Supporting Files/apple-app-site-association",
+				"Supporting Files/GoogleService-Info.plist",
 				"Supporting Files/Info.plist",
 			);
 			target = 9A516F792D9B12E800AF478B /* Flipcash */;
@@ -417,10 +418,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9A516F9B2D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "Flipcash" */;
 			buildPhases = (
-				9ADEF1CD2DD516A5001B260A /* Generate Google */,
 				9A516F762D9B12E800AF478B /* Sources */,
 				9A516F772D9B12E800AF478B /* Frameworks */,
 				9A516F782D9B12E800AF478B /* Resources */,
+				9ADEF1CD2DD516A5001B260A /* Generate Google */,
 				4C7D70022FC8892D0091C7A4 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -656,11 +657,11 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(SOURCE_ROOT)/Flipcash/Supporting Files/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$SOURCE_ROOT/Flipcash/Supporting Files/GoogleService-Info.plist\" \"FG_\"\n";
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/GoogleService-Info.plist\" \"FG_\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

@@ -56,9 +56,8 @@ struct ConversationScreen: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var didInitialRead = false
-    /// Set once the saved link previews have loaded or 300 ms have passed, so a chat opened right
-    /// after launch draws its cards from them instead of flashing placeholders (P22d).
-    @State private var waitedForLinkPreviews = false
+    /// The chat whose opening load has landed, for a coordinator built after it.
+    @State private var loadedConversationID: ConversationID?
     /// The chat whose stored draft has been put back, which is also what permits saving: an empty
     /// composer must not delete a stored draft in the frame before the restore runs.
     @State private var restoredDraftID: ConversationID?
@@ -109,6 +108,8 @@ struct ConversationScreen: View {
 
     /// The join-requests anchor's measured height, reserved at the transcript's top; 0 while hidden.
     @State private var anchorHeight: CGFloat = 0
+    /// Whether the keyboard is up, which holds the update toast back.
+    @State private var isKeyboardUp = false
 
     /// This conversation's id when the viewer hosts it as a private group; the anchor is host-only.
     private var hostedConversationID: ConversationID? {
@@ -226,14 +227,11 @@ struct ConversationScreen: View {
     ///
     /// Recomputed on each observation tick rather than cached, so a balance that crosses the
     /// requirement — or a rate that finally loads — opens the chat without a reopen.
-    /// DMs and members fetch web previews as they draw; anyone else, or a chat whose record has not
-    /// loaded yet, waits for the chip.
-    private var webPreviewMode: WebLinkPreviewMode {
-        guard let conversationID,
-              let conversation = conversationController.conversation(withID: conversationID),
-              conversationController.isMember(of: conversation)
-        else { return .tapToLoad }
-        return .automatic
+    /// The bubble's "Update Flipcash" action, offered whenever the store has a newer version.
+    private var updateAction: ChatBubbleAction? {
+        let updates = container.updateAvailability
+        guard updates.newerVersion != nil else { return nil }
+        return ChatBubbleAction(title: "Update Flipcash") { updates.openStore() }
     }
 
     private var gate: ConversationGatePresentation {
@@ -401,7 +399,7 @@ struct ConversationScreen: View {
         pagesHistory: Bool
     ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
-            items: (waitedForLinkPreviews || sessionContainer.linkCardMemo.isLoaded) ? (coordinator?.items ?? []) : [],
+            items: coordinator?.items ?? [],
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
@@ -413,13 +411,16 @@ struct ConversationScreen: View {
             ownProfile: ownProfile,
             onLinkCardTap: openLinkCard,
             linkCardSource: sessionContainer.linkCardFeed,
-            webPreviewMode: webPreviewMode,
+            updateAction: updateAction,
+            toasts: container.toasts,
             onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
             onMessagesSeen: markSeen,
             reportsReads: reportsReads(gate: gate),
+            unreadBelowCount: coordinator?.jumpBadge.count ?? 0,
+            onUserScrollBegan: { coordinator?.jumpBadge.userDidScroll() },
             onReactionTap: toggleReaction,
             onReactionLongPress: openReactors,
             onReactionAdd: openReactionPicker,
@@ -712,9 +713,19 @@ struct ConversationScreen: View {
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
     private func loads(_ content: some View) -> some View {
         content
+        // The update toast, once per version: a beat after the chat opens, never over a raised keyboard.
         .task {
-            await sessionContainer.linkCardMemo.awaitLoaded()
-            waitedForLinkPreviews = true
+            guard !openKeyboard else { return }
+            try? await Task.sleep(for: UpdatePolicy.chatSettle)
+            guard !Task.isCancelled, !isKeyboardUp else { return }
+            container.updateAvailability.showToastIfEligible(on: container.toasts, timeout: UpdatePolicy.chatTimeout)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardUp = true
+            container.updateAvailability.dismissToast(on: container.toasts)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardUp = false
         }
         .task {
             // The probe runs once per OS build; after that this is a cached read.
@@ -892,6 +903,14 @@ struct ConversationScreen: View {
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
             syncCoordinator(conversationID)
+            composer.linkPreview.load = ComposerLinkPreview.loader(
+                metadata: sessionContainer.linkMetadataSource,
+                images: WebImageSource()
+            )
+            composer.linkPreview.upload = ComposerLinkPreview.uploader(
+                { mediaUploader },
+                senderID: sessionContainer.session.userID
+            )
             restoreDraft(conversationID)
         }
         // A matched contact's chat is created mid-screen on the first payment,
@@ -1327,7 +1346,16 @@ struct ConversationScreen: View {
         // The newest page IS the fresh state and seats the event-log cursor to head, so opening a
         // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
         // foreground / reconnect / live-gap triggers instead.
-        await conversationController.loadMessages(for: conversationID)
+        let landed = await conversationController.loadMessages(for: conversationID)
+        // Only a load that landed seats the badge's arrival cutoff; after a failed one, the next
+        // successful newest-page load does, whichever path runs it.
+        if landed {
+            // The coordinator may not exist yet; `syncCoordinator` applies this when it builds one.
+            loadedConversationID = conversationID
+            if let coordinator, coordinator.conversationID == conversationID {
+                coordinator.jumpBadge.openingLoadLanded()
+            }
+        }
         await conversationController.refreshReactions(for: conversationID)
         // Reading the thread clears its own delivered pushes; other chats keep theirs.
         await pushController.clearDeliveredNotifications(for: conversationID)
@@ -1519,7 +1547,7 @@ struct ConversationScreen: View {
                 controller: conversationController,
                 session: session,
                 knownAuthors: sessionContainer.knownAuthors,
-                prefetchWebCards: { [linkCardFeed = sessionContainer.linkCardFeed] in linkCardFeed.prefetch($0) }
+                openingLoadLanded: loadedConversationID == id
             )
         }
     }

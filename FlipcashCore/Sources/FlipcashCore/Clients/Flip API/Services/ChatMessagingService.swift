@@ -157,12 +157,13 @@ final class ChatMessagingService: Sendable {
         }
     }
 
-    /// Sends `text`, as a reply to `repliedTo` when set. With a `seal` the text goes out as
-    /// `EncryptedContent` and the server's copy comes back decrypted.
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, seal: ChatSeal?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
+    /// Sends `text` carrying `linkPreview`, as a reply to `repliedTo` when set. With a `seal` the
+    /// text goes out as `EncryptedContent` and the server's copy comes back decrypted.
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, seal: ChatSeal?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
         let content: Flipcash_Messaging_V1_Content
         do {
-            content = try seal?.seal(text: text, repliedTo: repliedTo) ?? .plaintext(text: text, repliedTo: repliedTo)
+            content = try seal?.seal(text: text, repliedTo: repliedTo, linkPreview: linkPreview)
+                ?? .plaintext(text: text, repliedTo: repliedTo, linkPreview: linkPreview)
         } catch {
             logger.error("Failed to encrypt message")
             completion(.failure(.encryptionFailed))
@@ -244,6 +245,7 @@ final class ChatMessagingService: Sendable {
         messageID: MessageID,
         text: String,
         repliedTo: MessageID?,
+        linkPreview: MessageLinkPreview?,
         seal: ChatSeal?,
         expectedEventSequence: UInt64,
         completion: @Sendable @escaping (Result<MessageMutation, ErrorEditMessage>) -> Void
@@ -252,7 +254,8 @@ final class ChatMessagingService: Sendable {
         do {
             // The edit replaces the whole content, reply wrapper included, so a reply has to restate
             // its target or the server stores it as a plain message.
-            content = try seal?.seal(text: text, repliedTo: repliedTo) ?? .plaintext(text: text, repliedTo: repliedTo)
+            content = try seal?.seal(text: text, repliedTo: repliedTo, linkPreview: linkPreview)
+                ?? .plaintext(text: text, repliedTo: repliedTo, linkPreview: linkPreview)
         } catch {
             logger.error("Failed to encrypt edited message")
             completion(.failure(.encryptionFailed))

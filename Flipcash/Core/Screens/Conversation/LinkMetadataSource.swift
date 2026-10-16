@@ -8,30 +8,12 @@
 import Foundation
 import FlipcashCore
 
-/// The client implementation of the spec's LinkMetadataSource. A server RPC replaces it.
+/// Where the sender's composer reads what a linked page says about itself.
 protocol LinkMetadataSource: Sendable {
-    /// The preview for `url`; throws when the outcome should not be remembered. A link that falls
-    /// back to its site's home page reads and records that page's answer through `homes` (P24d).
-    func metadata(for url: URL, homes: (any WebHomeAnswers)?) async throws -> LinkCard.Web.State
+    /// What the page at `url` says about itself, or nil when it offers nothing to preview. Throws
+    /// when the fetch failed in a way worth trying again later.
+    func metadata(for url: URL) async throws -> LinkCard.Web.Resolved?
 }
-
-nonisolated extension LinkMetadataSource {
-    /// The preview for `url`, with no remembered home-page answers to read or record.
-    func metadata(for url: URL) async throws -> LinkCard.Web.State {
-        try await metadata(for: url, homes: nil)
-    }
-}
-
-/// The remembered answers for site home pages, which a fallback reads before fetching (P24d).
-nonisolated protocol WebHomeAnswers: Sendable {
-    /// The answer held for `home`, if it is still fresh.
-    func answer(forHome home: URL) async -> LinkCard.Web.State?
-    /// Remembers `state` as the answer for `home`.
-    func record(_ state: LinkCard.Web.State, forHome home: URL) async
-}
-
-/// Thrown while the `webLinkPreviews` flag is off, so nothing is fetched or remembered.
-nonisolated struct WebLinkPreviewsDisabled: Error {}
 
 /// A server error worth asking again later, so it is never remembered.
 nonisolated struct WebLinkHTTPStatus: Error, Equatable {
@@ -42,45 +24,38 @@ nonisolated struct WebLinkHTTPStatus: Error, Equatable {
 nonisolated final class PinnedLinkMetadataSource: LinkMetadataSource {
 
     private let client: any PinnedFetching
-    private let isEnabled: @Sendable () async -> Bool
     private let limiter: FetchLimiter
 
     init(client: any PinnedFetching = PinnedHTTPClient(),
-         limiter: FetchLimiter = .shared,
-         isEnabled: @escaping @Sendable () async -> Bool = { await MainActor.run { BetaFlags.shared.hasEnabled(.webLinkPreviews) } }) {
+         limiter: FetchLimiter = .shared) {
         self.client = client
         self.limiter = limiter
-        self.isEnabled = isEnabled
     }
 
-    func metadata(for url: URL, homes: (any WebHomeAnswers)?) async throws -> LinkCard.Web.State {
-        guard await isEnabled() else { throw WebLinkPreviewsDisabled() }
+    func metadata(for url: URL) async throws -> LinkCard.Web.Resolved? {
         return try await limiter.run {
             // P24b: the link and its home-page fallback share one deadline and one redirect budget.
             try await WebRedirects.withDeadline(.seconds(2 * WebLinks.timeout)) {
-                try await self.lookup(url, homes: homes)
+                try await self.lookup(url)
             }
         }
     }
 
-    private func lookup(_ url: URL, homes: (any WebHomeAnswers)?) async throws -> LinkCard.Web.State {
+    private func lookup(_ url: URL) async throws -> LinkCard.Web.Resolved? {
         var redirects = WebLinks.maxRedirects
-        guard let (response, finalURL) = try await fetchPage(url, redirects: &redirects) else { return .none }
+        guard let (response, finalURL) = try await fetchPage(url, redirects: &redirects) else { return nil }
         switch try Self.read(response, from: finalURL) {
-        case .resolved(let resolved): return .resolved(resolved)
-        case .none: return .none
+        case .resolved(let resolved): return resolved
+        case .none: return nil
         case .fallBack: break
         }
-        guard let home = Self.home(of: finalURL) else { return .none }
-        if let known = await homes?.answer(forHome: home) { return known }
-        // P24d: a home page past the shared redirect budget is no answer for the home key.
-        guard let (homeResponse, homeURL) = try await fetchPage(home, redirects: &redirects) else { return .none }
-        let state: LinkCard.Web.State = switch try Self.read(homeResponse, from: homeURL) {
-        case .resolved(let resolved): .resolved(resolved)
-        case .none, .fallBack: .none
+        guard let home = Self.home(of: finalURL) else { return nil }
+        // P24d: a home page past the shared redirect budget is no answer.
+        guard let (homeResponse, homeURL) = try await fetchPage(home, redirects: &redirects) else { return nil }
+        return switch try Self.read(homeResponse, from: homeURL) {
+        case .resolved(let resolved): resolved
+        case .none, .fallBack: nil
         }
-        await homes?.record(state, forHome: home)
-        return state
     }
 
     private func fetchPage(_ url: URL, redirects: inout Int) async throws -> (PinnedResponse, URL)? {
@@ -129,19 +104,14 @@ nonisolated final class PinnedLinkMetadataSource: LinkMetadataSource {
 /// remembered as missing.
 nonisolated final class WebImageSource: @unchecked Sendable {
 
-    static let shared = WebImageSource(disk: .shared)
-
     private let client: any PinnedFetching
     private let limiter: FetchLimiter
     // NSCache is thread-safe; it is the only mutable state here.
     private let cache = NSCache<NSURL, NSData>()
-    private let disk: WebImageDiskCache?
 
-    /// A source with no `disk` keeps images in memory only.
-    init(client: any PinnedFetching = PinnedHTTPClient(), limiter: FetchLimiter = .shared, disk: WebImageDiskCache? = nil) {
+    init(client: any PinnedFetching = PinnedHTTPClient(), limiter: FetchLimiter = .shared) {
         self.client = client
         self.limiter = limiter
-        self.disk = disk
     }
 
     /// The image bytes at `url` if a previous fetch is still held in memory.
@@ -152,10 +122,6 @@ nonisolated final class WebImageSource: @unchecked Sendable {
     /// The image bytes at `url`, or nil when it cannot be fetched under the rules.
     func data(for url: URL) async -> Data? {
         if let hit = cache.object(forKey: url as NSURL) { return hit as Data }
-        if let stored = disk?.data(for: url) {
-            cache.setObject(stored as NSData, forKey: url as NSURL)
-            return stored
-        }
         let data = try? await limiter.run { () -> Data? in
             guard let (response, _) = try await WebRedirects.follow(
                 url, client: self.client, accept: "image/*", maxBytes: WebLinks.maxImageBytes
@@ -169,7 +135,6 @@ nonisolated final class WebImageSource: @unchecked Sendable {
         }
         guard let data = data ?? nil else { return nil }
         cache.setObject(data as NSData, forKey: url as NSURL)
-        disk?.store(data, for: url)
         return data
     }
 }

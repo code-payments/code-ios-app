@@ -30,11 +30,31 @@ public enum ChatMediaImageSource {
     /// minted per fetch, so keying on it would re-download the same photo every session. An
     /// encrypted blob is decrypted before Kingfisher decodes it.
     public static func source(blobID: BlobID?, location: ChatMediaLocation) -> Source {
-        let cacheKey = blobID.map { "chat-media-\($0.description)" } ?? location.url.absoluteString
+        let cacheKey = blobID.map(Self.cacheKey(for:)) ?? location.url.absoluteString
         guard let decrypt = location.decrypt else {
             return .network(KF.ImageResource(downloadURL: location.url, cacheKey: cacheKey))
         }
         return .provider(DecryptingProvider(cacheKey: cacheKey, url: location.url, decrypt: decrypt))
+    }
+
+    /// The photo at `location`, from the cache when held, or nil when it fails to load or decrypt.
+    @MainActor
+    public static func image(blobID: BlobID?, location: ChatMediaLocation) async -> UIImage? {
+        let source = source(blobID: blobID, location: location)
+        guard let result = try? await KingfisherManager.shared.retrieveImage(with: source, options: options()) else {
+            return nil
+        }
+        persist(.success(result))
+        return result.image
+    }
+
+    /// The photo for `blobID` if already held in memory, without loading anything.
+    public static func cachedImage(blobID: BlobID) -> UIImage? {
+        cache.retrieveImageInMemoryCache(forKey: cacheKey(for: blobID))
+    }
+
+    private static func cacheKey(for blobID: BlobID) -> String {
+        "chat-media-\(blobID.description)"
     }
 
     /// Whether a failed load was an encrypted blob that will never decrypt, rather than a fetch

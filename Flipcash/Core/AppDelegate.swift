@@ -144,6 +144,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
             container.flipClient.warmUpChannel()
+            container.updateAvailability.refresh()
             sessionContainer?.session.didBecomeActive()
             sessionContainer?.usdcSweepOperation.start()
             sessionContainer?.contactSyncController.didBecomeActive()

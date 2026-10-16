@@ -134,17 +134,7 @@ private struct ComposerChipView: View {
             .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .frame(width: size, height: size)
         .overlay(alignment: .topTrailing) {
-            Button(action: onRemove) {
-                Image(systemName: SystemSymbol.closeCircle.rawValue)
-                    .font(.default(size: 18, weight: .semibold))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(Color.white, Color.black.opacity(0.55))
-                    .padding(3)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove photo")
-            .accessibilityIdentifier("composer-chip-remove")
+            ComposerChipRemoveButton(label: "Remove photo", identifier: "composer-chip-remove", action: onRemove)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("composer-chip")
@@ -181,5 +171,137 @@ private struct ComposerChipView: View {
         case .none:
             EmptyView()
         }
+    }
+}
+
+/// The draft link's preview as the recipient will see it: a compact card with the page's image,
+/// host, description and title, a spinner while it loads, and a remove button on its corner.
+struct ComposerLinkChip: View {
+
+    let preview: ComposerLinkPreview
+    let onRemove: () -> Void
+
+    private static let cardCornerRadius: CGFloat = 14
+    private static let imageCornerRadius: CGFloat = 8
+    private static let imageSize: CGFloat = 44
+    private static let maxCardWidth: CGFloat = 280
+
+    /// How far the remove button hangs past the card's top-trailing corner.
+    private static let removeOverhang: CGFloat = 9
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Color.backgroundSecondary
+                .overlay { thumbnail }
+                .frame(width: Self.imageSize, height: Self.imageSize)
+                .clipShape(RoundedRectangle(cornerRadius: Self.imageCornerRadius))
+            VStack(alignment: .leading, spacing: 2) {
+                text
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .frame(maxWidth: Self.maxCardWidth, alignment: .leading)
+        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: Self.cardCornerRadius))
+        .overlay(alignment: .topTrailing) {
+            ComposerChipRemoveButton(
+                label: "Remove link preview",
+                identifier: "composer-link-chip-remove",
+                action: onRemove
+            )
+            .offset(x: Self.removeOverhang, y: -Self.removeOverhang)
+        }
+        .padding(.top, Self.removeOverhang)
+        .padding(.trailing, Self.removeOverhang)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityIdentifier("composer-link-chip")
+    }
+
+    @ViewBuilder
+    private var thumbnail: some View {
+        switch preview.state {
+        case .none:
+            EmptyView()
+        case .loading:
+            ProgressView()
+        case .ready(_, _, let page):
+            if let thumbnail = page.thumbnail {
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .scaledToFill()
+                    .overlay {
+                        if page.isUploadingImage {
+                            Color.black.opacity(0.35)
+                            ProgressView().tint(.white)
+                        }
+                    }
+            } else {
+                Image(systemName: "link")
+                    .font(.default(size: 20, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.6))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var text: some View {
+        switch preview.state {
+        case .none:
+            EmptyView()
+        case .loading(_, let host):
+            Text(host)
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+        case .ready(_, let host, let page):
+            HStack(spacing: 6) {
+                Text(host)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textMain)
+                    .layoutPriority(1)
+                if let description = page.description, !description.isEmpty {
+                    Text(description)
+                        .font(.appTextCaption)
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            .lineLimit(1)
+            Text(page.title)
+                .font(.appTextCaption)
+                .foregroundStyle(Color.textSecondary)
+                .lineLimit(1)
+        }
+    }
+
+    private var accessibilityLabel: String {
+        switch preview.state {
+        case .none:                         ""
+        case .loading(_, let host):         "Loading preview for \(host)"
+        case .ready(_, let host, let page): "Preview for \(host): \(page.title)"
+        }
+    }
+}
+
+/// The remove button drawn on the top-trailing corner of a staged photo or link thumbnail.
+private struct ComposerChipRemoveButton: View {
+
+    let label: String
+    let identifier: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: SystemSymbol.closeCircle.rawValue)
+                .font(.default(size: 18, weight: .semibold))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(Color.white, Color.black.opacity(0.55))
+                .padding(3)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 }

@@ -54,6 +54,15 @@ final class ComposerModel {
     /// Photos staged for the next send, in the order they were added.
     private(set) var chips: [ComposerChip] = []
 
+    /// The preview of the draft's first web link, which a text send carries.
+    let linkPreview = ComposerLinkPreview()
+
+    /// Whether the link preview's card is drawn: while it has a link, and not during an edit, which
+    /// sends no new one.
+    var showsLinkPreview: Bool {
+        linkPreview.link != nil && !isEditing
+    }
+
     /// The unsent new-message draft, held while an edit occupies the field.
     @ObservationIgnored private var stashedDraft = ""
     /// The text the message had when the edit began, so an unchanged edit can be refused.
@@ -168,6 +177,8 @@ final class ComposerModel {
         guard case .new = mode, draft.isEmpty else { return }
         draft = stored.text
         selection = nil
+        // The restore can land before the bar's draft observer is attached, so feed the preview here.
+        linkPreview.update(for: stored.text)
         if let target = stored.replyTarget {
             mode = .replying(to: ReplyTarget(target))
         }
@@ -247,6 +258,7 @@ final class ComposerModel {
         if !chips.isEmpty {
             chips = []
         }
+        linkPreview.reset()
     }
 
     /// The `@word` at the cursor that the mention picker searches for, or `nil` when it is closed.

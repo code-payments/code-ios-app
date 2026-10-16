@@ -32,7 +32,6 @@ actor LinkCardResolver {
     private let mintLookup: @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved
     private let groupLookup: @Sendable (ConversationID) async throws -> GroupLinkFacts
     private let userLookup: @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts
-    private let webLookup: @Sendable (URL) async throws -> LinkCard.Web.State
     private let messageLookup: @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State
 
     /// The query per key, not the answer.
@@ -50,8 +49,6 @@ actor LinkCardResolver {
     private var tokenQueries: [PublicKey: Task<LinkCard.Token.State, Never>] = [:]
     private var groupQueries: [ConversationID: Task<GroupLinkFacts?, Never>] = [:]
     private var userQueries: [LinkCard.User.Identity: Task<Result<UserLinkFacts, any Error>, Never>] = [:]
-    /// In flight only: a web answer has a TTL, so ``LinkCardMemo`` holds it rather than this map.
-    private var webQueries: [String: Task<LinkCard.Web.State?, Never>] = [:]
     /// A message card's answer depends on the viewer's standing in the chat, which moves under it
     /// (a join turns Join into the message), so only the query in flight is held and a finished
     /// answer is dropped; the feed holds it in memory for the visit.
@@ -62,14 +59,12 @@ actor LinkCardResolver {
         mintLookup: @escaping @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved,
         groupLookup: @escaping @Sendable (ConversationID) async throws -> GroupLinkFacts,
         userLookup: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts,
-        webLookup: @escaping @Sendable (URL) async throws -> LinkCard.Web.State,
         messageLookup: @escaping @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State = { _ in .unavailable }
     ) {
         self.cashLookup = cashLookup
         self.mintLookup = mintLookup
         self.groupLookup = groupLookup
         self.userLookup = userLookup
-        self.webLookup = webLookup
         self.messageLookup = messageLookup
     }
 
@@ -89,8 +84,7 @@ actor LinkCardResolver {
             assertionFailure("A person card resolves through user(_:), not resolve(_:)")
             return .user(.notFound)
         case .web:
-            assertionFailure("A web card resolves through web(_:), not resolve(_:)")
-            return .web(.none)
+            preconditionFailure("A web card draws the preview its message carries and is never resolved")
         case .message:
             assertionFailure("A message card resolves through message(_:), not resolve(_:)")
             return .message(.unavailable)
@@ -148,23 +142,6 @@ actor LinkCardResolver {
 
         let state = await query.value
         if messageQueries[key] == query { messageQueries[key] = nil }
-        return state
-    }
-
-    /// What a web page's head says, or nil on a failure, which is dropped so the next view asks again.
-    func web(_ card: LinkCard.Web) async -> LinkCard.Web.State? {
-        guard let key = WebLinks.cacheKey(card.url) else { return LinkCard.Web.State.none }
-        if let query = webQueries[key] { return await query.value }
-
-        let lookup = webLookup
-        let url = card.url
-        let query = Task<LinkCard.Web.State?, Never> {
-            try? await lookup(url)
-        }
-        webQueries[key] = query
-
-        let state = await query.value
-        if webQueries[key] == query { webQueries[key] = nil }
         return state
     }
 
@@ -231,13 +208,9 @@ nonisolated extension LinkCard {
             case .userID(let userID):     "user:id:\(userID.uuidString.lowercased())"
             case .username(let username): "user:handle:\(username.value)"
             }
-        // The same key Android persists, so a page reads the same on both.
-        case .web(let web): Self.webKey(web.url)
+        case .web(let web): "web:\(web.url.absoluteString)"
         }
     }
-
-    /// The key a web page's answer is remembered under, for a card or a fallback's home page.
-    static func webKey(_ url: URL) -> String { "web:\(WebLinks.cacheKey(url) ?? url.absoluteString)" }
 
     /// The same key from an entropy alone. A settled claim names the entropy and nothing else, so
     /// the one place that has to build a key without a card builds it here rather than by hand.

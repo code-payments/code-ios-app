@@ -179,7 +179,11 @@ public struct ConversationStore: Sendable {
             case .edited(let text):
                 // The stamp only drives the "Edited" marker, so the message's own date stands in for
                 // the server's — using a live clock here would make the store's output time-dependent.
-                return message.replacingContent(.text(text), lastEditedTs: message.lastEditedTs ?? message.date)
+                return message.replacingContent(
+                    .text(text),
+                    lastEditedTs: message.lastEditedTs ?? message.date,
+                    linkPreview: message.linkPreview?.kept(for: text)
+                )
             case .deleted:
                 // Delete is only ever offered on your own message, so its sender is its deleter.
                 return message.replacingContent(
