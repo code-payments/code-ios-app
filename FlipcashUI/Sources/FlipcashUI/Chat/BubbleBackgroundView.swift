@@ -26,6 +26,18 @@ final class BubbleBackgroundView: UIView {
 
     private static let hairlineStroke = UIColor.white.withAlphaComponent(0.03)
     private static let dashedStroke = UIColor.white.withAlphaComponent(0.2)
+    private static let washedDashedStroke = UIColor.white.withAlphaComponent(0.15)
+
+    /// The bubble's outline.
+    enum Border: Equatable {
+        /// The hairline every bubble draws.
+        case hairline
+        /// A dashed outline in place of the wash and hairline: a bubble standing in for a message it
+        /// cannot show.
+        case dashed
+        /// A fainter dashed outline over the wash: the message that needs a newer app.
+        case dashedOverWash
+    }
 
     /// Base corner radius; the inner corner of a grouped run uses `groupedRadius`.
     static let baseRadius: CGFloat = 12
@@ -87,17 +99,27 @@ final class BubbleBackgroundView: UIView {
     ///
     /// `bare` draws no bubble at all, for a row that is only its content.
     ///
-    /// `dashedBorder` swaps the wash and hairline for a dashed outline, the look of a bubble that
-    /// stands in for a message it cannot show.
-    func apply(fill: UIColor, radii: RectangleCornerRadii, bare: Bool = false, dashedBorder: Bool = false, identity: String? = nil) {
+    /// `border` picks the outline; see ``Border``.
+    func apply(fill: UIColor, radii: RectangleCornerRadii, bare: Bool = false, border: Border = .hairline, identity: String? = nil) {
         // The opaque base goes too, not just the wash and the border: it is there so a bubble reads
         // the same under the context menu's dim and the edit blur, and behind a bare row the same
         // base would be a rectangular patch against both.
         backgroundColor = bare ? .clear : UIColor(Color.backgroundMain)
-        washLayer.isHidden = bare || dashedBorder
         borderLayer.isHidden = bare
-        borderLayer.strokeColor = (dashedBorder ? Self.dashedStroke : Self.hairlineStroke).cgColor
-        borderLayer.lineDashPattern = dashedBorder ? [5, 4] : nil
+        switch border {
+        case .hairline:
+            washLayer.isHidden = bare
+            borderLayer.strokeColor = Self.hairlineStroke.cgColor
+            borderLayer.lineDashPattern = nil
+        case .dashed:
+            washLayer.isHidden = true
+            borderLayer.strokeColor = Self.dashedStroke.cgColor
+            borderLayer.lineDashPattern = [5, 4]
+        case .dashedOverWash:
+            washLayer.isHidden = bare
+            borderLayer.strokeColor = Self.washedDashedStroke.cgColor
+            borderLayer.lineDashPattern = [5, 4]
+        }
         washLayer.backgroundColor = fill.cgColor
         // A recycled view taking a new row drops any flash still running, so the attention never
         // finishes on a message it wasn't meant for.

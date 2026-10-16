@@ -17,13 +17,18 @@ public enum ChatPaymentMetadata: Sendable {
 
     case contactDm(chatID: ConversationID, sourcePhoneE164: String, destinationPhoneE164: String)
     case tipDm(chatID: ConversationID, origin: TipOrigin, action: TipDmAction)
+    /// A Send Cash payment to a member of a group chat. The destination owner account names the
+    /// recipient; the server denies a tip, so the action is always `SEND`.
+    case groupPayment(chatID: ConversationID)
 
-    /// The DM chat this payment posts into.
+    /// The chat this payment posts into.
     public var chatID: ConversationID {
         switch self {
         case .contactDm(let chatID, _, _):
             return chatID
         case .tipDm(let chatID, _, _):
+            return chatID
+        case .groupPayment(let chatID):
             return chatID
         }
     }
@@ -33,7 +38,7 @@ public enum ChatPaymentMetadata: Sendable {
     /// carries instead of re-deriving it.
     public var isTip: Bool {
         switch self {
-        case .contactDm:
+        case .contactDm, .groupPayment:
             return false
         case .tipDm(_, _, let action):
             return action == .tip
@@ -57,6 +62,8 @@ public enum ChatPaymentMetadata: Sendable {
                         $0.location = origin.proto
                         $0.action = action.proto
                     }
+                case .groupPayment:
+                    $0.groupPayment = .with { $0.action = .send }
                 }
             }
         }.serializedData()
@@ -100,7 +107,7 @@ public enum TipDmAction: Sendable, CaseIterable {
     /// A payment from a tip card, or the payment that opens the tip DM.
     case tip
 
-    var proto: Flipcash_Intent_V1_ChatMetadata.DmPayment.Action {
+    var proto: Flipcash_Intent_V1_PaymentAction {
         switch self {
         case .send: return .send
         case .tip:  return .tip

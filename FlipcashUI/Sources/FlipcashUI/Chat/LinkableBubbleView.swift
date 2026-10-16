@@ -40,15 +40,10 @@ public final class LinkableBubbleView: UIView {
     /// Called when the card's height changes after the bubble was configured, as a group card's
     /// does when its lookup lands.
     var onCardHeightChange: (() -> Void)?
-    /// Whether a web card asks for its page as it draws or waits for its chip.
-    var webPreviewMode: WebLinkPreviewMode {
-        get { cardView.webPreviewMode }
-        set { cardView.webPreviewMode = newValue }
-    }
-    /// The transcript's record of the web previews its viewer asked for through the chip.
-    var webPreviewRequests: WebPreviewRequests {
-        get { cardView.webPreviewRequests }
-        set { cardView.webPreviewRequests = newValue }
+    /// Where the bubble's web card gets its image. Set before ``configure(with:)``.
+    var webImages: WebCardImages? {
+        get { cardView.webImages }
+        set { cardView.webImages = newValue }
     }
     /// The bubble's widest, which it takes while a web preview draws so the image is not cut to
     /// the text's width.
@@ -309,19 +304,18 @@ public final class LinkableBubbleView: UIView {
         self.message = message
         self.quoteThumbnail = quoteThumbnail
         cardView.cornerRadii = Self.radii(for: message)
-        // Painted first, so a preview already remembered draws a link-only row bare from its first
-        // frame rather than swapping out of a bubble.
+        // Painted first, so a link-only row draws bare from its first frame rather than swapping
+        // out of a bubble.
         if case .web = message.linkPreview?.card, let card = message.linkPreview?.card {
             self.card = card
-            cardView.webShowsPlaceholder = message.isOnlyItsWebLink
             cardView.configure(with: card, source: linkCardSource)
         }
         lay(message, quoteThumbnail: quoteThumbnail)
     }
 
     /// Whether `message` draws as its card alone. The transcript gives a Flipcash card a row of its
-    /// own, so that row always does; a web link with nothing else beside it does only while its
-    /// preview draws, and keeps its text bubble while loading, with nothing to show, or at its chip.
+    /// own, so that row always does; a web link with nothing else beside it does whenever its
+    /// preview draws.
     private func drawsBare(_ message: ChatMessage) -> Bool {
         message.rendersAsBareLinkCard || (message.isOnlyItsWebLink && cardView.drawsWebPreview)
     }

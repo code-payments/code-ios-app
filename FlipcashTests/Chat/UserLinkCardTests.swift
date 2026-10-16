@@ -95,8 +95,7 @@ import FlipcashCore
             cashLookup: { _ in throw CancellationError() },
             mintLookup: { _ in throw CancellationError() },
             groupLookup: { _ in throw CancellationError() },
-            userLookup: lookup,
-            webLookup: { _ in throw CancellationError() }
+            userLookup: lookup
         )
         #expect(await resolver.user(.username(Self.satoshi)) == nil)
     }
@@ -110,8 +109,7 @@ import FlipcashCore
             cashLookup: { _ in throw CancellationError() },
             mintLookup: { _ in throw CancellationError() },
             groupLookup: { _ in throw CancellationError() },
-            userLookup: { _ in await calls.increment(); throw Offline() },
-            webLookup: { _ in throw CancellationError() }
+            userLookup: { _ in await calls.increment(); throw Offline() }
         )
         #expect(await resolver.user(.username(Self.satoshi)) == nil)
         #expect(await resolver.user(.username(Self.satoshi)) == nil)

@@ -102,14 +102,17 @@ public struct ShareInput: Equatable, Sendable {
         }
     }
 
+    /// `loadItem` with no class to coerce to can hand the URL back as its UTF-8 bytes rather than a
+    /// URL object, so `Data` is read the same as a string.
     @MainActor
     private static func loadWebURL(from provider: NSItemProvider) async -> URL? {
         let item = try? await provider.loadItem(forTypeIdentifier: UTType.url.identifier)
         let url: URL? = switch item {
-        case let url as URL:     url
-        case let url as NSURL:   url as URL
+        case let url as URL:       url
+        case let url as NSURL:     url as URL
         case let string as String: URL(string: string)
-        default:                 nil
+        case let data as Data:     URL(dataRepresentation: data, relativeTo: nil)
+        default:                   nil
         }
         guard let url, !url.isFileURL else { return nil }
         return url

@@ -165,6 +165,38 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
+/// The jump-to-bottom button, centred over the bar's trailing control at the foot of the box the
+/// screen stands on the bar's top edge.
+///
+/// It is hosted outside the bar, so the transcript's inset and the keyboard floor never see it and
+/// the bar's clip never cuts it.
+struct JumpToBottomOverlay: View {
+    let jump: JumpToBottomModel
+    let model: ConversationBarModel
+
+    var body: some View {
+        let isShown = jump.isShown
+        let isCompact = !model.isComposing
+        // The attach panel takes every touch outside itself, the button's included.
+        let takesTouches = !model.attachPanel.isOpen
+        // Centred on the trailing control's column, which is narrower than the button.
+        let inset = BarMetrics.trailingControlCentreInset(isCompact: isCompact)
+            - JumpToBottomButtonView.diameter / 2
+        JumpToBottomButtonView(unreadCount: jump.unreadCount, action: jump.onTap)
+            .frame(width: JumpToBottomButtonView.diameter, height: JumpToBottomButtonView.diameter)
+            // Opacity only: a glass effect under a scale effect drew a shrunken copy of the screen.
+            .opacity(isShown ? 1 : 0)
+            // Hidden, the button also stops taking touches; opacity 0 alone would still be tappable.
+            .allowsHitTesting(isShown && takesTouches)
+            .accessibilityHidden(!isShown)
+            .animation(ChatMotion.reflow.animation, value: isShown)
+            .padding(.trailing, inset)
+            .animation(ChatMotion.barInset.animation, value: isCompact)
+            .padding(.bottom, BarMetrics.jumpButtonGapAboveBar)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+    }
+}
+
 /// Single spring driving the bar's morphs: the focus-driven resize and the send-arrow pop.
 private let barMorphSpring = ChatMotion.swap.animation
 
@@ -200,6 +232,31 @@ enum BarMetrics {
     static let compactDrop: CGFloat = 8
     /// The margin between the compact bar's controls and the screen's sides.
     static let compactInset: CGFloat = 32
+    /// The gap between the field and the `$` beside it, the same compact and composing.
+    nonisolated static let controlSpacing: CGFloat = 10
+    /// The gap between the jump-to-bottom button's bottom edge and the top edge of `$`: twice the
+    /// field's gap to `$`.
+    static let jumpButtonGap: CGFloat = controlSpacing * 2
+    /// How far above the bar's top edge the button's bottom edge stands, which is `$`'s top edge
+    /// less the bar's own margin above its controls.
+    static let jumpButtonGapAboveBar: CGFloat = jumpButtonGap - contentPadding
+
+    /// The margin between the bar's controls and the screen's sides: ``compactInset`` while the bar
+    /// rests compact, ``edgeInset`` while composing.
+    static func controlInset(isCompact: Bool) -> CGFloat {
+        isCompact ? compactInset : edgeInset
+    }
+
+    /// Distance from the screen's side to the centre of the bar's trailing control (Send Cash). The
+    /// jump-to-bottom button centres on this column.
+    static func trailingControlCentreInset(isCompact: Bool) -> CGFloat {
+        controlInset(isCompact: isCompact) + contentHeight / 2
+    }
+
+    /// How far a toast comes back down into the compact bar's measured height, so it rests 8pt above
+    /// the controls: the bar's top margin, its drop into the safe area, and the 4pt the toast host's
+    /// 12pt padding exceeds that gap.
+    static let toastOverlap: CGFloat = contentPadding + compactDrop + 4
 }
 
 /// What stands outside the message field, beside it.
@@ -319,7 +376,7 @@ struct ConversationBottomBar: View {
     var quoteThumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
-    private static let widthSpring = Animation.spring(duration: 0.22, bounce: 0.14)
+    private static let widthSpring = ChatMotion.barInset.animation
     /// `$` splitting from the field's glass and joining back into it. Low bounce, so the overshoot
     /// does not carry the drop back into the field it just left.
     private static let cashSpring = Animation.spring(duration: 0.42, bounce: 0.12)
@@ -331,7 +388,7 @@ struct ConversationBottomBar: View {
         .combined(with: .scale(scale: 0.4))
     /// The gap between the field and the control beside it: cancel-edit on its left, `$` on its right. The composer's glass joins across no
     /// more than this, so `$` stays bridged to the field while it travels and pinches off at rest.
-    static let leadingSpacing: CGFloat = 10
+    static let leadingSpacing: CGFloat = BarMetrics.controlSpacing
     /// How close the composer's glass shapes come before they flow together: under the resting gap,
     /// so `$` is bridged to the field while it travels and stands clear of it at rest.
     private static let glassJoinDistance: CGFloat = 8
@@ -341,7 +398,7 @@ struct ConversationBottomBar: View {
     private var isCompact: Bool { !model.isComposing }
 
     /// How much further in than ``BarMetrics/edgeInset`` the controls and the reply quote sit.
-    private var compactExtraInset: CGFloat { isCompact ? BarMetrics.compactInset - BarMetrics.edgeInset : 0 }
+    private var compactExtraInset: CGFloat { BarMetrics.controlInset(isCompact: isCompact) - BarMetrics.edgeInset }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -507,6 +564,12 @@ struct ConversationBottomBar: View {
         // The strip arriving with its first chip and leaving with its last, on the chip spring unless
         // a capture's animation is already carrying it.
         .transaction(value: ComposerChipStrip.isShown(chipCount: composer.chips.count, isEditing: composer.isEditing)) { transaction in
+            if transaction.animation == nil, !transaction.disablesAnimations {
+                transaction.animation = ChatMotion.composerChip.animation
+            }
+        }
+        // The link card arriving and leaving on the same spring as a photo chip.
+        .transaction(value: composer.showsLinkPreview) { transaction in
             if transaction.animation == nil, !transaction.disablesAnimations {
                 transaction.animation = ChatMotion.composerChip.animation
             }
@@ -1245,6 +1308,13 @@ struct ConversationComposer: View {
                 .padding(.top, BarMetrics.fieldVerticalPadding / 2)
                 .transition(motion.stripTransition(isLanding: model.attachCard.landingChipID != nil))
             }
+            if composer.showsLinkPreview {
+                ComposerLinkChip(preview: composer.linkPreview, onRemove: { composer.linkPreview.remove() })
+                    .padding(.leading, Self.leadingInset - BarMetrics.fieldPadding)
+                    .padding(.trailing, Self.leadingInset - BarMetrics.fieldPadding)
+                    .padding(.top, BarMetrics.fieldVerticalPadding / 2)
+                    .transition(motion.stripTransition(isLanding: false))
+            }
             row
         }
 
@@ -1262,6 +1332,9 @@ struct ConversationComposer: View {
             }
         }
         .onChange(of: composer.draft) { _, text in
+            if !composer.isEditing {
+                composer.linkPreview.update(for: text)
+            }
             guard let conversationID else { return }
             conversationController.draftDidChange(text, in: conversationID)
         }
@@ -1345,6 +1418,10 @@ struct ConversationComposer: View {
             // travels with the text, since restoring the words alone would downgrade it to a loose
             // message.
             let draft = composer.persistableDraft
+            let linkPreview: MessageLinkPreview? = switch outgoing {
+            case .text(let text):       composer.linkPreview.attachment(for: text)
+            case .media(_, let caption): caption.flatMap(composer.linkPreview.attachment(for:))
+            }
             composer.clear()
             isFocused = true
             switch outgoing {
@@ -1354,14 +1431,27 @@ struct ConversationComposer: View {
                         text,
                         to: conversationID,
                         repliedTo: repliedTo,
+                        linkPreview: linkPreview,
                         restoringOnFailure: draft
                     )
                 }
             case .media(let chips, let caption):
                 // A photo that fails stays in the transcript to be retried, so nothing goes back
-                // into the field.
+                // into the field. A caption carries no link preview, so text with one follows the
+                // photos as its own message.
+                let followingText: (text: String, linkPreview: MessageLinkPreview)? = if let caption, let linkPreview {
+                    (caption, linkPreview)
+                } else {
+                    nil
+                }
                 Task {
-                    await conversationController.sendMedia(chips, caption: caption, to: conversationID, repliedTo: repliedTo)
+                    await conversationController.sendMedia(
+                        chips,
+                        caption: followingText == nil ? caption : nil,
+                        followedBy: followingText,
+                        to: conversationID,
+                        repliedTo: repliedTo
+                    )
                 }
             }
         case .editing(let messageID, _):

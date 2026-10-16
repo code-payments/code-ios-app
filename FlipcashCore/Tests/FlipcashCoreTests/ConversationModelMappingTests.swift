@@ -852,6 +852,26 @@ struct ConversationMessageContentEncodingTests {
         #expect(message.content == .widget(.unrecognized))
     }
 
+    @Test("A content type this build doesn't know is kept as an unrecognized widget, not dropped")
+    func unknownContentTypeIsUnrecognized() throws {
+        // Field 99 is not a member of `Content.type` in this build, so it decodes into
+        // `unknownFields` and leaves the oneof unset, as a newer content type would.
+        let content = try Flipcash_Messaging_V1_Content(serializedBytes: Data([0x98, 0x06, 0x01]))
+        #expect(content.type == nil)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.content = [content]
+        }
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.content == .widget(.unrecognized))
+    }
+
+    @Test("A message with no content entry is still dropped")
+    func emptyContentIsDropped() {
+        let proto = Flipcash_Messaging_V1_Message.with { $0.messageID = .with { $0.value = 9 } }
+        #expect(ConversationMessage(proto) == nil)
+    }
+
     @Test("A widget can't be sent through the content encoder")
     func widgetIsNotEncodable() throws {
         let widget = ConversationMessage.Content.widget(.shareProfile(ShareProfileWidget(username: try #require(Username("alice")))))

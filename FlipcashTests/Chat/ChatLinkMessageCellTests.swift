@@ -254,7 +254,7 @@ struct ChatLinkMessageCellTests {
             sender: .me,
             linkPreview: LinkPreview(
                 links: [DetectedLink(range: range, url: url(link))],
-                card: .web(LinkCard.Web(url: url(link), range: range))
+                card: .web(LinkCard.Web(url: url(link), range: range, page: MessageLinkPreview(url: link, title: "Example", description: nil, image: nil)))
             )
         )
         let cell = makeCell()
@@ -277,7 +277,7 @@ struct ChatLinkMessageCellTests {
             sender: .me,
             linkPreview: LinkPreview(
                 links: [DetectedLink(range: range, url: url(link))],
-                card: .web(LinkCard.Web(url: url(link), range: range))
+                card: .web(LinkCard.Web(url: url(link), range: range, page: MessageLinkPreview(url: link, title: "Example", description: nil, image: nil)))
             )
         )
         let cell = makeCell()

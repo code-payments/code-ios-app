@@ -40,14 +40,6 @@ public protocol LinkCardSource: AnyObject {
     /// next row to show that link is about to want.
     func states(for card: LinkCard) -> AsyncStream<LinkCard.State>
 
-    /// The bytes of a web card's preview image, or nil when it cannot be fetched.
-    func webImage(for url: URL) async -> Data?
-
-    /// The bytes of a web card's preview image if already held in memory, without suspending.
-    ///
-    /// Lets a card draw an image it has shown before on its first frame instead of the loading slot.
-    func cachedWebImage(for url: URL) -> Data?
-
     /// Where to draw a message card's photo from, or nil when it cannot be fetched or the card
     /// carries no blob (a viewer below the chat's rules gets the BlurHash alone).
     func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation?
@@ -62,14 +54,6 @@ public protocol LinkCardSource: AnyObject {
 
 extension LinkCardSource {
 
-    /// The bytes of a web card's preview image, or nil when it cannot be fetched.
-    ///
-    /// Nil by default, so a source with no web lookup draws every web card without its image.
-    public func webImage(for url: URL) async -> Data? { nil }
-
-    /// Nil by default: nothing is held, so every image goes through ``webImage(for:)``.
-    public func cachedWebImage(for url: URL) -> Data? { nil }
-
     /// Nil by default, so a source with no photo lookup draws every photo as its BlurHash.
     public func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation? { nil }
 
@@ -80,26 +64,3 @@ extension LinkCardSource {
     public func cachedChatAvatar(for chatID: ConversationID) -> Data? { nil }
 }
 
-/// Whether a web card in this transcript looks its page up on its own or waits to be asked.
-///
-/// Never stored on the card or in the memo: a cached answer must not say who asked for it.
-public enum WebLinkPreviewMode: Sendable, Equatable {
-    /// Members of the chat, and anyone in a DM: the card asks as soon as it draws.
-    case automatic
-    /// A viewer outside the group: the card shows a chip and asks only once it is tapped.
-    case tapToLoad
-}
-
-/// The web links a transcript's viewer has asked to preview through the chip.
-///
-/// Held by the transcript and shared by its rows, so a row recycled after the tap does not show the
-/// chip again. Never persisted, and never part of the card or the memo.
-@MainActor
-public final class WebPreviewRequests {
-    private var urls: Set<URL> = []
-
-    public init() {}
-
-    public func insert(_ url: URL) { urls.insert(url) }
-    public func contains(_ url: URL) -> Bool { urls.contains(url) }
-}

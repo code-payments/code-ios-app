@@ -33,8 +33,6 @@ final class LinkCardFeed: LinkCardSource {
     private let claims: CashLinkClaimLog
     private let groups: any GroupLinkPresenting
     private let users: any UserLinkPresenting
-    private let webImages: @Sendable (URL) async -> Data?
-    private let cachedWebImages: @Sendable (URL) -> Data?
     /// Mints a message card photo's download URL, and its decryption for an encrypted chat.
     private let messagePhotos: @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation?
     private let chatAvatars: @MainActor (ConversationID) async -> Data?
@@ -85,8 +83,6 @@ final class LinkCardFeed: LinkCardSource {
         claims: CashLinkClaimLog,
         groups: any GroupLinkPresenting,
         users: any UserLinkPresenting,
-        webImages: @escaping @Sendable (URL) async -> Data? = { await WebImageSource.shared.data(for: $0) },
-        cachedWebImages: @escaping @Sendable (URL) -> Data? = { WebImageSource.shared.cached(for: $0) },
         messagePhotos: @escaping @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation? = { _, _ in nil },
         chatAvatars: @escaping @MainActor (ConversationID) async -> Data? = { _ in nil },
         cachedChatAvatars: @escaping @MainActor (ConversationID) -> Data? = { _ in nil }
@@ -96,8 +92,6 @@ final class LinkCardFeed: LinkCardSource {
         self.claims = claims
         self.groups = groups
         self.users = users
-        self.webImages = webImages
-        self.cachedWebImages = cachedWebImages
         self.messagePhotos = messagePhotos
         self.chatAvatars = chatAvatars
         self.cachedChatAvatars = cachedChatAvatars
@@ -126,18 +120,10 @@ final class LinkCardFeed: LinkCardSource {
         case .group, .user:
             fetched[card.resolutionKey].map(present)
         case .web:
-            memo.web(card.resolutionKey).map(LinkCard.State.web)
+            nil
         case .message:
             messageStates[card.resolutionKey]
         }
-    }
-
-    func webImage(for url: URL) async -> Data? {
-        await webImages(url)
-    }
-
-    func cachedWebImage(for url: URL) -> Data? {
-        cachedWebImages(url)
     }
 
     func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation? {
@@ -207,29 +193,9 @@ final class LinkCardFeed: LinkCardSource {
                 if state.isResolved { messageStates[key] = state }
                 listeners[key]?.values.forEach { $0.yield(state) }
             }
-        case .web(let web):
-            Task { [resolver, memo] in
-                await memo.awaitLoaded()
-                if let held = memo.web(key) {
-                    deliver(.web(held), for: key, generation: generation)
-                    return
-                }
-                // A failure is not remembered, but the card still hears it: a link-only message's
-                // placeholder has to give way to its text bubble.
-                guard let state = await resolver.web(web) else {
-                    deliver(.web(.none), for: key, generation: generation)
-                    return
-                }
-                memo.recordWeb(state, for: key)
-                deliver(.web(state), for: key, generation: generation)
-            }
-        }
-    }
-
-    /// Starts lookups for web cards that are not held yet. Callers decide whether a fetch may happen now.
-    func prefetch(_ cards: [LinkCard]) {
-        for case .web(let web) in cards where known(.web(web)) == nil {
-            ask(.web(web))
+        case .web:
+            // Its page came with the message; there is nothing to ask.
+            break
         }
     }
 
@@ -240,9 +206,7 @@ final class LinkCardFeed: LinkCardSource {
     // offline.
     private func deliver(_ state: LinkCard.State, for key: String, generation: Int) {
         guard generation == generations[key, default: 0] else { return }
-        if case .web = state {
-            // Recorded with its TTL by the web branch of `ask`.
-        } else if state.isResolved {
+        if state.isResolved {
             memo.record(state, for: key)
         }
         listeners[key]?.values.forEach { $0.yield(state) }

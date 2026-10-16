@@ -544,6 +544,30 @@ struct DatabaseConversationsTests {
         #expect(try database.getConversationMessages(conversationID: id) == [message])
     }
 
+    @Test("A text message reloads with the link preview its sender built, image included")
+    func linkPreviewRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let preview = MessageLinkPreview(
+            url: "https://example.com/a", title: "Example", description: nil,
+            image: MediaAttachment(
+                blobID: BlobID(data: Data(repeating: 9, count: 16)), width: 300, height: 400, blurhash: nil,
+                sealed: SealedBlob(senderID: otherID, plaintextSize: 4321)
+            )
+        )
+        let message = ConversationMessage(
+            id: MessageID(value: 1), senderID: otherID,
+            content: .text("see https://example.com/a"),
+            date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 3,
+            linkPreview: preview
+        )
+
+        try database.upsertConversationMessages([message], conversationID: id)
+
+        #expect(try database.getConversationMessages(conversationID: id).first?.linkPreview == preview)
+    }
+
     @Test("A redacted media message reloads still redacted, so its bytes stay unfetched after a relaunch")
     func redactedMediaRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

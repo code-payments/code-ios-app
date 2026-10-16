@@ -68,8 +68,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// media and reply, so a widget decrypted out of `EncryptedContent` is still unsupported.
     public enum Widget: Hashable, Sendable {
         case shareProfile(ShareProfileWidget)
-        /// A variant this client doesn't recognize, or one missing what it needs (a malformed
-        /// username). Drawn as an unsupported message.
+        /// A variant this client doesn't recognize, one missing what it needs (a malformed
+        /// username), or a message content type this client doesn't know. Drawn as an unsupported
+        /// message.
         case unrecognized
     }
 
@@ -100,6 +101,10 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public let content: Content
     /// How a `.cash` message was delivered (sent vs. tipped); `nil` for non-cash content.
     public let cashAction: CashAction?
+    /// The member a group-chat `.cash` payment was sent to; `nil` for DM cash (the counterpart is
+    /// implicit) and for non-cash content. Set only on messages built from the wire proto; it is
+    /// not persisted, so a message read back from the local store has `nil`.
+    public let cashReceiverID: UserID?
     public let date: Date
     public let unreadSeq: UInt64
     /// The event-log version at which this message reached its current state,
@@ -116,6 +121,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// path — link detection, the transcript mapper, the bubble, edit — sees the shape it
     /// always saw.
     public let repliedTo: MessageID?
+    /// The preview the sender built for a link in this text message, or `nil` when it carries none.
+    /// Like `repliedTo`, it decorates `.text` content rather than being a kind of its own.
+    public let linkPreview: MessageLinkPreview?
     /// Delivery state. `.sent` for every server/cache message; `.sending`/`.failed` only for an
     /// in-flight optimistic message.
     public var status: SendStatus
@@ -143,11 +151,13 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         senderID: UserID?,
         content: Content,
         cashAction: CashAction? = nil,
+        cashReceiverID: UserID? = nil,
         date: Date,
         unreadSeq: UInt64,
         eventSequence: UInt64 = 0,
         lastEditedTs: Date? = nil,
         repliedTo: MessageID? = nil,
+        linkPreview: MessageLinkPreview? = nil,
         status: SendStatus = .sent,
         clientMessageID: UUID? = nil,
         redacted: Bool = false,
@@ -159,11 +169,13 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.senderID = senderID
         self.content = content
         self.cashAction = cashAction
+        self.cashReceiverID = cashReceiverID
         self.date = date
         self.unreadSeq = unreadSeq
         self.eventSequence = eventSequence
         self.lastEditedTs = lastEditedTs
         self.repliedTo = repliedTo
+        self.linkPreview = linkPreview
         self.status = status
         self.clientMessageID = clientMessageID
         self.redacted = redacted
@@ -194,17 +206,19 @@ extension ConversationMessage {
     /// A copy carrying different content. Identity, ordering, and delivery status are preserved —
     /// this exists for the optimistic mutation overlay, which changes what a message says and
     /// nothing else about where it sits.
-    public func replacingContent(_ content: Content, lastEditedTs: Date?) -> ConversationMessage {
+    public func replacingContent(_ content: Content, lastEditedTs: Date?, linkPreview: MessageLinkPreview? = nil) -> ConversationMessage {
         ConversationMessage(
             id: id,
             senderID: senderID,
             content: content,
             cashAction: cashAction,
+            cashReceiverID: cashReceiverID,
             date: date,
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
             lastEditedTs: lastEditedTs,
             repliedTo: repliedTo,
+            linkPreview: linkPreview,
             status: status,
             clientMessageID: clientMessageID,
             redacted: redacted,
@@ -239,20 +253,24 @@ extension ConversationMessage {
         }
     }
 
-    /// A copy carrying the outcome of decrypting it: the decrypted content and the message it
-    /// replies to, or the reason it failed. Everything else is kept, including the ciphertext.
-    public func opened(_ outcome: Result<(content: Content, repliedTo: MessageID?), DecryptFailure>) -> ConversationMessage {
+    /// A copy carrying the outcome of decrypting it: the decrypted content, the message it replies
+    /// to and its `linkPreview`, or the reason it failed. Everything else is kept, including the
+    /// ciphertext.
+    public func opened(_ outcome: Result<(content: Content, repliedTo: MessageID?), DecryptFailure>, linkPreview: MessageLinkPreview? = nil) -> ConversationMessage {
         let content: Content
         let repliedTo: MessageID?
+        let preview: MessageLinkPreview?
         let failure: DecryptFailure?
         switch outcome {
         case .success(let plaintext):
             content = plaintext.content
             repliedTo = plaintext.repliedTo
+            preview = linkPreview
             failure = nil
         case .failure(let reason):
             content = self.content
             repliedTo = self.repliedTo
+            preview = self.linkPreview
             failure = reason
         }
         return ConversationMessage(
@@ -260,11 +278,13 @@ extension ConversationMessage {
             senderID: senderID,
             content: content,
             cashAction: cashAction,
+            cashReceiverID: cashReceiverID,
             date: date,
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
             lastEditedTs: lastEditedTs,
             repliedTo: repliedTo,
+            linkPreview: preview,
             status: status,
             clientMessageID: clientMessageID,
             redacted: redacted,
@@ -302,15 +322,20 @@ extension ConversationMessage {
 
 extension ConversationMessage {
     /// Builds a message from its proto, returning nil for content the client
-    /// can't represent (unknown type, or a cash amount that fails to parse). A
+    /// can't represent (no content, a system message, or a cash amount that
+    /// fails to parse). A content type this build doesn't know is kept as an
+    /// unrecognized widget so it draws as unsupported. A
     /// deleted message materializes as a `.deleted` tombstone — never nil — so
     /// it converges the same way across the stream, `GetMessages`, and `GetDelta`
     /// and can't leave the pre-delete content on screen.
     public init?(_ proto: Flipcash_Messaging_V1_Message) {
         let repliedTo: MessageID?
+        var linkPreview: MessageLinkPreview?
+        var cashReceiverID: UserID?
         switch proto.content.first?.type {
         case .text(let textContent):
             self.content = .text(textContent.text)
+            linkPreview = .first(of: textContent)
             self.cashAction = nil
             repliedTo = nil
         case .cash(let cashContent):
@@ -320,6 +345,7 @@ extension ConversationMessage {
             self.content = .cash(amount)
             // Unrecognized verbs fall back to `.sent`, per the proto contract.
             self.cashAction = cashContent.verb == .tipped ? .tipped : .sent
+            cashReceiverID = cashContent.hasReceiver ? try? UUID(data: cashContent.receiver.value) : nil
             repliedTo = nil
         case .deleted(let deletedContent):
             self.content = .deleted(
@@ -339,6 +365,7 @@ extension ConversationMessage {
             switch replyContent.content.first?.type {
             case .text(let textContent):
                 self.content = .text(textContent.text)
+                linkPreview = .first(of: textContent)
             case .media(let mediaContent):
                 guard let content = Content(mediaContent) else { return nil }
                 self.content = content
@@ -363,7 +390,8 @@ extension ConversationMessage {
             repliedTo = nil
         case .widget(let widgetContent):
             // Kept even when the variant is unknown: a widget has no fallback text, so the contract
-            // is that a client which can't draw one shows the message as unsupported.
+            // is that a client which can't draw one shows the message as unsupported. A poll widget
+            // is such a variant until the app can draw one.
             self.content = .widget(widgetContent.shareProfile.map(Widget.shareProfile) ?? .unrecognized)
             self.cashAction = nil
             repliedTo = nil
@@ -372,16 +400,24 @@ extension ConversationMessage {
             self.cashAction = nil
             repliedTo = nil
         case .none:
-            return nil
+            // A present entry with no known type is a variant added after this build. It reuses the
+            // unrecognized widget, whose stored shape (kind 4, no text) already reads back as
+            // unsupported, so keeping it needs no schema change.
+            guard !proto.content.isEmpty else { return nil }
+            self.content = .widget(.unrecognized)
+            self.cashAction = nil
+            repliedTo = nil
         }
 
         self.id = MessageID(proto.messageID)
+        self.cashReceiverID = cashReceiverID
         self.senderID = try? UUID(data: proto.senderID.value)
         self.date = proto.hasTs ? proto.ts.date : .now
         self.unreadSeq = proto.unreadSeq
         self.eventSequence = proto.eventSequence
         self.lastEditedTs = proto.hasLastEditedTs ? proto.lastEditedTs.date : nil
         self.repliedTo = repliedTo
+        self.linkPreview = linkPreview
         self.status = .sent
         self.clientMessageID = nil
         self.redacted = proto.redacted
@@ -440,7 +476,8 @@ extension ConversationMessage.Content {
     }
 
     /// The `.system` content `proto` describes. Blank text becomes `""` and is kept, not dropped, so the
-    /// message still anchors the read pointer and the unread divider.
+    /// message still anchors the read pointer and the unread divider. Only `fallback_text` is read, so
+    /// every `type` variant (`UserJoined` today) and an unset one render as their fallback text.
     init(_ proto: Flipcash_Messaging_V1_SystemContent) {
         let text = proto.fallbackText
         self = .system(fallbackText: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : text)

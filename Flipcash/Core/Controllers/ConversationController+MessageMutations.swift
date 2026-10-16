@@ -48,6 +48,9 @@ extension ConversationController {
                 messageID: messageID,
                 text: text,
                 repliedTo: current.repliedTo,
+                // An edit sends no fresh fetch: the preview built at send time stays only while
+                // its link is still whole in the new text.
+                linkPreview: current.linkPreview?.kept(for: text),
                 expectedEventSequence: current.eventSequence
             )
             settle(outcome, messageID: messageID, in: conversationID, operation: "edit-message")

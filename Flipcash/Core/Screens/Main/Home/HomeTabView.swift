@@ -38,18 +38,19 @@ struct HomeTabView: View {
         _selection = State(initialValue: initialTab)
         _hasOpenedChat = State(initialValue: initialTab == .chat)
 
-        // Color the tab glyphs per state: selected white, the rest secondary.
-        // The iOS 26 tab bar ignores UITabBar.unselectedItemTintColor, so drive
-        // it through a full item appearance instead. A transparent background
+        // Color the tab glyphs white in both states, as iOS 27 already does; the
+        // outline-vs-filled glyph carries the selection. The iOS 26 tab bar
+        // ignores UITabBar.unselectedItemTintColor, so drive it through a full
+        // item appearance instead. A transparent background
         // keeps the system's Liquid Glass. No-op on the legacy pill path, which
         // draws its own buttons rather than a `UITabBar`.
         if #available(iOS 26, *) {
             let items = UITabBarItemAppearance()
-            items.normal.iconColor = UIColor(Color.textSecondary)
+            items.normal.iconColor = UIColor(Color.textMain)
             items.selected.iconColor = UIColor(Color.textMain)
             // Labels per node 10642:1325: 10pt Avenir Demi, colored like the glyph above.
             let titleFont = UIFont.default(size: 10, weight: .semibold)
-            items.normal.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textSecondary)]
+            items.normal.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textMain)]
             items.selected.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textMain)]
 
             let appearance = UITabBarAppearance()
@@ -70,11 +71,31 @@ struct HomeTabView: View {
     /// Sheets already cover the bar, so only in-tab pushes need handling here.
     @State private var cardExpansion = WalletCardExpansion()
 
+    /// Set when the user comes back to a tab home from a screen pushed on it, so the update toast waits
+    /// only for the navigation to settle rather than the full dwell.
+    @State private var returnedToHome = false
+
+    private var hasPushedScreen: Bool {
+        selection.pushStack.map { !router[$0].isEmpty } ?? false
+    }
+
+    /// When the update toast may show on this view: the Chats or Wallet home, with nothing pushed or
+    /// covering it.
+    private var updateToastMoment: UpdateToastMoment? {
+        guard selection == .chat || selection == .wallet,
+              !hasPushedScreen,
+              !container.toasts.isCovered,
+              !sessionContainer.session.isShowingBill,
+              container.updateAvailability.isToastEligible
+        else { return nil }
+        return UpdateToastMoment(tab: selection, isReturn: returnedToHome)
+    }
+
     private var isTabBarHidden: Bool {
         selection.hidesTabBar(
             isWalletCardExpanded: cardExpansion.isExpanded,
             isShowingBill: sessionContainer.session.isShowingBill,
-            hasPushedScreen: selection.pushStack.map { !router[$0].isEmpty } ?? false
+            hasPushedScreen: hasPushedScreen
         )
     }
 
@@ -104,6 +125,17 @@ struct HomeTabView: View {
             .onDisappear { router.activeTabStack = nil }
             .onChange(of: router.presentedSheet != nil || sessionContainer.session.isShowingBill, initial: true) { _, covered in
                 container.toasts.isCovered = covered
+            }
+            .onChange(of: hasPushedScreen) { wasPushed, isPushed in
+                if wasPushed && !isPushed { returnedToHome = true }
+            }
+            .onChange(of: selection) { _, _ in returnedToHome = false }
+            .task(id: updateToastMoment) {
+                guard let moment = updateToastMoment else { return }
+                try? await Task.sleep(for: moment.isReturn ? UpdatePolicy.returnSettle : UpdatePolicy.homeDwell)
+                guard !Task.isCancelled else { return }
+                returnedToHome = false
+                container.updateAvailability.showToastIfEligible(on: container.toasts, timeout: UpdatePolicy.homeTimeout)
             }
             .onChange(of: sessionContainer.session.profile?.username, initial: true) { _, username in
                 sessionContainer.chatArchive.setViewerUsername(username)
@@ -341,6 +373,12 @@ struct HomeTabView: View {
             TipCardTab()
         }
     }
+}
+
+/// A tab home the update toast can show on, and whether the user just came back to it.
+private struct UpdateToastMoment: Equatable {
+    let tab: HomeTab
+    let isReturn: Bool
 }
 
 extension HomeTab {

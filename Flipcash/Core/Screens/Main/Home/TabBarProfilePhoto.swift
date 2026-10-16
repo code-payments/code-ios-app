@@ -160,8 +160,8 @@ final class TabBarProfilePhoto {
     ///
     /// The bar tints template glyphs per state, but a photo has to render as its
     /// own colours — so the unselected state is baked in here instead: the
-    /// thinner half-opacity ring, and the half opacity the pill applies to every
-    /// other icon.
+    /// thinner half-opacity ring, and the half opacity the pill draws the photo
+    /// at.
     static func render(_ photo: UIImage?) -> ItemImages? {
         guard let selected = image(of: ProfileTabIcon(photo: photo, isSelected: true)),
               let normal = image(of: ProfileTabIcon(photo: photo, isSelected: false).opacity(0.5))

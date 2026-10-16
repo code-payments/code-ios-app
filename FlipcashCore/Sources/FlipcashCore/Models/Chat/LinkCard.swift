@@ -60,16 +60,14 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case group(Group.State)
         case message(Message.State)
         case user(User.State)
-        case web(Web.State)
 
         /// Whether the lookup came back with something. A failure of any kind is `unresolved` (or
         /// `unavailable` for a group, `notFound` for a person), which is the one answer not worth remembering — the next
-        /// look asks again. A web page's `none` is false here too, though it is remembered for a day:
-        /// a web failure never reaches a state at all.
+        /// look asks again.
         public var isResolved: Bool {
             switch self {
-            case .cash(.resolved), .token(.resolved), .group(.resolved), .user(.resolved), .web(.resolved):  true
-            case .cash(.unresolved), .token(.unresolved), .group(.unavailable), .user(.notFound), .web(.none): false
+            case .cash(.resolved), .token(.resolved), .group(.resolved), .user(.resolved):  true
+            case .cash(.unresolved), .token(.unresolved), .group(.unavailable), .user(.notFound): false
             case .message(let state): state.isResolved
             }
         }
@@ -555,31 +553,29 @@ extension LinkCard {
 
 extension LinkCard {
 
-    /// An outside `https` page. Unlike the Flipcash cards it does not replace its link: the text
-    /// stays as written and the card draws under it, and only when the page had something to show.
+    /// An outside page the sender previewed. Unlike the Flipcash cards it does not replace its
+    /// link: the text stays as written and the card draws under it from `page`, which came with the
+    /// message, so the recipient never fetches anything.
     public struct Web: Hashable, Sendable, Codable {
 
         public let url: URL
         /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
         public let location: Int
         public let length: Int
+        /// The preview the sender attached.
+        public let page: MessageLinkPreview
 
         public var range: NSRange { NSRange(location: location, length: length) }
 
-        public init(url: URL, range: NSRange) {
+        public init(url: URL, range: NSRange, page: MessageLinkPreview) {
             self.url = url
             self.location = range.location
             self.length = range.length
+            self.page = page
         }
 
-        /// No loading case: an absent state is loading, and loading draws nothing.
-        public enum State: Hashable, Sendable, Codable {
-            /// The host answered with nothing to show. Remembered for `WebLinks.emptyTTL`.
-            case none
-            case resolved(Resolved)
-        }
-
-        /// What the page said about itself, cleaned for display.
+        /// What a fetched page said about itself, cleaned for display. The sender's fetch produces
+        /// it; the message carries a `MessageLinkPreview` built from it.
         public struct Resolved: Hashable, Sendable, Codable {
             public let title: String
             public let description: String?
@@ -610,7 +606,7 @@ nonisolated extension LinkCard {
         case .group(let group): .group(Group(url: group.url, chatID: group.chatID, range: range))
         case .message(let message): .message(Message(url: message.url, chatID: message.chatID, messageID: message.messageID, range: range))
         case .user(let user):   .user(User(url: user.url, identity: user.identity, range: range))
-        case .web(let web):     .web(Web(url: web.url, range: range))
+        case .web(let web):     .web(Web(url: web.url, range: range, page: web.page))
         }
     }
 }

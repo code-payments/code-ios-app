@@ -42,8 +42,11 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Where a link card looks its link up — see ``LinkCardFeed``. Container-scoped, so it outlives
     /// both this view and the rows that subscribe to it.
     let linkCardSource: any LinkCardSource
-    /// Whether web cards ask for their pages as they draw (DMs, members) or wait for the chip.
-    let webPreviewMode: WebLinkPreviewMode
+    /// The "Update Flipcash" capsule an `.updateApp` bubble draws, or nil while no newer version is known.
+    let updateAction: ChatBubbleAction?
+    /// The app's toast, raised over the bar and narrowed to its width while the chat is open. Passed in:
+    /// the bar's hosting controller doesn't inherit the environment.
+    let toasts: ToastController
     /// Fired when the user taps the "Encrypted" marker above a DM's first encrypted message.
     let onEncryptionMarkerTap: () -> Void
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
@@ -58,6 +61,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onMessagesSeen: (MessageID) -> Void
     /// Whether rows on screen count as read right now.
     let reportsReads: Bool
+    /// Inbound messages after the viewer's read pointer, for the jump-to-bottom badge.
+    let unreadBelowCount: Int
+    /// Fired on the reader's first drag after the opening scroll.
+    let onUserScrollBegan: () -> Void
     /// Fired when a reaction pill is tapped: the row's stable id and the toggled emoji.
     let onReactionTap: (String, String) -> Void
     /// Fired when a reaction pill is long-pressed: the row's stable id and emoji, to open the
@@ -135,6 +142,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var messageJump: MessageJump? = nil
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
+        let jump = JumpToBottomModel()
+        context.coordinator.jump = jump
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
         barHost.view.backgroundColor = .clear
         // The bar's content is pinned to the bottom of this view and overhangs the top while the
@@ -144,7 +153,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // indicator's safe area. Left to respect that safe area, the bar pushes its content up by
         // however far it rests into it, past the clip's top edge.
         barHost.safeAreaRegions = []
-        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
+        let jumpHost = UIHostingController(rootView: JumpToBottomOverlay(jump: jump, model: barModel))
+        jumpHost.view.backgroundColor = .clear
+        // The badge stands past the button's top edge.
+        jumpHost.view.clipsToBounds = false
+        jumpHost.safeAreaRegions = []
+        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost, jump: jump, jumpButtonController: jumpHost)
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
@@ -160,7 +174,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
-        screen.webPreviewMode = webPreviewMode
+        screen.updateAction = updateAction
         screen.onMediaTap = onMediaTap
         screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
         screen.onImagesPasted = onImagesPasted
@@ -191,6 +205,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
+        screen.unreadBelowCount = unreadBelowCount
+        screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
@@ -218,7 +234,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.ownProfile = ownProfile
         screen.onLinkCardTap = onLinkCardTap
         screen.linkCardSource = linkCardSource
-        screen.webPreviewMode = webPreviewMode
+        screen.updateAction = updateAction
         screen.onMediaTap = onMediaTap
         screen.acceptsPastedImages = acceptsMedia && editingStableID == nil
         screen.onImagesPasted = onImagesPasted
@@ -242,6 +258,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
+        screen.unreadBelowCount = unreadBelowCount
+        screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
         // has to claim the menu's blur before the dismissal fades it; it comes down here, whichever
@@ -349,6 +367,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 }
             )
             .environment(conversationController)
+            .toastClearance(toasts, horizontalInset: BarMetrics.compactInset, overlap: BarMetrics.toastOverlap)
             .modifier(
                 MeasuredBarHeight { height, accessories in
                     // After the update that measured it, not inside it. Resized inside an animated
@@ -374,6 +393,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     @MainActor final class Coordinator {
         var barHost: UIHostingController<AnyView>?
+        /// What the jump-to-bottom button shows; handed to the screen that drives it.
+        var jump: JumpToBottomModel?
         weak var screen: ChatScreenViewController?
         let model: ConversationBarModel
         let composer: ComposerModel
