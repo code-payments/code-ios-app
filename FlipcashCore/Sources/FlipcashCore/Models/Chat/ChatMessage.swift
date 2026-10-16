@@ -49,7 +49,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         /// The hint's copy: the body inside the bubble for `.updateApp`, the line under it otherwise.
         public var text: String {
             switch self {
-            case .updateApp: "Update Flipcash to see messages like this. This one stays hidden."
+            case .updateApp: "Update Flipcash to see new messages like this"
             case .askToResend(let firstName): "Ask \(firstName) to send it again"
             case .resend: "Try sending it again"
             }

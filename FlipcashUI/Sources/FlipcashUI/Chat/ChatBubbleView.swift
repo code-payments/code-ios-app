@@ -289,7 +289,7 @@ public final class ChatBubbleView: UIView {
                 groupedBelow: message.joinsBubbleBelow
             ),
             bare: isBare,
-            dashedBorder: Self.drawsDashedBorder(message),
+            border: Self.border(for: message),
             identity: message.id
         )
     }
@@ -305,13 +305,13 @@ public final class ChatBubbleView: UIView {
         }
     }
 
-    /// The hinted unavailable bubbles draw dashed; the update bubble draws as a plain received
-    /// bubble, as Figma component 11420:13397 has no outline.
-    private static func drawsDashedBorder(_ message: ChatMessage) -> Bool {
+    /// The hinted unavailable bubbles draw dashed; the update bubble keeps the received wash under
+    /// a fainter dashed outline, matching Android.
+    static func border(for message: ChatMessage) -> BubbleBackgroundView.Border {
         switch message.content {
-        case .unavailable(.updateApp):  false
-        case .unavailable(.askToResend), .unavailable(.resend): true
-        case .text, .cash, .deleted, .shareProfile, .media: false
+        case .unavailable(.updateApp):  .dashedOverWash
+        case .unavailable(.askToResend), .unavailable(.resend): .dashed
+        case .text, .cash, .deleted, .shareProfile, .media: .hairline
         }
     }
 
