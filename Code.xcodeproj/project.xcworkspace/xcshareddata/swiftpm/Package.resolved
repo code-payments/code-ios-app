@@ -1,5 +1,5 @@
 {
-  "originHash" : "44c64715516fa049f4ec78036ea21f0acae42d360ae655fde887e6a92f4c7d48",
+  "originHash" : "967b87f053de503ec7757ad7d9e6ebc7bb6a3b87ae116109d6b2630591c572f0",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/flipcash2-client-protocol",
       "state" : {
-        "revision" : "3f3e29b416a50047854984a5155c136c6489d455",
-        "version" : "0.19.0"
+        "revision" : "f0bc47eefd9c8d2074f229c91d3a950f4bed1b97",
+        "version" : "0.20.0"
       }
     },
     {
