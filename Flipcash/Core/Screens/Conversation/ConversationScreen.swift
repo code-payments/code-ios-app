@@ -633,7 +633,11 @@ struct ConversationScreen: View {
             VStack(spacing: 8) {
                 if let backChipTarget {
                     MessageLinkBackChip(title: conversationController.displayName(forConversationID: backChipTarget)) {
-                        router.navigate(to: .tipConversation(backChipTarget))
+                        if landing?.isOverReturnChat == true {
+                            router.popTopmost()
+                        } else {
+                            router.navigate(to: .tipConversation(backChipTarget))
+                        }
                     }
                     // 10pt under the bar, with the stack's own 8.
                     .padding(.top, 2)

@@ -260,7 +260,15 @@ struct DeepLinkAction {
             Analytics.groupInviteFollowed(source: source)
         }
 
-        container.appRouter.navigate(to: destination)
+        // A message link tapped in another chat goes on top of it, so the back chip and the back
+        // chevron return to that chat where the reader left it.
+        let router = container.appRouter
+        if case .chatMessage(let id, var landing) = destination, landing.returnTo != nil, router.canNavigateOver(destination) {
+            landing.isOverReturnChat = true
+            router.push(.chatMessage(id, landing))
+        } else {
+            router.navigate(to: destination)
+        }
     }
 
     /// The screen a chat id opens, or nil when it isn't one the app surfaces.
