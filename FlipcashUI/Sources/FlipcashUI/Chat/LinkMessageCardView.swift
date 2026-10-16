@@ -334,7 +334,7 @@ struct LinkMessageCardContent: View {
 
     @ViewBuilder private func excerptText(_ text: String, blurred: Bool) -> some View {
         let body = Text(Self.flattened(text))
-            .font(.default(size: 15))
+            .font(.default(size: 15, weight: .medium))
             .foregroundStyle(Color.white.opacity(Layout.excerptOpacity))
             .lineSpacing(Layout.excerptLineSpacing)
             .lineLimit(Layout.excerptLines)
@@ -357,7 +357,7 @@ struct LinkMessageCardContent: View {
 
     private func dimBody(_ text: String) -> some View {
         Text(text)
-            .font(.default(size: 15))
+            .font(.default(size: 15, weight: .medium))
             .foregroundStyle(Color.white.opacity(Layout.secondaryOpacity))
             .lineSpacing(Layout.excerptLineSpacing)
             .frame(maxWidth: .infinity, alignment: .leading)
